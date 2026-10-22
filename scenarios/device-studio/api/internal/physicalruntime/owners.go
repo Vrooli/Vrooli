@@ -5,6 +5,7 @@ package physicalruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"device-studio/internal/devices"
 	"device-studio/internal/library"
@@ -116,6 +117,80 @@ func (o Owners) InitializeReviewedStarter(ctx context.Context) (StarterState, er
 	return phone, nil
 }
 
+type StartupStarterIssue struct {
+	StarterID string
+	Err       error
+}
+
+// StartupStarterAvailability reports which built-in optional starter seeds
+// were available at boot. User-edited or otherwise advanced heads are left
+// untouched and reported, while unexpected storage/owner failures remain fatal.
+type StartupStarterAvailability struct {
+	Available []string
+	Issues    []StartupStarterIssue
+}
+
+// BootstrapStartersForStartup is intentionally separate from the explicit
+// InitializeReviewedStarter operation: startup tolerates known immutable-head
+// conflicts for optional starter seeds so existing projects remain usable.
+func (o Owners) BootstrapStartersForStartup(ctx context.Context) (StartupStarterAvailability, error) {
+	if o.Starter == nil {
+		return StartupStarterAvailability{}, errors.New("reviewed starter initializer is unavailable")
+	}
+	pinned, err := o.Starter.pinRoute(ctx)
+	if err != nil {
+		return StartupStarterAvailability{}, err
+	}
+	availability := StartupStarterAvailability{}
+	phone, err := o.Starter.initializePinned(pinned)
+	if err != nil {
+		if !isImmutableStarterConflict(err) {
+			return availability, fmt.Errorf("initialize startup phone starter: %w", err)
+		}
+		availability.Issues = append(availability.Issues, StartupStarterIssue{StarterID: "phone-default", Err: err})
+		availability.Issues = append(availability.Issues,
+			StartupStarterIssue{StarterID: "laptop-screen-vflip", Err: fmt.Errorf("requires unavailable phone study inputs: %w", err)},
+			StartupStarterIssue{StarterID: "monitor-screen-mapped-v2", Err: fmt.Errorf("requires unavailable phone study inputs: %w", err)},
+			StartupStarterIssue{StarterID: "monitor-default", Err: fmt.Errorf("requires unavailable phone study inputs: %w", err)},
+		)
+		return availability, nil
+	}
+	availability.Available = append(availability.Available, "phone-default")
+	laptop, err := o.Starter.initializeLaptopCandidatePinned(pinned)
+	if err != nil {
+		if !isImmutableStarterConflict(err) {
+			return availability, fmt.Errorf("initialize startup laptop starter: %w", err)
+		}
+		availability.Issues = append(availability.Issues, StartupStarterIssue{StarterID: "laptop-screen-vflip", Err: err})
+		availability.Issues = append(availability.Issues,
+			StartupStarterIssue{StarterID: "monitor-default", Err: fmt.Errorf("requires unavailable laptop study inputs: %w", err)},
+			StartupStarterIssue{StarterID: "monitor-screen-mapped-v2", Err: fmt.Errorf("requires unavailable laptop study inputs: %w", err)},
+		)
+		return availability, nil
+	}
+	availability.Available = append(availability.Available, "laptop-screen-vflip")
+	for _, seed := range []struct {
+		id string
+		fn func(context.Context, scenes.Revision, motions.Revision) (MonitorStarterState, error)
+	}{{"monitor-default", o.Starter.initializeMonitorCandidatePinned}, {"monitor-screen-mapped-v2", o.Starter.initializeMonitorScreenMappedCandidatePinned}} {
+		if _, err := seed.fn(pinned, laptop.FramedScene, phone.Motion); err != nil {
+			if !isImmutableStarterConflict(err) {
+				return availability, fmt.Errorf("initialize startup %s: %w", seed.id, err)
+			}
+			availability.Issues = append(availability.Issues, StartupStarterIssue{StarterID: seed.id, Err: err})
+			continue
+		}
+		availability.Available = append(availability.Available, seed.id)
+	}
+	return availability, nil
+}
+
+func isImmutableStarterConflict(err error) bool {
+	return errors.Is(err, devices.ErrRevisionConflict) || errors.Is(err, scenes.ErrRevisionConflict) ||
+		errors.Is(err, motions.ErrRevisionConflict) || errors.Is(err, shots.ErrPhysicalPresetConflict) ||
+		errors.Is(err, library.ErrRevisionConflict)
+}
+
 // InitializePhysicalStarter opts into one existing candidate initializer and
 // returns its immutable setup preset. Empty starter IDs are the legacy phone.
 func (o Owners) InitializePhysicalStarter(ctx context.Context, starterID string) (shots.PhysicalPresetRevision, error) {
@@ -132,6 +207,21 @@ func (o Owners) InitializePhysicalStarter(ctx context.Context, starterID string)
 	case "ipad-screen-uv-oriented-180":
 		state, err := o.InitializeReviewedIPadOrientedStarter(ctx)
 		return state.Preset, err
+	case "ipad-screen-landscape-quarter-turn":
+		state, err := o.InitializeReviewedIPadLandscapeStarter(ctx)
+		return state.Preset, err
+	case "ipad-screen-landscape-quarter-turn-v2":
+		state, err := o.InitializeReviewedIPadLandscapeV2Starter(ctx)
+		return state.Preset, err
+	case "ipad-portrait-cupfree-reviewed-source":
+		ipad, err := o.InitializeReviewedIPadOrientedStarter(ctx)
+		if err != nil {
+			return shots.PhysicalPresetRevision{}, err
+		}
+		if _, err := o.InitializeReviewedLaptopStarter(ctx); err != nil {
+			return shots.PhysicalPresetRevision{}, err
+		}
+		return ipad.Preset, nil
 	case "monitor-screen-mapped-v2":
 		if o.Starter == nil {
 			return shots.PhysicalPresetRevision{}, errors.New("monitor candidate initializer is unavailable")
@@ -200,7 +290,7 @@ func (o Owners) InitializePhysicalStarter(ctx context.Context, starterID string)
 		return state.Preset, err
 	case reviewedSmartDisplayV7StarterID:
 		return o.installReviewedSmartDisplayV7(ctx)
-	case "generic-round-watch-body-v4-floating-reviewed", "generic-television-concept-v3-reviewed", "generic-digital-frame-concept-v4-glassless-reviewed", "generic-digital-frame-wall-v5-mounted-reviewed", "generic-book-fold-v3-left-screen-vflip-static-reviewed", "laptop-screen-vflip-reviewed":
+	case "generic-round-watch-body-v4-floating-reviewed", "generic-television-concept-v3-reviewed", "generic-digital-frame-concept-v4-glassless-reviewed", "generic-digital-frame-wall-v5-mounted-reviewed", "generic-book-fold-v3-left-screen-vflip-static-reviewed", "laptop-screen-vflip-reviewed", "phone-study-hero-reviewed", "ipad-portrait-cupfree-reviewed", "monitor-study-matching-reviewed":
 		return o.installEmbeddedReviewedStarter(ctx, starterID)
 	case "generic-digital-frame-concept":
 		state, err := o.InitializeReviewedDigitalFrameCandidate(ctx)

@@ -15,7 +15,13 @@ func LoadOperatingModelDocuments(repoRoot string) ([]OperatingModelDocument, err
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(path), ".md") {
+		if d.IsDir() {
+			if isRetainedSourceArchiveDirectory(repoRoot, path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(path), ".md") {
 			return nil
 		}
 		rel, _ := filepath.Rel(repoRoot, path)
@@ -39,6 +45,26 @@ func LoadOperatingModelDocuments(repoRoot string) ([]OperatingModelDocument, err
 		return models[i].Source.Path < models[j].Source.Path
 	})
 	return models, nil
+}
+
+// isRetainedSourceArchiveDirectory keeps evidence archives out of live
+// operating-model discovery. Under docs/internal, a sources directory holds
+// retained inputs and historical copies, not additional current contracts.
+func isRetainedSourceArchiveDirectory(repoRoot, path string) bool {
+	internalDocs := filepath.Join(repoRoot, "docs", "internal")
+	rel, err := filepath.Rel(internalDocs, path)
+	if err != nil {
+		return false
+	}
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false
+	}
+	for _, part := range strings.Split(filepath.Clean(rel), string(filepath.Separator)) {
+		if part == "sources" {
+			return true
+		}
+	}
+	return false
 }
 
 func ExtractOperatingModelDocuments(path, sourcePath string) ([]OperatingModelDocument, error) {

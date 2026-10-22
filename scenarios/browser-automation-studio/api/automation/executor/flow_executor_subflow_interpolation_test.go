@@ -64,21 +64,37 @@ func TestExecuteGraphCompletesWhenAFailedStepIsConfiguredToContinue(t *testing.T
 	t.Parallel()
 
 	continueOnError := true
+	calls := 0
 	session := &enginemocks.Session{RunFunc: func(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
-		return contracts.StepOutcome{}, assert.AnError
+		calls++
+		if calls == 1 {
+			return contracts.StepOutcome{}, assert.AnError
+		}
+		return contracts.StepOutcome{Success: true}, nil
 	}}
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
 		WorkflowID:  uuid.New(),
-		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
-			Index:   0,
-			NodeID:  "recoverable-navigate",
-			Context: map[string]any{"continueOnError": continueOnError},
-			Action: &basactions.ActionDefinition{
-				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
-				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{
+			{
+				Index:    0,
+				NodeID:   "recoverable-navigate",
+				Context:  map[string]any{"continueOnError": continueOnError},
+				Outgoing: []contracts.PlanEdge{{Target: "recovery-step"}},
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+				},
 			},
-		}}},
+			{
+				Index:  1,
+				NodeID: "recovery-step",
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com/recovered"}},
+				},
+			},
+		}},
 	}
 
 	returned, err := NewSimpleExecutor(nil).executeGraph(
@@ -94,6 +110,52 @@ func TestExecuteGraphCompletesWhenAFailedStepIsConfiguredToContinue(t *testing.T
 	)
 	require.NoError(t, err)
 	require.Same(t, session, returned)
+	require.Equal(t, 2, calls, "an explicit continue_on_error=true must allow the next graph node to run")
+}
+
+func TestExecuteGraphStopsImmediatelyWhenNodeExplicitlyDisablesContinueOnError(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	session := &enginemocks.Session{RunFunc: func(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+		calls++
+		return contracts.StepOutcome{Success: false, Failure: &contracts.StepFailure{Code: "assertion_failed", Message: "expected state"}}, nil
+	}}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{
+			{
+				Index:    0,
+				NodeID:   "critical-assertion",
+				Context:  map[string]any{"continue_on_error": false},
+				Outgoing: []contracts.PlanEdge{{Target: "must-not-run"}},
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+				},
+			},
+			{
+				Index:  1,
+				NodeID: "must-not-run",
+				Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT},
+			},
+		}},
+	}
+	returned, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+		firstStep(plan.Graph),
+	)
+	require.ErrorContains(t, err, "step 0 failed: expected state")
+	require.Same(t, session, returned)
+	require.Equal(t, 1, calls, "downstream nodes must not run after explicit continue_on_error=false")
 }
 
 func TestExecuteGraphHonorsContinueOnErrorCompiledFromWorkflow(t *testing.T) {

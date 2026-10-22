@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"device-studio/internal/physical"
 )
 
 func TestSeedRegistryPreservesKnownAndUnknownFacts(t *testing.T) {
@@ -182,6 +184,52 @@ func TestCheckSupportRequiresGroupInterfaceAndEnvelope(t *testing.T) {
 	compatible.RequiresKnownEnvelope = false
 	if got := CheckSupport(d, compatible); got.Status != NeedsReview {
 		t.Fatalf("candidate-only support cannot be called compatible, got %+v", got)
+	}
+}
+
+func TestCheckSupportRequiresQuantifiedFitAndRejectsExceededEnvelope(t *testing.T) {
+	d := validFixture()
+	d.Supports = []SupportCapability{{Kind: "tabletop", InterfaceID: "base-a", Status: "qualified"}}
+	dims := d.Dimensions["default"]
+	quantified := func(value float64) Measurement {
+		lo, hi := value-1, value+1
+		return Measurement{Value: &value, Unit: "mm", Meaning: "fixture dimension", Configuration: "default", Method: "measured", Uncertainty: Uncertainty{Status: "quantified", Lower: &lo, Upper: &hi, Unit: "mm"}, Evidence: []Evidence{{Source: "fixture", Kind: "measurement"}}}
+	}
+	dims.Width, dims.Height, dims.Depth = quantified(70), quantified(140), quantified(8)
+	d.Dimensions["default"] = dims
+	slot := SupportSlot{ID: "desk-fit", Kind: "tabletop", AllowedGroups: []Group{GroupPhone}, RequiredInterface: "base-a", DimensionState: "default", RequiresKnownEnvelope: true, MaxEnvelopeM: &EnvelopeLimitM{Width: 0.071, Height: 0.141, Depth: 0.009}}
+	if got := CheckSupport(d, slot); got.Status != Compatible {
+		t.Fatalf("bounded quantified dimensions should fit, got %+v", got)
+	}
+	slot.MaxEnvelopeM.Width = 0.069
+	if got := CheckSupport(d, slot); got.Status != Incompatible {
+		t.Fatalf("dimension interval exceeding the declared slot should be incompatible, got %+v", got)
+	}
+	dims = d.Dimensions["default"]
+	dims.Width.Uncertainty = Uncertainty{Status: "unknown"}
+	d.Dimensions["default"] = dims
+	slot.MaxEnvelopeM.Width = 0.071
+	if got := CheckSupport(d, slot); got.Status != NeedsReview {
+		t.Fatalf("unknown measurement uncertainty must not be inferred to fit, got %+v", got)
+	}
+}
+
+func TestCheckPoseAtAndDisplayPreserveUnknownOrientationAndCutout(t *testing.T) {
+	d := validFixture()
+	d.SupportedPoses = []Pose{{Name: "front-up", Status: "qualified", RootRotation: &physical.QuatXYZW{W: 1}}}
+	if got := CheckPoseAt(d, "front-up", physical.QuatXYZW{W: 1}); got.Status != Compatible {
+		t.Fatalf("declared matching orientation should pass, got %+v", got)
+	}
+	if got := CheckPoseAt(d, "front-up", physical.QuatXYZW{X: 1}); got.Status != Incompatible {
+		t.Fatalf("unsupported orientation should fail, got %+v", got)
+	}
+	d.SupportedPoses[0].RootRotation = nil
+	if got := CheckPoseAt(d, "front-up", physical.QuatXYZW{W: 1}); got.Status != NeedsReview {
+		t.Fatalf("missing orientation is unknown, not a wildcard, got %+v", got)
+	}
+	d.Displays[0].HardwareOcclusions = []HardwareOcclusion{{ID: "camera-cutout", Kind: "camera_cutout", Region: Region{Status: "unknown", Shape: "rect"}}}
+	if got := CheckDisplay(d, d.Displays[0].ID); got.Status != NeedsReview {
+		t.Fatalf("unknown cutout must remain needs-review, got %+v", got)
 	}
 }
 

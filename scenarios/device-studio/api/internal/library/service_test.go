@@ -142,8 +142,10 @@ func TestResolveChecksBothReviewAndArtifactRightsAndVerifiesStream(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.OpenArtifact(ctx, "bundle-resolve", 2, "geometry-original", UseRedistribute); !errors.Is(err, ErrUseDenied) {
-		t.Fatalf("review-denied use = %v", err)
+	for _, deniedUse := range []Use{UseEdit, UseRedistribute} {
+		if _, err := service.OpenArtifact(ctx, "bundle-resolve", 2, "geometry-original", deniedUse); !errors.Is(err, ErrUseDenied) {
+			t.Fatalf("artifact/review-denied use %q = %v", deniedUse, err)
+		}
 	}
 	resolved, err := service.OpenArtifact(ctx, "bundle-resolve", 2, "geometry-original", UseRender)
 	if err != nil {

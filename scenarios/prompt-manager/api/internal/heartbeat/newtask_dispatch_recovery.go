@@ -101,11 +101,15 @@ func resolveTaskDispatch(ctx context.Context, owner taskDispatchOwner, snapshot 
 		if ctx.Err() != nil {
 			return nil, NewDispatchRejectedError(ctx.Err())
 		}
-		return nil, NewDispatchUncertainError(fmt.Errorf("lookup task %s before dispatch: %w", request.ID, err))
+		return nil, NewDispatchUncertainError(&dispatchStageFailure{
+			phase: dispatchFailurePhaseTaskLookup,
+			code:  "task_lookup_failed",
+			cause: fmt.Errorf("lookup task %s before dispatch: %w", request.ID, err),
+		})
 	}
 	if existing != nil {
 		if err := verifyTaskDispatchMatch(request, existing); err != nil {
-			return nil, NewDispatchUncertainError(err)
+			return nil, NewDispatchUncertainError(&dispatchStageFailure{phase: dispatchFailurePhaseTaskMatch, code: "task_terms_mismatch", cause: err})
 		}
 		return existing, nil
 	}
@@ -113,7 +117,7 @@ func resolveTaskDispatch(ctx context.Context, owner taskDispatchOwner, snapshot 
 	created, createErr := owner.CreateTask(ctx, request)
 	if createErr == nil {
 		if err := verifyTaskDispatchMatch(request, created); err != nil {
-			return nil, NewDispatchUncertainError(err)
+			return nil, NewDispatchUncertainError(&dispatchStageFailure{phase: dispatchFailurePhaseTaskMatch, code: "task_terms_mismatch", cause: err})
 		}
 		return created, nil
 	}
@@ -132,19 +136,31 @@ func resolveTaskDispatch(ctx context.Context, owner taskDispatchOwner, snapshot 
 
 	observed, lookupErr := owner.GetTask(ctx, request.ID)
 	if lookupErr != nil {
-		return nil, NewDispatchUncertainError(errors.Join(
-			fmt.Errorf("create task %s: %w", request.ID, createErr),
-			fmt.Errorf("reconcile task %s after create result: %w", request.ID, lookupErr),
-		))
+		return nil, NewDispatchUncertainError(&dispatchStageFailure{
+			phase: dispatchFailurePhaseTaskReconciliation,
+			code:  "task_create_reconciliation_failed",
+			cause: errors.Join(
+				fmt.Errorf("create task %s: %w", request.ID, createErr),
+				fmt.Errorf("reconcile task %s after create result: %w", request.ID, lookupErr),
+			),
+		})
 	}
 	if observed == nil {
 		if IsDispatchRejected(createErr) {
 			return nil, fmt.Errorf("create task %s: %w", request.ID, createErr)
 		}
-		return nil, NewDispatchUncertainError(fmt.Errorf("create task %s returned an ambiguous result and its exact-ID lookup still reports absence: %w", request.ID, createErr))
+		return nil, NewDispatchUncertainError(&dispatchStageFailure{
+			phase: dispatchFailurePhaseTaskCreate,
+			code:  "task_create_uncertain",
+			cause: fmt.Errorf("create task %s returned an ambiguous result and its exact-ID lookup still reports absence: %w", request.ID, createErr),
+		})
 	}
 	if err := verifyTaskDispatchMatch(request, observed); err != nil {
-		return nil, NewDispatchUncertainError(errors.Join(fmt.Errorf("create task %s: %w", request.ID, createErr), err))
+		return nil, NewDispatchUncertainError(&dispatchStageFailure{
+			phase: dispatchFailurePhaseTaskMatch,
+			code:  "task_terms_mismatch",
+			cause: errors.Join(fmt.Errorf("create task %s: %w", request.ID, createErr), err),
+		})
 	}
 	return observed, nil
 }

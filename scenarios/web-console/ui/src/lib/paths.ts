@@ -38,6 +38,17 @@ export function basename(path: string): string {
   return parts[parts.length - 1] || trimmed;
 }
 
+/**
+ * The parent directory of a path, or null when the path is a root (or relative
+ * with no addressable ancestor). Built from pathCrumbs so it honours the path's
+ * own POSIX/Windows/UNC flavour rather than assuming a separator.
+ */
+export function dirname(path: string): string | null {
+  const crumbs = pathCrumbs(path);
+  if (crumbs.length < 2) return null;
+  return crumbs[crumbs.length - 2]?.path ?? null;
+}
+
 /** One clickable ancestor in a breadcrumb: what to show, and where it goes. */
 export interface PathCrumb {
   label: string;

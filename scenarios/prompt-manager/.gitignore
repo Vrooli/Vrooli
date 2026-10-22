@@ -15,3 +15,4 @@ api/pm-api
 api/prompt-manager-api
 cli/prompt-manager
 api/migrate-knowledge-attribution
+/api/objectives-import

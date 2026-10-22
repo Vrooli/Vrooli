@@ -17,13 +17,14 @@ import (
 )
 
 const (
-	CandidateVersion = "scene-candidate/v1"
-	MaxArtifacts     = 64
-	MaxParts         = 256
-	MaxMaterials     = 128
-	MaxSlots         = 256
-	MaxFrames        = 128
-	MaxCanonicalJSON = 1 << 20
+	CandidateVersion      = "scene-candidate/v1"
+	CandidateVersionSlots = "scene-candidate/v2"
+	MaxArtifacts          = 64
+	MaxParts              = 256
+	MaxMaterials          = 128
+	MaxSlots              = 256
+	MaxFrames             = 128
+	MaxCanonicalJSON      = 1 << 20
 )
 
 type SceneCandidate struct {
@@ -35,6 +36,7 @@ type SceneCandidate struct {
 	MaterialSlots        []SceneMaterialSlot    `json:"material_slots"`
 	Parts                []ScenePart            `json:"parts"`
 	SupportFrames        []SceneSupportFrame    `json:"support_frames"`
+	SupportSlots         []SceneSupportSlot     `json:"support_slots,omitempty"`
 	CameraFrames         []SceneCameraFrame     `json:"camera_frames"`
 	LightFrames          []SceneLightFrame      `json:"light_frames"`
 	Environment          SceneEnvironment       `json:"environment"`
@@ -171,6 +173,21 @@ type SceneSupportFrame struct {
 	LoadDirectionLocal  *physical.Vec3 `json:"load_direction_local,omitempty"`
 }
 
+// SceneSupportSlot declares a fit contract for one physical support frame.
+// Envelope limits are maximum device dimensions in canonical metres.
+type SceneSupportSlot struct {
+	ID                string   `json:"id"`
+	FrameID           string   `json:"frame_id"`
+	Kind              string   `json:"kind"`
+	RequiredInterface string   `json:"required_interface"`
+	AllowedGroups     []string `json:"allowed_groups"`
+	DimensionState    string   `json:"dimension_state"`
+	RequiredPose      string   `json:"required_pose,omitempty"`
+	MaxWidthM         float64  `json:"max_width_m"`
+	MaxHeightM        float64  `json:"max_height_m"`
+	MaxDepthM         float64  `json:"max_depth_m"`
+}
+
 type Projection string
 
 const (
@@ -274,7 +291,7 @@ func CanonicalizeCandidate(input SceneCandidate) (SceneCandidate, []byte, string
 }
 
 func preflightCandidate(input SceneCandidate) error {
-	if len(input.Artifacts) > MaxArtifacts || len(input.Parts) > MaxParts || len(input.Materials) > MaxMaterials || len(input.MaterialSlots) > MaxSlots || len(input.SupportFrames) > MaxFrames || len(input.CameraFrames) > MaxFrames || len(input.LightFrames) > MaxFrames || len(input.Regions) > MaxFrames {
+	if len(input.Artifacts) > MaxArtifacts || len(input.Parts) > MaxParts || len(input.Materials) > MaxMaterials || len(input.MaterialSlots) > MaxSlots || len(input.SupportFrames) > MaxFrames || len(input.SupportSlots) > MaxFrames || len(input.CameraFrames) > MaxFrames || len(input.LightFrames) > MaxFrames || len(input.Regions) > MaxFrames {
 		return errors.New("scene candidate collection exceeds preflight bounds")
 	}
 	for i := range input.Materials {
@@ -286,13 +303,16 @@ func preflightCandidate(input SceneCandidate) error {
 }
 
 func validateAndCanonicalize(c *SceneCandidate) error {
-	if c.Version != CandidateVersion || !library.IsValidStableID(c.SceneID) || c.CoordinateConvention != physical.CoordinateConvention {
+	if (c.Version != CandidateVersion && c.Version != CandidateVersionSlots) || !library.IsValidStableID(c.SceneID) || c.CoordinateConvention != physical.CoordinateConvention {
 		return errors.New("scene candidate identity or coordinate convention is invalid")
+	}
+	if (c.Version == CandidateVersion && len(c.SupportSlots) != 0) || (c.Version == CandidateVersionSlots && len(c.SupportSlots) == 0) {
+		return errors.New("scene candidate version and support-slot declarations are inconsistent")
 	}
 	if len(c.Artifacts) == 0 || len(c.Artifacts) > MaxArtifacts || len(c.Parts) == 0 || len(c.Parts) > MaxParts || len(c.Materials) > MaxMaterials || len(c.MaterialSlots) > MaxSlots {
 		return errors.New("scene candidate artifact, part, material, or slot count is outside bounds")
 	}
-	if len(c.SupportFrames) > MaxFrames || len(c.CameraFrames) > MaxFrames || len(c.LightFrames) > MaxFrames || len(c.Regions) > MaxFrames {
+	if len(c.SupportFrames) > MaxFrames || len(c.SupportSlots) > MaxFrames || len(c.CameraFrames) > MaxFrames || len(c.LightFrames) > MaxFrames || len(c.Regions) > MaxFrames {
 		return errors.New("scene candidate frame or region count exceeds bounds")
 	}
 	artifacts := make(map[string]SceneArtifactBinding, len(c.Artifacts))
@@ -372,6 +392,9 @@ func validateAndCanonicalize(c *SceneCandidate) error {
 	if err := validateSupportFrames(c.SupportFrames, parts); err != nil {
 		return err
 	}
+	if err := validateSupportSlots(c.SupportSlots, c.SupportFrames); err != nil {
+		return err
+	}
 	if err := validateCameras(c.CameraFrames, parts); err != nil {
 		return err
 	}
@@ -393,6 +416,7 @@ func validateAndCanonicalize(c *SceneCandidate) error {
 	sort.Slice(c.Materials, func(i, j int) bool { return c.Materials[i].ID < c.Materials[j].ID })
 	sort.Slice(c.MaterialSlots, func(i, j int) bool { return slotKey(c.MaterialSlots[i]) < slotKey(c.MaterialSlots[j]) })
 	sort.Slice(c.SupportFrames, func(i, j int) bool { return c.SupportFrames[i].ID < c.SupportFrames[j].ID })
+	sort.Slice(c.SupportSlots, func(i, j int) bool { return c.SupportSlots[i].ID < c.SupportSlots[j].ID })
 	sort.Slice(c.CameraFrames, func(i, j int) bool { return c.CameraFrames[i].ID < c.CameraFrames[j].ID })
 	sort.Slice(c.LightFrames, func(i, j int) bool { return c.LightFrames[i].ID < c.LightFrames[j].ID })
 	sort.Slice(c.Regions, func(i, j int) bool { return c.Regions[i].ID < c.Regions[j].ID })
@@ -574,6 +598,33 @@ func validateSupportFrames(frames []SceneSupportFrame, parts map[string]ScenePar
 	return nil
 }
 
+func validateSupportSlots(slots []SceneSupportSlot, frames []SceneSupportFrame) error {
+	frameIDs := make(map[string]bool, len(frames))
+	for _, frame := range frames {
+		frameIDs[frame.ID] = true
+	}
+	seen := make(map[string]bool, len(slots))
+	for i := range slots {
+		slot := &slots[i]
+		if !library.IsValidStableID(slot.ID) || seen[slot.ID] || !frameIDs[slot.FrameID] || !library.IsValidStableID(slot.Kind) || !library.IsValidStableID(slot.RequiredInterface) || !library.IsValidStableID(slot.DimensionState) || !library.IsValidStableID(slot.RequiredPose) {
+			return fmt.Errorf("support slot %q has invalid identity or frame reference", slot.ID)
+		}
+		if len(slot.AllowedGroups) == 0 || len(slot.AllowedGroups) > 32 || !positive(slot.MaxWidthM) || !positive(slot.MaxHeightM) || !positive(slot.MaxDepthM) {
+			return fmt.Errorf("support slot %q requires allowed groups and a finite positive maximum envelope", slot.ID)
+		}
+		groups := make(map[string]bool, len(slot.AllowedGroups))
+		for _, group := range slot.AllowedGroups {
+			if !library.IsValidStableID(group) || groups[group] {
+				return fmt.Errorf("support slot %q has invalid or duplicate allowed group", slot.ID)
+			}
+			groups[group] = true
+		}
+		sort.Strings(slot.AllowedGroups)
+		seen[slot.ID] = true
+	}
+	return nil
+}
+
 func validateCameras(cameras []SceneCameraFrame, parts map[string]ScenePart) error {
 	seen := make(map[string]bool, len(cameras))
 	for i := range cameras {
@@ -705,6 +756,10 @@ func cloneCandidate(in SceneCandidate) SceneCandidate {
 			value := *in.SupportFrames[i].LoadDirectionLocal
 			out.SupportFrames[i].LoadDirectionLocal = &value
 		}
+	}
+	out.SupportSlots = append([]SceneSupportSlot(nil), in.SupportSlots...)
+	for i := range out.SupportSlots {
+		out.SupportSlots[i].AllowedGroups = append([]string(nil), in.SupportSlots[i].AllowedGroups...)
 	}
 	out.CameraFrames = append([]SceneCameraFrame(nil), in.CameraFrames...)
 	for i := range out.CameraFrames {

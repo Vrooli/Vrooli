@@ -106,17 +106,18 @@ type geometryContainment struct {
 	Enforcements []string `json:"enforcements"`
 }
 type geometrySandboxExec struct {
-	Command        string   `json:"command"`
-	Args           []string `json:"args"`
-	IsolationLevel string   `json:"isolationLevel"`
-	ExecutionMode  string   `json:"executionMode"`
-	AllowNetwork   *bool    `json:"allowNetwork"`
-	WorkingDir     string   `json:"workingDir"`
-	MemoryLimitMB  int      `json:"memoryLimitMB"`
-	CPUTimeSec     int      `json:"cpuTimeSec"`
-	TimeoutSec     int      `json:"timeoutSec"`
-	MaxProcesses   int      `json:"maxProcesses"`
-	MaxOpenFiles   int      `json:"maxOpenFiles"`
+	Command        string            `json:"command"`
+	Args           []string          `json:"args"`
+	Env            map[string]string `json:"env,omitempty"`
+	IsolationLevel string            `json:"isolationLevel"`
+	ExecutionMode  string            `json:"executionMode"`
+	AllowNetwork   *bool             `json:"allowNetwork"`
+	WorkingDir     string            `json:"workingDir"`
+	MemoryLimitMB  int               `json:"memoryLimitMB"`
+	CPUTimeSec     int               `json:"cpuTimeSec"`
+	TimeoutSec     int               `json:"timeoutSec"`
+	MaxProcesses   int               `json:"maxProcesses"`
+	MaxOpenFiles   int               `json:"maxOpenFiles"`
 }
 type geometrySandboxExecResult struct {
 	ExitCode    int                  `json:"exitCode"`
@@ -158,17 +159,27 @@ func runGeometryCompileSandbox(ctx context.Context, workspace string, manifest G
 	if err := geometrySandboxJSON(ctx, client, http.MethodPost, base+"/api/v1/sandboxes", create, &sandbox); err != nil {
 		return fmt.Errorf("workspace-sandbox create failed: %w", err)
 	}
-	if !validGeometryJobID(sandbox.ID) || sandbox.WorkspacePath == "" {
-		return errors.New("workspace-sandbox returned no valid sandbox identity or workspace path")
+	if sandbox.ID != "" {
+		// Install cleanup as soon as the owner returns an addressable sandbox
+		// identity. Even malformed ancillary metadata must not leak that scope.
+		defer func() {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			cleanupErr := cleanupGeometrySandbox(cleanupCtx, client, base, sandbox.ID)
+			if cleanupErr != nil {
+				retErr = errors.Join(retErr, fmt.Errorf("workspace-sandbox cleanup failed; execution may remain uncertain: %w", cleanupErr))
+			}
+		}()
 	}
-	defer func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		cleanupErr := cleanupGeometrySandbox(cleanupCtx, client, base, sandbox.ID)
-		if cleanupErr != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("workspace-sandbox cleanup failed; execution may remain uncertain: %w", cleanupErr))
-		}
-	}()
+	if sandbox.ID == "" {
+		return errors.New("workspace-sandbox returned no sandbox identity; the created scope cannot be safely targeted for cleanup")
+	}
+	if !validGeometryJobID(sandbox.ID) {
+		return errors.New("workspace-sandbox returned an invalid sandbox identity; cleanup was attempted")
+	}
+	if sandbox.WorkspacePath == "" {
+		return errors.New("workspace-sandbox returned no workspace path")
+	}
 	if sandbox.Containment == nil || sandbox.Containment.Backend == "" || sandbox.Containment.Backend == "none" {
 		return errors.New("workspace-sandbox did not provide an active containment backend")
 	}
@@ -178,7 +189,12 @@ func runGeometryCompileSandbox(ctx context.Context, workspace string, manifest G
 	manifestPath := filepath.Join(geometrySandboxWorkspaceAlias, GeometryManifestName)
 	workerPath := filepath.Join(geometrySandboxWorkspaceAlias, "worker")
 	allowNetwork := false
-	req := geometrySandboxExec{Command: workerPath, Args: []string{"geometry-compile-worker", "--manifest", manifestPath}, IsolationLevel: "full", ExecutionMode: "protected", AllowNetwork: &allowNetwork, WorkingDir: geometrySandboxWorkspaceAlias, MemoryLimitMB: 2048, CPUTimeSec: 45, TimeoutSec: 60, MaxProcesses: 8, MaxOpenFiles: 64}
+	// The API executable links cgo-backed services and needs several runtime
+	// threads even in deterministic worker mode. Keep a modest 32-task ceiling
+	// (below the existing geometry owner limit of 128), pin Go parallelism to
+	// two, and set a soft heap target. The 4 GiB RLIMIT_AS is virtual address
+	// space for the Go runtime; it is not a physical-memory or aggregate-RSS cap.
+	req := geometrySandboxExec{Command: workerPath, Args: []string{"geometry-compile-worker", "--manifest", manifestPath}, Env: map[string]string{"GOMAXPROCS": "2", "GOMEMLIMIT": "256MiB"}, IsolationLevel: "full", ExecutionMode: "protected", AllowNetwork: &allowNetwork, WorkingDir: geometrySandboxWorkspaceAlias, MemoryLimitMB: 4096, CPUTimeSec: 45, TimeoutSec: 60, MaxProcesses: 32, MaxOpenFiles: 64}
 	var result geometrySandboxExecResult
 	execURL := base + "/api/v1/sandboxes/" + url.PathEscape(sandbox.ID) + "/exec"
 	if err := geometrySandboxJSON(ctx, client, http.MethodPost, execURL, req, &result); err != nil {

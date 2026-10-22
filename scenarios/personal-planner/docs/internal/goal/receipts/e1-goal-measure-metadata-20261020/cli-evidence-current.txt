@@ -1,0 +1,7 @@
+path: scenarios/personal-planner/.vrooli/generated/cli-primitive-evidence.json
+baseline_sha256: dbb36f034546628155db05287f55f5d3bf6c232821b04e336f1336decedec759
+baseline_bytes: 13217
+current_sha256: c11d8af02d2e21bb28efaabcbe6cc7a2bde658ad2538e1f0405476e43e37d9c7
+current_bytes: 13193
+captured_current_at: 2026-10-20T20:49:01.185188+00:00
+change: owner test refreshed manifest hash and declared/observed primitive for goals create and goals list from proto_mutation/proto_list to action.

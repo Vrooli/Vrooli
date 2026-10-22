@@ -262,18 +262,6 @@ func (s *TeamExecutionStore) RetryManualDispatch(ctx context.Context, teamID, ag
 	return tec.RetryManualDispatch(ctx, agentID)
 }
 
-// MarkDispatchUncertain routes a retained uncertain obligation to the context
-// for teamID. No-op if no context exists yet for the team.
-func (s *TeamExecutionStore) MarkDispatchUncertain(teamID, agentID, reason string) {
-	s.mu.RLock()
-	tec, ok := s.contexts[teamID]
-	s.mu.RUnlock()
-	if !ok {
-		return
-	}
-	tec.MarkDispatchUncertain(agentID, reason)
-}
-
 // ClearRunning clears a single running entry on the given team's context.
 // Returns ErrRunningEntryNotFound if the context or entry is missing.
 func (s *TeamExecutionStore) ClearRunning(ctx context.Context, teamID, agentID string, force bool) error {
@@ -308,22 +296,53 @@ func (s *TeamExecutionStore) Status(teamID string) TeamExecutionStatus {
 			TeamID: teamID,
 			State:  "idle",
 			Queue:  []string{},
+			Owners: []TeamExecutionOwner{},
 		}
 	}
 	return tec.Status()
 }
 
-// OnComplete is the callback invoked when a heartbeat execution finishes.
-// It routes the completion to the correct TeamExecutionContext.
-func (s *TeamExecutionStore) OnComplete(teamID, agentID string) {
+// OnRunComplete routes completion only to the exact retained run owner.
+func (s *TeamExecutionStore) OnRunComplete(teamID, agentID, runID string) {
 	s.mu.RLock()
 	tec, ok := s.contexts[teamID]
 	s.mu.RUnlock()
-
 	if !ok {
 		return
 	}
-	tec.OnMemberComplete(agentID)
+	tec.OnMemberCompleteRun(agentID, runID)
+}
+
+func (s *TeamExecutionStore) IsCurrentRun(teamID, agentID, runID string) bool {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	return ok && tec.OwnsRun(agentID, runID)
+}
+
+func (s *TeamExecutionStore) ProfileKeyForRun(teamID, agentID, runID string) (string, bool) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return "", false
+	}
+	tec.mu.Lock()
+	defer tec.mu.Unlock()
+	entry, ok := tec.running[agentID]
+	if !ok || entry.RunID != runID {
+		return "", false
+	}
+	return entry.ProfileKey, true
+}
+
+func (s *TeamExecutionStore) MarkWatcherUnavailableForRun(teamID, agentID, runID string) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if ok {
+		tec.MarkWatcherUnavailableForRun(agentID, runID)
+	}
 }
 
 // MarkWatcherUnavailable retains the member slot when completion observation
@@ -343,15 +362,17 @@ func (s *TeamExecutionStore) RetryUnavailableWatcher(ctx context.Context, teamID
 // Recover loads persisted queue state for all known teams from disk and
 // reconciles each running entry against agent-manager via the per-context
 // AgentClient. See TeamExecutionContext.Recover for details.
-func (s *TeamExecutionStore) Recover(ctx context.Context) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *TeamExecutionStore) Recover(ctx context.Context) map[runOwnerIdentity]struct{} {
 	entries, err := readDirSafe(s.persistDir)
 	if err != nil {
-		return
+		return nil
 	}
 
+	// Publish each context while holding the store lock, then release it before
+	// recovery. Recover may synchronously reconcile a terminal run, whose
+	// completion callback looks this context up through the same store.
+	contexts := make([]*TeamExecutionContext, 0, len(entries))
+	s.mu.Lock()
 	for _, entry := range entries {
 		name := entry.Name()
 		if !isTeamQueueFile(name) {
@@ -361,18 +382,30 @@ func (s *TeamExecutionStore) Recover(ctx context.Context) {
 		if teamID == "" {
 			continue
 		}
+		if _, exists := s.contexts[teamID]; exists {
+			continue
+		}
 
 		tec := newTeamExecutionContext(teamID, s.executor, s.persistDir, s.agentClient)
 		s.applyDefaults(tec)
-		// Publish the context before recovery attaches async terminal waiters, so
-		// an immediate owner completion can route its callback to this context.
+		// Publish before Recover can attach a waiter or invoke a synchronous
+		// completion callback. GetOrCreate now returns this same context.
 		s.contexts[teamID] = tec
-		tec.Recover(ctx)
+		contexts = append(contexts, tec)
 	}
+	recoveredCount := len(s.contexts)
+	s.mu.Unlock()
 
-	if len(s.contexts) > 0 {
-		log.Printf("team_execution_store: recovered %d team context(s)", len(s.contexts))
+	queueOwners := make(map[runOwnerIdentity]struct{})
+	for _, tec := range contexts {
+		for _, owner := range tec.Recover(ctx) {
+			queueOwners[runOwnerIdentity{TeamID: owner.TeamID, AgentID: owner.AgentID, RunID: owner.RunID}] = struct{}{}
+		}
 	}
+	if recoveredCount > 0 {
+		log.Printf("team_execution_store: recovered %d team context(s)", recoveredCount)
+	}
+	return queueOwners
 }
 
 func (s *TeamExecutionStore) configureContext(ctx context.Context, teamID string) (*TeamExecutionContext, error) {

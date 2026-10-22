@@ -2,7 +2,8 @@ import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { appendFile, readFile, rm } from 'node:fs/promises';
+import { appendFile, chmod, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
 import { Script } from 'node:vm';
 import { cleanupSession } from '../../src/session/cleanup-registry';
 import { DriverPageBindings } from '../../src/session/page-bindings';
@@ -49,6 +50,7 @@ import {
   GestureHandler,
   DownloadHandler,
 } from '../../src/handlers';
+import { captureElectronDownload, createElectronDownloadObserver } from '../../src/handlers/electron-download';
 import { createTypedInstruction } from '../helpers/instruction-factory';
 import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { FrameHandler } from '../../src/handlers/frame';
@@ -180,6 +182,66 @@ describe('typed browser action semantics', () => {
       if (saved) await rm(saved, { force: true });
     }
   });
+
+  it('captures a real Chromium CDP GUID download into the target-owned private root', async () => {
+    const root = await mkdtemp(join(os.tmpdir(), 'bas-real-cdp-download-'));
+    await chmod(root, 0o700);
+    const downloadPath = join(root, 'downloads');
+    await mkdir(downloadPath, { mode: 0o700 });
+    await chmod(downloadPath, 0o700);
+    const browser = browserContext.browser();
+    if (!browser) throw new Error('Real CDP download test requires its launched browser');
+    const cdp = await browser.newBrowserCDPSession();
+    const bytes = 'actual Chromium GUID download bytes';
+    let outputPath: string | undefined;
+    let cdpOwnedByCapture = false;
+    try {
+      const { targetInfos } = await cdp.send('Target.getTargets');
+      const pageTarget = targetInfos.find(targetInfo => targetInfo.type === 'page' && targetInfo.url === page.url());
+      if (!pageTarget?.browserContextId) throw new Error('Browser target did not expose its owning context');
+      await page.route('http://download-fixture.test/private-file', async route => {
+        await route.fulfill({
+          contentType: 'application/octet-stream',
+          headers: { 'content-disposition': 'attachment; filename="private-fixture.txt"' },
+          body: bytes,
+        });
+      });
+      await page.evaluate(() => {
+        const link = document.createElement('a');
+        link.id = 'private-download';
+        link.href = 'http://download-fixture.test/private-file';
+        link.textContent = 'Download';
+        document.body.append(link);
+      });
+      const target = {
+        target_id: 'real-cdp-fixture',
+        cdp_endpoint: 'http://127.0.0.1:43123',
+        renderer_id: 'renderer-1',
+        renderer_url: 'file:///app/index.html',
+        scenario_name: 'device-studio',
+        artifact_digest: 'sha256:offline-appimage',
+        context_id: 'real-cdp-context',
+        cdp_transport: 'loopback-authenticated' as const,
+        test_database_root: root,
+        download_path: downloadPath,
+      };
+      const observer = createElectronDownloadObserver(cdp, pageTarget.browserContextId);
+      cdpOwnedByCapture = true;
+      const saved = await captureElectronDownload(
+        target,
+        observer,
+        () => page.locator('#private-download').click(),
+        2000
+      );
+      outputPath = saved.downloadPath;
+      expect(saved.filename).toBe('private-fixture.txt');
+      expect(await readFile(outputPath, 'utf8')).toBe(bytes);
+    } finally {
+      if (!cdpOwnedByCapture) await cdp.detach().catch(() => undefined);
+      if (outputPath) await rm(outputPath, { force: true });
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 15000);
 
   it.each(['html', 'aborted'])(
     'requires a download event after URL navigation: %s',

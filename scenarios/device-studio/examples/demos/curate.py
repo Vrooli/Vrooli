@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify, inspect, or create the six durable Device Studio demo projects."""
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -17,6 +18,49 @@ REPO_ROOT = ROOT.parents[3]
 MANIFEST = json.loads((ROOT / "manifest.json").read_text())
 STATE_PATH = ROOT / "run-state.json"
 API = "http://127.0.0.1:19349"
+
+# These are stable public starter-to-review-route associations. Revisions and
+# digests are always resolved from the live public owner below; never pin a
+# catalog head from a historical run-state when preparing an append.
+FAMILY_REVISION2 = {
+    "ipad-screen-uv-oriented-180": ("ipad-portrait-cupfree-fit-v2", "tablet_app"),
+    "generic-book-fold": ("generic-book-fold-still-v3-left-screen-vflip-static", "phone_frame0"),
+    "generic-round-watch-v2": ("generic-round-watch-body-floating-still-v4", "phone_frame0"),
+    "monitor-screen-mapped-v2": ("innerscene-monitor-study-hero-screenmap-v2", "monitor_app"),
+    "generic-television-concept-v3": ("generic-television-thin-bezel-still-v3", "laptop_app"),
+    "generic-smart-display-concept-v4": ("generic-smart-display-tabletop-still-v7", "laptop_app"),
+    "generic-digital-frame-concept-v4-glassless": ("innerscene-digital-frame-tabletop-still-v4-glassless", "laptop_app"),
+    "generic-digital-frame-wall-v4-glassless": ("innerscene-digital-frame-wall-still-v5-mounted", "laptop_app"),
+}
+
+WATCH_SYNTHETIC_SOURCE = "watch_synthetic_calibration"
+WATCH_SYNTHETIC_SCENE = {
+    "id": "generic-round-watch-body-floating-study-v4",
+    "prior_revision": 1,
+    "prior_sha256": "ad1d1c0eab51eca518c1473faab44e707a37e53c4abad6626a24fb82991b7e60",
+    "revision": 2,
+    "sha256": "24adf72a2ca5e6ea879d51a213055d258e48f41421e70e28c9a7ee87d258a60b",
+    "camera_id": "generic-round-watch-body-floating-study-v4-camera-v1",
+    "f_number": 16,
+    "focus_distance_m": 0.16099745801147922,
+}
+WATCH_SYNTHETIC_PRESET = {
+    "id": "generic-round-watch-body-floating-still-v4",
+    "prior_revision": 2,
+    "prior_sha256": "6e1b1ebb066b6e7e359808a183f83f36f77c98a9d8eb42edceb878f33cd2ef8e",
+    "revision": 3,
+    "sha256": "3be114c5bb76e6bf19eb686ce2b4d9139b4ee1843780398d91a2c4db3206928c",
+}
+WATCH_SYNTHETIC_SHOT = {
+    "id": "18467919-aa4f-4a55-92bf-e3bf9a202d1a",
+    "name": "Candidate 03 — generic round watch · synthetic 12:48 dial calibration",
+    "prior_revision": 3,
+    "prior_recipe_sha256": "8ca67729955776b0c383d0c90c40d5c0d81903edc7cf9b3ae90b4141821fe578",
+    "revision": 4,
+    "recipe_sha256": "9c6c33a2fc4510b983d91e9e82fd48363ba6afad8ff8a0891e345b9950512931",
+    "preset_sha256": "3be114c5bb76e6bf19eb686ce2b4d9139b4ee1843780398d91a2c4db3206928c",
+    "source_sha256": "68e83ddbcd27a7f74dfd659018c79f7c1b4cf1d31e86f1bf703c2c9203bf97f4",
+}
 
 
 class Stop(RuntimeError):
@@ -514,6 +558,410 @@ def family_showcase(project_id, media_ids, state):
         write_state(state)
 
 
+def family_route_rows():
+    """Resolve only the configured public route IDs from current owner reads."""
+    rows = pages("shots", "ShotsService", "ListPhysicalShotPresets", "presets", {"pageSize":100}, "afterPresetId")
+    by_id = {}
+    for row in rows:
+        preset_id = row.get("presetId")
+        if preset_id not in {value[0] for value in FAMILY_REVISION2.values()}:
+            continue
+        current = by_id.get(preset_id)
+        if current is None or integer(row.get("revision")) > integer(current.get("revision")):
+            by_id[preset_id] = row
+    devices = catalog_rows("devices", "ListDeviceCandidates", "candidates", "nextAfterDeviceId")
+    device_states = {(row.get("deviceId"), integer(row.get("revision"))): row.get("state") for row in devices}
+    result = {}
+    for starter, (preset_id, source_key) in FAMILY_REVISION2.items():
+        row = by_id.get(preset_id)
+        if not row or not row.get("sha256"):
+            raise Stop(f"current public preset {preset_id} is missing; preserving all family shot histories")
+        exact = preset({"id":preset_id,"revision":integer(row.get("revision")),"sha256":row["sha256"]})
+        setup = exact.get("setup") or {}
+        refs = refs_from_setup(setup)
+        if device_states.get((refs["device"]["id"], refs["device"]["revision"])) != "qualified":
+            raise Stop(f"{starter} route device {refs['device']['id']} revision {refs['device']['revision']} is not currently qualified")
+        result[starter] = {"preset":{"id":preset_id,"revision":integer(row["revision"]),"sha256":row["sha256"]},"setup":setup,"sourceKey":source_key}
+    return result
+
+
+def source_for_family(project_id, source_key, state):
+    key = f"family-showcase:{source_key}"
+    media_id = state.get("media", {}).get(key)
+    asset = MANIFEST["assets"].get(source_key)
+    if not asset:
+        raise Stop(f"family source {source_key} has no manifest SHA pin")
+    allowed_assets = next(e for e in MANIFEST["examples"] if e["id"] == "family-showcase").get("source_assets", [])
+    if source_key not in allowed_assets:
+        raise Stop(f"family source {source_key} is not explicitly assigned to the showcase source asset set")
+    if not media_id:
+        return ensure_media(project_id, "family-showcase", source_key, state)
+    rows = list_media(project_id)
+    matches = [row for row in rows if row.get("id") == media_id]
+    if len(matches) != 1 or matches[0].get("sha256") != asset["sha256"]:
+        raise Stop(f"family source {media_id} is missing or differs from the current pinned source bytes")
+    return matches[0]
+
+
+def family_revision2_snapshot(old_snapshot, setup, source_id):
+    snapshot = copy.deepcopy(old_snapshot)
+    presentation = snapshot.setdefault("presentation", {})
+    presentation.update({"sourceMediaId":source_id,"captureArea":"CAPTURE_AREA_APP_ONLY","kind":"PRESENTATION_KIND_PLAIN","fitMode":"SCREEN_FIT_MODE_CONTAIN"})
+    refs = refs_from_setup(setup)
+    width, height = display_dimensions(refs["device"], setup)
+    snapshot["physicalBinding"] = build_physical_binding(setup, width, height, backend="PHYSICAL_RENDER_BACKEND_CPU")
+    snapshot["motionMode"] = "MOTION_MODE_FIXED"
+    snapshot.pop("videoTiming", None)
+    snapshot.pop("cameraMotion", None)
+    return snapshot
+
+
+def digest_json(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+
+def append_family_revision2(project_id, state, starter, route, source):
+    name = next(f"Candidate {index:02d} — {starter}" for index, item in enumerate(
+        next(e for e in MANIFEST["examples"] if e["id"] == "family-showcase")["starter_ids"], 1) if item == starter)
+    key = f"family-showcase:{name}"
+    pin = state["shots"].get(key)
+    if not pin or not pin.get("id") or integer(pin.get("revision")) not in (1, 2):
+        raise Stop(f"{name} has no exact revision-1 or accepted revision-2 curator pin; refusing adoption")
+    shot_id = pin["id"]
+    opened = rpc("shots", "ShotsService", "GetShot", {"id":shot_id})
+    head = opened.get("head") or {}
+    head_revision = integer(head.get("revision"))
+    pending = state.setdefault("familyRevision2", {}).get(key)
+    if integer(pin.get("revision")) == 2:
+        accepted = (pending or {}).get("accepted") or {}
+        if head_revision != 2 or accepted.get("revision") != 2 or accepted.get("recipeSha256") != head.get("recipeSha256"):
+            raise Stop(f"{name} no longer matches the accepted revision-2 curator pin; refusing to overwrite a user edit")
+        current = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":2}).get("revision") or {}
+        current_snapshot = current.get("snapshot") or {}
+        if digest_json(current_snapshot) != accepted.get("targetSnapshotSha256"):
+            raise Stop(f"{name} accepted revision 2 changed after its checkpoint; preserving it and stopping")
+        if (current_snapshot.get("presentation") or {}).get("sourceMediaId") != source["id"]:
+            raise Stop(f"{name} accepted revision 2 no longer binds its pinned source")
+        for label in ("device", "scene", "motion"):
+            if (current_snapshot.get("physicalBinding") or {}).get(label) != route["setup"].get(label):
+                raise Stop(f"{name} accepted revision 2 no longer binds the current exact {label} route")
+        compiled = rpc("shots", "ShotsService", "CompileShot", {"shotId":shot_id,"revision":2}).get("compiled") or {}
+        if not compiled.get("renderEligible") or compiled.get("recipeSha256") != accepted.get("recipeSha256"):
+            raise Stop(f"{name} accepted revision 2 no longer compiles to its accepted recipe")
+        return {"name":name,"id":shot_id,"revision":2,"recipeSha256":compiled["recipeSha256"],
+                "sourceMediaId":source["id"],"sourceMediaSha256":source["sha256"],"preset":route["preset"],"resumed":True}
+    if head_revision == 1:
+        if pin.get("recipeSha256") and head.get("recipeSha256") and head["recipeSha256"] != pin["recipeSha256"]:
+            raise Stop(f"{name} revision 1 differs from the stored curator recipe pin")
+        old = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":1}).get("revision") or {}
+        old_snapshot = old.get("snapshot") or {}
+        if not old_snapshot:
+            raise Stop(f"{name} revision 1 has no reopenable snapshot")
+        target = family_revision2_snapshot(old_snapshot, route["setup"], source["id"])
+        target_sha = digest_json(target)
+        if pending and pending.get("targetSnapshotSha256") != target_sha:
+            raise Stop(f"{name} has an unresolved revision-2 write-ahead plan that differs from the current owner route")
+        if not pending:
+            pending = {"expectedRevision":1,"targetRevision":2,"targetSnapshotSha256":target_sha,
+                       "preset":route["preset"],"sourceMediaId":source["id"],"sourceMediaSha256":source["sha256"]}
+            state["familyRevision2"][key] = pending
+            state["schema"] = "device-studio-demo-run-state/v2"
+            write_state(state)
+        saved = rpc("shots", "ShotsService", "SaveShot", {"shotId":shot_id,"expectedRevision":1,"name":name,"snapshot":target})
+        response_revision = saved.get("revision") or {}
+        if integer(response_revision.get("revision")) != 2:
+            raise Stop(f"SaveShot for {name} returned no exact revision-2 receipt; preserving write-ahead plan")
+        head_revision = 2
+    elif head_revision == 2:
+        if not pending:
+            raise Stop(f"{name} is revision 2 without this curator's durable pending checkpoint; refusing to adopt it")
+        revision = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":2}).get("revision") or {}
+        if digest_json(revision.get("snapshot") or {}) != pending.get("targetSnapshotSha256"):
+            raise Stop(f"{name} revision 2 differs from this curator's write-ahead plan")
+    else:
+        accepted = state.setdefault("familyRevision2", {}).get(key, {}).get("accepted") or {}
+        if head_revision != 2 or accepted.get("revision") != head_revision or accepted.get("recipeSha256") != head.get("recipeSha256"):
+            raise Stop(f"{name} has unexpected head revision {head_revision}; refusing to overwrite a user edit")
+    revision = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":2}).get("revision") or {}
+    snapshot = revision.get("snapshot") or {}
+    if not snapshot or (snapshot.get("presentation") or {}).get("sourceMediaId") != source["id"]:
+        raise Stop(f"{name} revision 2 reopened with a different source binding")
+    physical = snapshot.get("physicalBinding") or {}
+    for label in ("device", "scene", "motion"):
+        if physical.get(label) != route["setup"].get(label):
+            raise Stop(f"{name} revision 2 reopened with a different exact {label} route")
+    compiled = rpc("shots", "ShotsService", "CompileShot", {"shotId":shot_id,"revision":2}).get("compiled") or {}
+    if not compiled.get("renderEligible"):
+        raise Stop(f"{name} revision 2 failed compilation: {json.dumps(compiled.get('issues', []))[:1200]}")
+    prior = {key:pin.get(key) for key in ("id", "revision", "compiled", "recipeSha256", "sourceMediaSha256", "preset") if key in pin}
+    history = pin.setdefault("history", [])
+    if not history or history[-1] != prior:
+        history.append(prior)
+    pin.update({"revision":2,"compiled":True,"recipeSha256":compiled.get("recipeSha256"),
+                "sourceMediaSha256":[source["sha256"]],"preset":dict(route["preset"],candidateOnly=True,starterId=starter)})
+    pending = state["familyRevision2"][key]
+    pending["accepted"] = {"revision":2,"recipeSha256":compiled.get("recipeSha256"),"targetSnapshotSha256":digest_json(snapshot)}
+    write_state(state)
+    return {"name":name,"id":shot_id,"revision":2,"recipeSha256":compiled.get("recipeSha256"),"sourceMediaId":source["id"],"sourceMediaSha256":source["sha256"],"preset":route["preset"]}
+
+
+def family_revise2():
+    get_health()
+    state = read_state()
+    project_id = state.get("projects", {}).get("family-showcase")
+    if project_id != "c952d9c8-eee6-40a7-8d75-2a1eea702261":
+        raise Stop("family-showcase project pin differs from the explicitly authorized PRIMARY target")
+    projects = [row for row in project_rows() if row.get("id") == project_id]
+    if len(projects) != 1 or projects[0].get("name") != "Device Studio demo — Remaining family showcase":
+        raise Stop("authorized family project identity did not reopen exactly")
+    routes = family_route_rows()
+    # Tablet and monitor are supplied as exact transferred primary-owner routes.
+    # Until then, retain those revision-1 shots untouched and never substitute old routes.
+    starters = [starter for starter in FAMILY_REVISION2 if starter in routes]
+    results = []
+    for starter in starters:
+        index = next(i for i, value in enumerate(
+            next(e for e in MANIFEST["examples"] if e["id"] == "family-showcase")["starter_ids"], 1) if value == starter)
+        key = f"family-showcase:Candidate {index:02d} — {starter}"
+        pin = state.get("shots", {}).get(key) or {}
+        pinned_revision = integer(pin.get("revision"))
+        if starter == "generic-round-watch-v2" and pinned_revision == WATCH_SYNTHETIC_SHOT["revision"]:
+            results.append(append_watch_synthetic_revision4(project_id, state))
+            continue
+        source = source_for_family(project_id, routes[starter]["sourceKey"], state)
+        if pinned_revision == 3:
+            results.append(append_family_optix_revision3(project_id, state, starter, routes[starter], source))
+        else:
+            results.append(append_family_revision2(project_id, state, starter, routes[starter], source))
+    missing = [starter for starter in FAMILY_REVISION2 if starter not in routes]
+    print(json.dumps({"status":"family_routes_reopened_and_compiled","projectId":project_id,"updated":results,
+                      "pendingRoutes":missing},indent=2))
+
+
+def optix_revision3_snapshot(snapshot):
+    updated = copy.deepcopy(snapshot)
+    binding = updated.get("physicalBinding") or {}
+    if not binding:
+        raise Stop("physical binding is missing; refusing to change render backend")
+    binding["backend"] = "PHYSICAL_RENDER_BACKEND_OPTIX"
+    updated["physicalBinding"] = binding
+    return updated
+
+
+def append_family_optix_revision3(project_id, state, starter, route, source):
+    index = next(index for index, item in enumerate(
+        next(e for e in MANIFEST["examples"] if e["id"] == "family-showcase")["starter_ids"], 1) if item == starter)
+    name = f"Candidate {index:02d} — {starter}"
+    key = f"family-showcase:{name}"
+    pin = state.get("shots", {}).get(key)
+    if not pin or not pin.get("id") or integer(pin.get("revision")) not in (2, 3):
+        raise Stop(f"{name} has no exact revision-2 or accepted revision-3 curation pin")
+    shot_id = pin["id"]
+    head = (rpc("shots", "ShotsService", "GetShot", {"id":shot_id}).get("head") or {})
+    head_revision = integer(head.get("revision"))
+    pending = state.setdefault("familyRevision3", {}).get(key)
+    if integer(pin.get("revision")) == 3:
+        accepted = (pending or {}).get("accepted") or {}
+        current = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":3}).get("revision") or {}
+        snapshot = current.get("snapshot") or {}
+        if head_revision != 3 or head.get("recipeSha256") != accepted.get("recipeSha256") or digest_json(snapshot) != accepted.get("targetSnapshotSha256"):
+            raise Stop(f"{name} no longer matches the accepted revision-3 checkpoint; preserving it")
+        compiled = rpc("shots", "ShotsService", "CompileShot", {"shotId":shot_id,"revision":3}).get("compiled") or {}
+        if not compiled.get("renderEligible") or compiled.get("recipeSha256") != accepted.get("recipeSha256"):
+            raise Stop(f"{name} accepted revision 3 no longer compiles to its pinned recipe")
+        return {"name":name,"id":shot_id,"revision":3,"recipeSha256":compiled["recipeSha256"],"backend":"PHYSICAL_RENDER_BACKEND_OPTIX","resumed":True}
+    if head_revision == 2:
+        accepted2 = (state.get("familyRevision2", {}).get(key, {}).get("accepted") or {})
+        revision2 = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":2}).get("revision") or {}
+        snapshot2 = revision2.get("snapshot") or {}
+        if not accepted2.get("recipeSha256") or digest_json(snapshot2) != accepted2.get("targetSnapshotSha256"):
+            raise Stop(f"{name} revision 2 differs from its accepted curator checkpoint; refusing to overwrite")
+        if (snapshot2.get("presentation") or {}).get("sourceMediaId") != source["id"]:
+            raise Stop(f"{name} revision 2 source no longer matches its pinned current source")
+        for label in ("device", "scene", "motion"):
+            if (snapshot2.get("physicalBinding") or {}).get(label) != route["setup"].get(label):
+                raise Stop(f"{name} revision 2 {label} differs from current owner route")
+        target = optix_revision3_snapshot(snapshot2)
+        target_sha = digest_json(target)
+        if pending and pending.get("targetSnapshotSha256") != target_sha:
+            raise Stop(f"{name} unresolved revision-3 write-ahead plan differs from this exact backend change")
+        if not pending:
+            pending = {"expectedRevision":2,"targetRevision":3,"targetSnapshotSha256":target_sha,
+                       "priorRevision":2,"priorRecipeSha256":accepted2["recipeSha256"],"backend":"PHYSICAL_RENDER_BACKEND_OPTIX"}
+            state["familyRevision3"][key] = pending
+            write_state(state)
+        response = rpc("shots", "ShotsService", "SaveShot", {"shotId":shot_id,"expectedRevision":2,"name":name,"snapshot":target})
+        if integer((response.get("revision") or {}).get("revision")) != 3:
+            raise Stop(f"{name} SaveShot returned no exact revision-3 receipt; preserving the checkpoint")
+        head_revision = 3
+    elif head_revision == 3 and pending:
+        revision3 = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":3}).get("revision") or {}
+        if digest_json(revision3.get("snapshot") or {}) != pending.get("targetSnapshotSha256"):
+            raise Stop(f"{name} revision 3 differs from the pending backend change; refusing adoption")
+    else:
+        raise Stop(f"{name} has unexpected head revision {head_revision}; refusing to overwrite a user edit")
+    revision3 = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":shot_id,"revision":3}).get("revision") or {}
+    snapshot3 = revision3.get("snapshot") or {}
+    if digest_json(snapshot3) != pending.get("targetSnapshotSha256") or (snapshot3.get("physicalBinding") or {}).get("backend") != "PHYSICAL_RENDER_BACKEND_OPTIX":
+        raise Stop(f"{name} revision 3 did not reopen as the exact OptiX-only change")
+    compiled = rpc("shots", "ShotsService", "CompileShot", {"shotId":shot_id,"revision":3}).get("compiled") or {}
+    if not compiled.get("renderEligible"):
+        raise Stop(f"{name} revision 3 failed compilation: {json.dumps(compiled.get('issues', []))[:1200]}")
+    history = pin.setdefault("history", [])
+    prior2 = {"id":pin["id"],"revision":2,"compiled":pin.get("compiled"),"recipeSha256":pin.get("recipeSha256"),"sourceMediaSha256":pin.get("sourceMediaSha256"),"preset":pin.get("preset")}
+    if not any(entry.get("revision") == 2 for entry in history):
+        history.append(prior2)
+    pin.update({"revision":3,"compiled":True,"recipeSha256":compiled.get("recipeSha256"),"backend":"PHYSICAL_RENDER_BACKEND_OPTIX"})
+    pending["accepted"] = {"revision":3,"recipeSha256":compiled.get("recipeSha256"),"targetSnapshotSha256":digest_json(snapshot3)}
+    write_state(state)
+    return {"name":name,"id":shot_id,"revision":3,"recipeSha256":compiled.get("recipeSha256"),"backend":"PHYSICAL_RENDER_BACKEND_OPTIX"}
+
+
+def family_optix_revise3():
+    get_health()
+    state = read_state()
+    project_id = state.get("projects", {}).get("family-showcase")
+    if project_id != "c952d9c8-eee6-40a7-8d75-2a1eea702261":
+        raise Stop("family-showcase project pin differs from the explicitly authorized PRIMARY target")
+    routes = family_route_rows()
+    results = []
+    for starter, route in routes.items():
+        index = next(i for i, value in enumerate(
+            next(e for e in MANIFEST["examples"] if e["id"] == "family-showcase")["starter_ids"], 1) if value == starter)
+        key = f"family-showcase:Candidate {index:02d} — {starter}"
+        if starter == "generic-round-watch-v2" and integer((state.get("shots", {}).get(key) or {}).get("revision")) == WATCH_SYNTHETIC_SHOT["revision"]:
+            results.append(append_watch_synthetic_revision4(project_id, state))
+            continue
+        source = source_for_family(project_id, route["sourceKey"], state)
+        results.append(append_family_optix_revision3(project_id, state, starter, route, source))
+    print(json.dumps({"status":"family_native_routes_reopened_and_compiled","projectId":project_id,"updated":results},indent=2))
+
+
+def watch_synthetic_snapshot(prior_snapshot, source_media_id):
+    """Apply only the pinned synthetic source and optical scene revision."""
+    updated = copy.deepcopy(prior_snapshot)
+    updated.setdefault("presentation", {})["sourceMediaId"] = source_media_id
+    binding = updated.get("physicalBinding") or {}
+    binding["scene"] = {"id": WATCH_SYNTHETIC_SCENE["id"], "revision": WATCH_SYNTHETIC_SCENE["revision"], "sha256": WATCH_SYNTHETIC_SCENE["sha256"]}
+    updated["physicalBinding"] = binding
+    return updated
+
+
+def ensure_watch_synthetic_media(project_id, state):
+    item = MANIFEST["assets"].get(WATCH_SYNTHETIC_SOURCE)
+    if not item:
+        raise Stop("manifest is missing the pinned synthetic watch calibration source")
+    path = ROOT / item["path"]
+    if sha(path) != WATCH_SYNTHETIC_SHOT["source_sha256"] or item.get("sha256") != WATCH_SYNTHETIC_SHOT["source_sha256"]:
+        raise Stop("synthetic watch calibration source differs from its reviewed digest")
+    state_key = f"family-showcase:{WATCH_SYNTHETIC_SOURCE}"
+    pinned = state.get("media", {}).get(state_key)
+    rows = list_media(project_id)
+    matches = [row for row in rows if row.get("sha256") == WATCH_SYNTHETIC_SHOT["source_sha256"]]
+    if len(matches) > 1:
+        raise Stop("multiple copies of the exact watch calibration source exist; refusing to choose")
+    if pinned:
+        match = next((row for row in matches if row.get("id") == pinned), None)
+        if not match:
+            raise Stop("pinned watch calibration media is missing or has changed")
+        return match
+    if matches:
+        row = matches[0]
+    else:
+        conflicts = [row for row in rows if row.get("originalFilename") == path.name]
+        if conflicts:
+            raise Stop("watch calibration filename exists with different bytes; refusing to upload another copy")
+        response = multipart_upload(project_id, path, item["media_type"])
+        row = response.get("source_media") or {}
+        if row.get("sha256") != WATCH_SYNTHETIC_SHOT["source_sha256"] or not row.get("id"):
+            raise Stop("watch calibration upload returned an unexpected source identity")
+        row = next((candidate for candidate in list_media(project_id) if candidate.get("id") == row["id"]), None)
+        if not row or row.get("sha256") != WATCH_SYNTHETIC_SHOT["source_sha256"]:
+            raise Stop("watch calibration upload did not reopen by exact public source identity")
+    state.setdefault("media", {})[state_key] = row["id"]
+    write_state(state)
+    return row
+
+
+def append_watch_synthetic_revision4(project_id, state):
+    key = "family-showcase:Candidate 03 — generic-round-watch-v2"
+    pin = state.get("shots", {}).get(key)
+    if not pin or pin.get("id") != WATCH_SYNTHETIC_SHOT["id"]:
+        raise Stop("watch family shot identity differs from its pinned source project; refusing adoption")
+    source = ensure_watch_synthetic_media(project_id, state)
+    scene_head = rpc("scenes", "ScenesService", "GetSceneHead", {"sceneId": WATCH_SYNTHETIC_SCENE["id"]}).get("revision") or {}
+    if integer(scene_head.get("revision")) == WATCH_SYNTHETIC_SCENE["prior_revision"]:
+        if scene_head.get("sha256") != WATCH_SYNTHETIC_SCENE["prior_sha256"]:
+            raise Stop("watch scene prior revision differs from the authored optical baseline")
+        candidate = copy.deepcopy(scene_head.get("candidate") or {})
+        cameras = [camera for camera in candidate.get("cameraFrames", []) if camera.get("id") == WATCH_SYNTHETIC_SCENE["camera_id"]]
+        if len(cameras) != 1:
+            raise Stop("watch scene no longer has exactly one pinned camera")
+        camera = cameras[0]
+        focus = camera.get("focus") or {}
+        if camera.get("dofFNumber") != 8 or focus.get("mode") != "DISTANCE" or focus.get("distanceM") != WATCH_SYNTHETIC_SCENE["focus_distance_m"]:
+            raise Stop("watch camera focus baseline changed; refusing to overwrite it")
+        camera["dofFNumber"] = WATCH_SYNTHETIC_SCENE["f_number"]
+        response = rpc("scenes", "ScenesService", "SaveSceneCandidate", {"expectedHead":WATCH_SYNTHETIC_SCENE["prior_revision"],"candidate":candidate})
+        scene_head = response.get("revision") or {}
+    if integer(scene_head.get("revision")) != WATCH_SYNTHETIC_SCENE["revision"] or scene_head.get("sha256") != WATCH_SYNTHETIC_SCENE["sha256"]:
+        raise Stop("watch scene head is not the exact reviewed f/16 revision; preserving it")
+
+    preset = rpc("shots", "ShotsService", "GetPhysicalShotPresetHead", {"presetId":WATCH_SYNTHETIC_PRESET["id"]}).get("revision") or {}
+    if integer(preset.get("revision")) == WATCH_SYNTHETIC_PRESET["prior_revision"]:
+        if preset.get("sha256") != WATCH_SYNTHETIC_PRESET["prior_sha256"]:
+            raise Stop("watch preset prior revision differs from the reviewed baseline")
+        setup = copy.deepcopy(preset.get("setup") or {})
+        setup["scene"] = {"id":WATCH_SYNTHETIC_SCENE["id"],"revision":WATCH_SYNTHETIC_SCENE["revision"],"sha256":WATCH_SYNTHETIC_SCENE["sha256"]}
+        response = rpc("shots", "ShotsService", "SavePhysicalShotPreset", {"presetId":WATCH_SYNTHETIC_PRESET["id"],"expectedRevision":WATCH_SYNTHETIC_PRESET["prior_revision"],"name":preset.get("name", "")+" · synthetic dial sharpness v1","setup":setup})
+        preset = response.get("revision") or {}
+    if integer(preset.get("revision")) != WATCH_SYNTHETIC_PRESET["revision"] or preset.get("sha256") != WATCH_SYNTHETIC_PRESET["sha256"]:
+        raise Stop("watch preset head is not the exact reviewed scene binding; preserving it")
+
+    head = rpc("shots", "ShotsService", "GetShot", {"id":WATCH_SYNTHETIC_SHOT["id"]}).get("head") or {}
+    revision = integer(head.get("revision"))
+    if revision == WATCH_SYNTHETIC_SHOT["prior_revision"]:
+        accepted = state.get("familyRevision3", {}).get(key, {}).get("accepted") or {}
+        old = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":WATCH_SYNTHETIC_SHOT["id"],"revision":revision}).get("revision") or {}
+        old_snapshot = old.get("snapshot") or {}
+        if head.get("recipeSha256") != WATCH_SYNTHETIC_SHOT["prior_recipe_sha256"] or digest_json(old_snapshot) != accepted.get("targetSnapshotSha256"):
+            raise Stop("watch shot revision 3 differs from the last accepted curator checkpoint")
+        target = watch_synthetic_snapshot(old_snapshot, source["id"])
+        response = rpc("shots", "ShotsService", "SaveShot", {"shotId":WATCH_SYNTHETIC_SHOT["id"],"expectedRevision":revision,"name":WATCH_SYNTHETIC_SHOT["name"],"snapshot":target})
+        written = response.get("revision") or {}
+        if integer(written.get("revision")) != WATCH_SYNTHETIC_SHOT["revision"]:
+            raise Stop("watch SaveShot returned an unexpected revision")
+        head = rpc("shots", "ShotsService", "GetShot", {"id":WATCH_SYNTHETIC_SHOT["id"]}).get("head") or {}
+    if integer(head.get("revision")) != WATCH_SYNTHETIC_SHOT["revision"] or head.get("recipeSha256") != WATCH_SYNTHETIC_SHOT["recipe_sha256"]:
+        raise Stop("watch shot head is not the exact saved synthetic-calibration revision")
+    saved = rpc("shots", "ShotsService", "GetShotRevision", {"shotId":WATCH_SYNTHETIC_SHOT["id"],"revision":WATCH_SYNTHETIC_SHOT["revision"]}).get("revision") or {}
+    snapshot = saved.get("snapshot") or {}
+    if (snapshot.get("presentation") or {}).get("sourceMediaId") != source["id"] or (snapshot.get("physicalBinding") or {}).get("scene") != {"id":WATCH_SYNTHETIC_SCENE["id"],"revision":WATCH_SYNTHETIC_SCENE["revision"],"sha256":WATCH_SYNTHETIC_SCENE["sha256"]}:
+        raise Stop("watch shot no longer uses the pinned synthetic source and optical scene")
+    compiled = rpc("shots", "ShotsService", "CompileShot", {"shotId":WATCH_SYNTHETIC_SHOT["id"],"revision":WATCH_SYNTHETIC_SHOT["revision"]}).get("compiled") or {}
+    if not compiled.get("renderEligible") or compiled.get("recipeSha256") != WATCH_SYNTHETIC_SHOT["recipe_sha256"]:
+        raise Stop("watch synthetic-calibration revision no longer compiles to the accepted recipe")
+    pin.update({"revision":WATCH_SYNTHETIC_SHOT["revision"],"compiled":True,"recipeSha256":compiled["recipeSha256"],"sourceMediaSha256":[source["sha256"]],"preset":{"id":WATCH_SYNTHETIC_PRESET["id"],"revision":WATCH_SYNTHETIC_PRESET["revision"],"sha256":WATCH_SYNTHETIC_PRESET["sha256"],"candidateOnly":True,"starterId":"generic-round-watch-v2"}})
+    checkpoint = state.setdefault("familyWatchRevision4", {}).setdefault(key, {})
+    checkpoint.update({"revision":WATCH_SYNTHETIC_SHOT["revision"],"recipeSha256":compiled["recipeSha256"],"scene":dict(WATCH_SYNTHETIC_SCENE),"preset":dict(WATCH_SYNTHETIC_PRESET),"sourceMediaId":source["id"],"sourceSha256":source["sha256"],"candidateOnly":True,"claim":"synthetic dial calibration, not an app capture"})
+    write_state(state)
+    return {"id":WATCH_SYNTHETIC_SHOT["id"],"revision":WATCH_SYNTHETIC_SHOT["revision"],"recipeSha256":compiled["recipeSha256"],"sourceMediaId":source["id"],"sourceSha256":source["sha256"],"candidateOnly":True}
+
+
+def family_watch_synthetic_revise4():
+    verify_files()
+    get_health()
+    state = read_state()
+    project_id = state.get("projects", {}).get("family-showcase")
+    if project_id != "c952d9c8-eee6-40a7-8d75-2a1eea702261":
+        raise Stop("family-showcase project pin differs from the explicitly authorized PRIMARY target")
+    projects = [row for row in project_rows() if row.get("id") == project_id]
+    if len(projects) != 1 or projects[0].get("name") != "Device Studio demo — Remaining family showcase":
+        raise Stop("authorized family showcase project did not reopen exactly")
+    result = append_watch_synthetic_revision4(project_id, state)
+    print(json.dumps({"status":"watch_synthetic_revision4_reopened_and_compiled","projectId":project_id,"candidateOnly":True,"updated":result},indent=2))
+
+
 def seed():
     verify_files()
     get_health()
@@ -546,7 +994,7 @@ def seed():
 def main():
     global API
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("verify", "plan", "seed"))
+    parser.add_argument("command", choices=("verify", "plan", "seed", "family-revise2", "family-optix-revise3", "family-watch-synthetic-revise4"))
     parser.add_argument("--api", default=API, help="already-running Device Studio API base; never auto-started")
     args = parser.parse_args()
     API = args.api.rstrip("/")
@@ -556,6 +1004,12 @@ def main():
         elif args.command == "plan":
             verify_files()
             plan()
+        elif args.command == "family-revise2":
+            family_revise2()
+        elif args.command == "family-optix-revise3":
+            family_optix_revise3()
+        elif args.command == "family-watch-synthetic-revise4":
+            family_watch_synthetic_revise4()
         else:
             seed()
     except Stop as e:

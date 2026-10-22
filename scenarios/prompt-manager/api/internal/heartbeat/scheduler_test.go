@@ -313,10 +313,10 @@ func TestSchedulerSkipsTickWhenRecoveredObligationIsUncertain(t *testing.T) {
 	}
 }
 
-// TestSchedulerSkipsTickWhenRecoveredObligationIsPaused verifies that a
-// quota-paused (parked) owner run is retained nonterminal ownership: the next
-// scheduled tick is refused so a pause is never mistaken for a missing run.
-func TestSchedulerSkipsTickWhenRecoveredObligationIsPaused(t *testing.T) {
+// TestSchedulerRechecksPausedOwnerWithoutReplayingWhileStillParked verifies
+// that an ordinary scheduled tick re-observes a parked owner but never treats
+// its retained slot as an invitation to start a duplicate heartbeat.
+func TestSchedulerRechecksPausedOwnerWithoutReplayingWhileStillParked(t *testing.T) {
 	dir := t.TempDir()
 	exec := &captureExecutor{}
 
@@ -356,6 +356,11 @@ func TestSchedulerSkipsTickWhenRecoveredObligationIsPaused(t *testing.T) {
 	}
 	if got := teamExecStore.Status("team-1"); len(got.PausedAgentIDs) != 1 || len(got.RunningAgentIDs) != 1 {
 		t.Fatalf("expected paused obligation retained after refused tick, got %+v", got)
+	}
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.getRunCalls) != 2 || client.getRunCalls[1] != "run-parked" {
+		t.Fatalf("scheduled tick should recheck the retained owner exactly once, got calls %v", client.getRunCalls)
 	}
 }
 

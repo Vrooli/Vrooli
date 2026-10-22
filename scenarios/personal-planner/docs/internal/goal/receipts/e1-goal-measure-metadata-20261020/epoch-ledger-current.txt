@@ -1,0 +1,5 @@
+path: scenarios/personal-planner/docs/internal/goal/epochs/E1.md
+sha256: 30420a08db36b61fc92fda8e4e64456d0d5f61c21d7e00145f47c42f46a4b612
+bytes: 163905
+lines: 312
+observed_at: 2026-10-20T20:49:07.503658+00:00

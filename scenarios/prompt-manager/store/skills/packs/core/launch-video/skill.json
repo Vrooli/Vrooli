@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-17T00:00:00Z",
-  "description": "Direct, capture, compose, critique, and deliver a source-grounded launch-video draft with inexpensive teaser and deliberate flagship profiles, using real product evidence and local HyperFrames rendering.",
+  "description": "Discover offer-eligible customer value, then direct, capture, compose, critique, and deliver a source-grounded launch-video draft with inexpensive teaser and deliberate flagship profiles, using real product evidence and local HyperFrames rendering.",
   "entry": "SKILL.md",
   "icon": "video",
   "id": "launch-video",
@@ -25,7 +25,7 @@
       "brand-manager"
     ]
   },
-  "revision": 30,
+  "revision": 36,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +33,5 @@
     "video",
     "launch"
   ],
-  "updatedAt": "2026-10-17T00:00:00Z"
+  "updatedAt": "2026-10-21T00:00:00Z"
 }

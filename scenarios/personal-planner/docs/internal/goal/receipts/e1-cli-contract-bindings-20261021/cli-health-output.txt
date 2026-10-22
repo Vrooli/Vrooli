@@ -1,0 +1,330 @@
+Summary:
+  Validated personal-planner - status=passed errors=0 warnings=52 infos=9
+  cli-health/contracts assessed personal-planner
+  Local maturity: current=L3 · 52 blocking · 61 debt
+  Next level: L4
+  Highest priority: Command Architecture to L4 - lowest current level with required/blocking findings WARNING evolvability_gap debt=52
+  Command Architecture: rung=L3 Ready with debt · blocking=52 · debt=52
+  Debt: 52 debt findings.
+  Measures Metadata: rung=L3 Complete with debt · blocking=0 · debt=9
+  Debt: 9 debt findings.
+  Top rung reached, but 9 advisory debt items remain.
+  Manifest Contract: rung=L3 Complete · blocking=0 · debt=0
+  CLI manifest contract is clean enough for downstream checks.
+  Maximum maturity reached.
+  Proto Bindings: rung=L3 Complete · blocking=0 · debt=0
+  CLI/proto coverage is complete and intentional.
+  Maximum maturity reached.
+  Runtime CLI Surface: rung=L3 Complete · blocking=0 · debt=0
+  Runtime CLI behavior is aligned with the manifest.
+  Maximum maturity reached.
+  Entrypoint Structure: rung=L3 Complete · blocking=0 · debt=0
+  CLI entrypoint structure is clean.
+  Maximum maturity reached.
+  Discovery Readiness: rung=L2 Complete · blocking=0 · debt=0
+  CLI discovery readiness is clean.
+  Maximum maturity reached.
+  Blocking findings: arch.evidence_stale, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified, arch.primitive_unverified
+  Debt by level: L3=9 (info:9), L4=52 (warning:52)
+Findings:
+  Command Architecture / L4 findings (52)
+  [FINDING_SEVERITY_WARNING] arch.evidence_stale
+      the static primitive-evidence artifact is stale — its recorded manifest hash no longer matches cli/manifest.json, so its evidence describes an older command surface
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/.vrooli/generated/cli-primitive-evidence.json
+      fix: regenerate the artifact after changing the manifest or handlers (run the scenario's evidence generator, e.g. its CLI test with UPDATE_CLI_EVIDENCE=1)
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar events" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/events
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar get-event" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/get-event
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar create-event" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/create-event
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar update-event" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/update-event
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar carry-forward" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/carry-forward
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar preview-placement" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/preview-placement
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar apply-placement" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/apply-placement
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar preview-schedule" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/preview-schedule
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar apply-schedule" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/apply-schedule
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar routines" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/routines
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar create-routine" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/create-routine
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar routine-occurrences" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/routine-occurrences
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar skip-routine-occurrence" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/skip-routine-occurrence
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "calendar reschedule-routine-occurrence" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/reschedule-routine-occurrence
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "workspace profile" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/workspace/commands/profile
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "workspace update-profile" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/workspace/commands/update-profile
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "workspace availability" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/workspace/commands/availability
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "workspace replace-availability" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/workspace/commands/replace-availability
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "integrations list" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/integrations/commands/list
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "integrations create-fixture" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/integrations/commands/create-fixture
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "integrations sync" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/integrations/commands/sync
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "integrations disconnect" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/integrations/commands/disconnect
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "review daily" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/review/commands/daily
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "review weekly" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/review/commands/weekly
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "review reflection" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/review/commands/reflection
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "review save-reflection" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/review/commands/save-reflection
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "goals list" declares architecture.primitive "action" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/list
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "goals create" declares architecture.primitive "action" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/create
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "goals progress" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/progress
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "goals milestones" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/milestones
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "goals create-milestone" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/create-milestone
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "goals complete-milestone" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/complete-milestone
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "commitments list" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/commitments/commands/list
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "commitments create" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/commitments/commands/create
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "commitments state" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/commitments/commands/state
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "commitments revise" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/commitments/commands/revise
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "forecasts get" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/forecasts/commands/get
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "forecasts history" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/forecasts/commands/history
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus current" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/current
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus start" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/start
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus pause" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/pause
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus resume" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/resume
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus end" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/end
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus record-actual" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/record-actual
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus actuals" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/actuals
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus corrections" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/corrections
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "focus correct-actual" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/correct-actual
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "work list" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/work/commands/list
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "work create" declares architecture.primitive "proto_mutation" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/work/commands/create
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "work get" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/work/commands/get
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  [FINDING_SEVERITY_WARNING] arch.primitive_unverified
+      command "work plan" declares architecture.primitive "proto_list" but cli-core reported no matching primitive evidence, so renderer separation is declared but not yet verified
+      maturity: capability=command_architecture local=L4 impact=evolvability_gap dimension=contracts
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/work/commands/plan
+      fix: build the handler with the matching cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives so the observed primitive proves the declaration
+  Measures Metadata / L3 findings (9)
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure routines.routines graded tier=full (0 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/calendar/commands/routines/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure commitments.list graded tier=full (0 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/commitments/commands/list/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure manual_actuals.actuals graded tier=fallback (1 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/actuals/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure actual_corrections.corrections graded tier=fallback (3 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/corrections/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure focus.current graded tier=full (0 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/focus/commands/current/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure goals.list graded tier=full (0 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/list/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure milestones.milestones graded tier=fallback (1 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/goals/commands/milestones/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure provider_connections.list graded tier=full (0 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/integrations/commands/list/measure
+  [FINDING_SEVERITY_INFO] measure.tier
+      measure work_items.list graded tier=full (0 params)
+      maturity: capability=measures_metadata local=L3 impact=advisory dimension=measures
+      location: /home/matthalloran8/Vrooli/scenarios/personal-planner/cli/manifest.json#/groups/work/commands/list/measure
+Retrieval Hints:
+  (none)
+EXIT_CODE=0

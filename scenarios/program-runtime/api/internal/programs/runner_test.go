@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 func writeTestKernel(t *testing.T) string {
@@ -48,6 +50,29 @@ func TestSubprocessRunnerPersistsProgressCallback(t *testing.T) {
 	}
 	if result.Stdout != "2\n" {
 		t.Fatalf("terminal result=%+v", result)
+	}
+}
+
+func TestSubprocessRunnerCarriesTestModePerExecution(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test-mode-kernel.py")
+	source := `import json, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    print(json.dumps({"ok": True, "stdout": str(bool(request.get("test_mode"))).lower(), "context_bytes": 5}), flush=True)
+`
+	if err := os.WriteFile(path, []byte(source), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewSubprocessRunner(path)
+	defer runner.Close()
+	for _, tc := range []struct {
+		ctx  context.Context
+		want string
+	}{{database.WithTestMode(context.Background()), "true"}, {context.Background(), "false"}} {
+		result, err := runner.Execute(tc.ctx, "sess_test_mode", "inspect", false)
+		if err != nil || result.Stdout != tc.want {
+			t.Fatalf("stdout=%q want=%q err=%v", result.Stdout, tc.want, err)
+		}
 	}
 }
 

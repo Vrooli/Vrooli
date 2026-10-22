@@ -9,6 +9,21 @@ import { API_BASE } from "./client";
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("calendar API transport", () => {
+  it("preserves typed owner rejection status and code", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: "unauthenticated", message: "verified calendar event owner required" }), { status: 401, headers: { "Content-Type": "application/json" } })));
+    const { CalendarEventRequestError, createCalendarEvent } = await import("./calendar");
+    await expect(createCalendarEvent({ title: "Synthetic" } as never, "owner-key")).rejects.toMatchObject({
+      name: "CalendarEventRequestError", status: 401, code: "unauthenticated", message: "verified calendar event owner required",
+    } satisfies Partial<CalendarEventRequestError>);
+  });
+
+  it("keeps transport failures distinguishable from HTTP owner rejection", async () => {
+    const transportFailure = new TypeError("Failed to fetch");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(transportFailure));
+    const { createCalendarEvent } = await import("./calendar");
+    await expect(createCalendarEvent({ title: "Synthetic" } as never, "owner-key")).rejects.toBe(transportFailure);
+  });
+
   it("lists, creates, reopens, and revision-edits native events through the scenario API", async () => {
     const event = { id: "event-1", title: "Synthetic trip", all_day: true, start_date: "2026-10-04", end_date_exclusive: "2026-10-07", revision: 2 };
     const request = vi.fn()

@@ -15,6 +15,7 @@ import (
 
 var ErrReadabilityReviewNotFound = errors.New("readability review not found")
 var ErrReadabilityAlreadyReviewed = errors.New("this exact render output already has a readability verdict; revise the shot before changing the proof")
+var ErrReadabilityRenderNotFound = errors.New("readability render not found")
 
 func validReviewDigest(value string) bool {
 	decoded, err := hex.DecodeString(value)

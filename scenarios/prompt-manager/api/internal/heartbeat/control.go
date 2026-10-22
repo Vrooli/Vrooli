@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"prompt-manager/internal/store"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 const (
@@ -379,19 +381,12 @@ func (s *HeartbeatControlStore) loadLocked() (*HeartbeatControlDocument, error) 
 
 func (s *HeartbeatControlStore) saveLocked(doc *HeartbeatControlDocument) error {
 	normalizeDocument(doc, s.now())
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
-	}
-	tmp := s.path + ".tmp"
 	b, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return err
 	}
 	b = append(b, '\n')
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, s.path)
+	return storage.WriteFileAtomic(s.path, b, 0o644)
 }
 
 func defaultHeartbeatControlDocument(now time.Time) *HeartbeatControlDocument {

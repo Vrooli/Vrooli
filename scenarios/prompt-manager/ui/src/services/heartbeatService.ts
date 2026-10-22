@@ -1063,6 +1063,14 @@ export interface HeartbeatAttempt {
   recovery?: string
 }
 
+export interface HeartbeatAttemptListResponse {
+  attempts: HeartbeatAttempt[]
+  total: number
+  totalExact?: boolean
+  hasMore: boolean
+  scannedEvents?: number
+}
+
 function normalizeRunStatus(status: string): string {
   const normalized = status.trim().toLowerCase()
   if (!normalized) return status
@@ -1194,7 +1202,7 @@ export async function listHeartbeatAttempts(opts?: {
   agentId?: string
   limit?: number
   offset?: number
-}): Promise<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }> {
+}): Promise<HeartbeatAttemptListResponse> {
   const params = new URLSearchParams()
   if (opts?.status) params.set('status', opts.status)
   if (opts?.profileKey) params.set('profile_key', opts.profileKey)
@@ -1203,7 +1211,7 @@ export async function listHeartbeatAttempts(opts?: {
   if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
   if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
   const qs = params.toString()
-  return apiRequest<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }>(
+  return apiRequest<HeartbeatAttemptListResponse>(
     `/heartbeat-attempts${qs ? `?${qs}` : ''}`
   )
 }

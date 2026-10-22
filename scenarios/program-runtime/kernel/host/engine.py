@@ -1264,7 +1264,10 @@ class BridgeBinding:
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool, rows_override: str | None = None) -> Handle:
         context = _INVOCATION_CONTEXT.get()
         request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed, "rows": rows_override or ""}).encode()
-        http_request = urllib.request.Request(self.bridge_url, data=request, headers={"Content-Type": "application/json"}, method="POST")
+        headers = {"Content-Type": "application/json"}
+        if context.get("test_mode") == "1":
+            headers["X-Vrooli-Test-Mode"] = "1"
+        http_request = urllib.request.Request(self.bridge_url, data=request, headers=headers, method="POST")
         try:
             with _open_bridge_request(http_request, timeout=self.invoke_timeout) as response:
                 payload = json.loads(response.read().decode())
@@ -1420,10 +1423,12 @@ class SessionKernel:
         root._binding_contract_specs = binding_contract_specs
         self.globals = _program_globals(root, project, "program_runtime_session")
 
-    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None, agent_identity_token: str = "") -> dict[str, Any]:
+    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None, agent_identity_token: str = "", test_mode: bool = False) -> dict[str, Any]:
         output = _ProgressBuffer(progress)
         self.invocations.clear()
         context = {"program_id": program_id, "provenance": provenance, "source": source}
+        if test_mode:
+            context["test_mode"] = "1"
         for key in ("run_id", "agent_profile", "skill_id", "harness"):
             value = str((caller or {}).get(key, "")).strip()
             if value:
@@ -1563,7 +1568,7 @@ def serve() -> None:
             result: dict[str, Any] = {}
 
             def run() -> None:
-                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress, str(request.get("agent_identity_token", ""))))
+                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress, str(request.get("agent_identity_token", "")), bool(request.get("test_mode", False))))
 
             worker = threading.Thread(target=run, name="program-runtime-kernel", daemon=True)
             worker.start()

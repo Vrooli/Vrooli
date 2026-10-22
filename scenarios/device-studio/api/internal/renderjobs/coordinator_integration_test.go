@@ -607,7 +607,12 @@ func integrationCoordinator(t *testing.T, ops *integrationOps, cancelAtClaim boo
 	}
 	media := newIntegrationMedia(t)
 	resolved := integrationResolved(media)
-	c, err := New(Dependencies{Shots: integrationShot{resolved}, Media: media, Jobs: service, Blobs: blobstore.NewMemoryBlobStore(), Roots: roots, Ops: ops, Exe: func() (string, error) { return workerPath, nil }})
+	scopeRepo, ok := jobs.NewSQLiteRepository(db).(jobs.RunScopeRepository)
+	if !ok {
+		t.Fatal("SQLite test repository does not expose durable run scopes")
+	}
+	scopes := jobs.NewRunScopeService(scopeRepo, time.Now)
+	c, err := New(Dependencies{Shots: integrationShot{resolved}, Media: media, Jobs: service, Scopes: scopes, Blobs: blobstore.NewMemoryBlobStore(), Roots: roots, Ops: ops, Exe: func() (string, error) { return workerPath, nil }})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,8 +3,6 @@ package store
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -56,8 +54,8 @@ type DiscoveryCall struct {
 
 // DiscoveryCallStore persists discovery calls to a bounded, time-windowed JSONL
 // file. It lives under the runtime-data root (never the git-tracked store tree)
-// and reuses the same AppendJSONL + trimJSONLLines primitives as the discovery
-// -miss audit, in a SEPARATE file so miss-mining semantics stay clean.
+// and uses the shared bounded JSONL owner while keeping call telemetry separate
+// from discovery-miss records.
 type DiscoveryCallStore struct {
 	path       string
 	now        func() time.Time
@@ -86,93 +84,19 @@ func (s *DiscoveryCallStore) Append(call DiscoveryCall) error {
 	if strings.TrimSpace(call.ID) == "" {
 		call.ID = newCallID(now)
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
-	}
-	if err := AppendJSONL(s.path, call); err != nil {
-		return err
-	}
-	if err := s.prune(now); err != nil {
-		return err
-	}
-	return trimJSONLLines(s.path, s.maxEntries)
+	return appendBoundedJSONL(s.path, call, now, s.maxEntries, s.retention, func(entry DiscoveryCall) string {
+		return entry.At
+	})
 }
 
 // ReadSince returns calls with an At timestamp within the given window
 // (relative to now), newest entries last (file order).
 func (s *DiscoveryCallStore) ReadSince(window time.Duration) ([]DiscoveryCall, error) {
-	all, err := s.readAll()
-	if err != nil {
-		return nil, err
+	var now time.Time
+	if window > 0 {
+		now = s.now().UTC()
 	}
-	if window <= 0 {
-		return all, nil
-	}
-	cutoff := s.now().UTC().Add(-window)
-	out := make([]DiscoveryCall, 0, len(all))
-	for _, call := range all {
-		if at, err := time.Parse(time.RFC3339, call.At); err == nil && at.Before(cutoff) {
-			continue
-		}
-		out = append(out, call)
-	}
-	return out, nil
-}
-
-func (s *DiscoveryCallStore) prune(now time.Time) error {
-	all, err := s.readAll()
-	if err != nil {
-		return err
-	}
-	cutoff := now.Add(-s.retention)
-	kept := make([]DiscoveryCall, 0, len(all))
-	dropped := false
-	for _, call := range all {
-		if at, err := time.Parse(time.RFC3339, call.At); err == nil && at.Before(cutoff) {
-			dropped = true
-			continue
-		}
-		kept = append(kept, call)
-	}
-	if !dropped {
-		return nil
-	}
-	return s.rewrite(kept)
-}
-
-func (s *DiscoveryCallStore) readAll() ([]DiscoveryCall, error) {
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var out []DiscoveryCall
-	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		var call DiscoveryCall
-		if err := json.Unmarshal([]byte(line), &call); err != nil {
-			continue // skip malformed lines rather than failing the read
-		}
-		out = append(out, call)
-	}
-	return out, nil
-}
-
-func (s *DiscoveryCallStore) rewrite(entries []DiscoveryCall) error {
-	var b strings.Builder
-	for _, entry := range entries {
-		raw, err := json.Marshal(entry)
-		if err != nil {
-			continue
-		}
-		b.Write(raw)
-		b.WriteByte('\n')
-	}
-	return os.WriteFile(s.path, []byte(b.String()), 0o644)
+	return readJSONLSince(s.path, window, now, func(entry DiscoveryCall) string { return entry.At })
 }
 
 func newCallID(now time.Time) string {

@@ -306,7 +306,7 @@ func operationSpecFor(mode operationMode, workerPath, manifestPath, workspace st
 		wallTime = 5 * time.Minute
 	case operationPhysicalRender:
 		command = "physical-render-worker"
-		wallTime = 180 * time.Second
+		wallTime = time.Duration(rendering.PhysicalStillCPUWallTimeSeconds) * time.Second
 	case operationPhysicalPreview:
 		command = "physical-render-worker"
 		wallTime = time.Duration(rendering.PhysicalPreviewWallTimeSeconds) * time.Second

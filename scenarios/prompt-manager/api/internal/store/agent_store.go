@@ -9,7 +9,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/storage"
 )
 
@@ -108,6 +110,13 @@ func (s *FileAgentStore) Get(ctx context.Context, id string) (*Agent, error) {
 
 // Create creates a new agent
 func (s *FileAgentStore) Create(ctx context.Context, agent *Agent) error {
+	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
+	principal, hasPrincipal := identity.PrincipalFromContext(ctx)
+	if bounded || (hasPrincipal && principal.Grant != nil) {
+		if _, err := authn.RequireOperation(ctx, "prompt-manager:write", "agent.create", "prompt-manager:agent/"+agent.ID); err != nil {
+			return fmt.Errorf("agent creation requires approved agent.create authority: %w", err)
+		}
+	}
 	original := s
 	var err error
 	s, err = s.forContext(ctx)

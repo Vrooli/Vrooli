@@ -1,0 +1,3 @@
+$ cd scenarios/personal-planner/api && go test -count=1 ./internal/work
+ok  	personal-planner/internal/work	0.006s
+exit_code=0

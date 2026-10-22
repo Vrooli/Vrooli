@@ -602,6 +602,53 @@ func TestTeamMetadataCLIListFiltersAndRetainsObjectiveRecords(t *testing.T) {
 	}
 }
 
+func TestTeamRolesSetUsesCompleteRoleFileAndRejectsInvalidInputBeforeRequest(t *testing.T) {
+	tempDir := t.TempDir()
+	rolesFile := filepath.Join(tempDir, "roles.json")
+	if err := os.WriteFile(rolesFile, []byte(`[{"id":"lead","name":"Lead","description":"Owns delivery"}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx := &fakeContext{t: t, response: []Role{{ID: "lead", Name: "Lead", Description: "Owns delivery"}}}
+	if err := route(ctx, []string{"roles-set", "team-1", "--file", rolesFile, "--json"}); err != nil {
+		t.Fatalf("team roles-set route: %v", err)
+	}
+	ctx.assertMethodPath(t, "PUT", "/teams/team-1/roles")
+	var payload struct {
+		Roles []Role `json:"roles"`
+	}
+	if err := json.Unmarshal(ctx.gotPayload, &payload); err != nil {
+		t.Fatalf("decode request payload: %v", err)
+	}
+	if !reflect.DeepEqual(payload.Roles, []Role{{ID: "lead", Name: "Lead", Description: "Owns delivery"}}) {
+		t.Fatalf("roles payload = %+v", payload.Roles)
+	}
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		file string
+	}{
+		{name: "missing file flag", args: []string{"team-1"}},
+		{name: "malformed file", args: []string{"team-1", "--file", rolesFile}, file: "{"},
+		{name: "null is not an explicit role list", args: []string{"team-1", "--file", rolesFile}, file: "null"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.file != "" {
+				if err := os.WriteFile(rolesFile, []byte(tc.file), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			refused := &fakeContext{t: t}
+			if err := route(refused, append([]string{"roles-set"}, tc.args...)); err == nil {
+				t.Fatal("invalid command input was accepted")
+			}
+			if refused.gotMethod != "" {
+				t.Fatalf("invalid input issued %s %s", refused.gotMethod, refused.gotPath)
+			}
+		})
+	}
+}
+
 func TestHeartbeatEnableCanReapplyDefaultScheduleOnExistingConfig(t *testing.T) {
 	ctx := &fakeContext{getResponse: HeartbeatConfig{TeamID: "arbitrary-team", AgentID: "leader", Schedule: "*/5 * * * *"}}
 	err := cmdHeartbeatEnable(ctx, []string{"arbitrary-team", "leader", "--schedule=0 */6 * * *"})
@@ -621,6 +668,10 @@ func TestHeartbeatJSONPreservesAdmissionReasonFromOwnerResponse(t *testing.T) {
 	ctx := &fakeContext{getResponse: map[string]any{
 		"teamId":  "effort-supervision",
 		"agentId": "effort-supervisor",
+		"schedulerState": map[string]any{
+			"running": true, "registered": 1, "last_callback": "2026-10-20T22:00:00Z",
+		},
+		"schedulerRegistered": true,
 		"lastExecution": map[string]any{
 			"status":          "failed",
 			"admissionReason": "grant_limit_reached",
@@ -652,7 +703,130 @@ func TestHeartbeatJSONPreservesAdmissionReasonFromOwnerResponse(t *testing.T) {
 			t.Errorf("%s.admissionReason = %#v, want %q", field, got, want)
 		}
 	}
+	state, ok := response["schedulerState"].(map[string]any)
+	if !ok {
+		t.Fatalf("schedulerState = %#v, want scheduler runtime metadata", response["schedulerState"])
+	}
+	if state["last_callback"] != "2026-10-20T22:00:00Z" || state["running"] != true || state["registered"] != float64(1) || response["schedulerRegistered"] != true {
+		t.Fatalf("scheduler state was not preserved: %#v registered=%#v", state, response["schedulerRegistered"])
+	}
 	ctx.assertMethodPath(t, "GET", "/teams/effort-supervision/heartbeats/effort-supervisor")
+}
+
+func TestHeartbeatAttemptsUsesBoundedExactMemberFiltersAndPreservesJSON(t *testing.T) {
+	ctx := &fakeContext{t: t, getResponse: map[string]any{
+		"attempts": []map[string]any{{
+			"id": "attempt-1", "teamId": "rcl-delivery", "agentId": "orchestrator",
+			"status": "failed", "phase": "dispatch", "newEvidence": map[string]any{"source": "owner"},
+		}},
+		"total": 3, "totalExact": false, "hasMore": true, "scannedEvents": 12,
+		"windowNote": "bounded event scan",
+	}}
+	output, err := captureTeamStdout(t, func() error {
+		return route(ctx, []string{"heartbeat-attempts", "rcl-delivery", "orchestrator", "--limit", "7", "--offset", "4", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("heartbeat-attempts: %v", err)
+	}
+	ctx.assertMethodPath(t, "GET", "/heartbeat-attempts?agent_id=orchestrator&limit=7&offset=4&team_id=rcl-delivery")
+	var response struct {
+		Attempts      []map[string]any `json:"attempts"`
+		Total         int              `json:"total"`
+		TotalExact    bool             `json:"totalExact"`
+		HasMore       bool             `json:"hasMore"`
+		ScannedEvents int              `json:"scannedEvents"`
+		WindowNote    string           `json:"windowNote"`
+	}
+	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		t.Fatalf("decode JSON response: %v\n%s", err, output)
+	}
+	if response.Total != 3 || response.TotalExact || !response.HasMore || response.ScannedEvents != 12 || response.WindowNote != "bounded event scan" || len(response.Attempts) != 1 {
+		t.Fatalf("response metadata = %+v", response)
+	}
+	if got := response.Attempts[0]["newEvidence"].(map[string]any)["source"]; got != "owner" {
+		t.Fatalf("unrecognized server field was dropped: %#v", response.Attempts[0])
+	}
+}
+
+func TestHeartbeatAttemptsRefusesInvalidBoundsAndPreservesOwnerErrors(t *testing.T) {
+	for _, args := range [][]string{{"--limit", "0"}, {"--limit", "201"}, {"--offset", "-1"}} {
+		t.Run(strings.Join(args, "="), func(t *testing.T) {
+			ctx := &fakeContext{t: t}
+			if err := route(ctx, append([]string{"heartbeat-attempts", "team", "member"}, args...)); err == nil {
+				t.Fatalf("invalid bounds were accepted: %v", args)
+			}
+			if ctx.gotMethod != "" {
+				t.Fatalf("invalid limit issued %s %s", ctx.gotMethod, ctx.gotPath)
+			}
+		})
+	}
+
+	denied := errors.New("verified caller identity unavailable")
+	ctx := &fakeContext{t: t, err: denied}
+	if err := route(ctx, []string{"heartbeat-attempts", "team", "member", "--limit=1", "--json"}); !errors.Is(err, denied) {
+		t.Fatalf("owner error was hidden: %v", err)
+	}
+	ctx.assertMethodPath(t, "GET", "/heartbeat-attempts?agent_id=member&limit=1&offset=0&team_id=team")
+}
+
+func TestExecutionStatusUsesBoundedOwnerReadAndPreservesJSON(t *testing.T) {
+	ctx := &fakeContext{t: t, getResponse: map[string]any{
+		"teamId":          "nooch-delivery",
+		"state":           "active",
+		"runningAgentIds": []string{"nooch-delivery-orchestrator"},
+		"owners": []map[string]any{{
+			"agentId": "nooch-delivery-orchestrator", "phase": "retained", "state": "dispatch_uncertain",
+			"dispatchStage": "task_intent", "dispatchFailurePhase": "task_resolution",
+			"dispatchFailureCode": "owner_forbidden", "taskId": "task-123", "runId": "",
+		}},
+	}}
+	output, err := captureTeamStdout(t, func() error {
+		return route(ctx, []string{"execution-status", "nooch-delivery", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("execution-status: %v", err)
+	}
+	ctx.assertMethodPath(t, "GET", "/teams/nooch-delivery/execution-status")
+	var response map[string]any
+	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		t.Fatalf("decode JSON response: %v\n%s", err, output)
+	}
+	owners, ok := response["owners"].([]any)
+	if !ok || len(owners) != 1 {
+		t.Fatalf("owners = %#v, want one owner record", response["owners"])
+	}
+	owner := owners[0].(map[string]any)
+	if owner["taskId"] != "task-123" || owner["dispatchStage"] != "task_intent" ||
+		owner["dispatchFailurePhase"] != "task_resolution" || owner["dispatchFailureCode"] != "owner_forbidden" {
+		t.Fatalf("owner metadata was not preserved: %#v", owner)
+	}
+
+	human, err := captureTeamStdout(t, func() error {
+		return route(ctx, []string{"execution-status", "nooch-delivery"})
+	})
+	if err != nil {
+		t.Fatalf("human execution-status: %v", err)
+	}
+	if !strings.Contains(human, "Owner nooch-delivery-orchestrator (retained) state=dispatch_uncertain dispatch=task_intent failure=task_resolution/owner_forbidden task=task-123") {
+		t.Fatalf("human output did not explain retained owner metadata: %s", human)
+	}
+}
+
+func TestExecutionStatusPreservesReadFailureAndRejectsEmptyTeam(t *testing.T) {
+	denied := errors.New("verified caller identity unavailable")
+	ctx := &fakeContext{t: t, err: denied}
+	if err := route(ctx, []string{"execution-status", "team", "--json"}); !errors.Is(err, denied) {
+		t.Fatalf("owner read error was hidden: %v", err)
+	}
+	ctx.assertMethodPath(t, "GET", "/teams/team/execution-status")
+
+	ctx = &fakeContext{t: t}
+	if err := route(ctx, []string{"execution-status", "  "}); err == nil {
+		t.Fatal("empty team ID was accepted")
+	}
+	if ctx.gotMethod != "" {
+		t.Fatalf("empty team ID issued %s %s", ctx.gotMethod, ctx.gotPath)
+	}
 }
 
 func TestHeartbeatDisableCreatesExplicitOnDemandConfiguration(t *testing.T) {

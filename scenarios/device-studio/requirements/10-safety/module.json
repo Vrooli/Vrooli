@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "safety",
-    "description": "Disclosure, privacy and total budgets. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Disclosure, privacy and total budgets. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },

@@ -1,0 +1,25 @@
+[
+  {
+    "path": "scenarios/personal-planner/api/internal/workspace/schema.sql",
+    "observed_at": "2026-10-21T00:44:25.019111+00:00",
+    "bytes": 1012,
+    "sha256": "e9208347eb5a6887470878e79f8698a8df547881aa20623f54d184620ee126c8"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/workspace/sqlite.go",
+    "observed_at": "2026-10-21T00:44:25.019748+00:00",
+    "bytes": 5505,
+    "sha256": "dbab20c66e5e2a62bea2beb58c52a809e27ed86c4886bd58a2498552ac06f78c"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/workspace/types.go",
+    "observed_at": "2026-10-21T00:44:25.020008+00:00",
+    "bytes": 1561,
+    "sha256": "9c432f7ee63e57b65cb37bd7c4751284883a3ec909f085a9e46fdd2306326108"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/workspace/sqlite_test.go",
+    "observed_at": "2026-10-21T00:44:25.020232+00:00",
+    "absent": true
+  }
+]

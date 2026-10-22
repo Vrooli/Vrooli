@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -139,6 +140,25 @@ func TestHeartbeatControlStore_ManualPauseAndResume(t *testing.T) {
 	}
 	if status.Status != HeartbeatControlStatusPausedManual {
 		t.Fatalf("pause status = %q", status.Status)
+	}
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		t.Fatalf("read persisted heartbeat control: %v", err)
+	}
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		t.Fatal("persisted heartbeat control must retain its trailing newline")
+	}
+	info, err := os.Stat(s.path)
+	if err != nil {
+		t.Fatalf("stat persisted heartbeat control: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("persisted heartbeat control mode = %04o, want 0644", got)
+	}
+	restarted := &HeartbeatControlStore{path: s.path, now: s.now}
+	reloaded, err := restarted.TeamStatus(context.Background(), "team-a")
+	if err != nil || reloaded.Status != HeartbeatControlStatusPausedManual {
+		t.Fatalf("reloaded paused control state = %+v, err=%v", reloaded, err)
 	}
 	if _, err := s.AllowStart(context.Background(), "team-a"); !errors.Is(err, ErrHeartbeatPaused) {
 		t.Fatalf("AllowStart err = %v, want ErrHeartbeatPaused", err)

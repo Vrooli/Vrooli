@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -49,7 +50,43 @@ type TeamExecutionStatus struct {
 	WatcherUnavailableAgentIDs     []string `json:"watcherUnavailableAgentIds"`
 	PreparationInterruptedAgentIDs []string `json:"preparationInterruptedAgentIds"`
 	AdmissionDeferredAgentIDs      []string `json:"admissionDeferredAgentIds"`
+	// Owners exposes only the identifiers and dispatch classification needed
+	// to diagnose a retained slot. It intentionally omits frozen prompts,
+	// request snapshots, caller bindings, and other private execution payloads.
+	Owners []TeamExecutionOwner `json:"owners"`
 }
+
+// TeamExecutionOwner identifies the retained-slot or queued owner record
+// without implying that an external model process is currently active and
+// without exposing its task or run payload.
+type TeamExecutionOwner struct {
+	AgentID              string `json:"agentId"`
+	Phase                string `json:"phase"`
+	State                string `json:"state,omitempty"`
+	DispatchStage        string `json:"dispatchStage,omitempty"`
+	DispatchFailurePhase string `json:"dispatchFailurePhase,omitempty"`
+	DispatchFailureCode  string `json:"dispatchFailureCode,omitempty"`
+	TaskID               string `json:"taskId,omitempty"`
+	RunID                string `json:"runId,omitempty"`
+	AdmissionOrigin      string `json:"admissionOrigin,omitempty"`
+	OwnerStartedAt       string `json:"ownerStartedAt,omitempty"`
+	ObligationID         string `json:"obligationId,omitempty"`
+}
+
+const (
+	dispatchFailurePhaseDispatch           = "dispatch"
+	dispatchFailurePhaseTaskAuthorization  = "task_authorization"
+	dispatchFailurePhaseTaskResolution     = "task_resolution"
+	dispatchFailurePhaseTaskLookup         = "task_lookup"
+	dispatchFailurePhaseTaskMatch          = "task_match"
+	dispatchFailurePhaseTaskCreate         = "task_create"
+	dispatchFailurePhaseTaskReconciliation = "task_reconciliation"
+	dispatchFailurePhaseTaskConfirmation   = "task_confirmation"
+	dispatchFailurePhaseRunCreation        = "run_creation"
+	dispatchFailurePhaseRunReconciliation  = "run_reconciliation"
+	dispatchFailurePhaseTaskCancellation   = "task_cancellation"
+	dispatchFailurePhaseCapacityDeferral   = "capacity_deferral"
+)
 
 // MemberAlreadyQueuedError is returned when a member is already queued or running.
 type MemberAlreadyQueuedError struct {
@@ -88,6 +125,52 @@ func (e *RunningStillActiveError) Error() string {
 // IsRunningStillActive checks if an error is a RunningStillActiveError.
 func IsRunningStillActive(err error) bool {
 	_, ok := err.(*RunningStillActiveError)
+	return ok
+}
+
+// RunningOwnerUnverifiedError is returned when ClearRunning cannot prove that
+// the retained slot's recorded run is terminal. An explicit force request is
+// still available to an operator after checking the owner independently.
+type RunningOwnerUnverifiedError struct {
+	TeamID  string
+	AgentID string
+	RunID   string
+	Reason  string
+}
+
+func (e *RunningOwnerUnverifiedError) Error() string {
+	owner := e.RunID
+	if owner == "" {
+		owner = "no run ID is recorded"
+	}
+	return fmt.Sprintf("cannot safely clear running entry %s/%s (%s): %s; verify the owner or use --force", e.TeamID, e.AgentID, owner, e.Reason)
+}
+
+// IsRunningOwnerUnverified reports a ClearRunning refusal due to missing or
+// inconsistent owner evidence.
+func IsRunningOwnerUnverified(err error) bool {
+	_, ok := err.(*RunningOwnerUnverifiedError)
+	return ok
+}
+
+// RunningOwnerLookupError is returned when Agent Manager cannot be queried.
+// Unlike an owner mismatch, this is an upstream failure rather than evidence
+// that the retained slot is stale.
+type RunningOwnerLookupError struct {
+	TeamID  string
+	AgentID string
+	RunID   string
+	Err     error
+}
+
+func (e *RunningOwnerLookupError) Error() string {
+	return fmt.Sprintf("cannot verify running entry %s/%s owner %s: %v", e.TeamID, e.AgentID, e.RunID, e.Err)
+}
+
+func (e *RunningOwnerLookupError) Unwrap() error { return e.Err }
+
+func IsRunningOwnerLookupFailure(err error) bool {
+	_, ok := err.(*RunningOwnerLookupError)
 	return ok
 }
 
@@ -175,8 +258,10 @@ type queuedExecution struct {
 	// TaskRequestSnapshot freezes the caller-authored task before its first
 	// POST. TaskConfirmed is persisted only after the exact task is found or
 	// created and its immutable terms are checked.
-	TaskRequestSnapshot string `json:"TaskRequestSnapshot,omitempty"`
-	TaskConfirmed       bool   `json:"TaskConfirmed,omitempty"`
+	TaskRequestSnapshot  string `json:"TaskRequestSnapshot,omitempty"`
+	TaskConfirmed        bool   `json:"TaskConfirmed,omitempty"`
+	DispatchFailurePhase string `json:"DispatchFailurePhase,omitempty"`
+	DispatchFailureCode  string `json:"DispatchFailureCode,omitempty"`
 	// CreateRunRequestSnapshot freezes the exact serialized owner request before
 	// its first send so recovery does not reconstruct terms from mutable state.
 	CreateRunRequestSnapshot string `json:"CreateRunRequestSnapshot,omitempty"`
@@ -210,6 +295,8 @@ type runningEntry struct {
 	TaskID                   string
 	TaskRequestSnapshot      string
 	TaskConfirmed            bool
+	DispatchFailurePhase     string
+	DispatchFailureCode      string
 	CreateRunRequestSnapshot string
 	CreateRunCallerMode      string
 	CreateRunCallerBinding   string
@@ -449,15 +536,39 @@ func validInterruptedPreparationSnapshot(snapshot retainedOwnerStateSnapshot, ow
 // OnMemberComplete is called when an execution finishes. It frees a slot and
 // starts queued members until the current concurrency limit is full.
 func (c *TeamExecutionContext) OnMemberComplete(agentID string) {
+	c.completeMember(agentID, "")
+}
+
+// OnMemberCompleteRun releases a slot only when it is still owned by runID.
+func (c *TeamExecutionContext) OnMemberCompleteRun(agentID, runID string) {
+	c.completeMember(agentID, runID)
+}
+
+func (c *TeamExecutionContext) OwnsRun(agentID, runID string) bool {
 	c.mu.Lock()
-	if _, ok := c.running[agentID]; !ok {
+	defer c.mu.Unlock()
+	entry, ok := c.running[agentID]
+	return ok && runID != "" && entry.RunID == runID
+}
+
+func (c *TeamExecutionContext) completeMember(agentID, expectedRunID string) bool {
+	c.mu.Lock()
+	entry, ok := c.running[agentID]
+	if !ok || (expectedRunID != "" && entry.RunID != expectedRunID) {
 		c.mu.Unlock()
-		return
+		return false
 	}
 	delete(c.running, agentID)
-	dispatches := c.dispatchAvailableLocked()
+	dispatches, persistErr := c.dispatchAvailableLockedWithPersistence()
+	if persistErr != nil {
+		// Keep ownership in memory when its completion could not be persisted.
+		c.running[agentID] = entry
+		c.mu.Unlock()
+		return false
+	}
 	c.mu.Unlock()
 	c.startExecutions(dispatches)
+	return true
 }
 
 // Status returns a snapshot of the team's execution state.
@@ -479,7 +590,15 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 	needsReview := make([]string, 0)
 	watcherUnavailable := make([]string, 0)
 	admissionDeferred := make([]string, 0)
+	owners := make([]TeamExecutionOwner, 0, len(c.running)+len(c.queue))
 	for agentID, entry := range c.running {
+		owners = append(owners, TeamExecutionOwner{
+			AgentID: agentID, Phase: "retained", State: entry.State,
+			DispatchStage: entry.DispatchStage, DispatchFailurePhase: entry.DispatchFailurePhase,
+			DispatchFailureCode: entry.DispatchFailureCode, TaskID: entry.TaskID, RunID: entry.RunID,
+			AdmissionOrigin: entry.AdmissionOrigin, OwnerStartedAt: entry.OwnerStartedAt,
+			ObligationID: entry.OwnerObligationID,
+		})
 		if entry.State == ObligationPreparationInterrupted {
 			preparationInterrupted = append(preparationInterrupted, agentID)
 		} else if entry.State == ObligationAdmissionDeferred {
@@ -519,7 +638,20 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 	queue := make([]string, 0, len(c.queue))
 	for _, item := range c.queue {
 		queue = append(queue, item.AgentID)
+		owners = append(owners, TeamExecutionOwner{
+			AgentID: item.AgentID, Phase: "queued", State: item.State,
+			DispatchStage: item.DispatchStage, DispatchFailurePhase: item.DispatchFailurePhase,
+			DispatchFailureCode: item.DispatchFailureCode, TaskID: item.TaskID, RunID: item.RunID,
+			AdmissionOrigin: item.AdmissionOrigin, OwnerStartedAt: item.OwnerStartedAt,
+			ObligationID: item.OwnerObligationID,
+		})
 	}
+	sort.Slice(owners, func(i, j int) bool {
+		if owners[i].AgentID != owners[j].AgentID {
+			return owners[i].AgentID < owners[j].AgentID
+		}
+		return owners[i].Phase < owners[j].Phase
+	})
 
 	return TeamExecutionStatus{
 		TeamID:                         c.teamID,
@@ -536,6 +668,7 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 		WatcherUnavailableAgentIDs:     watcherUnavailable,
 		PreparationInterruptedAgentIDs: preparationInterrupted,
 		AdmissionDeferredAgentIDs:      admissionDeferred,
+		Owners:                         owners,
 	}
 }
 
@@ -548,6 +681,11 @@ type persistedTeamQueue struct {
 }
 
 func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
+	dispatches, _ := c.dispatchAvailableLockedWithPersistence()
+	return dispatches
+}
+
+func (c *TeamExecutionContext) dispatchAvailableLockedWithPersistence() ([]queuedExecution, error) {
 	previousRunning := make(map[string]runningEntry, len(c.running))
 	for agentID, entry := range c.running {
 		previousRunning[agentID] = entry
@@ -589,9 +727,9 @@ func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
 		c.queue = previousQueue
 		c.queued = previousQueued
 		log.Printf("team_execution: queue promotion held because preparation save failed for %s: %v", c.teamID, err)
-		return nil
+		return nil, err
 	}
-	return dispatches
+	return dispatches, nil
 }
 
 func (c *TeamExecutionContext) startExecutions(dispatches []queuedExecution) {
@@ -622,7 +760,7 @@ func (c *TeamExecutionContext) startExecution(agentID, profileKey string, caller
 				// The owner may have accepted the run. Retain the slot as an
 				// uncertain obligation instead of freeing it for a duplicate.
 				log.Printf("team_execution: retaining uncertain dispatch obligation for %s/%s: %v", c.teamID, agentID, err)
-				c.MarkDispatchUncertain(agentID, err.Error())
+				c.MarkDispatchUncertain(agentID, dispatchFailurePhaseFromError(err, dispatchFailurePhaseDispatch), err)
 				return
 			}
 			if c.isAdmissionDeferred(agentID) {
@@ -699,6 +837,8 @@ func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchInte
 	entry.TaskID = intent.TaskID
 	entry.TaskRequestSnapshot = intent.TaskRequestSnapshot
 	entry.TaskConfirmed = intent.TaskConfirmed
+	entry.DispatchFailurePhase = ""
+	entry.DispatchFailureCode = ""
 	entry.CreateRunRequestSnapshot = intent.CreateRunRequestSnapshot
 	entry.CreateRunCallerMode = intent.CreateRunCallerMode
 	entry.CreateRunCallerBinding = intent.CreateRunCallerBinding
@@ -740,6 +880,8 @@ func (c *TeamExecutionContext) ConfirmTaskDispatch(agentID string) error {
 	}
 	previous := entry
 	entry.TaskConfirmed = true
+	entry.DispatchFailurePhase = ""
+	entry.DispatchFailureCode = ""
 	c.running[agentID] = entry
 	if err := c.persistLocked(); err != nil {
 		c.running[agentID] = previous
@@ -919,12 +1061,12 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 			return err
 		}
 		if IsDispatchUncertain(err) {
-			c.MarkDispatchUncertain(agentID, err.Error())
+			c.MarkDispatchUncertain(agentID, dispatchFailurePhaseRunReconciliation, err)
 			return err
 		}
 		if admissionReasonFromError(err) == "grant_limit_reached" {
 			if markErr := c.MarkAdmissionDeferred(agentID); markErr != nil {
-				c.MarkDispatchUncertain(agentID, markErr.Error())
+				c.MarkDispatchUncertain(agentID, dispatchFailurePhaseCapacityDeferral, errors.Join(err, markErr))
 				return fmt.Errorf("retaining capacity-deferred dispatch: %w", errors.Join(err, markErr))
 			}
 			return err
@@ -933,12 +1075,12 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 		// the owner can reject changed request terms before resolving the key.
 		// Keep the slot held for explicit owner reconciliation.
 		log.Printf("team_execution: retaining dispatch obligation for %s/%s after replay refusal: %v", c.teamID, agentID, err)
-		c.MarkDispatchUncertain(agentID, err.Error())
+		c.MarkDispatchUncertain(agentID, dispatchFailurePhaseRunReconciliation, err)
 		return err
 	}
 	if run == nil || run.ID == "" {
 		reason := "owner accepted replay but returned no run identity"
-		c.MarkDispatchUncertain(agentID, reason)
+		c.MarkDispatchUncertain(agentID, dispatchFailurePhaseRunReconciliation, errors.New(reason))
 		return fmt.Errorf("%s/%s: %s", c.teamID, agentID, reason)
 	}
 
@@ -947,8 +1089,8 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 	if request.Tag != nil {
 		runTag = *request.Tag
 	}
-	if !c.watchRetainedRun(agentID, run.ID, profileKey, request.TaskID, runTag, run.Status, run.StartedAt) {
-		c.MarkWatcherUnavailable(agentID)
+	if !c.watchRetainedRun(agentID, run.ID, profileKey, request.TaskID, runTag, run.Status, run.StartedAt, run.EndedAt, entry.AdmissionOrigin) {
+		c.MarkWatcherUnavailableForRun(agentID, run.ID)
 	}
 	log.Printf("team_execution: resolved retained dispatch for %s/%s to run %s", c.teamID, agentID, run.ID)
 	return nil
@@ -980,7 +1122,7 @@ func (c *TeamExecutionContext) ReconcileTaskDispatch(ctx context.Context, agentI
 
 	replayCtx, authErr := prepareReplayCaller(ctx, client, callerMode, callerBinding)
 	if authErr != nil {
-		c.MarkDispatchUncertain(agentID, authErr.Error())
+		c.MarkDispatchUncertain(agentID, dispatchFailurePhaseTaskAuthorization, authErr)
 		return fmt.Errorf("reauthorize retained task dispatch: %w", authErr)
 	}
 	if _, err := resolveTaskDispatch(replayCtx, client, snapshot); err != nil {
@@ -990,16 +1132,16 @@ func (c *TeamExecutionContext) ReconcileTaskDispatch(ctx context.Context, agentI
 		}
 		if admissionReasonFromError(err) == "grant_limit_reached" {
 			if markErr := c.MarkAdmissionDeferred(agentID); markErr != nil {
-				c.MarkDispatchUncertain(agentID, markErr.Error())
+				c.MarkDispatchUncertain(agentID, dispatchFailurePhaseCapacityDeferral, errors.Join(err, markErr))
 				return fmt.Errorf("retaining capacity-deferred task dispatch: %w", errors.Join(err, markErr))
 			}
 			return err
 		}
-		c.MarkDispatchUncertain(agentID, err.Error())
+		c.MarkDispatchUncertain(agentID, dispatchFailurePhaseFromError(err, dispatchFailurePhaseTaskResolution), err)
 		return err
 	}
 	if err := c.ConfirmTaskDispatch(agentID); err != nil {
-		c.MarkDispatchUncertain(agentID, err.Error())
+		c.MarkDispatchUncertain(agentID, dispatchFailurePhaseTaskConfirmation, err)
 		return fmt.Errorf("confirm recovered task dispatch: %w", err)
 	}
 	return c.ReconcileDispatch(ctx, agentID)
@@ -1020,25 +1162,25 @@ func (c *TeamExecutionContext) releaseObligation(agentID string) {
 	c.startExecutions(dispatches)
 }
 
-// retainedRunWatcher is implemented by an executor that can re-attach a
+// retainedRunProjectionWatcher is implemented by an executor that can re-attach a
 // completion waiter to a run it did not create in this process. A recovered
 // obligation bound during Recover otherwise has no goroutine to release its
 // slot when the owner reports terminal state.
-type retainedRunWatcher interface {
-	WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool
+type retainedRunProjectionWatcher interface {
+	WatchRecoveredRunWithProjection(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt, ownerTerminalAt, admissionOrigin string) bool
 }
 
-func (c *TeamExecutionContext) watchRetainedRun(agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool {
-	watcher, ok := c.executor.(retainedRunWatcher)
+func (c *TeamExecutionContext) watchRetainedRun(agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt, ownerTerminalAt, admissionOrigin string) bool {
+	watcher, ok := c.executor.(retainedRunProjectionWatcher)
 	if !ok || watcher == nil {
 		return false
 	}
-	return watcher.WatchRecoveredRun(c.teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt)
+	return watcher.WatchRecoveredRunWithProjection(c.teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt, ownerTerminalAt, admissionOrigin)
 }
 
 // MarkDispatchUncertain retains a member's slot after a dispatch whose outcome
 // is unknown. It is idempotent and never releases the obligation.
-func (c *TeamExecutionContext) MarkDispatchUncertain(agentID, reason string) {
+func (c *TeamExecutionContext) MarkDispatchUncertain(agentID, phase string, cause error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1048,8 +1190,73 @@ func (c *TeamExecutionContext) MarkDispatchUncertain(agentID, reason string) {
 		return
 	}
 	entry.State = ObligationDispatchUncertain
+	entry.DispatchFailurePhase = normalizeDispatchFailurePhase(phase)
+	entry.DispatchFailureCode = dispatchFailureCode(cause)
 	c.running[agentID] = entry
 	c.persistLocked()
+}
+
+func normalizeDispatchFailurePhase(phase string) string {
+	switch phase {
+	case dispatchFailurePhaseDispatch, dispatchFailurePhaseTaskAuthorization, dispatchFailurePhaseTaskResolution,
+		dispatchFailurePhaseTaskLookup, dispatchFailurePhaseTaskMatch, dispatchFailurePhaseTaskCreate,
+		dispatchFailurePhaseTaskReconciliation,
+		dispatchFailurePhaseTaskConfirmation, dispatchFailurePhaseRunReconciliation,
+		dispatchFailurePhaseRunCreation, dispatchFailurePhaseTaskCancellation, dispatchFailurePhaseCapacityDeferral:
+		return phase
+	default:
+		return "dispatch"
+	}
+}
+
+func dispatchFailureCode(err error) string {
+	var stageFailure *dispatchStageFailure
+	if errors.As(err, &stageFailure) && stageFailure != nil {
+		switch stageFailure.code {
+		case "capacity_deferral_failed", "task_cancellation_failed", "task_confirmation_failed", "run_create_uncertain":
+			return stageFailure.code
+		}
+	}
+	if reason := admissionReasonFromError(err); reason != "" {
+		return reason
+	}
+	if status, ok := AgentManagerAuthorizationStatus(err); ok {
+		if status == http.StatusUnauthorized {
+			return "owner_unauthorized"
+		}
+		return "owner_forbidden"
+	}
+	if errors.As(err, &stageFailure) && stageFailure != nil {
+		switch stageFailure.code {
+		case "task_lookup_failed", "task_terms_mismatch", "task_create_uncertain", "task_create_reconciliation_failed",
+			"capacity_deferral_failed", "task_cancellation_failed", "task_confirmation_failed", "run_create_uncertain":
+			return stageFailure.code
+		}
+	}
+	if IsApprovalPending(err) {
+		return "approval_pending"
+	}
+	if IsDispatchRejected(err) {
+		return "owner_rejected"
+	}
+	if IsDispatchUncertain(err) {
+		return "outcome_uncertain"
+	}
+	return "dispatch_error"
+}
+
+func dispatchFailurePhaseFromError(err error, fallback string) string {
+	var stageFailure *dispatchStageFailure
+	if errors.As(err, &stageFailure) && stageFailure != nil {
+		switch stageFailure.phase {
+		case dispatchFailurePhaseTaskLookup, dispatchFailurePhaseTaskMatch,
+			dispatchFailurePhaseTaskCreate, dispatchFailurePhaseTaskReconciliation,
+			dispatchFailurePhaseTaskConfirmation, dispatchFailurePhaseTaskCancellation,
+			dispatchFailurePhaseRunCreation, dispatchFailurePhaseCapacityDeferral:
+			return stageFailure.phase
+		}
+	}
+	return fallback
 }
 
 // MarkApprovalPending retains a run-stage request and its exact idempotent
@@ -1062,6 +1269,8 @@ func (c *TeamExecutionContext) MarkApprovalPending(agentID string) {
 		return
 	}
 	entry.State = ObligationApprovalPending
+	entry.DispatchFailurePhase = ""
+	entry.DispatchFailureCode = ""
 	c.running[agentID] = entry
 	_ = c.persistLocked()
 }
@@ -1087,6 +1296,8 @@ func (c *TeamExecutionContext) MarkAdmissionDeferred(agentID string) error {
 	}
 	previous := entry
 	entry.State = ObligationAdmissionDeferred
+	entry.DispatchFailurePhase = ""
+	entry.DispatchFailureCode = ""
 	c.running[agentID] = entry
 	if err := c.persistLocked(); err != nil {
 		c.running[agentID] = previous
@@ -1139,10 +1350,18 @@ func (c *TeamExecutionContext) RetryManualDispatch(ctx context.Context, agentID 
 // without terminal evidence. A later scheduled callback may probe the owner
 // and attach one replacement waiter; this does not release queue capacity.
 func (c *TeamExecutionContext) MarkWatcherUnavailable(agentID string) {
+	c.markWatcherUnavailable(agentID, "")
+}
+
+func (c *TeamExecutionContext) MarkWatcherUnavailableForRun(agentID, runID string) {
+	c.markWatcherUnavailable(agentID, runID)
+}
+
+func (c *TeamExecutionContext) markWatcherUnavailable(agentID, expectedRunID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	entry, ok := c.running[agentID]
-	if !ok || entry.RunID == "" {
+	if !ok || entry.RunID == "" || (expectedRunID != "" && entry.RunID != expectedRunID) {
 		return
 	}
 	entry.State = ObligationWatcherUnavailable
@@ -1155,35 +1374,83 @@ func (c *TeamExecutionContext) MarkWatcherUnavailable(agentID string) {
 // terminal evidence, or attaches a replacement waiter for a nonterminal run.
 // There is no timer loop or background retry.
 func (c *TeamExecutionContext) RetryUnavailableWatcher(ctx context.Context, agentID string) (bool, error) {
+	outcome, err := c.retryUnavailableWatcher(ctx, agentID)
+	return outcome != watcherRetryNone, err
+}
+
+type unavailableWatcherRetry uint8
+
+const (
+	watcherRetryNone unavailableWatcherRetry = iota
+	watcherRetryHandled
+	watcherRetryTerminalReconciled
+)
+
+// retryUnavailableWatcher separates a retained owner that was fully projected
+// and released from retries that only reattach or remain unresolved.
+func (c *TeamExecutionContext) retryUnavailableWatcher(ctx context.Context, agentID string) (unavailableWatcherRetry, error) {
 	c.mu.Lock()
 	entry, ok := c.running[agentID]
-	if !ok || (entry.State != ObligationWatcherUnavailable && entry.State != ObligationOwnerUnreachable) {
+	if !ok || (entry.State != ObligationWatcherUnavailable && entry.State != ObligationOwnerUnreachable && entry.State != ObligationPaused) {
 		c.mu.Unlock()
-		return false, nil
+		return watcherRetryNone, nil
 	}
 	c.mu.Unlock()
 	if entry.RunID == "" || c.agentClient == nil {
-		return true, nil
+		return watcherRetryHandled, nil
 	}
 	run, err := c.agentClient.GetRun(ctx, entry.RunID)
 	if err != nil {
-		return true, err
+		return watcherRetryHandled, err
 	}
 	if run == nil {
-		return true, fmt.Errorf("run %s was not found by agent-manager", entry.RunID)
+		return watcherRetryHandled, fmt.Errorf("run %s was not found by agent-manager", entry.RunID)
+	}
+	if run.ID != entry.RunID {
+		return watcherRetryHandled, fmt.Errorf("agent-manager returned run %s while reconciling retained run %s", run.ID, entry.RunID)
 	}
 	ownerStartedAt := resolvedOwnerStartedAt(run.StartedAt, entry.OwnerStartedAt)
 	if IsTerminalStatus(run.Status) {
-		// Let the executor's established terminal path update heartbeat
-		// health and the run registry before releasing queue ownership.
-		c.watchRetainedRun(agentID, entry.RunID, entry.ProfileKey, entry.TaskID, entry.RunTag, run.Status, ownerStartedAt)
-		return true, nil
+		// Project terminal state synchronously through the same executor owner
+		// used by the completion waiter. Only then release this exact slot.
+		projector, supportsProjection := c.executor.(interface {
+			ProjectRetainedTerminal(teamID, agentID, runID, profileKey, taskID, tag, admissionOrigin string, run *Run) retainedTerminalProjection
+		})
+		if supportsProjection {
+			projection := projector.ProjectRetainedTerminal(c.teamID, agentID, entry.RunID, entry.ProfileKey, entry.TaskID, entry.RunTag, entry.AdmissionOrigin, run)
+			if projection == retainedTerminalUnconfirmed {
+				// A production projector's refusal means terminal state was not
+				// durably confirmed. Do not attach a second asynchronous projection
+				// path in this callback; retain the slot for ordinary retry.
+				c.MarkWatcherUnavailableForRun(agentID, entry.RunID)
+				return watcherRetryHandled, nil
+			}
+			if !c.completeMember(agentID, entry.RunID) {
+				return watcherRetryHandled, nil
+			}
+			if projection == retainedTerminalPersisted {
+				return watcherRetryTerminalReconciled, nil
+			}
+			// The exact old owner is terminal, but a newer heartbeat result was
+			// preserved by the canonical projection. Release only this run's slot;
+			// let the next scheduled callback reload gates before admitting work.
+			return watcherRetryHandled, nil
+		}
+		// Only executors without synchronous terminal projection retain the
+		// prior asynchronous observer behavior; they cannot authorize
+		// same-callback admission.
+		if !c.watchRetainedRun(agentID, entry.RunID, entry.ProfileKey, entry.TaskID, entry.RunTag, run.Status, ownerStartedAt, ownerTerminalTimestamp(run), entry.AdmissionOrigin) {
+			// No confirmed synchronous projection or replacement waiter means the
+			// owner slot remains held for the next scheduled reconciliation.
+			c.MarkWatcherUnavailableForRun(agentID, entry.RunID)
+		}
+		return watcherRetryHandled, nil
 	}
 	c.mu.Lock()
 	current, stillOwned := c.running[agentID]
-	if !stillOwned || current.RunID != entry.RunID || (current.State != ObligationWatcherUnavailable && current.State != ObligationOwnerUnreachable) {
+	if !stillOwned || current.RunID != entry.RunID || (current.State != ObligationWatcherUnavailable && current.State != ObligationOwnerUnreachable && current.State != ObligationPaused) {
 		c.mu.Unlock()
-		return true, nil
+		return watcherRetryHandled, nil
 	}
 	switch {
 	case IsParkedStatus(run.Status):
@@ -1200,17 +1467,21 @@ func (c *TeamExecutionContext) RetryUnavailableWatcher(ctx context.Context, agen
 	_ = c.persistLocked()
 	c.mu.Unlock()
 	if !IsParkedStatus(run.Status) {
-		if !c.watchRetainedRun(agentID, run.ID, entry.ProfileKey, entry.TaskID, entry.RunTag, run.Status, ownerStartedAt) {
-			c.mu.Lock()
-			if current, ok := c.running[agentID]; ok && current.RunID == entry.RunID {
-				current.State = ObligationWatcherUnavailable
-				c.running[agentID] = current
-				_ = c.persistLocked()
-			}
-			c.mu.Unlock()
+		if !c.watchRetainedRun(agentID, run.ID, entry.ProfileKey, entry.TaskID, entry.RunTag, run.Status, ownerStartedAt, ownerTerminalTimestamp(run), entry.AdmissionOrigin) {
+			c.MarkWatcherUnavailableForRun(agentID, entry.RunID)
 		}
 	}
-	return true, nil
+	return watcherRetryHandled, nil
+}
+
+func (s *TeamExecutionStore) retryUnavailableWatcher(ctx context.Context, teamID, agentID string) (unavailableWatcherRetry, error) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return watcherRetryNone, nil
+	}
+	return tec.retryUnavailableWatcher(ctx, agentID)
 }
 
 func resolvedOwnerStartedAt(ownerValue, retainedValue string) string {
@@ -1241,6 +1512,8 @@ func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string, ownerStart
 		entry.OwnerStartedAt = ""
 	}
 	entry.RunID = runID
+	entry.DispatchFailurePhase = ""
+	entry.DispatchFailureCode = ""
 	if len(ownerStartedAt) > 1 {
 		entry.State = ownerRunObligationState(ownerStartedAt[0])
 	} else {
@@ -1284,7 +1557,7 @@ func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string, ownerStart
 // Stale queued (not-yet-dispatched) ticks are intentionally not restored: the
 // cron schedule is the source of truth after a restart, and replaying the
 // backlog would start a catch-up queue the acceptance forbids.
-func (c *TeamExecutionContext) Recover(ctx context.Context) {
+func (c *TeamExecutionContext) Recover(ctx context.Context) []ActiveRun {
 	c.mu.Lock()
 
 	data, err := os.ReadFile(c.queueFilePath())
@@ -1293,14 +1566,14 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 			log.Printf("team_execution: failed to read queue for %s: %v", c.teamID, err)
 		}
 		c.mu.Unlock()
-		return
+		return nil
 	}
 
 	var persisted persistedTeamQueue
 	if err := json.Unmarshal(data, &persisted); err != nil {
 		log.Printf("team_execution: failed to unmarshal queue for %s: %v", c.teamID, err)
 		c.mu.Unlock()
-		return
+		return nil
 	}
 
 	if persisted.QueuePolicy != "" {
@@ -1311,6 +1584,13 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 	}
 
 	c.running = make(map[string]runningEntry, len(persisted.Running))
+	type terminalProjection struct {
+		entry   queuedExecution
+		endedAt string
+	}
+	terminalRuns := make([]terminalProjection, 0)
+	watchers := make([]queuedExecution, 0, len(persisted.Running))
+	recoveredOwners := make([]ActiveRun, 0, len(persisted.Running))
 	for _, item := range persisted.Running {
 		if item.DispatchStage == DispatchStagePreparing && isProvenPreDispatchPreparation(item) {
 			// Keep the accepted obligation visible, but do not replay stale
@@ -1335,9 +1615,16 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 			}
 			continue
 		}
-		entry, keep := c.reconcileRunningEntry(ctx, item)
+		entry, keep, terminalRun := c.reconcileRunningEntry(ctx, item)
 		if !keep {
 			continue
+		}
+		if terminalRun != nil {
+			// Keep the exact slot durable until the common executor completion
+			// path projects the already-observed terminal run and releases this exact run.
+			item.State = terminalRun.Status
+			item.OwnerStartedAt = resolvedOwnerStartedAt(terminalRun.StartedAt, item.OwnerStartedAt)
+			terminalRuns = append(terminalRuns, terminalProjection{entry: item, endedAt: ownerTerminalTimestamp(terminalRun)})
 		}
 		if ownerStartedAt, ok := parseOwnerRunStartedAt(entry.OwnerStartedAt); ok {
 			entry.OwnerStartedAt = ownerStartedAt.Format(time.RFC3339Nano)
@@ -1350,6 +1637,25 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 			entry.OwnerObligationID = heartbeatOwnerObligationID(c.teamID, item.AgentID, entry.IdempotencyKey, entry.RunID, entry.OwnerStartedAt)
 		}
 		c.running[item.AgentID] = entry
+		if entry.RunID != "" {
+			state := entry.State
+			if state == "" {
+				state = ObligationRunning
+			}
+			owner := ActiveRun{TeamID: c.teamID, AgentID: item.AgentID, RunID: entry.RunID, State: state}
+			if startedAt, ok := parseOwnerRunStartedAt(entry.OwnerStartedAt); ok {
+				owner.StartedAt = startedAt
+				owner.ownerStartedAtKnown = true
+			}
+			recoveredOwners = append(recoveredOwners, owner)
+		}
+		if terminalRun == nil && entry.RunID != "" && entry.State != ObligationDispatchUncertain && entry.State != ObligationOwnerUnreachable && entry.State != ObligationPaused && entry.State != ObligationApprovalPending {
+			ownerStatus := "RUN_STATUS_RUNNING"
+			if entry.State == ObligationNeedsReview {
+				ownerStatus = "RUN_STATUS_NEEDS_REVIEW"
+			}
+			watchers = append(watchers, queuedExecution{AgentID: item.AgentID, AdmissionOrigin: entry.AdmissionOrigin, ProfileKey: entry.ProfileKey, RunID: entry.RunID, TaskID: entry.TaskID, RunTag: entry.RunTag, State: ownerStatus, OwnerStartedAt: entry.OwnerStartedAt})
+		}
 		// Fresh POST retries are owned by a currently eligible explicit trigger.
 		// Startup may reconcile a known RunID with GET/watch above, but must not
 		// infer a missing trigger origin or replay a no-RunID intent here.
@@ -1390,28 +1696,32 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 
 	// Write cleaned/reconciled state back to disk before attaching watchers.
 	saveErr := c.persistLocked()
-	watchers := make([]queuedExecution, 0, len(c.running))
-	for agentID, entry := range c.running {
-		if entry.RunID != "" && entry.State != ObligationDispatchUncertain && entry.State != ObligationOwnerUnreachable && entry.State != ObligationPaused && entry.State != ObligationApprovalPending {
-			ownerStatus := "RUN_STATUS_RUNNING"
-			if entry.State == ObligationNeedsReview {
-				ownerStatus = "RUN_STATUS_NEEDS_REVIEW"
-			}
-			watchers = append(watchers, queuedExecution{AgentID: agentID, ProfileKey: entry.ProfileKey, RunID: entry.RunID, TaskID: entry.TaskID, RunTag: entry.RunTag, State: ownerStatus, OwnerStartedAt: entry.OwnerStartedAt})
-		}
-	}
 	c.mu.Unlock()
+	if hydrator, ok := c.executor.(interface{ HydrateRecoveredRuns([]ActiveRun) }); ok {
+		hydrator.HydrateRecoveredRuns(recoveredOwners)
+	}
 	if saveErr != nil {
 		log.Printf("team_execution: recovery held because queue save failed: %v", saveErr)
-		return
+		return recoveredOwners
+	}
+	// Terminal owner evidence discovered during recovery also needs the
+	// executor's normal completion projection. Invoke watchers only after the
+	// queue mutex is released; the run-scoped completion callback may re-enter this context.
+	for _, terminal := range terminalRuns {
+		entry := terminal.entry
+		if !c.watchRetainedRun(entry.AgentID, entry.RunID, entry.ProfileKey, entry.TaskID, entry.RunTag, entry.State, entry.OwnerStartedAt, terminal.endedAt, entry.AdmissionOrigin) {
+			log.Printf("team_execution: terminal run projection unavailable for %s/%s (run %s); releasing proven terminal slot", c.teamID, entry.AgentID, entry.RunID)
+			c.OnMemberCompleteRun(entry.AgentID, entry.RunID)
+		}
 	}
 	for _, retained := range watchers {
-		if !c.watchRetainedRun(retained.AgentID, retained.RunID, retained.ProfileKey, retained.TaskID, retained.RunTag, retained.State, retained.OwnerStartedAt) {
-			c.MarkWatcherUnavailable(retained.AgentID)
+		if !c.watchRetainedRun(retained.AgentID, retained.RunID, retained.ProfileKey, retained.TaskID, retained.RunTag, retained.State, retained.OwnerStartedAt, "", retained.AdmissionOrigin) {
+			c.MarkWatcherUnavailableForRun(retained.AgentID, retained.RunID)
 		}
 	}
 
 	c.publishRetainedOwnerStateFacts(ctx)
+	return recoveredOwners
 }
 
 // reconcileRunningEntry decides the durable obligation for one persisted
@@ -1489,12 +1799,12 @@ func isProvenCanceledTaskDispatch(teamID string, item queuedExecution) bool {
 	return true
 }
 
-func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item queuedExecution) (runningEntry, bool) {
+func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item queuedExecution) (runningEntry, bool, *Run) {
 	if item.State == ObligationDispatchCanceled && isProvenCanceledTaskDispatch(c.teamID, item) {
 		// Execute persisted this no-replay tombstone after a typed pre-send
 		// cancellation, with the complete exact intent, but crashed before its
 		// worker completion callback.
-		return runningEntry{}, false
+		return runningEntry{}, false, nil
 	}
 	base := runningEntry{
 		DispatchStage:            item.DispatchStage,
@@ -1505,6 +1815,8 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 		TaskID:                   item.TaskID,
 		TaskRequestSnapshot:      item.TaskRequestSnapshot,
 		TaskConfirmed:            item.TaskConfirmed,
+		DispatchFailurePhase:     item.DispatchFailurePhase,
+		DispatchFailureCode:      item.DispatchFailureCode,
 		CreateRunRequestSnapshot: item.CreateRunRequestSnapshot,
 		CreateRunCallerMode:      item.CreateRunCallerMode,
 		CreateRunCallerBinding:   item.CreateRunCallerBinding,
@@ -1522,48 +1834,51 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 	needsOwnerRead := item.State == ObligationRunning || item.State == ObligationWatcherUnavailable || (item.State == ObligationDispatchUncertain && item.RunID != "")
 	if !needsOwnerRead {
 		base.State = item.State
-		return base, true
+		return base, true, nil
 	}
 	if item.RunID == "" {
 		log.Printf("team_execution: retaining dispatch_uncertain obligation for %s/%s (no RunID)", c.teamID, item.AgentID)
 		base.State = ObligationDispatchUncertain
-		return base, true
+		return base, true, nil
 	}
 	if c.agentClient == nil {
 		// No client configured (e.g. unit tests not exercising reconciliation).
 		// Preserve the entry — caller takes responsibility for what's on disk.
-		return base, true
+		return base, true, nil
 	}
 	run, err := c.agentClient.GetRun(ctx, item.RunID)
-	if err != nil {
+	observation := observeOwnerRun(item.RunID, run, err)
+	if observation.state == ObligationOwnerUnreachable {
 		log.Printf("team_execution: retaining owner_unreachable obligation for %s/%s (run %s: %v)", c.teamID, item.AgentID, item.RunID, err)
-		base.State = ObligationOwnerUnreachable
-		return base, true
+		base.State = observation.state
+		return base, true, nil
 	}
-	if run == nil {
-		log.Printf("team_execution: retaining dispatch_uncertain obligation for %s/%s (run %s not found by owner)", c.teamID, item.AgentID, item.RunID)
-		base.State = ObligationDispatchUncertain
-		return base, true
+	if observation.state == ObligationDispatchUncertain {
+		log.Printf("team_execution: retaining dispatch_uncertain obligation for %s/%s (requested run %s, owner returned %q)", c.teamID, item.AgentID, item.RunID, observation.status)
+		base.State = observation.state
+		return base, true, nil
 	}
-	if IsTerminalStatus(run.Status) {
-		log.Printf("team_execution: releasing terminal obligation for %s/%s (run %s status=%s)", c.teamID, item.AgentID, item.RunID, run.Status)
-		return runningEntry{}, false
+	if observation.terminal {
+		log.Printf("team_execution: reconciling terminal heartbeat projection for %s/%s (run %s status=%s)", c.teamID, item.AgentID, item.RunID, run.Status)
+		base.State = ObligationRunning
+		if observation.startedAtKnown {
+			base.OwnerStartedAt = observation.startedAt.Format(time.RFC3339Nano)
+		}
+		return base, true, run
 	}
-	if IsParkedStatus(run.Status) {
-		base.State = ObligationPaused
-	} else if IsNeedsReviewStatus(run.Status) {
-		base.State = ObligationNeedsReview
+	if observation.state == ObligationPaused || observation.state == ObligationNeedsReview {
+		base.State = observation.state
 	}
-	if ownerStartedAt, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
-		base.OwnerStartedAt = ownerStartedAt.Format(time.RFC3339Nano)
+	if observation.startedAtKnown {
+		base.OwnerStartedAt = observation.startedAt.Format(time.RFC3339Nano)
 	}
-	return base, true
+	return base, true, nil
 }
 
-// ClearRunning removes a single running entry for the team. If the entry
-// has a RunID and the backing run is still active in agent-manager, returns
-// an error unless force is true. If the agent isn't recorded as running,
-// returns ErrRunningEntryNotFound.
+// ClearRunning removes a single running entry for the team. Without force,
+// it requires exact terminal owner evidence; active or unverified owners are
+// preserved. If the agent isn't recorded as running, returns
+// ErrRunningEntryNotFound.
 func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string, force bool) error {
 	c.mu.Lock()
 
@@ -1573,18 +1888,51 @@ func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string,
 		return ErrRunningEntryNotFound
 	}
 
-	if !force && entry.RunID != "" && c.agentClient != nil {
-		// Release the lock for the network call.
+	if !force {
+		if entry.RunID == "" {
+			c.mu.Unlock()
+			return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, Reason: "no run ID is recorded"}
+		}
+		client := c.agentClient
+		if client == nil {
+			c.mu.Unlock()
+			return &RunningOwnerLookupError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Err: errors.New("Agent Manager client is unavailable")}
+		}
+		// Release the lock for the network call, then verify the same slot still
+		// belongs to this run before changing queue state.
 		c.mu.Unlock()
-		run, err := c.agentClient.GetRun(ctx, entry.RunID)
-		if err == nil && run != nil && !IsTerminalStatus(run.Status) {
+		run, err := client.GetRun(ctx, entry.RunID)
+		if err != nil {
+			return &RunningOwnerLookupError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Err: err}
+		}
+		if run == nil || run.ID != entry.RunID {
+			return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Reason: "Agent Manager did not confirm the exact run ID"}
+		}
+		if !IsTerminalStatus(run.Status) {
 			return &RunningStillActiveError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Status: run.Status}
 		}
 		c.mu.Lock()
+		current, stillPresent := c.running[agentID]
+		if !stillPresent {
+			c.mu.Unlock()
+			return ErrRunningEntryNotFound
+		}
+		if current.RunID != entry.RunID {
+			c.mu.Unlock()
+			return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Reason: "the retained slot changed while owner status was checked"}
+		}
 	}
 
 	delete(c.running, agentID)
-	dispatches := c.dispatchAvailableLocked()
+	dispatches, persistErr := c.dispatchAvailableLockedWithPersistence()
+	if persistErr != nil {
+		// The dispatch helper has rolled back its promotion attempt. Restore the
+		// explicitly-cleared entry too, so memory and the durable queue continue
+		// to agree and no queued execution starts without a committed removal.
+		c.running[agentID] = entry
+		c.mu.Unlock()
+		return fmt.Errorf("persist queue after clearing %s/%s: %w", c.teamID, agentID, persistErr)
+	}
 	c.mu.Unlock()
 	c.startExecutions(dispatches)
 	return nil
@@ -1604,6 +1952,8 @@ func (c *TeamExecutionContext) persistLocked() error {
 			TaskID:                   entry.TaskID,
 			TaskRequestSnapshot:      entry.TaskRequestSnapshot,
 			TaskConfirmed:            entry.TaskConfirmed,
+			DispatchFailurePhase:     entry.DispatchFailurePhase,
+			DispatchFailureCode:      entry.DispatchFailureCode,
 			CreateRunRequestSnapshot: entry.CreateRunRequestSnapshot,
 			CreateRunCallerMode:      entry.CreateRunCallerMode,
 			CreateRunCallerBinding:   entry.CreateRunCallerBinding,

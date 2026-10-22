@@ -138,9 +138,9 @@ func (c *Coordinator) RefineGeometrySession(ctx context.Context, id string, req 
 		}
 		return child, nil
 	}
-	if !req.ConfirmLocalAI {
-		return GeometrySessionSnapshot{}, errors.New("confirm the disclosed local-only AI request before refining")
-	}
+	// An unchanged-scope refinement is covered by the durable parent session's
+	// explicit local-only confirmation. A changed scope takes the separate
+	// createGeometrySession path above, which still requires fresh confirmation.
 	if current.State != jobs.RunScopeActive {
 		return GeometrySessionSnapshot{}, jobs.ErrScopeAdmissionClosed
 	}

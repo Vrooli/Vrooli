@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -318,5 +319,52 @@ func TestGetHandoffHistory_Limit(t *testing.T) {
 	}
 	if len(resp.Entries) != 2 {
 		t.Fatalf("expected 2 entries with last=2, got %d", len(resp.Entries))
+	}
+}
+
+func TestGetHandoffHistoryRejectsUnboundedOrInvalidLimits(t *testing.T) {
+	for _, last := range []string{"101", "0", "-1", "not-a-number"} {
+		t.Run(last, func(t *testing.T) {
+			handlers, _ := setupHandoffTestHandlers(t)
+			req := httptest.NewRequest(http.MethodGet, "/teams/team-1/handoff-history?last="+last, nil)
+			req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+			w := httptest.NewRecorder()
+
+			handlers.GetHandoffHistory(w, req)
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("expected invalid last=%q to return 400, got %d: %s", last, w.Code, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestGetHandoffHistoryAllowsMaximumLimit(t *testing.T) {
+	handlers, teamStore := setupHandoffTestHandlers(t)
+	ctx := context.Background()
+	for i := 0; i < store.MaxHandoffHistoryEntries+1; i++ {
+		entry := store.HandoffEntry{AgentID: "agent-1", RunID: fmt.Sprintf("run-%03d", i), Timestamp: "2025-01-01T00:00:00Z", Content: fmt.Sprintf("entry-%03d", i)}
+		if err := teamStore.AppendHandoffHistory(ctx, "team-1", &entry); err != nil {
+			t.Fatalf("append entry %d: %v", i, err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/teams/team-1/handoff-history?last=%d", store.MaxHandoffHistoryEntries), nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+	handlers.GetHandoffHistory(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected maximum valid limit to return 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp HandoffHistoryResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != store.MaxHandoffHistoryEntries {
+		t.Fatalf("expected %d entries, got %d", store.MaxHandoffHistoryEntries, len(resp.Entries))
+	}
+	if resp.Entries[0].RunID != "run-100" || resp.Entries[len(resp.Entries)-1].RunID != "run-001" {
+		t.Fatalf("expected newest-first bounded history, got first=%q last=%q", resp.Entries[0].RunID, resp.Entries[len(resp.Entries)-1].RunID)
 	}
 }

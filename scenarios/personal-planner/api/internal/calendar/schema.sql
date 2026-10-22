@@ -50,6 +50,13 @@ CREATE TABLE IF NOT EXISTS calendar_event_commands (
   event_id TEXT NOT NULL REFERENCES calendar_events(id),
   created_at TEXT NOT NULL
 );
+-- Ownership is recorded only for events created after this additive relation
+-- exists. Existing calendar_events rows intentionally remain unowned.
+CREATE TABLE IF NOT EXISTS calendar_event_owners (
+  event_id TEXT PRIMARY KEY REFERENCES calendar_events(id),
+  owner_subject TEXT NOT NULL CHECK (owner_subject <> '')
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_event_owners_subject ON calendar_event_owners(owner_subject, event_id);
 
 CREATE TABLE IF NOT EXISTS placement_proposals (
   id TEXT PRIMARY KEY,

@@ -1,0 +1,57 @@
+{
+  "captured_at_utc": "2026-10-21T00:04:22Z",
+  "anchor": "gcta-790809a33666",
+  "baseline_manifest_sha256": "01f6871225b82ef6eb5f377dda323c52e98c5ada70aba689c75e4960331b6efa",
+  "paths": [
+    {
+      "path": "scenarios/personal-planner/api/internal/calendar/events.go",
+      "before_sha256": "11fc644012aa7cb1a1944119455c6acd005b335636ec127bff39bbb2370ae0eb",
+      "before_bytes": 5863,
+      "before_lines": 162,
+      "after_sha256": "2fd6b80aa876661ef1d9c1861f01cbed5a1db283be141730719728d4623dd4be",
+      "after_bytes": 6204,
+      "after_lines": 176,
+      "line_delta": 14
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/calendar/events_sqlite.go",
+      "before_sha256": "eb2be3929bbc5c1d16ecdbb9fac01c3086a765d48fc6137e61f41440955468b3",
+      "before_bytes": 10287,
+      "before_lines": 254,
+      "after_sha256": "31a838ca73cbb1cc2a3f8f34a42f762977c7e717b5a24729d9fc7ef6d15bb853",
+      "after_bytes": 12004,
+      "after_lines": 286,
+      "line_delta": 32
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/calendar/schema.sql",
+      "before_sha256": "0d39694fb5f9c8d938c263c831fb29425e530209f294fa3224cce9ae10135140",
+      "before_bytes": 5353,
+      "before_lines": 146,
+      "after_sha256": "463302dcabfdd08f691fbe369955e3b5e1e0be68ca6968fed1b2723fb576655c",
+      "after_bytes": 5786,
+      "after_lines": 153,
+      "line_delta": 7
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/calendar/events_test.go",
+      "before_sha256": "013a16e7e2e4b97ca1d838dd1d911a354546256e0925b4c5820a7b2b62715bf0",
+      "before_bytes": 12781,
+      "before_lines": 283,
+      "after_sha256": "b6ebfb8e74490f2735ff38957140e175a35ccb9864d3fcda8d252b2c677cc70f",
+      "after_bytes": 17641,
+      "after_lines": 381,
+      "line_delta": 98
+    },
+    {
+      "path": "scenarios/personal-planner/api/handlers/calendar/connect_events_test.go",
+      "before_sha256": "e9c52fbed99c7fd590385491e16894610ae6b0ca52cee306635645f250d187cf",
+      "before_bytes": 19957,
+      "before_lines": 404,
+      "after_sha256": "db239514eebd5da62df59d3e77d49d88ec5ee9db895f50712594f139adbd18c4",
+      "after_bytes": 25799,
+      "after_lines": 506,
+      "line_delta": 102
+    }
+  ]
+}

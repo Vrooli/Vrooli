@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"prompt-manager/internal/teamcontract"
 )
 
 // writeRelationFixture builds a store whose relation directory binds the given
@@ -47,8 +49,8 @@ func TestRelationBindingDriftReportsRecordWithNoMember(t *testing.T) {
 }
 
 func TestRelationBindingDriftReportsMemberWithNoRecord(t *testing.T) {
-	// The other direction, also live on marketing-crew: producer had a member
-	// directory and a role but no relation record.
+	// The other direction, also live on marketing-crew: producer was declared
+	// as a member but had no membership relation record.
 	storeDir := writeRelationFixture(t, "marketing-crew", []string{"brand-manager"})
 	members := map[string]bool{"brand-manager": true, "producer": true}
 
@@ -75,6 +77,51 @@ func TestRelationBindingDriftSilentWithoutStoreDir(t *testing.T) {
 	}
 	if got := checkRelationBindingDrift(t.TempDir(), "marketing-crew", map[string]bool{"a": true}); got != nil {
 		t.Fatalf("no relations dir must be silent, got %+v", got)
+	}
+}
+
+func TestTeamMembershipDriftAllowsSharedRoleDefinitionsButRequiresMembershipRecords(t *testing.T) {
+	storeDir := t.TempDir()
+	teamID := "shared-role-team"
+	relationsDir := filepath.Join(storeDir, "relations", "team-member")
+	if err := os.MkdirAll(relationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir relations: %v", err)
+	}
+	for _, memberID := range []string{"alice", "bob"} {
+		body := `{"kind":"team-member","schemaVersion":1,"teamId":"` + teamID + `","agentId":"` + memberID + `","status":"active","roles":["developer"]}`
+		path := filepath.Join(relationsDir, teamID+"__"+memberID+".json")
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatalf("write relation %s: %v", memberID, err)
+		}
+	}
+	rolesPath := filepath.Join(storeDir, "teams", teamID, "roles.json")
+	if err := os.MkdirAll(filepath.Dir(rolesPath), 0o755); err != nil {
+		t.Fatalf("mkdir team: %v", err)
+	}
+	if err := os.WriteFile(rolesPath, []byte(`{"roles":[{"id":"developer"}]}`), 0o644); err != nil {
+		t.Fatalf("write roles catalog: %v", err)
+	}
+
+	contract := &teamcontract.OperatingContract{Members: map[string]teamcontract.MemberContract{
+		"alice": {},
+		"bob":   {},
+	}}
+	opts := ValidationOptions{
+		StoreDir: storeDir,
+		TeamContracts: TeamContractRegistry{
+			teamID: {TeamID: teamID, Contract: contract},
+		},
+	}
+	if got := ruleTeamMembershipDrift(opts); len(got) != 0 {
+		t.Fatalf("shared role assigned to two members must be valid; findings = %+v", got)
+	}
+
+	if err := os.Remove(filepath.Join(relationsDir, teamID+"__bob.json")); err != nil {
+		t.Fatalf("remove bob relation: %v", err)
+	}
+	got := ruleTeamMembershipDrift(opts)
+	if len(got) != 1 || got[0].Member != "bob" || got[0].Rule != "team_role_member_drift" {
+		t.Fatalf("missing membership relation must still be reported; findings = %+v", got)
 	}
 }
 

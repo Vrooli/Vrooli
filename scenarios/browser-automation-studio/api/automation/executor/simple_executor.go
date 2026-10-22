@@ -1755,16 +1755,8 @@ func stringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 // shouldContinueOnError determines if execution should continue after an error or failure.
 // Priority: instruction context > request default > false (stop on error)
 func shouldContinueOnError(instruction contracts.CompiledInstruction, requestDefault *bool) bool {
-	// First check instruction context (per-node setting)
-	if instruction.Context != nil {
-		// Compiler-produced plans use camelCase. Persisted JSON imported through
-		// compatibility paths can retain the proto field spelling instead, so
-		// accept both representations at this execution boundary.
-		for _, key := range []string{"continueOnError", "continue_on_error"} {
-			if continueOnError, ok := instruction.Context[key].(bool); ok {
-				return continueOnError
-			}
-		}
+	if value, explicitlySet := nodeContinueOnError(instruction); explicitlySet {
+		return value
 	}
 	// Fall back to request-level default
 	if requestDefault != nil {
@@ -1772,4 +1764,18 @@ func shouldContinueOnError(instruction contracts.CompiledInstruction, requestDef
 	}
 	// Default: stop on error
 	return false
+}
+
+func nodeContinueOnError(instruction contracts.CompiledInstruction) (bool, bool) {
+	if instruction.Context == nil {
+		return false, false
+	}
+	// Compiler-produced plans use camelCase. Persisted JSON imported through
+	// compatibility paths can retain the proto field spelling instead.
+	for _, key := range []string{"continueOnError", "continue_on_error"} {
+		if value, ok := instruction.Context[key].(bool); ok {
+			return value, true
+		}
+	}
+	return false, false
 }

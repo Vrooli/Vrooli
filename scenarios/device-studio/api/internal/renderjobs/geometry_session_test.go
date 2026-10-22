@@ -2,6 +2,7 @@ package renderjobs
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -45,5 +46,58 @@ func TestGeometrySessionRejectsNonFiniteLockedDimensions(t *testing.T) {
 	}, "")
 	if err == nil {
 		t.Fatal("non-finite geometry envelope must be rejected before a durable scope is created")
+	}
+}
+
+func TestGeometrySessionSameScopeRefinementUsesPersistedParentConfirmation(t *testing.T) {
+	c, ctx, _ := integrationCoordinator(t, &integrationOps{}, false)
+	addGeometryPlate(c.media.(*integrationMedia))
+	created, err := c.CreateGeometrySession(ctx, GeometrySessionRequest{
+		ProjectID: "project", CandidateID: "candidate-base", IdempotencyKey: "session-confirmation",
+		Brief: "compact field display", EnvelopeMM: [3]float64{80, 150, 12},
+		ReferenceMediaIDs: []string{"active", "plate"}, FundingRoute: GeometryFundingLocal,
+		ConfirmLocalAI: true,
+	})
+	if err != nil || len(created.Children) != 1 {
+		t.Fatalf("create explicitly confirmed parent session: children=%d err=%v", len(created.Children), err)
+	}
+	_, err = c.RefineGeometrySession(ctx, created.SessionID, GeometrySessionRefinementRequest{
+		GeometrySessionRequest: GeometrySessionRequest{
+			CandidateID: "candidate-refined", IdempotencyKey: "session-confirmation/refine",
+			Brief: created.Policy.Brief, EnvelopeMM: created.Policy.EnvelopeMM,
+			ReferenceMediaIDs: append([]string(nil), created.Policy.ReferenceMediaIDs...),
+			FundingRoute:      GeometryFundingLocal,
+			// No second local-AI checkbox is sent for unchanged scope.
+			ConfirmLocalAI: false,
+		},
+		CorrectionSourceJobID: created.Children[0].JobID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "prior creation step must finish") {
+		t.Fatalf("same-scope continuation should pass persisted parent confirmation and reach the baseline-state guard, got %v", err)
+	}
+}
+
+func TestGeometrySessionChangedScopeReturnsChoiceWithoutDispatch(t *testing.T) {
+	c, ctx, _ := integrationCoordinator(t, &integrationOps{}, false)
+	addGeometryPlate(c.media.(*integrationMedia))
+	created, err := c.CreateGeometrySession(ctx, GeometrySessionRequest{
+		ProjectID: "project", CandidateID: "candidate-base", IdempotencyKey: "session-expansion",
+		Brief: "compact field display", EnvelopeMM: [3]float64{80, 150, 12},
+		ReferenceMediaIDs: []string{"active", "plate"}, FundingRoute: GeometryFundingLocal,
+		ConfirmLocalAI: true,
+	})
+	if err != nil || len(created.Children) != 1 {
+		t.Fatalf("create parent session: children=%d err=%v", len(created.Children), err)
+	}
+	snapshot, err := c.RefineGeometrySession(ctx, created.SessionID, GeometrySessionRefinementRequest{
+		GeometrySessionRequest: GeometrySessionRequest{
+			CandidateID: "candidate-expanded", IdempotencyKey: "session-expansion/linked",
+			Brief: "add a physical keyboard", EnvelopeMM: created.Policy.EnvelopeMM,
+			ReferenceMediaIDs: append([]string(nil), created.Policy.ReferenceMediaIDs...),
+			FundingRoute:      GeometryFundingLocal, ConfirmLocalAI: false,
+		},
+	})
+	if err != nil || !snapshot.NeedsConfirmation || len(snapshot.ChangedScope) != 1 || snapshot.ChangedScope[0] != "brief" || snapshot.ChildrenAdmitted != 1 || len(snapshot.Children) != 1 {
+		t.Fatalf("scope change must pause without dispatch: snapshot=%+v err=%v", snapshot, err)
 	}
 }

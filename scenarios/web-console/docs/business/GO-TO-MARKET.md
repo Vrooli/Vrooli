@@ -24,6 +24,14 @@ forward. This addresses cognitive overhead and avoidable switching as well as th
 possibility of better utilization of existing spend. Dollar savings require a
 buyer-specific baseline and evidence; convenience alone does not establish ROI.
 
+## A short customer pitch
+
+Keep the coding agents you like. Give their conversations and outputs a shared
+home. Aquila helps you put existing agent subscriptions to work in one workspace:
+choose a configured tool, see what needs a look, inspect what it made, and reuse
+the decisions worth keeping. Eligible voice and AI assistance can fit the local
+compute, provider account or API key you already have.
+
 ## Who should care
 
 Start with individual developers, technical founders and small teams who already

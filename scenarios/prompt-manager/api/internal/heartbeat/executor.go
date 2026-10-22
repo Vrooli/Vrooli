@@ -18,6 +18,9 @@ import (
 	"prompt-manager/internal/teamconfig"
 
 	"github.com/google/uuid"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // ExecutionResult represents the result of a heartbeat execution
@@ -49,9 +52,6 @@ type TeamExecStoreRegistrar interface {
 	CancelUnsentTaskDispatch(teamID, agentID, taskID, idempotencyKey, taskSnapshot string) error
 	// SetRunningRunID binds a confirmed run identity, clearing uncertainty.
 	SetRunningRunID(teamID, agentID, runID string, ownerStartedAt ...string)
-	// MarkDispatchUncertain retains the slot when the owner may have accepted
-	// a run that the caller cannot confirm.
-	MarkDispatchUncertain(teamID, agentID, reason string)
 	// MarkApprovalPending retains an existing run intent while the owner waits
 	// for explicit operator approval.
 	MarkApprovalPending(teamID, agentID string)
@@ -70,7 +70,7 @@ type Executor struct {
 	runRegistry      *RunRegistry
 	handoffExtractor HandoffExtractor
 	teamExecStore    TeamExecStoreRegistrar
-	OnComplete       func(teamID, agentID string)
+	OnRunComplete    func(teamID, agentID, runID string)
 	TeamReviewURL    func(context.Context, string) string
 
 	// Completion waiters outlive the request that started them, so they are
@@ -137,7 +137,26 @@ func (e *Executor) trackWaiter(key string, cancel context.CancelFunc) (int64, bo
 	if key != "" {
 		e.waiterKeys[key] = id
 	}
+	// Register work while holding the same lock Shutdown uses to close
+	// admission, so Wait cannot race an Add after shutdown begins.
+	e.inflight.Add(1)
 	return id, true
+}
+
+func (e *Executor) scheduleHandoffExtraction(teamID, agentID, runID string, endedAt time.Time) {
+	ctx, cancel := context.WithCancel(context.Background())
+	key := "handoff:" + heartbeatWaiterKey(teamID, agentID, runID)
+	id, started := e.trackWaiter(key, cancel)
+	if !started {
+		cancel()
+		return
+	}
+	go func() {
+		defer e.inflight.Done()
+		defer e.releaseWaiter(id, key)
+		defer cancel()
+		e.extractAndStoreHandoff(ctx, teamID, agentID, runID, endedAt)
+	}()
 }
 
 func (e *Executor) releaseWaiter(id int64, key string) {
@@ -176,6 +195,31 @@ func (e *Executor) Shutdown() {
 // (they have a circular dependency at construction time).
 func (e *Executor) SetTeamExecStore(s TeamExecStoreRegistrar) {
 	e.teamExecStore = s
+}
+
+// HydrateRecoveredRuns updates the presentation registry from TeamExecution's
+// authoritative startup reconciliation without publishing synthetic starts.
+func (e *Executor) HydrateRecoveredRuns(runs []ActiveRun) {
+	if e == nil || e.runRegistry == nil {
+		return
+	}
+	e.runRegistry.HydrateQueueOwners(runs)
+}
+
+func (e *Executor) isCurrentRunOwner(teamID, agentID, runID string) bool {
+	if owner, ok := e.teamExecStore.(interface {
+		IsCurrentRun(teamID, agentID, runID string) bool
+	}); ok && !owner.IsCurrentRun(teamID, agentID, runID) {
+		return false
+	}
+	if e.runRegistry != nil {
+		if active, ok := e.runRegistry.GetActiveRun(teamID, agentID); ok && active.RunID != runID {
+			return false
+		}
+	}
+	// Production recovery has the durable TeamExecutionStore owner. Tests and
+	// compatibility callers without that optional owner retain the prior path.
+	return true
 }
 
 // SetContractFindingsProvider forwards the findings source to the executor's
@@ -302,18 +346,41 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		result.Status = store.HeartbeatStatusFailed
 		return result, result.Error
 	}
+	attemptID := uuid.NewString()
+	workReferences, err := e.orchestratorWorkReferences(ctx, team, agentID, profileKey, config)
+	if err != nil {
+		result.Error = fmt.Errorf("confirming finite effort leader identity: %w", err)
+		if config.LastExecution != nil && config.LastExecution.RunID != "" {
+			result.Status = store.HeartbeatStatusObserverUnavailable
+			return result, e.retainPriorFiniteOwner(teamID, agentID, config.LastExecution.RunID, result.Error)
+		}
+		result.Status = store.HeartbeatStatusFailed
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error, result.Error.Error(), attemptID, profileKey, "", "", "", "resolving_effort_identity", false, false)
+		return result, result.Error
+	}
+	if len(workReferences) > 0 {
+		if recovered, handled, recoveryErr := e.recoverPriorFiniteOwner(ctx, team, agentID, config, workReferences); handled {
+			if recoveryErr != nil {
+				result.Error = recoveryErr
+				result.Status = store.HeartbeatStatusObserverUnavailable
+				return result, recoveryErr
+			}
+			return &recovered, nil
+		}
+	}
 
 	// Generate log path
 	timestamp := startedAt.Format("2006-01-02T15-04-05Z")
 	logPath := e.teamStore.GetMemberLogPathForContext(ctx, teamID, agentID, timestamp)
 	result.LogPath = logPath
-	attemptID := uuid.NewString()
 
 	// Update config to running
+	admissionOrigin := heartbeatAdmissionOrigin(ctx)
 	config.LastExecution = &store.HeartbeatExecResult{
-		StartedAt: startedAt.Format(time.RFC3339),
-		Status:    store.HeartbeatStatusRunning,
-		LogPath:   logPath,
+		StartedAt:       startedAt.Format(time.RFC3339),
+		Status:          store.HeartbeatStatusRunning,
+		LogPath:         logPath,
+		AdmissionOrigin: admissionOrigin,
 	}
 	if err := e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
 		result.Error = fmt.Errorf("updating config to running: %w", err)
@@ -361,6 +428,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		Tag:            &runTag,
 		IdempotencyKey: dispatchKey,
 		Environment:    environment,
+		WorkReferences: workReferences,
 	}
 
 	if e.teamExecStore == nil {
@@ -423,10 +491,13 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		}
 		if isPreSendCancellation(err) {
 			if cancelErr := e.teamExecStore.CancelUnsentTaskDispatch(teamID, agentID, task.ID, dispatchKey, taskSnapshot); cancelErr != nil {
-				retained := NewDispatchUncertainError(fmt.Errorf("canceling unsent task dispatch: %w", cancelErr))
+				retained := NewDispatchUncertainError(&dispatchStageFailure{
+					phase: dispatchFailurePhaseTaskCancellation,
+					code:  "task_cancellation_failed",
+					cause: fmt.Errorf("canceling unsent task dispatch: %w", cancelErr),
+				})
 				result.Error = retained
 				result.Status = store.HeartbeatStatusFailed
-				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, retained.Error())
 				reportCtx, cancelReport := boundedHeartbeatReportContext(ctx)
 				e.updateConfigFailed(reportCtx, teamID, agentID, config, startedAt, retained, retained.Error(), attemptID, profileKey, task.ID, "", runTag, "canceling_task_dispatch", false, false)
 				cancelReport()
@@ -440,8 +511,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		}
 		if admissionReasonFromError(err) == "grant_limit_reached" {
 			if deferErr := e.teamExecStore.MarkAdmissionDeferred(teamID, agentID); deferErr != nil {
-				retained := NewDispatchUncertainError(fmt.Errorf("retaining capacity-deferred task intent: %w", deferErr))
-				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, retained.Error())
+				retained := NewDispatchUncertainError(&dispatchStageFailure{
+					phase: dispatchFailurePhaseCapacityDeferral,
+					code:  "capacity_deferral_failed",
+					cause: errors.Join(err, fmt.Errorf("retaining capacity-deferred task intent: %w", deferErr)),
+				})
 				result.Error = retained
 			}
 			result.Status = store.HeartbeatStatusFailed
@@ -454,7 +528,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 	if err := e.teamExecStore.ConfirmTaskDispatch(teamID, agentID); err != nil {
-		uncertain := NewDispatchUncertainError(fmt.Errorf("persisting confirmed task stage: %w", err))
+		uncertain := NewDispatchUncertainError(&dispatchStageFailure{
+			phase: dispatchFailurePhaseTaskConfirmation,
+			code:  "task_confirmation_failed",
+			cause: fmt.Errorf("persisting confirmed task stage: %w", err),
+		})
 		result.Error = uncertain
 		result.Status = store.HeartbeatStatusFailed
 		reportCtx, cancelReport := boundedHeartbeatReportContext(ctx)
@@ -491,8 +569,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 			// admission check. Do not cancel/delete the task or rebuild the request.
 			result.Error = fmt.Errorf("creating run: %w", err)
 			if deferErr := e.teamExecStore.MarkAdmissionDeferred(teamID, agentID); deferErr != nil {
-				retained := NewDispatchUncertainError(fmt.Errorf("retaining capacity-deferred run intent: %w", deferErr))
-				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, retained.Error())
+				retained := NewDispatchUncertainError(&dispatchStageFailure{
+					phase: dispatchFailurePhaseCapacityDeferral,
+					code:  "capacity_deferral_failed",
+					cause: errors.Join(err, fmt.Errorf("retaining capacity-deferred run intent: %w", deferErr)),
+				})
 				result.Error = retained
 			}
 			result.Status = store.HeartbeatStatusFailed
@@ -502,11 +583,14 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		attentionEligible := !IsDispatchUncertain(err)
 		if !attentionEligible {
 			// The owner may have accepted the run. Do not cancel the task and
-			// do not release the slot: retain a visible, recoverable obligation.
+			// do not release the slot. The TeamExecutionContext persists this
+			// uncertain result once, with its run-creation phase.
 			log.Printf("heartbeat dispatch outcome uncertain for %s/%s (task %s, key %s): %v", teamID, agentID, createdTask.ID, dispatchKey, err)
-			if e.teamExecStore != nil {
-				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, err.Error())
-			}
+			result.Error = NewDispatchUncertainError(&dispatchStageFailure{
+				phase: dispatchFailurePhaseRunCreation,
+				code:  "run_create_uncertain",
+				cause: err,
+			})
 		} else {
 			// Definitive refusal: no run was accepted, so the orphaned task is
 			// safe to cancel and the slot is safe to release.
@@ -516,7 +600,9 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 				log.Printf("Warning: failed to delete cancelled heartbeat task %s: %v", createdTask.ID, deleteErr)
 			}
 		}
-		result.Error = fmt.Errorf("creating run: %w", err)
+		if result.Error == nil {
+			result.Error = fmt.Errorf("creating run: %w", err)
+		}
 		result.Status = store.HeartbeatStatusFailed
 		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, err, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run", attentionEligible, attentionEligible)
 		return result, result.Error
@@ -529,16 +615,17 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		e.teamExecStore.SetRunningRunID(teamID, agentID, run.ID, run.Status, run.StartedAt)
 	}
 	e.appendAttempt(context.Background(), &store.HeartbeatAttempt{
-		ID:         attemptID,
-		TeamID:     teamID,
-		AgentID:    agentID,
-		ProfileKey: profileKey,
-		TaskID:     createdTask.ID,
-		RunID:      run.ID,
-		Tag:        runTag,
-		Status:     store.HeartbeatStatusRunning,
-		Phase:      "run_created",
-		StartedAt:  startedAt.Format(time.RFC3339),
+		ID:              attemptID,
+		TeamID:          teamID,
+		AgentID:         agentID,
+		ProfileKey:      profileKey,
+		TaskID:          createdTask.ID,
+		RunID:           run.ID,
+		Tag:             runTag,
+		Status:          store.HeartbeatStatusRunning,
+		Phase:           "run_created",
+		StartedAt:       startedAt.Format(time.RFC3339),
+		AdmissionOrigin: admissionOrigin,
 	})
 
 	// Wait for completion asynchronously with cancellable context
@@ -554,7 +641,6 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		ownerStartedAt, _ := parseOwnerRunStartedAt(run.StartedAt)
 		e.runRegistry.RegisterOwnerRun(teamID, agentID, run.ID, ownerStartedAt, waitCancel, ownerRunObligationState(run.Status))
 	}
-	e.inflight.Add(1)
 	go func() {
 		defer e.inflight.Done()
 		defer e.releaseWaiter(waiterID, waiterKey)
@@ -566,15 +652,205 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	return result, nil
 }
 
-// WatchRecoveredRun re-attaches a completion waiter to a run that was not
-// created in this process. It is used after Recover binds a retained uncertain
-// dispatch to its confirmed owner run: without a waiter, the recovered
-// obligation would hold its slot even after the owner reports terminal state.
-//
-// The waiter is the same path a live dispatch uses, so a recovered run is
-// released (via OnComplete) exactly like a run started by Execute.
-func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool {
-	if e.agentClient == nil || e.teamStore == nil || runID == "" {
+// orchestratorWorkReferences attaches a WorkReference only for a configured
+// finite delivery effort. An incomplete configured identity blocks dispatch;
+// ordinary non-effort heartbeats remain unaffected.
+func (e *Executor) orchestratorWorkReferences(ctx context.Context, team *store.Team, agentID, profileKey string, config *store.HeartbeatConfig) ([]*eventpb.WorkReference, error) {
+	if team == nil {
+		return nil, nil
+	}
+	contract := team.Contract()
+	finiteIntent := (contract.Purpose == teamconfig.PurposeDelivery && contract.Lifetime == teamconfig.LifetimeFinite) ||
+		(contract.Purpose == teamconfig.PurposeDelivery && (len(contract.EffortRefs) > 0 || strings.TrimSpace(contract.Coordination.LeadAgentID) != "")) ||
+		(len(contract.EffortRefs) > 0 && contract.Lifetime == teamconfig.LifetimeFinite)
+	if !finiteIntent {
+		return nil, nil
+	}
+	if strings.TrimSpace(contract.Coordination.LeadAgentID) == "" {
+		return nil, fmt.Errorf("team %q configures finite effort work without a declared leader", team.ID)
+	}
+	// Effort identity belongs to the configured coordinator. Other members of
+	// the finite team can still receive ordinary bounded heartbeats (for
+	// example, acceptance review) without being labeled as orchestrators.
+	if contract.Coordination.LeadAgentID != agentID {
+		return nil, nil
+	}
+	if contract.Purpose != teamconfig.PurposeDelivery || contract.Lifetime != teamconfig.LifetimeFinite {
+		return nil, fmt.Errorf("team %q configures finite effort work without purpose=delivery and lifetime=finite", team.ID)
+	}
+	if len(contract.EffortRefs) != 1 || strings.TrimSpace(contract.EffortRefs[0]) == "" {
+		return nil, fmt.Errorf("team %q must declare exactly one effort reference", team.ID)
+	}
+	if config == nil || strings.TrimSpace(config.ProfileKey) == "" || strings.TrimSpace(profileKey) == "" || config.ProfileKey != profileKey {
+		return nil, fmt.Errorf("member %q heartbeat profile does not match the dispatched profile", agentID)
+	}
+	if e == nil || e.teamStore == nil || e.agentClient == nil {
+		return nil, errors.New("team store or Agent Manager client is unavailable")
+	}
+	members, err := e.teamStore.GetMembers(ctx, team.ID)
+	if err != nil {
+		return nil, fmt.Errorf("reading team membership: %w", err)
+	}
+	memberMatches := false
+	for _, member := range members {
+		if member.AgentID == agentID && (member.Status == "" || member.Status == store.MemberStatusActive) {
+			memberMatches = true
+			break
+		}
+	}
+	if !memberMatches {
+		return nil, fmt.Errorf("member %q is not active in team %q", agentID, team.ID)
+	}
+	effortRef := strings.TrimSpace(contract.EffortRefs[0])
+	enrollment, err := e.agentClient.GetEffortEnrollment(ctx, effortRef)
+	if err != nil {
+		return nil, fmt.Errorf("reading Agent Manager enrollment %q: %w", effortRef, err)
+	}
+	if enrollment == nil || enrollment.GetEffortRef() != effortRef {
+		return nil, fmt.Errorf("Agent Manager did not return exact enrollment %q", effortRef)
+	}
+	if enrollment.GetWithdrawn() {
+		return nil, fmt.Errorf("Agent Manager enrollment %q is withdrawn", effortRef)
+	}
+	if strings.TrimSpace(enrollment.GetTargetRevision()) == "" {
+		return nil, fmt.Errorf("Agent Manager enrollment %q has no target revision", effortRef)
+	}
+	return []*eventpb.WorkReference{{
+		Kind:         "effort",
+		Id:           enrollment.GetEffortRef(),
+		Revision:     enrollment.GetTargetRevision(),
+		Relationship: "orchestrator",
+		Verified:     true,
+		Visibility:   eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State:        eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}}, nil
+}
+
+// recoverPriorFiniteOwner checks the exact run retained in this member's last
+// heartbeat projection before a finite coordinator starts new work. The
+// existing task/run and canonical work reference are the ownership proof; an
+// unavailable or mismatched owner read is retained as uncertain and never
+// converted into a fresh dispatch.
+func (e *Executor) recoverPriorFiniteOwner(ctx context.Context, team *store.Team, agentID string, config *store.HeartbeatConfig, workReferences []*eventpb.WorkReference) (ExecutionResult, bool, error) {
+	if config == nil || config.LastExecution == nil || config.LastExecution.RunID == "" {
+		return ExecutionResult{}, false, nil
+	}
+	priorRunID := config.LastExecution.RunID
+	retainUnverified := func(cause error) (ExecutionResult, bool, error) {
+		e.retainPriorFiniteOwner(team.ID, agentID, priorRunID, cause)
+		return ExecutionResult{}, true, NewDispatchUncertainError(fmt.Errorf("reconciling prior finite effort run %q: %w", priorRunID, cause))
+	}
+	if e.agentClient == nil {
+		return retainUnverified(errors.New("Agent Manager client is unavailable"))
+	}
+	run, err := e.agentClient.GetRun(ctx, priorRunID)
+	if err != nil {
+		return retainUnverified(fmt.Errorf("reading exact prior run: %w", err))
+	}
+	if run == nil || run.ID != priorRunID {
+		return retainUnverified(fmt.Errorf("Agent Manager did not return exact prior run %q", priorRunID))
+	}
+	owner, err := e.validatePriorFiniteOwner(ctx, team, agentID, config, run, workReferences)
+	if err != nil {
+		return retainUnverified(err)
+	}
+	if IsTerminalStatus(run.Status) {
+		return ExecutionResult{}, false, nil
+	}
+	if e.teamExecStore == nil {
+		return retainUnverified(errors.New("team execution owner is unavailable to retain the resumed run"))
+	}
+	e.teamExecStore.SetRunningRunID(team.ID, agentID, run.ID, run.Status, run.StartedAt)
+	if !e.WatchRecoveredRunWithProjection(team.ID, agentID, run.ID, owner.profileKey, run.TaskID, run.Tag, run.Status, run.StartedAt, ownerTerminalTimestamp(run), heartbeatAdmissionOriginForRun(config, run.ID)) {
+		return ExecutionResult{}, true, NewDispatchUncertainError(fmt.Errorf("reattaching completion owner for prior run %q failed", run.ID))
+	}
+	startedAt := time.Now().UTC()
+	if parsed, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
+		startedAt = parsed
+	}
+	return ExecutionResult{TeamID: team.ID, AgentID: agentID, RunID: run.ID, Status: store.HeartbeatStatusRunning, StartedAt: startedAt}, true, nil
+}
+
+func (e *Executor) retainPriorFiniteOwner(teamID, agentID, runID string, cause error) error {
+	if e.teamExecStore == nil {
+		return NewDispatchUncertainError(fmt.Errorf("retaining prior finite effort run %q without a team execution owner: %w", runID, cause))
+	}
+	e.teamExecStore.SetRunningRunID(teamID, agentID, runID)
+	return NewDispatchUncertainError(fmt.Errorf("retaining prior finite effort run %q until identity can be confirmed: %w", runID, cause))
+}
+
+type priorFiniteOwner struct {
+	profileKey string
+}
+
+func (e *Executor) validatePriorFiniteOwner(ctx context.Context, team *store.Team, agentID string, config *store.HeartbeatConfig, run *Run, workReferences []*eventpb.WorkReference) (*priorFiniteOwner, error) {
+	if team == nil || run == nil || config == nil || config.LastExecution == nil || run.ID != config.LastExecution.RunID {
+		return nil, errors.New("prior run does not match the persisted heartbeat identity")
+	}
+	if e.teamStore == nil || run.TaskID == "" {
+		return nil, errors.New("prior run has no persisted heartbeat attempt owner")
+	}
+	// LastExecution is the current member projection; the attempt ledger is the
+	// durable source for the task/profile/run identity it projected. Avoid
+	// imposing tag or task-title conventions that older valid runs may not have.
+	attempts, err := e.teamStore.ListHeartbeatAttemptsByRun(ctx, run.ID)
+	if err != nil {
+		return nil, fmt.Errorf("reading prior heartbeat attempt: %w", err)
+	}
+	var owner *store.HeartbeatAttempt
+	for i := range attempts {
+		if attempts[i].RunID != run.ID {
+			continue
+		}
+		if owner != nil && (owner.TaskID != attempts[i].TaskID || owner.ProfileKey != attempts[i].ProfileKey || owner.Tag != attempts[i].Tag) {
+			return nil, errors.New("prior run has conflicting persisted heartbeat attempt identities")
+		}
+		owner = &attempts[i]
+	}
+	if owner == nil || owner.TeamID != team.ID || owner.AgentID != agentID || owner.TaskID != run.TaskID || owner.Tag != run.Tag || strings.TrimSpace(owner.ProfileKey) == "" {
+		return nil, errors.New("prior run does not match the persisted heartbeat attempt owner")
+	}
+	profile, err := e.agentClient.ResolveProfile(ctx, owner.ProfileKey)
+	if err != nil {
+		return nil, fmt.Errorf("resolving prior heartbeat profile: %w", err)
+	}
+	if profile == nil || strings.TrimSpace(profile.GetId()) == "" || profile.GetProfileKey() != owner.ProfileKey || run.ProfileID != profile.GetId() {
+		return nil, errors.New("prior run profile does not match the persisted heartbeat profile")
+	}
+	if !sameCanonicalEffortIdentity(run.WorkReferences, workReferences) {
+		return nil, errors.New("prior run work reference does not identify the current canonical effort enrollment")
+	}
+	return &priorFiniteOwner{profileKey: owner.ProfileKey}, nil
+}
+
+func sameCanonicalEffortIdentity(raw json.RawMessage, expected []*eventpb.WorkReference) bool {
+	if len(expected) == 0 || len(raw) == 0 {
+		return false
+	}
+	var declarations []json.RawMessage
+	if len(expected) != 1 || json.Unmarshal(raw, &declarations) != nil || len(declarations) != len(expected) {
+		return false
+	}
+	for i, declaration := range declarations {
+		var actual eventpb.WorkReference
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(declaration, &actual); err != nil {
+			return false
+		}
+		// Enrollment revision is frozen historical run metadata. The stable
+		// effort identity and verified coordinator qualification must still match
+		// the current enrollment before this run can retain the coordinator slot.
+		actual.Revision = expected[i].Revision
+		if !proto.Equal(&actual, expected[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// WatchRecoveredRunWithProjection reattaches a completion waiter using the
+// owner's terminal time and the persisted heartbeat admission origin when known.
+func (e *Executor) WatchRecoveredRunWithProjection(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt, ownerTerminalAt, admissionOrigin string) bool {
+	if e.agentClient == nil || e.teamStore == nil || runID == "" || !e.isCurrentRunOwner(teamID, agentID, runID) {
 		return false
 	}
 	observedAt := time.Now().UTC()
@@ -585,11 +861,42 @@ func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID,
 	}
 	attemptID := uuid.NewString()
 	cfgCtx := context.Background()
+	logPath := ""
 	if config, err := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID); err == nil && config != nil {
+		if config.LastExecution != nil {
+			last := config.LastExecution
+			if last.RunID == runID && IsTerminalStatus(ownerStatus) &&
+				(last.Status == store.HeartbeatStatusCompleted || last.Status == store.HeartbeatStatusFailed || last.Status == store.HeartbeatStatusCancelled) &&
+				sameKnownRunEnd(last.EndedAt, ownerTerminalAt) {
+				// The heartbeat result was durably projected before a crash, but
+				// the retained queue slot may still belong to this exact run. Reuse
+				// the canonical completion release without appending a duplicate
+				// projection or attempt.
+				e.completeTerminalRunOwner(teamID, agentID, runID, last.Status == store.HeartbeatStatusFailed, last.Error)
+				return true
+			}
+			if last.RunID == runID {
+				if last.StartedAt != "" {
+					startedAtText = last.StartedAt
+				}
+				logPath = last.LogPath
+				if admissionOrigin == "" {
+					admissionOrigin = last.AdmissionOrigin
+				}
+			}
+		}
 		if config.LastExecution == nil {
 			config.LastExecution = &store.HeartbeatExecResult{StartedAt: startedAtText}
 		}
-		config.LastExecution.StartedAt = startedAtText
+		if config.LastExecution.StartedAt == "" {
+			config.LastExecution.StartedAt = startedAtText
+		}
+		if config.LastExecution.RunID != runID {
+			config.LastExecution.AdmissionOrigin = ""
+		}
+		if config.LastExecution.AdmissionOrigin == "" {
+			config.LastExecution.AdmissionOrigin = admissionOrigin
+		}
 		config.LastExecution.RunID = runID
 		config.LastExecution.EndedAt = ""
 		config.LastExecution.Phase = "recovered_run"
@@ -601,7 +908,9 @@ func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID,
 		}
 		_ = e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config)
 	}
-	logPath := e.teamStore.GetMemberLogPathForContext(cfgCtx, teamID, agentID, observedAt.Format("2006-01-02T15-04-05Z"))
+	if logPath == "" {
+		logPath = e.teamStore.GetMemberLogPathForContext(cfgCtx, teamID, agentID, observedAt.Format("2006-01-02T15-04-05Z"))
+	}
 	timeout := 30 * time.Minute
 	if cfg, err := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID); err == nil && cfg != nil {
 		timeout = cfg.EffectiveTimeout()
@@ -623,7 +932,6 @@ func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID,
 		}
 		e.runRegistry.RegisterRecovered(teamID, agentID, runID, startedAt, state, waitCancel)
 	}
-	e.inflight.Add(1)
 	go func() {
 		defer e.inflight.Done()
 		defer e.releaseWaiter(waiterID, waiterKey)
@@ -631,6 +939,53 @@ func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID,
 		e.waitForCompletion(waitCtx, teamID, agentID, runID, attemptID, profileKey, taskID, runTag, startedAt, logPath, timeout)
 	}()
 	return true
+}
+
+// WatchConfirmedStoppedRun attaches the normal terminal projector to a run
+// whose remote stop was confirmed, including recovered owners that have no
+// local waiter cancel function.
+func (e *Executor) WatchConfirmedStoppedRun(teamID, agentID, runID string) bool {
+	if e == nil || e.agentClient == nil || e.teamStore == nil || runID == "" || !e.isCurrentRunOwner(teamID, agentID, runID) {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	run, err := e.agentClient.GetRun(ctx, runID)
+	cancel()
+	if err != nil || run == nil || run.ID != runID {
+		return false
+	}
+	profileKey := ""
+	if owner, ok := e.teamExecStore.(interface {
+		ProfileKeyForRun(teamID, agentID, runID string) (string, bool)
+	}); ok {
+		profileKey, _ = owner.ProfileKeyForRun(teamID, agentID, runID)
+	}
+	admissionOrigin := ""
+	if config, readErr := e.teamStore.GetHeartbeatConfig(context.Background(), teamID, agentID); readErr == nil && config != nil && config.LastExecution != nil && config.LastExecution.RunID == runID {
+		admissionOrigin = config.LastExecution.AdmissionOrigin
+	}
+	return e.WatchRecoveredRunWithProjection(teamID, agentID, runID, profileKey, run.TaskID, run.Tag, run.Status, run.StartedAt, ownerTerminalTimestamp(run), admissionOrigin)
+}
+
+func sameKnownRunEnd(projectedEndedAt, ownerTerminalAt string) bool {
+	if strings.TrimSpace(projectedEndedAt) == "" || strings.TrimSpace(ownerTerminalAt) == "" {
+		return false
+	}
+	projected, projectedErr := time.Parse(time.RFC3339Nano, projectedEndedAt)
+	owner, ownerErr := time.Parse(time.RFC3339Nano, ownerTerminalAt)
+	return projectedErr == nil && ownerErr == nil && projected.Equal(owner)
+}
+
+func ownerTerminalTimestamp(run *Run) string {
+	if run == nil {
+		return ""
+	}
+	for _, value := range []string{run.EndedAt, run.UpdatedAt} {
+		if timestamp, ok := parseOwnerRunStartedAt(value); ok {
+			return timestamp.Format(time.RFC3339Nano)
+		}
+	}
+	return ""
 }
 
 func parseOwnerRunStartedAt(value string) (time.Time, bool) {
@@ -686,38 +1041,136 @@ func (e *Executor) BuildPromptStructured(ctx context.Context, teamID, agentID st
 	})
 }
 
+// heartbeatAdmissionOriginForRun returns provenance only when LastExecution
+// still refers to the exact run being observed. Empty and unknown values stay
+// empty; timestamps, tags, and workload attribution are not origin evidence.
+func heartbeatAdmissionOriginForRun(config *store.HeartbeatConfig, runID string) string {
+	if config == nil || config.LastExecution == nil || runID == "" || config.LastExecution.RunID != runID {
+		return ""
+	}
+	switch config.LastExecution.AdmissionOrigin {
+	case AdmissionOriginScheduled, AdmissionOriginManual:
+		return config.LastExecution.AdmissionOrigin
+	default:
+		return ""
+	}
+}
+
 // waitForCompletion polls for run completion and updates config
 func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID, attemptID, profileKey, taskID, tag string, startedAt time.Time, logPath string, timeout time.Duration) {
+	// Create timeout context
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	run, err := e.agentClient.WaitForRun(timeoutCtx, runID, 5*time.Second)
+	if errors.Is(err, context.Canceled) {
+		// StopRunning cancels this waiter only after Agent Manager confirms its
+		// stop operation. Re-read the exact owner before treating that local
+		// cancellation as terminal; never infer a stopped run from ctx alone.
+		ownerCtx, ownerCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ownerRun, ownerErr := e.agentClient.GetRun(ownerCtx, runID)
+		ownerCancel()
+		switch {
+		case ownerErr != nil:
+			err = fmt.Errorf("completion wait cancelled and owner read failed: %w", ownerErr)
+		case ownerRun == nil || ownerRun.ID != runID:
+			err = fmt.Errorf("completion wait cancelled without exact owner run %s", runID)
+		case !IsTerminalStatus(ownerRun.Status):
+			err = fmt.Errorf("completion wait cancelled before owner run %s reached a terminal state", runID)
+		default:
+			run = ownerRun
+			err = nil
+		}
+	}
+	if err == nil && (run == nil || !IsTerminalStatus(run.Status)) {
+		err = fmt.Errorf("completion observer returned without terminal owner evidence for run %s", runID)
+	}
+	e.projectRunCompletion(ctx, teamID, agentID, runID, run, err, attemptID, profileKey, taskID, tag, startedAt, logPath, "", true)
+}
+
+type retainedTerminalProjection uint8
+
+const (
+	retainedTerminalUnconfirmed retainedTerminalProjection = iota
+	retainedTerminalPersisted
+	retainedTerminalSuperseded
+)
+
+// ProjectRetainedTerminal applies the same heartbeat result projection used by
+// the completion waiter to an exact terminal run already observed by the
+// scheduled owner read. Persisted means this run's heartbeat result is durable;
+// superseded means the exact owner is terminal but a newer member projection
+// was preserved. Attempt and log writes remain best-effort. Neither outcome
+// releases the team slot; the caller must release that exact run separately.
+func (e *Executor) ProjectRetainedTerminal(teamID, agentID, runID, profileKey, taskID, tag, admissionOrigin string, run *Run) retainedTerminalProjection {
+	if run == nil || run.ID != runID || !IsTerminalStatus(run.Status) || !e.isCurrentRunOwner(teamID, agentID, runID) {
+		return retainedTerminalUnconfirmed
+	}
+	cfgCtx := context.Background()
+	config, err := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID)
+	if err != nil || config == nil {
+		return retainedTerminalUnconfirmed
+	}
+	if config.LastExecution != nil {
+		last := config.LastExecution
+		if last.RunID == runID && IsTerminalStatus(last.Status) && sameKnownRunEnd(last.EndedAt, ownerTerminalTimestamp(run)) {
+			if e.runRegistry != nil {
+				e.runRegistry.CompleteRun(teamID, agentID, runID, last.Status == store.HeartbeatStatusFailed, last.Error)
+			}
+			e.scheduleHandoffExtraction(teamID, agentID, runID, retainedRunEndedAt(run))
+			return retainedTerminalPersisted
+		}
+		if last.RunID == runID {
+			if last.StartedAt != "" {
+				if startedAt, ok := parseOwnerRunStartedAt(last.StartedAt); ok {
+					// Preserve the canonical owner's exact start projection.
+					projection := e.projectRunCompletion(context.Background(), teamID, agentID, runID, run, nil, uuid.NewString(), profileKey, taskID, tag, startedAt, last.LogPath, admissionOrigin, false)
+					if projection != retainedTerminalUnconfirmed {
+						e.scheduleHandoffExtraction(teamID, agentID, runID, retainedRunEndedAt(run))
+					}
+					return projection
+				}
+			}
+		}
+	}
+	startedAt, _ := parseOwnerRunStartedAt(run.StartedAt)
+	logPath := e.teamStore.GetMemberLogPathForContext(cfgCtx, teamID, agentID, time.Now().UTC().Format("2006-01-02T15-04-05Z"))
+	projection := e.projectRunCompletion(context.Background(), teamID, agentID, runID, run, nil, uuid.NewString(), profileKey, taskID, tag, startedAt, logPath, admissionOrigin, false)
+	if projection != retainedTerminalUnconfirmed {
+		e.scheduleHandoffExtraction(teamID, agentID, runID, retainedRunEndedAt(run))
+	}
+	return projection
+}
+
+func retainedRunEndedAt(run *Run) time.Time {
+	if endedAt, ok := parseOwnerRunStartedAt(ownerTerminalTimestamp(run)); ok {
+		return endedAt
+	}
+	return time.Now().UTC()
+}
+
+func (e *Executor) projectRunCompletion(ctx context.Context, teamID, agentID, runID string, run *Run, err error, attemptID, profileKey, taskID, tag string, startedAt time.Time, logPath, admissionOriginHint string, releaseOwner bool) retainedTerminalProjection {
 	terminalEvidence := false
 	outcomeFailed := false
 	outcomeMessage := ""
 	if e.runRegistry != nil {
 		defer func() {
 			if terminalEvidence {
-				e.runRegistry.Complete(teamID, agentID, outcomeFailed, outcomeMessage)
+				e.runRegistry.CompleteRun(teamID, agentID, runID, outcomeFailed, outcomeMessage)
 			}
 		}()
 	}
 
-	// Create timeout context
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	run, err := e.agentClient.WaitForRun(timeoutCtx, runID, 5*time.Second)
-	if err == nil && (run == nil || !IsTerminalStatus(run.Status)) {
-		err = fmt.Errorf("completion observer returned without terminal owner evidence for run %s", runID)
-	}
-
 	endedAt := time.Now().UTC()
+	if ownerTerminalAt, ok := parseOwnerRunStartedAt(ownerTerminalTimestamp(run)); err == nil && ok {
+		endedAt = ownerTerminalAt
+	}
+	endedAtText := endedAt.Format(time.RFC3339Nano)
+	if !e.isCurrentRunOwner(teamID, agentID, runID) {
+		return retainedTerminalUnconfirmed
+	}
 	if err != nil {
-		if e.runRegistry != nil {
-			e.runRegistry.MarkObserverUnavailable(teamID, agentID)
-		}
-		if marker, ok := e.teamExecStore.(interface {
-			MarkWatcherUnavailable(teamID, agentID string)
-		}); ok {
-			marker.MarkWatcherUnavailable(teamID, agentID)
-		}
+		e.markRunObserverUnavailable(teamID, agentID, runID)
 	}
 
 	// Use a background context for config updates since the parent ctx may be cancelled
@@ -726,42 +1179,59 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	// Get current config
 	config, configErr := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID)
 	if configErr != nil {
-		return
+		return retainedTerminalUnconfirmed
 	}
 	if config == nil {
-		return
+		return retainedTerminalUnconfirmed
 	}
+	if !e.isCurrentRunOwner(teamID, agentID, runID) {
+		return retainedTerminalUnconfirmed
+	}
+	admissionOrigin := heartbeatAdmissionOriginForRun(config, runID)
+	if admissionOrigin == "" {
+		admissionOrigin = admissionOriginHint
+	}
+	// A newer projection can be written before the recovered queue owner is
+	// replaced. The old waiter may still release its exact retained slot, but
+	// it must not overwrite that independently newer member projection.
+	projectionSuperseded := config.LastExecution != nil && config.LastExecution.RunID != "" && config.LastExecution.RunID != runID
+	projectionStatus := store.HeartbeatStatusObserverUnavailable
 
 	if err != nil {
 		// A failed local observer says nothing definitive about owner-run
 		// outcome. Keep the execution and its queue slot visible until a later
 		// scheduled owner read can reattach or prove terminal state.
 		status := store.HeartbeatStatusObserverUnavailable
-		config.LastExecution = &store.HeartbeatExecResult{
-			StartedAt: formatOptionalHeartbeatStartedAt(startedAt),
-			EndedAt:   endedAt.Format(time.RFC3339),
-			Status:    status,
-			RunID:     runID,
-			LogPath:   logPath,
-			Error:     err.Error(),
+		projectionStatus = status
+		if !projectionSuperseded {
+			config.LastExecution = &store.HeartbeatExecResult{
+				StartedAt:       formatOptionalHeartbeatStartedAt(startedAt),
+				EndedAt:         endedAtText,
+				Status:          status,
+				RunID:           runID,
+				LogPath:         logPath,
+				Error:           err.Error(),
+				AdmissionOrigin: admissionOrigin,
+			}
+			config.RefreshHealth()
 		}
-		config.RefreshHealth()
 		category := classifyHeartbeatError(err.Error())
 		e.appendAttempt(cfgCtx, &store.HeartbeatAttempt{
-			ID:            attemptID,
-			TeamID:        teamID,
-			AgentID:       agentID,
-			ProfileKey:    profileKey,
-			TaskID:        taskID,
-			RunID:         runID,
-			Tag:           tag,
-			Status:        status,
-			Phase:         "waiting_for_completion",
-			StartedAt:     formatOptionalHeartbeatStartedAt(startedAt),
-			EndedAt:       endedAt.Format(time.RFC3339),
-			ErrorCategory: category,
-			Error:         err.Error(),
-			Recovery:      "retry_owner_observation_on_next_schedule",
+			ID:              attemptID,
+			TeamID:          teamID,
+			AgentID:         agentID,
+			ProfileKey:      profileKey,
+			TaskID:          taskID,
+			RunID:           runID,
+			Tag:             tag,
+			Status:          status,
+			Phase:           "waiting_for_completion",
+			StartedAt:       formatOptionalHeartbeatStartedAt(startedAt),
+			EndedAt:         endedAtText,
+			ErrorCategory:   category,
+			Error:           err.Error(),
+			Recovery:        "retry_owner_observation_on_next_schedule",
+			AdmissionOrigin: admissionOrigin,
 		})
 	} else {
 		status := store.HeartbeatStatusCompleted
@@ -772,19 +1242,23 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			status = store.HeartbeatStatusFailed
 			errMsg = run.Error
 		}
+		projectionStatus = status
 		terminalEvidence = true
 		outcomeFailed = status == store.HeartbeatStatusFailed
 		outcomeMessage = errMsg
 
-		config.LastExecution = &store.HeartbeatExecResult{
-			StartedAt: formatOptionalHeartbeatStartedAt(startedAt),
-			EndedAt:   endedAt.Format(time.RFC3339),
-			Status:    status,
-			RunID:     runID,
-			LogPath:   logPath,
-			Error:     errMsg,
+		if !projectionSuperseded {
+			config.LastExecution = &store.HeartbeatExecResult{
+				StartedAt:       formatOptionalHeartbeatStartedAt(startedAt),
+				EndedAt:         endedAtText,
+				Status:          status,
+				RunID:           runID,
+				LogPath:         logPath,
+				Error:           errMsg,
+				AdmissionOrigin: admissionOrigin,
+			}
+			config.RecordHeartbeatStatus(status)
 		}
-		config.RecordHeartbeatStatus(status)
 		category := ""
 		recovery := ""
 		if errMsg != "" {
@@ -792,22 +1266,23 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			recovery = recoveryForHeartbeatError(category)
 		}
 		attempt := &store.HeartbeatAttempt{
-			ID:            attemptID,
-			TeamID:        teamID,
-			AgentID:       agentID,
-			ProfileKey:    profileKey,
-			TaskID:        taskID,
-			RunID:         runID,
-			Tag:           tag,
-			Status:        status,
-			Phase:         "run_terminal",
-			StartedAt:     formatOptionalHeartbeatStartedAt(startedAt),
-			EndedAt:       endedAt.Format(time.RFC3339),
-			ErrorCategory: category,
-			Error:         errMsg,
-			Recovery:      recovery,
+			ID:              attemptID,
+			TeamID:          teamID,
+			AgentID:         agentID,
+			ProfileKey:      profileKey,
+			TaskID:          taskID,
+			RunID:           runID,
+			Tag:             tag,
+			Status:          status,
+			Phase:           "run_terminal",
+			StartedAt:       formatOptionalHeartbeatStartedAt(startedAt),
+			EndedAt:         endedAtText,
+			ErrorCategory:   category,
+			Error:           errMsg,
+			Recovery:        recovery,
+			AdmissionOrigin: admissionOrigin,
 		}
-		if status == store.HeartbeatStatusFailed {
+		if status == store.HeartbeatStatusFailed && !projectionSuperseded {
 			e.attachFailureAttention(cfgCtx, teamID, agentID, config, attempt)
 			attempt.AttentionEligible = true
 		}
@@ -819,9 +1294,11 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	logContent += fmt.Sprintf("Started: %s\n", formatOptionalHeartbeatStartedAt(startedAt))
 	logContent += fmt.Sprintf("Ended: %s\n", endedAt.Format(time.RFC3339))
 	logContent += fmt.Sprintf("Run ID: %s\n", runID)
-	logContent += fmt.Sprintf("Status: %s\n", config.LastExecution.Status)
-	if config.LastExecution.Error != "" {
-		logContent += fmt.Sprintf("Error: %s\n", config.LastExecution.Error)
+	logContent += fmt.Sprintf("Status: %s\n", projectionStatus)
+	if err != nil {
+		logContent += fmt.Sprintf("Error: %s\n", err.Error())
+	} else if IsFailedStatus(run.Status) && run.Error != "" {
+		logContent += fmt.Sprintf("Error: %s\n", run.Error)
 	}
 
 	// Ensure logs directory exists and write log
@@ -829,22 +1306,67 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 		_ = os.WriteFile(logPath, []byte(logContent), 0o644)
 	}
 
-	_ = e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config)
+	if !projectionSuperseded {
+		if persistErr := e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config); persistErr != nil {
+			log.Printf("Warning: failed to persist heartbeat terminal projection for %s/%s run %s: %v", teamID, agentID, runID, persistErr)
+			if terminalEvidence {
+				// The owner run is terminal, but the durable heartbeat projection is
+				// not. Keep the exact retained obligation so recovery can retry this
+				// projection instead of releasing its slot.
+				terminalEvidence = false
+			}
+			e.markRunObserverUnavailable(teamID, agentID, runID)
+			return retainedTerminalUnconfirmed
+		}
+	}
 
-	if terminalEvidence && e.runRegistry != nil {
-		e.runRegistry.Complete(teamID, agentID, outcomeFailed, outcomeMessage)
+	if err == nil {
+		if releaseOwner {
+			e.completeTerminalRunOwner(teamID, agentID, runID, outcomeFailed, outcomeMessage)
+			e.extractAndStoreHandoff(ctx, teamID, agentID, runID, endedAt)
+		} else if e.runRegistry != nil {
+			e.runRegistry.CompleteRun(teamID, agentID, runID, outcomeFailed, outcomeMessage)
+		}
 		terminalEvidence = false
 	}
-	if err == nil && e.OnComplete != nil {
-		e.OnComplete(teamID, agentID)
-	}
 
-	// Handoff resolution is optional post-processing. Notify the execution
-	// owner as soon as terminal run state is durable, then allow shutdown to
-	// cancel the bounded best-effort resolver instead of making completion wait
-	// on a projection that may not exist.
-	if err == nil {
-		e.extractAndStoreHandoff(ctx, teamID, agentID, runID, endedAt)
+	if err != nil {
+		return retainedTerminalUnconfirmed
+	}
+	if projectionSuperseded {
+		return retainedTerminalSuperseded
+	}
+	return retainedTerminalPersisted
+}
+
+func (e *Executor) completeTerminalRunOwner(teamID, agentID, runID string, failed bool, message string) {
+	if runID == "" || !e.isCurrentRunOwner(teamID, agentID, runID) {
+		return
+	}
+	if e.runRegistry != nil {
+		e.runRegistry.CompleteRun(teamID, agentID, runID, failed, message)
+	}
+	if e.OnRunComplete != nil {
+		e.OnRunComplete(teamID, agentID, runID)
+	} else if completion, ok := e.teamExecStore.(interface {
+		OnRunComplete(teamID, agentID, runID string)
+	}); ok {
+		completion.OnRunComplete(teamID, agentID, runID)
+	}
+}
+
+func (e *Executor) markRunObserverUnavailable(teamID, agentID, runID string) {
+	if e.runRegistry != nil {
+		e.runRegistry.MarkRunObserverUnavailable(teamID, agentID, runID)
+	}
+	if marker, ok := e.teamExecStore.(interface {
+		MarkWatcherUnavailableForRun(teamID, agentID, runID string)
+	}); ok {
+		marker.MarkWatcherUnavailableForRun(teamID, agentID, runID)
+	} else if marker, ok := e.teamExecStore.(interface {
+		MarkWatcherUnavailable(teamID, agentID string)
+	}); ok {
+		marker.MarkWatcherUnavailable(teamID, agentID)
 	}
 }
 
@@ -931,10 +1453,11 @@ func (e *Executor) storeHandoff(ctx context.Context, teamID, agentID, runID stri
 func (e *Executor) updateConfigCancelled(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, detail, attemptID, profileKey, taskID, runID, tag, phase string) {
 	endedAt := time.Now().UTC()
 	config.LastExecution = &store.HeartbeatExecResult{
-		StartedAt: startedAt.Format(time.RFC3339),
-		EndedAt:   endedAt.Format(time.RFC3339),
-		Status:    store.HeartbeatStatusCancelled,
-		Error:     detail,
+		StartedAt:       startedAt.Format(time.RFC3339),
+		EndedAt:         endedAt.Format(time.RFC3339),
+		Status:          store.HeartbeatStatusCancelled,
+		Error:           detail,
+		AdmissionOrigin: heartbeatAdmissionOrigin(ctx),
 	}
 	config.RecordHeartbeatStatus(store.HeartbeatStatusCancelled)
 	persistCtx := context.Background()
@@ -954,6 +1477,7 @@ func (e *Executor) updateConfigCancelled(ctx context.Context, teamID, agentID st
 		Error:               detail,
 		ConsecutiveFailures: config.ConsecutiveFailures,
 		AttentionEligible:   false,
+		AdmissionOrigin:     heartbeatAdmissionOrigin(ctx),
 	})
 }
 
@@ -974,6 +1498,7 @@ func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID strin
 		Status:          store.HeartbeatStatusFailed,
 		Error:           errMsg,
 		AdmissionReason: admissionReasonFromError(cause),
+		AdmissionOrigin: heartbeatAdmissionOrigin(ctx),
 	}
 	if countAsFailure {
 		config.RecordHeartbeatStatus(store.HeartbeatStatusFailed)
@@ -998,6 +1523,7 @@ func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID strin
 		ErrorCategory:       category,
 		Error:               errMsg,
 		AdmissionReason:     admissionReasonFromError(cause),
+		AdmissionOrigin:     heartbeatAdmissionOrigin(ctx),
 		Recovery:            recoveryForHeartbeatError(category),
 		ConsecutiveFailures: config.ConsecutiveFailures,
 		FailureEpisodeID:    heartbeatFailureEpisodeID(teamID, agentID, config),
@@ -1037,28 +1563,30 @@ func (e *Executor) attachFailureAttention(ctx context.Context, teamID, agentID s
 func (e *Executor) updateConfigApprovalPending(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, detail, attemptID, profileKey, taskID, runID, tag, phase string) {
 	endedAt := time.Now().UTC()
 	config.LastExecution = &store.HeartbeatExecResult{
-		StartedAt: startedAt.Format(time.RFC3339),
-		EndedAt:   endedAt.Format(time.RFC3339),
-		Status:    store.HeartbeatStatusApprovalPending,
-		Phase:     phase,
-		RunID:     runID,
-		Error:     detail,
+		StartedAt:       startedAt.Format(time.RFC3339),
+		EndedAt:         endedAt.Format(time.RFC3339),
+		Status:          store.HeartbeatStatusApprovalPending,
+		Phase:           phase,
+		RunID:           runID,
+		Error:           detail,
+		AdmissionOrigin: heartbeatAdmissionOrigin(ctx),
 	}
 	config.RefreshHealth()
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
 	e.appendAttempt(ctx, &store.HeartbeatAttempt{
-		ID:         attemptID,
-		TeamID:     teamID,
-		AgentID:    agentID,
-		ProfileKey: profileKey,
-		TaskID:     taskID,
-		RunID:      runID,
-		Tag:        tag,
-		Status:     store.HeartbeatStatusApprovalPending,
-		Phase:      phase,
-		StartedAt:  startedAt.Format(time.RFC3339),
-		EndedAt:    endedAt.Format(time.RFC3339),
-		Error:      detail,
+		ID:              attemptID,
+		TeamID:          teamID,
+		AgentID:         agentID,
+		ProfileKey:      profileKey,
+		TaskID:          taskID,
+		RunID:           runID,
+		Tag:             tag,
+		Status:          store.HeartbeatStatusApprovalPending,
+		Phase:           phase,
+		StartedAt:       startedAt.Format(time.RFC3339),
+		EndedAt:         endedAt.Format(time.RFC3339),
+		Error:           detail,
+		AdmissionOrigin: heartbeatAdmissionOrigin(ctx),
 	})
 }
 

@@ -65,6 +65,26 @@ func TestFlowDefinitionToProtoPreservesSnakeCaseContinueOnError(t *testing.T) {
 	}
 }
 
+func TestFlowDefinitionToProtoPreservesExplicitSnakeCaseContinueOnErrorFalse(t *testing.T) {
+	pb, err := FlowDefinitionToProto(database.JSONMap{
+		"nodes": []map[string]any{{
+			"id": "critical-assertion",
+			"action": map[string]any{
+				"type":  "ACTION_TYPE_CLICK",
+				"click": map[string]any{"selector": ".required"},
+			},
+			"execution_settings": map[string]any{"continue_on_error": false},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("convert definition: %v", err)
+	}
+	settings := pb.GetNodes()[0].GetExecutionSettings()
+	if settings == nil || settings.ContinueOnError == nil || *settings.ContinueOnError {
+		t.Fatal("explicit snake_case continue_on_error=false was lost at the workflow ingress boundary")
+	}
+}
+
 func TestWorkflowValidationResultToProto(t *testing.T) {
 	now := time.Now()
 	result := &workflowvalidator.Result{

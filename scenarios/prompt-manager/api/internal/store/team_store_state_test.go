@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -256,6 +257,53 @@ func TestAppendAndGetHandoffHistory(t *testing.T) {
 	}
 	if limited[1].Content != "Second" {
 		t.Errorf("expected 'Second' second in limited results (newest-first), got: %s", limited[1].Content)
+	}
+}
+
+func TestGetHandoffHistoryCapsPositiveLimit(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+	for i := 0; i < MaxHandoffHistoryEntries+2; i++ {
+		entry := HandoffEntry{AgentID: "agent-1", RunID: fmt.Sprintf("run-%03d", i), Timestamp: "2025-01-01T00:00:00Z", Content: fmt.Sprintf("entry-%03d", i)}
+		if err := s.AppendHandoffHistory(ctx, "team-1", &entry); err != nil {
+			t.Fatalf("AppendHandoffHistory(%d): %v", i, err)
+		}
+	}
+
+	got, err := s.GetHandoffHistory(ctx, "team-1", "", MaxHandoffHistoryEntries+1)
+	if err != nil {
+		t.Fatalf("GetHandoffHistory: %v", err)
+	}
+	if len(got) != MaxHandoffHistoryEntries {
+		t.Fatalf("expected store to cap at %d entries, got %d", MaxHandoffHistoryEntries, len(got))
+	}
+	if got[0].RunID != "run-101" || got[len(got)-1].RunID != "run-002" {
+		t.Fatalf("expected newest-first capped result, got first=%q last=%q", got[0].RunID, got[len(got)-1].RunID)
+	}
+}
+
+func TestGetHandoffHistoryPreservesEmptySliceBehavior(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	empty, err := s.GetHandoffHistory(ctx, "team-empty", "", 20)
+	if err != nil {
+		t.Fatalf("GetHandoffHistory empty team: %v", err)
+	}
+	if empty != nil {
+		t.Fatalf("expected nil for a team with no stored history, got %#v", empty)
+	}
+
+	entry := HandoffEntry{AgentID: "agent-1", RunID: "run-1", Timestamp: "2025-01-01T00:00:00Z", Content: "handoff"}
+	if err := s.AppendHandoffHistory(ctx, "team-1", &entry); err != nil {
+		t.Fatalf("AppendHandoffHistory: %v", err)
+	}
+	filtered, err := s.GetHandoffHistory(ctx, "team-1", "agent-missing", 20)
+	if err != nil {
+		t.Fatalf("GetHandoffHistory unmatched filter: %v", err)
+	}
+	if filtered == nil || len(filtered) != 0 {
+		t.Fatalf("expected a non-nil empty result for a populated history with no matching agent, got %#v", filtered)
 	}
 }
 

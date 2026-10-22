@@ -1,0 +1,62 @@
+[
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/service.go",
+    "observed_at": "2026-10-20T15:09:19.386842+00:00",
+    "bytes": 4806,
+    "sha256": "25be6f2c4cd0fd9c77d6e6b066e3ffc2483c2643669ae9e1580717da24d8f224"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/repository.go",
+    "observed_at": "2026-10-20T15:09:19.387329+00:00",
+    "bytes": 606,
+    "sha256": "5af44ecf1ea66ad4ab06fc0b9672f8d3ec62bb7bcb73f051fb50a32fe40835a6"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/sqlite.go",
+    "observed_at": "2026-10-20T15:09:19.387622+00:00",
+    "bytes": 9047,
+    "sha256": "706ab920341ad070062c1bf011995696408ba8c43dccff6e1e9ac93df767d03f"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/service_test.go",
+    "observed_at": "2026-10-20T15:09:19.387895+00:00",
+    "bytes": 3424,
+    "sha256": "acd3c8ae9a8375c2ba14da544c2f16bc648615a97dde4e2e362f846f049dcc55"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/sqlite_test.go",
+    "observed_at": "2026-10-20T15:09:19.388163+00:00",
+    "bytes": 2224,
+    "sha256": "f7aceda1d8e619a57da75f126a4efa84009fc0b11ebc5e612c74c8576a171c2f"
+  },
+  {
+    "path": "scenarios/personal-planner/api/handlers/goals/module.go",
+    "observed_at": "2026-10-20T15:09:19.388441+00:00",
+    "bytes": 1416,
+    "sha256": "4c47c0542cb06bc0369c35e3dd5b186b4cff90083cb8cf74275a8b729297d782"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/api/goals.ts",
+    "observed_at": "2026-10-20T15:09:19.388951+00:00",
+    "bytes": 2447,
+    "sha256": "d008b56e6dfca108e4a17bb8618816b2a358393c7d5ee348efff66daec45adf2"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/api/goals.test.ts",
+    "observed_at": "2026-10-20T15:09:19.391258+00:00",
+    "bytes": 3018,
+    "sha256": "a8558178a4265e4b1fd3b2f5372c37967043e5aab2e994d125fcb36f07cca4f0"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/components/GoalCard.tsx",
+    "observed_at": "2026-10-20T15:09:19.391572+00:00",
+    "bytes": 8879,
+    "sha256": "7115b3a9f45439ec8272e467da1d520aff2f2f6c84398eb4801369ffd813bdf8"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/pages/GoalsPage.test.tsx",
+    "observed_at": "2026-10-20T15:09:19.391910+00:00",
+    "bytes": 10743,
+    "sha256": "1b7725541ed03b56e52e2c8853e3aab76402f399017cc3cb463971162737e0a9"
+  }
+]

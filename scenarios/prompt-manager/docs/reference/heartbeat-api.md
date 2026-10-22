@@ -134,12 +134,24 @@ returned as a configuration revision. Manual triggers bypass scheduled wake
 admission. Evidence and baseline read failures admit work rather than silently
 suppressing it.
 
-### Finite leader liveness
+### Team-native effort identity
 
-`finiteLeader.keepAlive` selects orchestrator liveness relaunch and is mutable
-on a bound leader (it is not binding identity). `finiteLeaderState` reports
-`consecutiveRelaunches`, a bounded `restartHistory` (newest 20), and status
-`relaunch-capped` when relaunch has stopped; the `restart` transition resets it.
+Prompt Manager has no separate finite-leader heartbeat API. A team declares its
+effort reference and leader through the existing team contract, while its member
+heartbeat selects the profile. Before dispatching that configured finite
+delivery lead, PM requires a valid contract, active membership, matching
+profile, and exact current Agent Manager enrollment. The matching non-withdrawn
+target revision is included in the frozen CreateRun request's WorkReferences;
+this descriptive reference does not grant authority. Missing, unavailable, or
+mismatched identity fails admission before task/run creation. When a prior run
+ID exists, PM retains that exact owner obligation as uncertain rather than
+creating competing work. Verified active/parked owners remain on the existing
+watch path, while a verified terminal owner allows a fresh dispatch under the
+current contract. Finite non-lead members and ordinary standing/non-delivery
+heartbeats remain supported without effort association. For receiver
+qualification and source handoff, follow §6.1 of the canonical
+[`large-effort-orchestration` skill](../../store/skills/packs/core/large-effort-orchestration/SKILL.md#61-commission-an-accurate-accessible-handoff)
+for the specific effort's goal home and source manifest.
 
 ### List Heartbeats
 
@@ -180,6 +192,24 @@ GET /teams/{teamId}/heartbeats
 ```
 
 `lastExecution` is the current or most recent attempt. `lastSuccessfulExecution` remains unchanged while a newer attempt is running or failed, so rolling fleet-health calculations do not lose valid success evidence.
+
+### List Heartbeat Attempts
+
+Read newest-first logical attempt projections from the shared event stream.
+
+```http
+GET /heartbeat-attempts?team_id=<team-id>&agent_id=<member-id>&limit=20&offset=0
+```
+
+The response includes `attempts`, `total`, `totalExact`, `hasMore`, and
+`scannedEvents`. The endpoint scans at most the newest 1,000 heartbeat-attempt
+event records across members, then applies team/member/status/profile filters.
+When `totalExact` is false, `total` is a lower bound observed in that
+bounded recent window and `hasMore` indicates either an incomplete scan or
+additional known output. `offset` pages the currently observed window; it does
+not provide a stable cursor through all retained history. The window combines
+durable event projections with eligible pre-run configuration records before
+applying `limit` and `offset`. Counts are not global lifetime totals.
 
 ---
 
@@ -364,7 +394,11 @@ GET /teams/{teamId}/execution-status
   "queuePolicy": "bounded-parallel",
   "maxConcurrentRuns": 2,
   "preparationInterruptedAgentIds": ["agent-3"],
-  "admissionDeferredAgentIds": ["agent-4"]
+  "admissionDeferredAgentIds": ["agent-4"],
+  "owners": [
+    {"agentId": "agent-1", "phase": "retained", "state": "dispatch_uncertain", "dispatchStage": "task_intent", "taskId": "task-123"},
+    {"agentId": "agent-3", "phase": "queued", "dispatchStage": "preparing"}
+  ]
 }
 ```
 
@@ -377,6 +411,9 @@ GET /teams/{teamId}/execution-status
 | `maxConcurrentRuns` | integer | Concurrency cap for the team execution context |
 | `preparationInterruptedAgentIds` | string[] | Accepted pre-dispatch work retained after a restart; requires a fresh, normally gated admission and is not currently executing |
 | `admissionDeferredAgentIds` | string[] | Exact heartbeat task/run intent retained after Agent Manager definitively refuses only because the current grant capacity is full; it is not a running model and is replayed on an otherwise eligible scheduled callback |
+| `owners` | object[] | Current in-memory owner entries for retained slots (`phase: retained`) and queued members (`phase: queued`); includes only member ID, phase/state, dispatch stage, task/run IDs, admission origin, owner start time, and obligation ID. It omits task/request snapshots and caller bindings. |
+
+`owners` is the diagnostic detail behind the category arrays. A retained slot does not prove that an external process is active. A missing run ID is meaningful for pre-dispatch or uncertain entries; it does not prove that no external run exists.
 
 ---
 

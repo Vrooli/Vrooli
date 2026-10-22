@@ -1246,7 +1246,7 @@ must include fields to clear in its field mask, including default-valued fields.
 Protobuf JSON can omit zero member counts and false booleans; clients use those
 wire defaults without treating an invalid response as an empty team registry.
 See the [team model](../concepts/SWARM-MODEL.md#team-purpose-lifetime-and-linked-work)
-for authored relationships, finite leader bindings, and supervisor observations.
+for authored relationships, current leader run references, and supervisor observations.
 
 ### GET /api/v1/teams
 

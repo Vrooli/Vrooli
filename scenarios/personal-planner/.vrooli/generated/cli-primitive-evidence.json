@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "personal-planner",
   "generator": "v1.0.0",
-  "manifest_hash": "4d476b8c0ffc66492735d28a10116e42551f581f87fb40e15f1d59e4dcff25dc",
+  "manifest_hash": "bd944b5e99977c9c39ec733ccc7f22d690a56f66f7229389a7040e004aa18f03",
   "commands": [
     {
       "path": "calendar apply-placement",
@@ -259,8 +259,8 @@
       "group": "goals",
       "command": "create",
       "binding": "GoalsService.CreateGoal",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "goals create-milestone",
@@ -275,8 +275,8 @@
       "group": "goals",
       "command": "list",
       "binding": "GoalsService.ListGoals",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "goals milestones",

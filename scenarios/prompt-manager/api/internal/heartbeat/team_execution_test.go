@@ -2,14 +2,54 @@ package heartbeat
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/requestpolicy"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/identity"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 )
+
+func TestTeamExecutionStatusIncludesOwnerIdentifiersWithoutPayloads(t *testing.T) {
+	ctx := newTeamExecutionContext("team-1", &captureExecutor{}, t.TempDir(), nil)
+	ctx.running["nooch-delivery-orchestrator"] = runningEntry{
+		State: ObligationDispatchUncertain, DispatchStage: DispatchStageIntent,
+		TaskID: "task-123", RunID: "", AdmissionOrigin: AdmissionOriginScheduled,
+		OwnerStartedAt: "2026-10-17T05:30:01Z", OwnerObligationID: "obligation-456",
+		TaskRequestSnapshot: `{"private":"must not appear"}`,
+	}
+	ctx.queue = []queuedExecution{{AgentID: "queued-member", TaskID: "queued-task", DispatchStage: DispatchStagePreparing}}
+
+	status := ctx.Status()
+	if len(status.Owners) != 2 {
+		t.Fatalf("owners = %+v, want running and queued owner records", status.Owners)
+	}
+	uncertain := status.Owners[0]
+	if uncertain.AgentID != "nooch-delivery-orchestrator" || uncertain.Phase != "retained" || uncertain.State != ObligationDispatchUncertain || uncertain.DispatchStage != DispatchStageIntent || uncertain.TaskID != "task-123" || uncertain.RunID != "" || uncertain.ObligationID != "obligation-456" {
+		t.Fatalf("uncertain owner = %+v", uncertain)
+	}
+	queued := status.Owners[1]
+	if queued.AgentID != "queued-member" || queued.Phase != "queued" || queued.TaskID != "queued-task" || queued.DispatchStage != DispatchStagePreparing {
+		t.Fatalf("queued owner = %+v", queued)
+	}
+	raw, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "must not appear") || strings.Contains(string(raw), "taskRequestSnapshot") {
+		t.Fatalf("execution status exposed private task payload: %s", raw)
+	}
+}
 
 func TestFormatExecutionFailureIncludesOnlyAllowlistedAdmissionReason(t *testing.T) {
 	t.Run("known reason is a separate log field", func(t *testing.T) {
@@ -355,8 +395,8 @@ func TestTeamExecutionStore_Recover(t *testing.T) {
 	}
 }
 
-// TestTeamExecutionStore_OnComplete routes completion to correct team.
-func TestTeamExecutionStore_OnComplete(t *testing.T) {
+// TestTeamExecutionStore_OnRunComplete routes completion to the exact run owner.
+func TestTeamExecutionStore_OnRunComplete(t *testing.T) {
 	exec := &captureExecutor{}
 	store := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
 
@@ -369,13 +409,14 @@ func TestTeamExecutionStore_OnComplete(t *testing.T) {
 		t.Fatalf("enqueue: %v", err)
 	}
 
-	// Complete agent-1
-	store.OnComplete("team-1", "agent-1")
+	// Complete agent-1's registered run.
+	store.contexts["team-1"].SetRunningRunID("agent-1", "run-1")
+	store.OnRunComplete("team-1", "agent-1", "run-1")
 	time.Sleep(50 * time.Millisecond)
 
 	status := store.Status("team-1")
 	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-2" {
-		t.Fatalf("expected running [agent-2] after OnComplete, got %v", status.RunningAgentIDs)
+		t.Fatalf("expected running [agent-2] after OnRunComplete, got %v", status.RunningAgentIDs)
 	}
 }
 
@@ -515,4 +556,429 @@ func (c *contextCapturingExecutor) Execute(ctx context.Context, teamID, agentID,
 		c.onExecute(ctx)
 	}
 	return c.inner.Execute(ctx, teamID, agentID, profileKey)
+}
+
+func TestClearRunning_TerminalRunSucceeds(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().
+		WithGetRunResponse("run-done", &Run{ID: "run-done", Status: "RUN_STATUS_COMPLETE"})
+	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
+
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-done")
+
+	if err := tec.ClearRunning(context.Background(), "agent-1", false); err != nil {
+		t.Fatalf("ClearRunning: %v", err)
+	}
+	if len(tec.Status().RunningAgentIDs) != 0 {
+		t.Fatalf("expected entry cleared")
+	}
+}
+
+func TestClearRunning_ActiveRunRefused(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().
+		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
+	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
+
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-live")
+
+	err := tec.ClearRunning(context.Background(), "agent-1", false)
+	if err == nil {
+		t.Fatalf("expected RunningStillActiveError")
+	}
+	if !IsRunningStillActive(err) {
+		t.Fatalf("expected RunningStillActiveError, got %T: %v", err, err)
+	}
+	if len(tec.Status().RunningAgentIDs) != 1 {
+		t.Fatalf("entry should still be present after refusal")
+	}
+}
+
+func TestClearRunning_ForceBypassesActiveCheck(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().
+		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
+	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
+
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-live")
+
+	if err := tec.ClearRunning(context.Background(), "agent-1", true); err != nil {
+		t.Fatalf("force ClearRunning: %v", err)
+	}
+	if len(tec.Status().RunningAgentIDs) != 0 {
+		t.Fatalf("force should clear despite active run")
+	}
+}
+
+func TestClearRunning_EmptyRunIDRequiresExplicitForce(t *testing.T) {
+	dir := t.TempDir()
+	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, newMockAgentClient())
+
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	// No SetRunningRunID — entry has empty RunID.
+
+	err := tec.ClearRunning(context.Background(), "agent-1", false)
+	if !IsRunningOwnerUnverified(err) {
+		t.Fatalf("ClearRunning without owner proof error=%v, want RunningOwnerUnverifiedError", err)
+	}
+	if len(tec.Status().RunningAgentIDs) != 1 {
+		t.Fatalf("entry should remain after owner-proof refusal, got %v", tec.Status().RunningAgentIDs)
+	}
+	if err := tec.ClearRunning(context.Background(), "agent-1", true); err != nil {
+		t.Fatalf("explicit-force ClearRunning: %v", err)
+	}
+	if len(tec.Status().RunningAgentIDs) != 0 {
+		t.Fatalf("explicit force should clear entry")
+	}
+}
+
+func TestClearRunningRequiresExactTerminalOwnerProof(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		client            AgentClient
+		wantLookupFailure bool
+	}{
+		{name: "agent manager unavailable", wantLookupFailure: true},
+		{name: "response missing run ID", client: newMockAgentClient().WithGetRunResponse("run-expected", nil)},
+		{name: "response has a different run ID", client: newMockAgentClient().WithGetRunResponse("run-expected", &Run{ID: "run-other", Status: "RUN_STATUS_COMPLETE"})},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tec := newTeamExecutionContext("team-x", &captureExecutor{}, t.TempDir(), tc.client)
+			if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+				t.Fatalf("enqueue: %v", err)
+			}
+			tec.SetRunningRunID("agent-1", "run-expected")
+
+			err := tec.ClearRunning(context.Background(), "agent-1", false)
+			if tc.wantLookupFailure {
+				if !IsRunningOwnerLookupFailure(err) {
+					t.Fatalf("ClearRunning error=%v, want lookup failure", err)
+				}
+			} else if !IsRunningOwnerUnverified(err) {
+				t.Fatalf("ClearRunning error=%v, want owner-proof refusal", err)
+			}
+			if got := tec.Status().RunningAgentIDs; len(got) != 1 || got[0] != "agent-1" {
+				t.Fatalf("owner-proof refusal changed running slot: %v", got)
+			}
+		})
+	}
+}
+
+func TestClearRunningLookupFailureIsNotStaleOwnerEvidence(t *testing.T) {
+	client := newMockAgentClient()
+	client.getRunErr = errors.New("temporary lookup failure")
+	tec := newTeamExecutionContext("team-x", &captureExecutor{}, t.TempDir(), client)
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-expected")
+
+	err := tec.ClearRunning(context.Background(), "agent-1", false)
+	if !IsRunningOwnerLookupFailure(err) || !errors.Is(err, client.getRunErr) {
+		t.Fatalf("ClearRunning error=%v, want upstream lookup failure", err)
+	}
+	if got := tec.Status().RunningAgentIDs; len(got) != 1 || got[0] != "agent-1" {
+		t.Fatalf("lookup failure changed running slot: %v", got)
+	}
+}
+
+func TestClearRunning_NotFound(t *testing.T) {
+	tec := newTeamExecutionContext("team-x", &captureExecutor{}, t.TempDir(), nil)
+	err := tec.ClearRunning(context.Background(), "ghost", false)
+	if err != ErrRunningEntryNotFound {
+		t.Fatalf("expected ErrRunningEntryNotFound, got %v", err)
+	}
+}
+
+func TestClearTeamQueueRunning_OK(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().
+		WithGetRunResponse("run-done", &Run{ID: "run-done", Status: "RUN_STATUS_COMPLETE"})
+	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
+
+	// Pre-populate a running entry by enqueuing then SetRunningRunID.
+	tec := teamExecStore.GetOrCreate("team-x")
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-done")
+
+	handlers := &Handlers{teamExecStore: teamExecStore}
+
+	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.ClearTeamQueueRunning(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var status TeamExecutionStatus
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("expected cleared status, got %v", status.RunningAgentIDs)
+	}
+}
+
+func TestClearTeamQueueRunning_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, newMockAgentClient())
+	handlers := &Handlers{teamExecStore: teamExecStore}
+
+	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/ghost", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "ghost"})
+	w := httptest.NewRecorder()
+
+	handlers.ClearTeamQueueRunning(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestClearTeamQueueRunning_ActiveRefused409(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().
+		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
+	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
+	tec := teamExecStore.GetOrCreate("team-x")
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-live")
+
+	handlers := &Handlers{teamExecStore: teamExecStore}
+	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.ClearTeamQueueRunning(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "active") {
+		t.Fatalf("expected error body to mention active, got %q", w.Body.String())
+	}
+}
+
+func TestClearTeamQueueRunning_UnverifiedOwnerRefused409(t *testing.T) {
+	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, t.TempDir(), nil)
+	tec := teamExecStore.GetOrCreate("team-x")
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1", nil)
+	request = mux.SetURLVars(request, map[string]string{"id": "team-x", "agentId": "agent-1"})
+	response := httptest.NewRecorder()
+	(&Handlers{teamExecStore: teamExecStore}).ClearTeamQueueRunning(response, request)
+
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status=%d, want 409: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "no run ID is recorded") {
+		t.Fatalf("response should explain missing owner proof, got %q", response.Body.String())
+	}
+	if got := teamExecStore.Status("team-x").RunningAgentIDs; len(got) != 1 || got[0] != "agent-1" {
+		t.Fatalf("unverified clear changed running slot: %v", got)
+	}
+}
+
+func TestClearTeamQueueRunningLookupFailureReturnsBadGateway(t *testing.T) {
+	client := newMockAgentClient()
+	client.getRunErr = errors.New("temporary lookup failure")
+	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, t.TempDir(), client)
+	tec := teamExecStore.GetOrCreate("team-x")
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-expected")
+
+	request := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1", nil)
+	request = mux.SetURLVars(request, map[string]string{"id": "team-x", "agentId": "agent-1"})
+	response := httptest.NewRecorder()
+	(&Handlers{teamExecStore: teamExecStore}).ClearTeamQueueRunning(response, request)
+
+	if response.Code != http.StatusBadGateway {
+		t.Fatalf("status=%d, want 502: %s", response.Code, response.Body.String())
+	}
+	if got := teamExecStore.Status("team-x").RunningAgentIDs; len(got) != 1 || got[0] != "agent-1" {
+		t.Fatalf("lookup failure changed running slot: %v", got)
+	}
+}
+
+func TestClearTeamQueueRunning_ForceQueryBypassesActive(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().
+		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
+	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
+	tec := teamExecStore.GetOrCreate("team-x")
+	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+	tec.SetRunningRunID("agent-1", "run-live")
+
+	handlers := &Handlers{teamExecStore: teamExecStore}
+	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1?force=true", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.ClearTeamQueueRunning(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 with force, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestClearTeamQueueRunningRequiresExactTeamManageWhenBounded(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		rules   []identity.OperationRule
+		force   bool
+		allowed bool
+	}{
+		{
+			name:    "exact team target",
+			rules:   []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/team-x"}}},
+			allowed: true,
+		},
+		{
+			name:    "canonical wildcard target",
+			rules:   []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:*"}}},
+			allowed: true,
+		},
+		{
+			name:  "wrong team target",
+			rules: []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/other"}}},
+		},
+		{
+			name:  "force does not bypass team authorization",
+			rules: []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/other"}}},
+			force: true,
+		},
+		{
+			name: "unrelated operation cannot pair with team target",
+			rules: []identity.OperationRule{
+				{Policy: "team-preparation", Operations: []string{"team.prepare"}, Targets: []string{"prompt-manager:team/team-x"}},
+				{Policy: "agent-management", Operations: []string{"agent.manage"}, Targets: []string{"prompt-manager:team/team-x"}},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			client := newMockAgentClient().WithGetRunResponse("run-done", &Run{ID: "run-done", Status: "RUN_STATUS_COMPLETE"})
+			teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
+			tec := teamExecStore.GetOrCreate("team-x")
+			if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+				t.Fatalf("enqueue: %v", err)
+			}
+			tec.SetRunningRunID("agent-1", "run-done")
+
+			handler := requestpolicy.PreparationBoundary(http.HandlerFunc((&Handlers{teamExecStore: teamExecStore}).ClearTeamQueueRunning))
+			grant := &identity.OperationGrant{
+				ID: "approved-team-management", Policy: "team-management", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour), Rules: tc.rules,
+			}
+			principal := identity.Principal{
+				Kind: identity.ActorAgent, Subject: "verified-run", Verified: true,
+				Scopes: []string{"prompt-manager:write"}, Grant: grant,
+			}
+			url := heartbeatconnect.HeartbeatServiceClearTeamQueueRunningProcedure
+			if tc.force {
+				url += "?force=true"
+			}
+			req := httptest.NewRequest(http.MethodPost, url, nil)
+			req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
+			req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if tc.allowed {
+				if rec.Code != http.StatusOK {
+					t.Fatalf("approved request status=%d body=%q", rec.Code, rec.Body.String())
+				}
+				if got := teamExecStore.Status("team-x").RunningAgentIDs; len(got) != 0 {
+					t.Fatalf("approved request did not clear running entry: %v", got)
+				}
+				return
+			}
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("unapproved request status=%d body=%q, want 403", rec.Code, rec.Body.String())
+			}
+			if got := teamExecStore.Status("team-x").RunningAgentIDs; len(got) != 1 || got[0] != "agent-1" {
+				t.Fatalf("denied request changed running entry: %v", got)
+			}
+		})
+	}
+}
+
+func TestClearRunningPersistenceFailureRestoresOwnerAndQueueUntilRetry(t *testing.T) {
+	dir := t.TempDir()
+	executor := &captureExecutor{}
+	client := newMockAgentClient().WithGetRunResponse("run-done", &Run{ID: "run-done", Status: "RUN_STATUS_COMPLETE"})
+	ctx := newTeamExecutionContext("team-x", executor, dir, client)
+	if _, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
+		t.Fatalf("enqueue first owner: %v", err)
+	}
+	ctx.SetRunningRunID("agent-1", "run-done")
+	if _, err := ctx.Enqueue(context.Background(), "agent-2", "profile-2"); err != nil {
+		t.Fatalf("enqueue waiting owner: %v", err)
+	}
+	ctx.executionWG.Wait()
+	if got := executor.callCount(); got != 1 {
+		t.Fatalf("initial executions=%d, want only first owner", got)
+	}
+
+	queueFile := ctx.queueFilePath()
+	before, err := os.ReadFile(queueFile)
+	if err != nil {
+		t.Fatalf("read durable queue before clear: %v", err)
+	}
+	blockedPersistDir := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockedPersistDir, []byte("block mkdir"), 0o600); err != nil {
+		t.Fatalf("create persistence blocker: %v", err)
+	}
+	ctx.persistDir = blockedPersistDir
+	if err := ctx.ClearRunning(context.Background(), "agent-1", false); err == nil {
+		t.Fatal("ClearRunning succeeded despite queue persistence failure")
+	}
+	if status := ctx.Status(); len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" || len(status.Queue) != 1 || status.Queue[0] != "agent-2" {
+		t.Fatalf("failed clear changed in-memory owner/queue: %+v", status)
+	}
+	if got := executor.callCount(); got != 1 {
+		t.Fatalf("failed clear dispatched waiting owner; executions=%d", got)
+	}
+	after, err := os.ReadFile(queueFile)
+	if err != nil {
+		t.Fatalf("read durable queue after failed clear: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("failed clear changed durable queue\nbefore: %s\nafter:  %s", before, after)
+	}
+
+	ctx.persistDir = dir
+	if err := ctx.ClearRunning(context.Background(), "agent-1", false); err != nil {
+		t.Fatalf("retry ClearRunning: %v", err)
+	}
+	ctx.executionWG.Wait()
+	if status := ctx.Status(); len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-2" || len(status.Queue) != 0 {
+		t.Fatalf("successful retry did not promote waiting owner: %+v", status)
+	}
+	if got := executor.callCount(); got != 2 {
+		t.Fatalf("executions after retry=%d, want 2", got)
+	}
 }

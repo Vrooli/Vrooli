@@ -1,0 +1,2 @@
+653c04a6a8153e071180bc4cbd5d6a24e321b0300182a1ca1e364f78e3928bff  scenarios/personal-planner/api/internal/work/sqlite.go
+869ce6ecdfaec523f741fae580e8d5e90f26bc1493fc2b1707128bfb835b432f  scenarios/personal-planner/api/internal/work/sqlite_test.go

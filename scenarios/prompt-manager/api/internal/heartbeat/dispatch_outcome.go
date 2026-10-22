@@ -40,6 +40,23 @@ type DispatchUncertainError struct {
 	Cause error
 }
 
+// dispatchStageFailure retains a bounded owner substage and code across the
+// existing dispatch error wrappers. Its text is never persisted or projected.
+type dispatchStageFailure struct {
+	phase string
+	code  string
+	cause error
+}
+
+func (e *dispatchStageFailure) Error() string {
+	if e == nil || e.cause == nil {
+		return "task dispatch stage failed"
+	}
+	return e.cause.Error()
+}
+
+func (e *dispatchStageFailure) Unwrap() error { return e.cause }
+
 // AgentManagerHTTPError preserves the owner's typed HTTP status for downstream
 // failure ownership decisions while retaining the response's safe message.
 type AgentManagerHTTPError struct {

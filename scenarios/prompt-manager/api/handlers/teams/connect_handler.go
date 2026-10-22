@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -160,6 +162,9 @@ func (h *connectHandler) CreateTeam(ctx context.Context, req *connect.Request[te
 		if strings.Contains(err.Error(), "already exists") {
 			code = connect.CodeAlreadyExists
 		}
+		if errors.Is(err, authn.ErrOperation) {
+			code = connect.CodePermissionDenied
+		}
 		return nil, connect.NewError(code, err)
 	}
 	out := &teamsv1.TeamDetails{}
@@ -216,6 +221,9 @@ func (h *connectHandler) AddMember(ctx context.Context, req *connect.Request[tea
 	result, err := h.legacy.AddTeamMember(ctx, req.Msg.GetTeamId(), domain.AddMemberRequest{AgentID: req.Msg.GetAgentId(), Roles: req.Msg.GetRoles()})
 	if err != nil {
 		code := connect.CodeInternal
+		if errors.Is(err, authn.ErrOperation) {
+			code = connect.CodePermissionDenied
+		}
 		if err.Error() == "agentId is required" {
 			code = connect.CodeInvalidArgument
 		}
@@ -239,6 +247,9 @@ func (h *connectHandler) UpdateMember(ctx context.Context, req *connect.Request[
 	result, err := h.legacy.UpdateTeamMember(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId(), domain.UpdateMemberRequest{Roles: req.Msg.GetRoles(), Status: req.Msg.Status})
 	if err != nil {
 		code := connect.CodeInternal
+		if errors.Is(err, authn.ErrOperation) {
+			code = connect.CodePermissionDenied
+		}
 		if err.Error() == "Membership not found" || err.Error() == "Team not found" {
 			code = connect.CodeNotFound
 		}
@@ -261,6 +272,9 @@ func (h *connectHandler) UpdateMember(ctx context.Context, req *connect.Request[
 func (h *connectHandler) RemoveMember(ctx context.Context, req *connect.Request[teamsv1.RemoveMemberRequest]) (*connect.Response[teamsv1.RemoveMemberResponse], error) {
 	if err := h.legacy.RemoveTeamMember(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId()); err != nil {
 		code := connect.CodeInternal
+		if errors.Is(err, authn.ErrOperation) {
+			code = connect.CodePermissionDenied
+		}
 		if err.Error() == "Team not found" || strings.Contains(err.Error(), "not found") {
 			code = connect.CodeNotFound
 		}
@@ -273,6 +287,9 @@ func (h *connectHandler) RemoveMember(ctx context.Context, req *connect.Request[
 }
 
 func (h *connectHandler) GetRoles(ctx context.Context, req *connect.Request[teamsv1.GetRolesRequest]) (*connect.Response[teamsv1.GetRolesResponse], error) {
+	if err := requestpolicy.RequirePreparationRead(ctx, req.Msg.GetTeamId()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	roles, err := h.legacy.ListTeamRoles(ctx, req.Msg.GetTeamId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -292,6 +309,9 @@ func (h *connectHandler) SetRoles(ctx context.Context, req *connect.Request[team
 	result, err := h.legacy.SetTeamRoles(ctx, req.Msg.GetTeamId(), domain.SetRolesRequest{Roles: roles})
 	if err != nil {
 		code := connect.CodeInternal
+		if errors.Is(err, authn.ErrOperation) {
+			code = connect.CodePermissionDenied
+		}
 		if strings.Contains(err.Error(), "not found") {
 			code = connect.CodeNotFound
 		}
@@ -517,7 +537,11 @@ func (h *connectHandler) ListMessages(ctx context.Context, req *connect.Request[
 func (h *connectHandler) SendMessage(ctx context.Context, req *connect.Request[teamsv1.SendMessageRequest]) (*connect.Response[teamsv1.Message], error) {
 	result, err := h.legacy.SendTeamMessageDirect(ctx, req.Msg.GetTeamId(), req.Msg.GetAgentId(), domain.SendTeamMessageRequest{FromAgentID: req.Msg.GetFromAgentId(), Content: req.Msg.GetContent()})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		code := connect.CodeInvalidArgument
+		if errors.Is(err, domain.ErrMessageSenderRunMismatch) {
+			code = connect.CodePermissionDenied
+		}
+		return nil, connect.NewError(code, err)
 	}
 	return connect.NewResponse(&teamsv1.Message{Id: result.ID, TeamId: result.TeamID, FromAgentId: result.FromAgentID, ToAgentId: result.ToAgentID, Content: result.Content, CreatedAt: result.CreatedAt}), nil
 }

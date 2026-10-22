@@ -21,6 +21,13 @@ export function HealthCard() {
     return refetch().then(() => undefined);
   };
 
+  const formatTimestamp = (timestamp: string | Date) => {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return Number.isNaN(date.getTime())
+      ? "—"
+      : formatDate(date, { dateStyle: "medium", timeStyle: "short" });
+  };
+
   return (
     <LibraryHealthCard
       data={data ? { status: data.status, service: data.service, timestamp: data.timestamp } : undefined}
@@ -35,7 +42,7 @@ export function HealthCard() {
       loadingLabel={t(strings.health.loading)}
       errorLabel={t(strings.health.error)}
       refreshLabel={t(strings.health.refresh)}
-      formatTimestamp={(timestamp) => formatDate(new Date(timestamp), { dateStyle: "medium", timeStyle: "short" })}
+      formatTimestamp={formatTimestamp}
       refreshCount={refreshCount}
       refreshCountLabel={t(strings.health.refreshCount, { count: refreshCount })}
       footer={

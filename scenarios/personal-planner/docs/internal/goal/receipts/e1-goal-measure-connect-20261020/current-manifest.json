@@ -1,0 +1,104 @@
+{
+  "captured_at": "2026-10-20T23:00:04.707283+00:00",
+  "baseline_manifest": "baseline-retry/manifest.json",
+  "baseline_manifest_sha256": "c3e27213cad8b93b1e83541623119628a4272af64f01ccca8c33362ff96b11a2",
+  "entries": [
+    {
+      "path": "packages/proto/schemas/personal-planner/v1/goals/goals.proto",
+      "present": true,
+      "bytes": 2627,
+      "sha256": "068e0db0e0e8c7b807bb9528f4e80f42c006b2fec456d7293546396b313c385b",
+      "lines": 93
+    },
+    {
+      "path": "scenarios/personal-planner/api/handlers/goals/connect_handler.go",
+      "present": true,
+      "bytes": 3811,
+      "sha256": "8d130619830ee747a454dd37ee07769c19ecf9c76786c9cd43d25665cc414077",
+      "lines": 89
+    },
+    {
+      "path": "scenarios/personal-planner/api/handlers/goals/adapter.go",
+      "present": true,
+      "bytes": 738,
+      "sha256": "a5f2372ffa8cf97ae79d05fff79e29f3120e5ebe0ff27e1477d4a8f87f78e8d8",
+      "lines": 17
+    },
+    {
+      "path": "scenarios/personal-planner/api/handlers/goals/module.go",
+      "present": true,
+      "bytes": 5561,
+      "sha256": "0b05cd8fbf6e7e447429eec034ac7cf26213baa9bbc432b82ee239b46934188e",
+      "lines": 141
+    },
+    {
+      "path": "scenarios/personal-planner/api/handlers/goals/connect_handler_test.go",
+      "present": true,
+      "bytes": 3003,
+      "sha256": "926def89c2e3b368acaf113591561b5ea8a5c3a1f5016972068af8835af51fc3",
+      "lines": 80
+    },
+    {
+      "path": "packages/proto/gen/go/personal-planner/v1/goals/goals.pb.go",
+      "present": true,
+      "bytes": 41427,
+      "sha256": "71049a9ab80bd38e59ae55ff6a6af8e4523d51154725591e8d48e531b20293e9",
+      "lines": 1178
+    },
+    {
+      "path": "packages/proto/gen/go/personal-planner/v1/goals/goals_v1connect/goals.connect.go",
+      "present": true,
+      "bytes": 14588,
+      "sha256": "d60eab248c0833df8c76ee81ea1ad10fb75482e031d191e676ca6cc11f58b4d6",
+      "lines": 253
+    },
+    {
+      "path": "packages/proto/gen/python/personal_planner/v1/goals/goals_pb2.py",
+      "present": true,
+      "bytes": 8231,
+      "sha256": "e8e0a9ab6d470c57dc7d38d8e983b3f71814dc100ca82950108658bc47a00bb6",
+      "lines": 67
+    },
+    {
+      "path": "packages/proto/gen/python/personal_planner/v1/goals/goals_pb2.pyi",
+      "present": true,
+      "bytes": 8662,
+      "sha256": "f98aa58dd3980eaaea2a57ee4928ecea052cda8421a1fe7502b27551bb20d69d",
+      "lines": 177
+    },
+    {
+      "path": "packages/proto/gen/python/personal_planner/v1/goals/py.typed",
+      "present": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 0
+    },
+    {
+      "path": "packages/proto/gen/typescript/personal-planner/v1/goals/goals_pb.ts",
+      "present": true,
+      "bytes": 18764,
+      "sha256": "4954b6e2eeb5d735888230f069b527743a9e892643cab98d2e87ce3a1249ec3b",
+      "lines": 525
+    },
+    {
+      "path": "packages/proto/gen/manifests/personal-planner.lock.json",
+      "present": true,
+      "bytes": 10295,
+      "sha256": "6df96c7f1c780153311a36021914a79ddf7e3d4609a7e7a92423b0234ac55e59",
+      "lines": 97
+    },
+    {
+      "path": "packages/proto/gen/.vrooli-proto-artifact.json",
+      "present": true,
+      "bytes": 205,
+      "sha256": "dce6f6c1c1876415f7e0c1d932e8d2d047a1694a69769ee0d1e8c4185b97030a",
+      "lines": 5
+    },
+    {
+      "path": "packages/proto/gen/descriptor/image.binpb",
+      "present": true,
+      "bytes": 8706241,
+      "sha256": "438097b5374f62d84f28f77d59c59642304d64ef94e2fed913f2264d2ae67caa"
+    }
+  ]
+}

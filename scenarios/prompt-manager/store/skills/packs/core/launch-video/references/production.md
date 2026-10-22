@@ -1,5 +1,46 @@
 # Direct one promise
 
+## Discover the job and verify the offer
+
+Resolve the audience and offer before choosing the story. Read Offer Desk's current
+intent and the actual deployment/package evidence. Inspect representative product
+workflows and their implementation, tests, docs and prior feedback. Existing
+marketing may omit useful capabilities; discovery must extend beyond its list.
+
+Before ranking, map the major user-facing workflows: starting work, monitoring
+attention/state, reading and inspecting outputs, coordinating or transferring work,
+and recovering context. Follow the product’s actual surfaces; these are prompts,
+not required features. Give each substantial discovered workflow a candidate and
+source, including valuable capabilities whose readiness is unknown. Do not let
+missing package evidence erase them from discovery. Record gaps explicitly. Then
+choose a coherent story. A focused montage may show several facets of one useful
+benefit; the feature inventory must not replace the film's core promise.
+
+Write `product-brief.json` using `plan-format.md`. Each candidate connects a
+capability to a user job, current workaround, friction and outcome. Record whether
+the value is observed, operator-reported or inferred. Assess reliability, setup and
+dependencies for the selected offer. Supported or explicitly qualified conditional
+benefits can be selected. Excluded and unknown benefits remain visible research
+with reasons; potential value never compensates for absent delivery support.
+
+Compare candidate value by recurring usefulness, consequence, friction removed,
+evidence and audience fit. Use written reasons, not an invented numerical appeal
+score. Look for combinations that complete a job. Feature uniqueness is not a
+requirement; superiority over another product needs actual comparison evidence.
+
+Select the promise independently of capture convenience. Plan the action/result
+that would prove it, then obtain safe evidence. If capture cannot prove the best
+eligible benefit, report that gap and reconsider the story explicitly. A UI fixture
+can prove controls and rendering, not execution, persistence or effortless setup.
+
+Before full polish, review the plain script or a cheap timed rough against these
+questions: What is this app? Who would use it and when? What gets easier? What
+visible action/result supports that? What does the next action actually provide?
+Use only context in the draft. Check implicit target/setup promises in imagery.
+Maintain existing claim approval boundaries while proposing overlooked value.
+
+## Record approved truth and direct the film
+
 Write `product-truth.md` before story work. Give each claim an ID, source revision
 or read timestamp, approved meaning, required qualifiers, availability, and any
 exact-copy restriction. Separate verified behavior from marketing aspirations.
@@ -119,6 +160,11 @@ music character when adopting the page's visual tone.
 
 ## Shot selection and motion
 
+Choose the recording's screen treatment with `screen-presentation.md` before
+polishing it. Include a full-size frame and short sample of the chosen browser/app
+frame or device scene in the existing craft checkpoints. Establish the workspace
+before moving into direct detail; staging must preserve the native proof.
+
 Retrieve a few recipes by intent with `scripts/production.py shots <intent>`.
 The compact catalog is vocabulary, not a running order. Choose no effect merely
 because it exists. For each major motion, finish: “This makes the viewer notice …”.
@@ -147,6 +193,20 @@ from actual animated 3D geometry. Record prompts, source dimensions, model, seed
 and cost when exposed, provenance and limits. Review brand, dominant focal point, typography,
 contrast, density, authenticity, and generic-template symptoms. Keep a short
 written verdict for each. Fail a frame with two competing primary reads.
+
+Set the runtime after the selected story is understandable. Provider menus prove
+choices, not authenticated execution, shared quotas or cheapest routing. For
+subscription/local/BYOK positioning, name which feature uses which funding path
+and retain eligibility conditions; distinguish native voice from dictation and
+speech playback. Keep useful proposed capabilities in discovery, outside shipped
+proof. Extend the cut when this context earns time, or omit a secondary promise;
+do not preserve an old duration by making the explanation unreadable.
+
+For an accepted-film revision, reuse applicable prior visual-direction roughs
+with their exact files and original review context. Requalify the changed story,
+timing and presentation in the current script and animatic. Retained alternatives
+are not fresh customer-comprehension evidence; do not regenerate unchanged
+exploration solely to refill the manifest.
 
 The animatic uses the actual intended shot durations and reading holds. Review
 hook, sequence, proof, redundancies, and ending on mute. Use temporary audio only
@@ -196,6 +256,16 @@ Its composer is a retained production example, not a portable render service.
 Discover a current installed toolchain; do not depend on its old `/tmp` location.
 Operator draft acceptance is not publication permission or a fabricated agent
 audio audition. Record acceptance separately from technical/listening checks.
+
+## Product-footage improvement pass
+
+Keep an accepted story stable when the feedback concerns recording craft. Plan
+connected native actions and a concentrated montage using `capture.md`. Review
+all static product intervals and entry-only demonstrations using `review.md`.
+Capture missing action/result coverage before adding camera effects. Use the
+existing HyperFrames edit for trims, retiming, match cuts and sound accents.
+Record the craft findings and source-to-final timing beside the existing shot
+plan and quality review. No additional renderer or fabricated UI is required.
 
 ## Current quality references and review
 

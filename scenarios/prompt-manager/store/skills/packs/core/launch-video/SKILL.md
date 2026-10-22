@@ -1,6 +1,6 @@
 ---
 name: "launch-video"
-description: "Direct, capture, compose, critique, and deliver a source-grounded launch-video draft with inexpensive teaser and deliberate flagship profiles, using real product evidence and local HyperFrames rendering."
+description: "Discover offer-eligible customer value, then direct, capture, compose, critique, and deliver a source-grounded launch-video draft with inexpensive teaser and deliberate flagship profiles, using real product evidence and local HyperFrames rendering."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,18 +9,18 @@ metadata:
   tags: ["marketing", "video", "launch"]
   icon: "video"
   status: "active"
-  revision: 30
+  revision: 38
   createdAt: "2026-09-17T00:00:00Z"
-  updatedAt: "2026-10-17T00:00:00Z"
+  updatedAt: "2026-10-21T00:00:00Z"
   requires:
-    scenarios: ["prompt-manager", "landing-page-business-suite", "brand-manager"]
-    commands: ["prompt-manager skill read", "brand-manager", "vrooli scenario port"]
+    scenarios: ["prompt-manager", "landing-page-business-suite", "brand-manager", "device-studio", "program-runtime"]
+    commands: ["prompt-manager skill read", "brand-manager", "vrooli scenario port", "program-runtime library run", "device-studio renders export"]
   origin:
     kind: "authored"
 ---
 ## Tools focus: Launch Video
 
-Produce a launch-video draft for **one sellable scenario** that tells the story the product is officially advertised with and shows the real running product. Sources are read in a fixed priority order, every source used is recorded, and the render is a draft for operator judgement — never a published or approved asset.
+Produce a launch-video draft for **one sellable scenario** by discovering useful customer workflows, selecting benefits the intended offer reliably provides, and showing genuine product proof. Preserve approved claim meaning and record the sources used. The render is a draft for operator judgement — never a published or approved asset.
 
 Choose `profile: teaser` unless the request calls for a major launch, hero film,
 flagship, or investor-quality demonstration. Choose `flagship` for those requests.
@@ -34,24 +34,34 @@ proof. Record the current sound/energy brief and compare the chosen excerpt and
 short motion sequence with the strongest relevant operator-rated reference. There is no universal footage percentage or required movement in every shot.
 A blocked launch remains incomplete; an unsolicited concept study cannot replace it.
 
+When no channel or operator limit applies, derive duration from the selected
+workflow, required setup/availability explanation and readable proof. An earlier
+cut is not a ceiling. Rebrief when the value proposition changes; do not squeeze
+additional promises into unchanged reading holds or pad to an example duration.
+
 | Profile | Production path | Cost boundary |
 |---|---|---|
 | teaser | One core story, one direction, shot plan, draft, exported-file review | Approximately 15–30 s; reuse licensed audio or compare 2 governed takes |
 | flagship | Three distinct directions, four styleframes, animatic, final composition, critique and revision | Requested duration; compare 3 governed takes initially; record render/retry and generation costs |
 
 Read `references/production.md` for the checkpoint sequence and visual classes.
+Complete its product-discovery and offer-eligibility brief before choosing scenes.
+Read `references/broll.md` when conceptual material or 3D footage serves the story.
 Use `references/examples.json` and `references/learning.md` for rated examples,
 failed approaches and qualification limits. Retrieve examples with
 `scripts/production.py examples <intent>`. Derive each product's direction from
 its brief and sources; do not copy a reference film's theme or sequence.
 Read `references/safety.md` before any lifecycle action or capture.
 Read `references/capture.md` before recording.
+Read `references/screen-presentation.md` when staging screen recordings; choose
+the browser/app frame, device scene and detail handoff before full rendering.
 Read `references/audio-review.md` when choosing audio or reviewing an export.
 Read `references/review.md` before reviewing meaning, craft and the ending.
 Read `references/channel-variants.md` when comparing landing-page and social edits.
 Use `scripts/production.py --help` for file-only plan checks, targeted shot retrieval,
 and delivered-media inspection. Use `scripts/workflow.py` to freeze declared render
-inputs and join final verification. Read `references/plan-format.md` for version 2.
+inputs and join final verification. Read `references/plan-format.md` for version 3;
+use `--historical` only to inspect retained version-1/2 productions.
 Resolve these paths relative to this skill's canonical directory.
 
 Required source doctrine: `path:docs/marketing/catalogs/post-types/video/demo-recording.md`.
@@ -96,6 +106,12 @@ The landing route is **not** derivable from the scenario manifest — it is land
 
 ### 3. Story sources, in priority order
 
+Resolve the intended audience, offer/deliverable/variant and product deployment
+targets first. Read Offer Desk's current graph/release-path through its usage
+skill, then the selected package and readiness evidence. Commercial intent does
+not prove feature reliability. Explicit operator direction applies to this
+production; record conflicts and unavailable evidence without inventing live state.
+
 Read every row that exists. A higher row wins a conflict. Record each conflict in `sources.md` with both values and the row that won.
 
 | # | Source | How to read it | Use it for |
@@ -113,6 +129,44 @@ Rules:
 - Do not write a claim that no row supports. A marketing source is not proof of shipped behavior: reconcile it with current product evidence. Withhold a disputed claim; source priority never authorizes a known falsehood.
 - Preserve claim fidelity, not page order. Reorder, omit, combine, or paraphrase supported claims without widening scope, certainty, availability, performance, or pricing. Retain the original, proposed wording, source, and qualification in `product-truth.md`.
 - Keep legally fixed wording and explicitly locked claims verbatim. If a rewrite would change meaning or a policy requires new approval, record the requested rewrite and omit it until approved. Do not approve it yourself.
+
+#### 3a. Discover value, then select eligible promises
+
+Investigate representative workflows, UI, implementation, tests, product docs and
+prior feedback beyond the existing marketing list. Produce an evidence-backed
+shortlist before asking the operator to name the selling points. Translate each
+capability into a user job, current workaround, friction and useful outcome.
+Keep observations, operator-reported value and inferred value distinct.
+
+Write the version-2 `product-brief.json` in `references/plan-format.md`. For every
+candidate record reliability, dependencies, setup burden, evidence and eligibility
+for this offer: supported, conditional, excluded or unknown. Check eligibility
+before ranking; valuable unsupported features stay in the brief with their blocker
+and reconsideration reason. Feature existence, operator success and attractive
+footage are not proof that the intended buyer can access the benefit.
+
+Inventory the major workflows before ranking: attention/state, input, output
+inspection, coordination and context recovery where present. Retain source-linked
+candidates even when readiness is unknown; eligibility filters selection, not
+discovery. Record major gaps.
+
+Choose a coherent useful workflow and explain why its benefits deserve film time.
+Do not maximize feature count. Link selected benefits to qualified claims and
+proof scenes. A discovery proposal can expose incomplete marketing; it does not
+approve a new claim. Route upstream changes to their existing owner.
+
+Runtime, installation and integration promises require observed evidence for the
+selected build, target and benefit; commercial status alone does not qualify them.
+
+Review a plain script or inexpensive timed rough before full production. It must
+explain what the product does, when the viewer would use it and what gets easier.
+Check the impression made by images as well as copy. Record product deployment
+targets separately from playback devices: watching a desktop-app film on a phone
+does not imply that the offered product supports phone use.
+
+Reassess affected brief rows when offer, target, relevant build/dependencies or
+claim qualification changes. Preserve identities and limitations. Reuse a current
+applicable brief for routine edits; do not rebuild unchanged research each time.
 
 ---
 
@@ -140,6 +194,21 @@ Rules:
 - Preserve shipped marks and explicit restrictions. Record which cues carry over and why others change. Do not modify brand or landing-page canon to remove a conflict.
 - Compare representative video frames with the references before expensive rendering. Judge composition, materials/light, type, spacing, framing and motion. Matching two colors or adding one line is not a craft verdict.
 - Give individual shots different compositions when their purposes differ. Use brand identification where it serves introduction or closure. Do not default to permanent corner logos, demo badges or footer strips.
+
+When a device treatment serves the film, use Device Studio's governed consumer
+operation `device-studio.launch-video-shot` through Program Runtime. Its `save`
+action appends an optimistic immutable revision and reopens that exact revision;
+its `submit` action pins that revision and a stable render idempotency key. Use
+`observe` for the returned project/job identity and `cancel` only with the latest
+owner version. A succeeded result includes source/revision/output provenance and
+the `device-studio renders export` command. Run that owner CLI command to a new
+path; it verifies the actual bytes and digest before publishing the file. Reuse
+the same render idempotency key if submission outcome is uncertain. Do not add a
+separate polling ledger or render loop in the film workflow. Device Studio owns
+only the shot and its receipt; Launch Video/HyperFrames still owns story,
+composition, audio, CTA and review of the complete film. The consumer operation
+uses an existing project and does not establish portable project-bundle export
+or six saved/reopenable demonstration projects.
 
 ---
 
@@ -220,8 +289,9 @@ Order of footage sources:
 
 - **On live, interact read-only**: select, switch views, open viewers, scroll, and type into search fields. Do not send input to sessions, create or delete items, or take over a device.
 - **On a presentation instance, writing is the job** (§5b) — create and populate only verified instance-owned surfaces within the safety assessment. The read-only rule protects the operator's workspace; it is not a capture technique, and applying it to a presentation instance is what produces an empty video. Confirm which instance you are pointed at before the first write: check the port against `vrooli scenario status <scenario> --instance presentation`, not the browser tab.
-- Capture one clip per story scene. Name the clip after the scene.
-- Record real actions and their results where the claim concerns a workflow. Use faithful stills, detail crops, source collages and settled holds when they make a state easier to understand. Camera motion is editorial treatment, not evidence that the product acted. Name what each shot proves; do not invent UI movement to satisfy a quota.
+- Plan a connected action sequence for each workflow benefit. Capture several takes or inserts when the sequence needs them. Name each source by scene and take. A scene may combine several source clips.
+- Record real actions and their results where the claim concerns a workflow. Continue past the first open or expand when another action proves the benefit: scroll the document, inspect a detail, play or seek media, or switch a verified view. Use `references/capture.md` to plan a concentrated montage and its edit.
+- Run a product-footage craft pass before final polish. Inspect every static product shot and every sequence that stops at an entry state. Capture a stronger interaction or record why the still/hold serves the viewer. Apply speed ramps, match cuts, crops and camera moves through the existing HyperFrames composition. Record raw sources and retiming; camera motion alone does not prove a product action. Preserve readable outcomes and the approved story.
 - Choose capture dimensions from the shot crop and final display size. A 1920×1080 viewport is a starting point, not a zoom budget. Record actual encoded dimensions, crop in source pixels, and maximum output footprint; require at least one source pixel per output pixel on both axes. Reframe or recapture a deficient shot. Phone capture may use 390×844 at device scale 3; verify the encoded clip retains that resolution.
 - Drive the browser with puppeteer-core against `/usr/bin/google-chrome`, wait for `networkidle2`, then wait several more seconds before the first frame. `google-chrome --headless --screenshot` captures the loading fallback no matter what `--timeout` says.
 - Record motion with the Chrome DevTools Protocol `Page.startScreencast` frame stream. Write each frame with its timestamp. Join the frames with ffmpeg concat (per-frame durations) into 30 fps H.264.
@@ -342,9 +412,13 @@ You must:
 - Record every source and conflict in `sources.md`.
 - Record in `sources.md` which instance was captured, the follow list used, and which presentation-owned, real-host, or shared-control-plane data appears in any frame.
 - **Dress the demo world before capturing (§5b), and record it in `demo-world.md`.**
-- **Apply the fullness gate before the render.** Read every scene's frames and ask of each: would a viewer believe real people use this product? A scene whose main surface is empty, single-item, or placeholder-named fails. Fix it, cut it, or report it as a defect in the draft — a failing scene may not pass silently into the render.
+- **Apply the fullness gate before the render.** Inspect item previews as well as titles; distinct work items need distinct meaningful content. Read every scene's frames and ask of each: would a viewer believe real people use this product? A scene whose main surface is empty, single-item, or placeholder-named fails. Fix it, cut it, or report it as a defect in the draft — a failing scene may not pass silently into the render.
 - Check the decisive proof against observed product evidence. For action claims, inspect the actual action and result. For state claims, inspect faithful source pixels and context. Do not infer a workflow from camera motion.
 - **Apply the scene-purpose gate.** Every scene adds evidence, context, emotion, or closure to the one core promise. Revisit a surface when its state change proves the story. Cut redundant scenes; do not maximize feature coverage.
+- Apply version-3 benefit/offer/scene checks before capture and polish. A successful
+  structural check does not establish persuasive value or customer demand.
+- Use material/3D inserts when they explain the story or earn a visual payoff.
+  Follow `references/broll.md`; retain recipe, sources and animation limits.
 - Pass the story, claim, focus, motion-purpose, source-resolution, and final-file gates in `references/production.md`. In flagship mode, review styleframes and the animatic before full polish.
 - Review product identity and the chosen art direction against the source mapping. Reuse primitives and reviewed treatments only when they fit this brief. Preserve mandatory brand rules without imposing a fixed page layout.
 - Complete separate technical, viewer-comprehension and craft reviews of the exact exported MP4. Check every scene and the ending using only context already in the film. Bind findings to its hash, preserve prior renders, fix major defects and review changed exports. Missing product proof remains a delivery failure even if a safe composition study renders.

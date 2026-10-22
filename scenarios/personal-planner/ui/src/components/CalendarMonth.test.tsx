@@ -86,6 +86,23 @@ describe("CalendarMonth", () => {
     expect(api.createCalendarEvent).toHaveBeenCalledWith(expect.objectContaining({ start_date: "2026-10-04", end_date_exclusive: "2026-10-07", all_day: true }), expect.any(String));
   });
 
+  it("keeps an owner-rejected create draft editable without uncertain-save recovery", async () => {
+    api.fetchCalendarEvents.mockResolvedValue([]);
+    api.createCalendarEvent.mockRejectedValue(Object.assign(new Error("verified calendar event owner required"), { status: 401, code: "unauthenticated" }));
+    const user = userEvent.setup();
+    renderMonth();
+    fireEvent.click((await screen.findAllByRole("button", { name: /Add event on/ }))[0]!);
+    const title = screen.getByRole("textbox", { name: "Event title" });
+    await user.type(title, "Keep editable");
+    await user.click(screen.getByRole("button", { name: "Create event" }));
+    expect(await screen.findByText("Sign in or switch to a workspace with calendar access before creating this event.")).toBeInTheDocument();
+    expect(title).toHaveValue("Keep editable");
+    expect(title).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create event" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check save status" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry same event" })).not.toBeInTheDocument();
+  });
+
   it("creates with a collision-resistant fallback key when randomUUID is unavailable", async () => {
     vi.stubGlobal("crypto", {});
     api.fetchCalendarEvents.mockResolvedValue([]);
@@ -138,8 +155,9 @@ describe("CalendarMonth", () => {
 
   it("checks an uncertain create by idempotency key before allowing retry", async () => {
     api.fetchCalendarEvents.mockResolvedValue([]);
-    api.createCalendarEvent.mockRejectedValue(new Error("network lost"));
     api.lookupCalendarEventByIdempotencyKey.mockResolvedValue(null);
+    const saved = { id: "saved-after-retry", title: "Synthetic retry", subject: "owner", notes: "", availability: "busy", timezone: "America/New_York", all_day: true, start_date: "2026-10-04", end_date_exclusive: "2026-10-05", start_at: "", end_at: "", revision: 1 };
+    api.createCalendarEvent.mockRejectedValueOnce(new Error("network lost")).mockResolvedValueOnce(saved);
     const user = userEvent.setup();
     renderMonth();
     fireEvent.click((await screen.findAllByRole("button", { name: /Add event on/ }))[0]!);
@@ -153,7 +171,8 @@ describe("CalendarMonth", () => {
     await waitFor(() => expect(api.createCalendarEvent).toHaveBeenCalledTimes(2));
     expect(api.createCalendarEvent.mock.calls[1]![1]).toBe(firstKey);
     expect(api.lookupCalendarEventByIdempotencyKey).toHaveBeenCalledWith(firstKey);
-    expect(screen.getByRole("textbox", { name: "Event title" })).toBeDisabled();
+    await screen.findByText(/Saved Synthetic retry as event saved-after-retry, revision 1/);
+    expect(api.createCalendarEvent.mock.calls[1]![0]).toMatchObject({ title: "Synthetic retry" });
   });
 
   it("recovers a create that succeeded before its response was lost", async () => {

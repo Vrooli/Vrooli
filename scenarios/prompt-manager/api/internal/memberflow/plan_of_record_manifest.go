@@ -87,6 +87,13 @@ type PlanOfRecordPackage struct {
 	MinimumEntries  int      `json:"minimumEntries,omitempty"`
 }
 
+func (p PlanOfRecordPackage) requiredFilesIn(section PlanOfRecordSection) []string {
+	if len(p.RequiredFiles) > 0 {
+		return p.RequiredFiles
+	}
+	return section.RequiredFiles
+}
+
 func LoadPlanOfRecordManifest(path string) (PlanOfRecordManifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -475,11 +482,7 @@ func ValidatePlanOfRecordManifest(repoRoot string, manifest PlanOfRecordManifest
 		}
 		for _, pkg := range section.Packages {
 			pkgRel := cleanJoin(section.Path, pkg.Path)
-			requiredFiles := pkg.RequiredFiles
-			if len(requiredFiles) == 0 {
-				requiredFiles = section.RequiredFiles
-			}
-			for _, required := range requiredFiles {
+			for _, required := range pkg.requiredFilesIn(section) {
 				fileRel := cleanJoin(pkgRel, required)
 				registered[fileRel] = true
 				if _, err := os.Stat(filepath.Join(manifest.RootDir, filepath.FromSlash(fileRel))); err != nil && os.IsNotExist(err) {

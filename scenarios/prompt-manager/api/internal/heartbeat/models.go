@@ -45,6 +45,7 @@ type HeartbeatExecResultDTO struct {
 	LogPath         string `json:"logPath,omitempty"`
 	Error           string `json:"error,omitempty"`
 	AdmissionReason string `json:"admissionReason,omitempty"`
+	AdmissionOrigin string `json:"admissionOrigin,omitempty"`
 }
 
 // CreateHeartbeatRequest is the request body for creating a heartbeat config
@@ -114,9 +115,11 @@ type TeamLogListResponse struct {
 // HeartbeatAttemptListResponse is the response for listing heartbeat dispatch
 // attempts, including attempts that failed before agent-manager created a run.
 type HeartbeatAttemptListResponse struct {
-	Attempts []store.HeartbeatAttempt `json:"attempts"`
-	Total    int                      `json:"total"`
-	HasMore  bool                     `json:"hasMore"`
+	Attempts      []store.HeartbeatAttempt `json:"attempts"`
+	Total         int                      `json:"total"`
+	TotalExact    bool                     `json:"totalExact"`
+	HasMore       bool                     `json:"hasMore"`
+	ScannedEvents int                      `json:"scannedEvents"`
 }
 
 // LogContentResponse is the response for getting log content

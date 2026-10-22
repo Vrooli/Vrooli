@@ -87,6 +87,33 @@ func TestPhysicalStillProfilePins256SamplesAndMotionStays128(t *testing.T) {
 	if err := ValidatePhysicalRenderManifest(manifest); err != nil {
 		t.Fatalf("valid closed still profile rejected: %v", err)
 	}
+	for _, tc := range []struct {
+		name    string
+		backend string
+		wall    uint32
+		valid   bool
+	}{
+		{name: "legacy CPU still remains replayable", backend: "CPU", wall: PhysicalStillWallTimeSeconds, valid: true},
+		{name: "bounded extended CPU still", backend: "CPU", wall: PhysicalStillCPUWallTimeSeconds, valid: true},
+		{name: "arbitrary CPU duration rejected", backend: "CPU", wall: 181},
+		{name: "OptiX retains original deadline", backend: "OPTIX", wall: PhysicalStillWallTimeSeconds, valid: true},
+		{name: "CUDA retains original deadline", backend: "CUDA", wall: PhysicalStillWallTimeSeconds, valid: true},
+		{name: "GPU cannot use extended CPU duration", backend: "OPTIX", wall: PhysicalStillCPUWallTimeSeconds},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := manifest
+			candidate.Profile.Backend = tc.backend
+			candidate.Profile.WallTimeSeconds = tc.wall
+			candidate.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(candidate.Profile)
+			err := ValidatePhysicalRenderManifest(candidate)
+			if tc.valid && err != nil {
+				t.Fatalf("valid backend-bound still limit rejected: %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Fatal("arbitrary or GPU-extended still wall time was accepted")
+			}
+		})
+	}
 	manifest.Profile.Samples = PhysicalMotionSamples
 	manifest.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(manifest.Profile)
 	if err := ValidatePhysicalRenderManifest(manifest); err == nil {

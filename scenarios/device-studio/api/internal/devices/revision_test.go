@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -560,6 +561,70 @@ func TestDeviceCandidateStoredDigestAndCanonicalJSONAreVerified(t *testing.T) {
 	}
 	if _, err := service.GetRevision(ctx, created.DeviceID, 1); err == nil {
 		t.Fatal("noncanonical stored bytes passed integrity verification")
+	}
+}
+
+func TestDeviceCandidatePreservesUnresolvedIdentityClaimsAcrossSQLiteReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "device-revisions.db")
+	open := func() (*sql.DB, *DeviceRevisionService) {
+		db, err := sql.Open("sqlite", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+			_ = db.Close()
+			t.Fatal(err)
+		}
+		service, err := NewDeviceRevisionService(NewSQLiteDeviceRevisionRepository(db), func() time.Time { return time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC) })
+		if err != nil {
+			_ = db.Close()
+			t.Fatal(err)
+		}
+		return db, service
+	}
+
+	db, service := open()
+	candidate := candidateFixture()
+	candidate.Definition = validFixture()
+	candidate.Definition.IdentityStatus = IdentityGeneric
+	candidate.Definition.Manufacturer = "Unresolved source claims"
+	candidate.Definition.Model = "Generic foldable display study"
+	candidate.Definition.Variant = "artist listing title: Galaxy Z Fold6"
+	unknownWidth := Measurement{
+		Value: nil, Unit: "mm", Meaning: "outer width", Configuration: "open", Method: "unknown",
+		Uncertainty: Uncertainty{Status: "unknown", Explanation: "Manufacturer and artist source describe different variants; do not select either measurement."},
+		Evidence: []Evidence{
+			{Source: "https://manufacturer.example/spec", Kind: "manufacturer_specification", Qualifier: "152 mm claim applies to the manufacturer's named variant."},
+			{Source: "https://artist.example/model", Kind: "third_party_asset_listing", Qualifier: "Artist listing title names a similar variant; its 154 mm mesh extent is not an authoritative product dimension."},
+		},
+	}
+	candidate.Definition.Dimensions = map[string]Dimensions{"open": {Width: unknownWidth, Height: unknownMeasurement(), Depth: unknownMeasurement()}}
+	candidate.Definition.ModelCandidates = []ModelCandidate{{ID: "artist-foldable-model", Status: "candidate_only", ListingURL: "https://artist.example/model", Author: "Independent artist", Attribution: "Artist title is candidate metadata only."}}
+	created, err := service.SaveCandidate(context.Background(), candidate, 0)
+	if err != nil {
+		_ = db.Close()
+		t.Fatalf("save unresolved identity candidate: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, service := open()
+	defer reopened.Close()
+	stored, err := service.GetRevision(context.Background(), created.DeviceID, created.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := stored.Candidate.Definition
+	width := definition.Dimensions["open"].Width
+	if definition.IdentityStatus != IdentityGeneric || definition.Model != "Generic foldable display study" || definition.Variant != "artist listing title: Galaxy Z Fold6" {
+		t.Fatalf("candidate listing promoted or rewrote generic identity: status=%q model=%q variant=%q", definition.IdentityStatus, definition.Model, definition.Variant)
+	}
+	if width.Value != nil || width.Method != "unknown" || width.Uncertainty.Status != "unknown" || len(width.Evidence) != 2 || width.Evidence[0].Kind != "manufacturer_specification" || width.Evidence[1].Kind != "third_party_asset_listing" {
+		t.Fatalf("conflicting dimension claims were collapsed into an unsupported fact: %+v", width)
+	}
+	if len(definition.ModelCandidates) != 1 || definition.ModelCandidates[0].Author != "Independent artist" || definition.ModelCandidates[0].Status != "candidate_only" {
+		t.Fatalf("candidate source and author provenance did not survive reopen: %+v", definition.ModelCandidates)
 	}
 }
 

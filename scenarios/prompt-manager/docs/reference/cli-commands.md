@@ -628,10 +628,18 @@ For enabled leader-led teams, the configured lead cannot be removed until the le
 
 ### prompt-manager team roles
 
-Manage team roles.
+List a team's role definitions.
 
 ```bash
 prompt-manager team roles <team-id> [--json]
+```
+
+### prompt-manager team roles-set
+
+Replace the team's complete role-definition list from a JSON file. Use `[]` to clear all roles.
+
+```bash
+prompt-manager team roles-set <team-id> --file role-list.json [--json]
 ```
 
 ### prompt-manager team org-list
@@ -738,6 +746,16 @@ Leader-led single-process triggers fail fast if the configured lead is not an ac
 ```bash
 prompt-manager team trigger engineering
 ```
+
+### prompt-manager team execution-status
+
+Read the current queue categories and owner metadata for one team. This is a read-only view; it does not reconcile or clear retained entries.
+
+```bash
+prompt-manager team execution-status <team-id> [--json]
+```
+
+The JSON output preserves the API response, including each queued/running member's phase, dispatch state, and available task/run identifiers. It does not include task contents or request snapshots.
 
 ---
 

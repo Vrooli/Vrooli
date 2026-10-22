@@ -735,6 +735,9 @@ type HeartbeatExecResult struct {
 	// AdmissionReason is the bounded reason returned by Agent Manager's
 	// service-admission gate. It is an enum, never a response body or credential.
 	AdmissionReason string `json:"admissionReason,omitempty"`
+	// AdmissionOrigin records only an explicitly captured scheduled/manual trigger.
+	// Empty remains unknown for legacy and unqualified executions.
+	AdmissionOrigin string `json:"admissionOrigin,omitempty"`
 }
 
 // HeartbeatAttempt records an attempted heartbeat dispatch, including failures
@@ -761,7 +764,10 @@ type HeartbeatAttempt struct {
 	ErrorCategory      string `json:"errorCategory,omitempty"`
 	Error              string `json:"error,omitempty"`
 	// AdmissionReason retains the owner's allowlisted authorization category.
-	AdmissionReason   string `json:"admissionReason,omitempty"`
+	AdmissionReason string `json:"admissionReason,omitempty"`
+	// AdmissionOrigin is the frozen trigger origin when the executor had one.
+	// Historical or unqualified rows intentionally remain empty.
+	AdmissionOrigin   string `json:"admissionOrigin,omitempty"`
 	Recovery          string `json:"recovery,omitempty"`
 	RecoveryRequestID string `json:"recoveryRequestId,omitempty"`
 	// ConsecutiveFailures, FailureEpisodeID, and RecoveryOutcome let consumers
@@ -900,6 +906,9 @@ type HandoffEntry struct {
 	Timestamp string `json:"timestamp"`
 	Content   string `json:"content"`
 }
+
+// MaxHandoffHistoryEntries bounds the number of entries returned by a bounded history read.
+const MaxHandoffHistoryEntries = 100
 
 // --- Task Board ---
 

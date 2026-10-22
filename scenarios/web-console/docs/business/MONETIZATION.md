@@ -49,7 +49,7 @@ universal cheapest-path guarantee.
 - Native browser agent voice is a separate Codex/version/live-session capability.
   Dictation uses Audio Tools. Text-to-speech has its own service/browser paths.
   Voice selection is not proof that all optional dependencies are running.
-- `monetization.json` declares the routed inference meter. The shared meter
+- `.vrooli/monetization.json` declares the routed inference meter. The shared meter
   inventory assigns `voice_minutes` to Audio Tools; Aquila does not duplicate it.
 - Aquila does not enforce plan rank locally. Signed-out local terminal capability
   remains available; account and metered-assistance behavior follow their owners.

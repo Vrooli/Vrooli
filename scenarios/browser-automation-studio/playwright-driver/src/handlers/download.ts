@@ -7,6 +7,7 @@ import type { HandlerInstruction } from '../types';
 import { getDownloadParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError, validateTimeout } from '../utils';
+import { captureElectronDownload, createElectronDownloadObserver } from './electron-download';
 
 /** Each new invocation downloads anew; session-run owns transport retry receipts. */
 export class DownloadHandler extends BaseHandler {
@@ -26,6 +27,26 @@ export class DownloadHandler extends BaseHandler {
         return this.missingParamError('download', 'selector or url');
       const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'download');
       const target = getDocument(context);
+      if (context.electronTarget?.download_path) {
+        const browser = context.browserContext.browser();
+        if (!browser) throw new Error('Electron download requires its admitted browser session');
+        const observer = createElectronDownloadObserver(await browser.newBrowserCDPSession());
+        const saved = await captureElectronDownload(
+          context.electronTarget,
+          observer,
+          () =>
+          params.selector
+            ? target.click(params.selector, { timeout })
+              : target.goto(params.url!, { timeout }).catch((error: unknown) => {
+                  if (!(error instanceof Error) || !error.message.includes('net::ERR_ABORTED')) throw error;
+                }),
+          timeout
+        );
+        return {
+          success: true,
+          extracted_data: { download_path: saved.downloadPath, filename: saved.filename, url: saved.url },
+        };
+      }
       // Register before triggering and observe both rejections, including an event
       // timeout after a rejected click. Physical download events belong to Page.
       const [download] = await Promise.all([
@@ -41,7 +62,8 @@ export class DownloadHandler extends BaseHandler {
       ]);
       if (!download) throw new Error('Download event not triggered');
       const filename = download.suggestedFilename();
-      savePath = path.join(tmpdir(), `download-${randomUUID()}-${path.basename(filename)}`);
+      const downloadDirectory = context.electronTarget?.download_path ?? tmpdir();
+      savePath = path.join(downloadDirectory, `download-${randomUUID()}-${path.basename(filename)}`);
       await download.saveAs(savePath);
       return {
         success: true,

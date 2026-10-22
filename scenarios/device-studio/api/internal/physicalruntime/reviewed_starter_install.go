@@ -47,12 +47,13 @@ type reviewedStarterCertificate struct {
 }
 
 type embeddedReviewedStarter struct {
-	ID             string
-	BootstrapID    string
-	DeviceID       string
-	Certificate    string
-	CertificateSHA string
-	PackageSHA     string
+	ID                             string
+	BootstrapID                    string
+	DeviceID                       string
+	Certificate                    string
+	CertificateSHA                 string
+	PackageSHA                     string
+	SeedScenePresetFromCertificate bool
 }
 
 var embeddedReviewedStarters = map[string]embeddedReviewedStarter{
@@ -85,6 +86,21 @@ var embeddedReviewedStarters = map[string]embeddedReviewedStarter{
 		ID: "laptop-screen-vflip-reviewed", BootstrapID: "laptop-screen-vflip",
 		DeviceID: "jack-baeten-macbook-pro-m3-16-screen-vflip-candidate-v1", Certificate: "assets/reviewed-starters/laptop/qualification-certificate-v1.json",
 		CertificateSHA: "409dad0400a923a365a3a1e2b1b12da5580765b862cb7491373de034f4dc882a", PackageSHA: "f84ab0ee7d2988651aa742a6586963ddf769a84dd06944084559906f8c929c89",
+	},
+	"phone-study-hero-reviewed": {
+		ID: "phone-study-hero-reviewed", BootstrapID: "phone-default",
+		DeviceID: "authored-phone-neutral", Certificate: "assets/reviewed-starters/phone-front/qualification-certificate-v1.json",
+		CertificateSHA: "dbe02b7635fb52f74a3e57d3a4d346981409a3d2b5f4b815da8bb834bc94ea17", PackageSHA: "d0da3f05a4ab3a6ccf7fa3c7051f24148db5cb0eb79f86ce27c079550075f8a1",
+	},
+	"ipad-portrait-cupfree-reviewed": {
+		ID: "ipad-portrait-cupfree-reviewed", BootstrapID: "ipad-portrait-cupfree-reviewed-source", SeedScenePresetFromCertificate: true,
+		DeviceID: "datsketch-ipad-mini-6-neutral-uv-oriented-180-v2", Certificate: "assets/reviewed-starters/tablet-portrait/qualification-certificate-v1.json",
+		CertificateSHA: "6ab8954b669297a6946ab47f128b638adae43f3c40236976955475be4e39d28b", PackageSHA: "3d6fdc665619b14c250cd5013d88a4c2e231d44bb9743bb248b142035f096e3c",
+	},
+	"monitor-study-matching-reviewed": {
+		ID: "monitor-study-matching-reviewed", BootstrapID: "monitor-screen-mapped-v2",
+		DeviceID: "innerscene-ultrawide-monitor-generic-screenmap-v2", Certificate: "assets/reviewed-starters/monitor-matching/qualification-certificate-v1.json",
+		CertificateSHA: "ed2caf4f9d5138383ff3f84d01c50385e9aa3c067960a66c32d75d7e7c99e142", PackageSHA: "4302a9cf3d12fdce89a9d481801d631eabe94569cb0922bb4cd534b1e817f06e",
 	},
 }
 
@@ -134,6 +150,16 @@ func (o Owners) installEmbeddedReviewedStarter(ctx context.Context, starterID st
 		}
 		candidate, err = o.Devices.GetRevision(ctx, descriptor.DeviceID, certificate.Candidate.Revision)
 	}
+	if descriptor.SeedScenePresetFromCertificate {
+		// The tablet package uses the exact cup-free laptop room closure. Seed
+		// that owner input without reopening a qualified tablet factory head.
+		if _, err := o.InitializeReviewedLaptopStarter(ctx); err != nil {
+			return shots.PhysicalPresetRevision{}, fmt.Errorf("initialize exact reviewed starter scene source inputs: %w", err)
+		}
+		if err := o.seedExactCertificateSetup(ctx, certificate); err != nil {
+			return shots.PhysicalPresetRevision{}, err
+		}
+	}
 	if err != nil || candidate.SHA256 != certificate.Candidate.SHA256 || !sameJSON(candidate.Candidate, certificate.Candidate.Candidate) {
 		return shots.PhysicalPresetRevision{}, errors.New("exact reviewed starter factory candidate is missing or changed")
 	}
@@ -146,6 +172,53 @@ func (o Owners) installEmbeddedReviewedStarter(ctx context.Context, starterID st
 		return shots.PhysicalPresetRevision{}, fmt.Errorf("apply retained scoped native review: %w", err)
 	}
 	return o.Presets.Get(ctx, result.PresetID, result.PresetRevision)
+}
+
+// seedExactCertificateSetup restores one explicitly pinned scene/preset pair
+// whose render setup was authored as a reviewed starter. It only appends v1
+// when the ID is absent; any existing or advanced head must match byte-for-byte.
+func (o Owners) seedExactCertificateSetup(ctx context.Context, certificate reviewedStarterCertificate) error {
+	scene := certificate.Scene
+	if scene.Revision != 1 {
+		return errors.New("embedded reviewed setup scene must begin at revision one")
+	}
+	if existing, err := o.Scenes.GetRevision(ctx, scene.SceneID, scene.Revision); err == nil {
+		if existing.SHA256 != scene.SHA256 || !sameJSON(existing.Candidate, scene.Candidate) {
+			return errors.New("existing reviewed setup scene differs from its pinned certificate")
+		}
+	} else if errors.Is(err, scenes.ErrRevisionNotFound) {
+		if _, headErr := o.Scenes.GetHead(ctx, scene.SceneID); !errors.Is(headErr, scenes.ErrRevisionNotFound) {
+			return errors.New("reviewed setup scene has an unexpected destination head")
+		}
+		_, _, digest, canonicalErr := scenes.CanonicalizeCandidate(scene.Candidate)
+		if canonicalErr != nil || digest != scene.SHA256 {
+			return errors.New("embedded reviewed setup scene candidate differs from its pinned hash")
+		}
+		if _, err := o.Scenes.SaveCandidate(ctx, scene.Candidate, 0); err != nil {
+			return fmt.Errorf("seed exact reviewed setup scene: %w", err)
+		}
+	} else {
+		return fmt.Errorf("read exact reviewed setup scene: %w", err)
+	}
+	preset := certificate.Preset
+	if preset.Revision != 1 {
+		return errors.New("embedded reviewed setup preset must begin at revision one")
+	}
+	if existing, err := o.Presets.Get(ctx, preset.PresetID, preset.Revision); err == nil {
+		if existing.SHA256 != preset.SHA256 || !sameJSON(existing.Setup, preset.Setup) {
+			return errors.New("existing reviewed setup preset differs from its pinned certificate")
+		}
+	} else if errors.Is(err, shots.ErrPhysicalPresetNotFound) {
+		if _, headErr := o.Presets.Head(ctx, preset.PresetID); !errors.Is(headErr, shots.ErrPhysicalPresetNotFound) {
+			return errors.New("reviewed setup preset has an unexpected destination head")
+		}
+		if _, err := o.Presets.Save(ctx, preset.PresetID, 0, preset.Name, preset.Setup); err != nil {
+			return fmt.Errorf("seed exact reviewed setup preset: %w", err)
+		}
+	} else {
+		return fmt.Errorf("read exact reviewed setup preset: %w", err)
+	}
+	return nil
 }
 
 func loadEmbeddedSmartDisplayV7Review(assets fs.FS) ([]byte, error) {
@@ -229,20 +302,25 @@ func reviewedStarterSourcePath(ref physical.ArtifactRef) (string, bool) {
 	}
 	if ref.BundleID == "device-studio-starter-phone-study-environment" {
 		files := map[string]string{
-			"travertine-color": "assets/phone-table/textures/travertine-color.jpg", "travertine-height": "assets/phone-table/textures/travertine-height.jpg",
+			"phone-study-environment-glb": "assets/phone-study-environment/phone-study-environment.glb",
+			"travertine-color":            "assets/phone-table/textures/travertine-color.jpg", "travertine-height": "assets/phone-table/textures/travertine-height.jpg",
 			"travertine-normal-gl": "assets/phone-table/textures/travertine-normal-gl.jpg", "travertine-roughness": "assets/phone-table/textures/travertine-roughness.jpg",
 		}
 		path, ok := files[ref.ArtifactID]
 		return path, ok
 	}
 	deviceFiles := map[string]map[string]string{
-		"device-studio-generic-smart-display-concept-v7":                       {"vrooli-generic-smart-display-concept-v7": "assets/smart-display-v7/generic-smart-display-v7.glb"},
-		"device-studio-generic-round-watch-body-v4":                            {"vrooli-generic-round-watch-body-concept-v4": "assets/roundwatch-body-v4/generic-roundwatch-body-v4.glb"},
-		"device-studio-generic-television-thin-bezel-v3":                       {"vrooli-generic-television-thin-bezel-v3": "assets/television-v3/television-thin-bezel-v3.glb"},
-		"device-studio-innerscene-frame-digital-neutral-tabletop-v4-glassless": {"innerscene-frame-digital-neutral-tabletop-v4-glassless": "assets/digital-frame/innerscene-frame-tabletop-v4-glassless.glb"},
-		"device-studio-innerscene-frame-wall-v5-mounted":                       {"innerscene-frame-digital-neutral-wall-v5-mounted": "assets/digital-frame/innerscene-frame-wall-v5-mounted.glb"},
-		"device-studio-starter-generic-book-fold-concept-v3-left-screen-vflip": {"vrooli-generic-book-fold-concept-v3-left-screen-vflip": "assets/foldable-v3/foldable-concept-v3.glb"},
-		"device-studio-laptop-screen-vflip-candidate-v1":                       {"jack-baeten-laptop-neutral-screen-vflip-glb": "assets/laptop/laptop-neutral-rig-screen-vflip-v1.glb"},
+		"device-studio-starter-authored-phone-neutral":                           {"authored-phone-neutral-glb": "assets/phone/authored-phone-neutral.glb"},
+		"device-studio-starter-ipad-mini-6-datsketch-neutral-uv-oriented-180-v2": {"datsketch-ipad-mini-6-neutral-uv-oriented-180-v2-glb": "assets/ipad/ipad-mini-screen-uv-oriented-180-v2.glb"},
+		"device-studio-starter-innerscene-ultrawide-monitor-screenmap-v2":        {"innerscene-ultrawide-monitor-screen-split-v2": "assets/monitor/monitor-screen-split-v2.glb"},
+		"device-studio-laptop-derive16-candidate-v1":                             {"laptop-study-room-no-cup-glb": "assets/laptop-study-environment/laptop-study-environment-no-cup.glb"},
+		"device-studio-generic-smart-display-concept-v7":                         {"vrooli-generic-smart-display-concept-v7": "assets/smart-display-v7/generic-smart-display-v7.glb"},
+		"device-studio-generic-round-watch-body-v4":                              {"vrooli-generic-round-watch-body-concept-v4": "assets/roundwatch-body-v4/generic-roundwatch-body-v4.glb"},
+		"device-studio-generic-television-thin-bezel-v3":                         {"vrooli-generic-television-thin-bezel-v3": "assets/television-v3/television-thin-bezel-v3.glb"},
+		"device-studio-innerscene-frame-digital-neutral-tabletop-v4-glassless":   {"innerscene-frame-digital-neutral-tabletop-v4-glassless": "assets/digital-frame/innerscene-frame-tabletop-v4-glassless.glb"},
+		"device-studio-innerscene-frame-wall-v5-mounted":                         {"innerscene-frame-digital-neutral-wall-v5-mounted": "assets/digital-frame/innerscene-frame-wall-v5-mounted.glb"},
+		"device-studio-starter-generic-book-fold-concept-v3-left-screen-vflip":   {"vrooli-generic-book-fold-concept-v3-left-screen-vflip": "assets/foldable-v3/foldable-concept-v3.glb"},
+		"device-studio-laptop-screen-vflip-candidate-v1":                         {"jack-baeten-laptop-neutral-screen-vflip-glb": "assets/laptop/laptop-neutral-rig-screen-vflip-v1.glb"},
 	}
 	path, ok := deviceFiles[ref.BundleID][ref.ArtifactID]
 	return path, ok

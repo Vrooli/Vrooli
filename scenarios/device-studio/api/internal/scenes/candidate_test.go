@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"device-studio/internal/library"
@@ -69,6 +70,32 @@ func TestCanonicalizeApprovedPhoneStudyMetadata(t *testing.T) {
 	}
 	if got.CameraFrames[0].Focus.Mode != FocusSelectedDevice || materialByID(got.Materials, "travertine").Grade.Recipe != GradeHueSaturationLinearMixV1 {
 		t.Fatal("approved-scene metadata lost typed focus or grade")
+	}
+}
+
+func TestSupportSlotRequiresDeclaredFitAndCanonicalizesGroups(t *testing.T) {
+	input := approvedPhoneStudyMetadata()
+	input.Version = CandidateVersionSlots
+	input.SupportSlots = []SceneSupportSlot{{ID: "phone-table-fit", FrameID: "tabletop", Kind: "tabletop", RequiredInterface: "horizontal_surface", AllowedGroups: []string{"tablet", "phone"}, DimensionState: "source_geometry_envelope", RequiredPose: "screen_up", MaxWidthM: 0.09, MaxHeightM: 0.18, MaxDepthM: 0.02}}
+	got, encoded, digest, err := CanonicalizeCandidate(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SupportSlots[0].AllowedGroups[0] != "phone" {
+		t.Fatalf("support groups not sorted canonically: %+v", got.SupportSlots[0].AllowedGroups)
+	}
+	if !bytes.Contains(encoded, []byte(`"support_slots"`)) || digest == "" {
+		t.Fatal("support slot did not participate in canonical revision identity")
+	}
+	if input.SupportSlots[0].AllowedGroups[0] != "tablet" {
+		t.Fatal("canonicalization mutated caller-owned support slot")
+	}
+
+	invalid := input
+	invalid.SupportSlots = append([]SceneSupportSlot(nil), input.SupportSlots...)
+	invalid.SupportSlots[0].MaxDepthM = 0
+	if _, _, _, err := CanonicalizeCandidate(invalid); err == nil || !strings.Contains(err.Error(), "maximum envelope") {
+		t.Fatalf("incomplete slot fit must fail closed, got %v", err)
 	}
 }
 

@@ -1192,6 +1192,23 @@
           }
         },
         {
+          "name": "roles-set",
+          "description": "Replace a team's roles from a JSON file.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "SetRoles"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "retention",
           "description": "Manage team retention.",
           "binding": {
@@ -1347,6 +1364,22 @@
             "kind": "connect-rpc",
             "service": "HeartbeatService",
             "method": "ListLogs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-attempts",
+          "description": "Read a bounded newest-first page of one team member's heartbeat attempts.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "ListHeartbeatAttempts"
           },
           "governance": {
             "effect": "read",
@@ -2798,11 +2831,6 @@
     },
     {
       "service": "HeartbeatService",
-      "method": "ListHeartbeatAttempts",
-      "reason": "Attempt records are internal orchestration diagnostics consumed through generated clients rather than a standalone CLI surface."
-    },
-    {
-      "service": "HeartbeatService",
       "method": "ListRunning",
       "reason": "The generated operations UI owns the cross-team running-process view; CLI commands expose bounded team and heartbeat operations."
     },
@@ -3023,11 +3051,6 @@
     },
     {
       "service": "TeamsService",
-      "method": "SetRoles",
-      "reason": "The team roles CLI command is a read operation; role-set editing remains an interactive generated-client workflow."
-    },
-    {
-      "service": "TeamsService",
       "method": "SetSharedFile",
       "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
     },
@@ -3144,16 +3167,6 @@
       "reason": "Disable updates an existing heartbeat; explicit on-demand creation uses CreateHeartbeat with disabled scheduling and no timer. It remains outside the one-binding-per-operation registry."
     },
     {
-      "command": "team heartbeat-bind-effort",
-      "class": "passthrough",
-      "reason": "Finite leader provisioning validates a bounded binding file or check-in policy flags, creates a disabled heartbeat or explicitly updates one without changing its enabled state, and verifies the owner response."
-    },
-    {
-      "command": "team heartbeat-retire-effort",
-      "class": "passthrough",
-      "reason": "Finite leader retirement reads the exact binding before updating it with retained identity and disabled scheduling."
-    },
-    {
       "command": "team responsibilities",
       "class": "passthrough",
       "reason": "Responsibilities combines read, inline write, and file-backed write modes; those control modes cannot be represented as one safe binding."
@@ -3167,11 +3180,6 @@
       "command": "team friction-capture",
       "class": "passthrough",
       "reason": "Friction capture validates typed flags or a complete JSON file, reads the stable topic for bounded repeats, and conditionally invokes AddKnowledge; it is not one RPC binding."
-    },
-    {
-      "command": "team heartbeat-amend-effort",
-      "class": "passthrough",
-      "reason": "Preparation amendment validates bounded CAS and evidence input, reads the exact disabled binding, and sends only a guarded lifecycle transition."
     }
   ]
 }

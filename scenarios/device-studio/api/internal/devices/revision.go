@@ -106,6 +106,16 @@ func CanonicalizeDeviceCandidate(input DeviceCandidate) (DeviceCandidate, []byte
 	if input.Version != DeviceCandidateVersion {
 		return DeviceCandidate{}, nil, "", fmt.Errorf("unsupported device candidate version %q", input.Version)
 	}
+	input.Definition.SupportedPoses = append([]Pose(nil), input.Definition.SupportedPoses...)
+	for i := range input.Definition.SupportedPoses {
+		if input.Definition.SupportedPoses[i].RootRotation != nil {
+			rotation, err := physical.CanonicalizeQuaternion(*input.Definition.SupportedPoses[i].RootRotation)
+			if err != nil {
+				return DeviceCandidate{}, nil, "", fmt.Errorf("device pose %q root rotation: %w", input.Definition.SupportedPoses[i].Name, err)
+			}
+			input.Definition.SupportedPoses[i].RootRotation = &rotation
+		}
+	}
 	if err := input.Definition.Validate(); err != nil {
 		return DeviceCandidate{}, nil, "", fmt.Errorf("device definition: %w", err)
 	}

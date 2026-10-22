@@ -141,13 +141,13 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
     }
   }, [operationReadback.data, operation, persistOperation]);
   const start = useMutation({
-    mutationFn: async (input: { request: CreationRequest; sessionId?: string; confirmScopeExpansion?: boolean }) => {
+    mutationFn: async (input: { request: CreationRequest; sessionId?: string; confirmScopeExpansion?: boolean; confirmLocalAI: boolean }) => {
       const request = input.request;
       if (request.fundingRoute === "local") {
         if (request.correctionSourceJobId && !input.sessionId) return { job: await startGeometryCreation(projectId, request), session: undefined };
         const created = request.correctionSourceJobId
-          ? await refineGeometryCreationSession(input.sessionId!, { candidateId: request.candidateId, idempotencyKey: request.idempotencyKey, brief: request.brief, envelopeMM: request.envelopeMM, referenceMediaIDs: request.referenceMediaIDs, correctionSourceJobId: request.correctionSourceJobId, correctionMode: request.correctionMode!, correctionRecipeSha256: request.correctionRecipeSha256!, correctionFeedback: request.correctionFeedback ?? "", confirmScopeExpansion: input.confirmScopeExpansion ?? false })
-          : await createGeometryCreationSession(projectId, request);
+          ? await refineGeometryCreationSession(input.sessionId!, { candidateId: request.candidateId, idempotencyKey: request.idempotencyKey, brief: request.brief, envelopeMM: request.envelopeMM, referenceMediaIDs: request.referenceMediaIDs, correctionSourceJobId: request.correctionSourceJobId, correctionMode: request.correctionMode!, correctionRecipeSha256: request.correctionRecipeSha256!, correctionFeedback: request.correctionFeedback ?? "", confirmScopeExpansion: input.confirmScopeExpansion ?? false, confirmLocalAI: input.confirmLocalAI })
+          : await createGeometryCreationSession(projectId, { ...request, confirmLocalAI: input.confirmLocalAI });
         if (created.needs_confirmation) return { job: undefined, session: created, needsConfirmation: true };
         const child = created.children.at(-1);
         if (!child) throw new Error("The creation session did not return a child job.");
@@ -211,7 +211,10 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
     else request.maxCostMicros = maxSpendMicros;
     const next: CreationOperation = operation ? { ...operation, request, phase: "pending" } : { request, phase: "pending" };
     if (!persistOperation(next)) return;
-    start.mutate({ request, sessionId: operation?.sessionId });
+    // A pending durable operation is a same-key recovery of the user's prior
+    // explicit submission, not a fresh scope or a second dispatch identity.
+    const confirmedLocalChoice = confirmed || (operation?.phase === "pending" && request.fundingRoute === "local");
+    start.mutate({ request, sessionId: operation?.sessionId, confirmLocalAI: confirmedLocalChoice });
   };
   const prepareCorrection = () => {
     const details = correction.data;
@@ -307,7 +310,7 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
       {operation?.phase === "draft" && correction.isError && <p role="alert">{t(strings.physical.createCorrectionUnavailable)}</p>}
       {pendingScopeExpansion && <section role="alert" data-testid="geometry-scope-expansion">
         <p>{t(strings.physical.createScopeExpansion, { fields: session.data?.changed_scope?.join(", ") ?? "" })}</p>
-        <Button type="button" variant="outline" className="min-h-11" disabled={start.isPending || !confirmed} onClick={() => start.mutate({ request: pendingScopeExpansion.request, sessionId: pendingScopeExpansion.sessionId, confirmScopeExpansion: true })}>{t(strings.physical.createScopeExpansionConfirm)}</Button>
+        <Button type="button" variant="outline" className="min-h-11" disabled={start.isPending || !confirmed} onClick={() => start.mutate({ request: pendingScopeExpansion.request, sessionId: pendingScopeExpansion.sessionId, confirmScopeExpansion: true, confirmLocalAI: confirmed })}>{t(strings.physical.createScopeExpansionConfirm)}</Button>
       </section>}
       {(!operation || operation.phase === "draft") && <Button type="button" className="studio-primary min-h-11" disabled={!ready || Boolean(operation?.phase === "draft" && correction.data?.disposition !== "available")} onClick={begin}>{start.isPending ? t(strings.physical.createSubmitting) : t(operation?.phase === "draft" ? strings.physical.createCorrectionSubmit : strings.physical.createSubmit)}</Button>}
       {operation && operation.phase !== "draft" && !jobID && <Button type="button" className="studio-primary min-h-11" disabled={!operationLoaded || start.isPending || operationReadback.isFetching || Boolean(operationReadback.error)} onClick={begin}>{start.isPending ? t(strings.physical.createSubmitting) : t(strings.physical.createRetry)}</Button>}

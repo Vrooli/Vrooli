@@ -61,6 +61,29 @@ def test_binding_response_uses_declared_rows_field_and_preserves_metadata():
     assert "direct" in result["stdout"]
 
 
+def test_test_mode_is_forwarded_for_one_execution_only():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{}'
+
+    kernel = SessionKernel([
+        {"id": "fixture/records/read", "scenario": "fixture", "group": "records",
+         "command": "read", "effect": "read", "demand_start": True, "rows_field": "$response"}
+    ], session_id="test-mode", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    for enabled, expected in ((True, "1"), (False, None)):
+        with patch("host.engine.urllib.request.urlopen", return_value=Response()) as invoke:
+            result = kernel.execute("fixture.records.read()", test_mode=enabled)
+        assert result["ok"]
+        headers = {key.lower(): value for key, value in invoke.call_args.args[0].header_items()}
+        assert headers.get("x-vrooli-test-mode") == expected
+
+
 def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
     class ReachabilityResponse:
         def __enter__(self):

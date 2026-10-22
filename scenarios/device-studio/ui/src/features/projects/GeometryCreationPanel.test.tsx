@@ -186,7 +186,7 @@ describe("GeometryCreationPanel", () => {
     expect(await screen.findByText(/Your earlier confirmation covers this next local call/)).toBeInTheDocument();
     expect(screen.queryByLabelText("I confirm this local AI request.")).not.toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Submit corrected draft" }));
-    await waitFor(() => expect(refineGeometryCreationSession).toHaveBeenCalledWith("session-1", expect.objectContaining({ correctionSourceJobId: "job-base", confirmScopeExpansion: false })));
+    await waitFor(() => expect(refineGeometryCreationSession).toHaveBeenCalledWith("session-1", expect.objectContaining({ correctionSourceJobId: "job-base", confirmScopeExpansion: false, confirmLocalAI: false })));
   });
 
   it("requires an explicit second confirmation before creating a linked changed-scope session", async () => {
@@ -208,6 +208,7 @@ describe("GeometryCreationPanel", () => {
     await user.click(screen.getByRole("button", { name: "Confirm changed scope and start a linked session" }));
     await waitFor(() => expect(refineGeometryCreationSession).toHaveBeenCalledTimes(2));
     expect(vi.mocked(refineGeometryCreationSession).mock.calls[1]?.[1].confirmScopeExpansion).toBe(true);
+    expect(vi.mocked(refineGeometryCreationSession).mock.calls[1]?.[1].confirmLocalAI).toBe(true);
     expect(localStorage.getItem("device-studio:geometry-creation:p1")).toContain("session-2");
   });
 

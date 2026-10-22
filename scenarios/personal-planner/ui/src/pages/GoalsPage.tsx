@@ -25,9 +25,12 @@ export function GoalsPage() {
   const [title, setTitle] = useState("");
   const [purpose, setPurpose] = useState("");
   const [progressMethod, setProgressMethod] = useState("manual");
+  const [measureKind, setMeasureKind] = useState("none");
+  const [targetAmount, setTargetAmount] = useState("");
+  const [targetDate, setTargetDate] = useState("");
   const [filter, setFilter] = useState<"active" | "all" | "completed">("active");
   const [createOpen, setCreateOpen] = useState(false);
-  const mutation = useMutation({ mutationFn: createGoal, onSuccess: async () => { setTitle(""); setPurpose(""); setProgressMethod("manual"); setCreateOpen(false); await queryClient.invalidateQueries({ queryKey: ["goals"] }); } });
+  const mutation = useMutation({ mutationFn: createGoal, onSuccess: async () => { setTitle(""); setPurpose(""); setProgressMethod("manual"); setMeasureKind("none"); setTargetAmount(""); setTargetDate(""); setCreateOpen(false); await queryClient.invalidateQueries({ queryKey: ["goals"] }); } });
   const progressMutation = useMutation({ mutationFn: ({ goal, progress }: { goal: Parameters<typeof updateGoalProgress>[0]; progress: bigint }) => updateGoalProgress(goal, progress), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["goals"] }); } });
   const activeGoals = goals.data?.filter((goal) => goal.status === "active").length ?? 0;
   const completedGoals = goals.data?.filter((goal) => goal.status === "complete").length ?? 0;
@@ -43,10 +46,12 @@ export function GoalsPage() {
     </div>
     <div className="goal-toolbar"><div className="goal-filter" role="tablist" aria-label="Goal status"><Button type="button" variant={filter === "active" ? "primary" : "secondary"} role="tab" aria-selected={filter === "active"} onClick={() => setFilter("active")}>Active</Button><Button type="button" variant={filter === "all" ? "primary" : "secondary"} role="tab" aria-selected={filter === "all"} onClick={() => setFilter("all")}>All</Button><Button type="button" variant={filter === "completed" ? "primary" : "secondary"} role="tab" aria-selected={filter === "completed"} onClick={() => setFilter("completed")}>Completed</Button></div><Button type="button" className="goal-new-action primary-action" onClick={() => setCreateOpen(true)}>+ New goal</Button></div>
     <Dialog open={createOpen} title="Chart a new goal" description="Name the result first. Purpose and progress method can stay simple." onClose={() => setCreateOpen(false)} closeLabel="Close new goal" contentClassName="goal-create-dialog">
-      <form className="goal-create-card" onSubmit={(event) => { event.preventDefault(); mutation.mutate({ title, purpose, progressMethod, targetBasisPoints: 10000n }); }}>
+      <form className="goal-create-card" onSubmit={(event) => { event.preventDefault(); mutation.mutate({ title, purpose, progressMethod, targetBasisPoints: 10000n, targetDate, measure: measureKind === "none" ? undefined : { unit: "currency", targetAmountMinor: Math.round(Number(targetAmount) * 100), currencyCode: "USD", basis: "after_costs_before_tax", recurrence: measureKind === "monthly" ? "recurring" : "one_time", period: measureKind === "monthly" ? "month" : "once" } }); }}>
         <div className="goal-create-heading"><div><span className="card-kicker">NEW OUTCOME</span><h2>What should become true?</h2></div><span className="goal-create-note">Start with a name. Detail can come later.</span></div>
         <FormField label="Goal title" required control={<Input aria-label="Goal title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="A result worth making room for" />} />
         <FormField label="Purpose" control={<Textarea aria-label="Purpose" value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="Why does it matter?" rows={3} />} />
+        <FormField label="Outcome measure" control={<Select aria-label="Outcome measure" value={measureKind} onChange={(event) => setMeasureKind(event.target.value)} options={[{ value: "none", label: "No measured target" }, { value: "one-time", label: "One-time currency target" }, { value: "monthly", label: "Recurring monthly currency target" }]} />} />
+        {measureKind !== "none" && <div className="goal-measure-fields"><FormField label="Target amount (USD)" required control={<Input aria-label="Target amount in USD" type="number" min="0.01" step="0.01" value={targetAmount} onChange={(event) => setTargetAmount(event.target.value)} placeholder="1000.00" />} /><FormField label="Target date" required control={<Input aria-label="Measured goal target date" type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} />} /><p>Measure earnings after direct costs and platform fees, before personal taxes. Progress stays unknown until supported observations are recorded.</p></div>}
         <div className="goal-create-footer"><FormField label="Progress" control={<Select aria-label="Progress" value={progressMethod} onChange={(event) => setProgressMethod(event.target.value)} options={[{ value: "manual", label: "I will record progress" }, { value: "milestones", label: "Derive from milestones" }]} />} /><Button className="primary-action" type="submit" disabled={mutation.isPending || title.trim() === ""} pending={mutation.isPending} pendingLabel="Creating…">Create goal</Button></div>
         {mutation.isError && <p className="goal-form-message" role="alert">That goal could not be saved. Your draft is still here.</p>}
       </form>

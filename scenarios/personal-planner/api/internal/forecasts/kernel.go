@@ -36,6 +36,12 @@ func Build(snapshot Snapshot, generatedAt time.Time) (Forecast, error) {
 		base.CommitmentOutlooks = commitmentOutlooks(snapshot.Commitments, "", "", false)
 		return base, nil
 	}
+	if forecastable == 0 {
+		base.ResultState, base.RiskState = StateBeyondHorizon, RiskUnknown
+		base.Explanation = fmt.Sprintf("%d minutes of known remaining work have no usable capacity in the %d-day horizon; finish timing is unknown until capacity beyond %s is evidenced.", snapshot.KnownWork, snapshot.HorizonDays, base.HorizonEnd)
+		base.CommitmentOutlooks = commitmentOutlooks(snapshot.Commitments, "", "", false)
+		return base, nil
+	}
 	base.CentralFinish = finishDate(start, snapshot.KnownWork, forecastable, usablePerDay)
 	base.CautiousFinish = finishDate(start, snapshot.KnownWork, forecastable, conservativePerDay)
 	centralWithin := snapshot.KnownWork <= forecastable

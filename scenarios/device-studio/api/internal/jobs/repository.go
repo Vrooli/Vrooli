@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Submit(context.Context, Job) (Job, bool, error)
 	FindByIdempotencyKey(context.Context, string) (Job, error)
+	BindCacheIdempotencyAlias(context.Context, string, string, string, time.Time) error
 	Get(context.Context, string) (Job, error)
 	ListNonterminal(context.Context) ([]Job, error)
 	ListProject(context.Context, string, Cursor, int) ([]Job, error)

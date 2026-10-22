@@ -55,6 +55,7 @@ const (
 	PhysicalBlenderBinarySHA           = "bafec183e960819c76fe213c000cdb2284c53a87ef6791812f8728b51f07145b"
 	PhysicalBlenderArchive             = "blender-5.2.2-linux-x64"
 	PhysicalStillWallTimeSeconds       = uint32(180)
+	PhysicalStillCPUWallTimeSeconds    = uint32(600)
 	PhysicalPreviewWallTimeSeconds     = uint32(30)
 	PhysicalMotionWallTimeSeconds      = uint32(300)
 	PhysicalMotionV2WallTimeSeconds    = uint32(1200)
@@ -619,6 +620,9 @@ func validatePhysicalPlacement(p PhysicalPlacement) error {
 func validatePhysicalProfile(p PhysicalRenderProfile, output PhysicalOutputPlan) error {
 	wallTime := PhysicalStillWallTimeSeconds
 	wantSamples := PhysicalStillSamples
+	if output.ProfileID == PhysicalStillProfile && output.Kind == "still_png" && p.Backend == "CPU" && p.WallTimeSeconds == PhysicalStillCPUWallTimeSeconds {
+		wallTime = PhysicalStillCPUWallTimeSeconds
+	}
 	switch output.ProfileID {
 	case PhysicalPreviewProfile:
 		wallTime = PhysicalPreviewWallTimeSeconds

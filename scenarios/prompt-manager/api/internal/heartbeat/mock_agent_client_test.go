@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // mockAgentClient is a configurable mock of the AgentClient interface for tests.
@@ -18,8 +20,10 @@ type mockAgentClient struct {
 	resolvedProfile   *AgentProfile
 	resolveProfileErr error
 
-	listRunsResp *ListRunsResponse
-	listRunsErr  error
+	listRunsResp        *ListRunsResponse
+	listRunsErr         error
+	effortEnrollment    *domainpb.EffortEnrollment
+	effortEnrollmentErr error
 
 	getTasks       map[string]*Task
 	getTaskErr     error
@@ -303,6 +307,21 @@ func (m *mockAgentClient) ListRuns(_ context.Context, opts ListRunsOptions) (*Li
 		return m.listRunsResp, nil
 	}
 	return &ListRunsResponse{Runs: []*Run{}, Total: 0, HasMore: false}, nil
+}
+
+func (m *mockAgentClient) GetEffortEnrollment(_ context.Context, effortRef string) (*domainpb.EffortEnrollment, error) {
+	if m.effortEnrollmentErr != nil {
+		return nil, m.effortEnrollmentErr
+	}
+	if m.effortEnrollment == nil || m.effortEnrollment.GetEffortRef() != effortRef {
+		return nil, fmt.Errorf("effort enrollment %q unavailable", effortRef)
+	}
+	return m.effortEnrollment, nil
+}
+
+func (m *mockAgentClient) WithEffortEnrollment(enrollment *domainpb.EffortEnrollment) *mockAgentClient {
+	m.effortEnrollment = enrollment
+	return m
 }
 
 type continueRunCall struct {

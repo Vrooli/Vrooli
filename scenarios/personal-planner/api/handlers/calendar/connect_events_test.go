@@ -173,6 +173,98 @@ func TestCalendarRESTConnectAndWorkspaceShareRoutedTestPoolIdentityAndRevisions(
 		t.Fatalf("Connect list disagrees with REST create: %#v created=%#v", listed.Msg.Events, created)
 	}
 
+	// A second verified principal cannot observe or mutate the first owner's
+	// event through either handler surface. Also seed a legacy row with no
+	// owner relation and verify it remains inaccessible to owner A.
+	legacyID := "legacy-unowned-connect-fixture"
+	if err := routed.QueryRowContext(database.WithTestMode(ctx), `SELECT id FROM calendar_events WHERE id=?`, legacyID).Scan(new(string)); err == nil {
+		t.Fatal("legacy fixture ID already exists in isolated test pool")
+	}
+	if _, err := routed.ExecContext(database.WithTestMode(ctx), `INSERT INTO calendar_events (id,title,subject,availability,timezone,all_day,start_date,end_date_exclusive,range_start,range_end,revision,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, legacyID, "Legacy private fixture", "synthetic-planner-actor", "busy", "America/New_York", 1, "2099-11-01", "2099-11-02", "2099-11-01", "2099-11-02", 9, "2099-01-01T00:00:00Z", "2099-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("insert isolated unowned legacy fixture: %v", err)
+	}
+	requestAs := func(token, method, path, body string) *http.Response {
+		t.Helper()
+		request, err := http.NewRequest(method, server.URL+path, strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set(apihttp.TestModeHeader, apihttp.TestModeValue)
+		request.Header.Set("Authorization", "Bearer "+token)
+		if body != "" {
+			request.Header.Set("Content-Type", "application/json")
+		}
+		response, err := server.Client().Do(request)
+		if err != nil {
+			t.Fatalf("owner B %s %s: %v", method, path, err)
+		}
+		return response
+	}
+	ownerBHTTP := func(method, path, body string) *http.Response {
+		return requestAs("synthetic-planner-owner-b", method, path, body)
+	}
+	otherList := ownerBHTTP(http.MethodGet, "/api/v1/calendar/events?start_local_date=2099-11-01&end_local_date=2099-11-02", "")
+	var otherEvents eventListResponse
+	if otherList.StatusCode != http.StatusOK || json.NewDecoder(otherList.Body).Decode(&otherEvents) != nil || len(otherEvents.Events) != 0 {
+		body, _ := io.ReadAll(otherList.Body)
+		otherList.Body.Close()
+		t.Fatalf("owner B REST list status=%d events=%#v body=%s", otherList.StatusCode, otherEvents.Events, body)
+	}
+	otherList.Body.Close()
+	for _, id := range []string{created.ID, legacyID} {
+		response := ownerBHTTP(http.MethodGet, "/api/v1/calendar/events/"+id, "")
+		if response.StatusCode != http.StatusNotFound {
+			body, _ := io.ReadAll(response.Body)
+			response.Body.Close()
+			t.Fatalf("owner B REST get %s status=%d body=%s", id, response.StatusCode, body)
+		}
+		response.Body.Close()
+	}
+	foreignUpdate := `{"title":"unauthorized owner B edit","availability":"busy","timezone":"America/New_York","all_day":true,"start_date":"2099-11-01","end_date_exclusive":"2099-11-03","expected_revision":3}`
+	for _, id := range []string{created.ID, legacyID} {
+		response := ownerBHTTP(http.MethodPut, "/api/v1/calendar/events/"+id, foreignUpdate)
+		if response.StatusCode != http.StatusNotFound {
+			body, _ := io.ReadAll(response.Body)
+			response.Body.Close()
+			t.Fatalf("owner B REST update %s status=%d body=%s", id, response.StatusCode, body)
+		}
+		response.Body.Close()
+	}
+	connectB := vc.NewCalendarServiceClient(testModeConnectHTTPClient{HTTPClient: server.Client(), authorization: "Bearer synthetic-planner-owner-b"}, server.URL)
+	connectBList, err := connectB.ListEvents(ctx, connect.NewRequest(&v.ListEventsRequest{StartLocalDate: "2099-11-01", EndLocalDate: "2099-11-02"}))
+	if err != nil || len(connectBList.Msg.Events) != 0 {
+		t.Fatalf("owner B Connect list=%#v err=%v, want empty", connectBList, err)
+	}
+	for _, id := range []string{created.ID, legacyID} {
+		_, err := connectB.GetEvent(ctx, connect.NewRequest(&v.GetEventRequest{EventId: id}))
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("owner B Connect get %s code=%s err=%v", id, connect.CodeOf(err), err)
+		}
+		_, err = connectB.UpdateEvent(ctx, connect.NewRequest(&v.UpdateEventRequest{ExpectedRevision: 3, Event: &v.CalendarEvent{Id: id, Title: "unauthorized", Availability: "busy", Timezone: "America/New_York", AllDay: true, StartDate: "2099-11-01", EndDateExclusive: "2099-11-03"}}))
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("owner B Connect update %s code=%s err=%v", id, connect.CodeOf(err), err)
+		}
+	}
+	legacyOwnerA := requestAs("synthetic-planner-actor", http.MethodGet, "/api/v1/calendar/events/"+legacyID, "")
+	legacyOwnerA.Body.Close()
+	if legacyOwnerA.StatusCode != http.StatusNotFound {
+		t.Fatalf("owner A REST get of unowned legacy row status=%d", legacyOwnerA.StatusCode)
+	}
+	legacyOwnerAEdit := requestAs("synthetic-planner-actor", http.MethodPut, "/api/v1/calendar/events/"+legacyID, foreignUpdate)
+	legacyOwnerAEdit.Body.Close()
+	if legacyOwnerAEdit.StatusCode != http.StatusNotFound {
+		t.Fatalf("owner A REST update of unowned legacy row status=%d", legacyOwnerAEdit.StatusCode)
+	}
+	for _, op := range []string{"get", "update"} {
+		if op == "get" {
+			_, err = eventsClient.GetEvent(ctx, connect.NewRequest(&v.GetEventRequest{EventId: legacyID}))
+		} else {
+			_, err = eventsClient.UpdateEvent(ctx, connect.NewRequest(&v.UpdateEventRequest{ExpectedRevision: 9, Event: &v.CalendarEvent{Id: legacyID, Title: "changed", Availability: "busy", Timezone: "America/New_York", AllDay: true, StartDate: "2099-11-01", EndDateExclusive: "2099-11-02"}}))
+		}
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("owner A Connect %s of unowned legacy row code=%s err=%v", op, connect.CodeOf(err), err)
+		}
+	}
 	cliBinary := buildPlannerCLI(t)
 	cliBaseArgs := []string{"--api-base", server.URL}
 	cliEnv := []string{"PERSONAL_PLANNER_API_BASE=" + server.URL, "PERSONAL_PLANNER_TEST_MODE=1", "VROOLI_API_TOKEN=synthetic-planner-actor"}
@@ -261,33 +353,49 @@ func TestCalendarRESTConnectAndWorkspaceShareRoutedTestPoolIdentityAndRevisions(
 
 	var testPoolEvents, primaryEvents, testPoolEventRevision int64
 	var testPoolEventTitle string
-	if err := routed.QueryRowContext(database.WithTestMode(ctx), `SELECT COUNT(*), MAX(revision), MAX(title) FROM calendar_events`).Scan(&testPoolEvents, &testPoolEventRevision, &testPoolEventTitle); err != nil {
+	if err := routed.QueryRowContext(database.WithTestMode(ctx), `SELECT COUNT(*), MAX(revision), MAX(title) FROM calendar_events e JOIN calendar_event_owners o ON o.event_id=e.id WHERE o.owner_subject='synthetic-planner-actor'`).Scan(&testPoolEvents, &testPoolEventRevision, &testPoolEventTitle); err != nil {
 		t.Fatal(err)
 	}
 	if err := routed.Primary().QueryRowContext(ctx, `SELECT COUNT(*) FROM calendar_events`).Scan(&primaryEvents); err != nil {
 		t.Fatal(err)
 	}
-	var testPoolProfileRevision, primaryProfiles int64
-	var testPoolProfileWeekStart string
-	if err := routed.QueryRowContext(database.WithTestMode(ctx), `SELECT revision,week_start FROM planning_profiles WHERE id='default'`).Scan(&testPoolProfileRevision, &testPoolProfileWeekStart); err != nil {
-		t.Fatalf("read test-pool profile revision: %v", err)
+	var testPoolProfileRevision, primaryProfiles, primaryActorProfiles, legacyTestPoolProfiles int64
+	var testPoolProfileTimezone, testPoolProfileWeekStart string
+	var testPoolProfileCapacity, testPoolProfileReserve, testPoolProfileFocus int
+	if err := routed.QueryRowContext(database.WithTestMode(ctx), `SELECT revision,timezone,week_start,daily_capacity_minutes,reserve_minutes,focus_session_minutes FROM actor_planning_profiles WHERE owner_subject=? AND id='default'`, "synthetic-planner-actor").Scan(&testPoolProfileRevision, &testPoolProfileTimezone, &testPoolProfileWeekStart, &testPoolProfileCapacity, &testPoolProfileReserve, &testPoolProfileFocus); err != nil {
+		t.Fatalf("read test-pool actor profile: %v", err)
+	}
+	if err := routed.QueryRowContext(database.WithTestMode(ctx), `SELECT COUNT(*) FROM planning_profiles WHERE id='default'`).Scan(&legacyTestPoolProfiles); err != nil {
+		t.Fatalf("count test-pool legacy profiles: %v", err)
 	}
 	if err := routed.Primary().QueryRowContext(ctx, `SELECT COUNT(*) FROM planning_profiles WHERE id='default'`).Scan(&primaryProfiles); err != nil {
 		t.Fatalf("count primary profiles: %v", err)
 	}
+	if err := routed.Primary().QueryRowContext(ctx, `SELECT COUNT(*) FROM actor_planning_profiles`).Scan(&primaryActorProfiles); err != nil {
+		t.Fatalf("count primary actor profiles: %v", err)
+	}
 	stats := routed.LeaseStats()
-	if testPoolEvents != 1 || primaryEvents != 0 || testPoolEventRevision != 4 || testPoolEventTitle != "UI TypeScript client event" || testPoolProfileRevision != 3 || testPoolProfileWeekStart != "sunday" || primaryProfiles != 0 || stats.TestPoolRequests == 0 || stats.PrimaryDuringTestModeRequests != 0 {
-		t.Fatalf("routing proof: test_events=%d/%d/%q primary_events=%d test_profile=%d/%s primary_profiles=%d lease_stats=%+v", testPoolEvents, testPoolEventRevision, testPoolEventTitle, primaryEvents, testPoolProfileRevision, testPoolProfileWeekStart, primaryProfiles, stats)
+	if testPoolEvents != 1 || primaryEvents != 0 || testPoolEventRevision != 4 || testPoolEventTitle != "UI TypeScript client event" || testPoolProfileRevision != 3 || testPoolProfileTimezone != "America/New_York" || testPoolProfileWeekStart != "sunday" || testPoolProfileCapacity != 400 || testPoolProfileReserve != 40 || testPoolProfileFocus != 35 || legacyTestPoolProfiles != 0 || primaryProfiles != 0 || primaryActorProfiles != 0 || stats.TestPoolRequests == 0 || stats.PrimaryDuringTestModeRequests != 0 {
+		t.Fatalf("routing proof: test_events=%d/%d/%q primary_events=%d actor_profile=%d/%s/%s/%d/%d/%d legacy_test_profiles=%d primary_profiles=%d primary_actor_profiles=%d lease_stats=%+v", testPoolEvents, testPoolEventRevision, testPoolEventTitle, primaryEvents, testPoolProfileRevision, testPoolProfileTimezone, testPoolProfileWeekStart, testPoolProfileCapacity, testPoolProfileReserve, testPoolProfileFocus, legacyTestPoolProfiles, primaryProfiles, primaryActorProfiles, stats)
 	}
 	if got := actors.snapshot(); len(got) < 19 {
 		t.Fatalf("authenticated actor observed on %d requests, want the REST/CLI/Connect parity journeys", len(got))
 	} else {
+		ownerBObserved := false
 		for _, actor := range got {
-			if actor != "synthetic-planner-actor" {
-				t.Fatalf("REST/CLI/Connect request actor=%q, want synthetic-planner-actor; all=%v", actor, got)
+			switch actor {
+			case "synthetic-planner-actor":
+			case "synthetic-planner-owner-b":
+				ownerBObserved = true
+			default:
+				t.Fatalf("REST/CLI/Connect request actor=%q, want one of the verified fixture actors; all=%v", actor, got)
 			}
 		}
+		if !ownerBObserved {
+			t.Fatal("cross-owner requests did not reach the API with the verified owner B actor")
+		}
 	}
+
 }
 
 func runPlannerUITypescriptParity(t *testing.T, apiBase, eventID, cliBinary string) {
@@ -295,7 +403,7 @@ func runPlannerUITypescriptParity(t *testing.T, apiBase, eventID, cliBinary stri
 	uiRoot := filepath.Join("..", "..", "..", "ui")
 	command := exec.Command("pnpm", "exec", "vitest", "run", "src/api/parity.integration.test.ts", "--reporter=verbose", "--maxWorkers=1", "--minWorkers=1")
 	command.Dir = uiRoot
-	command.Env = withoutEnv(os.Environ(), "PLANNER_PARITY_API_BASE", "PLANNER_PARITY_EVENT_ID", "PLANNER_PARITY_CLI", "PLANNER_PARITY_ACTOR_TOKEN", "PERSONAL_PLANNER_API_BASE", "PERSONAL_PLANNER_API_URL", "PERSONAL_PLANNER_API_PORT", "PERSONAL_PLANNER_CONFIG_DIR", "VROOLI_CLI_CONFIG_DIR", "API_BASE_URL", "VITE_API_BASE_URL", "PERSONAL_PLANNER_TEST_MODE", "VROOLI_API_TOKEN")
+	command.Env = withoutEnv(os.Environ(), "PLANNER_PARITY_API_BASE", "PLANNER_PARITY_EVENT_ID", "PLANNER_PARITY_CLI", "PLANNER_PARITY_ACTOR_TOKEN", "PERSONAL_PLANNER_API_BASE", "PERSONAL_PLANNER_API_URL", "PERSONAL_PLANNER_API_PORT", "PERSONAL_PLANNER_API_TOKEN", "PERSONAL_PLANNER_CONFIG_DIR", "VROOLI_CLI_CONFIG_DIR", "API_BASE_URL", "VITE_API_BASE_URL", "PERSONAL_PLANNER_TEST_MODE", "VROOLI_API_TOKEN", "VROOLI_AGENT_IDENTITY_TOKEN")
 	command.Env = append(command.Env,
 		"PLANNER_PARITY_API_BASE="+apiBase,
 		"PLANNER_PARITY_EVENT_ID="+eventID,
@@ -325,7 +433,7 @@ func buildPlannerCLI(t *testing.T) string {
 func runPlannerCLI(t *testing.T, binary string, extraEnv []string, args ...string) string {
 	t.Helper()
 	command := exec.Command(binary, args...)
-	command.Env = withoutEnv(os.Environ(), "PERSONAL_PLANNER_API_BASE", "PERSONAL_PLANNER_API_URL", "PERSONAL_PLANNER_API_PORT", "PERSONAL_PLANNER_CONFIG_DIR", "VROOLI_CLI_CONFIG_DIR", "API_BASE_URL", "VITE_API_BASE_URL", "PERSONAL_PLANNER_TEST_MODE", "VROOLI_API_TOKEN")
+	command.Env = withoutEnv(os.Environ(), "PERSONAL_PLANNER_API_BASE", "PERSONAL_PLANNER_API_URL", "PERSONAL_PLANNER_API_PORT", "PERSONAL_PLANNER_API_TOKEN", "PERSONAL_PLANNER_CONFIG_DIR", "VROOLI_CLI_CONFIG_DIR", "API_BASE_URL", "VITE_API_BASE_URL", "PERSONAL_PLANNER_TEST_MODE", "VROOLI_API_TOKEN", "VROOLI_AGENT_IDENTITY_TOKEN")
 	command.Env = append(command.Env, extraEnv...)
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -352,7 +460,10 @@ func withoutEnv(env []string, keys ...string) []string {
 	return filtered
 }
 
-type testModeConnectHTTPClient struct{ connect.HTTPClient }
+type testModeConnectHTTPClient struct {
+	connect.HTTPClient
+	authorization string
+}
 
 func (c testModeConnectHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	clone := req.Clone(req.Context())
@@ -361,7 +472,11 @@ func (c testModeConnectHTTPClient) Do(req *http.Request) (*http.Response, error)
 		clone.Header = make(http.Header)
 	}
 	clone.Header.Set(apihttp.TestModeHeader, apihttp.TestModeValue)
-	clone.Header.Set("Authorization", "Bearer synthetic-planner-actor")
+	authorization := c.authorization
+	if authorization == "" {
+		authorization = "Bearer synthetic-planner-actor"
+	}
+	clone.Header.Set("Authorization", authorization)
 	return c.HTTPClient.Do(clone)
 }
 
@@ -372,10 +487,12 @@ func (syntheticActorProvider) Source() identity.AuthSource {
 }
 
 func (syntheticActorProvider) VerifyRequest(_ context.Context, req *http.Request) (identity.Principal, error) {
-	if req.Header.Get("Authorization") != "Bearer synthetic-planner-actor" {
+	const bearerPrefix = "Bearer synthetic-planner-"
+	token := strings.TrimPrefix(req.Header.Get("Authorization"), bearerPrefix)
+	if token == req.Header.Get("Authorization") || token == "" {
 		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceScenarioAuthenticator)
 	}
-	return identity.Principal{Kind: identity.ActorHuman, Subject: "synthetic-planner-actor", Verified: true, Source: identity.SourceScenarioAuthenticator}, nil
+	return identity.Principal{Kind: identity.ActorHuman, Subject: "synthetic-planner-" + token, Verified: true, Source: identity.SourceScenarioAuthenticator}, nil
 }
 
 type observedActors struct {

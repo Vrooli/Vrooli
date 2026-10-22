@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """File-only launch-video checks. No lifecycle, network, installs, or publishing."""
 import argparse
-import hashlib
 import json
 import math
 import re
@@ -9,16 +8,13 @@ from pathlib import Path
 import subprocess
 import sys
 from urllib.parse import urlparse
+from product_brief import digest, validate_product_brief, require_current_brief
 
 SKILL = Path(__file__).resolve().parents[1]
 STORY = ('promise', 'viewer', 'problem', 'transformation', 'proof', 'takeaway')
 CATEGORIES = {'story', 'product clarity', 'composition', 'typography', 'motion',
               'transition', 'audio', 'branding', 'technical', 'claim risk'}
 
-
-def digest(path):
-    with Path(path).open('rb') as stream:
-        return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
 def run(args):
@@ -67,6 +63,7 @@ def number(value, minimum=0):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= minimum
 
 
+
 def validate(plan, root, stage='plan'):
     """Return failures, not an aesthetic score. References resolve beside the plan."""
     errors = []
@@ -96,7 +93,7 @@ def validate(plan, root, stage='plan'):
             need(r.get('verdict') == 'pass', f'{label}: review must pass')
             if require_listening:
                 need(r.get('audio_status') == 'auditioned-pass', f'{label}: exported audio must be auditioned')
-            if plan.get('version') == 2 and label == 'final-file review':
+            if plan.get('version') in (2, 3) and label == 'final-file review':
                 need(r.get('review_kind') in ('self-review', 'independent-review', 'operator-review'),
                      f'{label}: review_kind required')
                 for section in ('viewer_comprehension', 'craft'):
@@ -121,8 +118,10 @@ def validate(plan, root, stage='plan'):
                      f'{label}: unresolved {d.get("severity")} defect')
         except (ValueError, TypeError, AttributeError) as e:
             errors.append(f'{label}: invalid review: {e}')
-    need(plan.get('version') in (1, 2), 'version must be 1 or 2')
-    current = plan.get('version') == 2
+    need(plan.get('version') in (1, 2, 3), 'version must be 1, 2 or 3')
+    current = plan.get('version') in (2, 3)
+    if plan.get('version') == 3:
+        errors.extend(validate_product_brief(plan, root, stage))
     need(plan.get('kind') in ('launch', 'study'), 'kind must be launch or study')
     if stage != 'plan' and plan.get('kind') == 'study':
         need(plan.get('study_requested') is True and text(plan.get('request_source')),
@@ -504,6 +503,7 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     v=sub.add_parser('validate',help='Check a production plan; cannot certify aesthetic quality')
     v.add_argument('plan',type=Path);v.add_argument('--stage',choices=['plan','polish','deliver'],default='plan')
+    v.add_argument('--historical',action='store_true',help='Explicitly inspect a retained version-1/2 production')
     s=sub.add_parser('shots',help='Retrieve at most four shot recipes by intent')
     s.add_argument('intent');s.add_argument('--limit',type=int,default=4)
     i=sub.add_parser('inspect',help='Decode, probe, and sample an exported file into a new directory')
@@ -516,6 +516,7 @@ def main():
         if args.command=='validate':
             plan=json.loads(args.plan.read_text())
             errors=validate(plan,args.plan.resolve().parent,args.stage)
+            errors += require_current_brief(plan, args.plan.resolve().parent, args.historical)
             print(json.dumps({'stage':args.stage,'status':'fail' if errors else 'pass','errors':errors,
                               'limit':'Structural/media checks only; creative and factual review remain required.'},indent=2))
             return bool(errors)

@@ -31,6 +31,19 @@ class ProductionTests(unittest.TestCase):
         return p.validate(self.plan,self.root,stage)
     def test_teaser_does_not_require_flagship_cost(self):
         self.assertEqual([],self.errors())
+    def test_cli_requires_explicit_historical_read_for_retained_formats(self):
+        import contextlib
+        import io
+        plan = self.root/'production.json'
+        plan.write_text(json.dumps(self.plan))
+        for flags, expected in (([], True), (['--historical'], False)):
+            with self.subTest(flags=flags), patch('sys.argv', ['production.py', 'validate', str(plan), *flags]):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(expected, p.main())
+                result = json.loads(output.getvalue())
+                self.assertEqual('fail' if expected else 'pass', result['status'])
+
     def test_missing_promise_fails(self):
         self.plan['story']['promise']=''
         self.assertIn('story.promise required',self.errors())
@@ -343,4 +356,224 @@ class ProductionTests(unittest.TestCase):
             self.assertTrue(any('still image cannot prove an interaction' in e for e in self.errors('polish')))
 
 
-if __name__=='__main__':unittest.main()
+class ProductBriefTests(unittest.TestCase):
+    """Protect offer eligibility and evidence relationships, not slogan wording."""
+
+    def test_malformed_brief_reference_returns_a_finding(self):
+        self.plan['product_brief'] = ['not-an-object']
+        self.assertIn('product brief: object reference required', self.errors())
+
+    def setUp(self):
+        ProductionTests.setUp(self)
+        self.current_plan()
+        self.plan.update(version=3, context={
+            'offer_ref':'desktop-preview', 'offer_revision':'offer-r1',
+            'product_revision':'build-r1', 'targets':['desktop']})
+        (self.root/'source.json').write_text('{"observed":"desktop search"}')
+        self.brief = {
+            'version':1, 'product':'demo', 'context':dict(self.plan['context']),
+            'sources':[{'id':'product', 'kind':'product', 'file':'source.json',
+                        'sha256':p.digest(self.root/'source.json'), 'read_at':'2026-10-18T00:00:00Z'},
+                       {'id':'package', 'kind':'package', 'file':'source.json',
+                        'sha256':p.digest(self.root/'source.json'), 'read_at':'2026-10-18T00:00:00Z'}],
+            'candidates':[
+                {'id':'search', 'job':'Recover a prior decision', 'alternative':'Manually reread transcripts',
+                 'pain':'Too many conversations to check', 'benefit':'Find the relevant decision',
+                 'value_basis':'observed', 'evidence':['product'], 'eligibility_sources':['package'],
+                 'eligibility':'supported', 'reliability':'Observed on the declared desktop build',
+                 'setup':'Normal desktop installation', 'dependencies':'Packaged local store',
+                 'reason':'Directly useful recurring task', 'proof_scope':'ui', 'claim_ids':['c1']},
+                {'id':'mobile', 'job':'Continue away from desk', 'alternative':'Return to desk',
+                 'pain':'Desk-bound work', 'benefit':'Direct agents from a phone', 'value_basis':'operator',
+                 'evidence':['product'], 'eligibility_sources':['package'], 'eligibility':'excluded',
+                 'reliability':'Not qualified for this offer', 'setup':'Secure tunnel and home-screen setup',
+                 'dependencies':'External secure access', 'reason':'Outside desktop offer',
+                 'proof_scope':'runtime', 'claim_ids':[]}],
+            'selected':['search'], 'selection_rationale':'Search proves a useful desktop workflow',
+            'story_review':{'status':'pass', 'method':'Bounded evidence review',
+                            'customer_outcome':'Recover a decision without rereading everything',
+                            'setup_accuracy':'Desktop only; mobile excluded',
+                            'limits':'Synthetic test, not audience evidence'}}
+        self.plan['claims'][0].update(scope='ui', conditions=[])
+        self.plan['story']['benefits']=['search']
+        self.plan['scenes'][0].update(benefits=['search'], proof_scope='ui', depicted_targets=['desktop'])
+        self.plan['render_inputs']=['product-brief.json','source.json','clip.mp4']
+        self.write_brief()
+
+    current_plan = ProductionTests.current_plan
+    errors = ProductionTests.errors
+
+    def write_brief(self):
+        path=self.root/'product-brief.json'
+        path.write_text(json.dumps(self.brief))
+        self.plan['product_brief']={'file':path.name,'sha256':p.digest(path)}
+
+    def test_requested_study_can_preserve_unknown_value_without_product_proof(self):
+        self.plan.update(kind='study', study_requested=True, request_source='operator requested concept study')
+        self.plan['safety']['status']='capture-blocked'
+        self.plan['scenes'][0].update(**{'class':'explanatory'}, benefits=[])
+        self.plan['story']['benefits']=[]
+        self.brief['selected']=[]
+        self.brief['candidates'][0]['eligibility']='unknown'
+        self.write_brief()
+        self.assertEqual([], self.errors('polish'))
+        self.plan['kind']='launch'
+        self.assertTrue(any('selected benefits must reference candidates' in e for e in self.errors()))
+
+    def test_empty_study_cannot_smuggle_an_unselected_scene_benefit(self):
+        self.plan['kind']='study'
+        self.plan['story']['benefits']=[]
+        self.brief['selected']=[]
+        self.write_brief()
+        self.assertTrue(any('unknown or unselected benefit' in e for e in self.errors()))
+
+    def test_supported_benefit_has_offer_and_scene_evidence(self):
+        self.assertEqual([],self.errors())
+
+    def test_excluded_or_unknown_benefit_cannot_be_selected(self):
+        for eligibility in ('excluded','unknown'):
+            with self.subTest(eligibility=eligibility):
+                self.brief['candidates'][0]['eligibility']=eligibility
+                self.write_brief()
+                self.assertTrue(any('selected benefit search is not eligible' in e for e in self.errors()))
+
+    def test_changed_offer_or_product_requires_reassessment(self):
+        for key in ('offer_revision','product_revision','targets'):
+            with self.subTest(key=key):
+                original=self.plan['context'][key]
+                self.plan['context'][key]=['phone'] if key=='targets' else 'changed'
+                self.assertTrue(any('brief context differs' in e for e in self.errors()))
+                self.plan['context'][key]=original
+
+    def test_changed_evidence_bytes_are_not_current(self):
+        (self.root/'source.json').write_text('new build evidence')
+        self.assertTrue(any('source product digest mismatch' in e for e in self.errors()))
+
+    def test_missing_brief_or_stale_brief_is_rejected(self):
+        self.plan['product_brief']['sha256']='stale'
+        self.assertTrue(any('product brief digest mismatch' in e for e in self.errors()))
+        self.plan.pop('product_brief')
+        self.assertTrue(any('product brief' in e for e in self.errors()))
+
+    def test_selected_value_needs_product_and_package_evidence(self):
+        self.brief['candidates'][0]['eligibility_sources']=['product']
+        self.write_brief()
+        self.assertTrue(any('eligibility evidence' in e for e in self.errors()))
+
+    def test_proof_must_cover_selected_benefits(self):
+        self.plan['scenes'][0]['benefits']=[]
+        self.assertTrue(any('no product proof for selected benefit search' in e for e in self.errors()))
+
+    def test_phone_player_does_not_imply_phone_product_support(self):
+        self.plan['story']['viewing_context']='phone-sized social player'
+        self.assertEqual([],self.errors())
+        self.plan['scenes'][0]['depicted_targets']=['phone']
+        self.assertTrue(any('depicts an unsupported product target' in e for e in self.errors()))
+
+    def test_conditional_value_needs_explicit_claim_conditions(self):
+        self.brief['candidates'][0].update(eligibility='conditional',conditions=['Configured speech provider'])
+        self.write_brief()
+        self.assertTrue(any('claim c1 omits benefit conditions' in e for e in self.errors()))
+        self.plan['claims'][0]['conditions']=['Configured speech provider']
+        self.assertEqual([],self.errors())
+
+    def test_runtime_benefit_cannot_use_ui_only_proof(self):
+        self.brief['candidates'][0]['proof_scope']='runtime'
+        self.write_brief()
+        self.assertTrue(any('proof scope does not cover benefit search' in e for e in self.errors()))
+
+    def test_brief_sources_must_be_in_frozen_inputs(self):
+        self.plan['render_inputs'].remove('source.json')
+        self.assertTrue(any('source product is not a declared render input' in e for e in self.errors()))
+
+    def test_open_story_review_can_plan_but_cannot_polish(self):
+        self.brief['story_review']['status']='open'
+        self.write_brief()
+        self.assertEqual([],self.errors())
+        self.assertTrue(any('story review must pass before polish' in e for e in self.errors('polish')))
+
+
+
+    def test_current_cli_rejects_legacy_brief_even_with_current_plan(self):
+        self.brief['version'] = 1
+        self.write_brief()
+        import contextlib
+        import io
+        plan = self.root/'production.json'
+        plan.write_text(json.dumps(self.plan))
+        for flags, expected in (([], True), (['--historical'], False)):
+            with self.subTest(flags=flags), patch('sys.argv', ['production.py', 'validate', str(plan), *flags]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(expected, p.main())
+
+
+class QualifiedBriefTests(ProductBriefTests):
+    def setUp(self):
+        super().setUp()
+        self.brief['version'] = 2
+        (self.root/'script.md').write_text('A workspace for decisions. Search prior conversations, then explore the preview.')
+        self.plan['render_inputs'].append('script.md')
+        self.brief['story_review'].update(
+            reviewer_context='author', prior_context='Knows the product and intended story',
+            audience_match=False, evidence_class='author-review',
+            stimulus={'file':'script.md','sha256':p.digest(self.root/'script.md')},
+            responses={key:{'answer':'Specific observed meaning', 'finding':'clear',
+                            'evidence':'Opening and search-result scene'}
+                       for key in ('category','job','benefit','proof','next_action')})
+        self.brief['candidates'][0]['availability_claim']='ui'
+        self.write_brief()
+
+    def test_v2_author_diagnostic_can_pass_without_claiming_customer_research(self):
+        self.assertEqual([], self.errors())
+
+    def test_commercial_intent_cannot_qualify_runtime(self):
+        self.brief['candidates'][0].update(proof_scope='runtime', availability_claim='runtime')
+        self.brief['sources'][1]['kind']='offer'
+        self.plan['scenes'][0]['proof_scope']='runtime'
+        self.write_brief()
+        self.assertTrue(any('target-bound observed runtime evidence' in e for e in self.errors()))
+
+    def test_runtime_evidence_is_bound_to_build_target_and_benefit(self):
+        self.brief['candidates'][0].update(proof_scope='runtime',availability_claim='runtime')
+        self.plan['scenes'][0]['proof_scope']='runtime'
+        source=self.brief['sources'][1]
+        source.update(kind='runtime', qualification={'status':'observed','scope':'runtime',
+                      'product_revision':'build-r1','targets':['desktop'],'benefit_ids':['search']})
+        self.brief['sources'].append({**source, 'id':'offer', 'kind':'offer'})
+        self.brief['candidates'][0]['eligibility_sources'].append('offer')
+        self.write_brief()
+        self.assertEqual([], self.errors())
+        for field,value in [('product_revision','old-build'),('targets',['mobile']),('benefit_ids',['unrelated']),('status','unverified')]:
+            with self.subTest(field=field):
+                original=source['qualification'][field]
+                source['qualification'][field]=value
+                self.write_brief()
+                self.assertTrue(any('target-bound observed runtime evidence' in e for e in self.errors()))
+                source['qualification'][field]=original
+
+    def test_installation_requires_package_evidence(self):
+        self.brief['candidates'][0]['availability_claim']='installation'
+        self.write_brief()
+        self.assertTrue(any('target-bound observed package evidence' in e for e in self.errors()))
+
+    def test_author_cannot_label_review_as_customer_evidence(self):
+        self.brief['story_review']['evidence_class']='customer-comprehension'
+        self.write_brief()
+        self.assertTrue(any('review evidence class' in e for e in self.errors()))
+
+    def test_changed_script_invalidates_review(self):
+        (self.root/'script.md').write_text('Different claims and setup')
+        self.assertTrue(any('review stimulus digest' in e for e in self.errors()))
+
+    def test_review_requires_observed_answers_before_polish(self):
+        self.brief['story_review']['responses'].pop('category')
+        self.write_brief()
+        self.assertTrue(any('comprehension category' in e for e in self.errors('polish')))
+
+    def test_known_misunderstanding_cannot_pass_review(self):
+        self.brief['story_review']['responses']['proof']['finding']='misleading'
+        self.write_brief()
+        self.assertTrue(any('comprehension proof remains unresolved' in e for e in self.errors()))
+
+if __name__ == '__main__':
+    unittest.main()

@@ -116,6 +116,8 @@ type AppTarget struct {
 	ArtifactDigest string `json:"artifact_digest"`
 	ContextID      string `json:"context_id"`
 	CDPTransport   string `json:"cdp_transport"`
+	DownloadPath   string `json:"download_path,omitempty"`
+	TestDatabaseRoot string `json:"test_database_root,omitempty"`
 }
 
 // ValidationContext binds a BAS session to one immutable validation cell and

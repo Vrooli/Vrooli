@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "presentations",
-    "description": "Authentic screen presentation. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Authentic screen presentation. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },

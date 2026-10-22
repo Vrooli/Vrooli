@@ -321,68 +321,9 @@ func (s *Scheduler) IsScheduled(teamID, agentID string) bool {
 // executeHeartbeat runs a heartbeat execution
 func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string) {
 	log.Printf("Executing heartbeat for %s/%s", teamID, agentID)
-
-	if s.teamStore != nil {
-		team, err := s.teamStore.Get(ctx, teamID)
-		if err != nil {
-			log.Printf("Heartbeat execution aborted for %s/%s: team lookup failed: %v", teamID, agentID, err)
-			return
-		}
-		if !team.Enabled || team.Archived {
-			log.Printf("Heartbeat execution skipped for %s/%s: team disabled or archived", teamID, agentID)
-			return
-		}
-		if members, ok := s.teamStore.(TeamMembershipStore); ok {
-			roster, err := members.GetMembers(ctx, teamID)
-			if err != nil {
-				log.Printf("Heartbeat execution aborted for %s/%s: roster lookup failed: %v", teamID, agentID, err)
-				return
-			}
-			found := false
-			for _, member := range roster {
-				if member.AgentID == agentID && (member.Status == "" || member.Status == store.MemberStatusActive) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				log.Printf("Heartbeat execution skipped for %s/%s: member is no longer active on the team", teamID, agentID)
-				return
-			}
-		}
-	}
-
-	if s.controlStore != nil {
-		if paused, err := s.controlStore.AllowStart(ctx, teamID); err != nil {
-			if errors.Is(err, ErrHeartbeatPaused) {
-				log.Printf("Heartbeat execution skipped for %s/%s: %s", teamID, agentID, paused.Message)
-				return
-			}
-			log.Printf("Heartbeat execution gate failed for %s/%s: %v", teamID, agentID, err)
-			return
-		}
-	}
-
-	// Start with empty profileKey; Execute() resolves the default based on
-	// the team's runtime mode when the key is empty.
-	var profileKey string
-	var config *store.HeartbeatConfig
-	if s.configStore != nil {
-		var err error
-		config, err = s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
-		if err != nil {
-			log.Printf("Heartbeat execution aborted for %s/%s: %v", teamID, agentID, err)
-			return
-		}
-		if config == nil {
-			log.Printf("Heartbeat execution aborted for %s/%s: config not found", teamID, agentID)
-			return
-		}
-		if !config.Enabled {
-			log.Printf("Heartbeat execution skipped for %s/%s: config disabled", teamID, agentID)
-			return
-		}
-		profileKey = config.ProfileKey
+	config, profileKey, allowed := s.heartbeatAdmissionConfig(ctx, teamID, agentID)
+	if !allowed {
+		return
 	}
 
 	// Route through the team execution store so the configured queue policy is enforced.
@@ -393,13 +334,15 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 	// executor can later honor this schedule's eligibility contract without
 	// guessing from the service credential or replaying during startup.
 	dispatchCtx := withHeartbeatAdmissionOrigin(ctx, AdmissionOriginScheduled)
+	terminalReconciled := false
 	if s.teamExecStore != nil {
 		// Scheduled retries are admission operations too. Serialize them with
 		// one another and with ordinary wake admission so concurrent cron
 		// callbacks cannot race a retained request into duplicate waiters.
 		s.admissionMu.Lock()
-		retried, retryErr := s.teamExecStore.RetryUnavailableWatcher(dispatchCtx, teamID, agentID)
+		retryOutcome, retryErr := s.teamExecStore.retryUnavailableWatcher(dispatchCtx, teamID, agentID)
 		retryKind := "owner observation"
+		retried := retryOutcome != watcherRetryNone
 		if !retried {
 			retried, retryErr = s.teamExecStore.RetryApprovalPending(dispatchCtx, teamID, agentID)
 			retryKind = "approval"
@@ -413,8 +356,17 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 			log.Printf("Heartbeat %s retry for %s/%s remains unresolved: %v", retryKind, teamID, agentID, retryErr)
 			return
 		}
-		if retried {
+		terminalReconciled = retryOutcome == watcherRetryTerminalReconciled
+		if retried && !terminalReconciled {
 			return
+		}
+		if terminalReconciled {
+			// Terminal projection can update auto-pause, member configuration, or
+			// team state. Re-read the ordinary gates before any new admission.
+			config, profileKey, allowed = s.heartbeatAdmissionConfig(ctx, teamID, agentID)
+			if !allowed {
+				return
+			}
 		}
 	}
 	execute := func() error {
@@ -452,6 +404,74 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		return
 	}
 	s.runOrdinaryWake(ctx, teamID, agentID, config, execute)
+}
+
+// heartbeatAdmissionConfig evaluates the same live team, member, control, and
+// heartbeat configuration gates before initial admission and after terminal
+// recovery. A terminal failure may auto-pause the member, so recovered state
+// must never reuse the pre-reconciliation snapshot.
+func (s *Scheduler) heartbeatAdmissionConfig(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, string, bool) {
+	if s.teamStore != nil {
+		team, err := s.teamStore.Get(ctx, teamID)
+		if err != nil {
+			log.Printf("Heartbeat execution aborted for %s/%s: team lookup failed: %v", teamID, agentID, err)
+			return nil, "", false
+		}
+		if !team.Enabled || team.Archived {
+			log.Printf("Heartbeat execution skipped for %s/%s: team disabled or archived", teamID, agentID)
+			return nil, "", false
+		}
+		if members, ok := s.teamStore.(TeamMembershipStore); ok {
+			roster, err := members.GetMembers(ctx, teamID)
+			if err != nil {
+				log.Printf("Heartbeat execution aborted for %s/%s: roster lookup failed: %v", teamID, agentID, err)
+				return nil, "", false
+			}
+			found := false
+			for _, member := range roster {
+				if member.AgentID == agentID && (member.Status == "" || member.Status == store.MemberStatusActive) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				log.Printf("Heartbeat execution skipped for %s/%s: member is no longer active on the team", teamID, agentID)
+				return nil, "", false
+			}
+		}
+	}
+
+	if s.controlStore != nil {
+		if paused, err := s.controlStore.AllowStart(ctx, teamID); err != nil {
+			if errors.Is(err, ErrHeartbeatPaused) {
+				log.Printf("Heartbeat execution skipped for %s/%s: %s", teamID, agentID, paused.Message)
+				return nil, "", false
+			}
+			log.Printf("Heartbeat execution gate failed for %s/%s: %v", teamID, agentID, err)
+			return nil, "", false
+		}
+	}
+
+	var profileKey string
+	var config *store.HeartbeatConfig
+	if s.configStore != nil {
+		var err error
+		config, err = s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
+		if err != nil {
+			log.Printf("Heartbeat execution aborted for %s/%s: %v", teamID, agentID, err)
+			return nil, "", false
+		}
+		if config == nil {
+			log.Printf("Heartbeat execution aborted for %s/%s: config not found", teamID, agentID)
+			return nil, "", false
+		}
+		if !config.Enabled {
+			log.Printf("Heartbeat execution skipped for %s/%s: config disabled", teamID, agentID)
+			return nil, "", false
+		}
+		profileKey = config.ProfileKey
+	}
+	return config, profileKey, true
 }
 
 // runOrdinaryWake applies only to ordinary heartbeats. It holds a process-local

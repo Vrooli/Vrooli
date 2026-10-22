@@ -1,8 +1,11 @@
-# Production file contract (version 2)
+# Production file contract (version 3)
 
 Requires Python 3.11+; media operations also need existing ffmpeg/ffprobe.
 
 Run `python3 <skill-dir>/scripts/production.py validate production.json --stage plan`.
+New productions use manifest version 3 and product-brief version 2. Retained
+manifest-1/2 or brief-1 productions remain inspectable with
+the explicit `--historical` switch; old evidence is not retroactively invented.
 Paths resolve beside `production.json`. Helpers never start services or render a
 composition. `plan` checks planning inputs; `polish` additionally probes source
 media and requires flagship styleframes/animatic; `deliver` checks actual export,
@@ -15,14 +18,27 @@ rendered references in `visual-reference/`. Record the visual-continuity verdict
 there or in the styleframe review. This is a required reviewer checkpoint in
 `production.md`; the file helper does not certify visual resemblance.
 
+A scene may combine several recorded takes. Keep the source-to-final interval
+mapping beside the shot plan. Freeze every used raw source and that mapping in
+`render_inputs`. If `scene.media` names a retained assembled clip, its source
+pixel/media checks apply to that clip; they do not verify the constituent takes.
+Keep those takes and their identities available for craft and provenance review.
+
 Required shape:
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "kind": "launch",
   "product": "scenario-key",
   "profile": "teaser",
+  "context": {
+    "offer_ref": "owner-returned offer/deliverable/variant references",
+    "offer_revision": "observed source revision or snapshot digest",
+    "product_revision": "captured build/artifact identity",
+    "targets": ["desktop"]
+  },
+  "product_brief": {"file": "product-brief.json", "sha256": "actual SHA-256"},
   "duration": 24,
   "format": {
     "width": 1920,
@@ -35,6 +51,7 @@ Required shape:
     "protected_mutations": []
   },
   "story": {
+    "benefits": ["recover-decision"],
     "promise": "One supported benefit",
     "viewer": "One audience",
     "problem": "The starting problem",
@@ -79,6 +96,9 @@ Required shape:
       "claims": [
         "c1"
       ],
+      "benefits": ["recover-decision"],
+      "proof_scope": "ui",
+      "depicted_targets": ["desktop"],
       "focal_point": "Result region",
       "motion_reason": "Make the result readable",
       "start_state": "Known state",
@@ -136,12 +156,129 @@ Required shape:
     "qr_report": "qr-v2/qr.json"
   },
   "render_inputs": [
+    "product-brief.json",
+    "evidence/product.json",
+    "evidence/offer-package.json",
     "composition/index.html",
     "composition/assets/result.mp4",
     "composition/assets/music.wav"
   ]
 }
 ```
+
+## Version 3 product brief
+
+This is one per-production source/decision artifact, not a new approval ledger.
+The `context` object must exactly match the production manifest. An explicitly
+requested concept study may keep `selected` and `story.benefits` empty while
+retaining its discovery candidates and unknown eligibility; it remains a study,
+requires the existing study authority and cannot pass launch delivery. Source files
+and the brief are regular relative files, at most 2 MiB each, with exact SHA-256
+values and inclusion in `render_inputs`. Changed bytes or context require renewed
+eligibility review. Actual owner evidence and reviewer judgment establish truth;
+these structural checks cannot establish that a declaration is accurate.
+
+```json
+{
+  "version": 2,
+  "product": "scenario-key",
+  "context": {
+    "offer_ref": "owner-returned offer/deliverable/variant references",
+    "offer_revision": "observed source revision or snapshot digest",
+    "product_revision": "captured build/artifact identity",
+    "targets": ["desktop"]
+  },
+  "sources": [
+    {"id":"product","kind":"product","file":"evidence/product.json","sha256":"actual SHA-256","read_at":"ISO-8601 time"},
+    {"id":"package","kind":"package","file":"evidence/offer-package.json","sha256":"actual SHA-256","read_at":"ISO-8601 time"}
+  ],
+  "candidates": [{
+    "id":"recover-decision",
+    "job":"Recover a prior decision",
+    "alternative":"Reread conversations manually",
+    "pain":"The useful answer is buried across sessions",
+    "benefit":"Find the decision and its surrounding context",
+    "value_basis":"observed",
+    "evidence":["product"],
+    "eligibility_sources":["package"],
+    "eligibility":"supported",
+    "reliability":"Specific observed behavior and remaining limits",
+    "setup":"Actual supported setup",
+    "dependencies":"Included or required dependencies",
+    "reason":"Why selected or omitted; what would change this decision",
+    "proof_scope":"ui",
+    "availability_claim":"ui",
+    "claim_ids":["c1"]
+  }],
+  "selected":["recover-decision"],
+  "selection_rationale":"Why this useful workflow deserves the film time",
+  "story_review":{
+    "status":"open",
+    "method":"How the script or rough was reviewed",
+    "reviewer_context":"author",
+    "prior_context":"What the reviewer already knows",
+    "audience_match":false,
+    "evidence_class":"author-review",
+    "stimulus":{"file":"script.md","sha256":"actual SHA-256"},
+    "responses":{},
+    "customer_outcome":"What gets easier, supported by the draft",
+    "setup_accuracy":"What the intended buyer must configure",
+    "limits":"Self-review, inferred value and audience evidence limits"
+  }
+}
+```
+
+Version-2 selected benefits declare `availability_claim` as
+`ui|runtime|installation|integration`. Runtime and integration promises, and any
+runtime proof scope, require an eligibility source of kind `runtime` or `package`
+with an observed `qualification`. Installation requires a `package` source with
+package scope. This is additional to the offer/package/operator boundary source:
+commercial intent is not execution evidence. A qualification has this shape:
+
+```json
+{"status":"observed","scope":"runtime","product_revision":"same captured build identity",
+ "targets":["desktop"],"benefit_ids":["recover-decision"]}
+```
+
+Its build must match `context.product_revision`; its targets cover the declared
+product targets, and its benefit IDs cover the selected promise. Preserve the
+actual owner-returned receipt in the hashed source file. Metadata is an attestation,
+not proof that a source entails the claim. A boot check cannot qualify an unrelated
+integration, and a local-stack observation cannot certify a bundled installer.
+
+Before a version-2 story review passes, retain the exact hashed script or rough in
+`stimulus` and `render_inputs`. Record responses for `category`, `job`, `benefit`,
+`proof`, and `next_action`. Each response has `answer`, `evidence` (line/scene), and
+`finding` (`clear|unclear|misleading`). Passing requires all five findings clear.
+Reviewer context maps to evidence class:
+`author` → `author-review`; `fresh-agent` → `agent-diagnostic`;
+`operator` → `operator-feedback`; `unfamiliar-target-user` →
+`customer-comprehension` (requires `audience_match: true`). Record prior context;
+never supply the intended answers to an unfamiliar reviewer. An open plan may
+leave the responses unfinished. Existing author review remains a valid diagnostic;
+these fields do not make customer research or delegation mandatory.
+
+Record all discovered candidates, including valuable excluded/unknown features.
+Sources and candidates have unique IDs and are bounded to 128 each. `value_basis`
+is `observed|operator|inferred`; `eligibility` is
+`supported|conditional|excluded|unknown`. Selected candidates require product
+evidence, offer/package/operator-direction eligibility evidence, and claim IDs.
+Conditional benefits also carry a nonempty `conditions` list; every referenced
+claim includes those same explicit conditions. Review their actual wording and
+placement separately. Existing claim fields and qualification rules still apply.
+
+`story.benefits` equals the selected set. Each selected benefit has product proof
+through scene `benefits`/`claims` links and an adequate `proof_scope` (`ui|runtime`).
+Fixture footage cannot prove a runtime benefit. `depicted_targets` names the product
+use shown in proof, not the player's dimensions. A phone-sized player is valid
+for desktop advertising; depicting unsupported phone use is not. An open script
+review permits planning; `story_review.status: pass` is required before polish.
+The reviewer must still catch vague promises or misleading imagery; JSON fields
+and digest checks do not evaluate persuasive quality.
+
+## Retained version-2 contract
+
+The sections below document retained production behavior inherited by version 3.
 
 The example describes shape, not a recommended 24-second single shot. Scene slots
 partition the full duration with no gaps/overlaps; transitions occur inside those

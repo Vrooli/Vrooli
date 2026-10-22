@@ -575,30 +575,18 @@ func LoadSkillIDs(configDir string) (map[string]bool, error) {
 	return out, nil
 }
 
-// ruleTeamRoleMemberDrift cross-checks `roles.json` role ids against the team's
-// contract member ids. Both directions are drift:
-//
-//   - a role with no matching member describes someone who does not exist;
-//   - a member with no matching role has no role description at all.
-//
-// Nothing consumed roles.json at runtime — every team currently sets
-// `showOrgContext: false`, so the file never reaches a prompt — and nothing
-// validated it either. A file that is neither read nor checked rots silently,
-// and one had: three of four role entries on a live team named or omitted the
-// wrong member. This rule is what makes the file's correctness observable
-// regardless of whether a given team renders it.
-//
-// Teams with no roles.json are skipped rather than flagged. The file is
-// optional, and demanding one from every team would be a different decision
-// than checking the ones that exist.
-func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
+// ruleTeamMembershipDrift checks that each declared member has one matching
+// membership relation and that relations do not bind undeclared members.
+// roles.json is an optional catalog of role definitions; it is not the team
+// roster and may contain shared or currently unassigned roles.
+func ruleTeamMembershipDrift(opts ValidationOptions) []Finding {
 	if len(opts.TeamContracts) == 0 {
 		return nil
 	}
 	var out []Finding
 	for _, teamID := range opts.TeamContracts.IDs() {
 		contract := opts.TeamContracts[teamID]
-		if contract == nil || contract.Contract == nil || contract.RolesSourcePath == "" {
+		if contract == nil || contract.Contract == nil {
 			continue
 		}
 
@@ -606,41 +594,6 @@ func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
 		for memberID := range contract.Contract.Members {
 			memberIDs[memberID] = true
 		}
-		roleIDs := make(map[string]bool, len(contract.RoleIDs))
-		for _, roleID := range contract.RoleIDs {
-			roleIDs[roleID] = true
-		}
-
-		for _, roleID := range contract.RoleIDs {
-			if memberIDs[roleID] {
-				continue
-			}
-			out = append(out, Finding{
-				Rule:     "team_role_member_drift",
-				Severity: SeverityError,
-				Team:     teamID, Member: roleID,
-				Detail: fmt.Sprintf("roles.json on team %q declares role %q but team.json::operatingContract.members has no such member; remove the role or add the member",
-					teamID, roleID),
-			})
-		}
-
-		missing := make([]string, 0, len(memberIDs))
-		for memberID := range memberIDs {
-			if !roleIDs[memberID] {
-				missing = append(missing, memberID)
-			}
-		}
-		sort.Strings(missing)
-		for _, memberID := range missing {
-			out = append(out, Finding{
-				Rule:     "team_role_member_drift",
-				Severity: SeverityError,
-				Team:     teamID, Member: memberID,
-				Detail: fmt.Sprintf("member %q on team %q has no entry in roles.json; add the role or drop the member from the contract",
-					memberID, teamID),
-			})
-		}
-
 		out = append(out, checkRelationBindingDrift(opts.StoreDir, teamID, memberIDs)...)
 	}
 	return out
@@ -649,14 +602,14 @@ func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
 // checkRelationBindingDrift compares store/relations/team-member/ against the
 // team contract's member set, in both directions.
 //
-// Membership is written on three surfaces — roles.json, the team contract, and
-// the relation store — and the two loops above compare only the first two. The
-// relation store was the unchecked one, which is how the 2026-07-28
+// Membership is declared in the team contract and persisted in the relation
+// store. This check catches the relation-only case that led to the 2026-07-28
 // marketing-crew consolidation left four relation records binding agents that
-// had been retired: roles.json and the contract agreed, so nothing fired, and
-// the records survived twelve days. They were not inert. The prompt-matrix
-// endpoint enumerates members from the relation store, so a stale record puts
-// a member that cannot run into a team's rendered roster.
+// had been retired. The old check compared role definitions to member ids and
+// never inspected membership records, so the stale records survived twelve
+// days. They were not inert. The prompt-matrix endpoint enumerates members
+// from the relation store, so a stale record puts a member that cannot run
+// into a team's rendered roster.
 //
 // Silent when StoreDir is unset or the relations directory is absent: unit
 // tests that pass synthetic contracts with no backing tree get no findings

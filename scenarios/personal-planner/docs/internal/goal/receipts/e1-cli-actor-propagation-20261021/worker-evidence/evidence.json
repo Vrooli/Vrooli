@@ -1,0 +1,12 @@
+{
+  "focused_calendar_stdout_sha256": "866a80ff667d0d3cadb4091ad32e0cadc70c22b2a4a5d297d35b68d1c98882a9",
+  "focused_calendar_stdout_bytes": 94,
+  "focused_calendar_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "epoch_check_stdout_sha256": "585d23c557bd30ce18ead423c97f6fb415f6c5dc465090840ed4cd084fed2789",
+  "epoch_check_stdout_bytes": 61340,
+  "epoch_check_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "native_run": "69ef5a17-940f-4bd0-b09e-4cdfc4d8aa49",
+  "native_parent": "5d07e651-eaa6-48ec-89b4-5dc359059193",
+  "raw_gate_capture": "native tool result sequence 133, temp output /tmp/planner-calendar-gate-final.LDOex1",
+  "raw_epoch_capture": "native tool result sequence 191, temp output /tmp/planner-epoch-check-final.vKeODy"
+}

@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
+Foundation contract, 2026-10-19. The implementation status changed after this original contract; current bounded geometry execution is described under [Current implemented boundary](#current-implemented-boundary--2026-10-21). The full security requirements and review remain open.
 
 Define the protection boundaries before implementing media import, renderer code execution or paid agents.
 
@@ -26,7 +26,7 @@ Use credential authority/native secure storage for BYOK keys and relevant sessio
 |---|---|---|
 | Model/archive/media import | Traversal, symlink escape, decompression/decoder bombs, malformed files, external URIs | Bounded extraction/decoding, dependency closure and controlled fetch |
 | Reference URL/provider output | SSRF, redirects to private services, untrusted instructions | Authorized destinations, response/type/size limits; treat content as data |
-| Blender/native scene/generated Python | File/network/process access beyond project | Disable autoexec plus qualified isolation; resource limits alone insufficient |
+| Imported/generated executable content | File/network/process access beyond project | Arbitrary scripts, Blender files with executable content, and model-authored commands are unsupported and are not executed. The supported fixed geometry recipe is compiled by a fixed Go worker under the bounded workspace-sandbox owner. |
 | Agent creation | Scope expansion, undisclosed paid calls, media egress | Canonical delegated authority, aggregate budgets, server-side consent enforcement |
 | Desktop loopback | Other browser/site or local process invokes app | App-private runtime authentication, origin checks and explicit shared mode |
 | Render requests | Unbounded CPU/VRAM/disk/task use | Admission, owned descendants, quotas and cancellation |
@@ -35,7 +35,36 @@ Use credential authority/native secure storage for BYOK keys and relevant sessio
 
 ## Security Gaps
 
-No product import sandbox, runtime job isolation or funded desktop adapter is implemented yet. Current template middleware is infrastructure only. Current Blender provisioning and desktop local-proof transports need qualification. No live credentials/spend/security certification occurred during the research. Required behavior remains visible in requirements and [PROBLEMS.md](PROBLEMS.md).
+The original 2026-10-19 status below is superseded in part by the implementation note. A fixed deterministic geometry compiler now runs through workspace-sandbox with write and network restrictions and resource limits. This is not general arbitrary-code isolation, OS-read confinement, archive sandboxing, or a security certification. Current Blender/native scene execution, paid-provider adapter, and full desktop security review remain out of scope or unqualified. No paid call or credential validation is claimed. Requirements and [PROBLEMS.md](PROBLEMS.md) remain authoritative for open work.
+
+## Current implemented boundary — 2026-10-21
+
+Device Studio supports a finite, versioned geometry recipe compiled by a pinned
+Go worker. Inputs are staged in an attempt workspace and passed through the
+workspace-sandbox public execution owner with a fixed command, manifest path,
+working directory, and environment. Network access and writes outside the
+workspace are denied by the selected protected profile. The worker does not
+interpret imported or generated scripts, shell commands, URLs, model-authored
+paths, Blender projects, or arbitrary archives. Those inputs are unsupported;
+rejection before execution is the intended behavior.
+
+The current compiler profile requests a 4 GiB virtual-address-space limit,
+45 seconds CPU, 60 seconds wall time, 32 processes/tasks, 64 open files,
+`GOMAXPROCS=2`, and `GOMEMLIMIT=256MiB`. `GOMEMLIMIT` is a soft Go garbage
+collection target, not a hard memory/RSS cap. The address-space cap is not a
+physical-memory limit. The remote sandbox compiler and Device Studio parent
+operation are separately owned resource scopes; there is no aggregate RSS
+claim. Local inference uses the separate typed Gateway/Ollama route and is not
+inside the compiler sandbox. No hosted fallback is admitted by the bounded
+local session.
+
+The compiler sandbox enforces write and network boundaries, but this profile
+does not establish OS-level read confinement. In particular, do not claim that
+only project files are readable or that arbitrary malicious binaries are
+safely contained. The supported executable is the fixed compiler, not user
+code. General import/archive isolation, full adversarial security review, and
+any future executable-content feature require separate owner-backed design and
+evidence.
 
 ## Cross-References
 

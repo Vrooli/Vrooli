@@ -63,3 +63,53 @@ model is insufficient when the normal job route still defaults to an older
 engine: capture the policy in the maintained owner and align CLI/UI defaults,
 examples and skills. Keep objective route/provenance tests separate from actual
 listening; a new default cannot guarantee every stochastic take's quality.
+
+
+The 2026-10-18 value-discovery investigation traced the original 1047-event
+conversation and found that render quality and customer understanding are separate
+problems. Preserve major workflow candidates before availability filtering: early
+qualification showed a revised agent miss attention while the baseline found it.
+More explicit eligibility is not by itself better storytelling. Compare plain
+scripts and actual proof before polish, and retain negative/tied trials. The six
+initial paired briefs and non-blind follow-up are under the aquila-value-launch
+effort's qualification/assessment.md; they do not establish repeatable superiority.
+
+The same transcript confirms both real Blender R4 and generated-still-motion R5.
+Keep the optional method distinction discoverable via broll.md and shots.json.
+The stronger whole-film R5 ratings do not certify each insert or mandate that
+medium. CDP again ignored requested DPR2 for video while screenshots retained it;
+probe actual encoded rasters before allowing detail crops.
+
+
+### Aquila follow-up: screen-recording craft, 2026-10-18
+
+The operator said the story was pretty good. The remaining complaint was missing
+wow in product footage: expand HTML then scroll it; concentrate verified file
+renderer variety into one edited sequence; show session grouping/customization/
+collapse instead of leaving the sidebar as a screenshot. The issue is action
+coverage and editing, not a request to reopen the approved story. The old rule
+"one clip per story scene" encouraged isolated demonstrations; revision33 replaces
+it with connected sequences and multiple source takes. Capture/review now require
+an explicit disposition for static product intervals and entry-only sequences.
+A pan over a still cannot substitute for a missing native workflow.
+
+The next In focus draft improved action density but trimmed past the message link,
+sidebar file preview and expansion. The operator liked the film, yet could no
+longer tell that the viewers opened from agent messages. Its Markdown sequence
+also scrolled too slowly across too little content. Preserve the first reveal
+that establishes a workflow relationship before compressing repeated travel.
+Judge reading pace by its purpose and actual content coverage, not motion alone.
+These are editorial judgments; neither a universal click sequence nor a fixed
+scroll-speed threshold follows from this feedback.
+
+### Screen presentation, 2026-10-21
+
+The operator found the remaining naked recording windows visually unfinished and
+asked for browser/device staging, including optional physical motion and device-
+only compositing. Device Studio's consumer handoff had already been added, but
+the skill lacked selection and review guidance. Screen-presentation.md now makes
+browser/app framing the desktop starting point, distinguishes photographic scenes
+from articulated devices, and requires actual alpha/profile proof for device-only
+output. Preserve workflow context and readable detail instead of treating a bezel
+or a moving device as an automatic quality pass. This feedback is a direction for
+future craft; it does not approve a new unseen film or every device-owner output.

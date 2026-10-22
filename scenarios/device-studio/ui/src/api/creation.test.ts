@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cancelGeometryCreation, findGeometryCreationOperation, getGeometryCorrection, getGeometryCreation, startGeometryCreation } from "./creation";
+import { cancelGeometryCreation, createGeometryCreationSession, findGeometryCreationOperation, getGeometryCorrection, getGeometryCreation, refineGeometryCreationSession, startGeometryCreation } from "./creation";
 
 const mocks = vi.hoisted(() => ({ fileURL: vi.fn((path: string) => `http://device.test/api/v1${path}`), getFile: vi.fn() }));
 vi.mock("./client", () => mocks);
@@ -31,6 +31,16 @@ describe("geometry creation API boundary", () => {
     vi.stubGlobal("fetch", fetchMock);
     await expect(cancelGeometryCreation(job)).resolves.toMatchObject({ state: "cancel_requested" });
     expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toEqual({ version: 7 });
+  });
+
+  it("forwards owner-confirmed parent approval only when the caller explicitly supplies it", async () => {
+    const session = { session_id: "session-1", state: "active", version: 1, children: [] };
+    const fetchMock = vi.fn().mockImplementation(() => new Response(JSON.stringify(session), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createGeometryCreationSession("p", { candidateId: "c", idempotencyKey: "k", brief: "display", envelopeMM: [80, 150, 12], referenceMediaIDs: ["m"], confirmLocalAI: true });
+    expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string).confirm_local_ai).toBe(true);
+    await refineGeometryCreationSession("session-1", { candidateId: "c2", idempotencyKey: "k2", brief: "display", envelopeMM: [80, 150, 12], referenceMediaIDs: ["m"], correctionSourceJobId: "job-1", correctionMode: "visual_refinement", correctionRecipeSha256: "a".repeat(64), correctionFeedback: "Narrow bezel", confirmScopeExpansion: false, confirmLocalAI: false });
+    expect(JSON.parse((fetchMock.mock.calls[1]?.[1] as RequestInit).body as string)).toMatchObject({ confirm_local_ai: false, confirm_scope_expansion: false });
   });
 
   it("reads an operation by its stable project-scoped idempotency key without submitting", async () => {

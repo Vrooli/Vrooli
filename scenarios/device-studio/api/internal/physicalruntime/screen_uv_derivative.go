@@ -12,6 +12,27 @@ import (
 // flipScreenUVV appends a private TEXCOORD_0 view for one explicitly selected
 // glTF primitive. It leaves all source BIN bytes and unrelated accessors intact.
 func flipScreenUVV(data []byte, nodeName string, primitiveIndex int) ([]byte, error) {
+	return transformScreenUV(data, nodeName, primitiveIndex, func(u, v float32) (float32, float32) { return u, 1 - v })
+}
+
+// rotateScreenUVQuarterTurn remaps only one screen primitive's private UV
+// accessor. It is used for the iPad landscape derivative after the body is
+// rotated around its screen normal; geometry, source images, and BIN bytes
+// remain untouched.
+func rotateScreenUVQuarterTurn(data []byte, nodeName string, primitiveIndex int) ([]byte, error) {
+	return transformScreenUV(data, nodeName, primitiveIndex, func(u, v float32) (float32, float32) { return v, 1 - u })
+}
+
+// rotateScreenUVQuarterTurnCounterClockwise is the inverse screen mapping for
+// a body turned clockwise around its screen normal.
+func rotateScreenUVQuarterTurnCounterClockwise(data []byte, nodeName string, primitiveIndex int) ([]byte, error) {
+	return transformScreenUV(data, nodeName, primitiveIndex, func(u, v float32) (float32, float32) { return 1 - v, u })
+}
+
+func transformScreenUV(data []byte, nodeName string, primitiveIndex int, remap func(float32, float32) (float32, float32)) ([]byte, error) {
+	if remap == nil {
+		return nil, errors.New("screen UV derivative requires a remap")
+	}
 	if len(data) < 28 || binary.LittleEndian.Uint32(data[:4]) != 0x46546c67 || binary.LittleEndian.Uint32(data[4:8]) != 2 || int(binary.LittleEndian.Uint32(data[8:12])) != len(data) {
 		return nil, errors.New("screen UV derivative requires a complete GLB 2.0")
 	}
@@ -128,9 +149,13 @@ func flipScreenUVV(data []byte, nodeName string, primitiveIndex int) ([]byte, er
 	}
 	newViewOffset := len(privateBIN)
 	privateBIN = append(privateBIN, binChunk[start:end]...)
-	for offset := newViewOffset + 4; offset < len(privateBIN); offset += 8 {
-		v := math.Float32frombits(binary.LittleEndian.Uint32(binChunk[start+offset-newViewOffset : start+offset-newViewOffset+4]))
-		binary.LittleEndian.PutUint32(privateBIN[offset:offset+4], math.Float32bits(1-v))
+	for offset := newViewOffset; offset < len(privateBIN); offset += 8 {
+		sourceOffset := start + offset - newViewOffset
+		u := math.Float32frombits(binary.LittleEndian.Uint32(binChunk[sourceOffset : sourceOffset+4]))
+		v := math.Float32frombits(binary.LittleEndian.Uint32(binChunk[sourceOffset+4 : sourceOffset+8]))
+		mappedU, mappedV := remap(u, v)
+		binary.LittleEndian.PutUint32(privateBIN[offset:offset+4], math.Float32bits(mappedU))
+		binary.LittleEndian.PutUint32(privateBIN[offset+4:offset+8], math.Float32bits(mappedV))
 	}
 	newView := map[string]any{"buffer": 0, "byteOffset": newViewOffset, "byteLength": count * 8, "target": 34962}
 	views = append(views, newView)

@@ -15,8 +15,10 @@ import (
 )
 
 type httpEventRepository struct {
-	events    map[string]d.Event
-	eventKeys map[string]string
+	events      map[string]d.Event
+	eventKeys   map[string]string
+	createErr   error
+	createCalls int
 }
 
 func (r *httpEventRepository) ListEvents(_ context.Context, start, end string) ([]d.Event, error) {
@@ -39,6 +41,10 @@ func (r *httpEventRepository) GetEventByIdempotencyKey(_ context.Context, key st
 	return r.GetEvent(context.Background(), r.eventKeys[key])
 }
 func (r *httpEventRepository) CreateEvent(_ context.Context, input d.CreateEventInput) (d.Event, error) {
+	r.createCalls++
+	if r.createErr != nil {
+		return d.Event{}, r.createErr
+	}
 	event := input.Event
 	event.ID, event.Revision = "event-http-1", 1
 	event.CreatedAt, event.UpdatedAt = time.Unix(1, 0), time.Unix(1, 0)
@@ -48,6 +54,28 @@ func (r *httpEventRepository) CreateEvent(_ context.Context, input d.CreateEvent
 	}
 	r.eventKeys[input.IdempotencyKey] = event.ID
 	return event, nil
+}
+
+func TestCalendarEventHTTPOwnerRequiredIsUnauthenticatedAndDoesNotInsert(t *testing.T) {
+	repository := &httpEventRepository{events: map[string]d.Event{}, eventKeys: map[string]string{}, createErr: d.ErrEventOwnerRequired{}}
+	router := mux.NewRouter()
+	mountEventRoutes(router, d.NewEventService(repository))
+	body := `{"title":"Synthetic trip","subject":"owner","availability":"busy","timezone":"America/New_York","all_day":true,"start_date":"2026-10-04","end_date_exclusive":"2026-10-07","idempotency_key":"synthetic-owner-required"}`
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/calendar/events", strings.NewReader(body)))
+	var envelope struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("owner rejection should use the typed error envelope: %v body=%s", err, response.Body.String())
+	}
+	if response.Code != http.StatusUnauthorized || envelope.Code != "unauthenticated" || envelope.Message != "verified calendar event owner required" {
+		t.Fatalf("owner rejection status=%d envelope=%#v", response.Code, envelope)
+	}
+	if repository.createCalls != 1 || len(repository.events) != 0 || len(repository.eventKeys) != 0 {
+		t.Fatalf("owner rejection must not insert an event: calls=%d events=%d keys=%d", repository.createCalls, len(repository.events), len(repository.eventKeys))
+	}
 }
 func (r *httpEventRepository) UpdateEvent(_ context.Context, input d.UpdateEventInput) (d.Event, error) {
 	current, ok := r.events[input.ID]

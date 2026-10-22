@@ -73,6 +73,18 @@ func (r *sqliteRepository) Submit(ctx context.Context, j Job) (out Job, created 
 		if !errors.Is(e, sql.ErrNoRows) {
 			return e
 		}
+		var aliasJobID, aliasFingerprint string
+		e = c.QueryRowContext(ctx, `SELECT job_id,input_fingerprint FROM render_job_idempotency_aliases WHERE idempotency_key=?`, j.IdempotencyKey).Scan(&aliasJobID, &aliasFingerprint)
+		if e == nil {
+			if aliasFingerprint != j.InputFingerprint {
+				return ErrIdempotencyConflict
+			}
+			out, e = loadJob(ctx, c, aliasJobID)
+			return e
+		}
+		if !errors.Is(e, sql.ErrNoRows) {
+			return e
+		}
 		if e = insertJob(ctx, c, j); e != nil {
 			return fmt.Errorf("insert render job: %w", e)
 		}
@@ -109,12 +121,51 @@ func (r *sqliteRepository) FindByIdempotencyKey(ctx context.Context, key string)
 	var id string
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM render_jobs WHERE idempotency_key=?", key).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Job{}, ErrNotFound
+		err = r.db.QueryRowContext(ctx, `SELECT job_id FROM render_job_idempotency_aliases WHERE idempotency_key=?`, key).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return Job{}, ErrNotFound
+		}
 	}
 	if err != nil {
 		return Job{}, err
 	}
 	return loadJob(ctx, r.db, id)
+}
+
+func (r *sqliteRepository) BindCacheIdempotencyAlias(ctx context.Context, key, jobID, fingerprint string, at time.Time) error {
+	return r.withImmediate(ctx, func(c *sql.Conn) error {
+		job, err := loadJob(ctx, c, jobID)
+		if err != nil {
+			return err
+		}
+		if job.State != Succeeded || job.InputFingerprint != fingerprint || job.Input.AccountingRequired || job.Input.WorkflowScopeID != "" {
+			return fmt.Errorf("%w: only an exact, succeeded, non-workflow render may back a cache alias", ErrInvalid)
+		}
+		var existingID string
+		err = c.QueryRowContext(ctx, `SELECT id FROM render_jobs WHERE idempotency_key=?`, key).Scan(&existingID)
+		if err == nil {
+			if existingID == jobID {
+				return nil
+			}
+			return ErrIdempotencyConflict
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		var existingJobID, existingFingerprint string
+		err = c.QueryRowContext(ctx, `SELECT job_id,input_fingerprint FROM render_job_idempotency_aliases WHERE idempotency_key=?`, key).Scan(&existingJobID, &existingFingerprint)
+		if err == nil {
+			if existingJobID == jobID && existingFingerprint == fingerprint {
+				return nil
+			}
+			return ErrIdempotencyConflict
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		_, err = c.ExecContext(ctx, `INSERT INTO render_job_idempotency_aliases(idempotency_key,job_id,input_fingerprint,created_at) VALUES(?,?,?,?)`, key, jobID, fingerprint, at.UTC().UnixNano())
+		return err
+	})
 }
 
 func (r *sqliteRepository) ListNonterminal(ctx context.Context) ([]Job, error) {

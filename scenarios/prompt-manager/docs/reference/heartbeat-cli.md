@@ -7,6 +7,7 @@ CLI commands for managing heartbeat configurations, execution, and member docume
 Heartbeat commands are subcommands of `prompt-manager team`. They manage:
 - Heartbeat configuration (schedule, enabled state)
 - Manual triggering and execution logs
+- Bounded per-member dispatch-attempt history
 - Member documents (RESPONSIBILITIES.md, HEARTBEAT.md)
 
 ---
@@ -64,153 +65,15 @@ Pause is separate from member heartbeat `enabled`. A paused team can still have 
 
 ## Heartbeat Configuration
 
-### Finite effort leader provisioning
+### Native delivery team commissioning
 
-The operator order is: create or resume a finite delivery team; register and
-verify `team:<team-id>` in Source Ledger; validate the team's operating
-contract; qualify the selected profile and owner route with a disposable team;
-provision the binding disabled; review the evidence and obtain separate
-execution approval; then enable only the approved finite team and admit its
-first run through team execution. Team metadata and a heartbeat binding never
-grant an effort approval.
+Prompt Manager does not have finite-leader bind, amend, retire, completion, reopen, or restart commands. Configure a delivery team through the existing team contract: `EffortRefs` identifies the effort, `Coordination.LeadAgentID` identifies its leader, the operating contract carries member and plan-of-record/source paths, and the leader member heartbeat selects its Agent Manager `ProfileKey`. Keep the team and heartbeat disabled during preparation.
 
-Create an unused heartbeat binding in disabled state through the canonical CLI:
+Before enablement, follow the reusable receiver-qualification procedure in the canonical [`large-effort-orchestration` skill](../../store/skills/packs/core/large-effort-orchestration/SKILL.md#61-commission-an-accurate-accessible-handoff) (§6.1). Qualify this effort's actual member/profile/owner route and selected sources at their repository-relative paths; record opened materials, coverage, hashes, and limits in that effort's canonical goal-home receipt. Do not copy another effort's source list or create a second source-reference store.
 
-```bash
-prompt-manager team heartbeat-bind-effort <team-id> <leader-id> --request-file binding.json
-prompt-manager team heartbeat <team-id> <leader-id> --json
-```
+The ordinary member heartbeat route (`team heartbeat-enable`, `team heartbeat-trigger`) creates and dispatches the task/run. For the configured finite delivery lead, Prompt Manager requires a valid team contract, declared leader, active member, matching profile, and exact current Agent Manager enrollment before creating a task or run. It adds the enrollment's non-withdrawn `TargetRevision` as a public, verified `orchestrator` WorkReference to the immutable CreateRun request; it does not derive verification from environment labels or accept a locally supplied revision. A missing, unavailable, or mismatched identity fails admission. If a prior run ID exists, PM preserves that exact owner obligation as uncertain until it can be verified and does not launch competing work. Active/parked verified owners are watched through the existing owner path; a verified terminal owner permits a fresh dispatch using current configuration. Finite non-lead members and ordinary standing/non-delivery heartbeats remain supported without orchestrator association. WorkReferences describe work; they do not grant authority.
 
-`binding.json` contains the exact configuration, without an RPC envelope. The
-`profileKey` must be an actually qualified Agent Manager route (for the current
-Prompt Manager judgment profile this is `prompt-manager/heartbeat-judgment`),
-not a display name or an unverified historical key:
-
-```json
-{
-  "schedule": "*/5 * * * *",
-  "profileKey": "<qualified-profile>",
-  "finiteLeader": {
-    "effortRef": "<exact-effort-ref>",
-    "acceptedRevision": "<exact-accepted-revision>",
-    "coordinatorPromptRef": "<coordinator-prompt-ref>",
-    "sourceRefs": ["<accepted-source-ref>"]
-  }
-}
-```
-
-Provisioning a new binding always sends `enabled:false`. `--update` changes an
-existing binding's policy and never sends `enabled`, so an active leader stays
-active and a disabled one stays disabled. With `--update` and no
-`--request-file`, `--checkin-mode parked|event`, `--checkin-poll <duration>` and
-`--checkin-backstop <duration>` change only the check-in policy of the current
-binding (see Orchestrator liveness in `docs/concepts/HEARTBEATS.md`); the flags
-also override the policy in a request file. The binding file is a single JSON
-object of at most 16 KiB with no unknown fields, including an activation flag.
-The command verifies the returned exact binding and an unchanged enabled state;
-an older server ignoring the new fields cannot be reported as successful
-provisioning. Neither command starts an
-agent or supplies an effort grant.
-
-### Amend an unused preparation
-
-An accepted-revision label and source references may change only through the guarded draft operation, before any task/run reservation. Ordinary `heartbeat-bind-effort --update` retains the immutable binding fence and is for scheduling/liveness policy changes.
-
-```bash
-prompt-manager team heartbeat-amend-effort <team-id> <leader-id> --request-file amendment.json --json
-```
-
-```json
-{
-  "expectedRevision": "<current-exact-revision>",
-  "binding": {
-    "effortRef": "<same-effort>",
-    "acceptedRevision": "<replacement-revision>",
-    "coordinatorPromptRef": "<replacement-prompt-ref>",
-    "sourceRefs": ["<replacement-source-ref>"]
-  },
-  "evidenceRef": "<retained-reviewed-amendment>"
-}
-```
-
-Copy the complete current binding (including keepAlive/checkin when present), then replace only its revision, coordinator prompt or source references. The operation requires both team and heartbeat disabled, the declared finite leader, no reservation/dispatch/execution/completion history, unchanged effort/profile/liveness policy, and the expected revision. Native validation and a retained receipt are required; the label is not proof of accepted content or authority to start work. A lost-response replay returns the existing receipt, while conflicting content refuses. The atomic heartbeat snapshot retains old/new bindings and verified actor evidence; idle pre-reservation state projects through that chain without mutating reads.
-
-New team creation stores `creationProof` only from shared verified request identity. A currently verified creator with `prompt-manager:write` may amend its draft without another operation approval. Interactive operation grants still enforce their current targets, even for that creator. Missing/legacy attribution does not establish creator authority. Other agents need a capable human or the reviewed `team-preparation` / `team.prepare` grant for `prompt-manager:team/<id>`; activation and dispatch remain separate. Heartbeat JSON exposes creation proof and amendment receipts for inspection. No supplied actor/session header or team member name establishes ownership. Presented operation grants or verified request-operation authorities enter a closed API allowlist: GetTeam/GetHeartbeat enforce the exact approved team target, and UpdateHeartbeat accepts only the guarded amendment. The exact GET /health and /api/v1/health routes also permit the CLI’s read-only bootstrap with prompt-manager:read; health mutations and other procedures or unknown/legacy paths are refused before handler effects. Bounded heartbeat inspection does not reconcile retained run state.
-
-For an existing attached session, request the bounded grant through the configured authenticated Agent Manager URL:
-
-```bash
-vrooli agent authorize <session-or-run> --policy team-preparation \
-  --target prompt-manager:team/<id> --approval-base https://<authenticated-agent-manager-host>
-```
-
-The owner reviews the concrete pending request in the existing consent UI. Expiry/revocation and session validity are checked by Agent Manager; the grant does not confer team activation, source acceptance, credentials or broader object access. Unregistered sessions must first use the native process/session enrollment path, not an invented identity token.
-
-Retire future finite dispatch while retaining the current run and reservation:
-
-```bash
-prompt-manager team heartbeat-retire-effort <team-id> <leader-id>
-```
-
-Retirement reads the current owner binding, preserves its references, disables
-scheduling and sets irreversible retirement. It does not cancel the run or claim
-effort completion. Ordinary `heartbeat-disable` remains a reversible scheduling
-pause. The heartbeat read retains `finiteLeaderState` and any owner-read error.
-Live adoption still requires qualified finite recurrence and purpose-bound
-coordinator authority; the initial single-run binding is not that qualification.
-
-Record the revision-checked completion receipt, or explicitly reopen a completed
-effort. For a dispatched owner run that ended without a completion receipt, use
-the explicit terminal-run restart operation:
-
-```bash
-prompt-manager team heartbeat-complete-effort <team-id> <leader-id> --request-file transition.json
-prompt-manager team heartbeat-reopen-effort <team-id> <leader-id> --request-file transition.json
-prompt-manager team heartbeat-restart-effort <team-id> <leader-id> --request-file transition.json
-```
-
-For a `keepAlive` orchestrator, restart is also the way out of the liveness
-relaunch cap (`relaunch-capped`); it resets the consecutive-relaunch count.
-
-`transition.json` is a single JSON object of at most 16 KiB with no unknown
-fields:
-
-```json
-{ "revision": "<exact-accepted-or-replacement-revision>", "evidenceRef": "<retained-owner-evidence>" }
-```
-
-Completion records an idempotent receipt only when `revision` equals the
-accepted binding revision, and permanently refuses later scheduled or manual
-starts until an explicit reopen. Reopen requires a replacement revision
-different from the completed one and retains the prior receipt in
-`finiteLeaderState.completionHistory`. Both commands read the exact binding
-first and send only `finiteEffortTransition`; they never combine the lifecycle
-operation with scheduling or configuration changes. Restart requires the exact
-owner run to be reread from Agent Manager and confirmed terminal; it preserves
-the prior task/run/evidence in `finiteLeaderState.restartHistory` and clears
-only the reusable reservation. It does not cancel an active run, replace an
-uncertain dispatch, or claim effort acceptance on its own.
-
-When an initial run admission loses its response, the owner retains the task
-reservation. A later reconciliation may replay the same idempotency key only
-after Agent Manager returns an authoritative zero-run result for that exact
-task; truncated, conflicting, unavailable, or nonzero results remain fenced.
-
-Focused CLI verification (2026-09-12): `go test -race ./teams -run
-'^TestFiniteLeaderCLI' -count=1 -timeout=60s`
-passes. The finite CLI tests cover disabled create/update, malformed and
-activation-bearing input rejection, mismatched owner responses, retirement with
-retained identity, explicit completion/reopen transition payloads that carry no
-configuration change, refusal of ambiguous transition input or an unbound member,
-and the real human/JSON read commands. No live configuration was provisioned by
-these tests.
-
-The CLI tests prove request validation and lifecycle payload shape only. Live
-qualification must additionally show the team, Source Ledger scope, PM
-heartbeat state, Agent Manager task/run, exact work reference and handoff or
-receipt. A terminal owner run is not accepted effort; use the revision-checked
-completion transition only after the owner evidence is retained. Leave
-recurrence and fresh-run recovery disabled until their separate gates pass.
+Use the existing Agent Manager effort enrollment and run identity as canonical state. A terminal run does not accept the effort, and the normal parked orchestrator/child-watch route remains the qualified continuation model. Event check-ins are proposed and unavailable in Prompt Manager.
 
 ### Effort supervisor heartbeat
 
@@ -331,6 +194,12 @@ prompt-manager team heartbeat-disable my-team agent-1
 
 Manually trigger a heartbeat execution.
 
+For a caller carrying an operation grant or request-operation authority, the exact
+member-trigger route checks the existing `run.create` operation on `agent-manager:*`
+with `agent-manager:write`. Team configuration uses its separate `team.manage`
+contract. The trigger still enters the existing caller, membership, pause and
+queue-deduplication checks; AUTH-01 retains its declared caller-proof mode.
+
 ```bash
 prompt-manager team heartbeat-trigger <team-id> <agent-id> [--json]
 ```
@@ -364,6 +233,23 @@ prompt-manager team heartbeat-logs my-team agent-1
 #   2026-02-01T04-00-00Z.log (completed)
 #   2026-01-31T22-00-00Z.log (failed)
 ```
+
+### prompt-manager team heartbeat-attempts
+
+Read a bounded newest-first page of dispatch attempts for exactly one team
+member. The default limit is 20; values from 1 through 200 are accepted. If
+the newest 1,000 event records do not exhaust the source, `total` is a lower
+bound, `totalExact` is false, and `hasMore` remains true. `--offset` pages the
+currently observed recent window; it does not continue through all retained
+history or guarantee a stable snapshot. JSON output retains the complete API
+response. An API or identity error is returned to the caller.
+
+```bash
+prompt-manager team heartbeat-attempts <team-id> <agent-id> [--limit 1..200] [--offset N] [--json]
+```
+
+Use `--json` for a machine-readable record set. This command does not trigger a
+heartbeat or change scheduling state.
 
 ---
 

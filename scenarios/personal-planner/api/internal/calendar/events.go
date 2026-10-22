@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/identity"
 )
 
 // Event is a native calendar entry. All-day dates are civil dates with an
@@ -59,6 +61,14 @@ type EventService interface {
 type eventService struct{ repo EventRepository }
 
 func NewEventService(repo EventRepository) EventService { return &eventService{repo: repo} }
+
+func eventOwnerSubject(ctx context.Context) string {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return principal.OwnerSubject()
+}
 
 func (s *eventService) List(ctx context.Context, start, end string) ([]Event, error) {
 	if !validCivilDate(start) || !validCivilDate(end) || end < start {
@@ -142,6 +152,10 @@ func validCivilDate(value string) bool {
 type ErrEventNotFound struct{ ID string }
 
 func (e ErrEventNotFound) Error() string { return fmt.Sprintf("calendar event %q not found", e.ID) }
+
+type ErrEventOwnerRequired struct{}
+
+func (ErrEventOwnerRequired) Error() string { return "verified calendar event owner required" }
 
 type ErrEventRevisionConflict struct{ Expected, Current int64 }
 

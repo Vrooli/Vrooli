@@ -3,26 +3,38 @@
 ## Purpose Of This Document
 
 This document records the performance contract and dated measurements. The app
-implements bounded photographic still/video workflows; physical rendering is
-being integrated. The observations below have different scopes and do not imply
+implements photographic and physical still/video workflows. The observations below have different scopes and do not imply
 release acceptance. The agreed current-host gates at the end supersede earlier
 notes that numerical targets were pending.
 
 Record measurable output and resource budgets without converting hardware inventory into latency promises.
 
-## Latest gate standing — 2026-10-20
+## Latest gate standing — 2026-10-21
 
 | Gate | Latest qualified observation | Standing |
 |---|---|---|
 | Controls ≤200ms | Four actual mobile editor tab clicks24.0–29.9ms through two animation frames | Navigation case passes; other editor controls open |
-| Warm preview ≤10s | Warm browser case10.5092s; later fresh-worker-cache browser case20.2384s; 960×540/64samples | Open; timing gate fails |
-| Still ≥2560 long edge ≤60s | Public native phone stills20.305742s and30.769544s | Exact phone cases pass |
-| Ten-second1080p3D ≤20min | Public static-screen phone, landscape30fps,1036.644515s | Exact case passes; full matrix open |
+| Warm preview ≤10s | Explicit warm worker/browser case7.4909s; 960×540/64samples, exactly one submission and no previous output | Exact warm case passes; cold failures retained below |
+| Still ≥2560 long edge ≤60s | Public native phone stills20.305742s and30.769544s; later PRIMARY family OptiX stills13.6–36.302s at2560×1440 | Exact measured GPU cases pass; CPU fallback is separate |
+| Ten-second1080p3D ≤20min | PRIMARY phone yaw16m53s at30fps and laptop lid12m55s at24fps, each1920×1080 with complete decode/PTS checks | Exact pair passes; no universal scene/profile SLA |
 
 The dated measurements below preserve the original chronology, including earlier
 “pending” observations. This table and the agreed gate definitions own current
-standing. Recording-texture native proof, portrait/rate matrix and other devices
-remain separate. Verified immutable-input reuse has passed source tests and is in the measured rebuilt workflow. This observation does not isolate its causal speedup.
+standing. The output-profile landscape/portrait and24/30 matrix has separate
+executed evidence at `goal/evidence/E2V/output-profiles/lease28/README.md`;
+these cases do not establish every scene's throughput. The PRIMARY motion pair
+is retained at `goal/evidence/E3/durable-demo-exports-20261021/` and the family
+stills at `goal/evidence/E4/family-native-review/primary-showcase-optix-rev3/`,
+`primary-showcase-optix-tablet-monitor-rev3/`, and `watch-corrected-v4/`.
+Verified immutable-input reuse has passed source tests and is in the measured
+rebuilt workflow. This observation does not isolate its causal speedup.
+
+The bundled CPU fallback exceeded the previous180-second still-worker budget
+in the actual private desktop journey. New CPU still manifests now permit a
+bounded600 seconds, while GPU manifests retain180 seconds and requested raster
+and samples stay fixed. This is a correctness repair, not a60-second CPU
+performance pass. The amended current-source packaged journey remains pending;
+see `goal/evidence/E7/desktop-private/offline-native-3d-still-20261021/`.
 
 The exact-input, test-only coordinator timing harness measured cold Submit3.746s
 and warm Submit2.424s, with Blender profile resolution3.060s/1.976s. It used the

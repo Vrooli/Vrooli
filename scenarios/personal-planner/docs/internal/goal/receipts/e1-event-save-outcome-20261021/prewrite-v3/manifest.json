@@ -1,0 +1,56 @@
+[
+  {
+    "path": "scenarios/personal-planner/api/handlers/calendar/events_http.go",
+    "observed_at": "2026-10-21T03:15:32.577546+00:00",
+    "bytes": 3898,
+    "sha256": "11e2c71439e43c7a2496e9cfd1c5884a8159e2d09952ea923c666fb31955f81a"
+  },
+  {
+    "path": "scenarios/personal-planner/api/handlers/calendar/events_http_test.go",
+    "observed_at": "2026-10-21T03:15:32.577770+00:00",
+    "bytes": 5698,
+    "sha256": "b7fe1658ae387d0901d1912f0ae3e64660445719f3d78fee35915a579e75980a"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/httpx/errors.go",
+    "observed_at": "2026-10-21T03:15:32.578025+00:00",
+    "bytes": 4118,
+    "sha256": "22c5f834026de2c1d66a52918c5231bc8bcf94826056c0c01daa506227fb2ef9"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/httpx/errors_test.go",
+    "observed_at": "2026-10-21T03:15:32.578191+00:00",
+    "bytes": 2124,
+    "sha256": "ead8cad1b923ae9e2f673a6fcb4a602a1b963a1947c76fd56dfd8b4a36d306fb"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/api/calendar.ts",
+    "observed_at": "2026-10-21T03:15:32.578420+00:00",
+    "bytes": 7411,
+    "sha256": "16a08942829a698db47e3f89cafbd58a1797d1da6a421b53edd4696e87bdc6dd"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/api/calendar.test.ts",
+    "observed_at": "2026-10-21T03:15:32.578597+00:00",
+    "bytes": 11500,
+    "sha256": "2bb6ad4331c68287db0238d1687788c41fe5c0fee4d6a709e73be6449f9e3464"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/components/CalendarMonth.tsx",
+    "observed_at": "2026-10-21T03:15:32.578783+00:00",
+    "bytes": 16690,
+    "sha256": "ab92d58eb2736b149bad3ea45dd182141f3436954c3438a004190be5ca571cb9"
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/components/CalendarMonth.test.tsx",
+    "observed_at": "2026-10-21T03:15:32.578950+00:00",
+    "bytes": 12607,
+    "sha256": "3cb94b2ebf67e917ba17ae49068a6b0b1149a4e50b20424640b52d8e75fdf668"
+  },
+  {
+    "path": "scenarios/personal-planner/bas/cases/calendar/uncertain-save-recovery.json",
+    "observed_at": "2026-10-21T03:15:32.579171+00:00",
+    "bytes": 7080,
+    "sha256": "7029347d89f4fddba481a9165ed7e4fcc9f3edf406224fce13559719443d0651"
+  }
+]

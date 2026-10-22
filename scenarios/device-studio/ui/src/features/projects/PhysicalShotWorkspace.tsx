@@ -5,7 +5,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { useMediaQuery } from "@vrooli/react-component-library/useMediaQuery/1.1.1";
 import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
 import { MediaReadiness, SourceMediaKind, type SourceMedia } from "@vrooli/proto-types/device-studio/v1/projects/projects_pb";
-import { CaptureArea, ComponentRevisionRefSchema, MotionMode, PhysicalMotionOutputBindingSchema, PhysicalMotionOutputProfile, PhysicalRenderBackend, PhysicalShotBindingSchema, PhysicalStillOutputProfile, PresentationAppearance, PresentationKind, RationalTimeSchema, ShotSnapshotSchema, VideoAudioPolicy, VideoEOFPolicy, VideoTimingSchema, type PhysicalShotBinding, type PhysicalShotPresetRevision, type VideoTiming } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
+import { CaptureArea, ComponentRevisionRefSchema, MotionMode, PhysicalCompatibilityStatus, PhysicalMotionOutputBindingSchema, PhysicalMotionOutputProfile, PhysicalRenderBackend, PhysicalShotBindingSchema, PhysicalStillOutputProfile, PresentationAppearance, PresentationKind, RationalTimeSchema, ShotSnapshotSchema, VideoAudioPolicy, VideoEOFPolicy, VideoTimingSchema, type PhysicalCompatibilityReport, type PhysicalShotBinding, type PhysicalShotPresetRevision, type VideoTiming } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
 import { QuatXYZWSchema, TRSSchema, Vec3Schema, type ArtifactRef } from "@vrooli/proto-types/device-studio/v1/physical/physical_pb";
 import type { MotionCandidate } from "@vrooli/proto-types/device-studio/v1/motions/motions_pb";
 import { EvidenceSchema, QualificationReviewSchema, type DeviceCandidate } from "@vrooli/proto-types/device-studio/v1/devices/devices_pb";
@@ -120,6 +120,7 @@ function physicalBindingFromPreset(preset: Awaited<ReturnType<typeof resolvePhys
     displayId: setup.displayId,
     deviceSupportId: setup.deviceSupportId,
     sceneSupportId: setup.sceneSupportId,
+    sceneSupportSlotId: setup.sceneSupportSlotId,
     cameraId: setup.cameraId,
     sceneSupportWorld: setup.sceneSupportWorld,
     supportPivotM: setup.supportPivotM,
@@ -487,6 +488,7 @@ export function PhysicalShotEditor({ projectId, shotId }: { projectId: string; s
   const [showOutput, setShowOutput] = useState(true);
   const [output, setOutput] = useState<FinalRenderOutput>();
   const [compiledRevision, setCompiledRevision] = useState<bigint>();
+  const [physicalCompatibility, setPhysicalCompatibility] = useState<PhysicalCompatibilityReport>();
   const [compileIssues, setCompileIssues] = useState<Array<{ fieldPath: string; summary: string; repair: string }>>([]);
   const [mobileStep, setMobileStep] = useState(0);
   const motionRevision = useQuery({
@@ -518,6 +520,7 @@ export function PhysicalShotEditor({ projectId, shotId }: { projectId: string; s
   useEffect(() => () => { if (sourceUrl) URL.revokeObjectURL(sourceUrl); }, [sourceUrl]);
   const compiled = useMutation({ mutationFn: async (revision: bigint) => shotsClient.compileShot({ shotId, revision }), onSuccess: async (result) => {
     const revision = result.compiled;
+    setPhysicalCompatibility(revision?.physicalCompatibility);
     if (revision?.renderEligible) { setCompiledRevision(revision.revision); setCompileIssues([]); }
     else { setCompiledRevision(undefined); setCompileIssues(revision?.issues ?? []); }
     await queryClient.invalidateQueries({ queryKey: ["shot", shotId] });
@@ -528,7 +531,7 @@ export function PhysicalShotEditor({ projectId, shotId }: { projectId: string; s
     const snapshot = Object.assign(create(ShotSnapshotSchema), head.snapshot, { physicalBinding: binding, presentation, videoTiming });
     return shotsClient.saveShot({ shotId, expectedRevision: baseRevision, name: name.trim(), snapshot });
   }, onSuccess: async (result) => {
-    if (result.revision) { setBaseRevision(result.revision.revision); setBinding(result.revision.snapshot?.physicalBinding ? copyBinding(result.revision.snapshot.physicalBinding) : binding); setCompiledRevision(undefined); setCompileIssues([]); }
+    if (result.revision) { setBaseRevision(result.revision.revision); setBinding(result.revision.snapshot?.physicalBinding ? copyBinding(result.revision.snapshot.physicalBinding) : binding); setCompiledRevision(undefined); setCompileIssues([]); setPhysicalCompatibility(undefined); }
     await queryClient.invalidateQueries({ queryKey: ["shot", shotId] });
     await queryClient.invalidateQueries({ queryKey: ["shot-revisions", shotId] });
     await queryClient.invalidateQueries({ queryKey: ["project-shots", projectId] });
@@ -667,6 +670,11 @@ export function PhysicalShotEditor({ projectId, shotId }: { projectId: string; s
         {historical && <div role="alert" className="physical-shot__conflict"><p>{t(strings.physical.staleRevision)}</p><Button variant="outline" onClick={() => void reloadLatest(false)}>{t(strings.physical.reloadLatest)}</Button><Button variant="outline" disabled={!changed} onClick={() => void reloadLatest(true)}>{t(strings.physical.reapplyDraft)}</Button></div>}
         {save.error && <div role="alert"><p>{conflict ? t(strings.physical.staleRevision) : errorMessage(save.error, t)}</p>{conflict && <Button variant="outline" onClick={() => void reloadLatest(true)}>{t(strings.physical.reapplyDraft)}</Button>}</div>}
         {compiled.error && <p role="alert">{errorMessage(compiled.error, t)}</p>}
+        {physicalCompatibility && <div className="physical-shot__issues" role={physicalCompatibility.status === PhysicalCompatibilityStatus.NEEDS_REVIEW ? "status" : physicalCompatibility.status === PhysicalCompatibilityStatus.INCOMPATIBLE ? "alert" : "status"}>
+          <p><strong>{t(strings.physical.compatibilityLabel, { status: physicalCompatibility.status === PhysicalCompatibilityStatus.COMPATIBLE ? t(strings.physical.compatibilityCompatible) : physicalCompatibility.status === PhysicalCompatibilityStatus.INCOMPATIBLE ? t(strings.physical.compatibilityIncompatible) : t(strings.physical.compatibilityNeedsReview) })}</strong></p>
+          {physicalCompatibility.status !== PhysicalCompatibilityStatus.COMPATIBLE && <p>{t(strings.physical.compatibilityNoFitClaim)}</p>}
+          {physicalCompatibility.reasons.map((reason, index) => <p key={`compatibility-${index}`}>{reason}</p>)}
+        </div>}
         {mobile && mobileStep < 3 && <div className="physical-shot__mobile-controls"><Button variant="outline" className="min-h-11" disabled={mobileStep === 0} onClick={() => setMobileStep((value) => Math.max(0, value - 1))}>{t(strings.physical.back)}</Button><Button className="studio-primary min-h-11" onClick={() => setMobileStep((value) => Math.min(3, value + 1))}>{t(strings.physical.continue)}</Button></div>}
         <div className={`physical-shot__actions${mobile && mobileStep !== 3 ? " physical-shot__mobile-hidden" : ""}`}>
           <Button variant="outline" className="min-h-11" disabled={!changed || !timingReady || presentationInvalid || historical || save.isPending} onClick={() => save.mutate()}>{save.isPending ? t(strings.physical.saving) : t(strings.physical.saveRevision)}</Button>

@@ -14,6 +14,7 @@ import (
 	"prompt-manager/internal/validation"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 )
 
 // GraphInvalidator allows triggering graph index invalidation.
@@ -225,6 +226,10 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.agentStore.Create(ctx, agent); err != nil {
+		if errors.Is(err, authn.ErrOperation) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if strings.Contains(err.Error(), "already exists") {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return

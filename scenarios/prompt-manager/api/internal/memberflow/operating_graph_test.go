@@ -273,13 +273,16 @@ func TestValidateOperatingModelsRejectsPlanOfRecordNotebookSurface(t *testing.T)
 
 func TestLoadAllTaxonomiesDiscoversPackagedTaxonomyJSON(t *testing.T) {
 	repoRoot := t.TempDir()
-	path := filepath.Join(repoRoot, "docs", "team-a", "taxonomies", "signal", "taxonomy.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir taxonomy dir: %v", err)
-	}
-	if err := os.WriteFile(path, []byte(`{"id":"team-a-signal","signalTypes":[{"id":"bug"}]}`), 0o644); err != nil {
-		t.Fatalf("write taxonomy: %v", err)
-	}
+	writeRepoFile(t, repoRoot, "docs/agent-system/team-plan-of-record.manifest.json", `{
+  "contract":{"kind":"team-plan-of-record","schema":"team-plan-of-record/v1"},
+  "sections":[{"id":"taxonomies","path":"taxonomies/","packageType":"taxonomy","requiredFiles":["taxonomy.json"]}]
+}`)
+	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json", `{
+  "contract":{"kind":"team-plan-of-record","schema":"team-plan-of-record/v1","base":"docs/agent-system/team-plan-of-record.manifest.json","team":"team-a"},
+  "sections":[{"id":"taxonomies","path":"taxonomies/","packages":[{"id":"signal","path":"signal/","packageType":"taxonomy","requiredFiles":["taxonomy.json"]}]}]
+}`)
+	writeRepoFile(t, repoRoot, "docs/team-a/taxonomies/signal/taxonomy.json", `{"id":"team-a-signal","signalTypes":[{"id":"bug"}]}`)
+	writeRepoFile(t, repoRoot, "docs/internal/history/probe/signal-taxonomy.json", `not a taxonomy and not a registry declaration`)
 
 	registry, err := LoadAllTaxonomies(repoRoot)
 	if err != nil {

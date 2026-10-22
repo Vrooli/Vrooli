@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "commerce",
-    "description": "Local use and normal Vrooli commerce. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Local use and normal Vrooli commerce. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },

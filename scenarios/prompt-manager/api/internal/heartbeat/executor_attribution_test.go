@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"prompt-manager/internal/store"
+	"prompt-manager/internal/teamconfig"
 )
 
 // TestExecute_PropagatesAttributionInCreateRunEnv asserts the spawner-side
@@ -23,11 +26,27 @@ import (
 // operator-direct (the CLI's fallback when the env var is absent).
 func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	teamStore, agentStore, _ := setupExecutorTestEnv(t)
-	if err := teamStore.Update(context.Background(), "team-1", &store.Team{EffortRefs: []string{"effort:test"}}); err != nil {
+	team, err := teamStore.Get(context.Background(), "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	team.EffortRefs = []string{"effort:test"}
+	team.Purpose = teamconfig.PurposeDelivery
+	team.PurposeSet = true
+	team.Lifetime = teamconfig.LifetimeFinite
+	team.LifetimeSet = true
+	team.Coordination.Pattern = teamconfig.CoordinationPatternLeaderLed
+	team.Coordination.LeadAgentID = "agent-1"
+	team.Coordination.ReportingMode = teamconfig.ReportingModeLeader
+	if err := teamStore.Update(context.Background(), "team-1", team); err != nil {
 		t.Fatalf("set team effort identity: %v", err)
+	}
+	if err := teamStore.SetHeartbeatConfig(context.Background(), "team-1", "agent-1", &store.HeartbeatConfig{TeamID: "team-1", AgentID: "agent-1", Schedule: "0 * * * *", Enabled: true, ProfileKey: "test-profile"}); err != nil {
+		t.Fatal(err)
 	}
 
 	mockClient := newMockAgentClient().
+		WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:test", TargetRevision: "revision-7"}).
 		WithCreateTaskResponse(&Task{ID: "task-100", Title: "test"}).
 		WithCreateRunResponse(&Run{ID: "run-200", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-200", Status: "RUN_STATUS_COMPLETE"})
@@ -38,7 +57,7 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	// Block on completion so this test doesn't race with the async waitForCompletion goroutine.
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
-	executor.OnComplete = func(_, _ string) { completeCalled.Done() }
+	executor.OnRunComplete = func(_, _, _ string) { completeCalled.Done() }
 
 	if _, err := executor.Execute(context.Background(), "team-1", "agent-1", "test-profile"); err != nil {
 		t.Fatalf("Execute: %v", err)
@@ -98,6 +117,13 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	if got := runReq.Environment[workloadInstanceEnv]; got == "" {
 		t.Fatal("workload instance is missing")
 	}
+	if len(runReq.WorkReferences) != 1 {
+		t.Fatalf("WorkReferences = %+v, want one canonical effort reference", runReq.WorkReferences)
+	}
+	work := runReq.WorkReferences[0]
+	if work.GetKind() != "effort" || work.GetId() != "effort:test" || work.GetRevision() != "revision-7" || work.GetRelationship() != "orchestrator" || !work.GetVerified() || work.GetVisibility() != eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC || work.GetState() != eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE {
+		t.Fatalf("WorkReference = %+v, want exact active public verified orchestrator enrollment", work)
+	}
 
 	// Drain the async-completion goroutine so t.TempDir cleanup doesn't race
 	// with config writes.
@@ -109,7 +135,54 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("OnComplete not called within 5s — async waitForCompletion stuck")
+		t.Fatal("run-scoped completion callback not called within 5s — async waitForCompletion stuck")
+	}
+}
+
+func TestOrchestratorWorkReferencesLeaveUnknownAndMismatchedIdentityUnlinked(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	team, err := teamStore.Get(context.Background(), "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	team.EffortRefs = []string{"effort:test"}
+	team.Purpose = teamconfig.PurposeDelivery
+	team.PurposeSet = true
+	team.Lifetime = teamconfig.LifetimeFinite
+	team.LifetimeSet = true
+	team.Coordination.Pattern = teamconfig.CoordinationPatternLeaderLed
+	team.Coordination.LeadAgentID = "agent-1"
+	team.Coordination.ReportingMode = teamconfig.ReportingModeLeader
+	if err := teamStore.Update(context.Background(), "team-1", team); err != nil {
+		t.Fatal(err)
+	}
+	client := newMockAgentClient().WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:test", TargetRevision: "revision-7"})
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
+	config := &store.HeartbeatConfig{ProfileKey: "leader-profile"}
+
+	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "leader-profile", config); err != nil || len(refs) != 1 {
+		t.Fatalf("valid leader enrollment refs=%+v err=%v, want one", refs, err)
+	}
+	team.Coordination.LeadAgentID = "someone-else"
+	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "leader-profile", config); err != nil || len(refs) != 0 {
+		t.Fatalf("non-lead member should remain an ordinary heartbeat: refs=%+v err=%v", refs, err)
+	}
+	team.Coordination.LeadAgentID = "agent-1"
+	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "other-profile", config); err == nil || len(refs) != 0 {
+		t.Fatalf("mismatched configured profile linked: %+v", refs)
+	}
+	client.effortEnrollment = &domainpb.EffortEnrollment{EffortRef: "effort:test", TargetRevision: "revision-7", Withdrawn: true}
+	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "leader-profile", config); err == nil || len(refs) != 0 {
+		t.Fatalf("withdrawn enrollment linked: %+v", refs)
+	}
+	client.effortEnrollment = nil
+	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "leader-profile", config); err == nil || len(refs) != 0 {
+		t.Fatalf("unavailable enrollment linked: %+v", refs)
+	}
+	team.Purpose = teamconfig.PurposeSupervision
+	team.EffortRefs = nil
+	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "leader-profile", config); err != nil || len(refs) != 0 {
+		t.Fatalf("non-delivery finite heartbeat should remain unassociated: refs=%+v err=%v", refs, err)
 	}
 }
 

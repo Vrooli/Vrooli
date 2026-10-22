@@ -4,14 +4,19 @@ package requestpolicy
 
 import (
 	"context"
+	stderrors "errors"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
+	actionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/actions/actions_v1connect"
+	agentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/agents/agents_v1connect"
 	aisearchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch/aisearch_v1connect"
 	discoveryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery/discovery_v1connect"
 	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
+	memberflowconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/memberflow/memberflow_v1connect"
 	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
 )
@@ -24,10 +29,10 @@ func IsBounded(ctx context.Context) bool {
 	return bounded || (present && p.Grant != nil)
 }
 
-// RequirePreparationRead preserves a caller's ordinary Prompt Manager read
-// capability when an unrelated request-scoped operation proof accompanies it.
-// A caller relying on a preparation grant or preparation operation still needs
-// the exact reviewed team.prepare target.
+// RequirePreparationRead preserves ordinary Prompt Manager reads for unbounded
+// callers and unrelated request-scoped proofs. Bounded team preparation may use
+// either its explicit team.prepare grant or an exact team.manage grant, since
+// reading the team is a prerequisite to that same team's authorized management.
 func RequirePreparationRead(ctx context.Context, teamID string) error {
 	if !IsBounded(ctx) {
 		return nil
@@ -39,7 +44,11 @@ func RequirePreparationRead(ctx context.Context, teamID string) error {
 			}
 		}
 	}
-	_, err := authn.RequireOperation(ctx, "prompt-manager:read", "team.prepare", "prompt-manager:team/"+teamID)
+	target := "prompt-manager:team/" + teamID
+	if _, err := authn.RequireOperation(ctx, "prompt-manager:read", "team.prepare", target); err == nil {
+		return nil
+	}
+	_, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", target)
 	return err
 }
 
@@ -52,6 +61,11 @@ func IsVerifiedIdentity(ctx context.Context) bool {
 	return present && p.IsVerified()
 }
 
+// ErrNoBoundedRouteContract means the closed ingress allowlist has no owner
+// contract for this method/path. An operation grant cannot make an undeclared
+// route eligible; add a reviewed route contract instead.
+var ErrNoBoundedRouteContract = stderrors.New("no bounded request contract is declared for this route; an operation grant cannot classify it")
+
 type routeContract uint8
 
 const (
@@ -59,6 +73,7 @@ const (
 	verifiedIdentityRoute
 	readCapabilityRoute
 	ownerAuthorizedRoute
+	runCreateAuthorizedRoute
 )
 
 type routeKey struct {
@@ -68,15 +83,40 @@ type routeKey struct {
 
 // boundedRouteContracts is the explicit ingress contract for requests carrying
 // a grant or request-scoped operation proof. Only routes with an existing
-// verified-identity or exact owner authorization contract are listed.
+// verified-identity, baseline-capability, exact owner authorization, or exact
+// run.create contract are listed.
 var boundedRouteContracts = map[routeKey]routeContract{
-	{http.MethodGet, "/health"}:                                                          verifiedIdentityRoute,
-	{http.MethodGet, "/api/v1/health"}:                                                   verifiedIdentityRoute,
-	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetHeartbeatProcedure}:            readCapabilityRoute,
-	{http.MethodPost, teamsconnect.TeamsServiceGetTeamProcedure}:                         readCapabilityRoute,
+	{http.MethodGet, "/health"}:                                                           verifiedIdentityRoute,
+	{http.MethodGet, "/api/v1/health"}:                                                    verifiedIdentityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetHeartbeatProcedure}:             readCapabilityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetHeartbeatInstructionsProcedure}: readCapabilityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceListHeartbeatsProcedure}:           readCapabilityRoute,
+	// GetTeam and GetRoles serve target-scoped preparation reads. Their handlers
+	// check baseline read or exact team.prepare/team.manage authority before
+	// returning data, so bounded callers must reach those owner checks.
+	{http.MethodPost, teamsconnect.TeamsServiceGetTeamProcedure}:                         ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceGetRolesProcedure}:                        ownerAuthorizedRoute,
+	{http.MethodPost, agentsconnect.AgentsServiceListAgentsProcedure}:                    readCapabilityRoute,
+	{http.MethodPost, agentsconnect.AgentsServiceGetAgentProcedure}:                      readCapabilityRoute,
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceListHeartbeatAttemptsProcedure}:   verifiedIdentityRoute,
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetTeamExecutionStatusProcedure}:  verifiedIdentityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetTaskBoardProcedure}:            verifiedIdentityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetTeamHeartbeatControlProcedure}: verifiedIdentityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetHandoffHistoryProcedure}:       verifiedIdentityRoute,
+	// Global heartbeat-control status is operational metadata. It exposes the
+	// current pause/policy snapshot; mutations keep their existing owner checks.
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetHeartbeatControlProcedure}:  verifiedIdentityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceListLogsProcedure}:             readCapabilityRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceGetLogProcedure}:               readCapabilityRoute,
+	{http.MethodPost, memberflowconnect.MemberflowServiceGetOperatingModelsProcedure}: verifiedIdentityRoute,
+	// Action discovery is an ordinary verified read, independent of unrelated grants.
+	{http.MethodPost, actionsconnect.ActionsServiceListActionsProcedure}:                 verifiedIdentityRoute,
+	{http.MethodPost, actionsconnect.ActionsServiceGetActionProcedure}:                   verifiedIdentityRoute,
 	{http.MethodPost, skillsconnect.SkillsServiceReadSkillsProcedure}:                    verifiedIdentityRoute,
+	{http.MethodPost, skillsconnect.SkillsServiceListSkillsProcedure}:                    verifiedIdentityRoute,
+	{http.MethodPost, skillsconnect.SkillsServiceGetSkillProcedure}:                      verifiedIdentityRoute,
+	{http.MethodPost, skillsconnect.SkillsServiceSyncSkillsProcedure}:                    verifiedIdentityRoute,
+	{http.MethodPost, skillsconnect.SkillsServiceRefreshProjectionProcedure}:             verifiedIdentityRoute,
 	{http.MethodPost, discoveryconnect.DiscoveryServiceDiscoverProcedure}:                verifiedIdentityRoute,
 	{http.MethodPost, aisearchconnect.AISearchServiceSearchSkillsProcedure}:              verifiedIdentityRoute,
 	{http.MethodPost, teamsconnect.TeamsServiceListKnowledgeProcedure}:                   verifiedIdentityRoute,
@@ -88,16 +128,56 @@ var boundedRouteContracts = map[routeKey]routeContract{
 
 	// These heartbeat mutations already enforce exact operation/target rules in
 	// their domain owner. No authority is inferred by this classifier.
-	{http.MethodPost, heartbeatconnect.HeartbeatServiceCreateHeartbeatProcedure}: ownerAuthorizedRoute,
-	{http.MethodPost, heartbeatconnect.HeartbeatServiceUpdateHeartbeatProcedure}: ownerAuthorizedRoute,
-	{http.MethodPost, heartbeatconnect.HeartbeatServiceDeleteHeartbeatProcedure}: ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceCreateHeartbeatProcedure}:          ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceUpdateHeartbeatProcedure}:          ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceDeleteHeartbeatProcedure}:          ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceSetHeartbeatInstructionsProcedure}: ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceClearTeamQueueRunningProcedure}:    ownerAuthorizedRoute,
+	// Manual member dispatch is explicitly governed by the existing run.create
+	// operation. The handler separately enforces CreateRun caller attribution.
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceTriggerHeartbeatProcedure}: runCreateAuthorizedRoute,
+	// Team creation is routed to FileTeamStore.Create, which enforces its exact
+	// team.manage operation and prompt-manager:team/<id> target when bounded.
+	{http.MethodPost, teamsconnect.TeamsServiceCreateTeamProcedure}: ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceUpdateTeamProcedure}: ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceSetRolesProcedure}:   ownerAuthorizedRoute,
+	// Agent creation is a distinct catalog operation, enforced by
+	// FileAgentStore.Create against prompt-manager:agent/<id>.
+	{http.MethodPost, agentsconnect.AgentsServiceCreateAgentProcedure}: ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceAddMemberProcedure}:     ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceUpdateMemberProcedure}:  ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceRemoveMemberProcedure}:  ownerAuthorizedRoute,
+	{http.MethodPost, teamsconnect.TeamsServiceSendMessageProcedure}:   verifiedIdentityRoute,
+	// Knowledge replacement has no reviewed operation-grant contract. Keep it
+	// closed for bounded callers; ordinary caller authorization is unchanged.
 }
 
 func contractForBoundedRoute(method, path string) routeContract {
 	if contract, ok := boundedRouteContracts[routeKey{method: method, path: path}]; ok {
 		return contract
 	}
+	if isLegacyHeartbeatInstructionsPath(path) {
+		switch method {
+		case http.MethodGet:
+			return readCapabilityRoute
+		case http.MethodPut:
+			return ownerAuthorizedRoute
+		}
+	}
 	return denyBoundedRoute
+}
+
+func isLegacyHeartbeatInstructionsPath(path string) bool {
+	switch {
+	case strings.HasPrefix(path, "/api/v1/"):
+		path = strings.TrimPrefix(path, "/api/v1")
+	case strings.HasPrefix(path, "/teams/"):
+	default:
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	return len(parts) == 5 && parts[0] == "teams" && parts[1] != "" &&
+		parts[2] == "members" && parts[3] != "" && parts[4] == "heartbeat-instructions"
 }
 
 // PreparationBoundary is deliberately a closed allowlist. The preparation reads
@@ -106,9 +186,12 @@ func contractForBoundedRoute(method, path string) routeContract {
 // grants. AddKnowledge and CloseKnowledge are exact attributed, append-only
 // bookkeeping writes; their owners continue validating attribution, team,
 // payload, closure reason and entry existence. Other knowledge mutations remain
-// closed here.
-// UpdateHeartbeat enforces its exact operation/target and rejects unreviewed
-// heartbeat mutations when bounded. Unknown APIs, legacy paths and future RPCs are refused
+// closed here, including UpdateKnowledge. Ordinary caller handling is unchanged;
+// no reviewed operation grant currently authorizes corpus replacement.
+// Heartbeat mutations enforce their exact team.manage operation/target before
+// writes when bounded. TriggerHeartbeat requires the existing agent-manager
+// run.create operation before the Prompt Manager handler may use
+// its internal dispatch path. Unknown APIs, legacy paths and future RPCs are refused
 // before handlers can mutate relations, schedule or dispatch work. The two exact
 // GET health routes also permit the CLI's read-only bootstrap. This does not
 // expand or certify the authentication of ordinary legacy callers.
@@ -129,9 +212,16 @@ func PreparationBoundary(next http.Handler) http.Handler {
 			allowed = err == nil
 		case ownerAuthorizedRoute:
 			allowed = true
+		case runCreateAuthorizedRoute:
+			_, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", "agent-manager:*")
+			allowed = err == nil
 		}
 		if !allowed {
-			err := connect.NewError(connect.CodePermissionDenied, authn.ErrOperation)
+			denial := authn.ErrOperation
+			if contract == denyBoundedRoute {
+				denial = ErrNoBoundedRouteContract
+			}
+			err := connect.NewError(connect.CodePermissionDenied, denial)
 			if errors.IsSupported(r) {
 				_ = errors.Write(w, r, err)
 			} else {

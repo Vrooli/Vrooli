@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -142,8 +143,8 @@ func TestCalibrationPersistsLinkedPlanToActualReadModel(t *testing.T) {
 		`CREATE TABLE manual_actuals (reported_minutes INTEGER, allocation_id TEXT, local_date TEXT)`,
 		`CREATE TABLE calendar_allocations (id TEXT PRIMARY KEY, duration_minutes INTEGER)`,
 		`CREATE TABLE estimation_bias (period TEXT PRIMARY KEY, avg_error_percent REAL, over_ratio REAL, under_ratio REAL, by_category_json TEXT, accuracy_trend_json TEXT, sample_size INTEGER, updated_at TEXT)`,
-		`INSERT INTO calendar_allocations(id, duration_minutes) VALUES ('allocation-1', 60), ('allocation-2', 30)`,
-		`INSERT INTO manual_actuals(reported_minutes, allocation_id, local_date) VALUES (90, 'allocation-1', '2026-09-19'), (15, 'allocation-2', '2026-09-19')`,
+		`INSERT INTO calendar_allocations(id, duration_minutes) VALUES ('allocation-1', 60), ('allocation-2', 60)`,
+		`INSERT INTO manual_actuals(reported_minutes, allocation_id, local_date) VALUES (30, 'allocation-1', '2026-09-18'), (30, 'allocation-1', '2026-09-20'), (90, 'allocation-2', '2026-09-19')`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatal(err)
@@ -154,15 +155,36 @@ func TestCalibrationPersistsLinkedPlanToActualReadModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.SampleSize != 2 || got.AvgErrorPercent != 0 || got.OverRatio != .5 || got.UnderRatio != .5 {
+	if got.SampleSize != 2 || got.AvgErrorPercent != 25 || got.OverRatio != .5 || got.UnderRatio != 0 {
 		t.Fatalf("unexpected calibration: %#v", got)
 	}
-	var stored float64
-	if err := db.QueryRow(`SELECT avg_error_percent FROM estimation_bias WHERE period='all_time'`).Scan(&stored); err != nil {
+	wantTrend := []float64{50, 0}
+	if len(got.AccuracyTrend) != len(wantTrend) {
+		t.Fatalf("unexpected per-allocation trend values: %#v", got.AccuracyTrend)
+	}
+	for i := range wantTrend {
+		if got.AccuracyTrend[i] != wantTrend[i] {
+			t.Fatalf("trend is not chronological: got %v, want %v", got.AccuracyTrend, wantTrend)
+		}
+	}
+	var storedAvg, storedOver, storedUnder float64
+	var storedCategory, storedTrend string
+	var storedUpdatedAt string
+	var storedSamples int64
+	if err := db.QueryRow(`SELECT avg_error_percent, over_ratio, under_ratio, by_category_json, accuracy_trend_json, sample_size, updated_at FROM estimation_bias WHERE period='all_time'`).Scan(&storedAvg, &storedOver, &storedUnder, &storedCategory, &storedTrend, &storedSamples, &storedUpdatedAt); err != nil {
 		t.Fatal(err)
 	}
-	if stored != got.AvgErrorPercent {
-		t.Fatalf("stored calibration %v does not match response %v", stored, got.AvgErrorPercent)
+	var decodedTrend []float64
+	if err := json.Unmarshal([]byte(storedTrend), &decodedTrend); err != nil {
+		t.Fatalf("decode persisted trend: %v", err)
+	}
+	if storedAvg != got.AvgErrorPercent || storedOver != got.OverRatio || storedUnder != got.UnderRatio || storedCategory != `{}` || len(got.ByCategory) != 0 || storedSamples != got.SampleSize || storedUpdatedAt != got.UpdatedAt || len(decodedTrend) != len(wantTrend) {
+		t.Fatalf("persisted calibration does not match response: avg=%v over=%v under=%v category=%s trend=%v samples=%v updated=%s response=%#v", storedAvg, storedOver, storedUnder, storedCategory, decodedTrend, storedSamples, storedUpdatedAt, got)
+	}
+	for i := range wantTrend {
+		if decodedTrend[i] != wantTrend[i] {
+			t.Fatalf("persisted trend is not chronological: got %v, want %v", decodedTrend, wantTrend)
+		}
 	}
 }
 
@@ -175,7 +197,8 @@ func TestGoalVariancesReadStoredDatesAndLabelPositiveAndNegativeDelta(t *testing
 	for _, statement := range []string{
 		`CREATE TABLE goals (id TEXT PRIMARY KEY, target_date TEXT, completed_date TEXT)`,
 		`CREATE TABLE milestones (goal_id TEXT, original_due_date TEXT, due_date TEXT, completed_date TEXT)`,
-		`INSERT INTO goals VALUES ('early','2026-09-20','2026-09-18'), ('over','2026-09-20','2026-09-23')`,
+		`INSERT INTO goals VALUES ('early','2026-09-20','2026-09-18'), ('over','2026-09-20','2026-09-23'), ('legacy','',''), ('unfinished','2026-11-30','')`,
+		`INSERT INTO milestones VALUES ('legacy','2026-09-20','2026-09-20','2026-09-22'), ('unfinished','2026-11-30','2026-11-30','2026-10-03'), ('unfinished','2026-11-30','2026-11-30','')`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatal(err)
@@ -185,8 +208,18 @@ func TestGoalVariancesReadStoredDatesAndLabelPositiveAndNegativeDelta(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[0].Label != "2 days early" || items[0].DeltaDays != -2 || items[1].Label != "3 days over" || items[1].DeltaDays != 3 {
+	byID := make(map[string]GoalVariance, len(items))
+	for _, item := range items {
+		byID[item.GoalID] = item
+	}
+	if len(items) != 3 || byID["early"].Label != "2 days early" || byID["early"].DeltaDays != -2 || byID["over"].Label != "3 days over" || byID["over"].DeltaDays != 3 {
 		t.Fatalf("unexpected goal variance read model: %#v", items)
+	}
+	if legacy := byID["legacy"]; legacy.TargetDate != "2026-09-20" || legacy.CompletedDate != "2026-09-22" || legacy.Label != "2 days over" || legacy.DeltaDays != 2 {
+		t.Fatalf("legacy milestone-date fallback was not preserved: %#v", legacy)
+	}
+	if _, ok := byID["unfinished"]; ok {
+		t.Fatalf("unfinished goal received variance from one completed milestone: %#v", byID["unfinished"])
 	}
 }
 

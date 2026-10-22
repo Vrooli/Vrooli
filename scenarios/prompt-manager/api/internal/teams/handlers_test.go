@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
@@ -891,6 +897,78 @@ func TestAddMember(t *testing.T) {
 	}
 }
 
+func TestBoundedMemberMutationsRequireExactTeamManagementTarget(t *testing.T) {
+	ctxForTarget := func(target string) context.Context {
+		return identity.WithPrincipal(context.Background(), identity.Principal{
+			Kind: identity.ActorAgent, Subject: "delivery-run", Verified: true,
+			Scopes: []string{"prompt-manager:read", "prompt-manager:write"},
+			Grant: &identity.OperationGrant{
+				ID: "reviewed-team-management", Policy: "team-management", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour),
+				Rules: []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{target}}},
+			},
+		})
+	}
+
+	for _, operation := range []string{"add", "update", "remove", "roles"} {
+		t.Run(operation, func(t *testing.T) {
+			h, teamStore, agentStore, relations := setupTestHandlers()
+			teamStore.teams["team-1"] = &store.Team{ID: "team-1", DisplayName: "Delivery"}
+			agentStore.agents["agent-1"] = &store.Agent{ID: "agent-1", DisplayName: "Worker", Status: store.AgentStatusActive}
+			if operation == "update" || operation == "remove" {
+				if err := relations.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive}); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			wrongTarget := ctxForTarget("prompt-manager:team/other")
+			var err error
+			switch operation {
+			case "add":
+				_, err = h.AddTeamMember(wrongTarget, "team-1", AddMemberRequest{AgentID: "agent-1"})
+			case "update":
+				status := store.MemberStatusInactive
+				_, err = h.UpdateTeamMember(wrongTarget, "team-1", "agent-1", UpdateMemberRequest{Status: &status})
+			case "remove":
+				err = h.RemoveTeamMember(wrongTarget, "team-1", "agent-1")
+			case "roles":
+				_, err = h.SetTeamRoles(wrongTarget, "team-1", SetRolesRequest{Roles: []RoleDTO{{ID: "lead", Name: "Lead"}}})
+			}
+			if !errors.Is(err, authn.ErrOperation) {
+				t.Fatalf("wrong target error=%v, want operation refusal", err)
+			}
+			member, lookupErr := relations.GetTeamMember(context.Background(), "team-1", "agent-1")
+			if operation == "add" && lookupErr == nil {
+				t.Fatal("refused add created a membership")
+			}
+			if (operation == "update" || operation == "remove") && (lookupErr != nil || member.Status != store.MemberStatusActive) {
+				t.Fatalf("refused %s changed membership: member=%#v err=%v", operation, member, lookupErr)
+			}
+			if operation == "roles" && teamStore.roles["team-1"] != nil {
+				t.Fatalf("refused role update changed stored roles: %+v", teamStore.roles["team-1"])
+			}
+
+			exactTarget := ctxForTarget("prompt-manager:team/team-1")
+			switch operation {
+			case "add":
+				_, err = h.AddTeamMember(exactTarget, "team-1", AddMemberRequest{AgentID: "agent-1"})
+			case "update":
+				status := store.MemberStatusInactive
+				_, err = h.UpdateTeamMember(exactTarget, "team-1", "agent-1", UpdateMemberRequest{Status: &status})
+			case "remove":
+				err = h.RemoveTeamMember(exactTarget, "team-1", "agent-1")
+			case "roles":
+				_, err = h.SetTeamRoles(exactTarget, "team-1", SetRolesRequest{Roles: []RoleDTO{{ID: "lead", Name: "Lead"}}})
+			}
+			if err != nil {
+				t.Fatalf("exact target %s failed: %v", operation, err)
+			}
+			if operation == "roles" && (teamStore.roles["team-1"] == nil || len(teamStore.roles["team-1"].Roles) != 1 || teamStore.roles["team-1"].Roles[0].ID != "lead") {
+				t.Fatalf("exact target role update did not persist: %+v", teamStore.roles["team-1"])
+			}
+		})
+	}
+}
+
 func TestAddMemberMissingAgentID(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
@@ -1461,6 +1539,87 @@ func TestSendTeamMessage(t *testing.T) {
 	}
 	if message.FromAgentID != "sender-1" || message.ToAgentID != "recipient-1" {
 		t.Errorf("Unexpected message payload: %+v", message)
+	}
+}
+
+func TestSendTeamMessageDirectRequiresExactRegisteredOwnerRunForVerifiedAgent(t *testing.T) {
+	cases := []struct {
+		name, teamID, senderID, callerRunID string
+		actor, verification                 string
+		principalOnly                       bool
+		lookup                              func(string, string) (string, bool)
+		wantErr                             bool
+	}{
+		{name: "exact registered member run", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(team, agent string) (string, bool) { return "run-1", team == "team-1" && agent == "sender-1" }},
+		{name: "another member cannot be claimed", teamID: "team-1", senderID: "sender-2", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(team, agent string) (string, bool) { return "", team == "team-1" && agent == "sender-1" }, wantErr: true},
+		{name: "same member in another team is refused", teamID: "team-2", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(string, string) (string, bool) { return "", false }, wantErr: true},
+		{name: "stale run is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "old-run", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(string, string) (string, bool) { return "current-run", true }, wantErr: true},
+		{name: "missing registry entry is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(string, string) (string, bool) { return "", false }, wantErr: true},
+		{name: "missing registry is refused for verified agent", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, wantErr: true},
+		{name: "unverified agent is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationAbsent, lookup: func(string, string) (string, bool) { return "run-1", true }, wantErr: true},
+		{name: "verified principal without run provenance is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", principalOnly: true, lookup: func(string, string) (string, bool) { return "run-1", true }, wantErr: true},
+		{name: "verified operator retains legacy behavior", teamID: "team-1", senderID: "sender-1", actor: provenance.ActorOperator, verification: provenance.VerificationVerified, wantErr: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h, teamStore, _, relations := setupTestHandlers()
+			teamStore.teams[tc.teamID] = &store.Team{ID: tc.teamID, DisplayName: "test"}
+			for _, member := range []string{"sender-1", "sender-2", "recipient-1"} {
+				_ = relations.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: tc.teamID, AgentID: member, Status: store.MemberStatusActive})
+			}
+			h.SetActiveRunIDLookup(tc.lookup)
+			ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: tc.actor, VerificationStatus: tc.verification, RunID: tc.callerRunID})
+			if tc.principalOnly {
+				ctx = identity.WithPrincipal(ctx, identity.Principal{Kind: identity.ActorAgent, Subject: tc.callerRunID, Verified: true})
+			}
+			_, err := h.SendTeamMessageDirect(ctx, tc.teamID, "recipient-1", SendTeamMessageRequest{FromAgentID: tc.senderID, Content: "status"})
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("SendTeamMessageDirect error=%v, wantErr=%v", err, tc.wantErr)
+			}
+			inbox, readErr := teamStore.GetInbox(context.Background(), tc.teamID, "recipient-1")
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			wantMessages := 0
+			if !tc.wantErr {
+				wantMessages = 1
+			}
+			if len(inbox.Messages) != wantMessages {
+				t.Fatalf("inbox messages=%d, want %d", len(inbox.Messages), wantMessages)
+			}
+		})
+	}
+}
+
+func TestSendTeamMessageHTTPRejectsUnboundAgentWithoutAppending(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+	teamStore.teams["team-1"] = &store.Team{ID: "team-1", DisplayName: "Test Team"}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "sender-1", Status: store.MemberStatusActive})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "recipient-1", Status: store.MemberStatusActive})
+	handlers.SetActiveRunIDLookup(func(teamID, agentID string) (string, bool) {
+		return "current-run", teamID == "team-1" && agentID == "sender-1"
+	})
+
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "stale-run",
+	})
+	body, err := json.Marshal(SendTeamMessageRequest{FromAgentID: "sender-1", Content: "status"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/members/recipient-1/messages", bytes.NewReader(body)).WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "recipient-1"})
+	w := httptest.NewRecorder()
+	handlers.SendTeamMessage(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s, want 403", w.Code, w.Body.String())
+	}
+	inbox, err := teamStore.GetInbox(context.Background(), "team-1", "recipient-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inbox.Messages) != 0 {
+		t.Fatalf("refused sender appended %d message(s)", len(inbox.Messages))
 	}
 }
 

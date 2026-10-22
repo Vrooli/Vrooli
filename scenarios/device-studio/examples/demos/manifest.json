@@ -58,6 +58,37 @@
       "origin": "frame 0 extracted without scaling from phone_recording",
       "rights": "authentic app-only frame; contains no simulated phone hardware or system chrome",
       "media_type": "image/png"
+    },
+    "vehicle_cabin_plate_v1": {
+      "path": "assets/vehicle-cabin-plate-v1.png",
+      "sha256": "2e1af8acfd9b11cf2506007959fabddf12d2b6ff398d1c8f14c60d863ce2d715",
+      "media_type": "image/png"
+    },
+    "vehicle_cabin_active_mask_v1": {
+      "path": "assets/vehicle-cabin-active-mask-v1.png",
+      "sha256": "5f4c525ffeb7058de690042be24e3f90dcbe73a9f13f885f730d14d4fd4cfa2b",
+      "media_type": "image/png"
+    },
+    "watch_synthetic_calibration": {
+      "path": "assets/watch-synthetic-12-48-diagnostic.png",
+      "sha256": "68e83ddbcd27a7f74dfd659018c79f7c1b4cf1d31e86f1bf703c2c9203bf97f4",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/watch-diagnostic/round-watch-diagnostic-400.png",
+      "rights": "Locally authored calibration graphic; explicitly synthetic, not app imagery.",
+      "media_type": "image/png"
+    },
+    "tablet_app": {
+      "path": "assets/tablet-portrait-projects-ui.png",
+      "sha256": "cf1a75656ccdb4e4d1d0cebc49f074a4c0c8a18b75531f0b8d1932e9f9221c3c",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/sceneview-research/ipad-app-source/current-projects-ui/f5da4931-3fe0-45bc-85c8-811d08f6b5b3/screenshot.png",
+      "rights": "Local Device Studio projects UI capture, 1536×2320; no browser/device chrome.",
+      "media_type": "image/png"
+    },
+    "monitor_app": {
+      "path": "assets/monitor-projects-ui.png",
+      "sha256": "b8be231b19577a0ab0b2cb328a1a57eda0b40468468246032716df4180c40f3a",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/native-runs/lease30-library-monitor-matching-app-source.png",
+      "rights": "Local Device Studio projects UI capture, 1696×700; no browser/device chrome.",
+      "media_type": "image/png"
     }
   },
   "examples": [
@@ -137,7 +168,9 @@
       "type": "candidate_showcase",
       "source_assets": [
         "phone_frame0",
-        "laptop_app"
+        "laptop_app",
+        "tablet_app",
+        "monitor_app"
       ],
       "qualification": "candidate-only; these ten exact public owner routes do not qualify eight device families and cannot close the library obligation before native review",
       "starter_ids": [
@@ -153,10 +186,10 @@
         "generic-vehicle-dashboard-android-auto-sim"
       ],
       "source_assignments": {
-        "ipad-screen-uv-oriented-180": "phone_frame0",
+        "ipad-screen-uv-oriented-180": "tablet_app",
         "generic-book-fold": "phone_frame0",
         "generic-round-watch-v2": "phone_frame0",
-        "monitor-screen-mapped-v2": "laptop_app",
+        "monitor-screen-mapped-v2": "monitor_app",
         "generic-television-concept-v3": "laptop_app",
         "generic-smart-display-concept-v4": "laptop_app",
         "generic-digital-frame-concept-v4-glassless": "laptop_app",
@@ -266,6 +299,15 @@
       "path": "assets/provenance/laptop-composite/source-revision-1.json",
       "sha256": "f2f7e3d3206f93ddad435b624fe25749ca9fdaef5286a8f7f18c0563a46e5680",
       "origin": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/source-revision-1.json"
+    },
+    {
+      "path": "assets/vehicle-cabin-v1-provenance.json",
+      "sha256": "bf1ce77f2334e2782cd371edabe61e3c6434bf1c1215a0dc1fa2f4014ed15a45"
+    },
+    {
+      "path": "assets/watch-synthetic-12-48-diagnostic.provenance.json",
+      "sha256": "003b3d69a81ed6b94278431455c539a9510405a532afc006b4bc2e99a4b24874",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/watch-diagnostic/round-watch-diagnostic-400.png"
     }
   ],
   "archived_source_manifests": [

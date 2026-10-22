@@ -1,0 +1,1319 @@
+{
+  "run": {
+    "run_id": "20261021-003312-ed22a0ca",
+    "target": "personal-planner",
+    "started_at": "2026-10-21T00:33:13Z",
+    "completed_at": "2026-10-21T00:33:40Z",
+    "status": "failed",
+    "git_sha": "52097258290d1bff0191319242d4948e214af9e3",
+    "git_branch": "agi",
+    "git_dirty": true,
+    "git_dirty_summary": "55 path(s) modified or untracked under the scenario",
+    "diagnostics": {
+      "console": true
+    },
+    "tree_digest": "td:4422f1f36e7fa5efe7e5fd92210e84b230a23fc694802430c15386bce626e42b",
+    "planned_phases": [
+      "contracts",
+      "api",
+      "unit",
+      "storage",
+      "experience",
+      "ui-health",
+      "proto"
+    ],
+    "phase_set_digest": "phase-set:35b6c017a558f9155dc21609c64fcfa3a9ce9dda01ca62e1068c846bb937fe43",
+    "descriptor_snapshot_schema_version": 2,
+    "descriptor_snapshot_digest": "ds:sha256:d4ccd065f71672761040831a5c14fbd75f204f376a377e97ffbee832219ad9de",
+    "descriptor_snapshot": {
+      "schema_version": 2,
+      "digest": "ds:sha256:d4ccd065f71672761040831a5c14fbd75f204f376a377e97ffbee832219ad9de",
+      "phases": [
+        {
+          "phase": "portability",
+          "display_name": "Portability",
+          "description": "Runs the deployability resolver against declared resource inputs and the observed host OS. Control-plane scope is intentionally excluded because this provider's contract is scenario/resource deployability-specific and does not expose control-plane validation.",
+          "provider": "scenario-dependency-analyzer",
+          "phase_class": "architecture",
+          "runtime_class": "execution",
+          "dimensions": [
+            "dependencies"
+          ],
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "none",
+            "provider_lifecycle": "none",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/portability/README.md",
+          "maturity_reference": "scenario-dependency-analyzer:portability@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:d6d4f1e55c8f75d3021104121e9ebfabe1e61e8005a0d54c1f528b5866b5ba14",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "structure",
+          "display_name": "Structure",
+          "description": "Validates scenario skeleton and lifecycle wiring through structure-health.",
+          "provider": "structure-health",
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "structure"
+          ],
+          "finding_source": "structure",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/structure/README.md",
+          "maturity_reference": "structure-health:structure@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:f25c72ab17c4262c00a9b3714e852c4af0184d195b0c8a57153edcf38a015d94",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "contracts",
+          "display_name": "Contracts",
+          "description": "Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health.",
+          "provider": "cli-health",
+          "order_hint": 1,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "contracts"
+          ],
+          "finding_source": "cli",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/contracts/README.md",
+          "maturity_reference": "cli-health:contracts@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:14b8d07165cf84fbba97ac1aa4db0458b07a750241982ce3ae75fdf506d4d950",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "code-facts",
+          "display_name": "Code Facts",
+          "description": "Validates target-aware code evidence and fact provenance.",
+          "provider": "code-facts",
+          "order_hint": 2,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "finding_source": "architecture",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/architecture/README.md",
+          "maturity_reference": "code-facts:code-facts@1.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:d71b5e4934de9b88a180723473b6a5ccbd71e3d387961cd2913879d445f80c0f",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "go-code-graph",
+          "display_name": "Go Code Graph",
+          "description": "Validates live Go graph extraction for declared targets.",
+          "provider": "go-code-graph",
+          "order_hint": 2,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "finding_source": "architecture",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/architecture/README.md",
+          "maturity_reference": "go-code-graph:go-code-graph@1.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:e0e6a3c65ee06d8ee078450fb0b94e71445cfbcb7ce5267be11587f3d8a55a0f",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "typescript-code-graph",
+          "display_name": "TypeScript Code Graph",
+          "description": "Validates live TypeScript graph extraction for declared targets.",
+          "provider": "typescript-code-graph",
+          "order_hint": 2,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "finding_source": "architecture",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/architecture/README.md",
+          "maturity_reference": "typescript-code-graph:typescript-code-graph@1.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:cbb482ddabc2b5e842f626d47f180e8ac5b0a2752b8fb534be977218e054e3a6",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "ui-health",
+          "display_name": "UI Health",
+          "description": "Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health.",
+          "provider": "ui-health",
+          "order_hint": 2,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "ui"
+          ],
+          "finding_source": "ui",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/ui-health/README.md",
+          "maturity_reference": "ui-health:ui-health@2.0.0",
+          "applicability_default": "applies",
+          "evidence_kinds": [
+            "screenshot",
+            "visual.diff",
+            "console",
+            "network",
+            "dom",
+            "trace",
+            "har"
+          ],
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:235129261f28fd999a8a79612f32111f858e6634612d61f6328581ca098a783d",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "api",
+          "display_name": "API Health",
+          "description": "Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health.",
+          "provider": "api-health",
+          "order_hint": 3,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "contracts"
+          ],
+          "finding_source": "standards",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/api/README.md",
+          "maturity_reference": "api-health:api@0.1.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:549da4208259a071a7730e02b59dbcd0370fc2324650e3536f58aea8ea7fd0d1",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "architecture",
+          "display_name": "Architecture",
+          "description": "Validates structural cohesion through architecture-cartographer.",
+          "provider": "architecture-cartographer",
+          "order_hint": 5,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "structure",
+            "cycles"
+          ],
+          "finding_source": "architecture",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "high_confidence_gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/architecture/README.md",
+          "maturity_reference": "architecture-cartographer:architecture@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:976ee346a7f6961f9e5c021fcd0bd6012a5f96cbb55f4e3df1c24711eb9f8fb2",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "dependencies",
+          "display_name": "Dependencies",
+          "description": "Validates dependency readiness, governance, runtime status, release-age policy, and graph drift.",
+          "provider": "scenario-dependency-analyzer",
+          "order_hint": 6,
+          "phase_class": "architecture",
+          "runtime_class": "execution",
+          "dimensions": [
+            "dependency-accuracy"
+          ],
+          "finding_source": "dependency",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/dependencies/README.md",
+          "maturity_reference": "scenario-dependency-analyzer:dependencies@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.all_matched",
+              "applicability.host_os_matched"
+            ],
+            "reasons": [
+              "all applicability predicates matched",
+              "host OS matched linux"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:72af91bbb701d707121bee06976e8d327fd782c61da3889345446fe98b06be8e",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "quality",
+          "display_name": "Quality",
+          "description": "Validates static quality contracts, lint and type policy, and strict config through quality-health.",
+          "provider": "quality-health",
+          "order_hint": 7,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "standards"
+          ],
+          "finding_source": "standards",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/quality/README.md",
+          "maturity_reference": "quality-health:quality@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:44b5968c1fb806095e1010c87171a8cb51f8c38636b225820c0ffaeb02ad450a",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "docs",
+          "display_name": "Documentation",
+          "description": "Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory.",
+          "provider": "knowledge-observatory",
+          "order_hint": 8,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "docs"
+          ],
+          "finding_source": "docs",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/docs/README.md",
+          "maturity_reference": "knowledge-observatory:docs@1.1.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:d6646e76ab84f0962007393e15fa7338aebaeec78c03e68bf312c175c295c0b2",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "soak",
+          "display_name": "Long-form dictation soak",
+          "description": "Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact.",
+          "provider": "audio-tools",
+          "order_hint": 8,
+          "phase_class": "capability",
+          "runtime_class": "execution",
+          "dimensions": [
+            "performance",
+            "tests"
+          ],
+          "finding_source": "coverage",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/audio-tools/docs/test-genie/soak/README.md",
+          "maturity_reference": "audio-tools:soak@1.0.0",
+          "applicability_default": "not_applicable",
+          "evidence_kinds": [
+            "qualification",
+            "browser-product-path"
+          ],
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.file_missing"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target file bas/fixtures/dictation-reference.wav is absent"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:42da1ced113e28635eee2390b8b8baf96794391c34dc6a479f02a8adcc559b62",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "performance",
+          "display_name": "Performance",
+          "description": "Validates API/UI build performance and Lighthouse budgets through performance-health.",
+          "provider": "performance-health",
+          "order_hint": 9,
+          "phase_class": "runtime",
+          "runtime_class": "execution",
+          "dimensions": [
+            "performance"
+          ],
+          "finding_source": "unspecified",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/performance/README.md",
+          "maturity_reference": "performance-health:performance@2.0.0",
+          "applicability_default": "applies",
+          "evidence_kinds": [
+            "command.output",
+            "findings.report",
+            "trace"
+          ],
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:2e24835a24f2d7bab7ac8c20d39a8402d0a08bc5bce09cd5a3e902a998c0319c",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "unit",
+          "display_name": "Unit",
+          "description": "Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health.",
+          "provider": "unit-health",
+          "order_hint": 10,
+          "phase_class": "runtime",
+          "runtime_class": "execution",
+          "dimensions": [
+            "tests",
+            "coverage"
+          ],
+          "finding_source": "coverage",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/unit/README.md",
+          "maturity_reference": "unit-health:unit@2.0.0",
+          "applicability_default": "applies",
+          "evidence_kinds": [
+            "command.output",
+            "coverage.report",
+            "findings.report"
+          ],
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:3898248047bee0953c8f479bf6ebf6649e03d55bd2e133e6be34977adb112482",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "storage",
+          "display_name": "Storage",
+          "description": "Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager.",
+          "provider": "storage-manager",
+          "order_hint": 11,
+          "phase_class": "architecture",
+          "runtime_class": "lifecycle",
+          "dimensions": [
+            "storage"
+          ],
+          "finding_source": "storage",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/storage/README.md",
+          "maturity_reference": "storage-manager:storage@2.1.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:7be423fc2b573adeb69a5bc693373501451e1bf377666140bc3602b7d4ad9fea",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "workflow",
+          "display_name": "Workflow",
+          "description": "Validates BAS workflow assets and safe execution through workflow-health.",
+          "provider": "workflow-health",
+          "order_hint": 12,
+          "phase_class": "runtime",
+          "runtime_class": "execution",
+          "dimensions": [
+            "visual"
+          ],
+          "finding_source": "workflow",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/workflow/README.md",
+          "maturity_reference": "workflow-health:workflow@2.0.0",
+          "applicability_default": "applies",
+          "evidence_kinds": [
+            "workflow.video",
+            "screenshot",
+            "trace",
+            "har",
+            "console",
+            "network"
+          ],
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:76ddf99b99abc84863ba0edc852194d677460dcfda04ecea92eff15a04c50f89",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "business",
+          "display_name": "Business",
+          "description": "Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health.",
+          "provider": "business-health",
+          "order_hint": 13,
+          "phase_class": "runtime",
+          "runtime_class": "execution",
+          "dimensions": [
+            "business"
+          ],
+          "finding_source": "business",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/business/README.md",
+          "maturity_reference": "business-health:business@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:115fb183d018b57c89279651141204e0fa1e29e6f969c7904dfcb205fcea8d48",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "channel-conformance",
+          "display_name": "Channel Conformance",
+          "description": "Runs the shared seven-case adapter contract for every registered Switchboard channel.",
+          "provider": "switchboard",
+          "order_hint": 13,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "finding_source": "standards",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/switchboard/docs/internal/PROBLEMS.md",
+          "maturity_reference": "switchboard:channel-conformance@1.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:8db6c1ad322416a74e9a468b3cbf1764df48558a0f66cd7de9489ad92a19bdc5",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "experience",
+          "display_name": "Experience",
+          "description": "Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.",
+          "provider": "experience-manager",
+          "order_hint": 14,
+          "phase_class": "quality",
+          "runtime_class": "execution",
+          "dimensions": [
+            "ui"
+          ],
+          "finding_source": "ui",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/experience/README.md",
+          "maturity_reference": "experience-manager:experience@1.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.any_matched",
+              "applicability.file_exists"
+            ],
+            "reasons": [
+              "at least one applicability predicate matched",
+              "target file experience/index.json exists"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:0592335fb99be9030643b00a526fbc8acb0415df036bac81a7a0d533cbc94ea4",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "tidiness",
+          "display_name": "Tidiness",
+          "description": "Validates file and function quality checks through tidiness-manager.",
+          "provider": "tidiness-manager",
+          "order_hint": 14,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "dimensions": [
+            "tidiness"
+          ],
+          "finding_source": "tidiness",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/tidiness/README.md",
+          "maturity_reference": "tidiness-manager:tidiness@2.0.0",
+          "applicability_default": "applies",
+          "evidence_kinds": [
+            "findings.report"
+          ],
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:a33285aa5171dbf8b580fd594732ee9618432a73bfb39f8005eca56db6a06b56",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "security",
+          "display_name": "Security",
+          "description": "Validates scenarios and the control plane for secrets, Go SAST, Go vulnerability data, and JavaScript dependency risk through one path-first Security Health scanner pipeline.",
+          "provider": "security-health",
+          "order_hint": 15,
+          "phase_class": "runtime",
+          "runtime_class": "execution",
+          "dimensions": [
+            "security"
+          ],
+          "finding_source": "security",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/security/README.md",
+          "maturity_reference": "security-health:security@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:f31ba8fcb64659d418b57a9590083ccad2aa9a1b28ed1550fa6cf3922dcbdada",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "measures",
+          "display_name": "Measures",
+          "description": "Validates measures coverage and per-measure tiering through measures-health.",
+          "provider": "measures-health",
+          "order_hint": 16,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "dimensions": [
+            "measures"
+          ],
+          "finding_source": "measures",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/measures/README.md",
+          "maturity_reference": "measures-health:measures@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:61d6ab04c8a7f0b6ee4182aaca9311325830557d217e18559e68afd41ade8b75",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "programs",
+          "display_name": "Programs",
+          "description": "Validates declared program contracts, sources, and fixture evidence.",
+          "provider": "program-runtime",
+          "order_hint": 17,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "finding_source": "programs",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "advisory",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/programs/README.md",
+          "maturity_reference": "program-runtime:programs@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:9ef7305fca4fbf9004a4f5705f76a0f414baa7a9e7ff2180266ea2498077673a",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "proto",
+          "display_name": "Proto",
+          "description": "Validates proto contracts through proto-health.",
+          "provider": "proto-health",
+          "order_hint": 17,
+          "phase_class": "architecture",
+          "runtime_class": "static",
+          "dimensions": [
+            "proto-health"
+          ],
+          "finding_source": "proto",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/proto/README.md",
+          "maturity_reference": "proto-health:proto@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ],
+            "planned": true
+          },
+          "comparison_fingerprint": "pcf:sha256:a0bd63074dd86dd4ee6b7d9830ea8299e48ade23fee0ce82f1d6e36d9cd613f8",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "ai-conformance",
+          "display_name": "AI Conformance",
+          "description": "Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness.",
+          "provider": "ai-gateway",
+          "order_hint": 18,
+          "phase_class": "quality",
+          "runtime_class": "execution",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/ai-conformance/README.md",
+          "maturity_reference": "ai-gateway:ai-conformance@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.target_kind_mismatched",
+              "applicability.service_capability_absent",
+              "applicability.service_capability_absent"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target kind scenario did not match project",
+              "target does not declare service capability ai",
+              "target does not declare service capability ai-search"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:8d89e4f189b94db6426ab581fd72525cfd3e7fbddd4d58bfb3fcd68f249ccb54",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "branding",
+          "display_name": "Branding",
+          "description": "Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager.",
+          "provider": "brand-manager",
+          "order_hint": 18,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "dimensions": [
+            "branding"
+          ],
+          "finding_source": "branding",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/branding/README.md",
+          "maturity_reference": "brand-manager:branding@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:ab0d71f4aa25def4de731cb2be966ca9efaaeea5910090c71cf866a19af31c11",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "skill-set",
+          "display_name": "Skill Set",
+          "description": "Validates scenario skill declarations and their reachable sources.",
+          "provider": "prompt-manager",
+          "order_hint": 18,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "finding_source": "skills",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "best_effort",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "advisory",
+            "unavailable": "skip_without_failing"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/skill-set/README.md",
+          "maturity_reference": "prompt-manager:skill-set@2.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:0b9f52612f5959a3195c98845394c2c300e70fef77b13bd57bcc7a2d70b224ce",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "monetization-conformance",
+          "display_name": "Monetization Conformance",
+          "description": "Validates monetization trust boundaries, declarations, and local metering posture.",
+          "provider": "landing-page-business-suite",
+          "order_hint": 19,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/monetization-conformance/README.md",
+          "maturity_reference": "landing-page-business-suite:monetization-conformance@1.2.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.file_missing",
+              "applicability.path_glob_unmatched",
+              "applicability.path_glob_unmatched",
+              "applicability.path_glob_unmatched",
+              "applicability.scenario_dependency_absent"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target file .vrooli/monetization.json is absent",
+              "target path glob api/middleware/entitlement.go matched no files",
+              "target path glob api/services/entitlement/*.go matched no files",
+              "target path glob api/handlers/entitlement/*.go matched no files",
+              "target lacks scenario dependency landing-page-business-suite"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:7bc99a34b5344244fd67cdb768d689f56fac406e88f622c83b725d2e4c243f4c",
+          "comparison_mode": "additive"
+        },
+        {
+          "phase": "search",
+          "display_name": "Search",
+          "description": "Validates search-enabled scenarios through Search Hub's search maturity contract.",
+          "provider": "search-hub",
+          "order_hint": 19,
+          "phase_class": "quality",
+          "runtime_class": "static",
+          "dimensions": [
+            "operational-targets"
+          ],
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/search/README.md",
+          "maturity_reference": "search-hub:search@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.service_capability_absent",
+              "applicability.service_capability_absent"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target does not declare service capability search",
+              "target does not declare service capability ai-search"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:6fd6fc257b5e23d25d602bd63aa39a197dcae70668c0d31f15a4bfe1396dd40a",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "provider-conformance",
+          "display_name": "Provider Conformance",
+          "description": "Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance.",
+          "provider": "test-genie",
+          "order_hint": 20,
+          "phase_class": "provider-contract",
+          "runtime_class": "execution",
+          "dimensions": [
+            "operational-targets"
+          ],
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "check_only",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/provider-conformance/README.md",
+          "maturity_reference": "test-genie:provider-conformance@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.file_missing"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target file .vrooli/test-genie.json is absent"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:3cbd194f81ea9b7d0296a6ec09f608d6f9c550ddb9dc39b4d5795d6949352919",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "component-tests",
+          "display_name": "Component Tests",
+          "description": "Runs version-pinned React component and hook contracts through the React Component Library provider.",
+          "provider": "react-component-library",
+          "order_hint": 21,
+          "phase_class": "capability",
+          "runtime_class": "execution",
+          "dimensions": [
+            "tests"
+          ],
+          "finding_source": "coverage",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/component-tests/README.md",
+          "maturity_reference": "react-component-library:component-tests@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.path_glob_unmatched",
+              "applicability.path_glob_unmatched",
+              "applicability.path_glob_unmatched",
+              "applicability.path_glob_unmatched",
+              "applicability.path_glob_unmatched"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target path glob library/components/*/component.json matched no files",
+              "target path glob library/hooks/*/component.json matched no files",
+              "target path glob library/services/*/component.json matched no files",
+              "target path glob library/primitives/*/component.json matched no files",
+              "target path glob library/foundations/*/component.json matched no files"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:cd859984e5a2ac9827ea6f0a765554cd6b2d8cdacd3dccfc90682e6eb4b92b5d",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "agent-conformance",
+          "display_name": "Agent Conformance",
+          "description": "Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles.",
+          "provider": "agent-manager",
+          "order_hint": 24,
+          "phase_class": "quality",
+          "runtime_class": "execution",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/agent-conformance/README.md",
+          "maturity_reference": "agent-manager:agent-conformance@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.scenario_dependency_absent",
+              "applicability.path_glob_unmatched"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target lacks scenario dependency agent-manager",
+              "target path glob .vrooli/agent-manager/*.json matched no files"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:ad42d5696a13fd2d25ed5f62018158621c56fc4388ed64135dfe946aaa8154b2",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "templates",
+          "display_name": "Templates",
+          "description": "Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager.",
+          "provider": "template-manager",
+          "order_hint": 24,
+          "phase_class": "capability",
+          "runtime_class": "static",
+          "dimensions": [
+            "operational-targets"
+          ],
+          "policy": {
+            "selection": "comprehensive_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "advisory",
+            "unavailable": "advisory"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/templates/README.md",
+          "maturity_reference": "template-manager:templates@1.0.0",
+          "applicability_default": "applies",
+          "applicability": {
+            "status": "applies",
+            "reason_codes": [
+              "applicability.default_applies"
+            ],
+            "reasons": [
+              "applicability default is applies"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:2c208c016b782e412a90a9655cfc73dd9624519abc0ef1b3252906210556da2f",
+          "comparison_mode": "changed-unreviewed"
+        },
+        {
+          "phase": "event-capture-conformance",
+          "display_name": "Event Capture Conformance",
+          "description": "Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot.",
+          "provider": "vrooli-events",
+          "order_hint": 25,
+          "phase_class": "provider-contract",
+          "runtime_class": "static",
+          "dimensions": [
+            "contracts"
+          ],
+          "finding_source": "architecture",
+          "policy": {
+            "selection": "default_when_applicable",
+            "provider_readiness": "required_when_applicable",
+            "provider_lifecycle": "start_if_needed",
+            "freshness": "require_live_contract",
+            "result_gating": "gating",
+            "unavailable": "fail"
+          },
+          "docs_path": "scenarios/test-genie/docs/phases/event-capture-conformance/README.md",
+          "maturity_reference": "vrooli-events:event-capture-conformance@2.0.0",
+          "applicability_default": "not_applicable",
+          "applicability": {
+            "status": "not_applicable",
+            "reason_codes": [
+              "applicability.default_not_applicable",
+              "applicability.path_glob_unmatched"
+            ],
+            "reasons": [
+              "applicability default is not_applicable",
+              "target path glob .vrooli/vrooli-events/*.json matched no files"
+            ]
+          },
+          "comparison_fingerprint": "pcf:sha256:af3b8db6d1f92904c14d4d72666d8906380e80ebe7c44b32ce8298b745fc7e38",
+          "comparison_mode": "changed-unreviewed"
+        }
+      ]
+    },
+    "evidence_tier": "degraded",
+    "source_scope": "scenario:personal-planner",
+    "target_ref": {
+      "kind": "VALIDATION_TARGET_KIND_SCENARIO",
+      "id": "personal-planner"
+    }
+  },
+  "terminal_snapshot_schema_version": 1
+}

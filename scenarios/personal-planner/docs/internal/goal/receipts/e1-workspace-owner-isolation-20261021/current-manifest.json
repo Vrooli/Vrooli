@@ -1,0 +1,47 @@
+{
+  "captured_at": "2026-10-21T00:46:31.052922+00:00",
+  "runtime_net_lines": 80,
+  "test_net_lines": 175,
+  "files": [
+    {
+      "path": "scenarios/personal-planner/api/internal/workspace/schema.sql",
+      "baseline_sha256": "e9208347eb5a6887470878e79f8698a8df547881aa20623f54d184620ee126c8",
+      "baseline_absent": false,
+      "current_sha256": "37ba40a468b6279370ade641b18c0281f6f4101a477664c8f8b8ee9475f9223c",
+      "current_bytes": 2400,
+      "before_lines": 33,
+      "current_lines": 75,
+      "net_lines": 42
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/workspace/sqlite.go",
+      "baseline_sha256": "dbab20c66e5e2a62bea2beb58c52a809e27ed86c4886bd58a2498552ac06f78c",
+      "baseline_absent": false,
+      "current_sha256": "bcfd697663edf86e113c3de03c523d5553f504d9782770464416a408729e729f",
+      "current_bytes": 6661,
+      "before_lines": 140,
+      "current_lines": 175,
+      "net_lines": 35
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/workspace/types.go",
+      "baseline_sha256": "9c432f7ee63e57b65cb37bd7c4751284883a3ec909f085a9e46fdd2306326108",
+      "baseline_absent": false,
+      "current_sha256": "d004b6824739204497fa2989335bb176c86c4e59fb84aa280842bdf854ad4a7e",
+      "current_bytes": 1662,
+      "before_lines": 64,
+      "current_lines": 67,
+      "net_lines": 3
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/workspace/sqlite_test.go",
+      "baseline_sha256": null,
+      "baseline_absent": true,
+      "current_sha256": "de783c0117b85bfddb3f1d58f8b7dcea1052f3051040f9676231286784668170",
+      "current_bytes": 9025,
+      "before_lines": 0,
+      "current_lines": 175,
+      "net_lines": 175
+    }
+  ]
+}

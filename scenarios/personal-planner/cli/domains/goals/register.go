@@ -11,8 +11,8 @@ const GroupName = "goals"
 func Register(c *cliapp.ScenarioApp, m []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(c)
 	b := map[string]cliapp.PrimitiveHandler{
-		"GoalsService.ListGoals":             cliapp.ProtoList(h.listCall, h.listReport),
-		"GoalsService.CreateGoal":            cliapp.ProtoMutation(h.createCall, h.createReport),
+		"GoalsService.ListGoals":             cliapp.Action(h.listCall, h.listReport),
+		"GoalsService.CreateGoal":            cliapp.Action(h.createCall, h.createReport),
 		"GoalsService.UpdateGoalProgress":    cliapp.ProtoMutation(h.progressCall, h.progressReport),
 		"GoalsService.ListMilestones":        cliapp.ProtoList(h.milestonesCall, h.milestonesReport),
 		"GoalsService.CreateMilestone":       cliapp.ProtoMutation(h.createMilestoneCall, h.createMilestoneReport),

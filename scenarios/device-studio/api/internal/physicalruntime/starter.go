@@ -389,12 +389,54 @@ func (s *starterInitializer) savePhoneCandidate(ctx context.Context, bundle libr
 		if existing.SHA256 == digest {
 			return existing, nil
 		}
-		return devices.DeviceRevision{}, fmt.Errorf("starter phone head differs from its fixed candidate; refusing implicit revision: %w", devices.ErrRevisionConflict)
+		factory, factoryErr := s.devices.GetRevision(ctx, candidate.Definition.ID, 1)
+		if factoryErr != nil || factory.State != devices.DeviceRevisionCandidate || factory.SHA256 != digest {
+			return devices.DeviceRevision{}, fmt.Errorf("starter phone head differs from its fixed candidate; refusing implicit revision: %w", devices.ErrRevisionConflict)
+		}
+		if err := s.validateQualifiedPhoneChild(ctx, existing, factory); err != nil {
+			return devices.DeviceRevision{}, err
+		}
+		return factory, nil
 	}
 	if !errors.Is(err, devices.ErrRevisionNotFound) {
 		return devices.DeviceRevision{}, err
 	}
 	return s.devices.SaveCandidate(ctx, candidate, 0)
+}
+
+// validateQualifiedPhoneChild lets other factory starters reuse the immutable
+// phone v1 dependency after a scoped review. It accepts only a qualified head
+// whose candidate differs from v1 in the persisted qualification fields and
+// whose single review names this exact phone source/setup scope.
+func (s *starterInitializer) validateQualifiedPhoneChild(ctx context.Context, head, factory devices.DeviceRevision) error {
+	if head.State != devices.DeviceRevisionQualified || head.Candidate.Definition.Qualification != "qualified" || len(head.Candidate.Definition.QualificationReviews) != 1 {
+		return fmt.Errorf("starter phone head is not one exact qualified child of its fixed candidate: %w", devices.ErrRevisionConflict)
+	}
+	base := head.Candidate
+	base.Definition.Qualification = "unqualified"
+	base.Definition.QualificationReviews = nil
+	_, _, digest, err := devices.CanonicalizeDeviceCandidate(base)
+	if err != nil || digest != factory.SHA256 {
+		return fmt.Errorf("qualified phone head changed the immutable factory candidate: %w", devices.ErrRevisionConflict)
+	}
+	review := head.Candidate.Definition.QualificationReviews[0]
+	geometry := factory.Candidate.Geometry
+	if review.Scope != "visual_setup" || review.Result != "passed" || review.CandidateRevision != factory.Revision || review.CandidateSHA256 != factory.SHA256 ||
+		review.SourceBundleID != geometry.BundleID || review.SourceBundleRevision != geometry.BundleRevision || review.SourceManifestSHA256 != geometry.ManifestSHA256 ||
+		review.SourceReviewSHA256 != geometry.ReviewSHA256 || review.SourceArtifactID != geometry.ArtifactID || review.SourceArtifactSHA256 != geometry.SHA256 ||
+		!sameStringSet(review.DimensionStates, []string{"portrait_unrotated"}) || !sameStringSet(review.DisplayIDs, []string{"main_display"}) ||
+		!sameStringSet(review.AllowedMotionIDs, []string{"static"}) || !sameStringSet(review.SupportIDs, []string{"device-root-support"}) ||
+		review.PresetID != "phone-study-hero" || review.SceneID != "phone-study-environment" || review.MotionID != "phone-still-identity" ||
+		review.PresetRevision == 0 || review.SceneRevision == 0 || review.MotionRevision == 0 || review.PresetSHA256 == "" || review.SceneSHA256 == "" || review.MotionSHA256 == "" ||
+		!review.RightsClaimsAcknowledged || review.Reviewer == "" || review.NativeRenderJobID == "" || review.NativeOutputSHA256 == "" || review.NativeOutputKind != "physical_still_png" {
+		return fmt.Errorf("qualified phone head does not retain the exact static visual setup scope: %w", devices.ErrRevisionConflict)
+	}
+	bundle, err := s.library.GetRevision(ctx, geometry.BundleID, geometry.BundleRevision)
+	if err != nil || bundle.ManifestSHA256 != geometry.ManifestSHA256 || bundle.ReviewSHA256 != geometry.ReviewSHA256 || bundle.Review.Decision != "approved" ||
+		!sameStringSet(review.SourceAllowedUses, libraryUses(bundle.Review.AllowedUses)) {
+		return fmt.Errorf("qualified phone source review is missing or changed: %w", devices.ErrRevisionConflict)
+	}
+	return nil
 }
 
 func (s *starterInitializer) saveSceneCandidate(ctx context.Context, bundle library.BundleRevision) (scenes.Revision, error) {

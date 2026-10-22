@@ -238,6 +238,19 @@ exists. The editor may retain an incompatible local draft, but it must explain
 which setup is missing and keep save/compile/render disabled instead of
 inventing a placement or reusing a different device's transforms.
 
+Every new physical setup selects an immutable scene support-slot ID in addition
+to its device and scene support-frame IDs. The slot declares the allowed support
+kind/interface and fit constraints; setup validation resolves it from the exact
+scene revision and calls the canonical device support, pose, and motion
+evaluators. Validation and compile responses expose a typed compatibility result
+(`compatible`, `incompatible`, or `needs_review`) with bounded reasons. A known
+contradiction is rejected and never render-eligible. Unknown envelope, mount,
+pose, orientation, mask, or fit facts remain `needs_review` and cannot be
+promoted by saving or rendering. Historical `scene-candidate/v1` slot-less revisions use an explicit
+legacy interface-only result of `needs_review`; their immutable bytes and prior
+review scopes remain unchanged, and the compatibility result does not widen those
+reviews.
+
 ## Photographic screen-entry implementation contract
 
 The bounded screen-entry route uses `MOTION_MODE_CROP_PUSH` with a typed, immutable `PhotographicCameraMotion` on the shot snapshot, separate from source `VideoTiming`. Its first profile is `screen-entry-projective-contain-v1`: profile version1, transition duration in output frames (2..120, no longer than the clip), and explicit camera matte RGB. The initial camera profile limits the complete output clip to120 frames (five seconds at24fps or four seconds at30fps), separately from the fixed profile’s300-frame limit, until representative runtime is measured. Reject longer camera clips before render with trim/rate guidance. Fixed shots forbid camera config; crop-push requires it. Unsupported rotation/hinge/parallax remain rejected by the photographic renderer. This route changes framing and rectifies photographed screen perspective; it does not simulate physical device motion.

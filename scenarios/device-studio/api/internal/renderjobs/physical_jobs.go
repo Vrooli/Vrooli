@@ -126,6 +126,9 @@ func (c *Coordinator) VerifyQualificationRender(ctx context.Context, projectID, 
 	if output == nil {
 		return QualificationRenderEvidence{}, errors.New("renderjobs: successful job has no qualified native output reference")
 	}
+	if err := c.requireDeclaredReadabilityReview(ctx, job, *output); err != nil {
+		return QualificationRenderEvidence{}, err
+	}
 	route, err := c.route(ctx)
 	if err != nil {
 		return QualificationRenderEvidence{}, err
@@ -148,86 +151,138 @@ func (c *Coordinator) VerifyQualificationRender(ctx context.Context, projectID, 
 	}, nil
 }
 
-func (c *Coordinator) submitPhysical(ctx context.Context, route routePin, req SubmitRequest, resolved shots.ResolvedShot) (jobs.Job, bool, error) {
+type readabilityQualificationReviewReader interface {
+	GetOutputReadabilityReview(context.Context, string, string, int64, string, string) (shots.ReadabilityReview, error)
+}
+
+func (c *Coordinator) requireDeclaredReadabilityReview(ctx context.Context, job jobs.Job, output jobs.OutputRef) error {
+	if job.Input.ShotRevisionID == "" && job.Input.ShotRevision == 0 {
+		return nil
+	}
+	shotID, revision, err := parseShotRevision(job.Input)
+	if err != nil || job.Input.SubjectID != shotID {
+		return errors.New("renderjobs: qualification job has an invalid immutable shot revision binding")
+	}
+	saved, err := c.shots.ResolveForRender(ctx, shotID, revision)
+	if err != nil {
+		return fmt.Errorf("renderjobs: resolve exact shot revision for qualification: %w", err)
+	}
+	if saved.ProjectID != job.Input.ProjectID || saved.Shot.ID != shotID || saved.Revision.ShotID != shotID || saved.Revision.Revision != revision || saved.Revision.Snapshot == nil {
+		return errors.New("renderjobs: shot revision owner returned a mismatched qualification snapshot")
+	}
+	if saved.Revision.Snapshot.GetReadabilityProof() == nil {
+		return nil
+	}
+	reviewReader, ok := c.shots.(readabilityQualificationReviewReader)
+	if !ok {
+		return errors.New("renderjobs: declared readability proof has no review owner; qualification is unavailable")
+	}
+	review, err := reviewReader.GetOutputReadabilityReview(ctx, job.Input.ProjectID, shotID, revision, job.ID, output.SHA256)
+	if err != nil {
+		return fmt.Errorf("renderjobs: declared readability proof lacks an accepted review for this exact output: %w", err)
+	}
+	if review.ProjectID != job.Input.ProjectID || review.ShotID != shotID || review.ShotRevision != revision || review.RenderID != job.ID || review.OutputSHA256 != output.SHA256 || review.Verdict != int32(shotsv1.ReadabilityVerdict_READABILITY_VERDICT_ACCEPTED) {
+		return errors.New("renderjobs: declared readability proof review is not accepted for this exact render output")
+	}
+	return nil
+}
+
+func (c *Coordinator) submitPhysicalWithReceipt(ctx context.Context, route routePin, req SubmitRequest, resolved shots.ResolvedShot) (jobs.Job, bool, *CacheReuseReceipt, error) {
 	if c.physicalArtifacts == nil || c.physicalProfile == nil || c.physicalAdapter == nil || resolved.Revision.Physical == nil {
-		return jobs.Job{}, false, errors.New("renderjobs: physical still owners are unavailable")
+		return jobs.Job{}, false, nil, errors.New("renderjobs: physical still owners are unavailable")
 	}
 	outputProfile := OutputProfilePNG
 	recording := resolved.Revision.Snapshot.GetVideoTiming() != nil
 	articulated := physicalMotionHasJointTracks(resolved.Revision.Physical.MotionCandidate)
 	if articulated && req.OutputProfile != OutputProfileMP4 {
-		return jobs.Job{}, false, fmt.Errorf("%w: articulated physical motion currently requires the final static-screen MP4 output", ErrInvalidRequest)
+		return jobs.Job{}, false, nil, fmt.Errorf("%w: articulated physical motion currently requires the final static-screen MP4 output", ErrInvalidRequest)
 	}
 	if recording {
 		if articulated {
-			return jobs.Job{}, false, fmt.Errorf("%w: articulated recording textures are not supported yet", ErrInvalidRequest)
+			return jobs.Job{}, false, nil, fmt.Errorf("%w: articulated recording textures are not supported yet", ErrInvalidRequest)
 		}
 		if req.OutputProfile == OutputProfilePhysicalPreviewPNG {
-			return jobs.Job{}, false, fmt.Errorf("%w: recording sources need a selected-frame preview profile; submit final MP4 only", ErrInvalidRequest)
+			return jobs.Job{}, false, nil, fmt.Errorf("%w: recording sources need a selected-frame preview profile; submit final MP4 only", ErrInvalidRequest)
 		}
 		if req.OutputProfile != OutputProfileMP4 || resolved.Revision.Physical.Binding.GetMotionOutput() == nil {
-			return jobs.Job{}, false, fmt.Errorf("%w: physical recording sources require the pinned final MP4 schedule", ErrInvalidRequest)
+			return jobs.Job{}, false, nil, fmt.Errorf("%w: physical recording sources require the pinned final MP4 schedule", ErrInvalidRequest)
 		}
 		outputProfile = OutputProfilePhysicalRecordingMP4
 	} else if req.OutputProfile == OutputProfilePhysicalPreviewPNG {
 		outputProfile = OutputProfilePhysicalPreviewPNG
 	} else if resolved.Revision.Physical.Binding.GetMotionOutput() != nil {
 		if req.OutputProfile != OutputProfileMP4 {
-			return jobs.Job{}, false, fmt.Errorf("%w: physical motion shots require the pinned MP4 output profile", ErrInvalidRequest)
+			return jobs.Job{}, false, nil, fmt.Errorf("%w: physical motion shots require the pinned MP4 output profile", ErrInvalidRequest)
 		}
 		selectedProfile, profileErr := physicalMotionJobProfile(resolved.Revision.Physical.Binding.GetMotionOutput())
 		if profileErr != nil {
-			return jobs.Job{}, false, profileErr
+			return jobs.Job{}, false, nil, profileErr
 		}
 		outputProfile = selectedProfile
 	} else if req.OutputProfile != OutputProfilePNG {
-		return jobs.Job{}, false, fmt.Errorf("%w: this physical shot has no motion output binding", ErrInvalidRequest)
+		return jobs.Job{}, false, nil, fmt.Errorf("%w: this physical shot has no motion output binding", ErrInvalidRequest)
 	}
 	spanStarted := time.Now()
 	workerBytes, _, workerSHA, err := c.readCurrentExecutable()
 	if err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	workerKey := workerBlobPrefix + workerSHA + "/device-studio-api"
 	if err := c.putVerified(ctx, route, workerKey, workerBytes, "application/octet-stream", workerSHA); err != nil {
-		return jobs.Job{}, false, fmt.Errorf("pin physical worker: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("pin physical worker: %w", err)
 	}
 	submitTimingSpan(ctx, "worker_pin", spanStarted)
 	spanStarted = time.Now()
 	_, toolProfile, err := c.physicalProfile(ctx)
 	if err != nil {
-		return jobs.Job{}, false, fmt.Errorf("resolve pinned Blender profile: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("resolve pinned Blender profile: %w", err)
 	}
 	submitTimingSpan(ctx, "blender_profile", spanStarted)
 	if toolProfile == nil {
-		return jobs.Job{}, false, errors.New("renderjobs: Blender profile response is empty")
+		return jobs.Job{}, false, nil, errors.New("renderjobs: Blender profile response is empty")
 	}
 	adapterBytes := c.physicalAdapter()
 	if len(adapterBytes) == 0 || len(adapterBytes) > 1<<20 {
-		return jobs.Job{}, false, errors.New("renderjobs: embedded Blender adapter is empty or outside bounds")
+		return jobs.Job{}, false, nil, errors.New("renderjobs: embedded Blender adapter is empty or outside bounds")
 	}
 	spanStarted = time.Now()
 	closure, err := c.makePhysicalClosure(ctx, route, req, resolved, workerKey, workerSHA, toolProfile, adapterBytes)
 	if err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	closureBytes, err := encodePhysicalClosure(closure)
 	if err != nil {
-		return jobs.Job{}, false, fmt.Errorf("renderjobs: physical closure exceeds its bounded storage size: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("renderjobs: physical closure exceeds its bounded storage size: %w", err)
 	}
 	closureBytes = append(closureBytes, '\n')
 	closureSHA := digestBytes(closureBytes)
 	closureKey := closureBlobPrefix + closureSHA + ".json"
 	if err := c.putVerified(ctx, route, closureKey, closureBytes, "application/json", closureSHA); err != nil {
-		return jobs.Job{}, false, fmt.Errorf("pin physical closure: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("pin physical closure: %w", err)
 	}
 	submitTimingSpan(ctx, "closure", spanStarted)
+	input := physicalJobInput(route, closure, closureKey, closureSHA, workerKey, workerSHA, outputProfile)
+	spanStarted = time.Now()
+	if err := c.requireRoute(ctx, route); err != nil {
+		return jobs.Job{}, false, nil, err
+	}
+	job, created, receipt, err := c.submitInputWithCache(ctx, route, req, input)
+	submitTimingSpan(ctx, "jobs_submit", spanStarted)
+	return job, created, receipt, err
+}
+
+// physicalJobInput is the production cache identity builder for a compiled
+// physical shot. Its explicit closure binding makes derived renderer inputs
+// (placement, camera, screen mapping, render profile, and output schedule) part
+// of the same immutable fingerprint as the source revisions.
+func physicalJobInput(route routePin, closure physicalClosure, closureKey, closureSHA, workerKey, workerSHA, outputProfile string) jobs.Input {
+	recording := closure.Manifest.Screen.Recording != nil
 	input := jobs.Input{
-		ProjectID: req.ProjectID, ShotRevisionID: shotRevisionID(req.ShotID, req.Revision), ShotRevision: req.Revision,
+		ProjectID: closure.ProjectID, ShotRevisionID: shotRevisionID(closure.ShotID, closure.Revision), ShotRevision: closure.Revision,
 		ToolProfileDigest: closure.Manifest.Profile.DigestSHA256, RendererVersion: closure.Manifest.Profile.ID,
-		OutputProfile: outputProfile, SubjectKind: jobs.SubjectPhysicalRender, SubjectID: req.ShotID,
+		OutputProfile: outputProfile, SubjectKind: jobs.SubjectPhysicalRender, SubjectID: closure.ShotID,
 		Bindings: []jobs.ArtifactBinding{
-			{Role: "shot_snapshot", ArtifactID: "shot:" + req.ShotID + ":revision:" + strconv.FormatInt(req.Revision, 10), RevisionID: "revision:" + strconv.FormatInt(req.Revision, 10), SHA256: resolved.Revision.RecipeSHA256},
+			{Role: "shot_snapshot", ArtifactID: "shot:" + closure.ShotID + ":revision:" + strconv.FormatInt(closure.Revision, 10), RevisionID: "revision:" + strconv.FormatInt(closure.Revision, 10), SHA256: closure.RecipeSHA256},
 			{Role: "worker_executable", ArtifactID: workerKey, RevisionID: "sha256:" + workerSHA, SHA256: workerSHA},
 			{Role: "physical_closure", ArtifactID: closureKey, RevisionID: "sha256:" + closureSHA, SHA256: closureSHA},
 			{Role: "physical_adapter", ArtifactID: "embedded-adapter:sha256:" + closure.AdapterSHA256, RevisionID: "sha256:" + closure.AdapterSHA256, SHA256: closure.AdapterSHA256},
@@ -249,18 +304,7 @@ func (c *Coordinator) submitPhysical(ctx context.Context, route routePin, req Su
 		id := physicalArtifactIdentity(asset.Reference)
 		input.Bindings = append(input.Bindings, jobs.ArtifactBinding{Role: "physical_asset:" + asset.BindingID, ArtifactID: id, RevisionID: "sha256:" + asset.Reference.SHA256, SHA256: asset.Reference.SHA256})
 	}
-	spanStarted = time.Now()
-	job, created, err := c.jobs.Submit(ctx, jobs.SubmitInput{IdempotencyKey: req.IdempotencyKey, Input: input})
-	submitTimingSpan(ctx, "jobs_submit", spanStarted)
-	if err != nil {
-		if errors.Is(err, jobs.ErrIdempotencyConflict) {
-			if existing, found, lookupErr := c.findIdempotentSubmit(ctx, route, req); lookupErr != nil || found {
-				return existing, false, lookupErr
-			}
-		}
-		return jobs.Job{}, false, err
-	}
-	return job, created, nil
+	return input
 }
 
 func physicalMediaRouteBindings(route routePin, closure physicalClosure, recording bool) []jobs.ArtifactBinding {
@@ -334,7 +378,10 @@ func (c *Coordinator) makePhysicalClosure(ctx context.Context, route routePin, r
 	if err != nil {
 		return physicalClosure{}, err
 	}
-	wallTime := rendering.PhysicalStillWallTimeSeconds
+	wallTime, err := physicalStillWallTime(backend)
+	if err != nil {
+		return physicalClosure{}, err
+	}
 	sampleCount := rendering.PhysicalStillSamples
 	preview := req.OutputProfile == OutputProfilePhysicalPreviewPNG
 	if recording {
@@ -651,6 +698,17 @@ func physicalBackendName(value shotsv1.PhysicalRenderBackend) (string, error) {
 		return "OPTIX", nil
 	default:
 		return "", errors.New("renderjobs: physical render backend must be selected explicitly")
+	}
+}
+
+func physicalStillWallTime(backend string) (uint32, error) {
+	switch backend {
+	case "CPU":
+		return rendering.PhysicalStillCPUWallTimeSeconds, nil
+	case "CUDA", "OPTIX":
+		return rendering.PhysicalStillWallTimeSeconds, nil
+	default:
+		return 0, errors.New("renderjobs: unsupported physical still backend")
 	}
 }
 

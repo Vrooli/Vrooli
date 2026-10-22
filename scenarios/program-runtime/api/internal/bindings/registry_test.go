@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/discovery"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -171,6 +173,42 @@ func TestResponseProjectionUsesDescriptorAndDeclaredPrimary(t *testing.T) {
 	require.Equal(t, "ranked", declared.rowsField)
 	require.Empty(t, declared.candidateFields)
 	require.Equal(t, []string{"corporaSearched", "latencyMs"}, declared.metaFields)
+}
+
+func TestResolveMethodAcceptsAllScenarioOwnedDescriptorRoots(t *testing.T) {
+	for _, source := range []string{
+		"fixture/v1/service.proto",
+		"schemas/fixture/v1/service.proto",
+		"packages/proto/schemas/fixture/v1/service.proto",
+		"scenarios/fixture/api/service.proto",
+	} {
+		t.Run(source, func(t *testing.T) {
+			got, err := resolveMethod("fixture", "FixtureService.List", map[string][]methodInfo{
+				"FixtureService.List": {{service: "fixture.v1.FixtureService", source: source}},
+			}, nil)
+			require.NoError(t, err)
+			require.Equal(t, source, got.source)
+		})
+	}
+}
+
+func TestLiveDeviceStudioManifestBindsSchemaOwnedMethods(t *testing.T) {
+	registry, err := Load(repoRoot(t))
+	require.NoError(t, err)
+	bindings := registry.List("device-studio", "")
+	ids := make(map[string]bool, len(bindings))
+	for _, binding := range bindings {
+		ids[binding.GetId()] = true
+	}
+	for _, id := range []string{
+		"device-studio/shots/create",
+		"device-studio/shots/save",
+		"device-studio/shots/get",
+		"device-studio/renders/submit",
+		"device-studio/renders/get",
+	} {
+		require.True(t, ids[id], "expected governed binding %s; registered Device Studio bindings: %v", id, ids)
+	}
 }
 
 func protoString(value string) *string { return &value }
@@ -516,6 +554,19 @@ func TestRunIneligibleCommandGeneratesNoBinding(t *testing.T) {
 	if len(unbound) != 1 || unbound[0].GetReason().String() == "UNBOUND_REASON_UNSPECIFIED" {
 		t.Fatalf("run-ineligible command unbound record = %+v", unbound)
 	}
+}
+
+func TestExecutePropagatesTestModeToTargetScenario(t *testing.T) {
+	registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	binding := registry.bindings[0]
+	binding.Scenario = "fixture-target"
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return "http://fixture.invalid", nil })
+	client := &http.Client{Transport: bindingRoundTripper(func(req *http.Request) (*http.Response, error) {
+		require.Equal(t, apihttp.TestModeValue, req.Header.Get(apihttp.TestModeHeader))
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{}`)), Header: make(http.Header), Request: req}, nil
+	})}
+	_, err := registry.Execute(database.WithTestMode(context.Background()), binding.GetId(), map[string]any{}, nil, false, InvocationMetadata{}, client)
+	require.NoError(t, err)
 }
 
 func fixtureRegistry(t *testing.T, manifest string) *Registry {

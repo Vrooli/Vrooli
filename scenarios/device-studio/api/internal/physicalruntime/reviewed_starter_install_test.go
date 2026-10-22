@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -117,12 +118,6 @@ func TestEmbeddedReviewedSmartDisplayPackageFailsClosedOnMissingOrChangedInputs(
 
 func TestEmbeddedReviewedStarterRegistryInstallsAndReplaysExactScopedPackages(t *testing.T) {
 	ctx := database.WithTestMode(context.Background())
-	owners := newReviewedStarterInstallTestOwners(t, ctx)
-	qualification, err := NewQualificationService(owners, qualificationRenderStub{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	owners.Qualification = qualification
 
 	ids := []string{
 		"generic-round-watch-body-v4-floating-reviewed",
@@ -131,9 +126,18 @@ func TestEmbeddedReviewedStarterRegistryInstallsAndReplaysExactScopedPackages(t 
 		"generic-digital-frame-wall-v5-mounted-reviewed",
 		"generic-book-fold-v3-left-screen-vflip-static-reviewed",
 		"laptop-screen-vflip-reviewed",
+		"phone-study-hero-reviewed",
+		"ipad-portrait-cupfree-reviewed",
+		"monitor-study-matching-reviewed",
 	}
 	for _, id := range ids {
 		t.Run(id, func(t *testing.T) {
+			owners := newReviewedStarterInstallTestOwners(t, ctx)
+			qualification, err := NewQualificationService(owners, qualificationRenderStub{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			owners.Qualification = qualification
 			descriptor := embeddedReviewedStarters[id]
 			_, certificate, err := loadEmbeddedReviewedStarter(starterAssets, descriptor)
 			if err != nil {
@@ -162,6 +166,103 @@ func TestEmbeddedReviewedStarterRegistryInstallsAndReplaysExactScopedPackages(t 
 				t.Fatalf("replay changed review history: head=%+v err=%v", head, err)
 			}
 		})
+	}
+}
+
+func TestQualifiedPhoneReviewDoesNotBlockTabletOrMonitorFactoryInitializers(t *testing.T) {
+	ctx := database.WithTestMode(context.Background())
+	owners := newReviewedStarterInstallTestOwners(t, ctx)
+	qualification, err := NewQualificationService(owners, qualificationRenderStub{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owners.Qualification = qualification
+	if _, err := owners.InitializePhysicalStarter(ctx, "phone-study-hero-reviewed"); err != nil {
+		t.Fatalf("install scoped phone review: %v", err)
+	}
+	for _, id := range []string{"ipad-portrait-cupfree-reviewed", "monitor-study-matching-reviewed"} {
+		if _, err := owners.InitializePhysicalStarter(ctx, id); err != nil {
+			t.Fatalf("initialize %s with the exact reviewed phone child present: %v", id, err)
+		}
+	}
+	phone, err := owners.Devices.GetHead(ctx, "authored-phone-neutral")
+	if err != nil || phone.Revision != 2 || phone.State != devices.DeviceRevisionQualified || len(phone.Candidate.Definition.QualificationReviews) != 1 {
+		t.Fatalf("dependent initializer changed or broadened phone review: %+v err=%v", phone, err)
+	}
+	changed := phone.Candidate
+	changed.Definition.Qualification = "unqualified"
+	changed.Definition.QualificationReviews = nil
+	changed.Definition.Description += " changed after scoped review"
+	if _, err := owners.Devices.SaveCandidate(ctx, changed, phone.Revision); err != nil {
+		t.Fatalf("append changed phone head for negative replay case: %v", err)
+	}
+	if _, err := owners.InitializePhysicalStarter(ctx, "ipad-screen-uv-oriented-180"); !errors.Is(err, devices.ErrRevisionConflict) {
+		t.Fatalf("tablet initializer accepted a changed phone head after the scoped review: %v", err)
+	}
+}
+
+func TestStartupReplaysQualifiedMonitorFactoryOnlyFromExactScopedChild(t *testing.T) {
+	ctx := database.WithTestMode(context.Background())
+	fixture := newReviewedStarterInstallFixture(t, ctx)
+	owners := fixture.owners
+	qualification, err := NewQualificationService(owners, qualificationRenderStub{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owners.Qualification = qualification
+	for _, id := range []string{"phone-study-hero-reviewed", "monitor-study-matching-reviewed"} {
+		if _, err := owners.InitializePhysicalStarter(ctx, id); err != nil {
+			t.Fatalf("install retained %s review: %v", id, err)
+		}
+	}
+
+	// Reconstruct all owner services over the same persisted database and file
+	// routes to exercise the normal startup initializer after app restart.
+	reopened, err := New(fixture.db, fixture.roots, fixture.media)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reopened.InitializeReviewedStarter(ctx); err != nil {
+		t.Fatalf("startup should replay fixed factory candidates beneath exact phone and monitor reviews: %v", err)
+	}
+	monitor, err := reopened.Devices.GetHead(ctx, monitorV2DeviceID)
+	if err != nil || monitor.Revision != 2 || monitor.State != devices.DeviceRevisionQualified || len(monitor.Candidate.Definition.QualificationReviews) != 1 {
+		t.Fatalf("startup changed the exact reviewed monitor child: head=%+v err=%v", monitor, err)
+	}
+
+	changed := monitor.Candidate
+	changed.Definition.Qualification = "unqualified"
+	changed.Definition.QualificationReviews = nil
+	changed.Definition.Description += " unexpected extra head"
+	if _, err := reopened.Devices.SaveCandidate(ctx, changed, monitor.Revision); err != nil {
+		t.Fatalf("append malformed monitor head for fail-closed case: %v", err)
+	}
+	changedHead, err := reopened.Devices.GetHead(ctx, monitorV2DeviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedRevision, changedSHA := changedHead.Revision, changedHead.SHA256
+	if _, err := reopened.InitializeReviewedStarter(ctx); !errors.Is(err, devices.ErrRevisionConflict) {
+		t.Fatalf("startup accepted an extra changed monitor head: %v", err)
+	}
+	availability, err := reopened.BootstrapStartersForStartup(ctx)
+	if err != nil {
+		t.Fatalf("startup bootstrap should preserve app availability after a user-edited optional starter: %v", err)
+	}
+	contains := func(want string) bool {
+		for _, item := range availability.Available {
+			if item == want {
+				return true
+			}
+		}
+		return false
+	}
+	if !contains("phone-default") || !contains("laptop-screen-vflip") || !contains("monitor-default") || contains("monitor-screen-mapped-v2") || len(availability.Issues) != 1 || availability.Issues[0].StarterID != "monitor-screen-mapped-v2" || !errors.Is(availability.Issues[0].Err, devices.ErrRevisionConflict) {
+		t.Fatalf("startup availability did not truthfully degrade only the edited monitor starter: %+v", availability)
+	}
+	unchanged, err := reopened.Devices.GetHead(ctx, monitorV2DeviceID)
+	if err != nil || unchanged.Revision != changedRevision || unchanged.SHA256 != changedSHA {
+		t.Fatalf("startup bootstrap adopted or overwrote the user-edited monitor head: head=%+v err=%v", unchanged, err)
 	}
 }
 
@@ -223,6 +324,17 @@ func TestEmbeddedReviewedStarterRegistryFailsClosedOnTamperedOutputAndSource(t *
 }
 
 func newReviewedStarterInstallTestOwners(t *testing.T, ctx context.Context) Owners {
+	return newReviewedStarterInstallFixture(t, ctx).owners
+}
+
+type reviewedStarterInstallFixture struct {
+	owners Owners
+	db     *database.RoutedDB
+	roots  *filerouting.RoutedRoots
+	media  projects.SourceMediaService
+}
+
+func newReviewedStarterInstallFixture(t *testing.T, ctx context.Context) reviewedStarterInstallFixture {
 	t.Helper()
 	providers := []database.SchemaProvider{
 		database.SchemaProviderFunc(library.Schema), database.SchemaProviderFunc(devices.Schema),
@@ -259,5 +371,5 @@ func newReviewedStarterInstallTestOwners(t *testing.T, ctx context.Context) Owne
 	if err != nil {
 		t.Fatal(err)
 	}
-	return owners
+	return reviewedStarterInstallFixture{owners: owners, db: db, roots: roots, media: mediaService}
 }

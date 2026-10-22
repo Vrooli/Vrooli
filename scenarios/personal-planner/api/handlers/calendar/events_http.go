@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	d "personal-planner/internal/calendar"
+	"personal-planner/internal/httpx"
 )
 
 type eventListResponse struct {
@@ -105,6 +106,7 @@ func decodeEventRequest(req *http.Request, out any) error {
 func writeEventError(w http.ResponseWriter, err error) {
 	var invalid d.ErrInvalidAllocation
 	var notFound d.ErrEventNotFound
+	var ownerRequired d.ErrEventOwnerRequired
 	var revisionConflict d.ErrEventRevisionConflict
 	var idempotencyConflict d.ErrEventIdempotencyConflict
 	var identityConflict d.ErrEventIdentityConflict
@@ -113,6 +115,8 @@ func writeEventError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.As(err, &notFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
+	case errors.As(err, &ownerRequired):
+		httpx.WriteError(w, http.StatusUnauthorized, httpx.CodeUnauthenticated, ownerRequired.Error())
 	case errors.As(err, &revisionConflict), errors.As(err, &idempotencyConflict), errors.As(err, &identityConflict):
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:

@@ -20,13 +20,17 @@ func TestTaxonomyParity_BugAndFriction(t *testing.T) {
 		t.Fatalf("filepath.Abs: %v", err)
 	}
 
-	bugTx, err := LoadTaxonomy(repoRoot, "bug-report")
+	taxonomies, err := LoadAllTaxonomies(repoRoot)
 	if err != nil {
-		t.Fatalf("LoadTaxonomy(bug-report): %v", err)
+		t.Fatalf("LoadAllTaxonomies: %v", err)
 	}
-	frictionTx, err := LoadTaxonomy(repoRoot, "friction-report")
-	if err != nil {
-		t.Fatalf("LoadTaxonomy(friction-report): %v", err)
+	bugTx, ok := taxonomies["bug-report"]
+	if !ok {
+		t.Fatal("bug-report taxonomy not registered")
+	}
+	frictionTx, ok := taxonomies["friction-report"]
+	if !ok {
+		t.Fatal("friction-report taxonomy not registered")
 	}
 
 	for _, c := range []struct {

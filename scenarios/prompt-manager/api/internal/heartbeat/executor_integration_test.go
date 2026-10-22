@@ -21,13 +21,13 @@ import (
 	"prompt-manager/internal/teamconfig"
 )
 
-// awaitableOnComplete returns (handler, wait). Assigning handler to
-// executor.OnComplete and deferring wait() makes the test block until the
+// awaitableOnRunComplete returns (handler, wait). Assigning handler to
+// executor.OnRunComplete and deferring wait() makes the test block until the
 // async heartbeat lifecycle finishes — important because the lifecycle's
 // final SetHeartbeatConfig write lands in RuntimeData under t.TempDir(),
 // and racing that write against t.TempDir() cleanup causes
 // "directory not empty" flakes.
-func awaitableOnComplete(_ *testing.T) (func(string, string), func()) {
+func awaitableOnRunComplete(_ *testing.T) (func(string, string, string), func()) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	once := sync.Once{}
@@ -40,7 +40,7 @@ func awaitableOnComplete(_ *testing.T) (func(string, string), func()) {
 		case <-time.After(2 * time.Second):
 		}
 	}
-	return func(string, string) { done() }, wait
+	return func(string, string, string) { done() }, wait
 }
 
 // setupExecutorTestEnv creates a store with a team, agent, membership, and
@@ -99,9 +99,9 @@ func TestExecute_FullLifecycle(t *testing.T) {
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
-	executor.OnComplete = func(teamID, agentID string) {
-		if teamID != "team-1" || agentID != "agent-1" {
-			t.Errorf("unexpected complete callback: %s/%s", teamID, agentID)
+	executor.OnRunComplete = func(teamID, agentID, runID string) {
+		if teamID != "team-1" || agentID != "agent-1" || runID != "run-200" {
+			t.Errorf("unexpected run completion callback: %s/%s/%s", teamID, agentID, runID)
 		}
 		completeCalled.Done()
 	}
@@ -147,7 +147,7 @@ func TestExecute_FullLifecycle(t *testing.T) {
 		t.Error("expected a profile-key-only run reference")
 	}
 
-	// Wait for async completion to call OnComplete
+	// Wait for async completion to call the run-scoped callback.
 	done := make(chan struct{})
 	go func() {
 		completeCalled.Wait()
@@ -157,7 +157,7 @@ func TestExecute_FullLifecycle(t *testing.T) {
 	case <-done:
 		// success
 	case <-time.After(5 * time.Second):
-		t.Fatal("OnComplete not called within timeout")
+		t.Fatal("run-scoped completion callback not called within timeout")
 	}
 
 	// After completion, config should be updated
@@ -409,7 +409,6 @@ func TestExecute_CreateTaskApprovalPendingDoesNotCountAtThreshold(t *testing.T) 
 	if err != nil || updated.ConsecutiveFailures != heartbeatAttentionFailureThreshold-1 {
 		t.Fatalf("failure streak = %d, err=%v; approval pending must preserve %d", updated.ConsecutiveFailures, err, heartbeatAttentionFailureThreshold-1)
 	}
-
 }
 
 func TestExecute_CreateTaskUncertainRemainsOneSend(t *testing.T) {
@@ -420,6 +419,8 @@ func TestExecute_CreateTaskUncertainRemainsOneSend(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	if _, err := executor.Execute(context.Background(), "team-1", "agent-1", "p"); err == nil || !IsDispatchUncertain(err) {
 		t.Fatalf("Execute error = %v; want uncertain task outcome", err)
+	} else if phase := dispatchFailurePhaseFromError(err, "dispatch"); phase != dispatchFailurePhaseTaskCreate || dispatchFailureCode(err) != "task_create_uncertain" {
+		t.Fatalf("task-stage failure = %s/%s; want task_create/task_create_uncertain", phase, dispatchFailureCode(err))
 	}
 	if len(mockClient.createTaskCalls) != 1 || len(mockClient.createRunCalls) != 0 {
 		t.Fatalf("task/run calls = %d/%d; uncertain create must not resend or start a run", len(mockClient.createTaskCalls), len(mockClient.createRunCalls))
@@ -432,6 +433,26 @@ func TestExecute_CreateTaskUncertainRemainsOneSend(t *testing.T) {
 	attempts, total, err := teamStore.ListHeartbeatAttempts(context.Background(), "team-1", "agent-1", store.HeartbeatStatusFailed, "", 10, 0)
 	if err != nil || total != 1 || len(attempts) != 1 || attempts[0].AttentionEligible {
 		t.Fatalf("uncertain task attempt attention = total %d, %+v, err=%v; want one ineligible attempt", total, attempts, err)
+	}
+}
+
+func TestExecuteCapacityDeferralPersistenceFailureRetainsTypedPhase(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	client := newMockAgentClient().WithCreateTaskError(&AgentManagerHTTPError{
+		StatusCode:      http.StatusForbidden,
+		Message:         "refused",
+		AdmissionReason: "grant_limit_reached",
+	})
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
+	registrar := &fakeTeamExecStoreRegistrar{deferErr: errors.New("retention write failed")}
+	executor.SetTeamExecStore(registrar)
+
+	_, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
+	if err == nil || !IsDispatchUncertain(err) {
+		t.Fatalf("Execute error = %v; want uncertain failed capacity retention", err)
+	}
+	if phase, code := dispatchFailurePhaseFromError(err, "dispatch"), dispatchFailureCode(err); phase != dispatchFailurePhaseCapacityDeferral || code != "capacity_deferral_failed" {
+		t.Fatalf("capacity retention failure = %s/%s; want capacity_deferral/capacity_deferral_failed", phase, code)
 	}
 }
 
@@ -585,8 +606,15 @@ func TestExecute_TransportUncertainRetainsObligation(t *testing.T) {
 	}
 
 	waitFor(t, 5*time.Second, func() bool {
-		return len(teamExecStore.Status("team-1").UncertainAgentIDs) == 1
-	}, "uncertain obligation to be retained")
+		status := teamExecStore.Status("team-1")
+		return len(status.UncertainAgentIDs) == 1 && len(status.Owners) == 1 &&
+			status.Owners[0].DispatchFailurePhase == dispatchFailurePhaseRunCreation &&
+			status.Owners[0].DispatchFailureCode == "run_create_uncertain"
+	}, "run-creation uncertainty diagnostics to be persisted")
+	owners := teamExecStore.Status("team-1").Owners
+	if len(owners) != 1 || owners[0].DispatchFailurePhase != dispatchFailurePhaseRunCreation || owners[0].DispatchFailureCode != "run_create_uncertain" {
+		t.Fatalf("retained run uncertainty = %+v; want one run_creation/run_create_uncertain transition", owners)
+	}
 	waitForCondition(t, "uncertain heartbeat attempt", func() bool {
 		attempts, _, listErr := teamStore.ListHeartbeatAttempts(context.Background(), "team-1", "agent-1", store.HeartbeatStatusFailed, "", 10, 0)
 		return listErr == nil && len(attempts) == 1
@@ -658,10 +686,15 @@ func TestExecute_DoesNotCreateTaskOrRunWhenFirstDispatchIntentCannotPersist(t *t
 		t.Fatal(err)
 	}
 	close(gated.release)
-	waitFor(t, 5*time.Second, func() bool {
-		return len(teamExecStore.Status("team-1").RunningAgentIDs) == 0
-	}, "pre-POST persistence failure to finish")
+	// The execution worker must finish its reporting path before assertions, but
+	// failed completion persistence intentionally retains the in-memory owner.
 	teamExecStore.Shutdown()
+	status := teamExecStore.Status("team-1")
+	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" ||
+		len(status.Owners) != 1 || status.Owners[0].AgentID != "agent-1" ||
+		status.Owners[0].DispatchStage != DispatchStagePreparing {
+		t.Fatalf("failed completion save must retain the exact owner obligation: %+v", status)
+	}
 	if len(client.createTaskCalls) != 0 || len(client.createRunCalls) != 0 {
 		t.Fatalf("failed first-intent save must gate both owner POSTs, tasks=%d runs=%d", len(client.createTaskCalls), len(client.createRunCalls))
 	}
@@ -1002,7 +1035,7 @@ func TestExecute_WaitForRunFailure(t *testing.T) {
 	registry := NewRunRegistry(t.TempDir())
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 
-	executor.OnComplete = func(_, _ string) { t.Error("observer failure must not release the owner obligation") }
+	executor.OnRunComplete = func(_, _, _ string) { t.Error("observer failure must not release the owner obligation") }
 
 	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
 	if err != nil {
@@ -1077,13 +1110,13 @@ func TestRecoveredRunWatcherDeduplicatesConcurrentAttachments(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 	defer executor.Shutdown()
 
-	executor.WatchRecoveredRun("team-1", "agent-1", "run-shared", "p", "task-1", "tag", "RUN_STATUS_RUNNING", "")
+	executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "run-shared", "p", "task-1", "tag", "RUN_STATUS_RUNNING", "", "", "")
 	select {
 	case <-client.started:
 	case <-time.After(5 * time.Second):
 		t.Fatal("first recovered waiter did not start")
 	}
-	executor.WatchRecoveredRun("team-1", "agent-1", "run-shared", "p", "task-1", "tag", "RUN_STATUS_RUNNING", "")
+	executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "run-shared", "p", "task-1", "tag", "RUN_STATUS_RUNNING", "", "", "")
 	if got := client.calls.Load(); got != 1 {
 		t.Fatalf("same team/member/run must have one completion observer, got %d", got)
 	}
@@ -1101,14 +1134,14 @@ func TestUnavailableWatcherRetryStaysRetryableWhenOldWaiterStillOwnsKey(t *testi
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	tec := teamExecStore.GetOrCreate("team-1")
 	tec.mu.Lock()
 	tec.running["agent-1"] = runningEntry{ProfileKey: "p", RunID: "run-race", State: ObligationWatcherUnavailable}
 	_ = tec.persistLocked()
 	tec.mu.Unlock()
 
-	executor.WatchRecoveredRun("team-1", "agent-1", "run-race", "p", "task-1", "tag", "RUN_STATUS_RUNNING", "")
+	executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "run-race", "p", "task-1", "tag", "RUN_STATUS_RUNNING", "", "", "")
 	select {
 	case <-client.firstStarted:
 	case <-time.After(5 * time.Second):
@@ -1170,7 +1203,7 @@ func TestObserverFailureRetainsOwnershipAndScheduledRewatchReleasesOnlyOnTermina
 			executor := newTestExecutor(t, teamStore, agentStore, client, dir, registry, nil)
 			teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 			executor.SetTeamExecStore(teamExecStore)
-			executor.OnComplete = teamExecStore.OnComplete
+			executor.OnRunComplete = teamExecStore.OnRunComplete
 			defer executor.Shutdown()
 
 			if _, err := teamExecStore.Enqueue(context.Background(), "team-1", "agent-1", "p"); err != nil {
@@ -1185,9 +1218,13 @@ func TestObserverFailureRetainsOwnershipAndScheduledRewatchReleasesOnlyOnTermina
 			case <-time.After(5 * time.Second):
 				t.Fatal("immediate observer error was not returned")
 			}
-			waitForCondition(t, "watcher-unavailable obligation", func() bool {
+			waitForCondition(t, "watcher-unavailable obligation and persisted observer projection", func() bool {
 				status := teamExecStore.Status("team-1")
-				return len(status.RunningAgentIDs) == 1 && len(status.WatcherUnavailableAgentIDs) == 1
+				config, configErr := teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
+				return len(status.RunningAgentIDs) == 1 && len(status.WatcherUnavailableAgentIDs) == 1 &&
+					configErr == nil && config != nil && config.LastExecution != nil &&
+					config.LastExecution.RunID == "run-1" && config.LastExecution.Status == store.HeartbeatStatusObserverUnavailable &&
+					config.LifecycleState == store.HeartbeatLifecycleObserverUnavailable
 			})
 			config, err := teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
 			if err != nil || config.LastExecution == nil || config.LastExecution.Status != store.HeartbeatStatusObserverUnavailable || config.LifecycleState != store.HeartbeatLifecycleObserverUnavailable {
@@ -1253,7 +1290,7 @@ func TestRecoverApprovalPendingWaitsForEnabledCurrentMemberSchedule(t *testing.T
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	teamExecStore.Recover(ctx)
 	if len(client.createRunCalls) != 0 {
 		t.Fatalf("startup recovery must not replay approval-pending work before admission, got %d CreateRun calls", len(client.createRunCalls))
@@ -1292,7 +1329,7 @@ func TestRunStageApprovalPendingSurvivesRestartAndReplaysOriginalIntent(t *testi
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	firstStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(firstStore)
-	executor.OnComplete = firstStore.OnComplete
+	executor.OnRunComplete = firstStore.OnRunComplete
 	firstScheduler := NewScheduler(executor, client, teamStore, firstStore)
 
 	firstScheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
@@ -1316,7 +1353,7 @@ func TestRunStageApprovalPendingSurvivesRestartAndReplaysOriginalIntent(t *testi
 	restartedExecutor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	restartedStore := NewTeamExecutionStore(teamStore, restartedExecutor, dir, client)
 	restartedExecutor.SetTeamExecStore(restartedStore)
-	restartedExecutor.OnComplete = restartedStore.OnComplete
+	restartedExecutor.OnRunComplete = restartedStore.OnRunComplete
 	restartedStore.Recover(context.Background())
 	if len(client.createRunCalls) != 1 {
 		t.Fatalf("startup must not replay known approval pending before scheduled admission, got %d calls", len(client.createRunCalls))
@@ -1366,7 +1403,7 @@ func TestExecute_RunFailed(t *testing.T) {
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
-	executor.OnComplete = func(_, _ string) { completeCalled.Done() }
+	executor.OnRunComplete = func(_, _, _ string) { completeCalled.Done() }
 
 	_, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
 	if err != nil {
@@ -1381,7 +1418,7 @@ func TestExecute_RunFailed(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("OnComplete not called")
+		t.Fatal("run-scoped completion callback not called")
 	}
 
 	config, _ = teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
@@ -1418,8 +1455,8 @@ func TestExecute_RunCancelledPreservesFailureEpisode(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-cancelled", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-cancelled", Status: "RUN_STATUS_CANCELLED"})
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	if _, err := executor.Execute(ctx, "team-1", "agent-1", "p"); err != nil {
@@ -1472,8 +1509,8 @@ func TestTriggerManual_UsesConfigProfileKey(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	_, err := executor.TriggerManual(ctx, "team-1", "agent-1")
@@ -1498,8 +1535,8 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	_, err := executor.TriggerManual(context.Background(), "team-1", "agent-1")
@@ -1591,8 +1628,8 @@ func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	// Empty profileKey should resolve to CC for single-process
@@ -1619,8 +1656,8 @@ func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	// Empty profileKey should resolve to Codex for multi-process
@@ -1644,8 +1681,8 @@ func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	_, err := executor.TriggerManual(context.Background(), "team-1", "agent-1")
@@ -1749,7 +1786,7 @@ func TestExecute_EndToEndWithHTTPServer(t *testing.T) {
 
 	var completeCalled sync.WaitGroup
 	completeCalled.Add(1)
-	executor.OnComplete = func(_, _ string) { completeCalled.Done() }
+	executor.OnRunComplete = func(_, _, _ string) { completeCalled.Done() }
 
 	result, err := executor.Execute(withCreateRunCaller(context.Background(), "Bearer fixture-owner", ""), "team-1", "agent-1", "test-profile")
 	if err != nil {
@@ -1774,7 +1811,7 @@ func TestExecute_EndToEndWithHTTPServer(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):
-		t.Fatal("OnComplete not called within timeout")
+		t.Fatal("run-scoped completion callback not called within timeout")
 	}
 }
 
@@ -1914,8 +1951,8 @@ func TestExecute_CreateRunUsesDeclaredProfile(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	onComplete, waitComplete := awaitableOnComplete(t)
-	executor.OnComplete = onComplete
+	onComplete, waitComplete := awaitableOnRunComplete(t)
+	executor.OnRunComplete = onComplete
 	defer waitComplete()
 
 	profileKey := declaredKeysForTest(t).MultiProcess
@@ -1987,7 +2024,7 @@ func TestExecute_AgentManagerReturnsProfileNotFound(t *testing.T) {
 
 // TestWatchRecoveredRun_ReleasesOnTerminal verifies a recovered obligation
 // bound to an owner run is eventually released: the watcher observes terminal
-// owner state and fires OnComplete, so a restart cannot strand a slot.
+// owner state and fires the run-scoped completion callback, so a restart cannot strand a slot.
 func TestWatchRecoveredRun_ReleasesOnTerminal(t *testing.T) {
 	teamStore, agentStore, _ := setupExecutorTestEnv(t)
 
@@ -1997,14 +2034,14 @@ func TestWatchRecoveredRun_ReleasesOnTerminal(t *testing.T) {
 
 	var released sync.WaitGroup
 	released.Add(1)
-	executor.OnComplete = func(teamID, agentID string) {
+	executor.OnRunComplete = func(teamID, agentID, runID string) {
 		if teamID != "team-1" || agentID != "agent-1" {
 			t.Errorf("unexpected complete callback: %s/%s", teamID, agentID)
 		}
 		released.Done()
 	}
 
-	executor.WatchRecoveredRun("team-1", "agent-1", "run-recovered", "profile-p", "task-1", "heartbeat-team-1-agent-1", "RUN_STATUS_RUNNING", "")
+	executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "run-recovered", "profile-p", "task-1", "heartbeat-team-1-agent-1", "RUN_STATUS_RUNNING", "", "", "")
 
 	done := make(chan struct{})
 	go func() {
@@ -2014,7 +2051,7 @@ func TestWatchRecoveredRun_ReleasesOnTerminal(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("expected recovered run watcher to fire OnComplete on terminal owner state")
+		t.Fatal("expected recovered run watcher to fire the run-scoped completion callback on terminal owner state")
 	}
 }
 
@@ -2044,6 +2081,417 @@ func TestRecoveredWatcherOutlivesStartupRecoveryContext(t *testing.T) {
 	})
 }
 
+func TestRecoverProjectsAlreadyTerminalRunWithoutLosingOriginalProjection(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	originalLogPath := filepath.Join(t.TempDir(), "original-heartbeat.log")
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.LastExecution = &store.HeartbeatExecResult{
+		StartedAt: "2026-10-19T15:07:22Z", Status: store.HeartbeatStatusRunning,
+		RunID: "run-terminal-before-recovery", LogPath: originalLogPath, AdmissionOrigin: AdmissionOriginManual,
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", config); err != nil {
+		t.Fatal(err)
+	}
+
+	terminal := &Run{ID: "run-terminal-before-recovery", Status: "RUN_STATUS_COMPLETE", StartedAt: "2026-10-19T15:07:22Z", EndedAt: "2026-10-19T15:08:12Z"}
+	client := newMockAgentClient().WithGetRunResponse(terminal.ID, terminal).WithWaitRunResponse(terminal)
+	registry := NewRunRegistry(t.TempDir())
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
+	defer executor.Shutdown()
+	dir := t.TempDir()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	executor.SetTeamExecStore(teamExecStore)
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID: "team-1", MaxConcurrentRuns: 1,
+		Running: []queuedExecution{{AgentID: "agent-1", ProfileKey: "profile-p", TaskID: "task-1", RunID: terminal.ID, OwnerStartedAt: "2026-10-19T15:07:22Z"}},
+	})
+	tec := teamExecStore.GetOrCreate("team-1")
+	tec.Recover(ctx)
+	waitForCondition(t, "terminal projection, attempt, and exact queue release complete", func() bool {
+		updated, readErr := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+		attempts, total, attemptErr := teamStore.ListHeartbeatAttempts(ctx, "team-1", "agent-1", store.HeartbeatStatusCompleted, "", 10, 0)
+		status := tec.Status()
+		return readErr == nil && updated.LastExecution != nil && updated.LastExecution.RunID == terminal.ID &&
+			updated.LastExecution.Status == store.HeartbeatStatusCompleted && updated.LastExecution.EndedAt == terminal.EndedAt &&
+			attemptErr == nil && total == 1 && len(attempts) == 1 && status.State == "idle" && len(status.RunningAgentIDs) == 0
+	})
+	updated, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || updated.LastExecution == nil {
+		t.Fatalf("read terminal heartbeat projection: config=%+v err=%v", updated, err)
+	}
+	if updated.LastExecution.StartedAt != "2026-10-19T15:07:22Z" || updated.LastExecution.EndedAt != terminal.EndedAt || updated.LastExecution.LogPath != originalLogPath || updated.LastExecution.AdmissionOrigin != AdmissionOriginManual {
+		t.Fatalf("recovery changed original heartbeat facts: %+v", updated.LastExecution)
+	}
+	if status := tec.Status(); status.State != "idle" || len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("terminal obligation retained a slot: %+v", status)
+	}
+	attempts, total, err := teamStore.ListHeartbeatAttempts(ctx, "team-1", "agent-1", store.HeartbeatStatusCompleted, "", 10, 0)
+	if err != nil || total != 1 || len(attempts) != 1 || attempts[0].RunID != terminal.ID {
+		t.Fatalf("terminal recovery attempts = total %d %+v err=%v; want one exact-run record", total, attempts, err)
+	}
+	// Simulate a crash after the terminal heartbeat projection was stored but
+	// before the retained queue slot was durably removed. Recovery must release
+	// only this run and must not append a duplicate heartbeat attempt.
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID: "team-1", MaxConcurrentRuns: 1,
+		Running: []queuedExecution{{AgentID: "agent-1", ProfileKey: "profile-p", TaskID: "task-1", RunID: terminal.ID, OwnerStartedAt: "2026-10-19T15:07:22Z"}},
+	})
+	tec.Recover(ctx)
+	if status := tec.Status(); status.State != "idle" || len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("recovery retained a slot already projected terminal: %+v", status)
+	}
+	attempts, total, err = teamStore.ListHeartbeatAttempts(ctx, "team-1", "agent-1", store.HeartbeatStatusCompleted, "", 10, 0)
+	if err != nil || total != 1 || len(attempts) != 1 {
+		t.Fatalf("repeated recovery duplicated the terminal attempt: total %d %+v err=%v", total, attempts, err)
+	}
+	executor.inflight.Wait()
+	// The same RunID can be continued and reach terminal state again. A newer
+	// owner terminal timestamp is distinct from the already-projected result.
+	nextTerminal := &Run{ID: terminal.ID, Status: "RUN_STATUS_COMPLETE", StartedAt: terminal.StartedAt, EndedAt: "2026-10-19T15:09:12Z"}
+	client.WithGetRunResponse(nextTerminal.ID, nextTerminal).WithWaitRunResponse(nextTerminal)
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID: "team-1", MaxConcurrentRuns: 1,
+		Running: []queuedExecution{{AgentID: "agent-1", ProfileKey: "profile-p", TaskID: "task-1", RunID: nextTerminal.ID, OwnerStartedAt: terminal.StartedAt}},
+	})
+	tec.Recover(ctx)
+	waitForCondition(t, "a distinct terminal owner timestamp is projected once", func() bool {
+		updated, readErr := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+		attempts, total, attemptErr := teamStore.ListHeartbeatAttempts(ctx, "team-1", "agent-1", store.HeartbeatStatusCompleted, "", 10, 0)
+		status := tec.Status()
+		return readErr == nil && updated.LastExecution != nil && updated.LastExecution.RunID == nextTerminal.ID &&
+			updated.LastExecution.EndedAt == nextTerminal.EndedAt && attemptErr == nil && total == 2 && len(attempts) == 2 &&
+			status.State == "idle" && len(status.RunningAgentIDs) == 0
+	})
+}
+
+func TestScheduledRecheckProjectsTerminalOwnerAfterPausedRecovery(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+	runID := "run-paused-then-terminal"
+	terminal := &Run{
+		ID: runID, Status: "RUN_STATUS_COMPLETE",
+		StartedAt: "2026-10-19T15:07:22Z", EndedAt: "2026-10-19T15:08:12Z",
+	}
+	client := newMockAgentClient().
+		WithGetRunResponse(runID, &Run{ID: runID, Status: "RUN_STATUS_PARKED", StartedAt: terminal.StartedAt}).
+		WithWaitRunResponse(terminal)
+	// The member is initially eligible for the terminal-owner check. Model its
+	// ordinary heartbeat configuration becoming disabled before the scheduler's
+	// required post-projection recheck, so this test isolates old-owner release
+	// from the separate same-callback admission behavior covered elsewhere.
+	configStore := &terminalReconcileConfigStore{FileTeamStore: teamStore, disableAfterRead: 2}
+	registry := NewRunRegistry(t.TempDir())
+	executor := newTestExecutor(t, teamStore, agentStore, client, dir, registry, nil)
+	defer executor.Shutdown()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+	executor.SetTeamExecStore(teamExecStore)
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID: "team-1", MaxConcurrentRuns: 1,
+		Running: []queuedExecution{{
+			AgentID: "agent-1", ProfileKey: "profile-p", TaskID: "task-1", RunID: runID,
+			OwnerStartedAt: terminal.StartedAt,
+		}},
+	})
+	teamExecStore.Recover(ctx)
+	if status := teamExecStore.Status("team-1"); len(status.PausedAgentIDs) != 1 {
+		t.Fatalf("startup should retain the parked run as paused: %+v", status)
+	}
+
+	client.mu.Lock()
+	client.getRuns[runID] = terminal
+	client.mu.Unlock()
+	scheduler := NewScheduler(executor, client, configStore, teamExecStore)
+	scheduler.teamStore = teamStore
+	scheduler.executeHeartbeat(ctx, "team-1", "agent-1")
+	status := teamExecStore.Status("team-1")
+	if configStore.readCount() != 2 {
+		t.Fatalf("scheduler must recheck actual heartbeat eligibility after terminal projection, reads=%d", configStore.readCount())
+	}
+	if len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("terminal paused owner should release its exact queue slot before disabled admission: %+v", status)
+	}
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || config == nil || config.LastExecution == nil ||
+		config.LastExecution.RunID != runID || config.LastExecution.Status != store.HeartbeatStatusCompleted {
+		t.Fatalf("original paused owner terminal projection = %+v, err=%v", config, err)
+	}
+	attempts, _, err := teamStore.ListHeartbeatAttempts(ctx, "team-1", "agent-1", store.HeartbeatStatusCompleted, "", 10, 0)
+	if err != nil {
+		t.Fatalf("read terminal attempt projection: %v", err)
+	}
+	seenTerminal := false
+	for _, attempt := range attempts {
+		if attempt.RunID == runID && attempt.Phase == "run_terminal" {
+			seenTerminal = true
+			break
+		}
+	}
+	if !seenTerminal {
+		t.Fatalf("original paused owner terminal attempt was not retained: %+v", attempts)
+	}
+	if registry.Count() != 0 {
+		t.Fatalf("terminal owner should retire its original registry entry, got %d", registry.Count())
+	}
+}
+
+func TestRecoverReplacesStalePreviousHeartbeatProjectionForCurrentQueueRun(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.LastExecution = &store.HeartbeatExecResult{RunID: "previous-run", StartedAt: "2026-10-19T14:00:00Z", EndedAt: "2026-10-19T14:05:00Z", Status: store.HeartbeatStatusCompleted}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", config); err != nil {
+		t.Fatal(err)
+	}
+	terminal := &Run{ID: "current-queue-run", Status: "RUN_STATUS_COMPLETE", StartedAt: "2026-10-19T15:07:22Z"}
+	client := newMockAgentClient().WithGetRunResponse(terminal.ID, terminal).WithWaitRunResponse(terminal)
+	dir := t.TempDir()
+	registry := NewRunRegistry(t.TempDir())
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
+	defer executor.Shutdown()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	executor.SetTeamExecStore(teamExecStore)
+	tec := teamExecStore.GetOrCreate("team-1")
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{TeamID: "team-1", MaxConcurrentRuns: 1, Running: []queuedExecution{{AgentID: "agent-1", ProfileKey: "profile-p", TaskID: "task-current", RunID: terminal.ID, OwnerStartedAt: terminal.StartedAt, AdmissionOrigin: AdmissionOriginManual}}})
+	tec.Recover(ctx)
+	waitForCondition(t, "current queue owner replaces the stale prior heartbeat projection", func() bool {
+		updated, readErr := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+		return readErr == nil && updated.LastExecution != nil && updated.LastExecution.RunID == terminal.ID && updated.LastExecution.Status == store.HeartbeatStatusCompleted
+	})
+	updated, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || updated.LastExecution == nil || updated.LastExecution.AdmissionOrigin != AdmissionOriginManual || updated.LastExecution.StartedAt != terminal.StartedAt {
+		t.Fatalf("recovery lost current owner facts: %+v err=%v", updated, err)
+	}
+}
+
+func TestRecoverSameRunContinuedAfterPriorTerminalProjection(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.LastExecution = &store.HeartbeatExecResult{
+		RunID: "continued-run", StartedAt: "2026-10-19T14:00:00Z", EndedAt: "2026-10-19T14:05:00Z",
+		Status: store.HeartbeatStatusCompleted,
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", config); err != nil {
+		t.Fatal(err)
+	}
+	active := &Run{ID: "continued-run", Status: "RUN_STATUS_RUNNING", StartedAt: "2026-10-19T14:00:00Z"}
+	client := &blockingWaitAgentClient{AgentClient: newMockAgentClient().WithGetRunResponse(active.ID, active), started: make(chan struct{})}
+	dir := t.TempDir()
+	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
+	defer executor.Shutdown()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+	executor.SetTeamExecStore(teamExecStore)
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID: "team-1", MaxConcurrentRuns: 1,
+		Running: []queuedExecution{{AgentID: "agent-1", ProfileKey: "profile-p", TaskID: "task-current", RunID: active.ID, OwnerStartedAt: active.StartedAt}},
+	})
+	teamExecStore.Recover(ctx)
+
+	select {
+	case <-client.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("recovery treated a prior terminal projection as terminal for the current run")
+	}
+	updated, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || updated.LastExecution == nil || updated.LastExecution.RunID != active.ID || updated.LastExecution.Status != store.HeartbeatStatusRunning || updated.LastExecution.EndedAt != "" {
+		t.Fatalf("current running owner was not projected over prior same-run terminal facts: %+v err=%v", updated, err)
+	}
+	if status := teamExecStore.Status("team-1"); status.State != "active" || len(status.RunningAgentIDs) != 1 {
+		t.Fatalf("same-run continuation lost retained ownership: %+v", status)
+	}
+}
+
+type blockingTerminalWaitAgentClient struct {
+	*mockAgentClient
+	waitStarted  chan struct{}
+	releaseWait  chan struct{}
+	waitReturned chan struct{}
+	terminalRun  *Run
+}
+
+func (c *blockingTerminalWaitAgentClient) WaitForRun(ctx context.Context, runID string, _ time.Duration) (*Run, error) {
+	close(c.waitStarted)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-c.releaseWait:
+		defer close(c.waitReturned)
+		return c.terminalRun, nil
+	}
+}
+
+func TestRecoveredTerminalWaitCannotOverwriteOrReleaseNewerOwner(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	oldRun := &Run{ID: "older-run", Status: "RUN_STATUS_COMPLETE", StartedAt: "2026-10-19T15:07:22Z"}
+	client := &blockingTerminalWaitAgentClient{
+		mockAgentClient: newMockAgentClient(),
+		waitStarted:     make(chan struct{}), releaseWait: make(chan struct{}), waitReturned: make(chan struct{}), terminalRun: oldRun,
+	}
+	registry := NewRunRegistry(t.TempDir())
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
+	defer executor.Shutdown()
+	dir := t.TempDir()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	executor.SetTeamExecStore(teamExecStore)
+	tec := teamExecStore.GetOrCreate("team-1")
+	tec.running["agent-1"] = runningEntry{RunID: oldRun.ID, ProfileKey: "profile-p"}
+
+	if !executor.WatchRecoveredRunWithProjection("team-1", "agent-1", oldRun.ID, "profile-p", "task-old", "tag-old", "RUN_STATUS_COMPLETE", oldRun.StartedAt, "", "") {
+		t.Fatal("recovered terminal waiter did not attach")
+	}
+	select {
+	case <-client.waitStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("recovered waiter did not reach owner wait")
+	}
+
+	newerConfig, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	newerConfig.LastExecution = &store.HeartbeatExecResult{RunID: "newer-run", Status: store.HeartbeatStatusRunning, StartedAt: "2026-10-19T15:10:00Z", LogPath: "newer.log"}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", newerConfig); err != nil {
+		t.Fatal(err)
+	}
+	registry.Register("team-1", "agent-1", "newer-run", time.Now(), func() {})
+	tec.mu.Lock()
+	tec.running["agent-1"] = runningEntry{RunID: "newer-run", ProfileKey: "profile-p"}
+	tec.mu.Unlock()
+
+	close(client.releaseWait)
+	select {
+	case <-client.waitReturned:
+	case <-time.After(2 * time.Second):
+		t.Fatal("owner wait did not return")
+	}
+	executor.inflight.Wait()
+	waitForCondition(t, "old waiter finishes without changing the replacement owner", func() bool {
+		config, readErr := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+		active, activeOK := registry.GetActiveRun("team-1", "agent-1")
+		status := tec.Status()
+		return readErr == nil && config.LastExecution != nil && config.LastExecution.RunID == "newer-run" &&
+			activeOK && active != nil && active.RunID == "newer-run" && len(status.RunningAgentIDs) == 1 && status.RunningAgentIDs[0] == "agent-1"
+	})
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || config.LastExecution == nil || config.LastExecution.RunID != "newer-run" || config.LastExecution.LogPath != "newer.log" {
+		t.Fatalf("older waiter changed newer heartbeat projection: %+v err=%v", config, err)
+	}
+	if attempts, total, readErr := teamStore.ListHeartbeatAttempts(ctx, "team-1", "agent-1", store.HeartbeatStatusCompleted, "", 10, 0); readErr != nil || total != 0 || len(attempts) != 0 {
+		t.Fatalf("older waiter recorded a terminal attempt after replacement: total=%d attempts=%+v err=%v", total, attempts, readErr)
+	}
+}
+
+func TestRecoveredTerminalWaitReleasesOnlyItsRetainedSlotAfterNewerProjection(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	oldRun := &Run{ID: "older-run", Status: "RUN_STATUS_COMPLETE", StartedAt: "2026-10-19T15:07:22Z"}
+	client := &blockingTerminalWaitAgentClient{
+		mockAgentClient: newMockAgentClient(),
+		waitStarted:     make(chan struct{}), releaseWait: make(chan struct{}), waitReturned: make(chan struct{}), terminalRun: oldRun,
+	}
+	registry := NewRunRegistry(t.TempDir())
+	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
+	defer executor.Shutdown()
+	dir := t.TempDir()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	executor.SetTeamExecStore(teamExecStore)
+	tec := teamExecStore.GetOrCreate("team-1")
+	tec.running["agent-1"] = runningEntry{RunID: oldRun.ID, ProfileKey: "profile-p"}
+
+	if !executor.WatchRecoveredRunWithProjection("team-1", "agent-1", oldRun.ID, "profile-p", "task-old", "tag-old", "RUN_STATUS_COMPLETE", oldRun.StartedAt, "", "") {
+		t.Fatal("recovered terminal waiter did not attach")
+	}
+	select {
+	case <-client.waitStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("recovered waiter did not reach owner wait")
+	}
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.LastExecution = &store.HeartbeatExecResult{RunID: "newer-run", Status: store.HeartbeatStatusRunning, StartedAt: "2026-10-19T15:10:00Z", LogPath: "newer.log"}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", config); err != nil {
+		t.Fatal(err)
+	}
+	close(client.releaseWait)
+	select {
+	case <-client.waitReturned:
+	case <-time.After(2 * time.Second):
+		t.Fatal("owner wait did not return")
+	}
+	executor.inflight.Wait()
+	if status := tec.Status(); status.State != "idle" || len(status.RunningAgentIDs) != 0 {
+		t.Fatalf("terminal old run did not release its exact retained slot: %+v", status)
+	}
+	if active, ok := registry.GetActiveRun("team-1", "agent-1"); ok {
+		t.Fatalf("terminal old run remained active in registry: %+v", active)
+	}
+	config, err = teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || config.LastExecution == nil || config.LastExecution.RunID != "newer-run" || config.LastExecution.LogPath != "newer.log" {
+		t.Fatalf("old terminal projection overwrote newer result: %+v err=%v", config, err)
+	}
+}
+
+func TestWatchRecoveredRunDoesNotReplaceNewerOwner(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	ctx := context.Background()
+	config, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.LastExecution = &store.HeartbeatExecResult{RunID: "newer-run", Status: store.HeartbeatStatusRunning, StartedAt: "2026-10-19T15:10:00Z", LogPath: "newer.log"}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", config); err != nil {
+		t.Fatal(err)
+	}
+	registry := NewRunRegistry(t.TempDir())
+	registry.Register("team-1", "agent-1", "newer-run", time.Now(), func() {})
+	executor := newTestExecutor(t, teamStore, agentStore, newMockAgentClient(), t.TempDir(), registry, nil)
+	defer executor.Shutdown()
+	dir := t.TempDir()
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, newMockAgentClient())
+	executor.OnRunComplete = teamExecStore.OnRunComplete
+	executor.SetTeamExecStore(teamExecStore)
+	tec := teamExecStore.GetOrCreate("team-1")
+	tec.running["agent-1"] = runningEntry{RunID: "newer-run", ProfileKey: "profile-p"}
+
+	if executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "older-run", "profile-p", "task-old", "tag-old", "RUN_STATUS_COMPLETE", "", "", "") {
+		t.Fatal("stale recovered run attached over newer heartbeat projection")
+	}
+	// Recover's terminal fallback uses the exact run ID and must not release a
+	// replacement slot for the same team/member.
+	tec.OnMemberCompleteRun("agent-1", "older-run")
+	updated, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil || updated.LastExecution == nil || updated.LastExecution.RunID != "newer-run" || updated.LastExecution.LogPath != "newer.log" {
+		t.Fatalf("stale run changed newer heartbeat projection: %+v err=%v", updated, err)
+	}
+	if status := tec.Status(); len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
+		t.Fatalf("stale run released replacement queue slot: %+v", status)
+	}
+	active, ok := registry.GetActiveRun("team-1", "agent-1")
+	if !ok || active == nil || active.RunID != "newer-run" {
+		t.Fatalf("stale run removed replacement registry owner: %+v", active)
+	}
+}
+
 func TestWatchRecoveredRunRetainsOwnerStartWhenObserverFails(t *testing.T) {
 	for _, test := range []struct {
 		name           string
@@ -2060,7 +2508,7 @@ func TestWatchRecoveredRunRetainsOwnerStartWhenObserverFails(t *testing.T) {
 			executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
 			defer executor.Shutdown()
 
-			if !executor.WatchRecoveredRun("team-1", "agent-1", "run-recovered", "profile-p", "task-1", "tag", "RUN_STATUS_NEEDS_REVIEW", test.ownerStartedAt) {
+			if !executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "run-recovered", "profile-p", "task-1", "tag", "RUN_STATUS_NEEDS_REVIEW", test.ownerStartedAt, "", "") {
 				t.Fatal("recovered watcher was not started")
 			}
 			waitForCondition(t, "observer failure recorded", func() bool {
@@ -2120,7 +2568,7 @@ func TestRecoveryKnownActiveRunTerminalCallbackReleasesRetainedSlot(t *testing.T
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	teamExecStore.Recover(context.Background())
 
 	deadline := time.After(5 * time.Second)
@@ -2165,7 +2613,7 @@ func TestRecoveryNeedsReviewProjectsStoredHeartbeatHealthAndRetainsSlot(t *testi
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	defer executor.Shutdown()
 	teamExecStore.Recover(context.Background())
 
@@ -2196,7 +2644,7 @@ func TestScheduledApprovalPendingTaskRetryCreatesOneTaskAndRun(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir(), client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	scheduler := NewScheduler(executor, client, teamStore, teamExecStore)
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
@@ -2227,5 +2675,97 @@ func TestScheduledApprovalPendingTaskRetryCreatesOneTaskAndRun(t *testing.T) {
 			t.Fatal("terminal owner callback did not release the approved run")
 		case <-time.After(5 * time.Millisecond):
 		}
+	}
+}
+
+func TestExecutePersistsExplicitAdmissionOriginThroughTerminalHistory(t *testing.T) {
+	for _, origin := range []string{AdmissionOriginScheduled, AdmissionOriginManual} {
+		t.Run(origin, func(t *testing.T) {
+			teamStore, agentStore, _ := setupExecutorTestEnv(t)
+			client := newMockAgentClient().
+				WithCreateTaskResponse(&Task{ID: "task-origin", Title: "origin"}).
+				WithCreateRunResponse(&Run{ID: "run-origin", Status: "RUN_STATUS_RUNNING"}).
+				WithWaitRunResponse(&Run{ID: "run-origin", Status: "RUN_STATUS_COMPLETE"})
+			executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
+			completed := make(chan struct{}, 1)
+			executor.OnRunComplete = func(string, string, string) { completed <- struct{}{} }
+
+			if _, err := executor.Execute(withHeartbeatAdmissionOrigin(context.Background(), origin), "team-1", "agent-1", "p"); err != nil {
+				t.Fatalf("Execute: %v", err)
+			}
+			select {
+			case <-completed:
+			case <-time.After(5 * time.Second):
+				t.Fatal("completion callback did not arrive")
+			}
+
+			config, err := teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
+			if err != nil || config.LastExecution == nil || config.LastExecution.AdmissionOrigin != origin {
+				t.Fatalf("terminal LastExecution = %+v, err %v; want origin %q", config.LastExecution, err, origin)
+			}
+			if config.LastSuccessfulExecution == nil || config.LastSuccessfulExecution.AdmissionOrigin != origin {
+				t.Fatalf("LastSuccessfulExecution = %+v; want origin %q", config.LastSuccessfulExecution, origin)
+			}
+			attempts, _, err := teamStore.ListHeartbeatAttempts(context.Background(), "team-1", "agent-1", "", "", 20, 0)
+			if err != nil {
+				t.Fatalf("ListHeartbeatAttempts: %v", err)
+			}
+			phases := map[string]string{}
+			for _, attempt := range attempts {
+				if attempt.RunID == "run-origin" {
+					phases[attempt.Phase] = attempt.AdmissionOrigin
+				}
+			}
+			if phases["run_created"] != origin || phases["run_terminal"] != origin {
+				t.Fatalf("attempt origins by phase = %+v; want run_created and run_terminal = %q", phases, origin)
+			}
+		})
+	}
+}
+
+func TestRecoveredRunPreservesOnlyExactKnownAdmissionOrigin(t *testing.T) {
+	cases := []struct {
+		name       string
+		storedRun  string
+		storedFrom string
+		want       string
+	}{
+		{name: "same run retains scheduled origin", storedRun: "run-recovered", storedFrom: AdmissionOriginScheduled, want: AdmissionOriginScheduled},
+		{name: "different previous run is not borrowed", storedRun: "run-previous", storedFrom: AdmissionOriginManual, want: ""},
+		{name: "legacy missing origin stays unknown", storedRun: "run-recovered", storedFrom: "", want: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			teamStore, agentStore, _ := setupExecutorTestEnv(t)
+			config, err := teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			config.LastExecution = &store.HeartbeatExecResult{
+				StartedAt:       time.Now().UTC().Add(-time.Minute).Format(time.RFC3339),
+				Status:          store.HeartbeatStatusRunning,
+				RunID:           tc.storedRun,
+				AdmissionOrigin: tc.storedFrom,
+			}
+			if err := teamStore.SetHeartbeatConfig(context.Background(), "team-1", "agent-1", config); err != nil {
+				t.Fatal(err)
+			}
+			client := newMockAgentClient().WithWaitRunResponse(&Run{ID: "run-recovered", Status: "RUN_STATUS_COMPLETE"})
+			executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
+			completed := make(chan struct{}, 1)
+			executor.OnRunComplete = func(string, string, string) { completed <- struct{}{} }
+			if !executor.WatchRecoveredRunWithProjection("team-1", "agent-1", "run-recovered", "p", "task", "tag", "RUN_STATUS_RUNNING", "", "", "") {
+				t.Fatal("WatchRecoveredRun did not attach")
+			}
+			select {
+			case <-completed:
+			case <-time.After(5 * time.Second):
+				t.Fatal("recovered completion callback did not arrive")
+			}
+			updated, err := teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
+			if err != nil || updated.LastExecution == nil || updated.LastExecution.AdmissionOrigin != tc.want {
+				t.Fatalf("recovered LastExecution = %+v, err %v; want origin %q", updated.LastExecution, err, tc.want)
+			}
+		})
 	}
 }

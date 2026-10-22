@@ -1,0 +1,14 @@
+[
+  {
+    "path": "scenarios/personal-planner/api/internal/workspace/sqlite.go",
+    "observed_at": "2026-10-21T00:50:25.181778+00:00",
+    "bytes": 6661,
+    "sha256": "bcfd697663edf86e113c3de03c523d5553f504d9782770464416a408729e729f"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/workspace/sqlite_test.go",
+    "observed_at": "2026-10-21T00:50:25.182244+00:00",
+    "bytes": 9025,
+    "sha256": "de783c0117b85bfddb3f1d58f8b7dcea1052f3051040f9676231286784668170"
+  }
+]

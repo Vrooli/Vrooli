@@ -14,6 +14,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"strings"
 	"time"
 
 	"device-studio/internal/composition"
@@ -72,11 +73,14 @@ func (r *ownedPhysicalResolver) ValidatePhysicalSetup(ctx context.Context, setup
 	}
 	binding := &shotsv1.PhysicalShotBinding{
 		Device: proto.Clone(setup.Device).(*shotsv1.ComponentRevisionRef), Scene: proto.Clone(setup.Scene).(*shotsv1.ComponentRevisionRef), Motion: proto.Clone(setup.Motion).(*shotsv1.ComponentRevisionRef),
-		DisplayId: setup.DisplayId, DeviceSupportId: setup.DeviceSupportId, SceneSupportId: setup.SceneSupportId, CameraId: setup.CameraId,
+		DisplayId: setup.DisplayId, DeviceSupportId: setup.DeviceSupportId, SceneSupportId: setup.SceneSupportId, SceneSupportSlotId: setup.SceneSupportSlotId, CameraId: setup.CameraId,
 		SceneSupportWorld: proto.Clone(setup.SceneSupportWorld).(*physicalv1.TRS), SupportPivotM: proto.Clone(setup.SupportPivotM).(*physicalv1.Vec3), DeviceRootRest: proto.Clone(setup.DeviceRootRest).(*physicalv1.TRS),
 	}
 	if err := validatePhysicalSelection(binding, deviceCandidate, sceneCandidate, motionCandidate); err != nil {
 		return ErrInvalidPhysicalBinding{Reason: err.Error()}
+	}
+	if compatibility := evaluatePhysicalCompatibility(binding, deviceCandidate, sceneCandidate, motionCandidate); compatibility.Status == devices.Incompatible {
+		return ErrInvalidPhysicalBinding{Reason: "physical compatibility incompatible: " + strings.Join(compatibility.Reasons, "; ")}
 	}
 	assets := []physical.ArtifactRef{deviceCandidate.Geometry}
 	for _, asset := range sceneCandidate.Artifacts {
@@ -107,6 +111,7 @@ type PhysicalResolution struct {
 	MotionCandidate                                              motions.MotionCandidate
 	DeviceCanonicalJSON, SceneCanonicalJSON, MotionCanonicalJSON []byte
 	Assets                                                       []PhysicalAssetBinding
+	Compatibility                                                devices.Compatibility
 	Binding                                                      *shotsv1.PhysicalShotBinding
 	ScreenMedia                                                  projects.SourceMedia
 	ScreenRasterPNG                                              []byte
@@ -204,6 +209,9 @@ func (s *service) buildPhysicalRevision(ctx context.Context, projectID, shotID s
 	if timing := snapshot.GetVideoTiming(); timing != nil && timing.GetAudioPolicy() == shotsv1.VideoAudioPolicy_VIDEO_AUDIO_POLICY_PASSTHROUGH {
 		issues = append(issues, &shotsv1.ShotIssue{Code: shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_AUDIO_POLICY, FieldPath: "video_timing.audio_policy", Summary: "Source audio passthrough is not supported by this renderer.", Repair: "Select silent output. The original recording retains its audio.", BlocksRender: true})
 	}
+	if resolved.Compatibility.Status == devices.Incompatible {
+		issues = append(issues, &shotsv1.ShotIssue{Code: shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_PHYSICAL_COMPATIBILITY, FieldPath: "physical_binding.scene_support_slot_id", Summary: "Physical support compatibility is incompatible: " + strings.Join(resolved.Compatibility.Reasons, "; "), Repair: "Select a declared compatible support slot or correct the incompatible mount, fit, pose, or motion.", BlocksRender: true})
+	}
 	mediaType := resolved.ScreenMedia.MediaType
 	if mediaType == "" {
 		mediaType = "image/png"
@@ -291,6 +299,7 @@ func (r *ownedPhysicalResolver) Resolve(ctx context.Context, projectID string, b
 	if err := validatePhysicalSelection(binding, deviceCandidate, sceneCandidate, motionCandidate); err != nil {
 		return nil, ErrInvalidPhysicalBinding{Reason: err.Error()}
 	}
+	compatibility := evaluatePhysicalCompatibility(binding, deviceCandidate, sceneCandidate, motionCandidate)
 	if err := validatePhysicalArticulationMode(binding, timing, motionCandidate); err != nil {
 		return nil, ErrInvalidPhysicalBinding{Reason: err.Error()}
 	}
@@ -382,7 +391,7 @@ func (r *ownedPhysicalResolver) Resolve(ctx context.Context, projectID string, b
 		MotionID: motionRevision.MotionID, MotionRevision: motionRevision.Revision, MotionSHA256: motionSHA,
 		DeviceCandidate: deviceCandidate, SceneCandidate: sceneCandidate, MotionCandidate: motionCandidate,
 		DeviceCanonicalJSON: deviceJSON, SceneCanonicalJSON: sceneJSON, MotionCanonicalJSON: motionJSON,
-		Assets: assets, Binding: binding, ScreenMedia: media, ScreenRasterPNG: screenPNG,
+		Assets: assets, Binding: binding, ScreenMedia: media, ScreenRasterPNG: screenPNG, Compatibility: compatibility,
 		PresentationProfile: presentations.SimulatedCompositorProfile, PresentationVersion: presentationVersion,
 		ConfigSHA256: configSHA, LayoutSHA256: layoutSHA, RasterSHA256: rasterSHA, MotionSample: sample,
 		RecordingConfig: recordingConfig, RecordingLayout: recordingLayout,
@@ -606,7 +615,7 @@ func validatePhysicalSelection(binding *shotsv1.PhysicalShotBinding, device devi
 		}
 	}
 	for _, support := range scene.SupportFrames {
-		if support.ID == binding.GetSceneSupportId() && support.InterfaceID == deviceInterface {
+		if support.ID == binding.GetSceneSupportId() && (binding.GetSceneSupportSlotId() != "" || support.InterfaceID == deviceInterface) {
 			sceneSupport = true
 		}
 	}
@@ -674,6 +683,103 @@ func validatePhysicalSelection(binding *shotsv1.PhysicalShotBinding, device devi
 		}
 	}
 	return nil
+}
+
+// evaluatePhysicalCompatibility consumes only immutable candidate facts and
+// the canonical device compatibility evaluators. Slot-less historical scenes
+// retain the old interface-only preview path, explicitly reported as needing
+// review rather than treated as a proven physical fit.
+func evaluatePhysicalCompatibility(binding *shotsv1.PhysicalShotBinding, device devices.DeviceCandidate, scene scenes.SceneCandidate, motion motions.MotionCandidate) devices.Compatibility {
+	result := devices.Compatibility{Status: devices.Compatible}
+	var selected *scenes.SceneSupportSlot
+	if binding.GetSceneSupportSlotId() == "" {
+		reason := "legacy interface-only setup: scene revision has no declared support slot; physical fit is not established"
+		if scene.Version != scenes.CandidateVersion {
+			reason = "scene declares support slots but this setup selects none; physical fit is not established"
+		}
+		result = devices.Compatibility{Status: devices.NeedsReview, Reasons: []string{reason}}
+	} else {
+		for i := range scene.SupportSlots {
+			if scene.SupportSlots[i].ID == binding.GetSceneSupportSlotId() {
+				selected = &scene.SupportSlots[i]
+				break
+			}
+		}
+		if selected == nil || selected.FrameID != binding.GetSceneSupportId() {
+			return devices.Compatibility{Status: devices.Incompatible, Reasons: []string{"selected support slot is absent or does not reference the selected scene support frame"}}
+		}
+		frameInterface := ""
+		for _, frame := range scene.SupportFrames {
+			if frame.ID == selected.FrameID {
+				frameInterface = frame.InterfaceID
+				break
+			}
+		}
+		if frameInterface == "" || frameInterface != selected.RequiredInterface {
+			return devices.Compatibility{Status: devices.Incompatible, Reasons: []string{"support slot interface does not match its referenced scene frame"}}
+		}
+		groups := make([]devices.Group, 0, len(selected.AllowedGroups))
+		for _, group := range selected.AllowedGroups {
+			groups = append(groups, devices.Group(group))
+		}
+		support := devices.CheckSupport(device.Definition, devices.SupportSlot{
+			ID: selected.ID, Kind: selected.Kind, AllowedGroups: groups,
+			RequiredInterface: selected.RequiredInterface, DimensionState: selected.DimensionState,
+			RequiresKnownEnvelope: true,
+			MaxEnvelopeM:          &devices.EnvelopeLimitM{Width: selected.MaxWidthM, Height: selected.MaxHeightM, Depth: selected.MaxDepthM},
+		})
+		result = combineCompatibility(result, support)
+		if selected.RequiredPose != "" {
+			root, err := fromProtoTRS(binding.GetDeviceRootRest())
+			if err != nil {
+				return devices.Compatibility{Status: devices.Incompatible, Reasons: []string{"requested root transform is invalid"}}
+			}
+			result = combineCompatibility(result, devices.CheckPoseAt(device.Definition, selected.RequiredPose, root.Rotation))
+		}
+	}
+	result = combineCompatibility(result, devices.CheckDisplay(device.Definition, binding.GetDisplayId()))
+	for _, capability := range motion.RequiredCapabilities {
+		result = combineCompatibility(result, devices.CheckMotion(device.Definition, capability))
+	}
+	for _, track := range motion.Tracks {
+		if track.Target.JointID == "" {
+			continue
+		}
+		joint, ok := deviceJoint(device.Definition, track.Target.JointID)
+		if !ok {
+			return devices.Compatibility{Status: devices.Incompatible, Reasons: []string{"motion references undeclared device joint: " + track.Target.JointID}}
+		}
+		if joint.Status != "qualified" || joint.LowerRadians == nil || joint.UpperRadians == nil {
+			result = combineCompatibility(result, devices.Compatibility{Status: devices.NeedsReview, Reasons: []string{"motion joint limits are not qualified: " + track.Target.JointID}})
+			continue
+		}
+		for _, key := range track.Keys {
+			if key.AngleRad != nil && (*key.AngleRad < *joint.LowerRadians || *key.AngleRad > *joint.UpperRadians) {
+				return devices.Compatibility{Status: devices.Incompatible, Reasons: []string{"motion exceeds qualified joint limits: " + track.Target.JointID}}
+			}
+		}
+	}
+	return result
+}
+
+func deviceJoint(definition devices.Definition, id string) (devices.Joint, bool) {
+	for _, joint := range definition.Joints {
+		if joint.ID == id {
+			return joint, true
+		}
+	}
+	return devices.Joint{}, false
+}
+
+func combineCompatibility(current, next devices.Compatibility) devices.Compatibility {
+	if next.Status == devices.Incompatible {
+		return next
+	}
+	if current.Status != devices.Incompatible && next.Status == devices.NeedsReview {
+		current.Status = devices.NeedsReview
+	}
+	current.Reasons = append(current.Reasons, next.Reasons...)
+	return current
 }
 
 func validatePhysicalMotionFrameCount(output *shotsv1.PhysicalMotionOutputBinding, motion motions.MotionCandidate) error {

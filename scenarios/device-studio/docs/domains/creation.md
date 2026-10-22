@@ -2,7 +2,7 @@
 
 ## Scope
 
-Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
+Foundation contract, 2026-10-19. The requirement statements below remain the target. The implementation status has changed since this historical foundation note; see “Current implementation status — 2026-10-21” below. The bounded local geometry path is implemented, but the complete reference loop and creation requirements are not accepted as complete.
 
 AI creation/refinement is an explicit first-release workflow. It uses existing/imported candidates when suitable and creates reference-based alternatives when needed. It is not hidden inside ordinary editing or rendering.
 
@@ -36,7 +36,7 @@ Keep technical validity, dimensional fidelity, intended motion support, rights a
 
 ## Implementation seams and first bounded slice — 2026-10-20
 
-The current implementation has useful owners, but no creation workflow owner yet:
+At the start of the 2026-10-20 first implementation slice, the current implementation had useful owners but no creation workflow owner. The following inventory is historical context; current status is recorded below:
 
 - `internal/library` canonicalizes bundle manifests and review bindings, streams
   and verifies artifact bytes, publishes immutable reviewed bundle revisions,
@@ -57,10 +57,10 @@ The current implementation has useful owners, but no creation workflow owner yet
   `PhysicalShotWorkspace`. The CLI can save and inspect component candidates,
   list/get Library revisions and initialize the packaged starter. Neither
   imports an arbitrary model or submits qualification review.
-- There is no Device Studio agent/provider admission or creation-job owner.
-  The capability registry currently describes optional Audio Tools only.
-  Creation policy in this document is therefore a contract, not an existing
-  runtime control.
+- At that point there was no Device Studio provider admission or creation-job
+  owner. That statement is no longer current; bounded local creation sessions
+  and a typed geometry job owner now exist. Agent Manager remains unused for
+  this single deterministic recipe workflow.
 
 ### E5-A: local geometry intake candidate
 
@@ -412,8 +412,10 @@ an explicit local-AI confirmation, one to four ready project PNG/JPEG images,
 locked outer dimensions and a construction brief. The UI enforces the same
 four-image and 10 MiB limits and makes no manufacturer-fidelity claim. A
 completed job persists an unreviewed intake candidate plus recipe, reference,
-provider, model, call and usage lineage. This is source and fake-provider test
-evidence until a new lifecycle build and live local inference/native review.
+provider, model, call and usage lineage. This sentence described the earlier
+source/fake-provider-only stage. Subsequent live evidence is summarized below;
+it does not qualify the candidate or complete the full reference-loop
+requirement.
 
 Create replay resolves an existing idempotency key before reading current
 reference metadata or pinning the current executable. It returns the existing
@@ -448,24 +450,28 @@ claims and rights separate from approval. Report absent model, usage, or cost
 fields as unknown; local-only routing means no hosted-provider spend, not that
 every local resource is available or free of compute cost.
 
-The workflow is one explicitly disclosed local-only Gateway call plus local
-validation/compilation, not an Agent Manager child run. Project external egress
-remains opt-in and is not needed for this path. A project-level AI disclosure,
-local-only label, progress/cancel/status/result API and equivalent CLI/UI
-projection are required. Cancellation prevents later local stages where
-possible; it cannot claim to undo a Gateway call already submitted. If
-completion races with cancellation, reconcile job and candidate readback and
-retain any result blob already referenced. Do not claim a hard paid cap for a
-future hosted path: provider charge is not a hard in-flight reservation. Keep
-hosted inference unavailable until there is an enforceable operation-level
-spend ceiling and cancellation/reconciliation across all work.
+The original one-operation construction slice used one explicitly disclosed
+local-only Gateway call plus local validation/compilation, not an Agent Manager
+child run. The current parent-session limit permits at most two local calls;
+see the current status section below. Project external egress remains opt-in
+and is not needed for this path. A project-level AI disclosure, local-only
+label, progress/cancel/status/result API and equivalent CLI/UI projection are
+required. Cancellation prevents later local stages where possible; it cannot
+claim to undo a Gateway call already submitted. If completion races with
+cancellation, reconcile job and candidate readback and retain any result blob
+already referenced. Do not claim a hard paid cap for a future hosted path:
+provider charge is not a hard in-flight reservation. Keep hosted inference
+unavailable until there is an enforceable operation-level spend ceiling and
+cancellation/reconciliation across all work.
 
-The geometry-construction worker runs under an allowlisted environment. It
+The typed inference operation runs under an allowlisted environment. It
 receives the operator's resolved `HOME`, the canonical `VROOLI_BIN` path, and
 attempt-private `TMPDIR`; it does not inherit the API server's environment or
 secrets. This is required because `api-core/discovery` resolves the local-only
 AI Gateway endpoint through the runtime home and canonical scenario-port
-owner. Blender-specific settings are not part of the geometry worker profile.
+owner. This inference operation is separate from recipe compilation: the
+deterministic compiler executes through workspace-sandbox as described below.
+Blender-specific settings are not part of either geometry worker profile.
 
 Agent Manager is the canonical owner only if a later workflow requires tool use
 or delegated, multi-step work. Its declared workflow/run path carries verified
@@ -530,10 +536,12 @@ For a supported envelope rejection, the worker adds a bounded semantic issue
 to that sidecar and the native outcome owner stores the exact retained recipe
 as a digest-bound job artifact. The creation read verifies the routed job,
 attempt, outcome digest, artifact owner and exact bytes before returning it; an
-unavailable or corrupt artifact yields no recipe. The UI presents a new draft
-using that verified recipe and issue, preserves references and funding choice,
-resets AI confirmation, and waits for an explicit user submission with fresh
-operation identity. Focused worker, artifact binding, API, panel and type checks
+unavailable or corrupt artifact yields no recipe. In the original single-job
+flow, the UI presented a new draft using that verified recipe and issue,
+preserved references and funding choice, reset AI confirmation, and waited for
+an explicit submission. The current local session instead uses the persisted
+parent confirmation for unchanged scope and requires a new explicit choice for
+a linked changed-scope session. Focused worker, artifact binding, API, panel and type checks
 pass. Source/config growth is 624 gross lines against the original 550-line
 slice cap (74 over); the separately admitted 80-line correctness allowance
 covers atomic outcome replacement and its regression coverage. No live
@@ -677,3 +685,51 @@ from absent accounting. This accounting stays
 visible after reload and does not expose credentials. Local generation remains
 available offline and does not acquire, reserve, or settle a remote funding
 route.
+
+## Current implementation status — 2026-10-21
+
+The earlier “no creation workflow owner” and “source/fake-provider only” notes
+above are historical. The current local route has a durable typed job owner and
+a durable parent session owner in `api/internal/renderjobs` and `api/internal/jobs`.
+Session policy pins project, candidate, brief, envelope, reference-media IDs,
+local-only funding, and 4096 output tokens per call. The session admits at most
+two child operations/provider calls. SQLite admission reserves each operation
+atomically; a start claim checks that the scope remains active. Cancel closes
+admission before requesting child cancellation and leaves unresolved cleanup
+visible for owner-driven resumption. Session policy and children survive
+SQLite reopen. A scope change is returned as `needs_confirmation` without
+dispatch; an explicit confirmation creates a separate linked session instead
+of mutating the original scope.
+
+The supported creation workflow is local-only and uses one disclosed parent
+confirmation for unchanged-scope iterations. The durable owner readback, not
+browser local storage, determines whether that confirmation still applies.
+An unchanged-scope refinement therefore does not ask for another checkbox.
+Changing brief, dimensions, references, funding, or other pinned scope requires
+a fresh explicit choice and a linked session. This is a bounded local workflow,
+not an Agent Manager agent run, and it does not imply hosted provider spending
+is capped or supported.
+
+The recipe compiler is a separate fixed Go executable through workspace-sandbox.
+Its current profile requests 4 GiB virtual address space, 45 seconds CPU,
+60 seconds wall time, 32 processes/tasks, and 64 open files; it sets
+`GOMAXPROCS=2` and the soft `GOMEMLIMIT=256MiB` target. The address-space cap
+does not claim physical RAM or RSS containment. The parent job's limits and
+remote sandbox process limits are separately owned and are not an aggregate
+memory guarantee. Network and writes outside the mounted workspace are
+denied. OS-read confinement is not established. Arbitrary scripts, imported
+Blender execution, shell commands, URLs, or model-authored paths are
+unsupported and are never executed.
+
+Focused durable-session tests cover atomic two-child admission,
+concurrent-admission bounds, cancel/claim race, and SQLite reopen/resume in
+`api/internal/jobs/scopes_test.go`; UI tests cover owner-readback continuation
+and confirmed scope expansion. The current WSS live compiler smoke is recorded
+in [the 2026-10-21 evidence receipt](../internal/goal/evidence/E5/current-creation-session-build.md).
+The smoke has validated deterministic compilation and sandbox cleanup, but its
+temporary GLB was not retained as a product artifact. Earlier local visual
+baseline/refinement candidates remain partial and unreviewed. The fresh
+parent-session baseline path has not yet been exercised against the current
+served build, so do not mark DS-CREATION-AUTONOMY or the overall P0 creation
+requirements complete. Held-out reference comparison, photographic scene
+generation acceptance, family qualification, and human review remain open.

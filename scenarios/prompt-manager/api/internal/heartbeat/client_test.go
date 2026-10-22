@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // newTestClient creates an AgentManagerClient pointed at the given test server.
@@ -72,6 +77,52 @@ func TestHealth_ReturnsFalseFor403(t *testing.T) {
 	}
 	if ok {
 		t.Fatal("expected unhealthy for 403")
+	}
+}
+
+func TestGetEffortEnrollmentUsesExactCurrentOwnerBoardRow(t *testing.T) {
+	want := &domainpb.EffortEnrollment{EffortRef: "effort:delivery", TargetRevision: "target-9"}
+	body, err := protojson.Marshal(&domainpb.EffortBoard{Rows: []*domainpb.EffortBoardRow{{Enrollment: want}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != apiconnect.AgentManagerServiceGetEffortBoardProcedure {
+			t.Errorf("unexpected owner request: %s %s", r.Method, r.URL.Path)
+		}
+		var request domainpb.GetEffortBoardRequest
+		requestBody, readErr := io.ReadAll(r.Body)
+		if readErr != nil {
+			t.Errorf("read request: %v", readErr)
+		}
+		if err := protojson.Unmarshal(requestBody, &request); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if request.GetEffortRef() != "effort:delivery" {
+			t.Errorf("requested effort = %q", request.GetEffortRef())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	defer srv.Close()
+	enrollment, err := newTestClient(t, srv).GetEffortEnrollment(context.Background(), "effort:delivery")
+	if err != nil || enrollment.GetTargetRevision() != "target-9" {
+		t.Fatalf("enrollment=%+v err=%v", enrollment, err)
+	}
+}
+
+func TestGetEffortEnrollmentRejectsMissingExactRow(t *testing.T) {
+	body, err := protojson.Marshal(&domainpb.EffortBoard{Rows: []*domainpb.EffortBoardRow{{Enrollment: &domainpb.EffortEnrollment{EffortRef: "effort:other", TargetRevision: "target-1"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	defer srv.Close()
+	if _, err := newTestClient(t, srv).GetEffortEnrollment(context.Background(), "effort:delivery"); err == nil {
+		t.Fatal("expected absence of exact requested enrollment to remain unknown")
 	}
 }
 

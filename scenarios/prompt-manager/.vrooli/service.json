@@ -136,7 +136,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
+      "startup_grace_period": 45000,
       "checks": [
         {
           "name": "api_endpoint",
@@ -237,7 +237,6 @@
     },
     "freshness": {
       "inputs": [
-        "api/**",
         "cli/**",
         ".vrooli/service.json"
       ]

@@ -33,6 +33,35 @@ Device, scene and motion revisions are immutable owner snapshots exposed through
 
 Placement preserves real scale. Support solves contacts including laptop feet or phone camera bump; cosmetic floating gaps cannot conceal unsupported poses. Static support geometry under an assumed center of mass is not measured dynamic stability. Wall compatibility requires an actual mount chain and clearance, not a boolean inferred from a flat back.
 
+### Scene support slots and compatibility
+
+Scene support frames describe coordinates; they do not by themselves assert that a
+device fits. A scene revision may expose immutable support slots that reference a
+frame and declare the allowed support kind/interface, device groups, required
+device pose, and any measured fit envelope or clearance. A physical setup selects
+one slot explicitly. Compatibility is evaluated against the exact pinned device,
+scene, and motion revisions by the canonical device support, pose, and motion
+evaluators. A declared contradiction is `incompatible`; complete evidence within
+the slot is `compatible`; missing or unknown fit, mount, pose, or qualification
+evidence is `needs_review`. Unknown dimensions or installation evidence are never
+treated as zero, a wildcard, or a match. Incompatible setups cannot compile for
+rendering; needs-review setups may be inspected as candidates but are not
+render-eligible.
+
+Existing immutable `scene-candidate/v1` revisions without slots retain an explicit
+`legacy_interface_only` compatibility mode: their recorded support-frame
+interface match is reported as `needs_review`, never as a measured fit or mount
+approval. This preserves historical candidate previews and reviewed visual
+setups without silently granting compatibility to new slot-based scenes.
+
+Fit envelopes are expressed in canonical metres and name the dimensions and
+clearance they constrain. They do not replace source measurements: unknown
+measurement uncertainty, required pose, joint state, mask/cutout geometry, or
+mount-chain facts remain visible in the compatibility result. Family-specific
+requirements remain explicit: vehicle host and panel IDs must be pinned together;
+fold states must stay within declared joint limits and selected display masks;
+monitor brackets require matching interface and known installation facts.
+
 ## Explicit physical qualification review
 
 Qualification is a human-triggered, revisioned decision. Candidate creation, import,

@@ -17,7 +17,9 @@ audio, or generated assets are imported by this skill change. Retain license not
 
 ## Service and dependency decisions
 
-HyperFrames is retained at 0.8.44. The original research used an existing local
+The historical research used HyperFrames0.8.44. Resolve the current governed
+version from `internal/tools/hyperframes/README.md` and the actual owner receipt;
+current production has qualified0.8.112 locally. The original research used an existing local
 installation and newer pinned upstream guidance; it did not qualify that scratch
 installation as the reusable production entrypoint. Fresh production uses the
 managed host-tool contract in `internal/tools/hyperframes/README.md`, including

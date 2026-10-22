@@ -42,7 +42,7 @@ func TestRunRegistry_RegisterRecoveredPreservesOwnerProjection(t *testing.T) {
 	// An absent owner timestamp remains absent through persistence/recovery.
 	reg.RegisterRecovered("team", "agent", "run", time.Time{}, ObligationNeedsReview, nil)
 	reg2 := NewRunRegistry(dir)
-	reg2.Recover(context.Background(), &mockAgentClient{})
+	reg2.Recover(context.Background(), &mockAgentClient{}, nil)
 	recovered, ok := reg2.GetActiveRun("team", "agent")
 	if !ok {
 		t.Fatal("run was not recovered")
@@ -92,7 +92,7 @@ func TestRunRegistry_RecoveryDoesNotTrustLegacyLocalStartAsOwnerStart(t *testing
 	recovered := NewRunRegistry(dir)
 	client := newMockAgentClient()
 	client.getRunErr = errors.New("owner unavailable")
-	recovered.Recover(context.Background(), client)
+	recovered.Recover(context.Background(), client, nil)
 
 	run, ok := recovered.GetActiveRun("team", "agent")
 	if !ok || run.State != ObligationOwnerUnreachable {
@@ -103,21 +103,50 @@ func TestRunRegistry_RecoveryDoesNotTrustLegacyLocalStartAsOwnerStart(t *testing
 	}
 }
 
-func TestRunRegistry_Unregister(t *testing.T) {
+func TestRunRegistry_CompleteRun(t *testing.T) {
 	reg := NewRunRegistry(t.TempDir())
 	reg.Register("team-1", "agent-1", "run-1", time.Now(), func() {})
 
-	reg.Unregister("team-1", "agent-1")
+	reg.CompleteRun("team-1", "agent-1", "run-1", false, "stopped")
 
 	if count := reg.Count(); count != 0 {
-		t.Fatalf("expected 0 after unregister, got %d", count)
+		t.Fatalf("expected 0 after completing current run, got %d", count)
 	}
 }
 
-func TestRunRegistry_UnregisterNonexistent(t *testing.T) {
+func TestRunRegistry_CompleteRunDoesNotRemoveReplacement(t *testing.T) {
 	reg := NewRunRegistry(t.TempDir())
-	// Should not panic
-	reg.Unregister("team-1", "agent-1")
+	reg.Register("team-1", "agent-1", "old-run", time.Now(), nil)
+	reg.CompleteRun("team-1", "agent-1", "", false, "stopped")
+	if active, ok := reg.GetActiveRun("team-1", "agent-1"); !ok || active.RunID != "old-run" {
+		t.Fatalf("empty run ID removed active owner: active=%+v, ok=%t", active, ok)
+	}
+	reg.Register("team-1", "agent-1", "replacement-run", time.Now(), nil)
+
+	reg.CompleteRun("team-1", "agent-1", "old-run", false, "stopped")
+
+	active, ok := reg.GetActiveRun("team-1", "agent-1")
+	if !ok || active.RunID != "replacement-run" {
+		t.Fatalf("stale completion removed replacement owner: active=%+v, ok=%t", active, ok)
+	}
+}
+
+func TestRunRegistry_MarkRunObserverUnavailableRequiresExactRun(t *testing.T) {
+	reg := NewRunRegistry(t.TempDir())
+	reg.Register("team-1", "agent-1", "current-run", time.Now(), func() {})
+	reg.MarkRunObserverUnavailable("team-1", "agent-1", "")
+	reg.MarkRunObserverUnavailable("team-1", "agent-1", "stale-run")
+
+	active, ok := reg.GetActiveRun("team-1", "agent-1")
+	if !ok || active.RunID != "current-run" || active.State != "" || active.CancelFn == nil {
+		t.Fatalf("empty or stale observer update changed current owner: active=%+v, ok=%t", active, ok)
+	}
+
+	reg.MarkRunObserverUnavailable("team-1", "agent-1", "current-run")
+	active, ok = reg.GetActiveRun("team-1", "agent-1")
+	if !ok || active.State != ObligationWatcherUnavailable || active.CancelFn != nil {
+		t.Fatalf("matching observer update was not applied: active=%+v, ok=%t", active, ok)
+	}
 }
 
 func TestRunRegistry_GetActiveRun(t *testing.T) {
@@ -180,6 +209,13 @@ func TestRunRegistry_PersistAndRecover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected persist file: %v", err)
 	}
+	info, err := os.Stat(filePath)
+	if err != nil {
+		t.Fatalf("stat persisted run registry: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("persisted run registry mode = %04o, want 0644", got)
+	}
 
 	var persisted []persistedRun
 	if err := json.Unmarshal(data, &persisted); err != nil {
@@ -195,10 +231,67 @@ func TestRunRegistry_PersistAndRecover(t *testing.T) {
 		WithGetRunResponse("run-1", &Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithGetRunResponse("run-2", &Run{ID: "run-2", Status: "RUN_STATUS_RUNNING"})
 
-	reg2.Recover(context.Background(), mockClient)
+	reg2.Recover(context.Background(), mockClient, nil)
 
 	if reg2.Count() != 2 {
 		t.Fatalf("expected 2 recovered, got %d", reg2.Count())
+	}
+}
+
+func TestRunRegistry_PersistPreservesExistingPermissions(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	now := time.Now().UTC()
+	reg.Register("team-1", "agent-1", "run-1", now, func() {})
+
+	filePath := filepath.Join(dir, "heartbeat-active-runs.json")
+	if err := os.Chmod(filePath, 0o600); err != nil {
+		t.Fatalf("restrict persisted run registry: %v", err)
+	}
+	reg.Register("team-2", "agent-2", "run-2", now, func() {})
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		t.Fatalf("stat persisted run registry: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("persisted run registry mode after replacement = %04o, want existing 0600", got)
+	}
+}
+
+func TestRunRegistry_PersistRefusesUnsupportedZeroPermissions(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	now := time.Now().UTC()
+	reg.Register("team-1", "agent-1", "run-1", now, func() {})
+
+	filePath := filepath.Join(dir, "heartbeat-active-runs.json")
+	before, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("read initial registry: %v", err)
+	}
+	if err := os.Chmod(filePath, 0); err != nil {
+		t.Fatalf("restrict persisted run registry to zero permissions: %v", err)
+	}
+
+	reg.Register("team-2", "agent-2", "run-2", now, func() {})
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		t.Fatalf("stat registry after refused replacement: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0 {
+		t.Fatalf("registry with zero permissions was replaced with mode %04o", got)
+	}
+	if err := os.Chmod(filePath, 0o644); err != nil {
+		t.Fatalf("restore read access: %v", err)
+	}
+	after, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("read registry after refused replacement: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("zero-permission registry was replaced: before=%q after=%q", before, after)
 	}
 }
 
@@ -214,7 +307,7 @@ func TestRunRegistry_RecoverFiltersTerminalRuns(t *testing.T) {
 		WithGetRunResponse("run-1", &Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"}).
 		WithGetRunResponse("run-2", &Run{ID: "run-2", Status: "RUN_STATUS_RUNNING"})
 
-	reg2.Recover(context.Background(), mockClient)
+	reg2.Recover(context.Background(), mockClient, nil)
 
 	if reg2.Count() != 1 {
 		t.Fatalf("expected 1 (terminal filtered), got %d", reg2.Count())
@@ -230,7 +323,7 @@ func TestRunRegistry_RecoverNoFile(t *testing.T) {
 	mockClient := newMockAgentClient()
 
 	// Should not panic or error
-	reg.Recover(context.Background(), mockClient)
+	reg.Recover(context.Background(), mockClient, nil)
 	if reg.Count() != 0 {
 		t.Fatalf("expected 0 with no persist file, got %d", reg.Count())
 	}
@@ -247,7 +340,7 @@ func TestRunRegistry_RecoverCorruptedFile(t *testing.T) {
 	mockClient := newMockAgentClient()
 
 	// Should handle gracefully
-	reg.Recover(context.Background(), mockClient)
+	reg.Recover(context.Background(), mockClient, nil)
 	if reg.Count() != 0 {
 		t.Fatalf("expected 0 with corrupted file, got %d", reg.Count())
 	}
@@ -258,12 +351,12 @@ func TestRunRegistry_PersistAfterUnregister(t *testing.T) {
 	reg := NewRunRegistry(dir)
 
 	reg.Register("team-1", "agent-1", "run-1", time.Now(), func() {})
-	reg.Unregister("team-1", "agent-1")
+	reg.CompleteRun("team-1", "agent-1", "run-1", false, "stopped")
 
 	// Recover into fresh registry
 	reg2 := NewRunRegistry(dir)
 	mockClient := newMockAgentClient()
-	reg2.Recover(context.Background(), mockClient)
+	reg2.Recover(context.Background(), mockClient, nil)
 
 	if reg2.Count() != 0 {
 		t.Fatalf("expected 0 after unregister + recover, got %d", reg2.Count())
@@ -279,7 +372,7 @@ func TestRunRegistry_RecoverRetainsOwnerUnreachable(t *testing.T) {
 	reg2 := NewRunRegistry(dir)
 	client := newMockAgentClient()
 	client.getRunErr = errors.New("connection refused")
-	reg2.Recover(context.Background(), client)
+	reg2.Recover(context.Background(), client, nil)
 
 	if reg2.Count() != 1 {
 		t.Fatalf("expected owner-unreachable run retained, got %d", reg2.Count())
@@ -300,7 +393,7 @@ func TestRunRegistry_RecoverRetainsMissingRunAsUncertain(t *testing.T) {
 
 	reg2 := NewRunRegistry(dir)
 	client := newMockAgentClient().WithGetRunResponse("run-1", nil)
-	reg2.Recover(context.Background(), client)
+	reg2.Recover(context.Background(), client, nil)
 
 	run, ok := reg2.GetActiveRun("team-1", "agent-1")
 	if !ok {
@@ -308,6 +401,20 @@ func TestRunRegistry_RecoverRetainsMissingRunAsUncertain(t *testing.T) {
 	}
 	if run.State != ObligationDispatchUncertain {
 		t.Fatalf("expected dispatch_uncertain state, got %q", run.State)
+	}
+}
+
+func TestRunRegistry_RecoverRetainsMismatchedOwnerIdentityAsUncertain(t *testing.T) {
+	dir := t.TempDir()
+	seed := NewRunRegistry(dir)
+	seed.RegisterRecovered("team", "agent", "expected-run", time.Time{}, ObligationRunning, nil)
+
+	client := newMockAgentClient().WithGetRunResponse("expected-run", &Run{ID: "different-run", Status: "RUN_STATUS_COMPLETE"})
+	recovered := NewRunRegistry(dir)
+	recovered.Recover(context.Background(), client, nil)
+	active, ok := recovered.GetActiveRun("team", "agent")
+	if !ok || active.RunID != "expected-run" || active.State != ObligationDispatchUncertain {
+		t.Fatalf("mismatched owner response must not retire or replace exact persisted identity: active=%+v ok=%v", active, ok)
 	}
 }
 
@@ -319,7 +426,7 @@ func TestRunRegistry_RecoverClassifiesParkedAsPaused(t *testing.T) {
 	reg2 := NewRunRegistry(dir)
 	client := newMockAgentClient().
 		WithGetRunResponse("run-1", &Run{ID: "run-1", Status: "RUN_STATUS_PARKED"})
-	reg2.Recover(context.Background(), client)
+	reg2.Recover(context.Background(), client, nil)
 
 	run, ok := reg2.GetActiveRun("team-1", "agent-1")
 	if !ok {
@@ -338,7 +445,7 @@ func TestRunRegistry_RecoverClassifiesNeedsReview(t *testing.T) {
 	reg2 := NewRunRegistry(dir)
 	ownerStarted := time.Date(2026, 10, 14, 12, 30, 0, 0, time.UTC)
 	client := newMockAgentClient().WithGetRunResponse("run-1", &Run{ID: "run-1", Status: "RUN_STATUS_NEEDS_REVIEW", StartedAt: ownerStarted.Format(time.RFC3339)})
-	reg2.Recover(context.Background(), client)
+	reg2.Recover(context.Background(), client, nil)
 
 	run, ok := reg2.GetActiveRun("team-1", "agent-1")
 	if !ok {

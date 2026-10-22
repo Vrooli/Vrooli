@@ -1,0 +1,14 @@
+[
+  {
+    "path": "scenarios/personal-planner/api/internal/review/service.go",
+    "observed_at": "2026-10-20T15:04:38.797870+00:00",
+    "bytes": 22925,
+    "sha256": "b8cd3d252e722139fe88729f4ea0eb4810e105f5e9e50a7e6ec4c607e50a0cd1"
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/review/service_test.go",
+    "observed_at": "2026-10-20T15:04:38.798246+00:00",
+    "bytes": 15347,
+    "sha256": "ce7eb7e9fc03be2038c96ed4beee905beffa3af7ba52ea71e4f6747c96e6e3af"
+  }
+]

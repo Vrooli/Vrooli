@@ -1,6 +1,7 @@
 package shots
 
 import (
+	"device-studio/internal/devices"
 	domain "device-studio/internal/shots"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,10 +22,21 @@ func revisionToProto(value domain.Revision) *shotsv1.ShotRevision {
 }
 
 func compiledToProto(projectID string, value domain.Revision) *shotsv1.CompiledShot {
+	var compatibility *shotsv1.PhysicalCompatibilityReport
+	if value.Physical != nil {
+		status := shotsv1.PhysicalCompatibilityStatus_PHYSICAL_COMPATIBILITY_STATUS_NEEDS_REVIEW
+		switch value.Physical.Compatibility.Status {
+		case devices.Compatible:
+			status = shotsv1.PhysicalCompatibilityStatus_PHYSICAL_COMPATIBILITY_STATUS_COMPATIBLE
+		case devices.Incompatible:
+			status = shotsv1.PhysicalCompatibilityStatus_PHYSICAL_COMPATIBILITY_STATUS_INCOMPATIBLE
+		}
+		compatibility = &shotsv1.PhysicalCompatibilityReport{Status: status, Reasons: append([]string(nil), value.Physical.Compatibility.Reasons...)}
+	}
 	return &shotsv1.CompiledShot{
 		ProjectId: projectID, ShotId: value.ShotID, Revision: value.Revision, RecipeSha256: value.RecipeSHA256,
 		SceneSha256: value.SceneSHA256, PresentationSha256: value.PresentationSHA256, SceneVersion: value.SceneVersion, PresentationVersion: value.PresentationVersion,
 		CompositorProfile: value.CompositorProfile, Snapshot: value.Snapshot, Plate: value.Plate, ActiveMask: value.ActiveMask,
-		HardwareMask: value.HardwareMask, Screen: value.Screen, Issues: value.Issues, RenderEligible: value.RenderEligible,
+		HardwareMask: value.HardwareMask, Screen: value.Screen, Issues: value.Issues, RenderEligible: value.RenderEligible, PhysicalCompatibility: compatibility,
 	}
 }

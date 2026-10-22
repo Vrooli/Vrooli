@@ -1,0 +1,8 @@
+# Parent reconciliation — corrected split-actual fixture
+
+- Exact parent run: `5d07e651-eaa6-48ec-89b4-5dc359059193`.
+- Corrective worker task/run: `530a6516-e90c-4d79-8e3f-da50c937d4d7` / `5fbba55b-2582-4292-9bda-feee12d19052`; native run is COMPLETE, exact parent matches, and the focused test handoff is retained in `focused-correction-test.txt`.
+- Independent reviewer task/run: `2b4879be-5801-465c-8fad-218937574b99` / `b3b4692e-54e0-4395-80d9-ee56806dcea7`; COMPLETE, exit 0, APPROVED, exact parent matches. Selected final `67f5c3ad-cf7b-4f5c-9468-a2faaaf54ac8` is **PASS WITH LIMITS**. Full selected output and provenance remain in `reviewer-correction-verdict.md`; the historical task-description parent typo is preserved there and resolved by native task/run lineage.
+- Current source check: `api/internal/review/service.go` SHA-256 `15b5b300263c55a6424d9765ebe1469e278a467ad6537c581b1a2421b2fd7753`, matching the protected reviewed baseline; `service_test.go` SHA-256 `1f4abbdc311329cfafa9386f2d035bf6bc4aa55d361569aa5dca37623fb04e40`, matching the review's current test-file identity.
+- Parent reran `agent-manager effort epoch-check ... --acceptance --runs 5fbba55b-2582-4292-9bda-feee12d19052 --effort effort:personal-planner-I18 --json`. Command exit is `0`; captured output is `parent-acceptance-reconciled-20261021.json` and `.exit`. It reports `gate_status=legacy`, no typed G gates, and explicitly says acceptance is not checked against the legacy full-epoch gate. This is a successful mechanical check of available step-back/gate state, not E1/Q1 acceptance.
+- Disposition: accept only the corrected split-actual regression with limits based on the focused worker test and independent review. Full calibration, other Q1 criteria, and E1/Q1 remain open.

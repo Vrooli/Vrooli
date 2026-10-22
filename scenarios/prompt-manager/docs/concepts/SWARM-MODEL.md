@@ -61,35 +61,11 @@ have one member. A committee does not require a permanent roster of every worker
 its leader can delegate bounded assignments through the execution owner. Team
 membership, worker lineage, and an Agent Manager run are different identities.
 
-The finite-team row describes intended lifecycle, not a qualified recurring
-runtime. The current optional PM `finiteLeader` binding retains one admission
-and AM run identity; subsequent heartbeat ticks observe that run. Child
-continuation is supported when the coordinator explicitly creates an Agent
-Manager cohort watch and parks on its `supervision` await handle; the watch wakes
-the same parent run on terminal child evidence. PM does not infer child lineage,
-invent a continuation, or replace an uncertain run. This watch path does not by
-itself prove accepted effort completion. Binding persistence and retirement
-fences do not qualify fresh-run recovery or legacy-driver adoption. See the
-[finite leader implementation checkpoint](HEARTBEATS.md#finite-effort-leader-binding).
+The finite-team row describes an intended lifecycle, not a separate Prompt Manager finite-leader subsystem. Delivery teams use the existing team contract: `EffortRefs` names the effort, `Coordination.LeadAgentID` names the leader, the operating contract declares member and plan-of-record/source paths, and the leader's ordinary heartbeat selects its profile. Before dispatching a configured finite delivery lead, Prompt Manager requires a valid contract, active membership, matching profile, and exact current Agent Manager enrollment, then joins it through the run's WorkReference. The reference is descriptive and grants no authority. Missing, unavailable, or mismatched identity fails admission; an existing prior run ID remains an uncertain owner obligation that blocks competing work. Ordinary non-lead and standing/non-delivery heartbeats remain available without effort association.
 
-### Governed finite-effort start
+### Native delivery team commissioning
 
-Large efforts use one team-native start model. Create or resume a finite delivery
-team, bind its exact effort reference and accepted revision, register its Source
-Ledger team scope, validate its operating contract, and qualify the selected
-team/runner/profile/owner route with a disposable fixture. Provision the finite
-leader binding disabled. Only after the qualification evidence is reviewed and
-execution is separately approved may the operator enable the finite team and
-admit its first owner run through team execution.
-
-Keep these states separate: team registration, disabled heartbeat provisioning,
-owner-run admission, continuation authority, and accepted completion. The team
-and protected effort workspace are the recovery handoff; PM projections do not
-replace Agent Manager run identity, Swarm grants, Plan Manager plans, or an
-explicit completion receipt. The effort supervisor audits from above; it does
-not coordinate the finite team or act as a private scheduler. Bespoke
-scripts, tmux loops, and transitional drivers are historical migration evidence,
-not a supported alternative start path.
+Prepare the team and member heartbeat disabled. Before enablement, follow the reusable [large-effort-orchestration commissioning checklist](../../store/skills/packs/core/large-effort-orchestration/SKILL.md#61-commission-an-accurate-accessible-handoff) for receiver access to this effort's selected materials and for the actual member/profile/owner route. Keep source acceptance in the effort's canonical source manifest and immutable admitted task snapshot. Agent Manager owns effort enrollment and exact run identity. Prompt Manager has no bind/amend/retire or completion API for finite leaders. The normal parked orchestrator and child-watch route remains the continuation model; event check-ins are proposed and unavailable. See the [heartbeat CLI commissioning route](../reference/heartbeat-cli.md#native-delivery-team-commissioning).
 
 **Director Swarm and Effort Supervision have different decisions to make.**
 Director Swarm handles portfolio strategy, priorities, operator-readable work
@@ -151,9 +127,10 @@ Optional `effortRefs` identify the team's delivery or contribution relationships
 with canonical efforts. These references do not enroll work or assert current
 execution. A supervisor's observed-effort relationships come from its heartbeat
 observation and Agent Manager's board, not a second manually maintained list.
-Finite leader relationships come from the heartbeat's non-retired `finiteLeader`
-binding. Show them separately from authored references and supervisor observations;
-a leader binding alone does not establish supervision coverage.
+Leader membership and effort relationships come from the declared team contract and
+Agent Manager's current effort enrollment. Prompt Manager's leader WorkReference is
+a run-level observation, not a second manually maintained binding or evidence of
+supervision coverage.
 
 Show the member's declared lane, permitted write surfaces, prohibitions, and
 governing contract alongside the current effort's actual steering authority.
@@ -163,12 +140,12 @@ the source contract and open the relevant owner view.
 
 Use Agent Manager's existing read-only effort board for work observations.
 The Teams view also exposes discovered efforts that have no registered team
-binding, including transitional drivers. A complete team registry establishes
-authored relationships only; absent `effortRefs` do not establish that no runtime
-leader binding exists. Show runtime binding coverage as unknown until observed.
-Label an effort unbound only when the relevant owner observation establishes it;
-do not create an agent identity, register a team, or migrate a scheduler to make
-it appear. Bound each board request, retain pagination and partial coverage,
+binding, including transitional drivers. A complete team registry establishes authored relationships only; absent
+`effortRefs` do not establish a runtime leader relationship. Show coverage as
+unknown until the current team contract, membership, heartbeat profile, and owner
+enrollment agree. Label an effort unlinked only when the relevant owner observation
+establishes it; do not create an agent identity, register a team, or migrate a
+scheduler to make it appear. Bound each board request, retain pagination and partial coverage,
 and distinguish unavailable observations from an empty successful result.
 
 Present scheduling eligibility, current owner execution, and accepted outcome

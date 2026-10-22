@@ -1,0 +1,111 @@
+Observed after required command `cd packages/proto && make generate SCENARIO=personal-planner`. The command output reported `protogen: publishing scenarios: personal-planner`; after it completed, the repository status showed generated outputs for other Proto scenarios. Those paths were outside the admitted write set and had no exact retry-baseline hashes. Current entries are enumerated below with working-tree status, mtime and SHA-256 where regular files. Prior bytes and whether every path was already dirty before generation cannot be proven from the admitted receipt. No restoration attempted because that could overwrite concurrent authored state.
+
+Command: `git status --porcelain --untracked-files=all -- packages/proto/gen` (filtered to exclude the shared artifact pointer/descriptor and personal-planner paths).
+Other-scenario file/status entries=106
+
+ M packages/proto/gen/go/agent-manager/v1/api/service.pb.go	mtime=2026-10-20T23:00:50.412851+00:00	sha256=369197955355bf99fd0ef16ad6c9465ee64c91d00f3794cf1ef0275fc9e6be34
+ M packages/proto/gen/go/agent-manager/v1/domain/events.pb.go	mtime=2026-10-20T23:00:50.413592+00:00	sha256=c161c654d8fb35ebba71b92f798eb7659d560f9b667d81e7894e3d08e85a3697
+ M packages/proto/gen/go/agent-manager/v1/domain/run.pb.go	mtime=2026-10-20T23:00:50.413738+00:00	sha256=aa63f8233d693299298072a42d844c130d5f76d05c454f3098d7193a90dd8f11
+ M packages/proto/gen/go/dev-routing/v1/routing/routing.pb.go	mtime=2026-10-20T23:00:50.436787+00:00	sha256=e1ab4ec31b3c4e5b619cd2e88bb47de34fac3993f7867c76e41975b180d5e419
+ M packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect/routing.connect.go	mtime=2026-10-20T23:00:50.436836+00:00	sha256=c7ec367a24c62ab738c0703ae73eba26a69284ad0d0b556023a05f28ab7cb373
+ M packages/proto/gen/go/nutrition-planner/v1/planning/planning.pb.go	mtime=2026-10-20T23:00:50.458134+00:00	sha256=2d97a371ac46455a5add1fb210dbc924bc11ec5fa00eabd7ddfd3c9ea7bbb842
+ M packages/proto/gen/go/react-component-library/v1/versions/lifecycle.pb.go	mtime=2026-10-20T23:00:50.473662+00:00	sha256=0fa8bc9873ad0354014ae6abf241321ebb2e75b335dbe2fbd7dc02817c70e848
+ M packages/proto/gen/go/react-component-library/v1/versions/versions_v1connect/lifecycle.connect.go	mtime=2026-10-20T23:00:50.473764+00:00	sha256=bde56bfc194706f3c2c9b7fa7521618c4db3a863b35beeb435902f74d5a3b3db
+ M packages/proto/gen/go/scenario-to-desktop/v1/pipeline/types.pb.go	mtime=2026-10-20T23:00:50.479788+00:00	sha256=85bea429cafaebb030db83bf126145d4936c35324f85cb1d5018db5372068615
+ M packages/proto/gen/go/scenario-validation/v1/validation.pb.go	mtime=2026-10-20T23:00:50.481969+00:00	sha256=de066dc2db77ffd683f40b8983b9efad876c3e2e019f94b00a716585e1e9cc95
+ M packages/proto/gen/go/test-genie/v1/runs/runs.pb.go	mtime=2026-10-20T23:00:50.493028+00:00	sha256=dacd5af916b1d969eebbc2a0e6e557910ff7921fb4fb64dc1abd72593dd3dc42
+ M packages/proto/gen/manifests/agent-manager.lock.json	mtime=2026-10-20T23:00:50.510078+00:00	sha256=f9dcbbefe616f9e9e92e287efa583262a1cb9eb12b3cd1944862592981351b8b
+ M packages/proto/gen/manifests/cli.lock.json	mtime=2026-10-20T23:00:50.510435+00:00	sha256=9ba1857b42e950bb36118ff8a02c698257d6a305fbf823a031eac99660ee6dd9
+ M packages/proto/gen/manifests/dev-routing.lock.json	mtime=2026-10-20T23:00:50.510651+00:00	sha256=a65d548b1b1daf7ddc505330e87f787da0e64201af12314d50f805f2f98eb6c2
+ M packages/proto/gen/manifests/git-control-tower.lock.json	mtime=2026-10-20T23:00:50.510884+00:00	sha256=246cb3d4f7741121fea485c42b06fe75b87c2df99318e6f68025983d2fa5f19a
+ M packages/proto/gen/manifests/nutrition-planner.lock.json	mtime=2026-10-20T23:00:50.511362+00:00	sha256=a5aba642b75b5648c268dc070fa9d801ef798e8b286889939f42d6bd72aee596
+ M packages/proto/gen/manifests/performance-health.lock.json	mtime=2026-10-20T23:00:50.511433+00:00	sha256=5bf8fda57225d66cbbdf61b17e801522d78694a9307445709034c27e12543374
+ M packages/proto/gen/manifests/react-component-library.lock.json	mtime=2026-10-20T23:00:50.511787+00:00	sha256=6bfaf8a57dda380a004ed1617d27e6936352d0d1cc851401881f0ccf1eee9455
+ M packages/proto/gen/manifests/scenario-to-desktop.lock.json	mtime=2026-10-20T23:00:50.511961+00:00	sha256=3073dc6901ab4ab629936b7a39c12798ed24a324b9fa531fbad2f60e84d2adff
+ M packages/proto/gen/manifests/scenario-validation.lock.json	mtime=2026-10-20T23:00:50.512072+00:00	sha256=e6bc4c1584c1c8cba50bf09567591f63f21db23836da455efe572f9005a2e17e
+ M packages/proto/gen/manifests/test-genie.lock.json	mtime=2026-10-20T23:00:50.512535+00:00	sha256=9a1ad5ad5d14c8ce4f8dc21780c8e952ff386dafdb23373c2eda92d04f7fc7d7
+ M packages/proto/gen/python/agent_manager/v1/api/service_pb2.py	mtime=2026-10-20T23:00:50.513349+00:00	sha256=eb4df7df774cfccc26f93c650a399a0b530b3a83fbdc31a94cb418e34079738a
+ M packages/proto/gen/python/agent_manager/v1/api/service_pb2.pyi	mtime=2026-10-20T23:00:50.513445+00:00	sha256=426424992a72b1a53625b06fe0a009e5a30036b3f132a21f8465601ed1ff7a3d
+ M packages/proto/gen/python/agent_manager/v1/domain/events_pb2.py	mtime=2026-10-20T23:00:50.513763+00:00	sha256=3af5b0d3e22256b1d643b6ce67d7b4a26c26ef945e6c851fd756fd18127c0df1
+ M packages/proto/gen/python/agent_manager/v1/domain/run_pb2.py	mtime=2026-10-20T23:00:50.513936+00:00	sha256=187907340c679c0ddeb3fe818a6ba5a69467fc65848d0b5ad86c67ecd6b6f7dc
+ M packages/proto/gen/python/dev_routing/v1/routing/routing_pb2.py	mtime=2026-10-20T23:00:50.538699+00:00	sha256=29d2d8b4b28781dfb3b9bb333a59b75d4c3a08adb901f5694f94549bb3622975
+ M packages/proto/gen/python/dev_routing/v1/routing/routing_pb2.pyi	mtime=2026-10-20T23:00:50.538726+00:00	sha256=318763419a04a7e8c923b0c2f1ba362d080875ade94e66c0e3c106f6e1699610
+ M packages/proto/gen/python/nutrition_planner/v1/planning/planning_pb2.py	mtime=2026-10-20T23:00:50.560609+00:00	sha256=d25f20529017528c4bd9044f3842e14c87a0569084c045083e5cfa500bc8d3ea
+ M packages/proto/gen/python/nutrition_planner/v1/planning/planning_pb2.pyi	mtime=2026-10-20T23:00:50.560641+00:00	sha256=4ccdd6ea8019d2cb7de1d4e32b40a438440d6964e9a19e973bf05c1dd23f91bf
+ M packages/proto/gen/python/personal_planner/v1/goals/goals_pb2.py	mtime=2026-10-20T23:00:50.565790+00:00	sha256=e8e0a9ab6d470c57dc7d38d8e983b3f71814dc100ca82950108658bc47a00bb6
+ M packages/proto/gen/python/personal_planner/v1/goals/goals_pb2.pyi	mtime=2026-10-20T23:00:50.565821+00:00	sha256=f98aa58dd3980eaaea2a57ee4928ecea052cda8421a1fe7502b27551bb20d69d
+ M packages/proto/gen/python/react_component_library/v1/versions/lifecycle_pb2.py	mtime=2026-10-20T23:00:50.575897+00:00	sha256=399e3408a4410eca8090b29bb57a2aa754af6b45d697b06e65c38429d6c9ca00
+ M packages/proto/gen/python/react_component_library/v1/versions/lifecycle_pb2.pyi	mtime=2026-10-20T23:00:50.575927+00:00	sha256=aff91a9682c46b5ece733223583296cd4858d3b877d5734d019a5951676df9f8
+ M packages/proto/gen/python/scenario_to_desktop/v1/pipeline/types_pb2.py	mtime=2026-10-20T23:00:50.580740+00:00	sha256=56e03b02eb1fefc8651bccabd0efa7bc2f27df03e142c7156f1596ca83adaea8
+ M packages/proto/gen/python/scenario_to_desktop/v1/pipeline/types_pb2.pyi	mtime=2026-10-20T23:00:50.580798+00:00	sha256=01176b048453aeb0431059d5f3ce7615ff39b15c0d91a88886a1e51622baac4a
+ M packages/proto/gen/python/scenario_validation/v1/validation_pb2.py	mtime=2026-10-20T23:00:50.583244+00:00	sha256=46ea993dc87f50ee4313b982df00802d5c60573a69e1cf173a81613f72d42349
+ M packages/proto/gen/python/scenario_validation/v1/validation_pb2.pyi	mtime=2026-10-20T23:00:50.583277+00:00	sha256=0492afe263b046285f88bc5154eeacf8bfe9d264d49d8c61d8afe21b7a5641d9
+ M packages/proto/gen/python/test_genie/v1/runs/runs_pb2.py	mtime=2026-10-20T23:00:50.595772+00:00	sha256=3aae6131c1cff1213fe1495bd4c2aad8b2f46b6d0010fdc73fded62268a9e335
+ M packages/proto/gen/python/test_genie/v1/runs/runs_pb2.pyi	mtime=2026-10-20T23:00:50.595829+00:00	sha256=f9bf3eb3e83efe73d1c59937811e67404512025a9dafc960848fdc322d7ed13a
+ M packages/proto/gen/typescript/agent-manager/v1/api/service_pb.ts	mtime=2026-10-20T23:00:50.618879+00:00	sha256=0334b54bf5dabfb382cbfe54c87148ab467d9565f3c5c6bbc12f85180f8e3f0d
+ M packages/proto/gen/typescript/agent-manager/v1/domain/events_pb.ts	mtime=2026-10-20T23:00:50.619267+00:00	sha256=087ba9f78cd315ebc43f99c3298c21eb6131f793bded738da30a0155f8322ec4
+ M packages/proto/gen/typescript/agent-manager/v1/domain/run_pb.ts	mtime=2026-10-20T23:00:50.619369+00:00	sha256=67988b4cd0a17364b59b208786db29da842ee8620153fe39c097a22e881f1825
+ M packages/proto/gen/typescript/dev-routing/v1/routing/routing_pb.ts	mtime=2026-10-20T23:00:50.634556+00:00	sha256=52377796cdf0db26a8831b89aa98c2bab1dd64db562b5a11401cfaa96d1fb00f
+ M packages/proto/gen/typescript/nutrition-planner/v1/planning/planning_pb.ts	mtime=2026-10-20T23:00:50.647496+00:00	sha256=8501961c8077ed25a0915c02f8c9edfb476ab4c3a5c1b5fbfede17b7a59fe98c
+ M packages/proto/gen/typescript/react-component-library/v1/versions/lifecycle_pb.ts	mtime=2026-10-20T23:00:50.659012+00:00	sha256=aac656636d543f2b15767a4c7daa2b64aa864aba3abe150d20dde38fc5ad76f3
+ M packages/proto/gen/typescript/scenario-to-desktop/v1/pipeline/types_pb.ts	mtime=2026-10-20T23:00:50.662450+00:00	sha256=2d2f2206a201e2f926756c0ae9fcfa4674be5530f50d7fb4af1ac2080af5a2a7
+ M packages/proto/gen/typescript/scenario-validation/v1/validation_pb.ts	mtime=2026-10-20T23:00:50.663856+00:00	sha256=cd524381f3055ed207321acaf26f2f7fd2f81ce7a5644641062a807df1c42899
+ M packages/proto/gen/typescript/test-genie/v1/runs/runs_pb.ts	mtime=2026-10-20T23:00:50.672096+00:00	sha256=09a0e0562d448762e1f90b7b765dfcd6d691155faa06c56e59b4f8ac6fe9c6a6
+?? packages/proto/gen/go/cli/v1/renderer_profile.pb.go	mtime=2026-10-20T23:00:50.428803+00:00	sha256=bad94eab1780358d0c178087475d6580a044ef1cda78bc230763fb54d5b37dea
+?? packages/proto/gen/go/device-studio/v1/devices/devices.pb.go	mtime=2026-10-20T23:00:50.439122+00:00	sha256=5ed97b042a9a362e5072fb0ae3df66ff80b910bd9d2bfc2060e3a111c62ab2fc
+?? packages/proto/gen/go/device-studio/v1/devices/devices_v1connect/devices.connect.go	mtime=2026-10-20T23:00:50.439192+00:00	sha256=f343a0adfda0591a1d8aeff8678a4496f35ff49e01b1cbecd6b49965d736f018
+?? packages/proto/gen/go/device-studio/v1/library/library.pb.go	mtime=2026-10-20T23:00:50.439270+00:00	sha256=a2a22845c61780bca01db60ed203e9624156df258d02b80f1184632b81c55bb4
+?? packages/proto/gen/go/device-studio/v1/library/library_v1connect/library.connect.go	mtime=2026-10-20T23:00:50.439310+00:00	sha256=9c2d7e83f31a768c183b077afab74428bbd19f7cf546412815c62f9f5e6ab6fd
+?? packages/proto/gen/go/device-studio/v1/motions/motions.pb.go	mtime=2026-10-20T23:00:50.439383+00:00	sha256=09c231f05a73da452f266c08942cf8952e86f27c68d0d54fae937f36a555723f
+?? packages/proto/gen/go/device-studio/v1/motions/motions_v1connect/motions.connect.go	mtime=2026-10-20T23:00:50.439446+00:00	sha256=33edfc9ad40210f42a9e8cd90b15cd8a9e9afc27f7818aa5e2603a6afd353380
+?? packages/proto/gen/go/device-studio/v1/physical/physical.pb.go	mtime=2026-10-20T23:00:50.439525+00:00	sha256=cdd52d1aa70f220ac17ce835c61a21c795b4ce3a3dd31d6a206553622ce162b5
+?? packages/proto/gen/go/device-studio/v1/physical/physical_v1connect/physical.connect.go	mtime=2026-10-20T23:00:50.439574+00:00	sha256=3e084b24bad5b5fdf2a6ca2cef687775aaad0ee52ada8ee095aff7070568ea46
+?? packages/proto/gen/go/device-studio/v1/projects/projects.pb.go	mtime=2026-10-20T23:00:50.439649+00:00	sha256=ded2b4e1f8b533138af02023957416629b110741e42a73462b8cada01c0e79d7
+?? packages/proto/gen/go/device-studio/v1/projects/projects_v1connect/projects.connect.go	mtime=2026-10-20T23:00:50.439726+00:00	sha256=6bc70e0656c0b745352a67cf9203bcceb9e5c532d6c71ba5771f882b77496c94
+?? packages/proto/gen/go/device-studio/v1/scenes/scenes.pb.go	mtime=2026-10-20T23:00:50.439806+00:00	sha256=c6827e239a1c47884a6452ddbcefd7f2d4a1f4480777003e04df639123852523
+?? packages/proto/gen/go/device-studio/v1/scenes/scenes_v1connect/scenes.connect.go	mtime=2026-10-20T23:00:50.439870+00:00	sha256=bc901ae0d880f78de60ad633e262db250e222aab925aea5a8873baf11f410942
+?? packages/proto/gen/go/device-studio/v1/shared/errors.pb.go	mtime=2026-10-20T23:00:50.439950+00:00	sha256=edd0f1c01a30b6ababeaa54b8e21cb8232e160200161bfe5332ae99608c992d4
+?? packages/proto/gen/go/device-studio/v1/shared/health.pb.go	mtime=2026-10-20T23:00:50.439977+00:00	sha256=71ef74429adbdee16185a6a0268c4e0804203d8da7d0c093bc794ad0fcb87377
+?? packages/proto/gen/go/device-studio/v1/shots/shots.pb.go	mtime=2026-10-20T23:00:50.440032+00:00	sha256=9700880ce68d0731529b73b3dbc77c1c25a0701a2c9548c274059209289edb32
+?? packages/proto/gen/go/device-studio/v1/shots/shots_v1connect/shots.connect.go	mtime=2026-10-20T23:00:50.440175+00:00	sha256=7ae671c6a6d3cce3415cea6df5af92b78221ac250d4ef7fa3431e38f0aabea52
+?? packages/proto/gen/manifests/device-studio.lock.json	mtime=2026-10-20T23:00:50.510746+00:00	sha256=510ed5d28cd10cb4dcb66995e43a3ba7c71bd40c9619b893079dcf1c866c4384
+?? packages/proto/gen/python/cli/v1/renderer_profile_pb2.py	mtime=2026-10-20T23:00:50.528988+00:00	sha256=a97646978104848814d95aa386147f828c5b598f8cbc2b7e9da6cc8edbd6e7f7
+?? packages/proto/gen/python/cli/v1/renderer_profile_pb2.pyi	mtime=2026-10-20T23:00:50.529019+00:00	sha256=39dbda0773bf9e23e878fed3fa0bd30fc51471675ba64c2854df752a203fe521
+?? packages/proto/gen/python/device_studio/py.typed	mtime=2026-10-20T23:00:50.540918+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/devices/devices_pb2.py	mtime=2026-10-20T23:00:50.541054+00:00	sha256=54c90df85c22d86f0a15078b878e246c4e3d04ebc3901a829c447a9159bc7c6d
+?? packages/proto/gen/python/device_studio/v1/devices/devices_pb2.pyi	mtime=2026-10-20T23:00:50.541086+00:00	sha256=1da690b8d6e79998f0d5ef29bd9793ae0a5f86cae5c0c03ed0bd7aab9211863e
+?? packages/proto/gen/python/device_studio/v1/devices/py.typed	mtime=2026-10-20T23:00:50.541086+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/library/library_pb2.py	mtime=2026-10-20T23:00:50.541170+00:00	sha256=2265043f4b0859fdd3dd90a51e3c3a6ff8da5c4871b4e18c7bedceff210934c1
+?? packages/proto/gen/python/device_studio/v1/library/library_pb2.pyi	mtime=2026-10-20T23:00:50.541200+00:00	sha256=da3a06c01683c07eddf0ed559d3e8286c6fa75f579fc87b29290de5ff234d0d6
+?? packages/proto/gen/python/device_studio/v1/library/py.typed	mtime=2026-10-20T23:00:50.541200+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/motions/motions_pb2.py	mtime=2026-10-20T23:00:50.541271+00:00	sha256=27466abe49b9af1d6b0e48c24133b893c248087ff476ab291c9ec90dd4543573
+?? packages/proto/gen/python/device_studio/v1/motions/motions_pb2.pyi	mtime=2026-10-20T23:00:50.541307+00:00	sha256=6a7af6833f7240bbbdc261b33c020469e2695c9a0650612cec63d1e2b3a6ec86
+?? packages/proto/gen/python/device_studio/v1/motions/py.typed	mtime=2026-10-20T23:00:50.541307+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/physical/physical_pb2.py	mtime=2026-10-20T23:00:50.541383+00:00	sha256=7b2abd70de8a5cc15eadbe855e86415da9612b7c4b9412ec8a5d0e1acc643c68
+?? packages/proto/gen/python/device_studio/v1/physical/physical_pb2.pyi	mtime=2026-10-20T23:00:50.541411+00:00	sha256=c256c83bb3712929532b20ac8612e829c1c9adc54502af51be1d0552cf4e8d54
+?? packages/proto/gen/python/device_studio/v1/physical/py.typed	mtime=2026-10-20T23:00:50.541411+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/projects/projects_pb2.py	mtime=2026-10-20T23:00:50.541495+00:00	sha256=1bf834c2ddf41e6074263036530f5258180e4719f3e72074bd67576d1966b157
+?? packages/proto/gen/python/device_studio/v1/projects/projects_pb2.pyi	mtime=2026-10-20T23:00:50.541528+00:00	sha256=ff24f9ebfab4100cee5d56417a2bc7a9703403d145c5846a2717ec5825e8476f
+?? packages/proto/gen/python/device_studio/v1/projects/py.typed	mtime=2026-10-20T23:00:50.541528+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/py.typed	mtime=2026-10-20T23:00:50.541566+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/scenes/py.typed	mtime=2026-10-20T23:00:50.541614+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/scenes/scenes_pb2.py	mtime=2026-10-20T23:00:50.541656+00:00	sha256=f6e8198a05c03e855a1e9e422f4fa094f4589d0b83e2b0dda891dea48ab47855
+?? packages/proto/gen/python/device_studio/v1/scenes/scenes_pb2.pyi	mtime=2026-10-20T23:00:50.541689+00:00	sha256=7e7126d202e1d705f8f3b4f739b7f63dafd066d13a761bc0bced00a95082eeff
+?? packages/proto/gen/python/device_studio/v1/shared/errors_pb2.py	mtime=2026-10-20T23:00:50.541756+00:00	sha256=02ee0cf1e93fbc5e1642064271887c4e53769e0e84d0069997785feca445de13
+?? packages/proto/gen/python/device_studio/v1/shared/errors_pb2.pyi	mtime=2026-10-20T23:00:50.541782+00:00	sha256=4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1
+?? packages/proto/gen/python/device_studio/v1/shared/health_pb2.py	mtime=2026-10-20T23:00:50.541811+00:00	sha256=a0f8121c86260a7562cedc58e22bffbd8fecab4e90cff93af392906690e2bba2
+?? packages/proto/gen/python/device_studio/v1/shared/health_pb2.pyi	mtime=2026-10-20T23:00:50.541834+00:00	sha256=b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04
+?? packages/proto/gen/python/device_studio/v1/shared/py.typed	mtime=2026-10-20T23:00:50.541834+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/shots/py.typed	mtime=2026-10-20T23:00:50.541858+00:00	sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+?? packages/proto/gen/python/device_studio/v1/shots/shots_pb2.py	mtime=2026-10-20T23:00:50.541928+00:00	sha256=dea9193136f6e2378a826500fd0086fd3af0fb75a425aa359766fdb0d75af4e3
+?? packages/proto/gen/python/device_studio/v1/shots/shots_pb2.pyi	mtime=2026-10-20T23:00:50.541975+00:00	sha256=f32da23d21ec9476952b6466a7dfb64a71393da8ee28fe52d69eda9a1b66a7b7
+?? packages/proto/gen/typescript/cli/v1/renderer_profile_pb.ts	mtime=2026-10-20T23:00:50.629286+00:00	sha256=e18a535548cf0b51ea9600e6713e9490030ce4b38bdc729f29b1c4f7d2e46e24
+?? packages/proto/gen/typescript/device-studio/v1/devices/devices_pb.ts	mtime=2026-10-20T23:00:50.635965+00:00	sha256=246ddb19dcbbefe312813398250443bdb8d76b0874b0be271c6904e4c29c1f43
+?? packages/proto/gen/typescript/device-studio/v1/library/library_pb.ts	mtime=2026-10-20T23:00:50.636037+00:00	sha256=97c84b20977176d7c2226058635b1359f2cc39bb00e1720865cbf994b6e09fc9
+?? packages/proto/gen/typescript/device-studio/v1/motions/motions_pb.ts	mtime=2026-10-20T23:00:50.636092+00:00	sha256=79d6092330515af48b4ec06738edc9087163d9c7b2d5d43b1ac86bc686ddd89c
+?? packages/proto/gen/typescript/device-studio/v1/physical/physical_pb.ts	mtime=2026-10-20T23:00:50.636168+00:00	sha256=2600ca326105f8d3ce1a2a219363ca38bb77afbbec53a8cf6cf247eca6c94485
+?? packages/proto/gen/typescript/device-studio/v1/projects/projects_pb.ts	mtime=2026-10-20T23:00:50.636225+00:00	sha256=9001dc7dbe26f926c1ee049de65bd6a92670041d790df2562a1e6dc7b0007c16
+?? packages/proto/gen/typescript/device-studio/v1/scenes/scenes_pb.ts	mtime=2026-10-20T23:00:50.636303+00:00	sha256=554a5c78d3b94a12c1a3eb2a923bfc36844f00ecb2010ab8507c2e858f958874
+?? packages/proto/gen/typescript/device-studio/v1/shared/errors_pb.ts	mtime=2026-10-20T23:00:50.636368+00:00	sha256=c8b0173fb2bf9e97129cadbe047b354901c4f0e81d3d82ddd61d989fdbbf8f58
+?? packages/proto/gen/typescript/device-studio/v1/shared/health_pb.ts	mtime=2026-10-20T23:00:50.636394+00:00	sha256=f0b20c8388fd931a2dd1de84f3e2e65dbf932f04a527b9eb2dd0d71fd284097a
+?? packages/proto/gen/typescript/device-studio/v1/shots/shots_pb.ts	mtime=2026-10-20T23:00:50.636458+00:00	sha256=7b847e51372b95e7636218d9544e1854241ea212e81146ba8eaaa2628a6717fc

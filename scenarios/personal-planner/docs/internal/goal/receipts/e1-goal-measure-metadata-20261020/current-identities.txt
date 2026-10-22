@@ -1,0 +1,25 @@
+HEAD: 52097258290d1bff0191319242d4948e214af9e3
+Baseline manifest: scenarios/personal-planner/docs/internal/goal/receipts/e1-goal-measure-metadata-20261020/baseline-original/manifest.json
+Baseline manifest SHA-256: 16f8fd4b0fe9579819e2ffd901311f3f8085c4dfa3ea06772788d0b70e4a7d98
+Current admitted source identities:
+scenarios/personal-planner/api/internal/goals/types.go | sha256=5fac2360d09e8005124e90cb884187f2782b2f6445e848b33a74a0a251e1c285 | bytes=2431 | lines=74 | baseline_lines=62 | delta=+12
+scenarios/personal-planner/api/internal/goals/service.go | sha256=f739e8ffac486d7c8bc50aff3775cc31232e47ae254bb0f6913888370a2c0d9d | bytes=7110 | lines=198 | baseline_lines=154 | delta=+44
+scenarios/personal-planner/api/internal/goals/repository.go | sha256=df3b04b266ec0a34f59eee00056be2f7aa12cb776ff0454985b038208d354ba2 | bytes=698 | lines=16 | baseline_lines=16 | delta=+0
+scenarios/personal-planner/api/internal/goals/sqlite.go | sha256=c02b7d0b7e69258080fcb0b91fcd2441f732a081d011316a534f30240074d56e | bytes=12437 | lines=329 | baseline_lines=296 | delta=+33
+scenarios/personal-planner/api/internal/goals/schema.sql | sha256=3b3276d92269cc89eed6dd43c1858f43beaddf235f6187af48a08eceaabce460 | bytes=2314 | lines=63 | baseline_lines=53 | delta=+10
+scenarios/personal-planner/api/internal/goals/service_test.go | sha256=5de324c1c332e554da02ff2d08a3ff902b482ae28f9001e3d65601ccda687a4d | bytes=6406 | lines=134 | baseline_lines=95 | delta=+39
+scenarios/personal-planner/api/internal/goals/sqlite_test.go | sha256=941b1db91fd0cfeb2cf37b203781df3ce9cc0ec64725ce9080ac76daf4000eb2 | bytes=7062 | lines=177 | baseline_lines=124 | delta=+53
+scenarios/personal-planner/api/handlers/goals/module.go | sha256=0b05cd8fbf6e7e447429eec034ac7cf26213baa9bbc432b82ee239b46934188e | bytes=5561 | lines=141 | baseline_lines=69 | delta=+72
+scenarios/personal-planner/api/handlers/goals/connect_handler.go | sha256=20ba617eeb02414439a80d6eed4dae6fe5517065e348182095d0c73418d78279 | bytes=3470 | lines=85 | baseline_lines=85 | delta=+0
+scenarios/personal-planner/api/handlers/goals/module_test.go | sha256=1e6b1e96dd139c606ab5344e185e6400c0f4c5f4ed0df0577580a5f288a43dc8 | bytes=6459 | lines=147 | baseline_lines=69 | delta=+78
+scenarios/personal-planner/cli/domains/goals/handlers.go | sha256=67589bc1bff2c5e36e19dee433e73a80ce82c8bce4394bd7b5d6f88cb4af0959 | bytes=9711 | lines=245 | baseline_lines=153 | delta=+92
+scenarios/personal-planner/cli/domains/goals/register.go | sha256=facf133ede80cb99fa216fa9be982a82d254e4e1ebace16481844aef1558ca0e | bytes=1005 | lines=26 | baseline_lines=26 | delta=+0
+scenarios/personal-planner/cli/domains/goals/handlers_test.go | sha256=7672ae1ec3d8f2200fdb7fffb43d2d34be3d29acb719e9ba4d940b4aeec5168d | bytes=4344 | lines=89 | baseline_lines=0 | delta=+89
+scenarios/personal-planner/cli/manifest.json | sha256=a0ec06115f2f55b18f53c17dcc92d695077932aeff9e5324f581f1a395efaae8 | bytes=46335 | lines=777 | baseline_lines=770 | delta=+7
+scenarios/personal-planner/ui/src/api/goals.ts | sha256=39ad60fc43e7e9ee8a0566c5190adcad3268b3a3bfb9238c0631b791a97e374e | bytes=5685 | lines=66 | baseline_lines=54 | delta=+12
+scenarios/personal-planner/ui/src/api/goals.test.ts | sha256=a423117df50aa16291c7ebe94c2098b74493947a39863591b9a13bb2e922f625 | bytes=7507 | lines=78 | baseline_lines=49 | delta=+29
+scenarios/personal-planner/ui/src/components/GoalCard.tsx | sha256=0e5ac5e730b6838f23431f65e0830a7408c711f866e991a98a1f5c3353aeaeef | bytes=11249 | lines=70 | baseline_lines=62 | delta=+8
+scenarios/personal-planner/ui/src/pages/GoalsPage.tsx | sha256=cdeee18ee2e47c78dd03270556bdbf8c6aa6bf25a4108ba721ffae4042d8994f | bytes=8468 | lines=63 | baseline_lines=58 | delta=+5
+scenarios/personal-planner/ui/src/pages/GoalsPage.test.tsx | sha256=03693f7dcad9c748d0e30f1db9ce275621b8376b06415844362d90462091c573 | bytes=16404 | lines=200 | baseline_lines=156 | delta=+44
+NET admitted runtime line delta: +288
+NET admitted test line delta: +332

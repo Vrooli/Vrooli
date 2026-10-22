@@ -23,6 +23,7 @@ export { teardownSessionResources } from './session-teardown';
 export { resetPageInputState } from './live-input';
 export { clearFrameCache } from './frame-cache';
 export {
+  configureAppTargetDownloadBehavior,
   selectAppTargetPage,
   validateAppTargetCapabilities,
   validateAppTargetSpec,

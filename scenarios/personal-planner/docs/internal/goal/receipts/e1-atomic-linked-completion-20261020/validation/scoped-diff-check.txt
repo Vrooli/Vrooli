@@ -1,0 +1,3 @@
+$ git diff --check -- scenarios/personal-planner/api/internal/work/sqlite.go scenarios/personal-planner/api/internal/work/sqlite_test.go
+
+exit_code=0

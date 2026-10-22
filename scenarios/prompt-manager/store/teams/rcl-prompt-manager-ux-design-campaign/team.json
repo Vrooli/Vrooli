@@ -18,7 +18,7 @@
   "effortRefs": [
     "effort:react-component-library-rehabilitation"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -199,10 +199,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 16,
+  "revision": 17,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-01T13:56:37Z"
+  "updatedAt": "2026-10-21T03:26:34Z"
 }

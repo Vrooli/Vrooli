@@ -226,7 +226,7 @@
     }
   },
   "purpose": "domain-stewardship",
-  "revision": 6,
+  "revision": 8,
   "runtime": {
     "mode": "multi-process"
   },
@@ -252,5 +252,5 @@
       "purpose": "Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps."
     }
   ],
-  "updatedAt": "2026-09-14T05:05:59Z"
+  "updatedAt": "2026-10-21T03:26:34Z"
 }

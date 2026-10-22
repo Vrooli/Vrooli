@@ -100,6 +100,44 @@ func TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen(t *testing.T) { // [
 	}
 }
 
+func TestCacheIdempotencyAliasSurvivesReopenAndRejectsChangedInput(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cache-alias.db")
+	db, repo := openRepo(t, path)
+	svc := newService(repo)
+	job, created, err := svc.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "source-render", Input: input()})
+	if err != nil || !created {
+		t.Fatalf("create source render: created=%v err=%v", created, err)
+	}
+	running, err := svc.Start(context.Background(), job.ID, executionOwner("cache-alias", job.Attempts[0].ID, 1), job.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completion := outputs()
+	completion.AttemptID, completion.ExecutionClaimID, completion.InputFingerprint = running.Attempts[0].ID, running.Attempts[0].Execution.ID, running.InputFingerprint
+	succeeded, err := svc.Complete(context.Background(), job.ID, running.Attempts[0].ID, completion, running.Version)
+	if err != nil || succeeded.State != jobs.Succeeded {
+		t.Fatalf("complete source render: state=%s err=%v", succeeded.State, err)
+	}
+	if err := svc.BindCacheIdempotencyAlias(context.Background(), "cache-hit-key", succeeded.ID, succeeded.InputFingerprint); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db2, repo2 := openRepo(t, path)
+	defer db2.Close()
+	svc2 := newService(repo2)
+	reused, created, err := svc2.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "cache-hit-key", Input: input()})
+	if err != nil || created || reused.ID != succeeded.ID || reused.State != jobs.Succeeded {
+		t.Fatalf("cache alias did not resolve to original render after reopen: created=%v job=%+v err=%v", created, reused, err)
+	}
+	changed := input()
+	changed.Bindings[0].SHA256 = "1111111111111111111111111111111111111111111111111111111111111111"
+	if _, _, err := svc2.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "cache-hit-key", Input: changed}); !errors.Is(err, jobs.ErrIdempotencyConflict) {
+		t.Fatalf("same alias key with changed immutable input must conflict, got %v", err)
+	}
+}
+
 func TestProgressPagesAndReleaseReceiptSurviveReopen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "release.db")
 	db, repo := openRepo(t, path)

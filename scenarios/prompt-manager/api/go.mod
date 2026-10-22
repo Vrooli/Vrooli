@@ -42,7 +42,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
-	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
 	golang.org/x/sys v0.47.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
@@ -75,3 +75,5 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

@@ -346,7 +346,7 @@
           "description": "List goals",
           "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "ListGoals" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_list" },
+          "architecture": { "primitive": "action" },
           "measure": {
             "domain": "goals",
             "intent": "List the durable goals currently recorded in Personal Planner.",
@@ -361,11 +361,18 @@
             { "name": "title", "required": true, "description": "Goal title" },
             { "name": "purpose", "description": "Why this outcome matters" },
             { "name": "progress-method", "description": "Progress method: manual or milestones" },
-            { "name": "target-percent", "description": "Target percentage, normally 100", "bind": { "field": "target_basis_points" }, "bind_waiver": "The CLI accepts a human percentage and the handler converts it to basis points." }
+            { "name": "target-percent", "description": "Target percentage, normally 100", "bind": { "field": "target_basis_points" }, "bind_waiver": "The CLI accepts a human percentage and the handler converts it to basis points." },
+            { "name": "target-date", "description": "Target date in YYYY-MM-DD format" },
+            { "name": "unit", "aliases": ["measure-unit"], "description": "Measured outcome unit, currently currency" },
+            { "name": "target-amount-minor", "description": "Target amount in currency minor units, for example 100000 for USD 1,000" },
+            { "name": "currency-code", "description": "Three-letter currency code, for example USD" },
+            { "name": "basis", "aliases": ["measure-basis"], "description": "Measurement basis: after_costs_before_tax" },
+            { "name": "recurrence", "description": "one_time or recurring" },
+            { "name": "period", "description": "once or month" }
           ],
           "binding": { "kind": "connect-rpc", "service": "GoalsService", "method": "CreateGoal" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_mutation" }
+          "architecture": { "primitive": "action" }
         },
         {
           "name": "progress",
@@ -436,12 +443,12 @@
           "description": "Create an explicit commitment",
           "flags": [
             { "name": "result", "required": true, "description": "Promised result" },
-            { "name": "definition-of-done", "description": "Observable completion boundary", "bind": { "field": "definition_of_done" } },
-            { "name": "promised-boundary", "required": true, "description": "Promised date or timestamp", "bind": { "field": "promised_boundary" } },
+            { "name": "definition-of-done", "description": "Observable completion boundary" },
+            { "name": "promised-boundary", "required": true, "description": "Promised date or timestamp" },
             { "name": "timezone", "description": "IANA timezone" },
             { "name": "beneficiary", "description": "Optional private beneficiary label" },
             { "name": "assumptions", "description": "Assumptions behind the promise" },
-            { "name": "scope-exclusions", "description": "Explicit exclusions", "bind": { "field": "scope_exclusions" } },
+            { "name": "scope-exclusions", "description": "Explicit exclusions" },
             { "name": "state", "description": "proposed or active" }
           ],
           "binding": { "kind": "connect-rpc", "service": "CommitmentsService", "method": "CreateCommitment" },
@@ -465,11 +472,11 @@
           "description": "Record a new promise boundary while retaining history",
           "positionals": [{ "name": "id", "required": true, "description": "Commitment id" }],
           "flags": [
-            { "name": "promised-boundary", "required": true, "description": "New promised date or timestamp", "bind": { "field": "promised_boundary" } },
+            { "name": "promised-boundary", "required": true, "description": "New promised date or timestamp" },
             { "name": "assumptions", "description": "Updated assumptions" },
-            { "name": "scope-exclusions", "description": "Updated exclusions", "bind": { "field": "scope_exclusions" } },
+            { "name": "scope-exclusions", "description": "Updated exclusions" },
             { "name": "reason", "description": "Why the promise changed" },
-            { "name": "acknowledgment-status", "description": "unknown, pending, or acknowledged", "bind": { "field": "acknowledgment_status" } },
+            { "name": "acknowledgment-status", "description": "unknown, pending, or acknowledged" },
             { "name": "revision", "required": true, "description": "Expected commitment revision", "bind": { "field": "expected_revision" } }
           ],
           "binding": { "kind": "connect-rpc", "service": "CommitmentsService", "method": "ReviseCommitment" },
@@ -486,9 +493,9 @@
           "name": "get",
           "description": "Get the current central and cautious forecast",
           "flags": [
-            { "name": "local-date", "description": "Forecast start date in YYYY-MM-DD format", "bind": { "field": "local_date" } },
+            { "name": "local-date", "description": "Forecast start date in YYYY-MM-DD format" },
             { "name": "timezone", "description": "IANA timezone used for the forecast" },
-            { "name": "horizon-days", "description": "Bounded forecast horizon in days", "bind": { "field": "horizon_days" } }
+            { "name": "horizon-days", "description": "Bounded forecast horizon in days" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ForecastsService", "method": "GetForecast" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },

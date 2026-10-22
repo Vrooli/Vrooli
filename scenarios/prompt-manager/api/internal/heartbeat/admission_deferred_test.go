@@ -118,7 +118,7 @@ func TestAdmissionLimitDefersSameTaskAndRunIntentAcrossRestartAndEligibleCallbac
 	firstExecutor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	firstStore := NewTeamExecutionStore(teamStore, firstExecutor, dir, client)
 	firstExecutor.SetTeamExecStore(firstStore)
-	firstExecutor.OnComplete = firstStore.OnComplete
+	firstExecutor.OnRunComplete = firstStore.OnRunComplete
 	firstScheduler := NewScheduler(firstExecutor, client, teamStore, firstStore)
 
 	firstScheduler.executeHeartbeat(ctx, "team-1", "agent-1")
@@ -139,7 +139,7 @@ func TestAdmissionLimitDefersSameTaskAndRunIntentAcrossRestartAndEligibleCallbac
 	secondExecutor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	secondStore := NewTeamExecutionStore(teamStore, secondExecutor, dir, client)
 	secondExecutor.SetTeamExecStore(secondStore)
-	secondExecutor.OnComplete = secondStore.OnComplete
+	secondExecutor.OnRunComplete = secondStore.OnRunComplete
 	secondStore.Recover(ctx)
 	if len(client.createTaskCalls) != 1 || len(client.createRunCalls) != 0 {
 		t.Fatalf("startup recovery must retain deferred admission without replay: tasks=%d runs=%d", len(client.createTaskCalls), len(client.createRunCalls))
@@ -234,7 +234,7 @@ func TestAdmissionDeferredDoesNotRetryWhenMemberRemoved(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	scheduler := NewScheduler(executor, client, teamStore, teamExecStore)
 	scheduler.executeHeartbeat(ctx, "team-1", "agent-1")
 	admissionDeferredWaitExecution(t, teamExecStore)
@@ -257,7 +257,7 @@ func TestAdmissionDeferredDoesNotRetryWhilePaused(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	scheduler := NewScheduler(executor, client, teamStore, teamExecStore)
 	scheduler.executeHeartbeat(ctx, "team-1", "agent-1")
 	admissionDeferredWaitExecution(t, teamExecStore)
@@ -313,7 +313,7 @@ func TestAdmissionDeferredPersistenceFailureRecoveryWaitsForCurrentEligibility(t
 			firstStore := NewTeamExecutionStore(teamStore, firstExecutor, dir, client)
 			client.store = firstStore
 			firstExecutor.SetTeamExecStore(firstStore)
-			firstExecutor.OnComplete = firstStore.OnComplete
+			firstExecutor.OnRunComplete = firstStore.OnRunComplete
 			firstScheduler := NewScheduler(firstExecutor, client, teamStore, firstStore)
 			firstScheduler.executeHeartbeat(ctx, "team-1", "agent-1")
 			admissionDeferredWaitExecution(t, firstStore)
@@ -353,7 +353,7 @@ func TestAdmissionDeferredPersistenceFailureRecoveryWaitsForCurrentEligibility(t
 			secondStore := NewTeamExecutionStore(teamStore, secondExecutor, dir, client)
 			client.store = secondStore
 			secondExecutor.SetTeamExecStore(secondStore)
-			secondExecutor.OnComplete = secondStore.OnComplete
+			secondExecutor.OnRunComplete = secondStore.OnRunComplete
 			secondStore.Recover(ctx)
 			if len(client.createTaskCalls) != 1 || len(client.createRunCalls) != 0 {
 				t.Fatalf("restart replayed uncertain task before an eligible trigger: tasks=%d runs=%d", len(client.createTaskCalls), len(client.createRunCalls))
@@ -385,7 +385,7 @@ func TestAdmissionDeferredPersistenceFailureRetriesExactIntentWhenEligible(t *te
 	firstStore := NewTeamExecutionStore(teamStore, firstExecutor, dir, client)
 	client.store = firstStore
 	firstExecutor.SetTeamExecStore(firstStore)
-	firstExecutor.OnComplete = firstStore.OnComplete
+	firstExecutor.OnRunComplete = firstStore.OnRunComplete
 	firstScheduler := NewScheduler(firstExecutor, client, teamStore, firstStore)
 	firstScheduler.executeHeartbeat(ctx, "team-1", "agent-1")
 	admissionDeferredWaitExecution(t, firstStore)
@@ -398,7 +398,7 @@ func TestAdmissionDeferredPersistenceFailureRetriesExactIntentWhenEligible(t *te
 	secondStore := NewTeamExecutionStore(teamStore, secondExecutor, dir, client)
 	client.store = secondStore
 	secondExecutor.SetTeamExecStore(secondStore)
-	secondExecutor.OnComplete = secondStore.OnComplete
+	secondExecutor.OnRunComplete = secondStore.OnRunComplete
 	secondStore.Recover(ctx)
 	if len(client.createTaskCalls) != 1 || len(client.createRunCalls) != 0 {
 		t.Fatalf("startup replayed before a scheduled eligibility check: tasks=%d runs=%d", len(client.createTaskCalls), len(client.createRunCalls))
@@ -424,7 +424,7 @@ func TestLegacyDispatchWithoutTriggerOriginIsNeverPOSTReplayed(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 
 	const taskID = "8a3f78d1-b406-4cf5-bc9d-047c900c0101"
 	key := "prompt-manager-heartbeat:legacy:unknown-origin"
@@ -522,7 +522,7 @@ func TestManualCapacityRetryBypassesWindowOnlyForSameFrozenCallerIntent(t *testi
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	handlers := NewHandlers(HandlersDeps{
 		TeamStore: teamStore, AgentStore: agentStore, RelationStore: relations,
 		Executor: executor, AgentClient: client, TeamExecStore: teamExecStore,
@@ -543,7 +543,7 @@ func TestManualCapacityRetryBypassesWindowOnlyForSameFrozenCallerIntent(t *testi
 	restartedExecutor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	restartedStore := NewTeamExecutionStore(teamStore, restartedExecutor, dir, client)
 	restartedExecutor.SetTeamExecStore(restartedStore)
-	restartedExecutor.OnComplete = restartedStore.OnComplete
+	restartedExecutor.OnRunComplete = restartedStore.OnRunComplete
 	restartedStore.Recover(ctx)
 	if len(taskBodies) != 1 || runPosts != 0 || len(restartedStore.Status("team-1").AdmissionDeferredAgentIDs) != 1 {
 		t.Fatalf("restart must retain the manual intent without posting: tasks=%d runs=%d status=%+v", len(taskBodies), runPosts, restartedStore.Status("team-1"))
@@ -584,7 +584,7 @@ func TestAdmissionDeferredPreservesPendingApprovalContract(t *testing.T) {
 	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
 	executor.SetTeamExecStore(teamExecStore)
-	executor.OnComplete = teamExecStore.OnComplete
+	executor.OnRunComplete = teamExecStore.OnRunComplete
 	scheduler := NewScheduler(executor, client, teamStore, teamExecStore)
 	scheduler.executeHeartbeat(ctx, "team-1", "agent-1")
 	admissionDeferredWaitExecution(t, teamExecStore)

@@ -77,7 +77,7 @@ The following groups summarize where covered/audit-pending entries cluster. See 
 - **Graph reads** — `graph {show,regenerate,orphans,skillless,empty-teams,unaffiliated,popular,cycles,health,node}`
 - **Topics** — `topic {list,show,create,update,delete,skills}`
 - **Tags** — `tag {list,create}`
-- **Teams core CRUD** — `team {list,show,create,update,delete,add-member,update-member,remove-member,roles,org-list,org-set,org-remove,message-*,heartbeat-list,heartbeat,heartbeat-enable,heartbeat-disable,heartbeat-trigger,heartbeat-logs,trigger,prompt-preview,prompt-preview-structured,prompt-matrix,member-context,handoff-latest,handoff-history,responsibilities,heartbeat-instructions,import-cc,export-cc,retention,prune}`
+- **Teams core CRUD** — `team {list,show,create,update,delete,add-member,update-member,remove-member,roles,org-list,org-set,org-remove,message-*,heartbeat-list,heartbeat,heartbeat-enable,heartbeat-disable,heartbeat-trigger,heartbeat-logs,heartbeat-attempts,trigger,prompt-preview,prompt-preview-structured,prompt-matrix,member-context,handoff-latest,handoff-history,responsibilities,heartbeat-instructions,import-cc,export-cc,retention,prune}`
 
 ### ⚠️ Gap clusters (audit-pending — follow-up work)
 

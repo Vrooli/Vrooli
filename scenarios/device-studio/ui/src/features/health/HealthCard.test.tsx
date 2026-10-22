@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { interp, makeApiMocks, renderWithProviders } from "../../test-utils";
+import { interp, makeApiMocks, makeHealthResponse, renderWithProviders } from "../../test-utils";
 
 vi.mock("../../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/health")>();
@@ -18,6 +18,7 @@ vi.mock("../../api/health", async (importOriginal) => {
 });
 
 import { HealthCard } from "./HealthCard";
+import { fetchHealth } from "../../api/health";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { setLocale } from "../../i18n";
@@ -36,6 +37,15 @@ describe("HealthCard rendering (cimode — copy-independent)", () => {
   it("renders the health title via the strings registry", () => {
     renderWithProviders(<HealthCard />);
     expect(screen.getByRole("heading", { name: strings.health.title, level: 2 })).toBeInTheDocument();
+  });
+
+  it("keeps the settings health card usable when the API timestamp is malformed", async () => {
+    vi.mocked(fetchHealth).mockResolvedValueOnce(makeHealthResponse({ timestamp: "not-a-date" }));
+
+    renderWithProviders(<HealthCard />);
+
+    expect(await screen.findByTestId(selectors.health.card)).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("exposes the refresh button regardless of label copy", () => {

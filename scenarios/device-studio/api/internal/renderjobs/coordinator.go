@@ -201,12 +201,23 @@ type preparedOperation struct {
 }
 
 type SubmitRequest struct {
-	ProjectID      string
-	ShotID         string
-	Revision       int64
-	IdempotencyKey string
-	OutputProfile  string
-	VideoMode      rendering.VideoMode
+	ProjectID          string
+	ShotID             string
+	Revision           int64
+	IdempotencyKey     string
+	OutputProfile      string
+	VideoMode          rendering.VideoMode
+	ReuseCachedSuccess bool
+}
+
+// CacheReuseReceipt identifies the exact prior succeeded output returned for
+// an opt-in cache hit. It never represents a new render attempt.
+type CacheReuseReceipt struct {
+	SourceRenderID  string
+	SourceAttemptID string
+	ArtifactID      string
+	SHA256          string
+	OutputKind      string
 }
 
 // New rejects partial owner wiring so an incomplete route can never become a
@@ -239,6 +250,13 @@ func New(d Dependencies) (*Coordinator, error) {
 // bytes before the jobs ledger records the request; later execution never
 // reopens os.Executable or trusts a mutable developer build path.
 func (c *Coordinator) Submit(ctx context.Context, req SubmitRequest) (jobs.Job, bool, error) {
+	job, created, _, err := c.SubmitWithReceipt(ctx, req)
+	return job, created, err
+}
+
+// SubmitWithReceipt behaves like Submit, with an optional exact-input reuse
+// receipt. The ordinary Submit API preserves the historical return shape.
+func (c *Coordinator) SubmitWithReceipt(ctx context.Context, req SubmitRequest) (jobs.Job, bool, *CacheReuseReceipt, error) {
 	ctx, cancel := boundedDetached(ctx, stageTimeout)
 	defer cancel()
 	if req.OutputProfile == "" && req.VideoMode == "" {
@@ -251,63 +269,67 @@ func (c *Coordinator) Submit(ctx context.Context, req SubmitRequest) (jobs.Job, 
 		req.OutputProfile = videoFinalOutputProfile
 	}
 	if req.VideoMode != "" {
-		return c.submitVideo(ctx, req)
+		if req.ReuseCachedSuccess {
+			return jobs.Job{}, false, nil, fmt.Errorf("%w: cached reuse is not enabled for source-video renders", ErrInvalidRequest)
+		}
+		job, created, err := c.submitVideo(ctx, req)
+		return job, created, nil, err
 	}
 	if err := validateSubmitRequest(req); err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	spanStarted := time.Now()
 	route, err := c.route(ctx)
 	submitTimingSpan(ctx, "route", spanStarted)
 	if err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	spanStarted = time.Now()
 	existing, found, lookupErr := c.findIdempotentSubmit(ctx, route, req)
 	submitTimingSpan(ctx, "idempotency", spanStarted)
 	if lookupErr != nil || found {
-		return existing, false, lookupErr
+		return existing, false, nil, lookupErr
 	}
 	spanStarted = time.Now()
 	resolved, err := c.shots.ResolveForRender(ctx, req.ShotID, req.Revision)
 	submitTimingSpan(ctx, "shot_resolve", spanStarted)
 	if err != nil {
-		return jobs.Job{}, false, fmt.Errorf("resolve immutable shot: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("resolve immutable shot: %w", err)
 	}
 	if err := validateResolved(req.ProjectID, req.ShotID, req.Revision, resolved); err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	if !resolved.Revision.RenderEligible {
-		return jobs.Job{}, false, fmt.Errorf("%w: %v", ErrNotEligible, resolved.Revision.Issues)
+		return jobs.Job{}, false, nil, fmt.Errorf("%w: %v", ErrNotEligible, resolved.Revision.Issues)
 	}
 	if resolved.Revision.Physical != nil {
-		return c.submitPhysical(ctx, route, req, resolved)
+		return c.submitPhysicalWithReceipt(ctx, route, req, resolved)
 	}
 	if req.OutputProfile != OutputProfilePNG {
-		return jobs.Job{}, false, fmt.Errorf("%w: this output profile requires an immutable physical motion shot", ErrInvalidRequest)
+		return jobs.Job{}, false, nil, fmt.Errorf("%w: this output profile requires an immutable physical motion shot", ErrInvalidRequest)
 	}
 	if err := validateStillProfile(resolved.Revision); err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	workerBytes, _, workerDigest, err := c.readCurrentExecutable()
 	if err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	workerKey := workerBlobPrefix + workerDigest + "/device-studio-api"
 	if err := c.putVerified(ctx, route, workerKey, workerBytes, "application/octet-stream", workerDigest); err != nil {
-		return jobs.Job{}, false, fmt.Errorf("pin private worker bytes: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("pin private worker bytes: %w", err)
 	}
 	profileDigest, err := toolProfileDigest(workerDigest, req.OutputProfile, resolved.Revision.CompositorProfile)
 	if err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	closure, closureBytes, closureKey, err := c.freezeClosure(ctx, route, resolved, workerKey, workerDigest, workerBytes, req.OutputProfile)
 	if err != nil {
-		return jobs.Job{}, false, fmt.Errorf("freeze immutable render closure: %w", err)
+		return jobs.Job{}, false, nil, fmt.Errorf("freeze immutable render closure: %w", err)
 	}
 	bindings, err := bindingsForShot(resolved, route, workerKey, workerDigest)
 	if err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
 	closureSHA := digestBytes(closureBytes)
 	bindings = append(bindings, closureBindings(closure, closureKey, closureSHA)...)
@@ -318,18 +340,9 @@ func (c *Coordinator) Submit(ctx context.Context, req SubmitRequest) (jobs.Job, 
 		RendererVersion: closure.RendererVersion, OutputProfile: req.OutputProfile,
 	}
 	if err := c.requireRoute(ctx, route); err != nil {
-		return jobs.Job{}, false, err
+		return jobs.Job{}, false, nil, err
 	}
-	job, created, err := c.jobs.Submit(ctx, jobs.SubmitInput{IdempotencyKey: req.IdempotencyKey, Input: input})
-	if err != nil {
-		if errors.Is(err, jobs.ErrIdempotencyConflict) {
-			if existing, found, lookupErr := c.findIdempotentSubmit(ctx, route, req); lookupErr != nil || found {
-				return existing, false, lookupErr
-			}
-		}
-		return jobs.Job{}, false, err
-	}
-	return job, created, nil
+	return c.submitInputWithCache(ctx, route, req, input)
 }
 
 func (c *Coordinator) findIdempotentSubmit(ctx context.Context, route routePin, req SubmitRequest) (jobs.Job, bool, error) {

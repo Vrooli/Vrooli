@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -32,6 +35,57 @@ func TestNewApp_APIPortEnvVars_DoNotIncludeGenericAPIPort(t *testing.T) {
 		if key == "API_PORT" {
 			t.Fatalf("unexpected generic API_PORT in APIPortEnvVars: %v", portEnvVars)
 		}
+	}
+}
+
+func TestNewAppUsesInstallerDeclaredFreshnessInputs(t *testing.T) {
+	manifestBytes, err := os.ReadFile(filepath.Join("..", ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatalf("read service manifest: %v", err)
+	}
+	var manifest struct {
+		CLI struct {
+			Freshness struct {
+				Inputs []string `json:"inputs"`
+			} `json:"freshness"`
+		} `json:"cli"`
+	}
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		t.Fatalf("decode service manifest: %v", err)
+	}
+	for _, input := range manifest.CLI.Freshness.Inputs {
+		if input == "api/**" {
+			t.Fatal("CLI installer declaration still fingerprints the whole API module")
+		}
+	}
+
+	scenarioRoot, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	modulePath, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	installerSpec := cliutil.CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, appName, manifest.CLI.Freshness.Inputs)
+	if !strings.Contains(strings.Join(installerSpec.Inputs, ","), "api/") {
+		t.Fatalf("installer import closure omitted local API inputs: %v", installerSpec.Inputs)
+	}
+	if strings.Contains(strings.Join(installerSpec.Inputs, ","), "api/**") {
+		t.Fatalf("installer import closure retained broad API input: %v", installerSpec.Inputs)
+	}
+
+	previousBakedInputs := cliapp.BakedFreshnessInputs
+	cliapp.BakedFreshnessInputs = strings.Join(installerSpec.Inputs, ",")
+	t.Cleanup(func() { cliapp.BakedFreshnessInputs = previousBakedInputs })
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+	want := strings.Join(installerSpec.Inputs, ",")
+	got := app.core.StaleChecker.FreshnessInputs
+	if strings.Join(got, ",") != want {
+		t.Fatalf("runtime freshness inputs = %v, want installer inputs %v", got, installerSpec.Inputs)
 	}
 }
 

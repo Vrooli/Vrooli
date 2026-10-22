@@ -165,10 +165,11 @@ type SupportedProfile struct {
 }
 
 type Pose struct {
-	Name       string             `json:"name"`
-	Status     string             `json:"status"` // qualified, candidate_only, unknown
-	JointState map[string]float64 `json:"joint_state_rad,omitempty"`
-	Evidence   []Evidence         `json:"evidence,omitempty"`
+	Name         string             `json:"name"`
+	Status       string             `json:"status"` // qualified, candidate_only, unknown
+	JointState   map[string]float64 `json:"joint_state_rad,omitempty"`
+	RootRotation *physical.QuatXYZW `json:"root_rotation_xyzw,omitempty"`
+	Evidence     []Evidence         `json:"evidence,omitempty"`
 }
 
 type SupportCapability struct {
@@ -248,14 +249,21 @@ type Definition struct {
 }
 
 type SupportSlot struct {
-	ID                    string     `json:"id"`
-	Kind                  string     `json:"kind"`
-	AllowedGroups         []Group    `json:"allowed_groups"`
-	RequiredInterface     string     `json:"required_interface,omitempty"`
-	DimensionState        string     `json:"dimension_state,omitempty"`
-	RequiredPose          string     `json:"required_pose,omitempty"`
-	RequiresKnownEnvelope bool       `json:"requires_known_envelope"`
-	Evidence              []Evidence `json:"evidence,omitempty"`
+	ID                    string          `json:"id"`
+	Kind                  string          `json:"kind"`
+	AllowedGroups         []Group         `json:"allowed_groups"`
+	RequiredInterface     string          `json:"required_interface,omitempty"`
+	DimensionState        string          `json:"dimension_state,omitempty"`
+	RequiredPose          string          `json:"required_pose,omitempty"`
+	RequiresKnownEnvelope bool            `json:"requires_known_envelope"`
+	MaxEnvelopeM          *EnvelopeLimitM `json:"max_envelope_m,omitempty"`
+	Evidence              []Evidence      `json:"evidence,omitempty"`
+}
+
+type EnvelopeLimitM struct {
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+	Depth  float64 `json:"depth"`
 }
 
 type CompatibilityStatus string
@@ -460,6 +468,9 @@ func (d Definition) Validate() error {
 			if strings.TrimSpace(id) == "" || !finite(angle) {
 				return fmt.Errorf("%s pose %s: invalid joint state", d.ID, p.Name)
 			}
+		}
+		if p.RootRotation != nil && (!finite(p.RootRotation.X) || !finite(p.RootRotation.Y) || !finite(p.RootRotation.Z) || !finite(p.RootRotation.W)) {
+			return fmt.Errorf("%s pose %s: root rotation must be finite", d.ID, p.Name)
 		}
 	}
 	for _, c := range d.SupportedMotion {
@@ -732,6 +743,28 @@ func CheckSupport(d Definition, slot SupportSlot) Compatibility {
 		result.Status = NeedsReview
 		result.Reasons = append(result.Reasons, "support envelope is not established for dimension state "+slot.DimensionState)
 	}
+	if slot.MaxEnvelopeM != nil {
+		if !finite(slot.MaxEnvelopeM.Width) || slot.MaxEnvelopeM.Width <= 0 || !finite(slot.MaxEnvelopeM.Height) || slot.MaxEnvelopeM.Height <= 0 || !finite(slot.MaxEnvelopeM.Depth) || slot.MaxEnvelopeM.Depth <= 0 {
+			result.Status = NeedsReview
+			result.Reasons = append(result.Reasons, "support slot maximum envelope is incomplete")
+		} else if dims, ok := d.Dimensions[slot.DimensionState]; ok {
+			for _, check := range []struct {
+				name string
+				m    Measurement
+				max  float64
+			}{{"width", dims.Width, slot.MaxEnvelopeM.Width}, {"height", dims.Height, slot.MaxEnvelopeM.Height}, {"depth", dims.Depth, slot.MaxEnvelopeM.Depth}} {
+				upper, known := measurementUpperBoundMeters(check.m)
+				if !known {
+					result.Status = NeedsReview
+					result.Reasons = append(result.Reasons, "support fit requires quantified "+check.name+" uncertainty")
+					continue
+				}
+				if upper-check.max > 1e-12 {
+					return Compatibility{Status: Incompatible, Reasons: []string{"device " + check.name + " including uncertainty exceeds support slot maximum"}}
+				}
+			}
+		}
+	}
 	if slot.RequiredPose != "" {
 		poseResult := CheckPose(d, slot.RequiredPose)
 		if poseResult.Status == Incompatible {
@@ -743,6 +776,24 @@ func CheckSupport(d Definition, slot SupportSlot) Compatibility {
 		}
 	}
 	return result
+}
+
+func measurementUpperBoundMeters(m Measurement) (float64, bool) {
+	if !m.known() || m.Uncertainty.Status != "quantified" || m.Uncertainty.Upper == nil {
+		return 0, false
+	}
+	multiplier := 0.0
+	switch m.Unit {
+	case "m":
+		multiplier = 1
+	case "cm":
+		multiplier = 0.01
+	case "mm":
+		multiplier = 0.001
+	default:
+		return 0, false
+	}
+	return *m.Uncertainty.Upper * multiplier, true
 }
 
 // CheckPose only treats a named pose as compatible when it is qualified and
@@ -785,6 +836,70 @@ func CheckPose(d Definition, name string) Compatibility {
 		return Compatibility{Status: Compatible, Reasons: []string{}}
 	}
 	return Compatibility{Status: Incompatible, Reasons: []string{"requested pose is not declared"}}
+}
+
+// CheckPoseAt verifies both the named device pose and the requested world
+// root orientation. A missing pose orientation is unknown, never a wildcard.
+func CheckPoseAt(d Definition, name string, requested physical.QuatXYZW) Compatibility {
+	base := CheckPose(d, name)
+	if base.Status != Compatible {
+		return base
+	}
+	var declared *physical.QuatXYZW
+	for i := range d.SupportedPoses {
+		if d.SupportedPoses[i].Name == name {
+			declared = d.SupportedPoses[i].RootRotation
+			break
+		}
+	}
+	if declared == nil {
+		return Compatibility{Status: NeedsReview, Reasons: []string{"named pose does not declare a root orientation"}}
+	}
+	want, err := physical.CanonicalizeQuaternion(requested)
+	if err != nil {
+		return Compatibility{Status: Incompatible, Reasons: []string{"requested root orientation is invalid"}}
+	}
+	got, err := physical.CanonicalizeQuaternion(*declared)
+	if err != nil {
+		return Compatibility{Status: Incompatible, Reasons: []string{"declared pose root orientation is invalid"}}
+	}
+	dot := math.Abs(want.X*got.X + want.Y*got.Y + want.Z*got.Z + want.W*got.W)
+	if 1-dot > 1e-6 {
+		return Compatibility{Status: Incompatible, Reasons: []string{"requested root orientation does not match the declared device pose"}}
+	}
+	return base
+}
+
+// CheckDisplay requires the selected panel's physical, active and app-safe
+// regions plus every declared hardware occlusion to be qualified. Unknown
+// cutout or mask facts are never treated as a rectangular clear screen.
+func CheckDisplay(d Definition, id string) Compatibility {
+	if err := d.Validate(); err != nil {
+		return Compatibility{Status: Incompatible, Reasons: []string{"device definition is invalid: " + err.Error()}}
+	}
+	for _, display := range d.Displays {
+		if display.ID != id {
+			continue
+		}
+		result := Compatibility{Status: Compatible}
+		for _, item := range []struct {
+			name   string
+			region Region
+		}{{"physical boundary", display.PhysicalBoundary}, {"active area", display.ActiveArea}, {"app-safe area", display.AppSafeArea}} {
+			if item.region.Status != "qualified" {
+				result.Status = NeedsReview
+				result.Reasons = append(result.Reasons, "display "+item.name+" is not qualified")
+			}
+		}
+		for _, occlusion := range display.HardwareOcclusions {
+			if occlusion.Region.Status != "qualified" {
+				result.Status = NeedsReview
+				result.Reasons = append(result.Reasons, "hardware occlusion is not qualified: "+occlusion.ID)
+			}
+		}
+		return result
+	}
+	return Compatibility{Status: Incompatible, Reasons: []string{"selected display is not declared by the device"}}
 }
 
 // CheckMotion distinguishes supported motion from unknown or merely candidate

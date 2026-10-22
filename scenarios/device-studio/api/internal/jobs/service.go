@@ -12,6 +12,7 @@ import (
 type Service interface {
 	Submit(context.Context, SubmitInput) (Job, bool, error)
 	FindByIdempotencyKey(context.Context, string) (Job, error)
+	BindCacheIdempotencyAlias(context.Context, string, string, string) error
 	Get(context.Context, string) (Job, error)
 	ListProject(context.Context, string, Cursor, int) ([]Job, error)
 	ListProgress(context.Context, Cursor, int) ([]Job, error)
@@ -77,6 +78,14 @@ func (s *service) FindByIdempotencyKey(ctx context.Context, key string) (Job, er
 		return Job{}, fmt.Errorf("%w: idempotency key required and limited to 200 bytes", ErrInvalid)
 	}
 	return s.repo.FindByIdempotencyKey(ctx, key)
+}
+
+func (s *service) BindCacheIdempotencyAlias(ctx context.Context, key, jobID, fingerprint string) error {
+	key = strings.TrimSpace(key)
+	if key == "" || len(key) > 200 || strings.TrimSpace(jobID) == "" || validDigest(fingerprint) != nil {
+		return fmt.Errorf("%w: cached render idempotency alias is invalid", ErrInvalid)
+	}
+	return s.repo.BindCacheIdempotencyAlias(ctx, key, jobID, fingerprint, s.now().UTC())
 }
 
 func (s *service) ListProject(ctx context.Context, projectID string, cursor Cursor, limit int) ([]Job, error) {

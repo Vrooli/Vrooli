@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,11 +10,15 @@ import (
 	"time"
 
 	"prompt-manager/internal/paths"
+	"prompt-manager/internal/requestpolicy"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 )
 
 func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
@@ -258,7 +263,7 @@ func TestTriggerHeartbeat_DeduplicatesCompletedManualTriggerWithinScheduleWindow
 	if first := trigger(); first.Code != http.StatusAccepted {
 		t.Fatalf("first trigger: status=%d body=%s", first.Code, first.Body.String())
 	}
-	teamExecStore.OnComplete("team-1", "agent-1")
+	teamExecStore.contexts["team-1"].OnMemberComplete("agent-1")
 	second := trigger()
 	if second.Code != http.StatusAccepted || !strings.Contains(second.Body.String(), `"status":"deduplicated"`) {
 		t.Fatalf("second trigger: status=%d body=%s", second.Code, second.Body.String())
@@ -305,7 +310,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 
 	registry := NewRunRegistry(t.TempDir())
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
-	executor.OnComplete = func(_, _ string) {}
+	executor.OnRunComplete = func(_, _, _ string) {}
 
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir(), nil)
 
@@ -393,7 +398,7 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	completed := make(chan struct{})
-	executor.OnComplete = func(_, _ string) {
+	executor.OnRunComplete = func(_, _, _ string) {
 		close(completed)
 	}
 
@@ -673,5 +678,177 @@ func TestTriggerHeartbeat_AgentDeliveryMemberWakesSupervisorWithEnforcementOff(t
 	defer capture.mu.Unlock()
 	if len(capture.calls) != 1 || capture.calls[0].agentID != "agent-1" {
 		t.Fatalf("supervisor wake was not dispatched: %+v", capture.calls)
+	}
+}
+
+func TestHeartbeatResponseExposesOnlyPersistedAdmissionOrigin(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Team")); err != nil {
+		t.Fatal(err)
+	}
+	handlers := &Handlers{teamStore: teamStore}
+	config := &store.HeartbeatConfig{
+		TeamID: "team-1", AgentID: "agent-1",
+		LastExecution: &store.HeartbeatExecResult{
+			RunID: "run-known", Status: store.HeartbeatStatusCompleted, AdmissionOrigin: AdmissionOriginManual,
+		},
+		LastSuccessfulExecution: &store.HeartbeatExecResult{
+			RunID: "run-known", Status: store.HeartbeatStatusCompleted, AdmissionOrigin: AdmissionOriginManual,
+		},
+	}
+	response := handlers.toResponse(config)
+	if response.LastExecution == nil || response.LastExecution.AdmissionOrigin != AdmissionOriginManual {
+		t.Fatalf("response LastExecution = %+v; want persisted manual origin", response.LastExecution)
+	}
+	if response.LastSuccessfulExecution == nil || response.LastSuccessfulExecution.AdmissionOrigin != AdmissionOriginManual {
+		t.Fatalf("response LastSuccessfulExecution = %+v; want persisted manual origin", response.LastSuccessfulExecution)
+	}
+
+	config.LastExecution.AdmissionOrigin = ""
+	response = handlers.toResponse(config)
+	encoded, err := json.Marshal(response.LastExecution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "admissionOrigin") {
+		t.Fatalf("legacy unknown origin should remain omitted, response JSON = %s", encoded)
+	}
+}
+
+func TestBoundedManualTriggerRunCreateContractControlsActualQueueDispatch(t *testing.T) {
+	teamPrepare := &identity.OperationGrant{
+		ID: "team-prepare-only", Policy: "team-preparation", Approver: "owner",
+		Rules:     []identity.OperationRule{{Policy: "team-preparation", Operations: []string{"team.prepare"}, Targets: []string{"prompt-manager:team/team-1"}}},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	runCreate := &identity.OperationGrant{
+		ID: "run-create", Policy: "run-creation", Approver: "owner",
+		Rules:     []identity.OperationRule{{Policy: "run-creation", Operations: []string{"run.create"}, Targets: []string{"agent-manager:*"}}},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	cases := []struct {
+		name                 string
+		principal            identity.Principal
+		requestAuthorityDeny bool
+		enforce              string
+		wantStatus           int
+		wantCalls            int
+	}{
+		{
+			name: "team.prepare-only agent cannot dispatch while AUTH01 is unset",
+			principal: identity.Principal{
+				Kind: identity.ActorAgent, Subject: "qa-run", Owner: "owner", Verified: true,
+				Scopes: []string{"agent-manager:read", "agent-manager:write"}, Grant: teamPrepare,
+			},
+			enforce: "", wantStatus: http.StatusForbidden, wantCalls: 0,
+		},
+		{
+			name: "wrong-target run.create grant cannot dispatch",
+			principal: identity.Principal{
+				Kind: identity.ActorAgent, Subject: "qa-run", Owner: "owner", Verified: true,
+				Scopes: []string{"agent-manager:read", "agent-manager:write"}, Grant: &identity.OperationGrant{
+					ID: "wrong-target-run-create", Policy: "run-creation", Approver: "owner",
+					Rules:     []identity.OperationRule{{Policy: "run-creation", Operations: []string{"run.create"}, Targets: []string{"agent-manager:task/other"}}},
+					ExpiresAt: time.Now().Add(time.Hour),
+				},
+			},
+			enforce: "", wantStatus: http.StatusForbidden, wantCalls: 0,
+		},
+		{
+			name: "expired run.create grant cannot dispatch",
+			principal: identity.Principal{
+				Kind: identity.ActorAgent, Subject: "qa-run", Owner: "owner", Verified: true,
+				Scopes: []string{"agent-manager:read", "agent-manager:write"}, Grant: &identity.OperationGrant{
+					ID: "expired-run-create", Policy: "run-creation", Approver: "owner",
+					Rules:     []identity.OperationRule{{Policy: "run-creation", Operations: []string{"run.create"}, Targets: []string{"agent-manager:*"}}},
+					ExpiresAt: time.Now().Add(-time.Minute),
+				},
+			},
+			enforce: "", wantStatus: http.StatusForbidden, wantCalls: 0,
+		},
+		{
+			name: "denied request authority cannot dispatch",
+			principal: identity.Principal{
+				Kind: identity.ActorAgent, Subject: "qa-run", Owner: "owner", Verified: true,
+				Scopes: []string{"agent-manager:read", "agent-manager:write"},
+			},
+			requestAuthorityDeny: true, enforce: "", wantStatus: http.StatusForbidden, wantCalls: 0,
+		},
+		{
+			name: "existing run.create grant reaches member queue without browser login",
+			principal: identity.Principal{
+				Kind: identity.ActorAgent, Subject: "qa-run", Owner: "owner", Verified: true,
+				Scopes: []string{"agent-manager:read", "agent-manager:write"}, Grant: runCreate,
+			},
+			enforce: "", wantStatus: http.StatusAccepted, wantCalls: 1,
+		},
+		{
+			name: "verified human proof still passes strict AUTH01 mode",
+			principal: identity.Principal{
+				Kind: identity.ActorHuman, Subject: "owner", Verified: true,
+				Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour), Grant: teamPrepare,
+			},
+			enforce: "true", wantStatus: http.StatusAccepted, wantCalls: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(owneridentity.CreateRunCallerEnforceEnv, tc.enforce)
+			if owneridentity.CreateRunCallerEnforced() != (tc.enforce == "true") {
+				t.Fatal("test did not establish requested AUTH01 mode")
+			}
+			roots := paths.RootsForTest(t)
+			fileStore := newFileStore(t, roots)
+			teamStore := fileStore.Teams().(*store.FileTeamStore)
+			agentStore := fileStore.Agents().(*store.FileAgentStore)
+			relationStore := fileStore.Relations()
+			ctx := context.Background()
+			if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
+				t.Fatal(err)
+			}
+			if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive}); err != nil {
+				t.Fatal(err)
+			}
+			if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", &store.HeartbeatConfig{TeamID: "team-1", AgentID: "agent-1", Enabled: true, Schedule: "0 * * * *"}); err != nil {
+				t.Fatal(err)
+			}
+
+			queueExecutor := &captureExecutor{}
+			teamExecStore := NewTeamExecutionStore(teamStore, queueExecutor, t.TempDir(), nil)
+			defer teamExecStore.Shutdown()
+			handlers := NewHandlers(HandlersDeps{
+				TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore,
+				Executor:      newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil),
+				TeamExecStore: teamExecStore, RunCallerValidator: auth01ConversationVerifier{},
+			})
+			req := httptest.NewRequest(http.MethodPost, heartbeatconnect.HeartbeatServiceTriggerHeartbeatProcedure, nil)
+			req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+			req = req.WithContext(identity.WithPrincipal(req.Context(), tc.principal))
+			if tc.requestAuthorityDeny {
+				req = req.WithContext(authn.WithRequestOperationAuthority(req.Context(), heartbeatManagementAuthority{
+					capability: "agent-manager:write", operation: "team.prepare", target: "prompt-manager:team/team-1",
+				}))
+			}
+			if tc.enforce == "true" {
+				req.Header.Set("Authorization", "Bearer fixture-owner")
+			}
+			rec := httptest.NewRecorder()
+			requestpolicy.PreparationBoundary(http.HandlerFunc(handlers.TriggerHeartbeat)).ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("trigger status=%d, want %d: %s", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+			teamExecStore.Shutdown()
+			queueExecutor.mu.Lock()
+			calls := len(queueExecutor.calls)
+			queueExecutor.mu.Unlock()
+			if calls != tc.wantCalls {
+				t.Fatalf("queue dispatch calls=%d, want %d", calls, tc.wantCalls)
+			}
+		})
 	}
 }

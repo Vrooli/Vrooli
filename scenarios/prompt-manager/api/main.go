@@ -1085,7 +1085,7 @@ func main() {
 		agentManagerClient,
 	)
 	heartbeatControlStore := heartbeat.NewHeartbeatControlStore(roots.RuntimeData)
-	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
+	heartbeatExecutor.OnRunComplete = teamExecStore.OnRunComplete
 	heartbeatExecutor.SetTeamExecStore(teamExecStore)
 	heartbeatScheduler := heartbeat.NewScheduler(heartbeatExecutor, agentManagerClient, fileStore.Teams().(*store.FileTeamStore), teamExecStore)
 	heartbeatScheduler.SetControlStore(heartbeatControlStore)
@@ -1110,6 +1110,13 @@ func main() {
 	heartbeatHandlers.SetControlStore(heartbeatControlStore)
 	// Teams knowledge is owned by the heartbeat handler because it enforces
 	// runtime attribution and the publication rules for the shared corpus.
+	teamHandlers.SetActiveRunIDLookup(func(teamID, agentID string) (string, bool) {
+		run, ok := runRegistry.GetActiveRun(teamID, agentID)
+		if !ok || run == nil {
+			return "", false
+		}
+		return run.RunID, true
+	})
 	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers, heartbeatHandlers, effortWorkspaceStore)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
 	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
@@ -1122,11 +1129,14 @@ func main() {
 	// turn an unavailable owner into evidence that a run is absent.
 	startupRecoveryCtx, cancelStartupRecovery := context.WithTimeout(context.Background(), 5*time.Second)
 	stageStarted := time.Now()
-	runRegistry.Recover(startupRecoveryCtx, agentManagerClient)
-	log.Printf("startup recovery stage=run_registry duration=%s context_error=%v", time.Since(stageStarted), startupRecoveryCtx.Err())
+	runRegistry.LoadPersisted()
+	log.Printf("startup recovery stage=run_registry_load duration=%s context_error=%v", time.Since(stageStarted), startupRecoveryCtx.Err())
 	stageStarted = time.Now()
-	teamExecStore.Recover(startupRecoveryCtx)
+	queueOwners := teamExecStore.Recover(startupRecoveryCtx)
 	log.Printf("startup recovery stage=team_execution duration=%s context_error=%v", time.Since(stageStarted), startupRecoveryCtx.Err())
+	stageStarted = time.Now()
+	runRegistry.Recover(startupRecoveryCtx, agentManagerClient, queueOwners)
+	log.Printf("startup recovery stage=run_registry_legacy duration=%s context_error=%v", time.Since(stageStarted), startupRecoveryCtx.Err())
 	cancelStartupRecovery()
 	if err := heartbeatAttemptPublisher.Start(context.Background()); err != nil {
 		log.Fatalf("start heartbeat attempt publisher: %v", err)

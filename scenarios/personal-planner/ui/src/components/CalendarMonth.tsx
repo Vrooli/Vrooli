@@ -46,6 +46,11 @@ function monthLabel(value: string) {
 function makeIdempotencyKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
+function isOwnerRequired(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const responseError = error as { status?: unknown; code?: unknown };
+  return responseError.status === 401 && responseError.code === "unauthenticated";
+}
 
 export function CalendarMonth() {
   const queryClient = useQueryClient();
@@ -93,7 +98,12 @@ export function CalendarMonth() {
       setDraft(EMPTY_DRAFT);
       await queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
     },
-    onError: () => {
+    onError: (error) => {
+      if (isOwnerRequired(error)) {
+        setUncertainCreate(false);
+        setMessage("Sign in or switch to a workspace with calendar access before creating this event.");
+        return;
+      }
       setUncertainCreate(true);
       setMessage("The save outcome could not be confirmed. Check its idempotency key before retrying.");
     },

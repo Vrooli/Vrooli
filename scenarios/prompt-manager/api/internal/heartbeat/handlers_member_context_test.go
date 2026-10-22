@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/store"
@@ -52,6 +54,97 @@ func TestRequireBoundedHeartbeatManagementUsesExactTeamManage(t *testing.T) {
 			err := requireBoundedHeartbeatManagement(tc.ctx, "team-1")
 			if (err == nil) != tc.want {
 				t.Fatalf("requireBoundedHeartbeatManagement error=%v, want allowed=%v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestSetHeartbeatInstructionsRequiresExactTeamManageBeforeStorage(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	ctx := context.Background()
+	team := newIndependentTestTeam("team-1", "Team")
+	if err := teamStore.Create(ctx, team); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+	const original = "existing reviewed heartbeat instructions"
+	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", original); err != nil {
+		t.Fatalf("seed instructions: %v", err)
+	}
+	handlers := NewHandlers(HandlersDeps{TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore})
+
+	bounded := func(authority authn.RequestOperationAuthority) context.Context {
+		requestCtx := identity.WithPrincipal(ctx, identity.Principal{
+			Kind: identity.ActorAgent, Subject: "verified-run", Verified: true,
+			Scopes: []string{"prompt-manager:write"},
+		})
+		return authn.WithRequestOperationAuthority(requestCtx, authority)
+	}
+	approvedGrantCtx := identity.WithPrincipal(ctx, identity.Principal{
+		Kind: identity.ActorAgent, Subject: "verified-run", Verified: true,
+		Scopes: []string{"prompt-manager:write"},
+		Grant: &identity.OperationGrant{
+			ID: "approved-team-management", Policy: "team-management", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour),
+			Rules: []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/team-1"}}},
+		},
+	})
+	unrelatedGrantCtx := identity.WithPrincipal(ctx, identity.Principal{
+		Kind: identity.ActorAgent, Subject: "verified-run", Verified: true,
+		Scopes: []string{"prompt-manager:write"},
+		Grant: &identity.OperationGrant{
+			ID: "unrelated", Policy: "team-preparation", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour),
+			Rules: []identity.OperationRule{{Policy: "team-preparation", Operations: []string{"team.prepare"}, Targets: []string{"prompt-manager:team/team-1"}}},
+		},
+	})
+	for _, tc := range []struct {
+		name      string
+		ctx       context.Context
+		wantWrite bool
+	}{
+		{name: "exact team.manage target", ctx: bounded(heartbeatManagementAuthority{capability: "prompt-manager:write", operation: "team.manage", target: "prompt-manager:team/team-1"}), wantWrite: true},
+		{name: "approved team.manage grant", ctx: approvedGrantCtx, wantWrite: true},
+		{name: "unrelated team.prepare authority", ctx: bounded(heartbeatManagementAuthority{capability: "prompt-manager:write", operation: "team.prepare", target: "prompt-manager:team/team-1"})},
+		{name: "unrelated operation grant", ctx: unrelatedGrantCtx},
+		{name: "wrong team.manage target", ctx: bounded(heartbeatManagementAuthority{capability: "prompt-manager:write", operation: "team.manage", target: "prompt-manager:team/other"})},
+		{name: "no matching operation authority", ctx: bounded(heartbeatManagementAuthority{})},
+		{name: "ordinary operator path remains available", ctx: ctx, wantWrite: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPut, "/teams/team-1/members/agent-1/heartbeat-instructions", strings.NewReader(`{"content":"replacement instructions"}`))
+			req = req.WithContext(tc.ctx)
+			req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+			rec := httptest.NewRecorder()
+			handlers.SetHeartbeatInstructions(rec, req)
+			if tc.wantWrite {
+				if rec.Code != http.StatusOK {
+					t.Fatalf("status=%d body=%q, want 200", rec.Code, rec.Body.String())
+				}
+				content, err := teamStore.GetHeartbeatInstructions(ctx, "team-1", "agent-1")
+				if err != nil || content != "replacement instructions" {
+					t.Fatalf("stored content=%q err=%v, want replacement", content, err)
+				}
+				if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", original); err != nil {
+					t.Fatalf("restore instructions between cases: %v", err)
+				}
+				return
+			}
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("status=%d body=%q, want 403 before store access", rec.Code, rec.Body.String())
+			}
+			content, err := teamStore.GetHeartbeatInstructions(ctx, "team-1", "agent-1")
+			if err != nil || content != original {
+				t.Fatalf("denied update changed stored content=%q err=%v", content, err)
 			}
 		})
 	}

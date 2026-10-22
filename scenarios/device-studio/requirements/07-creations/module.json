@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "creations",
-    "description": "Reference-based AI creation and refinement. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Reference-based AI creation and refinement. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },
@@ -81,7 +81,7 @@
           "phase": "business",
           "status": "planned",
           "ref": "requirements/verification-protocols.md",
-          "notes": "NOT EXECUTED. Follow the named DS-CREATION-AUTONOMY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "notes": "NOT EXECUTED as a complete requirement. Partial implementation evidence: durable local-only parent sessions pin scope and cap two calls at 4096 output tokens each, with atomic admission, cancel/claim race handling, SQLite resume, and explicit linked-session confirmation for scope expansion. The fresh served-build parent-to-candidate path is still pending; retain inputs, receipts, counterexample, and reviewer verdict before changing status. See docs/internal/goal/evidence/E5/current-creation-session-build.md.",
           "metadata": {
             "protocol_id": "DS-CREATION-AUTONOMY",
             "planned_automation": "Orchestrator/grant/budget fault-injection and activity review.",
@@ -109,7 +109,7 @@
           "phase": "business",
           "status": "planned",
           "ref": "requirements/verification-protocols.md",
-          "notes": "NOT EXECUTED. Follow the named DS-CREATION-ISOLATION protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "notes": "NOT EXECUTED as a complete requirement. Partial evidence covers only the fixed finite-recipe Go compiler through protected workspace-sandbox (network and out-of-workspace writes denied; bounded process/time/virtual-address-space profile). This does not establish OS-read confinement or arbitrary-code/archive isolation. Arbitrary scripts and Blender execution are unsupported and refused. Follow the full named protocol and retain its counterexample and reviewer verdict before changing status. See docs/internal/goal/evidence/E5/current-creation-session-build.md.",
           "metadata": {
             "protocol_id": "DS-CREATION-ISOLATION",
             "planned_automation": "Sandbox/argv/archive adversarial tests and containment qualification.",

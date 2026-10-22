@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "batch",
-    "description": "Variant comparison and bounded batches. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Variant comparison and bounded batches. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },

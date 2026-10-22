@@ -292,7 +292,7 @@ func stagePhysicalAssets(ctx context.Context, root *os.Root, manifest PhysicalRe
 }
 
 func runPhysicalBlender(parent context.Context, workspace, blender string, wallTimeSeconds uint32) error {
-	if wallTimeSeconds == 0 || wallTimeSeconds > PhysicalStillWallTimeSeconds {
+	if wallTimeSeconds == 0 || wallTimeSeconds > PhysicalStillCPUWallTimeSeconds {
 		return errors.New("physical still wall-time limit is outside the closed profile")
 	}
 	if !filepath.IsAbs(blender) || filepath.Clean(blender) != blender {

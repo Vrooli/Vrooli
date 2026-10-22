@@ -1,11 +1,11 @@
 import type { ArchiveView, ArchiveEntry } from "../api/filePreview";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Loader2, Maximize2, Minimize2, RotateCw, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FolderOpen, Loader2, Maximize2, Minimize2, RotateCw, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
 import { selectors } from "../consts/selectors";
-import { basename as pathBasename, pathCrumbs, type PathCrumb } from "../lib/paths";
+import { basename as pathBasename, dirname as pathDirname, pathCrumbs, type PathCrumb } from "../lib/paths";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { FilePath } from "@vrooli/react-component-library/FilePath/1";
@@ -89,6 +89,17 @@ export default function MessagesFileViewer({
   const canHandoff = Boolean(onHandoff && !model?.archiveMember && displayPath && model?.kind !== "directory");
   const canRun = Boolean(onRun && !model?.archiveMember && model?.kind === "code" && scriptRunPlan(displayPath, text?.content ?? ""));
 
+  // "Open containing folder" lets a file that was opened directly reach its
+  // directory and browse around it. navigateTo pushes the current file onto the
+  // history stack, so Back returns to the file. It is offered for any on-disk
+  // file with an addressable parent — not for a directory (which already shows
+  // navigable breadcrumbs) nor an archive member (whose parent is inside the
+  // archive, not the host filesystem).
+  const parentDir = useMemo(
+    () => (model?.kind !== "directory" && !model?.archiveMember ? pathDirname(displayPath) : null),
+    [model?.kind, model?.archiveMember, displayPath],
+  );
+
   const titleEl = (
     <span
       role="button"
@@ -140,7 +151,10 @@ export default function MessagesFileViewer({
     </nav>
   ) : null;
   const headerExtra = model?.kind === "directory" ? null : (
-    <div className="mt-1 w-full min-w-0">{displayPath ? <FilePath path={displayPath} showCopyButton copyLabel={t(strings.messagesFileViewer.copyPath)} copiedLabel={t(strings.messagesFileViewer.copied)} testId="file-preview-path" className="w-full text-xs text-wc-text-muted" /> :
+    <div className="mt-1 flex w-full min-w-0 items-center gap-1">{displayPath ? <>
+      <FilePath path={displayPath} showCopyButton copyLabel={t(strings.messagesFileViewer.copyPath)} copiedLabel={t(strings.messagesFileViewer.copied)} testId="file-preview-path" className="min-w-0 flex-1 text-xs text-wc-text-muted" />
+      {parentDir && <IconButton type="button" onClick={() => { onNavigate(parentDir); }} data-testid="file-preview-open-folder" aria-label={t(strings.messagesFileViewer.directoryUp)} title={t(strings.messagesFileViewer.directoryUp)} surface="ghost" shape="rounded" className="shrink-0"><FolderOpen /></IconButton>}
+    </> :
       <p className="min-w-0 truncate text-xs text-wc-text-muted">{t(strings.messagesFileViewer.loadingFile)}</p>}</div>
   );
 

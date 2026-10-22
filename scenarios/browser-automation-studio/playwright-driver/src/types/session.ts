@@ -124,6 +124,8 @@ export interface AppTargetSpec {
   artifact_digest: string;
   context_id: string;
   cdp_transport: 'loopback-authenticated' | 'bridge-authenticated';
+  download_path?: string;
+  test_database_root?: string;
 }
 
 /**

@@ -49,6 +49,13 @@ func TestUnexpectedErrorsAreRedacted(t *testing.T) {
 	require.NotContains(t, err.Error(), "/secret/path")
 }
 
+func TestStaleReadabilityBindingMapsToInvalidArgumentAndMissingRenderMapsNotFound(t *testing.T) {
+	stale := toConnectError(domain.ErrInvalidShot{Field: "readability_review.binding", Reason: "render must match the exact immutable shot revision"}, nil)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(stale))
+	missing := toConnectError(domain.ErrReadabilityRenderNotFound, nil)
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(missing))
+}
+
 func TestMissingProjectFromDraftValidationMapsNotFound(t *testing.T) {
 	err := toConnectError(projects.ErrProjectNotFound{ID: "project-secret"}, nil)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))

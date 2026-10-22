@@ -15,7 +15,7 @@
   },
   "createdAt": "2026-04-28T00:00:00Z",
   "displayName": "Infra Health Team",
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
@@ -283,7 +283,7 @@
     }
   },
   "purpose": "domain-stewardship",
-  "revision": 6,
+  "revision": 7,
   "runtime": {
     "mode": "multi-process"
   },
@@ -309,5 +309,5 @@
       "purpose": "Stale work-item and failure-mode review snapshot."
     }
   ],
-  "updatedAt": "2026-10-08T01:26:34Z"
+  "updatedAt": "2026-10-21T03:26:33Z"
 }

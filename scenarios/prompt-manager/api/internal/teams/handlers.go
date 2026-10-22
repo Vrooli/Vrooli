@@ -18,6 +18,8 @@ import (
 	"prompt-manager/internal/validation"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 )
 
 // defaultReadCCConfig reads a Claude Code team config from the standard location.
@@ -52,6 +54,7 @@ type Handlers struct {
 	aiIndexer          AITeamIndexer
 	readCCConfig       func(teamName string) ([]byte, error) // Testing seam for CC config reader
 	listCCTeamDirs     func() ([]AvailableCCTeam, error)     // Testing seam for CC team listing
+	activeRunIDLookup  func(teamID, agentID string) (string, bool)
 }
 
 type createValidationError struct{ err error }
@@ -87,6 +90,13 @@ type HeartbeatScheduler interface {
 // SetHeartbeatScheduler attaches a scheduler after handlers are constructed.
 func (h *Handlers) SetHeartbeatScheduler(scheduler HeartbeatScheduler) {
 	h.heartbeatScheduler = scheduler
+}
+
+// SetActiveRunIDLookup binds verified agent messages to the registered owner run
+// already tracked by the heartbeat registry. Missing registry evidence fails
+// closed for verified agent callers; non-agent calls retain existing behavior.
+func (h *Handlers) SetActiveRunIDLookup(lookup func(teamID, agentID string) (string, bool)) {
+	h.activeRunIDLookup = lookup
 }
 
 // SetGraphInvalidator sets the graph invalidator.
@@ -437,6 +447,9 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) AddTeamMember(ctx context.Context, teamID string, req AddMemberRequest) (MemberDTO, error) {
+	if err := requireBoundedTeamManagement(ctx, teamID); err != nil {
+		return MemberDTO{}, err
+	}
 	if req.AgentID == "" {
 		return MemberDTO{}, fmt.Errorf("agentId is required")
 	}
@@ -474,6 +487,9 @@ func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
 		if err.Error() == "Team not found" || err.Error() == "Agent not found" {
 			status = http.StatusNotFound
 		}
+		if errors.Is(err, authn.ErrOperation) {
+			status = http.StatusForbidden
+		}
 		http.Error(w, err.Error(), status)
 		return
 	}
@@ -483,6 +499,9 @@ func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) UpdateTeamMember(ctx context.Context, teamID, agentID string, req UpdateMemberRequest) (MemberDTO, error) {
+	if err := requireBoundedTeamManagement(ctx, teamID); err != nil {
+		return MemberDTO{}, err
+	}
 	membership, err := h.relationStore.GetTeamMember(ctx, teamID, agentID)
 	if err != nil {
 		return MemberDTO{}, fmt.Errorf("Membership not found")
@@ -529,6 +548,9 @@ func (h *Handlers) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(err.Error(), "cannot deactivate") {
 			status = http.StatusConflict
 		}
+		if errors.Is(err, authn.ErrOperation) {
+			status = http.StatusForbidden
+		}
 		http.Error(w, err.Error(), status)
 		return
 	}
@@ -538,6 +560,9 @@ func (h *Handlers) UpdateMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) RemoveTeamMember(ctx context.Context, teamID, agentID string) error {
+	if err := requireBoundedTeamManagement(ctx, teamID); err != nil {
+		return err
+	}
 	team, err := h.teamStore.Get(ctx, teamID)
 	if err != nil {
 		return fmt.Errorf("Team not found")
@@ -563,6 +588,10 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 	if err := h.RemoveTeamMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, authn.ErrOperation) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if err.Error() == "Team not found" {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -580,6 +609,23 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// requireBoundedTeamManagement applies the existing exact team.manage owner
+// check whenever the request carries bounded authority. Legacy unbounded
+// callers keep their existing behavior; a grant never authorizes a different
+// team's membership mutation.
+func requireBoundedTeamManagement(ctx context.Context, teamID string) error {
+	_, requestBounded := authn.RequestOperationAuthorityFromContext(ctx)
+	principal, hasPrincipal := identity.PrincipalFromContext(ctx)
+	if !requestBounded && (!hasPrincipal || principal.Grant == nil) {
+		return nil
+	}
+	_, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+teamID)
+	if err != nil {
+		return fmt.Errorf("team membership mutation requires approved team.manage authority: %w", err)
+	}
+	return nil
 }
 
 func (h *Handlers) ListTeamRoles(ctx context.Context, id string) ([]RoleDTO, error) {
@@ -610,6 +656,9 @@ func (h *Handlers) GetRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) SetTeamRoles(ctx context.Context, id string, req SetRolesRequest) ([]RoleDTO, error) {
+	if err := requireBoundedTeamManagement(ctx, id); err != nil {
+		return nil, err
+	}
 	if _, err := h.teamStore.Get(ctx, id); err != nil {
 		return nil, fmt.Errorf("Team not found")
 	}
@@ -641,6 +690,9 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 	roles, err := h.SetTeamRoles(r.Context(), mux.Vars(r)["id"], req)
 	if err != nil {
 		status := http.StatusInternalServerError
+		if errors.Is(err, authn.ErrOperation) {
+			status = http.StatusForbidden
+		}
 		if strings.Contains(err.Error(), "not found") {
 			status = http.StatusNotFound
 		}

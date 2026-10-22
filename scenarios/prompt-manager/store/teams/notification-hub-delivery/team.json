@@ -1,0 +1,229 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "notification-hub-delivery-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-10-20T12:44:07Z",
+  "creationProof": {
+    "kind": "agent",
+    "subject": "6ae5e6a6-c742-402f-a1e8-1f4d0c1dd567",
+    "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+    "source": "agent_provenance"
+  },
+  "displayName": "Notification Hub Delivery",
+  "effortRefs": [
+    "effort:notification-hub-redesign"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "notification-hub-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver and independently validate the full selected Notification Hub redesign.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "notification-hub-benchmark",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/internal/delivery-reliability-research/follow-through/BENCHMARK.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/internal/delivery-reliability-research/follow-through/BENCHMARK.md"
+            }
+          ],
+          "writePolicy": "Owner-approved scope; native team records benchmark evidence without altering acceptance.",
+          "consumers": [
+            "notification-hub-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "Complete scope, source precedence, clock and independent acceptance."
+        },
+        {
+          "id": "notification-hub-selected-design",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/internal/delivery-operations/2026-10-12/sources/notification-hub-dossier.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/internal/delivery-operations/2026-10-12/sources/notification-hub-dossier.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/internal/delivery-operations/2026-10-12/sources/notification-hub-atlas.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/internal/delivery-operations/2026-10-12/sources/notification-hub-revision/selected-image-manifest.json"
+            }
+          ],
+          "writePolicy": "Reference only; record reviewed adaptations in native evidence.",
+          "consumers": [
+            "notification-hub-delivery"
+          ],
+          "useFor": "Required full design mapping and original assets.",
+          "required": false,
+          "optionalReason": "Read at admission and by exact reference in affected epochs; avoid reinjecting the whole dossier every wake."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "hub-goal",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/GOAL.md"
+          },
+          "ownerMemberId": "notification-hub-delivery-orchestrator",
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "hub-queue",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/QUEUE.md"
+          },
+          "ownerMemberId": "notification-hub-delivery-orchestrator",
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "hub-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/FEEDBACK.md"
+          },
+          "ownerMemberId": "notification-hub-delivery-orchestrator",
+          "kind": "operator-input",
+          "required": true
+        },
+        {
+          "id": "hub-workarounds",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/WORKAROUNDS.md"
+          },
+          "ownerMemberId": "notification-hub-delivery-orchestrator",
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "hub-installs",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/INSTALLS.md"
+          },
+          "ownerMemberId": "notification-hub-delivery-orchestrator",
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "hub-targets",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/TARGETS.md"
+          },
+          "ownerMemberId": "notification-hub-delivery-orchestrator",
+          "kind": "working-register",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "notification-hub-delivery-orchestrator": {
+        "lane": "Own the full Notification Hub delivery through coherent native epochs, independent acceptance and truthful closure; do not implement product work.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/GOAL.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/QUEUE.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/WORKAROUNDS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/INSTALLS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/TARGETS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/epochs/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/archive/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/evidence/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/COVERAGE.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/notification-hub/docs/internal/goal/ACCEPTANCE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Preserve all BENCHMARK.md requirements and later owner authority rules.",
+          "Product implementation belongs to properly admitted native workers; root repair agents must not implement the UX.",
+          "Do not accept your own worker output without independent evidence; do not silently lower gates.",
+          "Remove superseded owners and duplicated mechanisms where safe; explain necessary additions and retained debt.",
+          "Preserve real data, existing consumers, unique test protection and overlapping authored work.",
+          "Use governed dependency/generated-artifact/lifecycle routes; actual human-only approvals remain human.",
+          "No identity stripping, grant widening, unauthorized paid services or external publication."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-20T13:25:35Z"
+}

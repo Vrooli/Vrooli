@@ -3,6 +3,7 @@ package teams
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	repocontract "github.com/vrooli/repo-contract-go"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
 	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
@@ -17,13 +18,223 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"prompt-manager/internal/requestpolicy"
 	"prompt-manager/internal/store"
+	domainteams "prompt-manager/internal/teams"
 	"prompt-manager/internal/testutil/fixtures"
 )
+
+func TestCreateTeamConnectUsesExactOwnerGrant(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		operation string
+		target    string
+		wantAllow bool
+	}{
+		{name: "exact team.manage target", operation: "team.manage", target: "prompt-manager:team/commissioned", wantAllow: true},
+		{name: "unrelated operation", operation: "agent.manage", target: "agent-manager:*"},
+		{name: "wrong team target", operation: "team.manage", target: "prompt-manager:team/another"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			relations := store.NewFileRelationStore(root)
+			teamStore := store.NewFileTeamStore(root, root, relations)
+			handler := NewHandlers(teamStore, store.NewFileAgentStore(root), relations, nil, nil)
+			path, mount := NewConnectMount(handler)
+			mux := http.NewServeMux()
+			mux.Handle(path, mount)
+			principal := identity.Principal{
+				Kind: identity.ActorAgent, Subject: "commissioning-run", Owner: "human-owner",
+				Source: identity.SourceAgentProvenance, Verified: true,
+				Scopes: []string{"prompt-manager:read", "prompt-manager:write"},
+				Grant: &identity.OperationGrant{
+					ID: "reviewed-team-management", Policy: "team-management", Approver: "human-owner",
+					Operations: []string{tc.operation}, Targets: []string{tc.target}, ExpiresAt: time.Now().Add(time.Hour),
+				},
+			}
+			boundary := requestpolicy.PreparationBoundary(mux)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				boundary.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
+			}))
+			defer server.Close()
+			client := teamsconnect.NewTeamsServiceClient(server.Client(), server.URL)
+
+			team := fixtures.IndependentTeam("commissioned", "Commissioned Team", fixtures.WithEnabled(false))
+			team.Purpose = "delivery"
+			team.Lifetime = "finite"
+			team.EffortRefs = []string{"effort:commissioning-test"}
+			raw, err := json.Marshal(team)
+			if err != nil {
+				t.Fatal(err)
+			}
+			input := &teamsv1.TeamInput{}
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, input); err != nil {
+				t.Fatal(err)
+			}
+			created, err := client.CreateTeam(context.Background(), connect.NewRequest(&teamsv1.CreateTeamRequest{Team: input}))
+			if tc.wantAllow {
+				if err != nil {
+					t.Fatalf("exact owner grant was refused: %v", err)
+				}
+				if created.Msg.Id != "commissioned" {
+					t.Fatalf("created team ID = %q, want commissioned", created.Msg.Id)
+				}
+				stored, err := teamStore.Get(context.Background(), "commissioned")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if stored.CreationProof == nil || stored.CreationProof.Subject != "commissioning-run" {
+					t.Fatalf("verified creator was not recorded: proof=%+v", stored.CreationProof)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("owner refused grant unexpectedly created a team")
+			}
+			if got := connect.CodeOf(err); got != connect.CodePermissionDenied {
+				t.Fatalf("request did not reach the team owner check: Connect code=%s err=%v", got, err)
+			}
+			if _, statErr := os.Stat(filepath.Join(root, "teams", "commissioned", "team.json")); !os.IsNotExist(statErr) {
+				t.Fatalf("refused create left team state behind: stat err=%v", statErr)
+			}
+		})
+	}
+}
+
+func TestGetTeamConnectUsesExactTeamManagementGrantWithoutCrossRuleTargetMixing(t *testing.T) {
+	root := t.TempDir()
+	relations := store.NewFileRelationStore(root)
+	teamStore := store.NewFileTeamStore(root, root, relations)
+	if err := teamStore.Create(context.Background(), fixtures.IndependentTeam("commissioned", "Commissioned Team")); err != nil {
+		t.Fatalf("seed team: %v", err)
+	}
+	handler := NewHandlers(teamStore, store.NewFileAgentStore(root), relations, nil, nil)
+	path, mount := NewConnectMount(handler)
+	mux := http.NewServeMux()
+	mux.Handle(path, mount)
+	boundary := requestpolicy.PreparationBoundary(mux)
+	principal := identity.Principal{
+		Kind: identity.ActorAgent, Subject: "commissioning-run", Owner: "human-owner",
+		Source: identity.SourceAgentProvenance, Verified: true,
+		Scopes: []string{"prompt-manager:read", "prompt-manager:write"},
+		Grant: &identity.OperationGrant{
+			ID: "combined-team-and-agent-management", Approver: "human-owner", ExpiresAt: time.Now().Add(time.Hour),
+			Rules: []identity.OperationRule{
+				{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/commissioned"}},
+				{Policy: "agent-management", Operations: []string{"agent.manage"}, Targets: []string{"prompt-manager:team/another"}},
+			},
+		},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		boundary.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
+	}))
+	defer server.Close()
+	client := teamsconnect.NewTeamsServiceClient(server.Client(), server.URL)
+
+	got, err := client.GetTeam(context.Background(), connect.NewRequest(&teamsv1.GetTeamRequest{Id: "commissioned"}))
+	if err != nil {
+		t.Fatalf("exact team.manage target could not read its team: %v", err)
+	}
+	if got.Msg.Id != "commissioned" {
+		t.Fatalf("read team ID = %q, want commissioned", got.Msg.Id)
+	}
+	_, err = client.GetTeam(context.Background(), connect.NewRequest(&teamsv1.GetTeamRequest{Id: "another"}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("cross-rule target returned %v, want permission denied", err)
+	}
+}
+
+func TestGetRolesConnectUsesExactTeamManagementGrant(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	relations := store.NewFileRelationStore(root)
+	teamStore := store.NewFileTeamStore(root, root, relations)
+	if err := teamStore.Create(ctx, fixtures.IndependentTeam("commissioned", "Commissioned Team")); err != nil {
+		t.Fatalf("seed team: %v", err)
+	}
+	if err := teamStore.SetRoles(ctx, "commissioned", &store.TeamRoles{TeamID: "commissioned", Roles: []store.Role{{ID: "lead", Name: "Lead"}}}); err != nil {
+		t.Fatalf("seed roles: %v", err)
+	}
+	legacy := domainteams.NewHandlers(teamStore, store.NewFileAgentStore(root), relations, nil, nil)
+	path, mount := NewConnectMount(legacy)
+	mux := http.NewServeMux()
+	mux.Handle(path, mount)
+	boundary := requestpolicy.PreparationBoundary(mux)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal := identity.Principal{
+			Kind: identity.ActorAgent, Subject: "commissioning-run", Owner: "human-owner",
+			Source: identity.SourceAgentProvenance, Verified: true,
+			Scopes: []string{"prompt-manager:read", "prompt-manager:write"},
+			Grant: &identity.OperationGrant{
+				ID: "reviewed-team-management", Approver: "human-owner", ExpiresAt: time.Now().Add(time.Hour),
+				Rules: []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/commissioned"}}},
+			},
+		}
+		boundary.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
+	}))
+	defer server.Close()
+	client := teamsconnect.NewTeamsServiceClient(server.Client(), server.URL)
+
+	got, err := client.GetRoles(ctx, connect.NewRequest(&teamsv1.GetRolesRequest{TeamId: "commissioned"}))
+	if err != nil {
+		t.Fatalf("exact team.manage target could not read roles: %v", err)
+	}
+	if len(got.Msg.Roles) != 1 || got.Msg.Roles[0].GetId() != "lead" {
+		t.Fatalf("roles response = %+v, want seeded role", got.Msg.Roles)
+	}
+	_, err = client.GetRoles(ctx, connect.NewRequest(&teamsv1.GetRolesRequest{TeamId: "another"}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("cross-team roles read returned %v, want permission denied", err)
+	}
+}
+
+func TestSetRolesConnectRequiresExactTeamManagementTarget(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	relations := store.NewFileRelationStore(root)
+	teamStore := store.NewFileTeamStore(root, root, relations)
+	if err := teamStore.Create(ctx, fixtures.IndependentTeam("commissioned", "Commissioned Team")); err != nil {
+		t.Fatalf("seed team: %v", err)
+	}
+	legacy := domainteams.NewHandlers(teamStore, store.NewFileAgentStore(root), relations, nil, nil)
+	path, mount := NewConnectMount(legacy)
+	mux := http.NewServeMux()
+	mux.Handle(path, mount)
+	boundary := requestpolicy.PreparationBoundary(mux)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal := identity.Principal{
+			Kind: identity.ActorAgent, Subject: "commissioning-run", Owner: "human-owner",
+			Source: identity.SourceAgentProvenance, Verified: true,
+			Scopes: []string{"prompt-manager:read", "prompt-manager:write"},
+			Grant: &identity.OperationGrant{
+				ID: "reviewed-team-management", Approver: "human-owner", ExpiresAt: time.Now().Add(time.Hour),
+				Rules: []identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/other"}}},
+			},
+		}
+		boundary.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
+	}))
+	defer server.Close()
+	client := teamsconnect.NewTeamsServiceClient(server.Client(), server.URL)
+	_, err := client.SetRoles(ctx, connect.NewRequest(&teamsv1.SetRolesRequest{
+		TeamId: "commissioned", Roles: []*teamsv1.Role{{Id: "lead", Name: "Lead"}},
+	}))
+	if err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("wrong target SetRoles error=%v, want permission_denied", err)
+	}
+	roles, err := teamStore.GetRoles(ctx, "commissioned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roles != nil && len(roles.Roles) != 0 {
+		t.Fatalf("refused SetRoles changed persisted roles: %+v", roles)
+	}
+}
 
 func TestTeamMetadataConnectCRUDPreservesRecordsAndExplicitClears(t *testing.T) {
 	ctx := context.Background()
@@ -231,5 +442,67 @@ func TestNativeCLIConfiguresDisabledOnDemandReviewerThroughConnect(t *testing.T)
 
 	if scheduler.State().Registered != 0 || scheduler.State().Running || scheduler.State().LastCallback != nil {
 		t.Fatalf("on-demand role started scheduler: %+v", scheduler.State())
+	}
+}
+
+func TestSendMessageConnectBindsOwnerRunAndMapsRefusal(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	relations := store.NewFileRelationStore(root)
+	teamStore := store.NewFileTeamStore(root, root, relations)
+	if err := teamStore.Create(ctx, fixtures.IndependentTeam("team-1", "Test Team")); err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range []string{"sender-1", "recipient-1"} {
+		if err := relations.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "team-1", AgentID: member, Status: store.MemberStatusActive}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	legacy := domainteams.NewHandlers(teamStore, store.NewFileAgentStore(root), relations, nil, nil)
+	legacy.SetActiveRunIDLookup(func(teamID, agentID string) (string, bool) {
+		return "current-run", teamID == "team-1" && agentID == "sender-1"
+	})
+	_, mount := NewConnectMount(legacy)
+	runID := "stale-run"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		caller := provenance.NewContext(r.Context(), provenance.Provenance{
+			Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: runID,
+		})
+		mount.ServeHTTP(w, r.WithContext(caller))
+	}))
+	defer server.Close()
+	client := teamsconnect.NewTeamsServiceClient(server.Client(), server.URL)
+	send := func() (*connect.Response[teamsv1.Message], error) {
+		return client.SendMessage(ctx, connect.NewRequest(&teamsv1.SendMessageRequest{
+			TeamId: "team-1", AgentId: "recipient-1", FromAgentId: "sender-1", Content: "status",
+		}))
+	}
+	_, err := send()
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodePermissionDenied {
+		t.Fatalf("stale SendMessage error=%v, want permission_denied", err)
+	}
+	inbox, err := teamStore.GetInbox(ctx, "team-1", "recipient-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inbox.Messages) != 0 {
+		t.Fatalf("refused sender appended %d message(s)", len(inbox.Messages))
+	}
+
+	runID = "current-run"
+	response, err := send()
+	if err != nil {
+		t.Fatalf("exact registered owner run SendMessage: %v", err)
+	}
+	if response.Msg.GetFromAgentId() != "sender-1" || response.Msg.GetToAgentId() != "recipient-1" {
+		t.Fatalf("message attribution = %+v", response.Msg)
+	}
+	inbox, err = teamStore.GetInbox(ctx, "team-1", "recipient-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inbox.Messages) != 1 {
+		t.Fatalf("exact owner run appended %d messages, want 1", len(inbox.Messages))
 	}
 }

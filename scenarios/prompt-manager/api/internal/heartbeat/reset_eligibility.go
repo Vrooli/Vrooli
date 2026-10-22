@@ -179,7 +179,7 @@ func (c *TeamExecutionContext) ConsumeResetEligibility(ctx context.Context, ev R
 	}
 	c.mu.Unlock()
 
-	if !c.watchRetainedRun(ev.AgentID, runID, profileKey, taskID, runTag, "RUN_STATUS_RUNNING", entry.OwnerStartedAt) {
+	if !c.watchRetainedRun(ev.AgentID, runID, profileKey, taskID, runTag, "RUN_STATUS_RUNNING", entry.OwnerStartedAt, "", entry.AdmissionOrigin) {
 		c.MarkWatcherUnavailable(ev.AgentID)
 	}
 	log.Printf("team_execution: resumed paused obligation for %s/%s (run %s) after owner reset eligibility", c.teamID, ev.AgentID, runID)

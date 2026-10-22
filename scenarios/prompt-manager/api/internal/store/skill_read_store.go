@@ -1,8 +1,6 @@
 package store
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -78,91 +76,17 @@ func (s *SkillReadStore) Append(read SkillRead) error {
 	if strings.TrimSpace(read.ID) == "" {
 		read.ID = newCallID(now)
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
-	}
-	if err := AppendJSONL(s.path, read); err != nil {
-		return err
-	}
-	if err := s.prune(now); err != nil {
-		return err
-	}
-	return trimJSONLLines(s.path, s.maxEntries)
+	return appendBoundedJSONL(s.path, read, now, s.maxEntries, s.retention, func(entry SkillRead) string {
+		return entry.At
+	})
 }
 
 // ReadSince returns reads with an At timestamp within the given window
 // (relative to now), newest entries last (file order).
 func (s *SkillReadStore) ReadSince(window time.Duration) ([]SkillRead, error) {
-	all, err := s.readAll()
-	if err != nil {
-		return nil, err
+	var now time.Time
+	if window > 0 {
+		now = s.now().UTC()
 	}
-	if window <= 0 {
-		return all, nil
-	}
-	cutoff := s.now().UTC().Add(-window)
-	out := make([]SkillRead, 0, len(all))
-	for _, read := range all {
-		if at, err := time.Parse(time.RFC3339, read.At); err == nil && at.Before(cutoff) {
-			continue
-		}
-		out = append(out, read)
-	}
-	return out, nil
-}
-
-func (s *SkillReadStore) prune(now time.Time) error {
-	all, err := s.readAll()
-	if err != nil {
-		return err
-	}
-	cutoff := now.Add(-s.retention)
-	kept := make([]SkillRead, 0, len(all))
-	dropped := false
-	for _, read := range all {
-		if at, err := time.Parse(time.RFC3339, read.At); err == nil && at.Before(cutoff) {
-			dropped = true
-			continue
-		}
-		kept = append(kept, read)
-	}
-	if !dropped {
-		return nil
-	}
-	return s.rewrite(kept)
-}
-
-func (s *SkillReadStore) readAll() ([]SkillRead, error) {
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var out []SkillRead
-	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		var read SkillRead
-		if err := json.Unmarshal([]byte(line), &read); err != nil {
-			continue // skip malformed lines rather than failing the read
-		}
-		out = append(out, read)
-	}
-	return out, nil
-}
-
-func (s *SkillReadStore) rewrite(entries []SkillRead) error {
-	var b strings.Builder
-	for _, entry := range entries {
-		raw, err := json.Marshal(entry)
-		if err != nil {
-			continue
-		}
-		b.Write(raw)
-		b.WriteByte('\n')
-	}
-	return os.WriteFile(s.path, []byte(b.String()), 0o644)
+	return readJSONLSince(s.path, window, now, func(entry SkillRead) string { return entry.At })
 }

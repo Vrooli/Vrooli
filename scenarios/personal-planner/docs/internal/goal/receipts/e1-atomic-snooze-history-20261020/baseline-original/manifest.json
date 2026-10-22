@@ -1,0 +1,16 @@
+{
+  "slice": "ORCH-E1-ATOMIC-SNOOZE-HISTORY-20261020",
+  "files": {
+    "scenarios/personal-planner/api/internal/work/sqlite.go": {
+      "sha256": "00bfbcb301d842f4d70954bb1351453426f5d451cd46e8ca2d3c8400f1ac0e35",
+      "lines": 189,
+      "snapshot": "sqlite.go"
+    },
+    "scenarios/personal-planner/api/internal/work/sqlite_test.go": {
+      "sha256": "282d80dacbff22b2d75180e45910d6abc7ba302b79ef4d3e7919f0703675c9e6",
+      "lines": 246,
+      "snapshot": "sqlite_test.go"
+    }
+  },
+  "capture_note": "Byte-for-byte snapshot verified against the admitted pre-write SHA-256 identities; exact wall-clock capture time was not recorded."
+}

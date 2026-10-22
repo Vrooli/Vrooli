@@ -229,7 +229,13 @@ Row two is for a field the record *carries*, never for a segment the declaration
    Verify with `prompt-manager skill-set validate <scenario>`.
 3. Run the state import. Verify counts per source file.
 4. Edit the team contract. Remove the absorbed declarations.
-5. Collapse the roster. A removed member is written on four surfaces; delete all four. `path:scenarios/prompt-manager/store/teams/<team>/members/<member>/`, `path:scenarios/prompt-manager/store/relations/team-member/<team>__<member>.json`, the member's entry in that team's `roles.json`, and `path:scenarios/prompt-manager/store/agents/<agent-id>/` when no other team binds that agent.
+5. Collapse the roster across the operating contract, member directory, and
+   `relations/team-member/` record. A role catalog is a separate team-level
+   surface: `roles.json` may define roles shared by multiple members, so do not
+   delete an entry merely because a member leaves. Update a role definition only
+   when the owning team decides it is no longer part of the catalog; update each
+   affected relation's role assignments separately. Remove the agent directory
+   only when no other team binds that agent.
 6. Collapse the **retained** members' procedure. Removing members (step 5) does not by itself
    move procedure off the ones that stay. Each surviving `HEARTBEAT.md` and
    `RESPONSIBILITIES.md` keeps only its lane's judgment, its own fallback target, and its stop
@@ -292,7 +298,7 @@ You may:
 You must:
 - Preserve every state surface an importer has not yet consumed.
 - Keep adversarial separation.
-- Reassign every ownership reference held by a removed member, then run `prompt-manager graph topics` and confirm it reports zero `team_role_member_drift` findings. That rule compares `roles.json`, the team contract, and the relation store against each other in both directions; a removed member surviving on any one surface fails it.
+- Reassign every ownership reference held by a removed member, then run `prompt-manager graph topics` and resolve any `team_role_member_drift` findings. That rule compares operating-contract members with membership relation records. `roles.json` is an optional role-definition catalog, not a roster, and is not expected to contain one definition per member.
 - Route plan-of-record canon edits through the owning work type.
 - Report the validator state after the pass, including findings you left open and why.
 

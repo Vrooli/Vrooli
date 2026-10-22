@@ -3,6 +3,8 @@ package heartbeat
 import (
 	"context"
 	"time"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // AgentClient abstracts the agent-manager HTTP API so callers can be tested
@@ -21,6 +23,7 @@ type AgentClient interface {
 	StopRun(ctx context.Context, runID string) error
 	GetRunEvents(ctx context.Context, runID string, afterSequence int64, limit int) ([]byte, error)
 	ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error)
+	GetEffortEnrollment(ctx context.Context, effortRef string) (*domainpb.EffortEnrollment, error)
 	ContinueRun(ctx context.Context, runID string, message string, idempotencyKey string) (*Run, error)
 	CreateTypedInvestigation(ctx context.Context, request []byte) ([]byte, error)
 	ListTypedInvestigations(ctx context.Context, limit int) ([]byte, error)

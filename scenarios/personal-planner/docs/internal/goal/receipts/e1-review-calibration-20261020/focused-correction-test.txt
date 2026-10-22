@@ -1,0 +1,3 @@
+$ cd scenarios/personal-planner/api && go test ./internal/review -count=1
+ok  	personal-planner/internal/review	0.012s
+exit_code=0

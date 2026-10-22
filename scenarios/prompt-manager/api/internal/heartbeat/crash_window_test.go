@@ -174,7 +174,7 @@ func TestCrashWindow_BeforeDispatchReplaysToExactlyOneObligation(t *testing.T) {
 	}
 
 	// Definitive owner terminal state releases the slot. This is the path the
-	// re-attached waiter drives via OnComplete.
+	// re-attached waiter drives via run-scoped completion.
 	tec.OnMemberComplete("agent-1")
 	if len(tec.Status().RunningAgentIDs) != 0 {
 		t.Fatalf("expected terminal release to clear the obligation, got %+v", tec.Status())

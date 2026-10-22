@@ -3,6 +3,7 @@ package teams
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -13,7 +14,28 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 )
+
+var ErrMessageSenderRunMismatch = errors.New("verified message sender is not the active run for this team member")
+
+func (h *Handlers) authorizeMessageSender(ctx context.Context, teamID, senderID string) error {
+	caller := provenance.FromContext(ctx)
+	principal, hasPrincipal := identity.PrincipalFromContext(ctx)
+	agentCaller := caller.IsAgent() || (hasPrincipal && principal.Kind == identity.ActorAgent)
+	if !agentCaller {
+		return nil
+	}
+	if !caller.IsVerifiedAgent() || h.activeRunIDLookup == nil {
+		return ErrMessageSenderRunMismatch
+	}
+	registeredRunID, ok := h.activeRunIDLookup(teamID, senderID)
+	if !ok || strings.TrimSpace(registeredRunID) == "" || registeredRunID != caller.RunID {
+		return ErrMessageSenderRunMismatch
+	}
+	return nil
+}
 
 func (h *Handlers) messageInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
 	if agentID == "" {
@@ -61,6 +83,9 @@ func (h *Handlers) SendTeamMessageDirect(ctx context.Context, teamID, agentID st
 	}
 	if req.FromAgentID == agentID {
 		return TeamMessageDTO{}, fmt.Errorf("fromAgentId cannot equal agentId")
+	}
+	if err := h.authorizeMessageSender(ctx, teamID, req.FromAgentID); err != nil {
+		return TeamMessageDTO{}, err
 	}
 	inbox, err := h.messageInbox(ctx, teamID, agentID)
 	if err != nil {
@@ -203,6 +228,10 @@ func (h *Handlers) SendTeamMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.FromAgentID == agentID {
 		http.Error(w, "fromAgentId cannot equal agentId", http.StatusBadRequest)
+		return
+	}
+	if err := h.authorizeMessageSender(ctx, teamID, req.FromAgentID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 

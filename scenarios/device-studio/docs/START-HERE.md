@@ -4,11 +4,18 @@
 
 The user approved this scenario's foundation, not a completed renderer. Read [PRD](../PRD.md), [decisions](internal/DECISIONS.md), [research preservation](research/README.md), [architecture](concepts/ARCHITECTURE.md), and [acceptance](internal/ACCEPTANCE.md) before implementation. The canonical foundation plan is `device-studio-foundation` (21e95997-2bcb-44d2-ad05-0645b9cba6c9).
 
-Scaffold setup/start and structural validation passed. The operator subsequently approved the Light-table design and full staged delivery. The project workspace is implemented and accepted for create/list/reopen/revision-safe rename; PNG/JPEG intake has isolated desktop/mobile browser proof. The photographic compositor, private worker and Linux owned-operation boundary have focused evidence, but a saved-shot render journey is still being integrated. Read [GOAL](internal/goal/GOAL.md), [QUEUE](internal/goal/QUEUE.md) and the active epoch before work. No full release deliverable group is accepted yet.
+The operator approved the Light-table design, representative photographic and physical looks, and performance targets. On2026-10-21 the operator prioritized a usable build and speed over perfection and exhaustive certification. The local workbench, immutable shots, all six demonstration outputs, source timing, reviewed starters, readability revisions, bounded local creation and offline private desktop roundtrip have scoped current-host evidence. Read [README](../README.md), [GOAL](internal/goal/GOAL.md), [QUEUE](internal/goal/QUEUE.md) and [the delivery map](internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md) for actual receipts and limitations. Historical full-release acceptance counters do not measure usability.
 
-The home placeholder has been replaced by the real project workspace. Notes remains reference code pending removal through its owner. The current detemplate dry-run traverses preserved evidence source snapshots; do not execute removal until the owner excludes those immutable artifacts without weakening live-code checks. The approved shell exception is limited to `ui/src/layout/AppShell.tsx` and recorded in [component-library gaps](reference/component-library-gaps.md). Orientation/product readiness is not inferred from document completion.
+Notes and the placeholder home were removed through their owners. The approved shell exception is limited to `ui/src/layout/AppShell.tsx` and recorded in [component-library gaps](reference/component-library-gaps.md). Preserved source snapshots are evidence, not live template code. Product readiness follows exercised behavior and exact acceptance evidence.
 
-Continue the admitted E2 saved photographic shot: immutable scene/presentation snapshots, authentic app pixels, a durable native job and verified PNG result. E2V retains video/source-clock obligations; E3 follows with true 3D phone/laptop motion before the full representative device matrix. Preserve cross-platform packaging boundaries; validate runtime on this host only. Reuse existing owner integrations; funded AI remains unavailable until its account, privacy, cost-bound and reconciliation contracts are proven. See [implementation acceptance](internal/ACCEPTANCE.md) for the full release obligation. Original research must stay in place; do not relocate or delete it during detemplating.
+Finish the consolidated private desktop package's main workflow and native
+export, retain focused checks, and hand over known limitations. Defer further
+feature expansion, polish and exhaustive certification. Preserve cross-platform
+architecture; execute runtime validation on this host only. Reuse existing
+owners for execution, source rights, identity, account/funding, tools and
+publication. No paid call, public publication or deployment is authorized by a
+structural pass. Preserve original research in place and maintain the
+outside-checkout evidence backups.
 
 The initialization protocol below records the template's owner workflow; the delivery queue above owns current product work. This is the first document to read after generating the scenario from
 the `react-vite` template. Treat it as the scenario initialization

@@ -1,0 +1,5 @@
+# Parent-side identity cross-check for seq55 reviewer
+
+The dispatched follow-up brief contains a copied, malformed parent UUID beside implementation worker task `89c2cf7a-4ac5-49f1-a6ee-83d956ef215f` / run `7d020d59-2b3a-4a03-9503-4d7975d65f09`. The authoritative native task/run metadata and earlier verified lineage show the worker's exact parent is `5d07e651-eaa6-48ec-89b4-5dc359059193` and its registered worker profile is `4c19aef1-36a2-4cc5-8961-42648692883b`. The follow-up reviewer assignment itself is task `0e342c14-53bb-4b4f-afbd-21009c218966`, run `c97b9b34-b856-45d6-bef5-cbf586a71853`, registered reviewer profile `b93d5233-4867-4569-8371-171bea404b7e`, exact parent `5d07e651-eaa6-48ec-89b4-5dc359059193`, confirmed by native task `created_by` and run `parent_run_id`.
+
+This erratum corrects only the copied lineage fact. It does not change the review scope, approved outcome, source evidence, or reviewer verdict. The reviewer should use native metadata as authority for exact identities.

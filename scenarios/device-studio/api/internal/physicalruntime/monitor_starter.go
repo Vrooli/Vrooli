@@ -240,7 +240,94 @@ func (s *starterInitializer) saveMonitorDevice(ctx context.Context, bundle libra
 	if _, err := rendering.ResolvePhysicalScreenGeometry(data, candidate, seed.DisplayID); err != nil {
 		return devices.DeviceRevision{}, fmt.Errorf("preflight monitor display mapping: %w", err)
 	}
-	return saveDeviceCandidateIfUnchanged(ctx, s.devices, candidate)
+	return s.saveMonitorDeviceCandidate(ctx, candidate, seed)
+}
+
+func (s *starterInitializer) saveMonitorDeviceCandidate(ctx context.Context, candidate devices.DeviceCandidate, seed monitorSeedConfig) (devices.DeviceRevision, error) {
+	_, _, digest, err := devices.CanonicalizeDeviceCandidate(candidate)
+	if err != nil {
+		return devices.DeviceRevision{}, err
+	}
+	head, err := s.devices.GetHead(ctx, candidate.Definition.ID)
+	if err == nil {
+		if head.SHA256 == digest {
+			return head, nil
+		}
+		factory, factoryErr := s.devices.GetRevision(ctx, candidate.Definition.ID, 1)
+		if factoryErr != nil || factory.State != devices.DeviceRevisionCandidate || factory.SHA256 != digest {
+			return devices.DeviceRevision{}, fmt.Errorf("monitor head differs from its fixed factory candidate; refusing implicit revision: %w", devices.ErrRevisionConflict)
+		}
+		if seed.DeviceID != monitorV2DeviceID {
+			return devices.DeviceRevision{}, fmt.Errorf("monitor head is not an allowlisted reviewed child: %w", devices.ErrRevisionConflict)
+		}
+		if err := s.validateQualifiedMonitorChild(ctx, head, factory, seed); err != nil {
+			return devices.DeviceRevision{}, err
+		}
+		return factory, nil
+	}
+	if !errors.Is(err, devices.ErrRevisionNotFound) {
+		return devices.DeviceRevision{}, err
+	}
+	return s.devices.SaveCandidate(ctx, candidate, 0)
+}
+
+// validateQualifiedMonitorChild permits startup to reuse the exact monitor
+// factory revision beneath its one embedded, root-reviewed visual-setup child.
+// It does not accept a later head, modified factory bytes, or a broadened scope.
+func (s *starterInitializer) validateQualifiedMonitorChild(ctx context.Context, head, factory devices.DeviceRevision, seed monitorSeedConfig) error {
+	descriptor, ok := embeddedReviewedStarters["monitor-study-matching-reviewed"]
+	if !ok || descriptor.DeviceID != seed.DeviceID {
+		return fmt.Errorf("monitor has no matching embedded review certificate: %w", devices.ErrRevisionConflict)
+	}
+	_, certificate, err := loadEmbeddedReviewedStarter(s.fs, descriptor)
+	if err != nil || certificate.Candidate.DeviceID != seed.DeviceID || certificate.Candidate.Revision != 1 || certificate.Candidate.SHA256 != factory.SHA256 {
+		return fmt.Errorf("monitor embedded review does not pin the fixed factory candidate: %w", devices.ErrRevisionConflict)
+	}
+	if factory.Revision != 1 || head.Revision != factory.Revision+1 || head.State != devices.DeviceRevisionQualified ||
+		head.Candidate.Definition.Qualification != "qualified" || len(head.Candidate.Definition.QualificationReviews) != 1 ||
+		!sameJSON(head.Candidate.Definition.QualificationReviews[0], certificate.Review) {
+		return fmt.Errorf("monitor head is not the single exact embedded qualified child: %w", devices.ErrRevisionConflict)
+	}
+	base := head.Candidate
+	base.Definition.Qualification = "unqualified"
+	base.Definition.QualificationReviews = nil
+	_, _, digest, err := devices.CanonicalizeDeviceCandidate(base)
+	if err != nil || digest != factory.SHA256 || !sameJSON(factory.Candidate, certificate.Candidate.Candidate) {
+		return fmt.Errorf("qualified monitor child changed its immutable factory candidate: %w", devices.ErrRevisionConflict)
+	}
+	review := head.Candidate.Definition.QualificationReviews[0]
+	geometry := factory.Candidate.Geometry
+	if review.Scope != "visual_setup" || review.Result != "passed" || review.CandidateRevision != factory.Revision || review.CandidateSHA256 != factory.SHA256 ||
+		review.SourceBundleID != geometry.BundleID || review.SourceBundleRevision != geometry.BundleRevision || review.SourceManifestSHA256 != geometry.ManifestSHA256 ||
+		review.SourceReviewSHA256 != geometry.ReviewSHA256 || review.SourceArtifactID != geometry.ArtifactID || review.SourceArtifactSHA256 != geometry.SHA256 ||
+		!sameStringSet(review.DimensionStates, []string{"source_geometry"}) || !sameStringSet(review.DisplayIDs, []string{seed.DisplayID}) ||
+		!sameStringSet(review.AllowedMotionIDs, []string{"static"}) || !sameStringSet(review.SupportIDs, []string{seed.SupportID}) ||
+		review.PresetID != seed.PresetID || review.SceneID != seed.SceneID || review.MotionID != "phone-still-identity" ||
+		review.PresetRevision != 1 || review.SceneRevision != 1 || review.MotionRevision != 1 || !review.RightsClaimsAcknowledged ||
+		review.Reviewer != "root" || review.NativeRenderJobID == "" || review.NativeOutputKind != "physical_still_png" || review.NativeOutputSHA256 == "" {
+		return fmt.Errorf("qualified monitor review exceeds its exact matching tabletop visual scope: %w", devices.ErrRevisionConflict)
+	}
+	bundle, err := s.library.GetRevision(ctx, geometry.BundleID, geometry.BundleRevision)
+	if err != nil || bundle.ManifestSHA256 != geometry.ManifestSHA256 || bundle.ReviewSHA256 != geometry.ReviewSHA256 || bundle.Review.Decision != "approved" ||
+		!sameStringSet(review.SourceAllowedUses, libraryUses(bundle.Review.AllowedUses)) {
+		return fmt.Errorf("qualified monitor source approval is missing or changed: %w", devices.ErrRevisionConflict)
+	}
+	if review.SceneID != certificate.Scene.SceneID || review.SceneSHA256 != certificate.Scene.SHA256 ||
+		review.PresetID != certificate.Preset.PresetID || review.PresetSHA256 != certificate.Preset.SHA256 ||
+		review.MotionID != certificate.Motion.MotionID || review.MotionSHA256 != certificate.Motion.SHA256 {
+		return fmt.Errorf("qualified monitor review setup references differ from its embedded certificate: %w", devices.ErrRevisionConflict)
+	}
+	if _, err := s.scenes.GetRevision(ctx, review.SceneID, review.SceneRevision); err != nil {
+		return fmt.Errorf("qualified monitor reviewed scene revision is unavailable: %w", devices.ErrRevisionConflict)
+	}
+	if _, err := s.motions.GetRevision(ctx, review.MotionID, review.MotionRevision); err != nil {
+		return fmt.Errorf("qualified monitor reviewed motion revision is unavailable: %w", devices.ErrRevisionConflict)
+	}
+	preset, err := s.presets.Get(ctx, review.PresetID, review.PresetRevision)
+	if err != nil || preset.SHA256 != review.PresetSHA256 {
+		return fmt.Errorf("qualified monitor reviewed preset revision is unavailable or changed: %w", devices.ErrRevisionConflict)
+	}
+	return nil
 }
 
 func buildMonitorSceneCandidate(base scenes.SceneCandidate, device devices.DeviceCandidate, placement ReviewedMonitorPlacement, seed monitorSeedConfig) (scenes.SceneCandidate, error) {
@@ -391,6 +478,21 @@ func (s *starterInitializer) ensureMonitorPreset(ctx context.Context, device dev
 	if current, err := s.presets.Head(ctx, seed.PresetID); err == nil {
 		if current.Name == seed.PresetName && proto.Equal(current.Setup, setup) {
 			return current, nil
+		}
+		if seed.DeviceID == monitorV2DeviceID && current.Name == seed.PresetName && current.Revision == 2 {
+			factory, factoryErr := s.devices.GetRevision(ctx, device.DeviceID, 1)
+			qualified, headErr := s.devices.GetHead(ctx, device.DeviceID)
+			if factoryErr == nil && headErr == nil && device.Revision == factory.Revision && device.SHA256 == factory.SHA256 &&
+				s.validateQualifiedMonitorChild(ctx, qualified, factory, seed) == nil {
+				qualifiedSetup := proto.Clone(setup).(*shotsv1.PhysicalShotSetup)
+				qualifiedSetup.Device = &shotsv1.ComponentRevisionRef{Id: qualified.DeviceID, Revision: qualified.Revision, Sha256: qualified.SHA256}
+				factoryPreset, presetErr := s.presets.Get(ctx, seed.PresetID, 1)
+				if presetErr == nil && factoryPreset.Name == seed.PresetName && proto.Equal(factoryPreset.Setup, setup) &&
+					current.Setup != nil && current.Setup.Device != nil && current.Setup.Device.Revision == qualified.Revision &&
+					current.Setup.Device.Sha256 == qualified.SHA256 && proto.Equal(current.Setup, qualifiedSetup) {
+					return current, nil
+				}
+			}
 		}
 		return shots.PhysicalPresetRevision{}, fmt.Errorf("monitor preset differs from its fixed candidate; refusing implicit revision: %w", shots.ErrPhysicalPresetConflict)
 	} else if !errors.Is(err, shots.ErrPhysicalPresetNotFound) {

@@ -1,0 +1,20 @@
+{
+  "slice": "ORCH-E1-ATOMIC-SNOOZE-HISTORY-20261020",
+  "files": {
+    "scenarios/personal-planner/api/internal/work/sqlite.go": {
+      "sha256": "653c04a6a8153e071180bc4cbd5d6a24e321b0300182a1ca1e364f78e3928bff",
+      "lines": 199,
+      "net_lines_from_snapshot": 10
+    },
+    "scenarios/personal-planner/api/internal/work/sqlite_test.go": {
+      "sha256": "869ce6ecdfaec523f741fae580e8d5e90f26bc1493fc2b1707128bfb835b432f",
+      "lines": 318,
+      "net_lines_from_snapshot": 72
+    }
+  },
+  "epoch_totals_after_slice": {
+    "runtime_lines": 1418,
+    "test_lines": 1813,
+    "runtime_ceiling": 2100
+  }
+}

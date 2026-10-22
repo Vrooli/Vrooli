@@ -779,6 +779,15 @@ func callTeams(ctx context.Context, client teamsconnect.TeamsServiceClient, meth
 	case method == "GET" && len(s) == 3 && s[2] == "roles":
 		resp, err := client.GetRoles(ctx, connect.NewRequest(&teamsv1.GetRolesRequest{TeamId: s[1]}))
 		return rpcBody(resp, "roles", true, err)
+	case method == "PUT" && len(s) == 3 && s[2] == "roles":
+		var body struct {
+			Roles []*teamsv1.Role `json:"roles"`
+		}
+		if err := decodePayload(payload, &body); err != nil {
+			return nil, true, err
+		}
+		resp, err := client.SetRoles(ctx, connect.NewRequest(&teamsv1.SetRolesRequest{TeamId: s[1], Roles: body.Roles}))
+		return rpcBody(resp, "roles", true, err)
 	case method == "GET" && len(s) == 3 && s[2] == "org":
 		resp, err := client.GetOrgChart(ctx, connect.NewRequest(&teamsv1.GetOrgChartRequest{TeamId: s[1]}))
 		return rpcBody(resp, "", true, err)

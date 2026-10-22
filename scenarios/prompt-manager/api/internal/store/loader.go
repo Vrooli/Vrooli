@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/storage"
 )
@@ -113,6 +115,102 @@ func AppendJSONL[T any](path string, entry T) error {
 	}
 
 	return nil
+}
+
+// appendBoundedJSONL appends an entry and applies the store's existing
+// retention and line-count bounds in one read. Store-specific types, paths,
+// and limits stay with their owners; malformed rows are retained unless an
+// expired valid row causes the existing typed rewrite path.
+func appendBoundedJSONL[T any](path string, entry T, now time.Time, maxEntries int, retention time.Duration, timestamp func(T) string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := AppendJSONL(path, entry); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	cutoff := now.Add(-retention)
+	kept := make([]T, 0, len(lines))
+	droppedExpired := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var decoded T
+		if err := json.Unmarshal([]byte(line), &decoded); err != nil {
+			continue
+		}
+		if at, err := time.Parse(time.RFC3339, timestamp(decoded)); err == nil && at.Before(cutoff) {
+			droppedExpired = true
+			continue
+		}
+		kept = append(kept, decoded)
+	}
+	if droppedExpired {
+		if maxEntries > 0 && len(kept) > maxEntries {
+			kept = kept[len(kept)-maxEntries:]
+		}
+		return rewriteJSONL(path, kept)
+	}
+	if maxEntries <= 0 || len(lines) <= maxEntries {
+		return nil
+	}
+	lines = lines[len(lines)-maxEntries:]
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+}
+
+// readJSONLSince reads a typed JSONL log in file order. Malformed rows are
+// ignored and timestamps that cannot be parsed remain visible, matching the
+// telemetry stores' existing read behavior.
+func readJSONLSince[T any](path string, window time.Duration, now time.Time, timestamp func(T) string) ([]T, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if window > 0 {
+				return []T{}, nil
+			}
+			return nil, nil
+		}
+		return nil, err
+	}
+	cutoff := now.Add(-window)
+	var out []T
+	if window > 0 {
+		out = make([]T, 0)
+	}
+	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var entry T
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if window > 0 {
+			if at, err := time.Parse(time.RFC3339, timestamp(entry)); err == nil && at.Before(cutoff) {
+				continue
+			}
+		}
+		out = append(out, entry)
+	}
+	return out, nil
+}
+
+func rewriteJSONL[T any](path string, entries []T) error {
+	var builder strings.Builder
+	for _, entry := range entries {
+		raw, err := json.Marshal(entry)
+		if err != nil {
+			continue
+		}
+		builder.Write(raw)
+		builder.WriteByte('\n')
+	}
+	return os.WriteFile(path, []byte(builder.String()), 0o644)
 }
 
 // DeleteFile removes a file

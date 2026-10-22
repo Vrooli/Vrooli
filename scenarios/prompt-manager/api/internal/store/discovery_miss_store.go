@@ -3,8 +3,6 @@ package store
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -36,8 +34,8 @@ type DiscoveryMiss struct {
 
 // DiscoveryMissStore persists discovery misses to a bounded, time-windowed
 // JSONL file. It lives under the runtime-data root (never the git-tracked store
-// tree) and reuses the same AppendJSONL + trimJSONLLines primitives as the
-// action run-history audit.
+// tree) and uses the shared bounded JSONL append/read owner; its record shape and
+// retention policy remain specific to discovery misses.
 type DiscoveryMissStore struct {
 	path       string
 	now        func() time.Time
@@ -66,93 +64,19 @@ func (s *DiscoveryMissStore) Append(miss DiscoveryMiss) error {
 	if strings.TrimSpace(miss.ID) == "" {
 		miss.ID = newMissID(now)
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
-	}
-	if err := AppendJSONL(s.path, miss); err != nil {
-		return err
-	}
-	if err := s.prune(now); err != nil {
-		return err
-	}
-	return trimJSONLLines(s.path, s.maxEntries)
+	return appendBoundedJSONL(s.path, miss, now, s.maxEntries, s.retention, func(entry DiscoveryMiss) string {
+		return entry.At
+	})
 }
 
 // ReadSince returns misses with an At timestamp within the given window
 // (relative to now), newest entries last (file order).
 func (s *DiscoveryMissStore) ReadSince(window time.Duration) ([]DiscoveryMiss, error) {
-	all, err := s.readAll()
-	if err != nil {
-		return nil, err
+	var now time.Time
+	if window > 0 {
+		now = s.now().UTC()
 	}
-	if window <= 0 {
-		return all, nil
-	}
-	cutoff := s.now().UTC().Add(-window)
-	out := make([]DiscoveryMiss, 0, len(all))
-	for _, miss := range all {
-		if at, err := time.Parse(time.RFC3339, miss.At); err == nil && at.Before(cutoff) {
-			continue
-		}
-		out = append(out, miss)
-	}
-	return out, nil
-}
-
-func (s *DiscoveryMissStore) prune(now time.Time) error {
-	all, err := s.readAll()
-	if err != nil {
-		return err
-	}
-	cutoff := now.Add(-s.retention)
-	kept := make([]DiscoveryMiss, 0, len(all))
-	dropped := false
-	for _, miss := range all {
-		if at, err := time.Parse(time.RFC3339, miss.At); err == nil && at.Before(cutoff) {
-			dropped = true
-			continue
-		}
-		kept = append(kept, miss)
-	}
-	if !dropped {
-		return nil
-	}
-	return s.rewrite(kept)
-}
-
-func (s *DiscoveryMissStore) readAll() ([]DiscoveryMiss, error) {
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var out []DiscoveryMiss
-	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		var miss DiscoveryMiss
-		if err := json.Unmarshal([]byte(line), &miss); err != nil {
-			continue // skip malformed lines rather than failing the read
-		}
-		out = append(out, miss)
-	}
-	return out, nil
-}
-
-func (s *DiscoveryMissStore) rewrite(entries []DiscoveryMiss) error {
-	var b strings.Builder
-	for _, entry := range entries {
-		raw, err := json.Marshal(entry)
-		if err != nil {
-			continue
-		}
-		b.Write(raw)
-		b.WriteByte('\n')
-	}
-	return os.WriteFile(s.path, []byte(b.String()), 0o644)
+	return readJSONLSince(s.path, window, now, func(entry DiscoveryMiss) string { return entry.At })
 }
 
 func newMissID(now time.Time) string {

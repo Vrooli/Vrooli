@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "photographic",
-    "description": "Photographic device composition. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Photographic device composition. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },

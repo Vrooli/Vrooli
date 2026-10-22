@@ -10,7 +10,8 @@ type (
 	Service interface {
 		List(context.Context) ([]Goal, error)
 		Create(context.Context, CreateInput) (Goal, error)
-		SetTargetDate(context.Context, string, string) error
+		SetTargetDate(context.Context, string, string, string, int64) error
+		ListTargetDateHistory(context.Context, string) ([]TargetDateHistory, error)
 		UpdateProgress(context.Context, string, int64, int64) (Goal, error)
 		ListMilestones(context.Context, string) ([]Milestone, error)
 		CreateMilestone(context.Context, CreateMilestoneInput) (Milestone, error)
@@ -22,9 +23,16 @@ type (
 func NewService(repo Repository) Service                  { return &service{repo: repo} }
 func (s *service) List(c context.Context) ([]Goal, error) { return s.repo.List(c) }
 
-func (s *service) SetTargetDate(c context.Context, id, targetDate string) error {
+func (s *service) SetTargetDate(c context.Context, id, targetDate, reason string, expectedRevision int64) error {
 	if strings.TrimSpace(id) == "" {
 		return ErrInvalidGoal{"id", "required"}
+	}
+	if expectedRevision < 1 {
+		return ErrInvalidGoal{"revision", "must be positive"}
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return ErrInvalidGoal{"reason", "required"}
 	}
 	targetDate = strings.TrimSpace(targetDate)
 	if targetDate != "" {
@@ -32,7 +40,15 @@ func (s *service) SetTargetDate(c context.Context, id, targetDate string) error 
 			return ErrInvalidGoal{"target_date", "must be YYYY-MM-DD or empty"}
 		}
 	}
-	return s.repo.SetTargetDate(c, id, targetDate)
+	return s.repo.SetTargetDate(c, id, targetDate, reason, expectedRevision)
+}
+
+func (s *service) ListTargetDateHistory(c context.Context, id string) ([]TargetDateHistory, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, ErrInvalidGoal{"id", "required"}
+	}
+	return s.repo.ListTargetDateHistory(c, id)
 }
 func (s *service) Create(c context.Context, in CreateInput) (Goal, error) {
 	title := strings.TrimSpace(in.Title)
@@ -49,7 +65,51 @@ func (s *service) Create(c context.Context, in CreateInput) (Goal, error) {
 	if in.TargetBasisPoints <= 0 || in.TargetBasisPoints > 10000 {
 		return Goal{}, ErrInvalidGoal{"target_basis_points", "must be between 1 and 10000"}
 	}
-	return s.repo.Create(c, Goal{Title: title, Purpose: strings.TrimSpace(in.Purpose), Status: StatusActive, ProgressMethod: method, TargetBasisPoints: in.TargetBasisPoints, Revision: 1})
+	targetDate := strings.TrimSpace(in.TargetDate)
+	if targetDate != "" {
+		if _, err := time.Parse("2006-01-02", targetDate); err != nil {
+			return Goal{}, ErrInvalidGoal{"target_date", "must be YYYY-MM-DD"}
+		}
+	}
+	measure, err := validateMeasure(in.Measure, targetDate)
+	if err != nil {
+		return Goal{}, err
+	}
+	return s.repo.Create(c, Goal{Title: title, Purpose: strings.TrimSpace(in.Purpose), Status: StatusActive, ProgressMethod: method, TargetBasisPoints: in.TargetBasisPoints, TargetDate: targetDate, Measure: measure, Revision: 1})
+}
+
+func validateMeasure(input *Measure, targetDate string) (*Measure, error) {
+	if input == nil {
+		return nil, nil
+	}
+	measure := *input
+	measure.Unit = strings.TrimSpace(strings.ToLower(measure.Unit))
+	measure.CurrencyCode = strings.TrimSpace(strings.ToUpper(measure.CurrencyCode))
+	measure.Basis = strings.TrimSpace(strings.ToLower(measure.Basis))
+	measure.Recurrence = strings.TrimSpace(strings.ToLower(measure.Recurrence))
+	measure.Period = strings.TrimSpace(strings.ToLower(measure.Period))
+	if measure.Unit != "currency" {
+		return nil, ErrInvalidGoal{"measure.unit", "must be currency"}
+	}
+	if measure.TargetAmountMinor <= 0 {
+		return nil, ErrInvalidGoal{"measure.target_amount_minor", "must be positive"}
+	}
+	if measure.CurrencyCode != "USD" {
+		return nil, ErrInvalidGoal{"measure.currency_code", "currently supports USD currency targets"}
+	}
+	if measure.Basis != "after_costs_before_tax" {
+		return nil, ErrInvalidGoal{"measure.basis", "must be after_costs_before_tax"}
+	}
+	if targetDate == "" {
+		return nil, ErrInvalidGoal{"target_date", "required for measured goals"}
+	}
+	switch {
+	case measure.Recurrence == "one_time" && measure.Period == "once":
+	case measure.Recurrence == "recurring" && measure.Period == "month":
+	default:
+		return nil, ErrInvalidGoal{"measure.period", "one_time requires once; recurring requires month"}
+	}
+	return &measure, nil
 }
 
 func (s *service) ListMilestones(c context.Context, goalID string) ([]Milestone, error) {

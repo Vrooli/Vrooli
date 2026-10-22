@@ -19,7 +19,7 @@
   "effortRefs": [
     "effort:personal-planner-I18"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -178,10 +178,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 3,
+  "revision": 4,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-03T02:50:12Z"
+  "updatedAt": "2026-10-21T03:26:06Z"
 }

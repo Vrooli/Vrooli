@@ -1,6 +1,44 @@
 # Delivery queue
 
-## Current continuation — 2026-10-21 (supersedes historical checkpoints below)
+## Immediate finish — operator steering, 2026-10-21
+
+Current consolidated AppImage main offline journey PASSED: pipeline
+`7d4461ce-e839-6fa7-e257-e11c78d4cf2e`, SHA `fb778ce4…d8147c9`, matrix
+`run-ef3dff9ad4cae11426d8945c`. Durable exported installer:
+`artifacts/desktop/Device-Studio-20261021-linux-x64.AppImage`. Bundled CPU
+high-resolution export remains unverified: matrix `run-6d8ec978f32df7ccdf35b244`
+failed at its10-minute wait limit with the provider run still active. Exact BAS
+execution `002681b3-2cad-4078-83cc-eda4a2eeaf10` was stopped through its owner
+and is CANCELLED at18:43Z; no PNG was verified and no owned Electron/Blender
+process remains. The failed matrix exposed no storage-owner clear receipt, so
+private test-root cleanup is not certified. No success or definitive renderer
+failure is inferred. Exact package/journey receipt:
+`E7/desktop-private/final-appimage-current-20261021/RECEIPT.md`. Hand over this limitation,
+with the actual host GPU3D exports, rather than another redesign loop. Current scoped
+Test Genie run `20261021-182741-9a3212b3` passed structure/dependencies/programs,
+with0 blockers/errors and5 retained advisories; all8 producer artifacts were
+read and archived in `E7/usable-build-validation-20261021/`.
+
+Speed and a usable build now take priority over exhaustive certification.
+Finish the current compatibility, bounded CPU render, and readability binding
+repairs; build once; run focused checks, the main packaged workflow, and one
+packaged 3D export. Hand over the working app, direct outputs, installer path,
+and explicit limitations. Stop adding features and edge-case matrices.
+All original research and evidence stay preserved. The historical 0/8 formal
+standing below is a certification measure, not a usability percentage; do not
+require every original protocol before this handover or falsely mark them done.
+
+## Current continuation — 2026-10-21 18:10Z (supersedes historical checkpoints below)
+
+- Aggregate integrated delivery remains **0/8 groups**. Six durable primary demo projects are saved, reopened and compiled, with direct public-owner outputs for laptop and phone fixed-photo PNGs, camera-entry MP4, phone-yaw MP4, laptop-lid MP4, and ten family-showcase candidates. Exact bindings and outputs are in `examples/demos/delivery-receipt.json` and `E3/durable-demo-exports-20261021/`; old output jobs retain their original project/revision attribution. Root’s acceptance is bounded to reviewed poses/setups, not broad product-family or physical-measurement claims.
+- Lease32 actual local parent-session baseline succeeded through the UI and fixed finite WSS compiler. Two-call/4096-token caps, no-dispatch scope expansion, cancellation preservation, and persisted lineage are in `E5/local-ai-construction/live-parent-session-lease32/root-protocol-review.json`. The output candidate is not appearance-qualified; the earlier TV7 refinement comparison belongs to a different lineage.
+- Four final-size readability controls have owner readbacks in `E7/output-readability/live-lease32/root-visual-reviews.json`: adequate landscape and portrait accepted; low controls rejected. The actual managed HyperFrames one-clip 10-second phone-yaw segment is verified under `E7/launch-video-program/live-primary-motion-consumer-20261021/`. This is a segment handoff, not a complete film. The local ImageTools returned plate and import receipt exist; provider-failure fallback state-preservation still lacks an executed case.
+- The interim private AppImage completed 61 offline import/save/render/download/close/reopen/edit outcomes with external-network denial (`E7/desktop-private/offline-full-roundtrip-browser-close-20261021/RECEIPT.md`). It predates current source; packaged native-PNG validation is still open while the monitor repairs CPU600 admission. Current additional gaps include reference-improvement acceptance, family-specific counterexamples, broader job/cache/accounting and commerce cases, and the frozen-artifact independent reviews.
+- WSS proof covers the fixed finite canonical-recipe compiler’s write/network controls and cleanup. Host-mounted inputs are not OS-read-confined. Arbitrary model-generated scripts are unsupported and refused, not executed. The 65-ID P0 crosswalk is in `docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md`; requirement flags remain unchanged. No paid calls, commits, purchases, or publication are authorized.
+
+## Superseded checkpoint — 2026-10-21 16:10Z
+
+### Previous current continuation — 2026-10-21
 
 - Aggregate delivery remains 0/8 integrated groups; component passes are not an implementation percentage. Five primary demo outputs are now actual verified exports: photographic phone/laptop, camera entry, 10-second phone rotation (16m53s), and 10-second laptop closure (12m55s). Full decode, strict PTS, sampled root appearance and original-MP4 browser playback pass for the native pair. Remaining-family showcase is still owed.
 - Development Device Studio serves API19349/UI21427, API SHA `72f1adc50f27a073ead5ccd6c13fc691c0cb93877f9a4abf084005ebd086ec0d`. Active routed lease30 `415f5995-ea9d-431d-a985-f335f9b88b41`; private seed `/tmp/device-studio-delivery-lease30.json` (never print resources). Leases28/29 are archived/closed. Lease30 has not consumed a restart checkpoint. No in-flight AI/native render at this checkpoint.
@@ -14,11 +52,8 @@
 Latest delta16:10Z: API now6736b15d9cc14895e50e8665253c1bec69d284b90f3e2cdcd82fd70b1bce24bd. Lease30 consumed its one normal restart/resume; close/archive before next restart. Metadata corrected-candidate200 and explicit no-test-header PRIMARY smart/watch replay verified. Seven reviewed starter installers source-tested (compact certificates/native PNG + reused source assets), not yet served. Fresh native TV/frame desk/frame wall/fold static/laptop outputs root-reviewed and review2/preset2 packages exported. Vehicle v2 still held; root v3 close camera overlit, v4 corrected brightness/readable screen but remains a bounded partial-module composition study, no complete vehicle-host craft approval. Quality worker owns GPU for phone/tablet/monitor diagnostics. Monitor readability source completed focused tests, root found still-source physical MP4 classification + native-size view gaps and requested repair. Curator implements no-network WSS fixed compiler (actual namespace EAGAIN failclosed) plus necessary persisted local creation session with atomic shared two-call admission/cancel. No new inference. Backup1545Z manifest302entries987699436logical375824379unique,0changedDuringCopy; predates latest reviewed source assets/vehicle studies.
 
 
-## Forecast
 
-Destination: all eight approved groups in [ACCEPTANCE.md](../ACCEPTANCE.md#approved-delivery-agreement--2026-10-19). Full release remains **0/8 aggregate groups**; this is an acceptance status, not implementation percentage. E1 workspace and E2 photographic still components were accepted; the integrated groups still include later obligations. No ETA or reduced acceptance scope. User asks to finish faster; prioritize real end-to-end delivery and batch source changes. Preserve original research and failed evidence. Earlier queue, full historical receipts and censuses are preserved in [the archived queue](evidence/E3/production-continuation/final/queue-before-offline-package.md).
-
-## Active
+### Active at that checkpoint
 
 Current continuation — 2026-10-21 15:05Z: pinned AppImage137c…d338 full offline roundtrip PASSED (matrixrun-ce3a8fc8be5611b91a26c4b4;52 initial +9 resumed steps). Root decoded every typed step outcome and all61success=true. Actual projects11a9…(fullroundtrip) anded471…(interim native attempt) are absent from serving development PRIMARY andlease29 (four404s); root-development-store-exclusion.json. Do not misattribute project2caa… from shared API logs: it is ROOT's watchv3 pilot. Packaged native3D still remains unproven; monitor owns actual CreatePhysicalShot diagnosis and final fresh package later. Current137c artifact is interim, not final.
 
@@ -28,7 +63,12 @@ Nativewatchv3 now succeeded at2560x1440 after canonical Blender-cache repair; ma
 
 E5 baselinefc096… succeeded; visual child e5b6… failed verified left-foot envelope; semantic childf89d… failed strict bevel and still-invalid feet. This is model recipe rejection, NOT Blender failure. Existing UI exposes y-bounds issue; untyped bevel failure makes subsequent correction unavailable. Curator now repairing typed bevel feedback/prompt strict constraints within existing owner; no validator relaxation or silent output mutation. Three local calls total across baseline/twochildren; each bounded4096outputtokens, no paid calls. Retain lease29 until source freeze/evidence complete. Original research remains untouched; generatedcoverage/runtime/seed-state.json was backed up (indexed+working) outside checkout and removed fromGitindex with scopedignore, file retained.
 
-### Previous milestone — superseded where stated above
+
+## Forecast
+
+Destination: all eight approved groups in [ACCEPTANCE.md](../ACCEPTANCE.md#approved-delivery-agreement--2026-10-19). Full release remains **0/8 aggregate groups**; this is an acceptance status, not implementation percentage. E1 workspace and E2 photographic still components were accepted; the integrated groups still include later obligations. No ETA or reduced acceptance scope. User asks to finish faster; prioritize real end-to-end delivery and batch source changes. Preserve original research and failed evidence. Earlier queue, full historical receipts and censuses are preserved in [the archived queue](evidence/E3/production-continuation/final/queue-before-offline-package.md).
+
+## Historical milestones
 
 Latest completed milestone — 2026-10-21 13:55Z: both PRIMARY native videos verified (phone SHA986f7bf1…9736; laptop SHA7f88c684…223c). Root opened all three poses for each; original MP4 browser playthroughs reach ended10s with exact SHA/MIME (phone b0cda7aa…, laptop fed52318…). Full FFmpeg decode/PTS checks pass. Five primary demos now have direct actual outputs; family showcase remains. Latest coherent build/restart includes E5 refinement+smartv7; API binary SHA `7b5e3d91fb0594d17987cf7c1df10e69881575754c4e2f8d882678b00d6a7927`, healthy13:48:55Z. Lease28 CLOSED:441entries1,847,772,997logicalB159,017,320uniqueB,15succeeded,pending0,SQLiteOK,clear200/TGcleanup200/rootgone; archiveE3/final-demos/lease28-final. NEVERreuse. Lease29 ACTIVE `e1ff60f8-0c50-4a46-b8b0-e2fe90be49df`, private600 `/tmp/device-studio-delivery-lease29.json`. Smartv7 actual2560x1440 native PNG passed; exact owner visual_setup review creates device2/preset2, parent1 unchanged (E5/qualification-review/live-smart-v7-lease29-1). Keep lease29 open for curator's fresh E5 baseline+correction UI workflow (two local calls capped4096tokens each, no paid/fallback; CPU native comparisons to avoid GPU contention). Quality worker is implementing portable exact-scope qualification packages plus versioned watch/neutral-dashboard repairs; these future source edits are NOT served. Desktop actual download now passes; normal quit/restart continuation exposed and is repairing relative-path resolution and retained Electron target ownership. No full offline roundtrip pass yet. New backup outside checkout `increment-phone-matrix-repair-1349z/manifest.json`:711entries2,349,685,260logicalB320,379,703uniqueB,2818unchanged,0changedDuringCopy. Predates new smartv7/laptop final proof. Aggregate0/8 still; no source checkpoint is release.
 

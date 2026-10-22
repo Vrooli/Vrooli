@@ -47,6 +47,15 @@ func TestWriteError(t *testing.T) {
 			wantMessage: "note 7 not found",
 		},
 		{
+			name:        "unauthenticated",
+			status:      http.StatusUnauthorized,
+			code:        httpx.CodeUnauthenticated,
+			message:     "verified calendar event owner required",
+			wantStatus:  http.StatusUnauthorized,
+			wantCode:    "unauthenticated",
+			wantMessage: "verified calendar event owner required",
+		},
+		{
 			name:        "internal",
 			status:      http.StatusInternalServerError,
 			code:        httpx.CodeInternal,

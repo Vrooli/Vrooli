@@ -15,11 +15,15 @@ type readabilityOutputStub struct {
 	wantProject, wantShot, wantRender, wantSHA string
 	wantRevision                               int64
 	output                                     shots.ReadabilityOutput
+	err                                        error
 }
 
 func (s *readabilityOutputStub) VerifyReadabilityOutput(_ context.Context, project, shot string, revision int64, render, sha string) (shots.ReadabilityOutput, error) {
 	if project != s.wantProject || shot != s.wantShot || revision != s.wantRevision || render != s.wantRender || sha != s.wantSHA {
 		return shots.ReadabilityOutput{}, errors.New("output binding mismatch")
+	}
+	if s.err != nil {
+		return shots.ReadabilityOutput{}, s.err
 	}
 	return s.output, nil
 }
@@ -96,4 +100,25 @@ func TestReadabilityDeclarationRejectsInvalidRegionAndReviewNeedsExplicitAttesta
 	shots.SetReadabilityOutputVerifier(service, verifier)
 	_, err = service.ReviewOutputReadability(context.Background(), shots.ReviewReadabilityRequest{ProjectID: projectID, ShotID: shot.ID, ShotRevision: 1, RenderID: "render-1", OutputSHA256: verifier.wantSHA, Verdict: int32(shotsv1.ReadabilityVerdict_READABILITY_VERDICT_ACCEPTED)})
 	require.ErrorContains(t, err, "explicit final-size inspection")
+}
+
+func TestStaleReadabilityOutputBindingDoesNotRecordVerdict(t *testing.T) {
+	service, projectID, _, _, _ := setupAll(t)
+	snapshot := validSnapshot()
+	snapshot.ReadabilityProof = readabilityProof()
+	shot, _, err := service.Create(context.Background(), projectID, "Stale output review", snapshot)
+	require.NoError(t, err)
+	sha := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	verifier := &readabilityOutputStub{
+		wantProject: projectID, wantShot: shot.ID, wantRevision: 1, wantRender: "render-1", wantSHA: sha,
+		err: shots.ErrInvalidShot{Field: "readability_review.binding", Reason: "render must be a succeeded output for this exact shot revision"},
+	}
+	shots.SetReadabilityOutputVerifier(service, verifier)
+	request := shots.ReviewReadabilityRequest{ProjectID: projectID, ShotID: shot.ID, ShotRevision: 1, RenderID: "render-1", OutputSHA256: sha, Verdict: int32(shotsv1.ReadabilityVerdict_READABILITY_VERDICT_ACCEPTED), ExplicitlyInspectedFinalSize: true}
+	_, err = service.ReviewOutputReadability(context.Background(), request)
+	var invalid shots.ErrInvalidShot
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "readability_review.binding", invalid.Field)
+	_, err = service.GetOutputReadabilityReview(context.Background(), projectID, shot.ID, 1, "render-1", sha)
+	require.ErrorIs(t, err, shots.ErrReadabilityReviewNotFound)
 }

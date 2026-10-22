@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { completeMilestone, createGoal, createMilestone, fetchGoals, fetchMilestones, updateGoalTargetDate } from "../api/goals";
+import { completeMilestone, createGoal, createMilestone, fetchGoalTargetDateHistory, fetchGoals, fetchMilestones, updateGoalTargetDate } from "../api/goals";
 import { renderWithProviders } from "../test-utils";
 import { GoalsPage } from "./GoalsPage";
 import { fetchWorkItems } from "../api/work";
 import { fetchGoalDrifts, fetchGoalVariances } from "../api/review";
 
-vi.mock("../api/goals", () => ({ createGoal: vi.fn(), fetchGoals: vi.fn(), updateGoalProgress: vi.fn(), updateGoalTargetDate: vi.fn(), fetchMilestones: vi.fn(), createMilestone: vi.fn(), completeMilestone: vi.fn() }));
+vi.mock("../api/goals", () => ({ createGoal: vi.fn(), fetchGoals: vi.fn(), updateGoalProgress: vi.fn(), updateGoalTargetDate: vi.fn(), fetchGoalTargetDateHistory: vi.fn().mockResolvedValue([]), fetchMilestones: vi.fn(), createMilestone: vi.fn(), completeMilestone: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn().mockResolvedValue([]) }));
 vi.mock("../api/review", () => ({ fetchGoalVariances: vi.fn().mockResolvedValue([]), fetchGoalDrifts: vi.fn().mockResolvedValue([]) }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
@@ -53,13 +53,22 @@ describe("GoalsPage", () => {
   it("lets an active goal owner save a target date", async () => {
     vi.mocked(fetchGoals).mockResolvedValue([{ id: "goal-1", title: "Ship", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 1000n, targetBasisPoints: 10000n, revision: 1n }] as never);
     vi.mocked(fetchMilestones).mockResolvedValue([]);
+    vi.mocked(fetchGoalTargetDateHistory).mockResolvedValue([{ goalId: "goal-1", previousTargetDate: "2026-09-01", targetDate: "2026-10-01", reason: "Moved delivery date", revision: 2, changedAt: "2026-09-20T12:00:00Z" }]);
     vi.mocked(fetchGoalDrifts).mockResolvedValue([{ goalId: "goal-1", targetDate: "", expectedBasis: 0, actualBasis: 1000, driftBasis: 1000, label: "" }]);
     renderWithProviders(<GoalsPage />);
     const input = await screen.findByLabelText("Target date for Ship");
+    expect(screen.getByRole("button", { name: "Save target" })).toBeDisabled();
     await userEvent.setup().clear(input);
     await userEvent.setup().type(input, "2026-10-01");
+    await userEvent.setup().type(screen.getByLabelText("Reason for target date change for Ship"), "Deadline clarified");
     await userEvent.setup().click(screen.getByRole("button", { name: "Save target" }));
-    expect(updateGoalTargetDate).toHaveBeenCalledWith({ id: "goal-1", targetDate: "2026-10-01" });
+    expect(updateGoalTargetDate).toHaveBeenCalledWith({ id: "goal-1", targetDate: "2026-10-01", reason: "Deadline clarified", expectedRevision: 1n });
+    expect(await screen.findByText("Moved delivery date")).toBeInTheDocument();
+    expect(screen.getByText("2026-09-01 → 2026-10-01")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchGoals).toHaveBeenCalledTimes(2);
+      expect(fetchGoalTargetDateHistory).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("filters the list through the explicit Active, All, and Completed views", async () => {
@@ -84,7 +93,51 @@ describe("GoalsPage", () => {
     await user.click(screen.getByRole("button", { name: "Progress" }));
     await user.click(screen.getByRole("option", { name: "Derive from milestones" }));
     await user.click(screen.getByRole("button", { name: "Create goal" }));
-    expect(createGoal).toHaveBeenCalledWith({ title: "Protect mornings", purpose: "Be deliberate", progressMethod: "milestones", targetBasisPoints: 10000n });
+    expect(createGoal).toHaveBeenCalledWith({ title: "Protect mornings", purpose: "Be deliberate", progressMethod: "milestones", targetBasisPoints: 10000n, targetDate: "", measure: undefined });
+  });
+
+  it("creates and displays a recurring currency goal while progress remains unknown", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchGoals).mockResolvedValue([]);
+    vi.mocked(fetchMilestones).mockResolvedValue([]);
+    vi.mocked(createGoal).mockResolvedValue({ id: "goal-income", title: "Recurring $1,000/month", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n, targetDate: "2026-12-31", progressState: "unknown", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "recurring", period: "month" } } as never);
+    renderWithProviders(<GoalsPage />);
+    await user.click(await screen.findByRole("button", { name: "+ New goal" }));
+    await user.type(await screen.findByLabelText("Goal title"), "Recurring $1,000/month");
+    await user.click(screen.getByRole("button", { name: "Outcome measure" }));
+    await user.click(screen.getByRole("option", { name: "Recurring monthly currency target" }));
+    await user.type(screen.getByLabelText("Target amount in USD"), "1000");
+    fireEvent.change(screen.getByLabelText("Measured goal target date"), { target: { value: "2026-12-31" } });
+    await user.click(screen.getByRole("button", { name: "Create goal" }));
+    expect(createGoal).toHaveBeenCalledWith({ title: "Recurring $1,000/month", purpose: "", progressMethod: "manual", targetBasisPoints: 10000n, targetDate: "2026-12-31", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "recurring", period: "month" } });
+    cleanup();
+    vi.mocked(fetchGoals).mockResolvedValue([{ id: "goal-income", title: "Recurring $1,000/month", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n, targetDate: "2026-12-31", progressState: "unknown", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "recurring", period: "month" } }] as never);
+    renderWithProviders(<GoalsPage />);
+    expect(await screen.findByLabelText("Progress unknown")).toBeInTheDocument();
+    expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Measured goal target")).toHaveTextContent("recurring");
+  });
+
+  it("creates and displays a one-time currency goal while progress remains unknown", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchGoals).mockResolvedValue([]);
+    vi.mocked(fetchMilestones).mockResolvedValue([]);
+    vi.mocked(createGoal).mockResolvedValue({ id: "goal-one-time", title: "First $1,000", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n, targetDate: "2026-11-30", progressState: "unknown", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "one_time", period: "once" } } as never);
+    renderWithProviders(<GoalsPage />);
+    await user.click(await screen.findByRole("button", { name: "+ New goal" }));
+    await user.type(await screen.findByLabelText("Goal title"), "First $1,000");
+    await user.click(screen.getByRole("button", { name: "Outcome measure" }));
+    await user.click(screen.getByRole("option", { name: "One-time currency target" }));
+    await user.type(screen.getByLabelText("Target amount in USD"), "1000");
+    fireEvent.change(screen.getByLabelText("Measured goal target date"), { target: { value: "2026-11-30" } });
+    await user.click(screen.getByRole("button", { name: "Create goal" }));
+    expect(createGoal).toHaveBeenCalledWith({ title: "First $1,000", purpose: "", progressMethod: "manual", targetBasisPoints: 10000n, targetDate: "2026-11-30", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "one_time", period: "once" } });
+    cleanup();
+    vi.mocked(fetchGoals).mockResolvedValue([{ id: "goal-one-time", title: "First $1,000", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n, targetDate: "2026-11-30", progressState: "unknown", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "one_time", period: "once" } }] as never);
+    renderWithProviders(<GoalsPage />);
+    expect(await screen.findByLabelText("Progress unknown")).toBeInTheDocument();
+    expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Measured goal target")).toHaveTextContent("one time");
   });
 
   it("records progress separately from goal creation", async () => {

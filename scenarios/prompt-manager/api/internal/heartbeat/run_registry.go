@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // ActiveRun tracks a currently executing heartbeat run.
@@ -35,10 +37,18 @@ type RunObserver interface {
 // RunRegistry is an in-memory registry of active heartbeat runs with disk
 // persistence for restart recovery.
 type RunRegistry struct {
-	mu       sync.RWMutex
-	active   map[string]*ActiveRun // key: "teamID/agentID"
-	filePath string
-	observer RunObserver
+	mu              sync.RWMutex
+	active          map[string]*ActiveRun // key: "teamID/agentID"
+	filePath        string
+	observer        RunObserver
+	recoveryLoading bool
+	recoveryRows    []persistedRun
+}
+
+type runOwnerIdentity struct {
+	TeamID  string
+	AgentID string
+	RunID   string
 }
 
 // SetObserver installs the run lifecycle observer.
@@ -104,35 +114,36 @@ func (r *RunRegistry) register(teamID, agentID, runID string, startedAt time.Tim
 	}
 }
 
-// Unregister removes an active run from the registry. Safe to call if key is
-// not found. Reported to the observer as a clean stop.
-func (r *RunRegistry) Unregister(teamID, agentID string) {
-	r.Complete(teamID, agentID, false, "stopped")
-}
-
-// Complete removes an active run and reports its outcome to the observer.
-func (r *RunRegistry) Complete(teamID, agentID string, failed bool, message string) {
+// CompleteRun removes only the named run, so a stale waiter cannot end a
+// newer run registered for the same team member.
+func (r *RunRegistry) CompleteRun(teamID, agentID, runID string, failed bool, message string) {
+	if runID == "" {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	key := registryKey(teamID, agentID)
 	run, ok := r.active[key]
+	if !ok || run.RunID != runID {
+		return
+	}
 	delete(r.active, key)
 	r.persistLocked()
-	if ok && r.observer != nil {
+	if r.observer != nil {
 		r.observer.RunEnded(*run, time.Now().UTC(), failed, message)
 	}
 }
 
-// MarkObserverUnavailable records that the local waiter ended without
-// terminal owner evidence. It deliberately keeps the run registered and clears
-// the stale cancellation function so a later scheduled reconciliation can
-// safely reattach observation.
-func (r *RunRegistry) MarkObserverUnavailable(teamID, agentID string) {
+// MarkRunObserverUnavailable changes only the named run's observation state.
+func (r *RunRegistry) MarkRunObserverUnavailable(teamID, agentID, runID string) {
+	if runID == "" {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	run, ok := r.active[registryKey(teamID, agentID)]
-	if !ok {
+	if !ok || run.RunID != runID {
 		return
 	}
 	run.State = ObligationWatcherUnavailable
@@ -182,34 +193,123 @@ type persistedRun struct {
 	State               string    `json:"state,omitempty"`
 }
 
-// persistLocked writes the current active map to disk. Caller must hold mu.
+// persistLocked writes the primary presentation and unresolved legacy owner
+// references to disk. Caller must hold mu.
 func (r *RunRegistry) persistLocked() {
-	runs := make([]persistedRun, 0, len(r.active))
+	runs := make([]persistedRun, 0, len(r.active)+len(r.recoveryRows))
+	seen := make(map[runOwnerIdentity]struct{}, len(r.active)+len(r.recoveryRows))
 	for _, run := range r.active {
-		runs = append(runs, persistedRun{
+		pr := persistedRun{
 			TeamID:              run.TeamID,
 			AgentID:             run.AgentID,
 			RunID:               run.RunID,
 			StartedAt:           run.StartedAt,
 			OwnerStartedAtKnown: run.ownerStartedAtKnown,
 			State:               run.State,
-		})
+		}
+		runs = append(runs, pr)
+		seen[runOwnerIdentity{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID}] = struct{}{}
 	}
-
+	// During startup reconciliation, retain the original modeled owner
+	// references until each one has an exact owner classification. Queue
+	// hydration can persist before the registry fallback runs.
+	for _, pr := range r.recoveryRows {
+		identity := runOwnerIdentity{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID}
+		if _, duplicate := seen[identity]; duplicate {
+			continue
+		}
+		runs = append(runs, pr)
+		seen[identity] = struct{}{}
+	}
 	data, err := json.MarshalIndent(runs, "", "  ")
 	if err != nil {
 		log.Printf("run_registry: failed to marshal: %v", err)
 		return
 	}
 
-	if err := os.MkdirAll(filepath.Dir(r.filePath), 0o755); err != nil {
-		log.Printf("run_registry: failed to create dir: %v", err)
+	perm := os.FileMode(0o644)
+	if info, err := os.Stat(r.filePath); err == nil {
+		perm = info.Mode().Perm()
+		if perm == 0 {
+			log.Printf("run_registry: refusing to replace file with unsupported zero permissions: %s", r.filePath)
+			return
+		}
+	} else if !os.IsNotExist(err) {
+		log.Printf("run_registry: failed to inspect file permissions: %v", err)
 		return
 	}
 
-	if err := os.WriteFile(r.filePath, data, 0o644); err != nil {
+	if err := storage.WriteFileAtomic(r.filePath, data, perm); err != nil {
 		log.Printf("run_registry: failed to write: %v", err)
 	}
+}
+
+// LoadPersisted stages the registry's local presentation without owner reads.
+// Startup queue recovery uses this first so its persistence cannot erase
+// registry-only legacy rows before their fallback reconciliation.
+func (r *RunRegistry) LoadPersisted() {
+	r.mu.Lock()
+	if r.recoveryLoading {
+		r.mu.Unlock()
+		return
+	}
+	r.recoveryLoading = true
+	r.recoveryRows = make([]persistedRun, 0)
+	r.mu.Unlock()
+
+	data, err := os.ReadFile(r.filePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("run_registry: failed to read persisted runs: %v", err)
+		}
+		return
+	}
+	var runs []persistedRun
+	if err := json.Unmarshal(data, &runs); err != nil {
+		log.Printf("run_registry: failed to unmarshal persisted runs: %v", err)
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recoveryRows = append([]persistedRun(nil), runs...)
+	for _, pr := range runs {
+		key := registryKey(pr.TeamID, pr.AgentID)
+		if current, ok := r.active[key]; ok && current.RunID != pr.RunID {
+			continue
+		}
+		base := activeRunFromPersisted(pr)
+		r.active[key] = &base
+	}
+}
+
+func activeRunFromPersisted(pr persistedRun) ActiveRun {
+	base := ActiveRun{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID, State: pr.State}
+	if pr.OwnerStartedAtKnown {
+		base.StartedAt = pr.StartedAt
+		base.ownerStartedAtKnown = true
+	}
+	return base
+}
+
+// HydrateQueueOwners replaces the presentation for exact queue-owned members
+// without emitting new-start events. Team-execution recovery already owns the
+// classification and the persisted queue remains the admission authority.
+func (r *RunRegistry) HydrateQueueOwners(owners []ActiveRun) {
+	if len(owners) == 0 {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := range owners {
+		owner := owners[i]
+		if owner.RunID == "" {
+			continue
+		}
+		owner.CancelFn = nil
+		r.active[registryKey(owner.TeamID, owner.AgentID)] = &owner
+	}
+	r.persistLocked()
 }
 
 // Recover loads persisted runs from disk and checks each against agent-manager.
@@ -220,77 +320,101 @@ func (r *RunRegistry) persistLocked() {
 // later tick from mistaking an outage for a dead run. A run the owner no longer
 // knows is retained as uncertain rather than dropped, because absence of
 // terminal evidence is not terminal evidence.
-func (r *RunRegistry) Recover(ctx context.Context, client AgentClient) {
-	data, err := os.ReadFile(r.filePath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Printf("run_registry: failed to read persisted runs: %v", err)
-		}
-		return
-	}
-
-	var runs []persistedRun
-	if err := json.Unmarshal(data, &runs); err != nil {
-		log.Printf("run_registry: failed to unmarshal persisted runs: %v", err)
-		return
-	}
-
+func (r *RunRegistry) Recover(ctx context.Context, client AgentClient, queueOwners map[runOwnerIdentity]struct{}) {
+	r.LoadPersisted()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	stagedRows := append([]persistedRun(nil), r.recoveryRows...)
+	unresolvedRows := make([]persistedRun, 0, len(stagedRows))
 
-	for _, pr := range runs {
-		base := ActiveRun{
-			TeamID:  pr.TeamID,
-			AgentID: pr.AgentID,
-			RunID:   pr.RunID,
-			State:   pr.State,
+	for _, pr := range stagedRows {
+		if _, covered := queueOwners[runOwnerIdentity{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID}]; covered {
+			continue
 		}
-		if pr.OwnerStartedAtKnown {
-			base.StartedAt = pr.StartedAt
-			base.ownerStartedAtKnown = true
+		base := activeRunFromPersisted(pr)
+		key := registryKey(pr.TeamID, pr.AgentID)
+		current := r.active[key]
+		if current != nil && current.RunID != pr.RunID {
+			// The queue-backed current run owns this member's presentation. Still
+			// inspect a distinct legacy identity; retain any unresolved owner
+			// reference on disk, never as a replacement or terminal inference.
+			if retained, keep := recoverConflictingLegacyRun(ctx, client, *current, base); keep {
+				unresolvedRows = append(unresolvedRows, retained)
+			}
+			continue
 		}
 
 		// A prior recovery already recorded a non-resolvable obligation.
 		// Preserve it without re-probing the owner.
 		if pr.State != ObligationRunning && pr.State != ObligationWatcherUnavailable {
 			base.State = pr.State
-			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+			r.active[key] = &base
 			continue
 		}
 
-		run, err := client.GetRun(ctx, pr.RunID)
-		if err != nil {
-			log.Printf("run_registry: retaining owner_unreachable run %s: %v", pr.RunID, err)
+		if client == nil {
 			base.State = ObligationOwnerUnreachable
-			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+			r.active[key] = &base
+			unresolvedRows = append(unresolvedRows, pr)
 			continue
 		}
-		if run == nil {
-			log.Printf("run_registry: retaining dispatch_uncertain run %s (owner reports not found)", pr.RunID)
-			base.State = ObligationDispatchUncertain
-			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+		run, err := client.GetRun(ctx, pr.RunID)
+		observation := observeOwnerRun(pr.RunID, run, err)
+		if observation.state == ObligationOwnerUnreachable || observation.state == ObligationDispatchUncertain {
+			log.Printf("run_registry: retaining %s run %s (owner status %q)", observation.state, pr.RunID, observation.status)
+			base.State = observation.state
+			r.active[key] = &base
+			unresolvedRows = append(unresolvedRows, pr)
 			continue
 		}
-		if IsTerminalStatus(run.Status) {
+		if observation.terminal {
+			if current := r.active[key]; current != nil && current.RunID == pr.RunID {
+				delete(r.active, key)
+			}
 			continue
 		}
-		if ownerStartedAt, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
-			base.StartedAt = ownerStartedAt
+		if observation.startedAtKnown {
+			base.StartedAt = observation.startedAt
 			base.ownerStartedAtKnown = true
 		} else if !pr.OwnerStartedAtKnown {
 			base.StartedAt = time.Time{}
 			base.ownerStartedAtKnown = false
 		}
-		if IsParkedStatus(run.Status) {
-			base.State = ObligationPaused
-		} else if IsNeedsReviewStatus(run.Status) {
-			base.State = ObligationNeedsReview
+		if observation.state == ObligationPaused || observation.state == ObligationNeedsReview {
+			base.State = observation.state
 		}
-		r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+		r.active[key] = &base
 	}
 
+	r.recoveryRows = unresolvedRows
+	r.recoveryLoading = false
 	r.persistLocked()
 	if len(r.active) > 0 {
 		log.Printf("run_registry: recovered %d active run(s)", len(r.active))
 	}
+}
+
+func recoverConflictingLegacyRun(ctx context.Context, client AgentClient, queueOwner, legacy ActiveRun) (persistedRun, bool) {
+	retained := persistedRun{
+		TeamID: legacy.TeamID, AgentID: legacy.AgentID, RunID: legacy.RunID,
+		StartedAt: legacy.StartedAt, OwnerStartedAtKnown: legacy.ownerStartedAtKnown,
+	}
+	if client == nil {
+		retained.State = ObligationOwnerUnreachable
+		log.Printf("run_registry: startup owner conflict team=%s agent=%s queue_run_id=%s legacy_run_id=%s legacy_owner_state=owner_unreachable action=retain_queue_presentation_report_legacy_state", queueOwner.TeamID, queueOwner.AgentID, queueOwner.RunID, legacy.RunID)
+		return retained, true
+	}
+	run, err := client.GetRun(ctx, legacy.RunID)
+	observation := observeOwnerRun(legacy.RunID, run, err)
+	if observation.terminal {
+		log.Printf("run_registry: startup owner conflict team=%s agent=%s queue_run_id=%s legacy_run_id=%s legacy_owner_state=%s action=drop_terminal_legacy_reference_keep_queue_presentation", queueOwner.TeamID, queueOwner.AgentID, queueOwner.RunID, legacy.RunID, observation.status)
+		return persistedRun{}, false
+	}
+	retained.State = observation.state
+	if observation.startedAtKnown {
+		retained.StartedAt = observation.startedAt
+		retained.OwnerStartedAtKnown = true
+	}
+	log.Printf("run_registry: startup owner conflict team=%s agent=%s queue_run_id=%s legacy_run_id=%s legacy_owner_state=%s action=retain_queue_presentation_report_legacy_state", queueOwner.TeamID, queueOwner.AgentID, queueOwner.RunID, legacy.RunID, observation.status)
+	return retained, true
 }

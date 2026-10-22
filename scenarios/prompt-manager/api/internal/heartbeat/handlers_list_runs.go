@@ -9,6 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // This is a read-time join of PM's existing declarations with the AM owner.
@@ -27,6 +30,7 @@ type teamRunAccounting struct {
 	UnqueriedRuns          int                  `json:"unqueriedRuns"`
 	ObservedExecutions     int                  `json:"observedExecutions"`
 	DuplicateExecutions    int                  `json:"duplicateExecutions"`
+	UnavailableSummaries   int                  `json:"unavailableSummaries"`
 	ActualModels           map[string]int       `json:"actualModels"`
 	UnknownModelExecutions int                  `json:"unknownModelExecutions"`
 	RuntimeStates          map[string]int       `json:"runtimeStates"`
@@ -55,16 +59,17 @@ type teamRunCoverage struct {
 }
 
 type teamRunObservation struct {
-	RunID             string    `json:"runId"`
-	AgentIDs          []string  `json:"agentIds"`
-	DeclaredAt        time.Time `json:"declaredAt"`
-	Availability      string    `json:"availability"`
-	ExecutionIdentity string    `json:"executionIdentity,omitempty"`
-	RuntimeState      string    `json:"runtimeState,omitempty"`
-	ActualModel       string    `json:"actualModel,omitempty"`
-	TerminalClass     string    `json:"terminalClass,omitempty"`
-	StopReason        string    `json:"stopReason,omitempty"`
-	run               *Run
+	RunID               string    `json:"runId"`
+	AgentIDs            []string  `json:"agentIds"`
+	DeclaredAt          time.Time `json:"declaredAt"`
+	Availability        string    `json:"availability"`
+	ExecutionIdentity   string    `json:"executionIdentity,omitempty"`
+	RuntimeState        string    `json:"runtimeState,omitempty"`
+	ActualModel         string    `json:"actualModel,omitempty"`
+	TerminalClass       string    `json:"terminalClass,omitempty"`
+	StopReason          string    `json:"stopReason,omitempty"`
+	SummaryAvailability string    `json:"summaryAvailability,omitempty"`
+	run                 *Run
 }
 
 func (h *Handlers) listTeamRunAccounting(w http.ResponseWriter, r *http.Request) {
@@ -242,16 +247,22 @@ func (h *Handlers) listTeamRunAccounting(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 		out.ObservedRuns++
-		var summary struct {
-			Tokens *int64   `json:"tokens_used"`
-			Cost   *float64 `json:"cost_estimate"`
-		}
-		if json.Unmarshal(row.run.Summary, &summary) == nil {
-			if summary.Tokens != nil && *summary.Tokens >= 0 {
-				out.Usage.ReportedTokenRuns++
-			}
-			if summary.Cost != nil && *summary.Cost >= 0 {
-				out.Usage.ReportedCostRuns++
+		if len(row.run.Summary) == 0 {
+			row.SummaryAvailability = "not_reported"
+		} else {
+			summary := &ampb.RunSummary{}
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(row.run.Summary, summary); err != nil || strings.TrimSpace(string(row.run.Summary)) == "null" {
+				row.SummaryAvailability = "unavailable"
+				out.UnavailableSummaries++
+				out.Usage.Partial = true
+			} else {
+				row.SummaryAvailability = "available"
+				if summary.TokensUsed >= 0 && hasJSONValue(row.run.Summary, "tokens_used", "tokensUsed") {
+					out.Usage.ReportedTokenRuns++
+				}
+				if summary.CostEstimate >= 0 && hasJSONValue(row.run.Summary, "cost_estimate", "costEstimate") {
+					out.Usage.ReportedCostRuns++
+				}
 			}
 		}
 		old := executions[row.ExecutionIdentity]
@@ -274,6 +285,19 @@ func (h *Handlers) listTeamRunAccounting(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(out)
+}
+
+func hasJSONValue(raw json.RawMessage, names ...string) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil {
+		return false
+	}
+	for _, name := range names {
+		if value, ok := fields[name]; ok && strings.TrimSpace(string(value)) != "null" {
+			return true
+		}
+	}
+	return false
 }
 
 func accountingExecutionIdentity(run *Run) string {

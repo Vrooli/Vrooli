@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import sys
 from production import digest, inspect, validate
+from product_brief import require_current_brief
 
 
 def freeze(plan_file, output):
@@ -90,11 +91,12 @@ def verify_render_bundle(snapshot, bundle):
     return errors
 
 
-def verify(plan_file, output, snapshot=None, render_bundle=None):
+def verify(plan_file, output, snapshot=None, render_bundle=None, historical=False):
     original = digest(plan_file)
     plan = json.loads(plan_file.read_text())
     root = plan_file.resolve().parent
     errors = validate(plan, root, 'polish')
+    errors += require_current_brief(plan, root, historical)
     if snapshot:
         errors += verify_snapshot(snapshot, original)
     if render_bundle:
@@ -134,9 +136,10 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     f = sub.add_parser('freeze');f.add_argument('plan', type=Path);f.add_argument('--out', type=Path, required=True)
     v = sub.add_parser('verify');v.add_argument('plan', type=Path);v.add_argument('--out', type=Path, required=True);v.add_argument('--snapshot', type=Path);v.add_argument('--render-bundle', type=Path)
+    v.add_argument('--historical', action='store_true', help='Inspect a retained version-1/2 production')
     args = parser.parse_args()
     try:
-        result = freeze(args.plan, args.out) if args.command == 'freeze' else verify(args.plan, args.out, args.snapshot, args.render_bundle)
+        result = freeze(args.plan, args.out) if args.command == 'freeze' else verify(args.plan, args.out, args.snapshot, args.render_bundle, args.historical)
         print(json.dumps({'status': result.get('status', 'pass'), 'receipt': str(args.out), 'errors': result.get('errors', [])}))
         return result.get('status') == 'fail'
     except (OSError, ValueError, KeyError, TypeError) as error:

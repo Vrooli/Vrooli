@@ -1,0 +1,7 @@
+# Seq68 worker return reconciliation
+
+- Exact task/run: `4232b6c5-dc58-4d95-a987-5d585fc1ed66` / `6d7f2362-f634-41b8-b610-0a10cdbcbbb5`; exact parent: `5d07e651-eaa6-48ec-89b4-5dc359059193`.
+- Native state: task `TASK_STATUS_COMPLETED`; run `RUN_STATUS_COMPLETE`, exit 0, ended `2026-10-21T03:06:43.930931537Z`; selected terminal final `4696468a-b26f-4ad6-9dd4-7f23b8b6b021`, sequence 635.
+- Result: retained `db0584b7-c4ff-4c98-9519-1ad8d7a907f8` and `be632cb4-0771-4575-ab39-a973305ada50` were refused before execution for unproven routed isolation. No POST response, lease statistics or network capture was produced; cause remains unknown. Six admitted source paths match their captured baseline; no product source changed. No review or acceptance was performed or claimed.
+- Current source measurements: the six hashes are preserved in the original worker brief and match current bytes at return. `CalendarMonth.test.tsx` was already dirty in the shared checkout; its exact admitted hash still matches and its existing content was preserved. Current `uncertain-save-recovery.json` hash at the next-slice admission is `7029347d89f4fddba481a9165ed7e4fcc9f3edf406224fce13559719443d0651`.
+- The child terminal reason `goal_blocked` describes only that bounded child task's stop on missing evidence; it does not block the original I18 effort. New supervisor feedback seq69 supplies a supported current-fixture evaluate route. The amended brief `worker-brief-v2.md` uses that route without Workflow Health/BAS adapter expansion.

@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"prompt-manager/internal/store"
 
-	"github.com/gorilla/mux"
+	"github.com/google/uuid"
+
 	"github.com/vrooli/api-core/owneridentity"
 )
 
@@ -276,12 +276,12 @@ func TestRecover_PreservesRunningWithActiveRun(t *testing.T) {
 		QueuePolicy:       "serialized",
 		MaxConcurrentRuns: 1,
 		Running: []queuedExecution{
-			{AgentID: "agent-1", ProfileKey: "p", RunID: "run-active"},
+			{AgentID: "agent-1", ProfileKey: "p", RunID: "run-active", AdmissionOrigin: AdmissionOriginManual},
 		},
 	})
 
 	client := newMockAgentClient().
-		WithGetRunResponse("run-active", &Run{ID: "run-active", Status: "RUN_STATUS_RUNNING"})
+		WithGetRunResponse("run-active", &Run{ID: "run-active", Status: "RUN_STATUS_RUNNING", StartedAt: "2026-10-19T15:07:22Z"})
 
 	exec := &watcherExecutor{}
 	tec := newTeamExecutionContext("team-x", exec, dir, client)
@@ -297,6 +297,9 @@ func TestRecover_PreservesRunningWithActiveRun(t *testing.T) {
 	}
 	if len(exec.watched) != 1 || exec.watched[0].runID != "run-active" {
 		t.Fatalf("expected recovered known run completion watcher, got %+v", exec.watched)
+	}
+	if exec.watched[0].ownerStartedAt != "2026-10-19T15:07:22Z" || exec.watched[0].ownerTerminalAt != "" || exec.watched[0].admissionOrigin != AdmissionOriginManual {
+		t.Fatalf("recovered watcher lost owner projection fields: %+v", exec.watched[0])
 	}
 }
 
@@ -533,6 +536,70 @@ func TestRecover_PreservesPausedParkedObligation(t *testing.T) {
 	}
 }
 
+func TestRetryPausedObligationReattachesWatcherWhenOwnerResumes(t *testing.T) {
+	dir := t.TempDir()
+	writeQueueFile(t, dir, "team-x", persistedTeamQueue{
+		TeamID:            "team-x",
+		QueuePolicy:       "serialized",
+		MaxConcurrentRuns: 1,
+		Running:           []queuedExecution{{AgentID: "agent-1", ProfileKey: "p", RunID: "run-parked"}},
+	})
+
+	client := newMockAgentClient().WithGetRunResponse("run-parked", &Run{ID: "run-parked", Status: "RUN_STATUS_PARKED"})
+	exec := &watcherExecutor{}
+	tec := newTeamExecutionContext("team-x", exec, dir, client)
+	tec.Recover(context.Background())
+	if status := tec.Status(); len(status.PausedAgentIDs) != 1 {
+		t.Fatalf("expected parked owner to remain paused after recovery: %+v", status)
+	}
+
+	client.mu.Lock()
+	client.getRuns["run-parked"] = &Run{ID: "run-parked", Status: "RUN_STATUS_RUNNING"}
+	client.mu.Unlock()
+	handled, err := tec.RetryUnavailableWatcher(context.Background(), "agent-1")
+	if err != nil || !handled {
+		t.Fatalf("scheduled owner recheck should handle a paused owner, handled=%t err=%v", handled, err)
+	}
+	status := tec.Status()
+	if len(status.PausedAgentIDs) != 0 || len(status.RunningAgentIDs) != 1 {
+		client.mu.Lock()
+		calls := append([]string(nil), client.getRunCalls...)
+		observed := client.getRuns["run-parked"]
+		client.mu.Unlock()
+		t.Fatalf("resumed owner should keep its original queue slot and leave paused state: status=%+v calls=%v owner=%+v", status, calls, observed)
+	}
+	if len(exec.watched) != 1 || exec.watched[0].runID != "run-parked" || exec.watched[0].ownerStatus != "RUN_STATUS_RUNNING" {
+		t.Fatalf("resumed owner should reattach exactly one watcher to its original run: %+v", exec.watched)
+	}
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.getRunCalls) != 2 {
+		t.Fatalf("expected one startup observation and one scheduled owner recheck, got calls %v", client.getRunCalls)
+	}
+}
+
+func TestRetryPausedObligationRejectsMismatchedOwnerRunIdentity(t *testing.T) {
+	dir := t.TempDir()
+	client := newMockAgentClient().WithGetRunResponse("run-expected", &Run{ID: "run-other", Status: "RUN_STATUS_COMPLETE"})
+	exec := &watcherExecutor{}
+	tec := newTeamExecutionContext("team-x", exec, dir, client)
+	tec.mu.Lock()
+	tec.running["agent-1"] = runningEntry{ProfileKey: "p", RunID: "run-expected", State: ObligationPaused}
+	if err := tec.persistLocked(); err != nil {
+		t.Fatal(err)
+	}
+	tec.mu.Unlock()
+
+	handled, err := tec.RetryUnavailableWatcher(context.Background(), "agent-1")
+	if !handled || err == nil {
+		t.Fatalf("mismatched owner response should remain handled but unresolved, handled=%t err=%v", handled, err)
+	}
+	status := tec.Status()
+	if len(status.RunningAgentIDs) != 1 || len(status.PausedAgentIDs) != 1 || len(exec.watched) != 0 {
+		t.Fatalf("mismatched terminal response must not project or release the retained owner: status=%+v watchers=%+v", status, exec.watched)
+	}
+}
+
 func TestRecover_TerminalReleaseReopensCapacity(t *testing.T) {
 	dir := t.TempDir()
 	writeQueueFile(t, dir, "team-x", persistedTeamQueue{
@@ -678,6 +745,160 @@ func TestReconcileTaskDispatchCancellationRetainsPriorUnknownPost(t *testing.T) 
 	}
 }
 
+func TestReconcileTaskDispatchFailureIsPersistedWithoutOwnerErrorText(t *testing.T) {
+	if got := dispatchFailureCode(&AgentManagerHTTPError{
+		StatusCode: http.StatusForbidden, AdmissionReason: "untrusted-private-reason", Message: "private response detail",
+	}); got != "owner_forbidden" {
+		t.Fatalf("unrecognized owner reasons must collapse to the stable HTTP class, got %q", got)
+	}
+
+	dir := t.TempDir()
+	task := dispatchTaskFixture()
+	taskSnapshot, err := freezeTaskDispatchRequest(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := "prompt-manager-heartbeat:team-x:agent-1:diagnostic"
+	client := newMockAgentClient()
+	client.getTaskErr = &AgentManagerHTTPError{
+		StatusCode:      http.StatusForbidden,
+		AdmissionReason: "operation_not_admitted",
+		Message:         "secret owner detail must not be persisted",
+	}
+	ctx := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
+	ctx.running["agent-1"] = runningEntry{
+		ProfileKey:               "profile-p",
+		State:                    ObligationDispatchUncertain,
+		DispatchStage:            DispatchStageIntent,
+		IdempotencyKey:           key,
+		TaskID:                   task.ID,
+		TaskRequestSnapshot:      taskSnapshot,
+		CreateRunRequestSnapshot: createRunSnapshotForTest(t, key, task.ID, "profile-p", "heartbeat-team-x-agent-1"),
+		CreateRunCallerMode:      createRunCallerOriginUnqualified,
+	}
+	if err := ctx.persistLocked(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ctx.ReconcileTaskDispatch(context.Background(), "agent-1"); err == nil {
+		t.Fatal("owner lookup failure must remain uncertain")
+	}
+	status := ctx.Status()
+	if len(status.Owners) != 1 || status.Owners[0].DispatchFailurePhase != dispatchFailurePhaseTaskLookup || status.Owners[0].DispatchFailureCode != "operation_not_admitted" {
+		t.Fatalf("expected bounded task-resolution diagnosis, got %+v", status.Owners)
+	}
+	if len(client.createTaskCalls) != 0 || len(client.createRunCalls) != 0 {
+		t.Fatalf("diagnostic recovery must not mutate owner state: tasks=%d runs=%d", len(client.createTaskCalls), len(client.createRunCalls))
+	}
+
+	statusBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queueBytes, err := os.ReadFile(ctx.queueFilePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, data := range [][]byte{statusBytes, queueBytes} {
+		if strings.Contains(string(data), "secret owner detail") {
+			t.Fatalf("private owner error text leaked into retained diagnostics: %s", data)
+		}
+	}
+
+	restarted := newTeamExecutionContext("team-x", &captureExecutor{}, dir, newMockAgentClient())
+	restarted.Recover(context.Background())
+	recovered := restarted.Status()
+	if len(recovered.Owners) != 1 || recovered.Owners[0].State != ObligationDispatchUncertain ||
+		recovered.Owners[0].DispatchFailurePhase != dispatchFailurePhaseTaskLookup ||
+		recovered.Owners[0].DispatchFailureCode != "operation_not_admitted" {
+		t.Fatalf("bounded failure diagnosis should survive recovery: %+v", recovered.Owners)
+	}
+}
+
+func TestReconcileTaskDispatchMismatchHasSafeSubcause(t *testing.T) {
+	dir := t.TempDir()
+	task := dispatchTaskFixture()
+	taskSnapshot, err := freezeTaskDispatchRequest(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := "prompt-manager-heartbeat:team-x:agent-1:mismatch"
+	ownerTask := *task
+	ownerTask.Description = "different frozen terms"
+	client := newMockAgentClient()
+	client.getTasks = map[string]*Task{task.ID: &ownerTask}
+	ctx := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
+	ctx.running["agent-1"] = runningEntry{
+		ProfileKey:               "profile-p",
+		State:                    ObligationDispatchUncertain,
+		DispatchStage:            DispatchStageIntent,
+		IdempotencyKey:           key,
+		TaskID:                   task.ID,
+		TaskRequestSnapshot:      taskSnapshot,
+		CreateRunRequestSnapshot: createRunSnapshotForTest(t, key, task.ID, "profile-p", "heartbeat-team-x-agent-1"),
+		CreateRunCallerMode:      createRunCallerOriginUnqualified,
+	}
+	if err := ctx.persistLocked(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ctx.ReconcileTaskDispatch(context.Background(), "agent-1"); err == nil {
+		t.Fatal("same-ID task with different frozen terms must remain uncertain")
+	}
+	owners := ctx.Status().Owners
+	if len(owners) != 1 || owners[0].DispatchFailurePhase != dispatchFailurePhaseTaskMatch || owners[0].DispatchFailureCode != "task_terms_mismatch" {
+		t.Fatalf("expected bounded frozen-term mismatch diagnosis, got %+v", owners)
+	}
+	if len(client.createTaskCalls) != 0 || len(client.createRunCalls) != 0 {
+		t.Fatalf("task mismatch must not trigger owner writes: tasks=%d runs=%d", len(client.createTaskCalls), len(client.createRunCalls))
+	}
+}
+
+func TestReconcileTaskDispatchPreservesRunStageOwnerStates(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		createErr error
+		wantState string
+	}{
+		{name: "approval pending", createErr: NewApprovalPendingError("creating_run", errors.New("approval required")), wantState: ObligationApprovalPending},
+		{name: "capacity deferred", createErr: &AgentManagerHTTPError{StatusCode: http.StatusForbidden, AdmissionReason: "grant_limit_reached"}, wantState: ObligationAdmissionDeferred},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			task := dispatchTaskFixture()
+			taskSnapshot, err := freezeTaskDispatchRequest(task)
+			if err != nil {
+				t.Fatal(err)
+			}
+			key := "prompt-manager-heartbeat:team-x:agent-1:run-stage-state"
+			client := newMockAgentClient().WithCreateRunError(tc.createErr)
+			client.getTasks = map[string]*Task{task.ID: task}
+			ctx := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
+			ctx.running["agent-1"] = runningEntry{
+				ProfileKey:               "profile-p",
+				State:                    ObligationDispatchUncertain,
+				DispatchStage:            DispatchStageIntent,
+				IdempotencyKey:           key,
+				TaskID:                   task.ID,
+				TaskRequestSnapshot:      taskSnapshot,
+				CreateRunRequestSnapshot: createRunSnapshotForTest(t, key, task.ID, "profile-p", "heartbeat-team-x-agent-1"),
+				CreateRunCallerMode:      createRunCallerOriginUnqualified,
+			}
+			if err := ctx.persistLocked(); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := ctx.ReconcileTaskDispatch(context.Background(), "agent-1"); err == nil {
+				t.Fatal("run-stage refusal should be returned")
+			}
+			status := ctx.Status()
+			if len(status.Owners) != 1 || status.Owners[0].State != tc.wantState {
+				t.Fatalf("task confirmation must preserve the run-stage owner state %q, got %+v", tc.wantState, status.Owners)
+			}
+		})
+	}
+}
+
 // TestBeginDispatch_PersistsIntentBeforeRequest verifies the dispatch intent
 // (state plus owner idempotency key) is durable before the start request, so a
 // crash mid-dispatch recovers as an obligation rather than a free slot.
@@ -805,15 +1026,17 @@ type watcherExecutor struct {
 	captureExecutor
 	watched []struct {
 		teamID, agentID, runID, profileKey, taskID, runTag string
-		ownerStatus, ownerStartedAt                        string
+		ownerStatus, ownerStartedAt, ownerTerminalAt       string
+		admissionOrigin                                    string
 	}
 }
 
-func (w *watcherExecutor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool {
+func (w *watcherExecutor) WatchRecoveredRunWithProjection(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt, ownerTerminalAt, admissionOrigin string) bool {
 	w.watched = append(w.watched, struct {
 		teamID, agentID, runID, profileKey, taskID, runTag string
-		ownerStatus, ownerStartedAt                        string
-	}{teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt})
+		ownerStatus, ownerStartedAt, ownerTerminalAt       string
+		admissionOrigin                                    string
+	}{teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt, ownerTerminalAt, admissionOrigin})
 	return true
 }
 
@@ -828,7 +1051,7 @@ func TestReconcileDispatch_ReplaysRecordedIntentAndBindsRun(t *testing.T) {
 	exec := &watcherExecutor{}
 	tec := newTeamExecutionContext("team-x", exec, dir, client)
 
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-p"); err != nil {
+	if _, err := tec.Enqueue(withHeartbeatAdmissionOrigin(context.Background(), AdmissionOriginScheduled), "agent-1", "profile-p"); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
 	tec.BeginDispatch("agent-1", DispatchIntent{
@@ -840,6 +1063,7 @@ func TestReconcileDispatch_ReplaysRecordedIntentAndBindsRun(t *testing.T) {
 		WorkloadKind:             "scheduled",
 		WorkloadKey:              "effort:test",
 		WorkloadInstance:         "attempt-1",
+		AdmissionOrigin:          AdmissionOriginScheduled,
 	})
 
 	if err := tec.ReconcileDispatch(context.Background(), "agent-1"); err != nil {
@@ -882,6 +1106,9 @@ func TestReconcileDispatch_ReplaysRecordedIntentAndBindsRun(t *testing.T) {
 	}
 	if exec.watched[0].ownerStartedAt != ownerStarted {
 		t.Fatalf("watcher must use the owner run's original start time, got %+v", exec.watched[0])
+	}
+	if exec.watched[0].ownerTerminalAt != "" || exec.watched[0].admissionOrigin != AdmissionOriginScheduled {
+		t.Fatalf("watcher must receive terminal projection and dispatch origin, got %+v", exec.watched[0])
 	}
 	if req.ParentRunID == nil || *req.ParentRunID != "parent-original" || req.RequestedScopes == nil || req.RequestedScopes.ExpectedOwnerSubject != "owner-original" || req.RunMode != "interactive" {
 		t.Fatalf("replay lost optional original request terms: %+v", req)
@@ -958,7 +1185,7 @@ func TestReconcileDispatch_IncompleteIntentNotReplayed(t *testing.T) {
 	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-p"); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
-	tec.MarkDispatchUncertain("agent-1", "no recorded intent")
+	tec.MarkDispatchUncertain("agent-1", dispatchFailurePhaseRunReconciliation, errors.New("no recorded intent"))
 
 	if err := tec.ReconcileDispatch(context.Background(), "agent-1"); err == nil {
 		t.Fatalf("expected incomplete intent to return an error")
@@ -1132,100 +1359,14 @@ func TestSetRunningRunID_NoopWhenAgentNotRunning(t *testing.T) {
 	}
 }
 
-func TestClearRunning_TerminalRunSucceeds(t *testing.T) {
-	dir := t.TempDir()
-	client := newMockAgentClient().
-		WithGetRunResponse("run-done", &Run{ID: "run-done", Status: "RUN_STATUS_COMPLETE"})
-	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
-
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	tec.SetRunningRunID("agent-1", "run-done")
-
-	if err := tec.ClearRunning(context.Background(), "agent-1", false); err != nil {
-		t.Fatalf("ClearRunning: %v", err)
-	}
-	if len(tec.Status().RunningAgentIDs) != 0 {
-		t.Fatalf("expected entry cleared")
-	}
-}
-
-func TestClearRunning_ActiveRunRefused(t *testing.T) {
-	dir := t.TempDir()
-	client := newMockAgentClient().
-		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
-	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
-
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	tec.SetRunningRunID("agent-1", "run-live")
-
-	err := tec.ClearRunning(context.Background(), "agent-1", false)
-	if err == nil {
-		t.Fatalf("expected RunningStillActiveError")
-	}
-	if !IsRunningStillActive(err) {
-		t.Fatalf("expected RunningStillActiveError, got %T: %v", err, err)
-	}
-	if len(tec.Status().RunningAgentIDs) != 1 {
-		t.Fatalf("entry should still be present after refusal")
-	}
-}
-
-func TestClearRunning_ForceBypassesActiveCheck(t *testing.T) {
-	dir := t.TempDir()
-	client := newMockAgentClient().
-		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
-	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, client)
-
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	tec.SetRunningRunID("agent-1", "run-live")
-
-	if err := tec.ClearRunning(context.Background(), "agent-1", true); err != nil {
-		t.Fatalf("force ClearRunning: %v", err)
-	}
-	if len(tec.Status().RunningAgentIDs) != 0 {
-		t.Fatalf("force should clear despite active run")
-	}
-}
-
-func TestClearRunning_EmptyRunIDUnconditional(t *testing.T) {
-	dir := t.TempDir()
-	tec := newTeamExecutionContext("team-x", &captureExecutor{}, dir, newMockAgentClient())
-
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	// No SetRunningRunID — entry has empty RunID.
-
-	if err := tec.ClearRunning(context.Background(), "agent-1", false); err != nil {
-		t.Fatalf("ClearRunning: %v", err)
-	}
-	if len(tec.Status().RunningAgentIDs) != 0 {
-		t.Fatalf("expected entry cleared")
-	}
-}
-
-func TestClearRunning_NotFound(t *testing.T) {
-	tec := newTeamExecutionContext("team-x", &captureExecutor{}, t.TempDir(), nil)
-	err := tec.ClearRunning(context.Background(), "ghost", false)
-	if err != ErrRunningEntryNotFound {
-		t.Fatalf("expected ErrRunningEntryNotFound, got %v", err)
-	}
-}
-
 // fakeTeamExecStoreRegistrar captures SetRunningRunID calls for executor tests.
 type fakeTeamExecStoreRegistrar struct {
-	calls          []struct{ TeamID, AgentID, RunID string }
-	beginCalls     []struct{ TeamID, AgentID, Key string }
-	confirmCalls   []struct{ TeamID, AgentID string }
-	beginErr       error
-	uncertainCalls []struct{ TeamID, AgentID, Reason string }
-	pendingCalls   []struct{ TeamID, AgentID string }
+	calls        []struct{ TeamID, AgentID, RunID string }
+	beginCalls   []struct{ TeamID, AgentID, Key string }
+	confirmCalls []struct{ TeamID, AgentID string }
+	beginErr     error
+	deferErr     error
+	pendingCalls []struct{ TeamID, AgentID string }
 }
 
 func (f *fakeTeamExecStoreRegistrar) SetRunningRunID(teamID, agentID, runID string, _ ...string) {
@@ -1246,15 +1387,11 @@ func (f *fakeTeamExecStoreRegistrar) CancelUnsentTaskDispatch(teamID, agentID, t
 	return nil
 }
 
-func (f *fakeTeamExecStoreRegistrar) MarkDispatchUncertain(teamID, agentID, reason string) {
-	f.uncertainCalls = append(f.uncertainCalls, struct{ TeamID, AgentID, Reason string }{teamID, agentID, reason})
-}
-
 func (f *fakeTeamExecStoreRegistrar) MarkApprovalPending(teamID, agentID string) {
 	f.pendingCalls = append(f.pendingCalls, struct{ TeamID, AgentID string }{teamID, agentID})
 }
 
-func (f *fakeTeamExecStoreRegistrar) MarkAdmissionDeferred(string, string) error { return nil }
+func (f *fakeTeamExecStoreRegistrar) MarkAdmissionDeferred(string, string) error { return f.deferErr }
 
 func TestExecutor_SetTeamExecStore_RegistersRunIDAfterCreateRun(t *testing.T) {
 	// This exercises the Executor.SetTeamExecStore wiring. A full Execute
@@ -1273,101 +1410,3 @@ func TestExecutor_SetTeamExecStore_RegistersRunIDAfterCreateRun(t *testing.T) {
 }
 
 // --- HTTP handler tests ---
-
-func TestClearTeamQueueRunning_OK(t *testing.T) {
-	dir := t.TempDir()
-	client := newMockAgentClient().
-		WithGetRunResponse("run-done", &Run{ID: "run-done", Status: "RUN_STATUS_COMPLETE"})
-	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
-
-	// Pre-populate a running entry by enqueuing then SetRunningRunID.
-	tec := teamExecStore.GetOrCreate("team-x")
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	tec.SetRunningRunID("agent-1", "run-done")
-
-	handlers := &Handlers{teamExecStore: teamExecStore}
-
-	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
-	w := httptest.NewRecorder()
-
-	handlers.ClearTeamQueueRunning(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	var status TeamExecutionStatus
-	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(status.RunningAgentIDs) != 0 {
-		t.Fatalf("expected cleared status, got %v", status.RunningAgentIDs)
-	}
-}
-
-func TestClearTeamQueueRunning_NotFound(t *testing.T) {
-	dir := t.TempDir()
-	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, newMockAgentClient())
-	handlers := &Handlers{teamExecStore: teamExecStore}
-
-	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/ghost", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "ghost"})
-	w := httptest.NewRecorder()
-
-	handlers.ClearTeamQueueRunning(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestClearTeamQueueRunning_ActiveRefused409(t *testing.T) {
-	dir := t.TempDir()
-	client := newMockAgentClient().
-		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
-	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
-	tec := teamExecStore.GetOrCreate("team-x")
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	tec.SetRunningRunID("agent-1", "run-live")
-
-	handlers := &Handlers{teamExecStore: teamExecStore}
-	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
-	w := httptest.NewRecorder()
-
-	handlers.ClearTeamQueueRunning(w, req)
-
-	if w.Code != http.StatusConflict {
-		t.Fatalf("expected 409, got %d: %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "active") {
-		t.Fatalf("expected error body to mention active, got %q", w.Body.String())
-	}
-}
-
-func TestClearTeamQueueRunning_ForceQueryBypassesActive(t *testing.T) {
-	dir := t.TempDir()
-	client := newMockAgentClient().
-		WithGetRunResponse("run-live", &Run{ID: "run-live", Status: "RUN_STATUS_RUNNING"})
-	teamExecStore := NewTeamExecutionStore(nil, &captureExecutor{}, dir, client)
-	tec := teamExecStore.GetOrCreate("team-x")
-	if _, err := tec.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
-		t.Fatalf("enqueue: %v", err)
-	}
-	tec.SetRunningRunID("agent-1", "run-live")
-
-	handlers := &Handlers{teamExecStore: teamExecStore}
-	req := httptest.NewRequest(http.MethodDelete, "/teams/team-x/queue/running/agent-1?force=true", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-x", "agentId": "agent-1"})
-	w := httptest.NewRecorder()
-
-	handlers.ClearTeamQueueRunning(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200 with force, got %d: %s", w.Code, w.Body.String())
-	}
-}

@@ -9,7 +9,7 @@ import MessagesFileViewer from '../../MessagesFileViewer';
 vi.mock('../../../api/filePreview', async original => ({ ...await original<typeof import('../../../api/filePreview')>(), resolveFilePreview: vi.fn(), listDirectory: vi.fn(), getFilePreviewText: vi.fn() }));
 function Harness({ close }: { close: () => void }) {
   const c = useFilePreviewController('session');
-  return <><button onClick={() => { void c.openPreview('/root'); }}>Open folder</button><MessagesFileViewer state={c.state} onClose={close} onReopen={c.reopen} onRendererError={c.reportError} onNavigate={c.navigateTo} onNavigateBack={c.navigateBack} onLoadMore={c.loadMore} onListOptionsChange={c.setListOptions} /></>;
+  return <><button onClick={() => { void c.openPreview('/root'); }}>Open folder</button><button onClick={() => { void c.openPreview('/root/child.txt'); }}>Open file</button><MessagesFileViewer state={c.state} onClose={close} onReopen={c.reopen} onRendererError={c.reportError} onNavigate={c.navigateTo} onNavigateBack={c.navigateBack} onLoadMore={c.loadMore} onListOptionsChange={c.setListOptions} /></>;
 }
 function setup() {
   vi.mocked(resolveFilePreview).mockImplementation((_session, path) => Promise.resolve(previewModel({ previewId: path, kind: path.endsWith('.txt') ? 'text' : 'directory', resolvedPath: path, basename: path.split('/').at(-1) ?? '', listingAvailable: !path.endsWith('.txt'), textContentAvailable: path.endsWith('.txt') })));
@@ -30,6 +30,18 @@ describe('folder navigation within the drawer', () => {
     await waitFor(() => { expect(screen.getByTestId('file-preview-navigation')).toHaveFocus(); });
     fireEvent.click(back); expect(close).not.toHaveBeenCalled();
     expect(screen.getByTestId('messages-file-viewer-panel')).toHaveAttribute('data-state', 'open');
+  });
+  it('opens the containing folder from a file opened directly, and Back returns to the file', async () => {
+    const close = setup(); fireEvent.click(screen.getByText('Open file'));
+    await screen.findByTestId('file-preview-code');
+    // No navigation history yet, but the file still offers a way into its folder.
+    expect(screen.queryByTestId('file-preview-navigation')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('file-preview-open-folder'));
+    await screen.findByTestId('file-preview-directory');
+    expect(vi.mocked(listDirectory)).toHaveBeenCalledWith('session', '/root', expect.anything());
+    const back = screen.getByTestId('file-preview-back'); expect(back).toBeEnabled();
+    fireEvent.click(back); await screen.findByTestId('file-preview-code');
+    expect(close).not.toHaveBeenCalled();
   });
   it('returns from a failed child load and ignores the dismissed request response', async () => {
     const close = setup(); fireEvent.click(screen.getByText('Open folder')); await screen.findByTestId('file-preview-directory');

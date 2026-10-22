@@ -1,0 +1,93 @@
+[
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/schema.sql",
+    "captured_at": "2026-10-20T15:19:13.330702+00:00",
+    "bytes": 2027,
+    "sha256": "477db053773cb30a55d60315381cf8fdaa5fe5b189b28fcb214d12998095f26d",
+    "lines": 53
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/types.go",
+    "captured_at": "2026-10-20T15:19:13.330769+00:00",
+    "bytes": 1931,
+    "sha256": "6d3d02c2dd22b2b476f4c013d6e19918b5bccde50af1ab8d2a1b02417088d839",
+    "lines": 62
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/repository.go",
+    "captured_at": "2026-10-20T15:19:13.330795+00:00",
+    "bytes": 698,
+    "sha256": "df3b04b266ec0a34f59eee00056be2f7aa12cb776ff0454985b038208d354ba2",
+    "lines": 16
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/service.go",
+    "captured_at": "2026-10-20T15:19:13.330815+00:00",
+    "bytes": 5388,
+    "sha256": "c2f1403d96bf5ffe518045ff6324225fc3a4ba117cc277ff4522e0a6a5f31a69",
+    "lines": 154
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/sqlite.go",
+    "captured_at": "2026-10-20T15:19:13.330858+00:00",
+    "bytes": 10949,
+    "sha256": "954096e3c4c5f545552ec729318f9c8858233cf07c454bd4c11c448b5d86e1c6",
+    "lines": 296
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/service_test.go",
+    "captured_at": "2026-10-20T15:19:13.330915+00:00",
+    "bytes": 3939,
+    "sha256": "0b0ec79a844ca57dd433c35fb40dbde8a548331c28d5d4ea0fea2ae6064b99a6",
+    "lines": 95
+  },
+  {
+    "path": "scenarios/personal-planner/api/internal/goals/sqlite_test.go",
+    "captured_at": "2026-10-20T15:19:13.330950+00:00",
+    "bytes": 5053,
+    "sha256": "48de36c13913d4033e453dea84758a4c0bde152a0ef9453c61e4b9760d25c988",
+    "lines": 124
+  },
+  {
+    "path": "scenarios/personal-planner/api/handlers/goals/module.go",
+    "captured_at": "2026-10-20T15:19:13.330983+00:00",
+    "bytes": 2512,
+    "sha256": "59df1d16f743759a960c6c567a45112823224668daa6b71d4522350356014d33",
+    "lines": 69
+  },
+  {
+    "path": "scenarios/personal-planner/api/handlers/goals/module_test.go",
+    "captured_at": "2026-10-20T15:19:13.331012+00:00",
+    "bytes": 2774,
+    "sha256": "476977e7b4eb22b5064b94cb9e3e5b60b0d1c9a5e11064ca192c7088c315beec",
+    "lines": 69
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/api/goals.ts",
+    "captured_at": "2026-10-20T15:19:13.331032+00:00",
+    "bytes": 3427,
+    "sha256": "b8d6fb183d2c3f9cfd9b04a5faa452420f449aa45669cb258ff824f6eb05e6f2",
+    "lines": 54
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/api/goals.test.ts",
+    "captured_at": "2026-10-20T15:19:13.331054+00:00",
+    "bytes": 3862,
+    "sha256": "af3a479648ae7f30ae245b6b9ba073c83fce45f816306436dea312f1d7c2616f",
+    "lines": 49
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/components/GoalCard.tsx",
+    "captured_at": "2026-10-20T15:19:13.331075+00:00",
+    "bytes": 10246,
+    "sha256": "96ab3e25e001610545a80a5c072f53b9d6e2080447d93514d6f1152e49c2d308",
+    "lines": 62
+  },
+  {
+    "path": "scenarios/personal-planner/ui/src/pages/GoalsPage.test.tsx",
+    "captured_at": "2026-10-20T15:19:13.331106+00:00",
+    "bytes": 11627,
+    "sha256": "b3bb520bc6ebd329eada40426301def737bf76f183d7583d0c48d5677c12847a",
+    "lines": 156
+  }
+]

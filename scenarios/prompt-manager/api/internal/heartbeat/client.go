@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -650,6 +651,41 @@ func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions)
 		return nil, err
 	}
 	return &result, nil
+}
+
+// GetEffortEnrollment reads the exact canonical enrollment from Agent
+// Manager's existing effort board. The enrollment is declarative identity;
+// this read does not grant authority.
+func (c *AgentManagerClient) GetEffortEnrollment(ctx context.Context, effortRef string) (*domainpb.EffortEnrollment, error) {
+	if strings.TrimSpace(effortRef) == "" {
+		return nil, errors.New("effort reference is required")
+	}
+	body, err := protojson.Marshal(&domainpb.GetEffortBoardRequest{EffortRef: strings.TrimSpace(effortRef), PageSize: 1})
+	if err != nil {
+		return nil, fmt.Errorf("marshal effort board request: %w", err)
+	}
+	resp, err := c.doRequestWithRetry(ctx, http.MethodPost, apiconnect.AgentManagerServiceGetEffortBoardProcedure, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read effort board: %w", err)
+	}
+	var board domainpb.EffortBoard
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(responseBody, &board); err != nil {
+		return nil, fmt.Errorf("decode effort board: %w", err)
+	}
+	for _, row := range board.GetRows() {
+		if enrollment := row.GetEnrollment(); enrollment != nil && enrollment.GetEffortRef() == strings.TrimSpace(effortRef) {
+			return enrollment, nil
+		}
+	}
+	return nil, fmt.Errorf("agent-manager effort enrollment %q was not present in its board response", effortRef)
 }
 
 // ContinueRun sends a continue message to a paused run. A non-empty

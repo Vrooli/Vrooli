@@ -98,7 +98,7 @@ func (h *handler) SubmitRender(ctx context.Context, req *connect.Request[shotsv1
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported render mode"))
 	}
 	spanStarted = time.Now()
-	job, created, err := h.deps.Coordinator.Submit(ctx, domain.SubmitRequest{ProjectID: req.Msg.ProjectId, ShotID: req.Msg.ShotId, Revision: req.Msg.Revision, IdempotencyKey: req.Msg.IdempotencyKey, OutputProfile: profile, VideoMode: videoMode})
+	job, created, cacheReceipt, err := h.deps.Coordinator.SubmitWithReceipt(ctx, domain.SubmitRequest{ProjectID: req.Msg.ProjectId, ShotID: req.Msg.ShotId, Revision: req.Msg.Revision, IdempotencyKey: req.Msg.IdempotencyKey, OutputProfile: profile, VideoMode: videoMode, ReuseCachedSuccess: req.Msg.ReuseCachedSuccess})
 	domain.RecordSubmitTiming(ctx, "coordinator_submit", time.Since(spanStarted))
 	if err != nil {
 		return nil, h.connectError("submit render", err)
@@ -112,6 +112,12 @@ func (h *handler) SubmitRender(ctx context.Context, req *connect.Request[shotsv1
 		domain.RecordSubmitTiming(ctx, "pump_activate", time.Since(spanStarted))
 	}
 	response := connect.NewResponse(&shotsv1.SubmitRenderResponse{Job: jobToProto(job, ""), ReusedExisting: !created})
+	if cacheReceipt != nil {
+		response.Msg.CacheReuse = &shotsv1.CachedRenderReuse{
+			SourceRenderId: cacheReceipt.SourceRenderID, SourceAttemptId: cacheReceipt.SourceAttemptID,
+			ArtifactSha256: cacheReceipt.SHA256, OutputKind: cacheReceipt.OutputKind,
+		}
+	}
 	domain.SetSubmitTimingHeader(response.Header(), timing)
 	return response, nil
 }

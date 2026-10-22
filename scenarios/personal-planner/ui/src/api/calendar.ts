@@ -26,11 +26,27 @@ export type CalendarEvent = {
 
 export type CalendarEventInput = Omit<CalendarEvent, "id" | "revision" | "created_at" | "updated_at" | "provider" | "provider_calendar_id" | "provider_event_id" | "occurrence_id">;
 
+export class CalendarEventRequestError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message);
+    this.name = "CalendarEventRequestError";
+  }
+}
+
 async function eventRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
   if (!response.ok) {
     const detail = (await response.text()).trim();
-    throw new Error(detail || `Calendar event request failed (${response.status})`);
+    let message = detail || `Calendar event request failed (${response.status})`;
+    let code: string | undefined;
+    try {
+      const envelope = JSON.parse(detail) as { code?: unknown; message?: unknown };
+      if (typeof envelope.code === "string") code = envelope.code;
+      if (typeof envelope.message === "string" && envelope.message) message = envelope.message;
+    } catch {
+      // Existing plain-text REST failures remain readable at the API boundary.
+    }
+    throw new CalendarEventRequestError(message, response.status, code);
   }
   return await response.json() as T;
 }

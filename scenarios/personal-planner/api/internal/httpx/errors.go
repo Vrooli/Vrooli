@@ -34,6 +34,9 @@ const (
 	// identifier resolves to nothing rather than for "endpoint missing".
 	CodeNotFound = "not_found"
 
+	// CodeUnauthenticated covers requests that lack a verified owner.
+	CodeUnauthenticated = "unauthenticated"
+
 	// CodeInternal is the catch-all 500 code. Pair with a server-side
 	// log line carrying the underlying error; the wire message stays
 	// human-safe.

@@ -477,6 +477,7 @@ func executeOptionsFromProto(opts *basexecution.ExecuteWorkflowOptions) *workflo
 			RendererTitle: target.GetRendererTitle(), ScenarioName: target.GetScenarioName(),
 			ArtifactDigest: target.GetArtifactDigest(), ContextID: target.GetContextId(),
 			CDPTransport: target.GetCdpTransport(), TargetKind: target.GetTargetKind(),
+			DownloadPath: target.GetDownloadPath(), TestDatabaseRoot: target.GetTestDatabaseRoot(),
 		}
 	}
 	if validationContext := opts.GetValidationContext(); validationContext != nil {

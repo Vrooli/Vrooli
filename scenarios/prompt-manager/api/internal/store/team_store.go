@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -28,7 +27,6 @@ import (
 	"github.com/vrooli/api-core/storage"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -279,7 +277,9 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 		return scoped.Update(ctx, id, updates)
 	}
 	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
-	if principal, ok := identity.PrincipalFromContext(ctx); bounded || (ok && principal.Grant != nil) {
+	principal, hasPrincipal := identity.PrincipalFromContext(ctx)
+	verifiedAgent := hasPrincipal && principal.Kind == identity.ActorAgent && principal.IsVerified()
+	if bounded || (hasPrincipal && principal.Grant != nil) || verifiedAgent {
 		// Creator-owns-while-alive: the team.manage operation gate exists so one
 		// agent cannot mutate another agent's team. The team's own verified
 		// creator, acting under a still-live (unexpired) identity, needs no
@@ -943,8 +943,10 @@ func (s *FileTeamStore) AppendHeartbeatAttempt(ctx context.Context, teamID strin
 	return nil
 }
 
-const heartbeatAttemptEventType = "prompt-manager.heartbeat.attempt.v1"
-const heartbeatOwnerStateEventType = "prompt-manager.heartbeat.owner-state.v1"
+const (
+	heartbeatAttemptEventType    = "prompt-manager.heartbeat.attempt.v1"
+	heartbeatOwnerStateEventType = "prompt-manager.heartbeat.owner-state.v1"
+)
 
 // heartbeatAttemptFactEventID gives each immutable lifecycle fact its own
 // Events identity while keeping HeartbeatAttempt.ID as the logical heartbeat
@@ -1012,201 +1014,13 @@ func (s *FileTeamStore) appendHeartbeatAttemptEvent(ctx context.Context, entry *
 // ListHeartbeatAttempts returns newest-first heartbeat dispatch attempts across
 // all teams, optionally filtered by team, agent, status, and profile key.
 func (s *FileTeamStore) ListHeartbeatAttempts(ctx context.Context, teamID, agentID, status, profileKey string, limit, offset int) ([]HeartbeatAttempt, int, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListHeartbeatAttempts(ctx, teamID, agentID, status, profileKey, limit, offset)
+	page, err := s.ListHeartbeatAttemptPage(ctx, teamID, agentID, status, profileKey, limit, offset)
+	if err != nil {
+		return nil, 0, err
 	}
-	teamIDs := []string{}
-	if teamID != "" {
-		teamIDs = append(teamIDs, teamID)
-	} else {
-		dirs, err := ListDirectories(s.teamsDir())
-		if err != nil {
-			return nil, 0, fmt.Errorf("listing team directories: %w", err)
-		}
-		teamIDs = dirs
-	}
-
-	var entries []HeartbeatAttempt
-	if s.ledger != nil {
-		var err error
-		entries, err = s.listHeartbeatAttemptEvents(ctx, teamID, agentID, status, profileKey, limit, offset)
-		if err != nil {
-			return nil, 0, err
-		}
-	} else {
-		s.corpus.mu.Lock()
-		for _, id := range teamIDs {
-			attempts := append([]HeartbeatAttempt(nil), s.corpus.attempts[id]...)
-			for _, entry := range attempts {
-				if agentID != "" && entry.AgentID != agentID || status != "" && entry.Status != status || profileKey != "" && entry.ProfileKey != profileKey {
-					continue
-				}
-				entries = append(entries, entry)
-			}
-		}
-		s.corpus.mu.Unlock()
-	}
-	for _, id := range teamIDs {
-
-		configs, _ := s.ListHeartbeatConfigs(ctx, id)
-		for _, config := range configs {
-			if config.LastExecution == nil || config.LastExecution.RunID != "" {
-				continue
-			}
-			entry := HeartbeatAttempt{
-				ID:            "last-" + config.TeamID + "-" + config.AgentID + "-" + strings.ReplaceAll(config.LastExecution.StartedAt, ":", "-"),
-				TeamID:        config.TeamID,
-				AgentID:       config.AgentID,
-				ProfileKey:    config.ProfileKey,
-				Status:        config.LastExecution.Status,
-				Phase:         "pre_run_failure",
-				StartedAt:     config.LastExecution.StartedAt,
-				EndedAt:       config.LastExecution.EndedAt,
-				ErrorCategory: "unknown",
-				Error:         config.LastExecution.Error,
-				Recovery:      "inspect_heartbeat_config",
-			}
-			if agentID != "" && entry.AgentID != agentID {
-				continue
-			}
-			if status != "" && entry.Status != status {
-				continue
-			}
-			if profileKey != "" && entry.ProfileKey != profileKey {
-				continue
-			}
-			duplicate := false
-			for _, existing := range entries {
-				if existing.TeamID == entry.TeamID && existing.AgentID == entry.AgentID && existing.StartedAt == entry.StartedAt && existing.RunID == "" {
-					duplicate = true
-					break
-				}
-			}
-			if !duplicate {
-				entries = append(entries, entry)
-			}
-		}
-	}
-
-	sort.SliceStable(entries, func(i, j int) bool {
-		left := entries[i].StartedAt
-		if entries[i].EndedAt != "" {
-			left = entries[i].EndedAt
-		}
-		right := entries[j].StartedAt
-		if entries[j].EndedAt != "" {
-			right = entries[j].EndedAt
-		}
-		return left > right
-	})
-
-	total := len(entries)
-	if offset < 0 {
-		offset = 0
-	}
-	if limit < 0 {
-		limit = 0
-	}
-	if offset >= len(entries) {
-		return []HeartbeatAttempt{}, total, nil
-	}
-	if limit > 0 && offset+limit < len(entries) {
-		entries = entries[offset : offset+limit]
-	} else {
-		entries = entries[offset:]
-	}
-	return entries, total, nil
+	return page.Attempts, page.Total, nil
 }
 
-func (s *FileTeamStore) listHeartbeatAttemptEvents(ctx context.Context, teamID, agentID, status, profileKey string, limit, offset int) ([]HeartbeatAttempt, error) {
-	u, err := url.Parse(s.eventsBase + "/api/v1/events")
-	if err != nil {
-		return nil, fmt.Errorf("parse vrooli-events endpoint: %w", err)
-	}
-	query := u.Query()
-	query.Set("type", heartbeatAttemptEventType)
-	query.Set("source", "prompt-manager")
-	query.Set("limit", "100")
-	u.RawQuery = query.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("create heartbeat attempt query: %w", err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("query heartbeat attempt events: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("query heartbeat attempt events: %s", resp.Status)
-	}
-	var raw []json.RawMessage
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return nil, fmt.Errorf("decode heartbeat attempt events: %w", err)
-	}
-	type attemptFact struct {
-		entry      HeartbeatAttempt
-		occurredAt time.Time
-	}
-	factsByAttempt := make(map[string]attemptFact, len(raw))
-	attemptOrder := make([]string, 0, len(raw))
-	for _, item := range raw {
-		env := &domain.EventEnvelope{}
-		if err := protojson.Unmarshal(item, env); err != nil || env.GetData() == nil {
-			continue
-		}
-		payload := &structpb.Struct{}
-		if err := anypb.UnmarshalTo(env.GetData(), payload, proto.UnmarshalOptions{}); err != nil {
-			continue
-		}
-		body, err := json.Marshal(payload.AsMap())
-		if err != nil {
-			continue
-		}
-		var entry HeartbeatAttempt
-		if err := json.Unmarshal(body, &entry); err != nil {
-			continue
-		}
-		if entry.ID == "" {
-			entry.ID = env.GetEventId()
-		}
-		occurredAt := time.Time{}
-		if env.GetOccurredAt() != nil {
-			occurredAt = env.GetOccurredAt().AsTime()
-		}
-		logicalAttemptKey := entry.TeamID + "\x00" + entry.AgentID + "\x00" + entry.ID
-		previous, exists := factsByAttempt[logicalAttemptKey]
-		if !exists {
-			attemptOrder = append(attemptOrder, logicalAttemptKey)
-		}
-		if !exists || heartbeatAttemptFactLater(occurredAt, entry, previous.occurredAt, previous.entry) {
-			factsByAttempt[logicalAttemptKey] = attemptFact{entry: entry, occurredAt: occurredAt}
-		}
-	}
-	entries := make([]HeartbeatAttempt, 0, len(factsByAttempt))
-	for _, logicalAttemptKey := range attemptOrder {
-		entry := factsByAttempt[logicalAttemptKey].entry
-		if teamID != "" && entry.TeamID != teamID || agentID != "" && entry.AgentID != agentID || status != "" && entry.Status != status || profileKey != "" && entry.ProfileKey != profileKey {
-			continue
-		}
-		entries = append(entries, entry)
-	}
-	return entries, nil
-}
-
-func heartbeatAttemptFactLater(candidateAt time.Time, candidate HeartbeatAttempt, currentAt time.Time, current HeartbeatAttempt) bool {
-	if !candidateAt.Equal(currentAt) {
-		return candidateAt.After(currentAt)
-	}
-	if candidate.EndedAt != current.EndedAt {
-		return candidate.EndedAt > current.EndedAt
-	}
-	// Event timestamps normally distinguish facts. Prefer a terminal outcome
-	// on ties so a same-time running projection cannot hide it.
-	return candidate.Phase == "run_terminal" && current.Phase != "run_terminal"
-}
-
-// GetMemberLogPath returns the path for a heartbeat execution log
 func (s *FileTeamStore) GetMemberLogPath(teamID, agentID, timestamp string) string {
 	return filepath.Join(s.runtimeMemberDir(teamID, agentID), "logs", timestamp+".log")
 }
@@ -1621,6 +1435,9 @@ func (s *FileTeamStore) GetHandoffHistory(ctx context.Context, teamID, agentID s
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.GetHandoffHistory(ctx, teamID, agentID, last)
 	}
+	if last > MaxHandoffHistoryEntries {
+		last = MaxHandoffHistoryEntries
+	}
 	if s.ledger != nil {
 		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
 		if err != nil {
@@ -1646,27 +1463,23 @@ func (s *FileTeamStore) GetHandoffHistory(ctx context.Context, teamID, agentID s
 		return history, nil
 	}
 	s.corpus.mu.Lock()
-	entries := append([]HandoffEntry(nil), s.corpus.handoffs[teamID]...)
-	s.corpus.mu.Unlock()
-	filtered := entries[:0]
-	for _, entry := range entries {
-		if agentID == "" || entry.AgentID == agentID {
-			filtered = append(filtered, entry)
+	stored := s.corpus.handoffs[teamID]
+	if len(stored) == 0 {
+		s.corpus.mu.Unlock()
+		return nil, nil
+	}
+	limit := len(stored)
+	if last > 0 && last < limit {
+		limit = last
+	}
+	history := make([]HandoffEntry, 0, limit)
+	for i := len(stored) - 1; i >= 0 && len(history) < limit; i-- {
+		if agentID == "" || stored[i].AgentID == agentID {
+			history = append(history, stored[i])
 		}
 	}
-	entries = filtered
-
-	// Return the last N entries
-	if last > 0 && len(entries) > last {
-		entries = entries[len(entries)-last:]
-	}
-
-	// Reverse to newest-first order
-	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
-		entries[i], entries[j] = entries[j], entries[i]
-	}
-
-	return entries, nil
+	s.corpus.mu.Unlock()
+	return history, nil
 }
 
 // ClearHandoffHistory removes handoff history entries. If agentID is empty, all

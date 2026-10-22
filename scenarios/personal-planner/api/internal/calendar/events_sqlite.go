@@ -16,7 +16,11 @@ const eventColumns = `id,title,subject,notes,availability,timezone,all_day,start
 type eventScanner interface{ Scan(...any) error }
 
 func (r *sqliteRepository) ListEvents(ctx context.Context, start, end string) ([]Event, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT `+eventColumns+` FROM calendar_events WHERE range_start<=? AND range_end>? ORDER BY range_start,id`, end, start)
+	owner := eventOwnerSubject(ctx)
+	if owner == "" {
+		return []Event{}, nil
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT `+eventColumns+` FROM calendar_events e JOIN calendar_event_owners o ON o.event_id=e.id WHERE o.owner_subject=? AND e.range_start<=? AND e.range_end>? ORDER BY e.range_start,e.id`, owner, end, start)
 	if err != nil {
 		return nil, fmt.Errorf("list calendar events: %w", err)
 	}
@@ -33,7 +37,11 @@ func (r *sqliteRepository) ListEvents(ctx context.Context, start, end string) ([
 }
 
 func (r *sqliteRepository) GetEvent(ctx context.Context, id string) (Event, error) {
-	e, err := scanEvent(r.db.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events WHERE id=?`, id))
+	owner := eventOwnerSubject(ctx)
+	if owner == "" {
+		return Event{}, ErrEventNotFound{ID: id}
+	}
+	e, err := scanEvent(r.db.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events e JOIN calendar_event_owners o ON o.event_id=e.id WHERE e.id=? AND o.owner_subject=?`, id, owner))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Event{}, ErrEventNotFound{ID: id}
 	}
@@ -44,8 +52,12 @@ func (r *sqliteRepository) GetEvent(ctx context.Context, id string) (Event, erro
 }
 
 func (r *sqliteRepository) GetEventByIdempotencyKey(ctx context.Context, key string) (Event, error) {
+	owner := eventOwnerSubject(ctx)
+	if owner == "" {
+		return Event{}, ErrEventNotFound{ID: "idempotency key " + key}
+	}
 	var id string
-	err := r.db.QueryRowContext(ctx, `SELECT event_id FROM calendar_event_commands WHERE idempotency_key=?`, key).Scan(&id)
+	err := r.db.QueryRowContext(ctx, `SELECT c.event_id FROM calendar_event_commands c JOIN calendar_event_owners o ON o.event_id=c.event_id WHERE c.idempotency_key=? AND o.owner_subject=?`, key, owner).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Event{}, ErrEventNotFound{ID: "idempotency key " + key}
 	}
@@ -56,6 +68,10 @@ func (r *sqliteRepository) GetEventByIdempotencyKey(ctx context.Context, key str
 }
 
 func (r *sqliteRepository) CreateEvent(ctx context.Context, in CreateEventInput) (Event, error) {
+	owner := eventOwnerSubject(ctx)
+	if owner == "" {
+		return Event{}, ErrEventOwnerRequired{}
+	}
 	if err := validateEvent(in.Event); err != nil {
 		return Event{}, err
 	}
@@ -77,6 +93,11 @@ func (r *sqliteRepository) CreateEvent(ctx context.Context, in CreateEventInput)
 	var priorFingerprint, priorID string
 	err = tx.QueryRowContext(ctx, `SELECT fingerprint,event_id FROM calendar_event_commands WHERE idempotency_key=?`, in.IdempotencyKey).Scan(&priorFingerprint, &priorID)
 	if err == nil {
+		var priorOwner string
+		ownerErr := tx.QueryRowContext(ctx, `SELECT owner_subject FROM calendar_event_owners WHERE event_id=?`, priorID).Scan(&priorOwner)
+		if ownerErr != nil || priorOwner != owner {
+			return fail(ErrEventIdempotencyConflict{Key: in.IdempotencyKey})
+		}
 		if priorFingerprint != fingerprint {
 			return fail(ErrEventIdempotencyConflict{Key: in.IdempotencyKey})
 		}
@@ -95,8 +116,12 @@ func (r *sqliteRepository) CreateEvent(ctx context.Context, in CreateEventInput)
 	e := in.Event
 	if e.ProviderEventID != "" {
 		var existingID string
-		identityErr := tx.QueryRowContext(ctx, `SELECT id FROM calendar_events WHERE provider=? AND provider_calendar_id=? AND provider_event_id=? AND occurrence_id=?`, e.Provider, e.ProviderCalendarID, e.ProviderEventID, e.OccurrenceID).Scan(&existingID)
+		var existingOwner string
+		identityErr := tx.QueryRowContext(ctx, `SELECT e.id,COALESCE(o.owner_subject,'') FROM calendar_events e LEFT JOIN calendar_event_owners o ON o.event_id=e.id WHERE e.provider=? AND e.provider_calendar_id=? AND e.provider_event_id=? AND e.occurrence_id=?`, e.Provider, e.ProviderCalendarID, e.ProviderEventID, e.OccurrenceID).Scan(&existingID, &existingOwner)
 		if identityErr == nil {
+			if existingOwner != owner {
+				return fail(ErrEventIdentityConflict{Provider: e.Provider, CalendarID: e.ProviderCalendarID, EventID: e.ProviderEventID, OccurrenceID: e.OccurrenceID})
+			}
 			existing, readErr := scanEvent(tx.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events WHERE id=?`, existingID))
 			if readErr != nil {
 				return fail(fmt.Errorf("read existing provider event identity: %w", readErr))
@@ -132,6 +157,9 @@ func (r *sqliteRepository) CreateEvent(ctx context.Context, in CreateEventInput)
 		e.Provider, e.ProviderCalendarID, e.ProviderEventID, e.OccurrenceID, e.Revision, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), rangeStart, rangeEnd); err != nil {
 		return fail(fmt.Errorf("insert calendar event: %w", err))
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO calendar_event_owners (event_id,owner_subject) VALUES (?,?)`, e.ID, owner); err != nil {
+		return fail(fmt.Errorf("record calendar event owner: %w", err))
+	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO calendar_event_commands (idempotency_key,fingerprint,event_id,created_at) VALUES (?,?,?,?)`, in.IdempotencyKey, fingerprint, e.ID, now.Format(time.RFC3339Nano)); err != nil {
 		return fail(fmt.Errorf("record event idempotency key: %w", err))
 	}
@@ -142,6 +170,10 @@ func (r *sqliteRepository) CreateEvent(ctx context.Context, in CreateEventInput)
 }
 
 func (r *sqliteRepository) UpdateEvent(ctx context.Context, in UpdateEventInput) (Event, error) {
+	owner := eventOwnerSubject(ctx)
+	if owner == "" {
+		return Event{}, ErrEventNotFound{ID: in.ID}
+	}
 	if err := validateEvent(in.Event); err != nil {
 		return Event{}, err
 	}
@@ -156,7 +188,7 @@ func (r *sqliteRepository) UpdateEvent(ctx context.Context, in UpdateEventInput)
 		return Event{}, fmt.Errorf("begin update event: %w", err)
 	}
 	fail := func(cause error) (Event, error) { _ = tx.Rollback(); return Event{}, cause }
-	current, err := scanEvent(tx.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events WHERE id=?`, in.ID))
+	current, err := scanEvent(tx.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events e JOIN calendar_event_owners o ON o.event_id=e.id WHERE e.id=? AND o.owner_subject=?`, in.ID, owner))
 	if errors.Is(err, sql.ErrNoRows) {
 		return fail(ErrEventNotFound{ID: in.ID})
 	}
@@ -186,7 +218,7 @@ func (r *sqliteRepository) UpdateEvent(ctx context.Context, in UpdateEventInput)
 		return fail(fmt.Errorf("inspect calendar event update: %w", err))
 	}
 	if changed != 1 {
-		latest, readErr := scanEvent(tx.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events WHERE id=?`, in.ID))
+		latest, readErr := scanEvent(tx.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM calendar_events e JOIN calendar_event_owners o ON o.event_id=e.id WHERE e.id=? AND o.owner_subject=?`, in.ID, owner))
 		if errors.Is(readErr, sql.ErrNoRows) {
 			return fail(ErrEventNotFound{ID: in.ID})
 		}

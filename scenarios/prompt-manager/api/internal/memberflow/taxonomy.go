@@ -64,23 +64,12 @@ type TaxonomySchema struct {
 // TaxonomyRegistry indexes loaded taxonomies by id.
 type TaxonomyRegistry map[string]*Taxonomy
 
-// taxonomyGlobs are the filename patterns the loader treats as taxonomy
-// sidecars. Any *.json file under docs/ matching one of these glob suffixes
-// is parsed; non-taxonomy JSON files (e.g. fixture data) should not match.
-var taxonomyGlobs = []string{
-	"*-taxonomy.json",
-	"signal-taxonomy.json",
-	"opportunity-taxonomy.json",
-	"taxonomy.json",
-	"validation-taxonomy.json",
-}
-
 // LoadTaxonomy reads a single taxonomy file by id from the docs registry
 // rooted at repoRoot. Returns nil + error when the id cannot be resolved.
 //
-// Resolution: the loader walks docs/ looking for *.json files whose contents
-// declare {"id": "<id>"}; first match wins. This is O(N) over a small set
-// (<10) of taxonomies, acceptable for heartbeat-build and CLI use.
+// Resolution uses the taxonomy packages declared by team plan-of-record
+// manifests. Historical evidence and other documentation are not registry
+// entries, even when they contain files named taxonomy.json.
 func LoadTaxonomy(repoRoot, id string) (*Taxonomy, error) {
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("taxonomy id is required")
@@ -95,8 +84,8 @@ func LoadTaxonomy(repoRoot, id string) (*Taxonomy, error) {
 	return nil, fmt.Errorf("taxonomy %q not found under %s/docs", id, repoRoot)
 }
 
-// LoadAllTaxonomies walks docs/ under repoRoot and returns every parseable
-// taxonomy sidecar, indexed by id.
+// LoadAllTaxonomies loads taxonomy packages owned by team plan-of-record
+// manifests under docs/, indexed by the taxonomy id declared in each file.
 //
 // Returns an empty registry (no error) when docs/ is absent — callers that
 // need taxonomies should treat empty as "skip the check," matching the
@@ -114,43 +103,59 @@ func LoadAllTaxonomies(repoRoot string) (TaxonomyRegistry, error) {
 		return nil, fmt.Errorf("memberflow: stat docs %q: %w", docsDir, err)
 	}
 
-	walkErr := filepath.Walk(docsDir, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	manifests, err := DiscoverPlanOfRecordManifestPaths(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("memberflow: discover taxonomy owners: %w", err)
+	}
+	for _, path := range manifests {
+		manifest, err := LoadResolvedPlanOfRecordManifest(repoRoot, path)
+		if err != nil {
+			return nil, fmt.Errorf("load team manifest %q: %w", path, err)
 		}
-		if info.IsDir() {
-			return nil
+		for _, section := range manifest.Sections {
+			sectionPath := filepath.Join(manifest.RootDir, filepath.FromSlash(section.Path))
+			if section.PackageType == "taxonomy" && len(section.Packages) == 0 {
+				if _, err := os.Stat(sectionPath); os.IsNotExist(err) && !section.Required {
+					continue
+				}
+				if err := loadTaxonomyPackage(out, manifest.SourcePath, sectionPath, section.RequiredFiles); err != nil {
+					return nil, err
+				}
+			}
+			for _, pkg := range section.Packages {
+				if pkg.PackageType != "taxonomy" {
+					continue
+				}
+				if err := loadTaxonomyPackage(out, manifest.SourcePath, filepath.Join(sectionPath, filepath.FromSlash(pkg.Path)), pkg.requiredFilesIn(section)); err != nil {
+					return nil, err
+				}
+			}
 		}
-		base := filepath.Base(path)
-		if !matchesTaxonomyName(base) {
-			return nil
+	}
+	return out, nil
+}
+
+func loadTaxonomyPackage(out TaxonomyRegistry, manifestPath, packagePath string, requiredFiles []string) error {
+	found := false
+	for _, required := range requiredFiles {
+		if filepath.Base(required) != "taxonomy.json" {
+			continue
 		}
+		path := filepath.Join(packagePath, filepath.FromSlash(required))
 		tx, err := parseTaxonomyFile(path)
 		if err != nil {
-			return fmt.Errorf("taxonomy %q: %w", path, err)
-		}
-		if tx == nil {
-			return nil
+			return fmt.Errorf("taxonomy declared by %q: %w", manifestPath, err)
 		}
 		if existing, ok := out[tx.ID]; ok {
 			return fmt.Errorf("duplicate taxonomy id %q in %q and %q", tx.ID, existing.SourcePath, tx.SourcePath)
 		}
 		out[tx.ID] = tx
-		return nil
-	})
-	if walkErr != nil {
-		return nil, walkErr
+		found = true
 	}
-	return out, nil
-}
-
-func matchesTaxonomyName(base string) bool {
-	for _, g := range taxonomyGlobs {
-		if matched, _ := filepath.Match(g, base); matched {
-			return true
-		}
+	if !found {
+		return fmt.Errorf("taxonomy package %q declared by %q has no required taxonomy.json", packagePath, manifestPath)
 	}
-	return false
+	return nil
 }
 
 func parseTaxonomyFile(path string) (*Taxonomy, error) {

@@ -10,6 +10,15 @@ CREATE TABLE IF NOT EXISTS render_jobs (
   record_json TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_render_jobs_state_updated ON render_jobs(state, updated_at);
+-- Cache-hit idempotency keys bind to an already-succeeded source job without
+-- creating a new render job or native attempt.
+CREATE TABLE IF NOT EXISTS render_job_idempotency_aliases (
+  idempotency_key TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES render_jobs(id) ON DELETE CASCADE,
+  input_fingerprint TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_render_job_idempotency_aliases_job ON render_job_idempotency_aliases(job_id);
 CREATE TABLE IF NOT EXISTS render_job_attempts (
   id TEXT PRIMARY KEY,
   job_id TEXT NOT NULL REFERENCES render_jobs(id) ON DELETE CASCADE,

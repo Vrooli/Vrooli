@@ -77,7 +77,7 @@ func TestGeometryCompileSandboxRequiresNetworkAndWriteContainment(t *testing.T) 
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			if body.IsolationLevel != "full" || body.ExecutionMode != "protected" || body.AllowNetwork == nil || *body.AllowNetwork || body.Command != "/workspace/worker" || body.WorkingDir != "/workspace" || len(body.Args) != 3 || body.Args[0] != "geometry-compile-worker" || body.Args[2] != "/workspace/"+GeometryManifestName || body.MemoryLimitMB != 2048 || body.CPUTimeSec != 45 || body.TimeoutSec != 60 || body.MaxProcesses != 8 || body.MaxOpenFiles != 64 {
+			if body.IsolationLevel != "full" || body.ExecutionMode != "protected" || body.AllowNetwork == nil || *body.AllowNetwork || body.Command != "/workspace/worker" || body.WorkingDir != "/workspace" || len(body.Args) != 3 || body.Args[0] != "geometry-compile-worker" || body.Args[2] != "/workspace/"+GeometryManifestName || body.Env["GOMAXPROCS"] != "2" || body.Env["GOMEMLIMIT"] != "256MiB" || body.MemoryLimitMB != 4096 || body.CPUTimeSec != 45 || body.TimeoutSec != 60 || body.MaxProcesses != 32 || body.MaxOpenFiles != 64 {
 				t.Errorf("unsafe compiler invocation: %+v", body)
 			}
 			_ = json.NewEncoder(w).Encode(geometrySandboxExecResult{ExitCode: 0, Containment: &geometryContainment{Backend: "bwrap", Enforcements: []string{"filesystem-write-containment"}}})
@@ -143,6 +143,39 @@ func TestCleanupGeometrySandboxStopsAndObservesBeforeDelete(t *testing.T) {
 	}
 	if !deleted {
 		t.Fatal("sandbox was not deleted after process quiescence")
+	}
+}
+
+func TestGeometryCompileSandboxCleansCreatedScopeWhenWorkspaceMetadataIsInvalid(t *testing.T) {
+	workspace := t.TempDir()
+	var deleted bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes":
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(geometrySandbox{ID: "21234567-89ab-cdef-0123-456789abcdef"})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/processes/kill-all"):
+			_ = json.NewEncoder(w).Encode(geometrySandboxKillAllResult{})
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/processes"):
+			_ = json.NewEncoder(w).Encode(geometrySandboxProcesses{})
+		case r.Method == http.MethodDelete:
+			deleted = true
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected cleanup request %s %s", r.Method, r.URL)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	oldResolve := resolveGeometrySandbox
+	resolveGeometrySandbox = func(context.Context) (string, error) { return server.URL, nil }
+	defer func() { resolveGeometrySandbox = oldResolve }()
+	err := runGeometryCompileSandbox(context.Background(), workspace, GeometryWorkerManifest{AttemptID: "31234567-89ab-cdef-0123-456789abcdef"})
+	if err == nil || !strings.Contains(err.Error(), "no workspace path") {
+		t.Fatalf("error=%v, want invalid-workspace-metadata refusal", err)
+	}
+	if !deleted {
+		t.Fatal("sandbox created with malformed metadata was leaked instead of cleaned")
 	}
 }
 

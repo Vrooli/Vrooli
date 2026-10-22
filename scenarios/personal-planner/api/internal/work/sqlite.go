@@ -13,6 +13,7 @@ import (
 
 type (
 	SQLExecutor interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 		ExecContext(context.Context, string, ...any) (sql.Result, error)
 		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 		QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -102,7 +103,14 @@ func (s *sqliteRepository) List(ctx context.Context, limit int) ([]WorkItem, err
 }
 
 func (s *sqliteRepository) Snooze(ctx context.Context, id, until, reason string) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE work_items SET snoozed_until=?,updated_at=? WHERE id=? AND status<>'complete'`, until, s.clock.Now().UTC().Format(time.RFC3339Nano), id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin snooze for work item %q: %w", id, err)
+	}
+	defer tx.Rollback()
+
+	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	result, err := tx.ExecContext(ctx, `UPDATE work_items SET snoozed_until=?,updated_at=? WHERE id=? AND status<>'complete'`, until, now, id)
 	if err != nil {
 		return fmt.Errorf("snooze work item %q: %w", id, err)
 	}
@@ -113,16 +121,25 @@ func (s *sqliteRepository) Snooze(ctx context.Context, id, until, reason string)
 	if count != 1 {
 		return ErrWorkItemNotFound{id}
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO work_item_snoozes(id,work_item_id,until_date,reason,created_at) VALUES (?,?,?,?,?)`, s.idGenerator(), id, until, reason, s.clock.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO work_item_snoozes(id,work_item_id,until_date,reason,created_at) VALUES (?,?,?,?,?)`, s.idGenerator(), id, until, reason, now); err != nil {
 		return fmt.Errorf("record snooze for work item %q: %w", id, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit snooze for work item %q: %w", id, err)
 	}
 	return nil
 }
 
 func (s *sqliteRepository) UpdateEstimate(ctx context.Context, id string, minutes int, reason string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin estimate update for work item %q: %w", id, err)
+	}
+	defer tx.Rollback()
+
 	var previous int
 	var status string
-	if err := s.db.QueryRowContext(ctx, `SELECT remaining_minutes,status FROM work_items WHERE id=?`, id).Scan(&previous, &status); errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `SELECT remaining_minutes,status FROM work_items WHERE id=?`, id).Scan(&previous, &status); errors.Is(err, sql.ErrNoRows) {
 		return ErrWorkItemNotFound{id}
 	} else if err != nil {
 		return fmt.Errorf("read work item %q for estimate update: %w", id, err)
@@ -130,11 +147,14 @@ func (s *sqliteRepository) UpdateEstimate(ctx context.Context, id string, minute
 		return ErrInvalidWorkItem{"id", "completed work items cannot be re-estimated"}
 	}
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := s.db.ExecContext(ctx, `UPDATE work_items SET remaining_minutes=?,updated_at=? WHERE id=? AND status<>'complete'`, minutes, now, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE work_items SET remaining_minutes=?,updated_at=? WHERE id=? AND status<>'complete'`, minutes, now, id); err != nil {
 		return fmt.Errorf("update estimate for work item %q: %w", id, err)
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO work_item_estimation_changes(id,work_item_id,previous_minutes,new_minutes,reason_code,changed_at) VALUES (?,?,?,?,?,?)`, s.idGenerator(), id, previous, minutes, reason, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO work_item_estimation_changes(id,work_item_id,previous_minutes,new_minutes,reason_code,changed_at) VALUES (?,?,?,?,?,?)`, s.idGenerator(), id, previous, minutes, reason, now); err != nil {
 		return fmt.Errorf("record estimate change for %q: %w", id, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit estimate update for work item %q: %w", id, err)
 	}
 	return nil
 }
@@ -150,7 +170,12 @@ func (s *sqliteRepository) Complete(ctx context.Context, id string) error {
 	}
 	now := s.clock.Now().UTC()
 	completedAt := now.Format(time.RFC3339Nano)
-	result, err := s.db.ExecContext(ctx, `UPDATE work_items SET status='complete',remaining_minutes=0,completed_at=?,updated_at=? WHERE id=? AND status<>'complete'`, completedAt, completedAt, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin completion for work item %q: %w", id, err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE work_items SET status='complete',remaining_minutes=0,completed_at=?,updated_at=? WHERE id=? AND status<>'complete'`, completedAt, completedAt, id)
 	if err != nil {
 		return fmt.Errorf("complete work item %q: %w", id, err)
 	}
@@ -161,11 +186,14 @@ func (s *sqliteRepository) Complete(ctx context.Context, id string) error {
 	}
 	// Completing an item does not provide a measured actual. The estimate and
 	// remaining estimate cannot be used to manufacture actual time or variance.
-	if _, err := s.db.ExecContext(ctx, `UPDATE milestones SET status='complete',completed_date=?,updated_at=?,revision=revision+1 WHERE id IN (SELECT l.milestone_id FROM milestone_work_links l WHERE l.work_item_id=?) AND status<>'complete' AND NOT EXISTS (SELECT 1 FROM milestone_prerequisites p JOIN milestones prerequisite ON prerequisite.id=p.prerequisite_milestone_id WHERE p.milestone_id=milestones.id AND prerequisite.status<>'complete')`, now.Format("2006-01-02"), now.Unix(), id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE milestones SET status='complete',completed_date=?,updated_at=?,revision=revision+1 WHERE id IN (SELECT l.milestone_id FROM milestone_work_links l WHERE l.work_item_id=?) AND status<>'complete' AND NOT EXISTS (SELECT 1 FROM milestone_prerequisites p JOIN milestones prerequisite ON prerequisite.id=p.prerequisite_milestone_id WHERE p.milestone_id=milestones.id AND prerequisite.status<>'complete')`, now.Format("2006-01-02"), now.Unix(), id); err != nil {
 		return fmt.Errorf("advance linked milestones for %q: %w", id, err)
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE goals SET status='complete',progress_basis_points=10000,completed_date=?,updated_at=?,revision=revision+1 WHERE progress_method='milestones' AND id IN (SELECT DISTINCT goal_id FROM milestones WHERE id IN (SELECT milestone_id FROM milestone_work_links WHERE work_item_id=?)) AND NOT EXISTS (SELECT 1 FROM milestones remaining WHERE remaining.goal_id=goals.id AND remaining.status<>'complete')`, now.Format("2006-01-02"), now.Unix(), id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE goals SET status='complete',progress_basis_points=10000,completed_date=?,updated_at=?,revision=revision+1 WHERE progress_method='milestones' AND id IN (SELECT DISTINCT goal_id FROM milestones WHERE id IN (SELECT milestone_id FROM milestone_work_links WHERE work_item_id=?)) AND NOT EXISTS (SELECT 1 FROM milestones remaining WHERE remaining.goal_id=goals.id AND remaining.status<>'complete')`, now.Format("2006-01-02"), now.Unix(), id); err != nil {
 		return fmt.Errorf("advance linked goals for %q: %w", id, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit completion for work item %q: %w", id, err)
 	}
 	return nil
 }

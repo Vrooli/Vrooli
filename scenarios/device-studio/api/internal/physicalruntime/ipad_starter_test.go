@@ -275,6 +275,102 @@ func TestIPadCandidateUsesPinnedDerivativeAndCandidateOnlyMeasurements(t *testin
 	}
 }
 
+func TestIPadLandscapeCandidateRotatesOnlyScreenUVsAndPreservesTableContact(t *testing.T) {
+	source, err := starterAssets.ReadFile("assets/ipad/ipad-mini-screen-uv-normalized.glb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	derived, err := rotateScreenUVQuarterTurn(source, "iPad Mini_Screen_0", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(derived) != 1939668 || sha256Hex(derived) != ipadLandscapeGLBSHA256 {
+		t.Fatalf("quarter-turn derivative changed: size=%d sha=%s", len(derived), sha256Hex(derived))
+	}
+	before, err := ipadScreenUVs(source, 36)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := ipadScreenUVs(derived, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != len(after) {
+		t.Fatalf("screen UV count changed: %d to %d", len(before), len(after))
+	}
+	for i := range before {
+		if math.Abs(after[i][0]-before[i][1]) > 1e-7 || math.Abs(after[i][1]-(1-before[i][0])) > 1e-7 {
+			t.Fatalf("UV %d was not quarter-turned: before=%v after=%v", i, before[i], after[i])
+		}
+	}
+	ctx := database.WithTestMode(context.Background())
+	owners := newReviewedStarterInstallTestOwners(t, ctx)
+	state, err := owners.InitializeReviewedIPadLandscapeStarter(ctx)
+	if err != nil {
+		t.Fatalf("initialize landscape candidate: %v", err)
+	}
+	if state.Device.DeviceID != ipadLandscapeDeviceID || state.Device.State != devices.DeviceRevisionCandidate || state.Device.Candidate.Definition.Qualification != "unqualified" || state.Scene.SceneID != ipadLandscapeSceneID || state.Preset.PresetID != ipadLandscapePresetID {
+		t.Fatalf("landscape candidate identity or qualification differs: device=%+v scene=%s preset=%s", state.Device, state.Scene.SceneID, state.Preset.PresetID)
+	}
+	if state.Device.Candidate.Definition.Displays[0].CoordinateMetric.WidthMM <= state.Device.Candidate.Definition.Displays[0].CoordinateMetric.HeightMM || state.Preset.Setup.DeviceRootRest == nil || state.Preset.Setup.SceneSupportId != state.Placement.SceneSupportID || state.Preset.Setup.CameraId != ipadLandscapeCameraID {
+		t.Fatalf("landscape display axes/root/support/camera were not versioned together: display=%+v setup=%+v", state.Device.Candidate.Definition.Displays[0], state.Preset.Setup)
+	}
+	minimum, err := ipadGLBPlacedMinimumY(derived, state.Placement)
+	if err != nil || math.Abs(minimum-.75) > .0005 {
+		t.Fatalf("landscape root rest must preserve full-body tabletop contact after quarter-turn: minimumY=%.9f err=%v", minimum, err)
+	}
+}
+
+func TestIPadLandscapeV2UsesInverseUVTurnAndPreservesV1Candidate(t *testing.T) {
+	source, err := starterAssets.ReadFile("assets/ipad/ipad-mini-screen-uv-normalized.glb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	derived, err := rotateScreenUVQuarterTurnCounterClockwise(source, "iPad Mini_Screen_0", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(derived) != 1939668 || sha256Hex(derived) != ipadLandscapeV2GLBSHA256 {
+		t.Fatalf("inverse quarter-turn derivative changed: size=%d sha=%s", len(derived), sha256Hex(derived))
+	}
+	before, err := ipadScreenUVs(source, 36)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := ipadScreenUVs(derived, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != len(after) {
+		t.Fatalf("screen UV count changed: %d to %d", len(before), len(after))
+	}
+	for i := range before {
+		if math.Abs(after[i][0]-(1-before[i][1])) > 1e-7 || math.Abs(after[i][1]-before[i][0]) > 1e-7 {
+			t.Fatalf("UV %d was not inverse-quarter-turned: before=%v after=%v", i, before[i], after[i])
+		}
+	}
+	ctx := database.WithTestMode(context.Background())
+	owners := newReviewedStarterInstallTestOwners(t, ctx)
+	v1, err := owners.InitializeReviewedIPadLandscapeStarter(ctx)
+	if err != nil {
+		t.Fatalf("initialize historical landscape v1: %v", err)
+	}
+	v2, err := owners.InitializeReviewedIPadLandscapeV2Starter(ctx)
+	if err != nil {
+		t.Fatalf("initialize corrected landscape v2: %v", err)
+	}
+	if v1.Device.DeviceID != ipadLandscapeDeviceID || v1.Device.SHA256 == v2.Device.SHA256 || v2.Device.DeviceID != ipadLandscapeV2DeviceID || v2.Device.State != devices.DeviceRevisionCandidate || v2.Device.Candidate.Definition.Qualification != "unqualified" || v2.Scene.SceneID != ipadLandscapeV2SceneID || v2.Preset.PresetID != ipadLandscapeV2PresetID {
+		t.Fatalf("versioned candidates must preserve v1 and keep corrected v2 unqualified: v1=%+v v2=%+v", v1.Device, v2.Device)
+	}
+	if v2.Device.Candidate.Definition.Displays[0].CoordinateMetric.WidthMM <= v2.Device.Candidate.Definition.Displays[0].CoordinateMetric.HeightMM || v2.Preset.Setup.DeviceRootRest == nil || v2.Preset.Setup.SceneSupportId != v2.Placement.SceneSupportID || v2.Preset.Setup.CameraId != ipadLandscapeV2CameraID {
+		t.Fatalf("landscape v2 display axes/root/support/camera were not versioned together: display=%+v setup=%+v", v2.Device.Candidate.Definition.Displays[0], v2.Preset.Setup)
+	}
+	minimum, err := ipadGLBPlacedMinimumY(derived, v2.Placement)
+	if err != nil || math.Abs(minimum-.75) > .0005 {
+		t.Fatalf("corrected landscape root rest must preserve tabletop contact: minimumY=%.9f err=%v", minimum, err)
+	}
+}
+
 func ipadScreenUVs(glb []byte, accessorIndex int) ([][2]float64, error) {
 	if len(glb) < 20 || string(glb[:4]) != "glTF" || binary.LittleEndian.Uint32(glb[4:8]) != 2 || int(binary.LittleEndian.Uint32(glb[8:12])) != len(glb) {
 		return nil, errors.New("invalid pinned iPad GLB header")

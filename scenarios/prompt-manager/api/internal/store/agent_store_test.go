@@ -2,9 +2,50 @@ package store
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 )
+
+func TestAgentCreateUsesExactCreationOperationBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	store := NewFileAgentStore(root)
+	principalFor := func(rules []identity.OperationRule, policy string) context.Context {
+		return identity.WithPrincipal(context.Background(), identity.Principal{
+			Kind: identity.ActorAgent, Subject: "commissioning-run", Verified: true,
+			Scopes: []string{"prompt-manager:read", "prompt-manager:write"},
+			Grant:  &identity.OperationGrant{ID: "reviewed", Policy: policy, Approver: "owner", ExpiresAt: time.Now().Add(time.Hour), Rules: rules},
+		})
+	}
+	agent := func() *Agent { return &Agent{ID: "new-worker", DisplayName: "New Worker"} }
+	if err := store.Create(principalFor([]identity.OperationRule{{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/delivery"}}}, "team-management"), agent()); !errors.Is(err, authn.ErrOperation) {
+		t.Fatalf("unrelated team-management authority error=%v, want refusal", err)
+	}
+	if err := store.Create(principalFor([]identity.OperationRule{{Policy: "prompt-agent-creation", Operations: []string{"agent.create"}, Targets: []string{"prompt-manager:agent/other"}}}, "prompt-agent-creation"), agent()); !errors.Is(err, authn.ErrOperation) {
+		t.Fatalf("wrong target authority error=%v, want refusal", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "agents", "new-worker")); !os.IsNotExist(err) {
+		t.Fatalf("refused creation left catalog files behind: stat err=%v", err)
+	}
+
+	rules := []identity.OperationRule{
+		{Policy: "prompt-agent-creation", Operations: []string{"agent.create"}, Targets: []string{"prompt-manager:agent/new-worker"}},
+		{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/delivery"}},
+	}
+	ctx := principalFor(rules, "prompt-agent-creation+team-management")
+	if err := store.Create(ctx, agent()); err != nil {
+		t.Fatalf("valid exact agent.create rule in multi-policy grant refused: %v", err)
+	}
+	if _, err := store.Get(context.Background(), "new-worker"); err != nil {
+		t.Fatalf("authorized agent not persisted: %v", err)
+	}
+}
 
 func TestAgentUpdateReplacesEveryMutableFieldAndPreservesIdentity(t *testing.T) {
 	ctx := context.Background()

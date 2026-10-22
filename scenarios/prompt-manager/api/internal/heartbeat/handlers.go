@@ -1281,6 +1281,11 @@ func (h *Handlers) SetHeartbeatInstructions(w http.ResponseWriter, r *http.Reque
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
 	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
 		http.Error(w, "Team not found", http.StatusNotFound)
 		return
@@ -1389,27 +1394,27 @@ func (h *Handlers) StopRunning(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Request agent-manager to stop the run (best-effort)
-	if h.agentClient != nil {
-		if err := h.agentClient.StopRun(ctx, run.RunID); err != nil {
-			log.Printf("heartbeat: best-effort StopRun(%s) failed: %v", run.RunID, err)
-		}
+	// Agent Manager owns execution. Keep the local observer and projection until
+	// it confirms the stop; a failed request is not evidence that the run ended.
+	if h.agentClient == nil {
+		http.Error(w, "Agent Manager is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := h.agentClient.StopRun(ctx, run.RunID); err != nil {
+		log.Printf("heartbeat: StopRun(%s) failed: %v", run.RunID, err)
+		http.Error(w, "Could not stop the active run", http.StatusBadGateway)
+		return
 	}
 
-	// Cancel the local waitForCompletion goroutine (nil for recovered runs)
+	// Ask the local waiter to reconcile the now-confirmed terminal owner. It
+	// owns projection, registry cleanup, and exact queue-slot release.
 	if run.CancelFn != nil {
 		run.CancelFn()
-	}
-
-	// Remove from registry
-	h.runRegistry.Unregister(teamID, agentID)
-
-	// Update heartbeat config status to cancelled
-	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
-	if err == nil && config != nil && config.LastExecution != nil && config.LastExecution.Status == store.HeartbeatStatusRunning {
-		config.LastExecution.Status = store.HeartbeatStatusCancelled
-		config.LastExecution.EndedAt = time.Now().UTC().Format(time.RFC3339)
-		_ = h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	} else if h.executor == nil || !h.executor.WatchConfirmedStoppedRun(teamID, agentID, run.RunID) {
+		// Recovered parked owners intentionally have no local waiter. If the
+		// owner cannot be reattached now, preserve its obligation for scheduled
+		// reconciliation instead of claiming local completion.
+		log.Printf("heartbeat: stop confirmed for %s/%s run %s; terminal projection remains pending reconciliation", teamID, agentID, run.RunID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -2078,6 +2083,10 @@ func (h *Handlers) ListHeartbeatAttempts(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "team store not configured", http.StatusServiceUnavailable)
 		return
 	}
+	if _, provided := r.URL.Query()["cursor"]; provided {
+		http.Error(w, "cursor pagination is not supported; use limit and offset within the bounded recent window", http.StatusBadRequest)
+		return
+	}
 
 	limit := 100
 	offset := 0
@@ -2098,7 +2107,7 @@ func (h *Handlers) ListHeartbeatAttempts(w http.ResponseWriter, r *http.Request)
 		offset = parsed
 	}
 
-	attempts, total, err := h.teamStore.ListHeartbeatAttempts(
+	page, err := h.teamStore.ListHeartbeatAttemptPage(
 		r.Context(),
 		r.URL.Query().Get("team_id"),
 		r.URL.Query().Get("agent_id"),
@@ -2114,9 +2123,11 @@ func (h *Handlers) ListHeartbeatAttempts(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(HeartbeatAttemptListResponse{
-		Attempts: attempts,
-		Total:    total,
-		HasMore:  offset+len(attempts) < total,
+		Attempts:      page.Attempts,
+		Total:         page.Total,
+		TotalExact:    page.TotalExact,
+		HasMore:       page.HasMore,
+		ScannedEvents: page.ScannedEvents,
 	})
 }
 
@@ -2399,6 +2410,7 @@ func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request
 			RunningAgentIDs:                []string{},
 			Queue:                          []string{},
 			PreparationInterruptedAgentIDs: []string{},
+			Owners:                         []TeamExecutionOwner{},
 			QueuePolicy:                    team.Execution.QueuePolicy,
 			MaxConcurrentRuns:              team.Execution.MaxConcurrentRuns,
 		})
@@ -2509,6 +2521,7 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 			LogPath:         filepath.Base(config.LastExecution.LogPath),
 			Error:           config.LastExecution.Error,
 			AdmissionReason: config.LastExecution.AdmissionReason,
+			AdmissionOrigin: config.LastExecution.AdmissionOrigin,
 		}
 	}
 	if config.LastSuccessfulExecution != nil {
@@ -2520,6 +2533,7 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 			LogPath:         filepath.Base(config.LastSuccessfulExecution.LogPath),
 			Error:           config.LastSuccessfulExecution.Error,
 			AdmissionReason: config.LastSuccessfulExecution.AdmissionReason,
+			AdmissionOrigin: config.LastSuccessfulExecution.AdmissionOrigin,
 		}
 	}
 
@@ -2639,10 +2653,13 @@ func (h *Handlers) GetHandoffHistory(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentFilter := r.URL.Query().Get("agent")
 	last := 20
-	if v := r.URL.Query().Get("last"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			last = n
+	if raw := r.URL.Query().Get("last"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > store.MaxHandoffHistoryEntries {
+			http.Error(w, fmt.Sprintf("last must be between 1 and %d", store.MaxHandoffHistoryEntries), http.StatusBadRequest)
+			return
 		}
+		last = n
 	}
 
 	entries, err := h.teamStore.GetHandoffHistory(r.Context(), teamID, agentFilter, last)
@@ -3147,6 +3164,10 @@ func (h *Handlers) ClearTeamQueueRunning(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	if h.teamExecStore == nil {
 		http.Error(w, "team execution store not configured", http.StatusServiceUnavailable)
@@ -3160,6 +3181,10 @@ func (h *Handlers) ClearTeamQueueRunning(w http.ResponseWriter, r *http.Request)
 			http.Error(w, err.Error(), http.StatusNotFound)
 		case IsRunningStillActive(err):
 			http.Error(w, err.Error(), http.StatusConflict)
+		case IsRunningOwnerUnverified(err):
+			http.Error(w, err.Error(), http.StatusConflict)
+		case IsRunningOwnerLookupFailure(err):
+			http.Error(w, err.Error(), http.StatusBadGateway)
 		default:
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

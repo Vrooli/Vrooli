@@ -360,30 +360,32 @@
       "id": "material-metaphor",
       "intent": [
         "broll",
-        "materials",
-        "atmosphere"
+        "material",
+        "3d-look",
+        "metaphor",
+        "focus"
       ],
       "media": [
-        "generated-still",
-        "real-3d"
+        "generated-still-motion"
       ],
       "complexity": "medium",
       "durationRange": [
-        3,
-        7
+        2,
+        4
       ],
       "requires": [
-        "approved-styleframe",
-        "provenance"
+        "story-job",
+        "imagegen-provenance",
+        "full-size-styleframe",
+        "timed-motion-review"
       ],
-      "notes": "Use light, material and silhouette to express a story idea; keep it distinct from product evidence.",
+      "notes": "Brief rich materials/light/negative space; add restrained camera and independent light motion, then match cut to actual product proof. Preserve original plate pixels and prompt. See broll.md.",
       "antiPatterns": [
-        "Basic geometry with extra shadows presented as finished art."
+        "Calling a moving still true3D; generic filler; using generated art as product evidence."
       ],
       "implementationRefs": [
-        "capture.md",
-        "review.md",
-        "examples.json"
+        "broll.md",
+        "production.md"
       ]
     },
     {
@@ -471,6 +473,41 @@
         "capture.md",
         "review.md",
         "examples.json"
+      ]
+    },
+    {
+      "id": "procedural-spatial-insert",
+      "intent": [
+        "broll",
+        "3d",
+        "blender",
+        "geometry",
+        "parallax",
+        "orbit"
+      ],
+      "media": [
+        "procedural-3d"
+      ],
+      "complexity": "high",
+      "durationRange": [
+        2,
+        4
+      ],
+      "requires": [
+        "story-job",
+        "qualified-installed-renderer",
+        "scene-script",
+        "materials-lights-camera",
+        "representative-frame-and-motion",
+        "bounded-owned-process"
+      ],
+      "notes": "Use actual geometry when changing occlusion, orbit or moving parts matter. Retain scene, script, engine/device, samples and rendered frames. Inspect material response before scaling. CPU rendering is valid; reservation is not GPU execution evidence.",
+      "antiPatterns": [
+        "Reviving fixed effort paths as a service; GPU claims from environment guesses; basic primitives plus glow passed as premium; needless insert quota."
+      ],
+      "implementationRefs": [
+        "broll.md",
+        "safety.md"
       ]
     }
   ]

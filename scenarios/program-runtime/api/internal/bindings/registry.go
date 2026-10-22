@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protodesc"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliapp"
@@ -682,6 +683,7 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if client == nil {
 		client = &http.Client{}
 	}
+	client = apihttp.NewTestModeClient(client)
 	resp, err := client.Do(req)
 	if err != nil {
 		r.invalidateReachability(binding.GetScenario())
@@ -977,7 +979,7 @@ func resolveMethod(scenario, key string, methods map[string][]methodInfo, shared
 			shared = append(shared, candidate)
 			continue
 		}
-		if strings.HasPrefix(filepath.ToSlash(candidate.source), scenario+"/") {
+		if scenarioOwnsDescriptorSource(scenario, candidate.source) {
 			own = append(own, candidate)
 			continue
 		}
@@ -1507,6 +1509,19 @@ func (r *Registry) sourceBelongsTo(scenario, source string) bool {
 	if scenario == "vrooli" && strings.HasPrefix(path, "cli/v1/") {
 		return true
 	}
+	if scenarioOwnsDescriptorSource(scenario, path) {
+		return true
+	}
+	for _, prefix := range r.shared {
+		if strings.HasPrefix(path, filepath.ToSlash(prefix)) {
+			return true
+		}
+	}
+	return false
+}
+
+func scenarioOwnsDescriptorSource(scenario, source string) bool {
+	path := filepath.ToSlash(source)
 	for _, prefix := range []string{
 		scenario + "/",
 		"schemas/" + scenario + "/",
@@ -1514,11 +1529,6 @@ func (r *Registry) sourceBelongsTo(scenario, source string) bool {
 		"scenarios/" + scenario + "/",
 	} {
 		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-	for _, prefix := range r.shared {
-		if strings.HasPrefix(path, filepath.ToSlash(prefix)) {
 			return true
 		}
 	}

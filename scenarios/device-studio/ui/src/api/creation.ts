@@ -154,11 +154,11 @@ async function decodeSessionResponse(response: Response): Promise<GeometryCreati
 }
 
 export async function createGeometryCreationSession(projectId: string, request: {
-  candidateId: string; idempotencyKey: string; brief: string; envelopeMM: [number, number, number]; referenceMediaIDs: string[];
+  candidateId: string; idempotencyKey: string; brief: string; envelopeMM: [number, number, number]; referenceMediaIDs: string[]; confirmLocalAI: boolean;
 }): Promise<GeometryCreationSession> {
   const response = await fetch(fileURL(`/projects/${encodeURIComponent(projectId)}/geometry-creation-sessions`), {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ candidate_id: request.candidateId, idempotency_key: request.idempotencyKey, brief: request.brief, envelope_mm: request.envelopeMM, reference_media_ids: request.referenceMediaIDs, funding_route: "local", confirm_local_ai: true }),
+    body: JSON.stringify({ candidate_id: request.candidateId, idempotency_key: request.idempotencyKey, brief: request.brief, envelope_mm: request.envelopeMM, reference_media_ids: request.referenceMediaIDs, funding_route: "local", confirm_local_ai: request.confirmLocalAI }),
     cache: "no-store",
   });
   return decodeSessionResponse(response);
@@ -171,11 +171,11 @@ export async function getGeometryCreationSession(sessionId: string): Promise<Geo
 
 export async function refineGeometryCreationSession(sessionId: string, request: {
   candidateId: string; idempotencyKey: string; brief: string; envelopeMM: [number, number, number]; referenceMediaIDs: string[];
-  correctionSourceJobId: string; correctionMode: "semantic_repair" | "visual_refinement"; correctionRecipeSha256: string; correctionFeedback: string; confirmScopeExpansion: boolean;
+  correctionSourceJobId: string; correctionMode: "semantic_repair" | "visual_refinement"; correctionRecipeSha256: string; correctionFeedback: string; confirmScopeExpansion: boolean; confirmLocalAI: boolean;
 }): Promise<GeometryCreationSession> {
   const response = await fetch(fileURL(`/geometry-creation-sessions/${encodeURIComponent(sessionId)}/refinements`), {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ candidate_id: request.candidateId, idempotency_key: request.idempotencyKey, brief: request.brief, envelope_mm: request.envelopeMM, reference_media_ids: request.referenceMediaIDs, funding_route: "local", confirm_local_ai: true, correction_source_job_id: request.correctionSourceJobId, correction_mode: request.correctionMode, correction_recipe_sha256: request.correctionRecipeSha256, correction_feedback: request.correctionFeedback, confirm_scope_expansion: request.confirmScopeExpansion }),
+    body: JSON.stringify({ candidate_id: request.candidateId, idempotency_key: request.idempotencyKey, brief: request.brief, envelope_mm: request.envelopeMM, reference_media_ids: request.referenceMediaIDs, funding_route: "local", confirm_local_ai: request.confirmLocalAI, correction_source_job_id: request.correctionSourceJobId, correction_mode: request.correctionMode, correction_recipe_sha256: request.correctionRecipeSha256, correction_feedback: request.correctionFeedback, confirm_scope_expansion: request.confirmScopeExpansion }),
     cache: "no-store",
   });
   return decodeSessionResponse(response);

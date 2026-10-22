@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "integration",
-    "description": "Public operations and launch-video integration. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Public operations and launch-video integration. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },

@@ -1,0 +1,19 @@
+{
+  "run_id": "20261021-003312-ed22a0ca",
+  "target": "personal-planner",
+  "status": "failed",
+  "started_at": "2026-10-21T00:33:13Z",
+  "elapsed_seconds": 27.5,
+  "verdict": "FAIL",
+  "error": "start target scenario personal-planner: exit status 1; lifecycle start output: starting personal-planner...\ntime=2026-10-20T20:33:15.119-04:00 level=INFO msg=\"Scenario start requested\" component=vrooli subsystem=lifecycle scenario=personal-planner best_effort=false clean_stale=true force_setup=false force_lifecycle=false lifecycle_override_reason=\"\"\ntime=2026-10-20T20:33:24.883-04:00 level=INFO msg=\"Freshness arbitration: degrading restart to rebuild-only (shared dependency has other live consumers)\" component=vrooli subsystem=lifecycle scenario=scenario-authenticator freshness_reason=\"Component api: api/scenario-authenticator-api stale (size changed): internal/scenarioruntime/schema.go; Component ui: ui/dist/index.html stale (build input changed): shared_package:@vrooli/proto-types:generate\"\nscenario-authenticator: rebuilding stale dependency without restart per freshness_policy=rebuild_only (Component api: api/scenario-authenticator-api stale (size changed): internal/scenarioruntime/schema.go; Component ui: ui/dist/index.html stale (build input changed): shared_package:@vrooli/proto-types:generate)\ntime=2026-10-20T20:33:24.884-04:00 level=INFO msg=\"Rebuilding stale dependency without restart\" component=vrooli subsystem=lifecycle scenario=scenario-authenticator freshness_policy=rebuild_only freshness_reason=\"Component api: api/scenario-authenticator-api stale (size changed): internal/scenarioruntime/schema.go; Component ui: ui/dist/index.html stale (build input changed): shared_package:@vrooli/proto-types:generate\"\npersonal-planner: dependency notification-hub already running; reusing existing process\ntime=2026-10-20T20:33:40.405-04:00 level=INFO msg=\"Lifecycle run failed; its log is retained\" component=vrooli subsystem=lifecycle scenario=personal-planner run_id=20261021-003338.759425155-2400841 retained_log=/home/matthalloran8/.vrooli/state/lifecycle-runs/personal-planner/20261021-003338.759425155-2400841.stage.setup.log\ntime=2026-10-20T20:33:40.406-04:00 level=ERROR msg=\"Scenario start failed\" component=vrooli subsystem=lifecycle scenario=personal-planner error.message=\"prepare replacement artifacts for personal-planner: component api: build component api: exit status 1\" error.type=*fmt.wrapError error.category=external error.exit_code=1\n\n✗ Failed to start 'personal-planner'\n  Error: prepare replacement artifacts for personal-planner: component api: build component api: exit status 1\n  Full log: /home/matthalloran8/.vrooli/logs/personal-planner.log\n  Tail:     vrooli scenario logs personal-planner --tail 100",
+  "standing": {
+    "lifecycle": "terminal",
+    "terminal_outcome": "failed",
+    "owner": "test-genie",
+    "operation_id": "20261021-003312-ed22a0ca",
+    "started_at": "2026-10-21T00:33:13Z",
+    "last_progress_at": "2026-10-21T00:33:40Z",
+    "elapsed_seconds": 27.5,
+    "directive": "inspect"
+  }
+}

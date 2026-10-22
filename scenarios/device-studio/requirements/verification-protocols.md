@@ -1,6 +1,6 @@
 # Device Studio planned verification protocols
 
-**Status: NOT EXECUTED. No runtime, manual attestation or release evidence is recorded here.**
+**Status: Requirement-level execution remains incomplete. Scoped runtime and manual-review evidence exists for named requirements below; see the [current delivery evidence map](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#p0-requirement-evidence-crosswalk). No whole-release acceptance is recorded here.**
 
 These are reviewable procedures for the unimplemented product contract. Execute a case only when its behavior and supported owner adapters exist. Missing capability is NOT RUN or FAIL, never PASS. Do not invent test commands, provider results, artifact files or a manual-log entry. All fixture dimensions are explicit test inputs or source-backed references; they are not manufactured product facts.
 
@@ -764,9 +764,9 @@ Scenario: DS-JOB-CACHE
 
 **Counterexample / rejection oracle:** A static plate cannot inherit changing reflection, occlusion, geometry or camera guarantees.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No product-level render replay or stationary replacement comparison has been executed. Focused owner tests are implementation evidence only.
 
-**Planned automation:** Cache invalidation/property tests and stationary replacement comparison.
+**Automation:** The owner now has opt-in exact-fingerprint reuse and cache invalidation tests. Native stationary replacement comparison remains unexecuted.
 
 ### DS-JOB-ACCOUNTING
 

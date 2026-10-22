@@ -24,8 +24,9 @@ The first observation admits a run. Later schedule ticks are quiet when the
 selected bounded source identities are unchanged, and admit again when any
 selected identity changes. Admission evidence is runtime-only, stored beside
 the member heartbeat state rather than in `heartbeat.json`, so polling does not
-create configuration revisions. Manual triggers bypass this gate. Finite-leader
-heartbeats retain their own admission protocol.
+create configuration revisions. Manual triggers bypass this gate. Delivery
+leaders use the same heartbeat admission and execution path as other members;
+their effort association is recorded on the resulting run.
 
 The gate is deliberately fail-open: if source evidence or its runtime baseline
 cannot be read, the scheduled run is admitted. A failed queue or execution does
@@ -74,97 +75,19 @@ Treat `effectiveState` as the execution authority:
 | `scheduler-failed` | Startup failed; the response retains the startup reason. |
 | `unavailable` | Prompt Manager could not establish a trustworthy state; do not infer that execution is active. |
 
-All scheduled, manual, retry, and finite-leader dispatch paths re-check the
-team archive/enable state and heartbeat-control gates before starting work.
+All scheduled, manual, and retry dispatch paths re-check the team archive/enable
+state and heartbeat-control gates before starting work.
 
 The team dashboard labels local-log coverage separately and leaves total run
 counts and success rate unavailable; empty logs are not no execution.
 
-## Finite effort leader binding
+## Team-native effort commissioning
 
-The optional `finiteLeader` heartbeat configuration binds `effortRef`,
-`acceptedRevision`, `coordinatorPromptRef` and 1–8 `sourceRefs` to the heartbeat's
-explicit `profileKey`. The selected member must be the active leader of a
-serialized team. Its normal assembled heartbeat prompt remains the coordinator
-prompt; references identify the accepted context and do not grant authority.
+Delivery teams use the existing shared team contract and ordinary heartbeat route. The team declares its effort reference and leader; its operating contract carries member policy and plan-of-record/source paths; and the leader member heartbeat selects the profile. Prompt Manager does not implement a separate finite-leader binding, amendment, retirement, completion, or restart API.
 
-PM retains one admission identity per effort in its existing RuntimeData store.
-The identity survives queue loss and restart. Before enabling a migration, the
-operator must settle the legacy driver and its queued, parked or uncertain owner
-operations. An unused disabled heartbeat can acquire a binding; an ordinary
-heartbeat with execution history cannot silently change into a finite leader.
+Keep a prepared team and heartbeat disabled while the receiver follows the reusable [large-effort-orchestration commissioning checklist](../../store/skills/packs/core/large-effort-orchestration/SKILL.md#61-commission-an-accurate-accessible-handoff) for the actual goal home, selected sources, and owner route. On a configured finite delivery-lead dispatch, Prompt Manager requires a valid team contract, declared leader, active member, matching profile, and exact current Agent Manager enrollment before creating a task or run. It attaches the enrollment's non-withdrawn target revision as a public, verified `orchestrator` WorkReference in the frozen CreateRun request. This is observational work identity and grants no authority. Missing, unavailable, or mismatched identity fails admission. When a prior run ID exists, PM retains that exact owner obligation as uncertain and blocks competing work until identity can be confirmed. It watches a verified active/parked owner through the existing owner path; a verified terminal owner permits a fresh dispatch under current configuration. Finite non-lead members and ordinary standing/non-delivery heartbeats remain supported without orchestrator association.
 
-The scheduler reserves before queueing and dispatch rechecks current controls.
-Unknown dispatch remains reserved. An owner run ending does not accept the
-effort; only an orchestrator leader is relaunched (see Orchestrator liveness).
-Setting `finiteLeader.retired=true` permanently fences future dispatch; disable
-and global/team pause retain the reservation. Retirement does not cancel a run.
-Identity and profile changes and binding deletion are refused.
-
-### Orchestrator liveness
-
-A finite leader whose binding declares `"keepAlive": true` is a delivery
-orchestrator (`large-effort-orchestration`). Its heartbeat (about every 30
-minutes) only keeps it alive:
-
-- While the orchestrator run is queued, running or parked, the tick observes it
-  and does nothing else.
-- When the run is terminal and the effort has no completion receipt, the tick
-  records the run in `restartHistory` (evidence `liveness-heartbeat:<status>`,
-  newest 20 kept), clears the reservation and queues one fresh leader. The new
-  run resumes from the goal home. One tick relaunches at most once.
-- A run that failed or ended within 30 minutes is short. Consecutive short
-  relaunches back off (30 minutes, then 1 hour after the previous relaunch);
-  after 3 the heartbeat stops relaunching and reports status
-  `relaunch-capped` with the reason in `error`. A healthy long run resets the
-  count; so does the explicit `Restart` operation, which is the way out of the
-  cap once the cause is repaired.
-- A completed, retired or disabled effort is never relaunched.
-
-`keepAlive` is policy, not binding identity: it can be set on an existing
-binding with `heartbeat-bind-effort --update`.
-
-**Event check-ins.** A keepAlive leader with `"checkin": {"mode": "event"}`
-is not parked between wakes. Each check-in is a fresh run that reads the goal
-home and current canon, acts once, writes the handoff and ends. When a check-in
-is terminal, the heartbeat reads Agent Manager's effort signal log
-(`ListEffortSignals`: child run ended, step-back, feedback, operator answer,
-cap stop) every `pollInterval` (default `2m`) and queues the next check-in only
-on a new signal, a failed check-in (retry), or when `backstop` (default `6h`)
-has passed since the last one ended. The first event check-in is a bootstrap.
-A quiet poll writes nothing but the settled run. Signals about the ended
-check-in itself are ignored, and the prompt lists the new signals (as owner
-data, not instructions); the signal cursor is kept in the leader state. The
-existing reservation and lock still allow one check-in at a time. Short
-check-ins are healthy: only failed check-ins (and cancellations other than a
-`token_cap` stop) count toward the relaunch backoff and cap. If Agent Manager
-does not serve the signal log, the leader keeps the parked policy and parked
-guidance above. Set the mode on an existing binding with `heartbeat-bind-effort
-<team> <member> --update --checkin-mode event [--checkin-poll 2m]
-[--checkin-backstop 6h]`; an update never changes `enabled`. The default mode
-is `parked`.
-
-Every other finite leader keeps one dispatch per effort: a terminal owner run
-neither accepts the effort nor authorizes a replacement, and recovery uses the
-explicit `Restart` operation on the exact retained run.
-
-Leaders park instead of waiting in-turn. `agent-manager run park <run-id>
---producer children --key <run-id> --timeout 15m` suspends the run with no token
-use. Agent Manager wakes the same run when any child run ends after the park, when
-the timer expires, or on `agent-manager run wake --key <run-id>`. The waiter is
-server-owned and survives an Agent Manager restart. A leader with no pending
-child ends its turn with a durable handoff; it does not claim to be parked.
-
-Focused tests: `go test ./internal/heartbeat ./internal/store ./internal/teamconfig
--run '^TestFiniteLeader|^TestOrchestratorHeartbeat'`.
-
-### Team-native qualification boundary
-
-The finite-leader binding is part of one governed team-native effort start. A
-real effort needs a finite delivery team, a validated operating contract, a
-registered Source Ledger scope and an exact accepted effort revision. Disabled, undispatched preparation may revise its content binding through `heartbeat-amend-effort` under current verified creator/approved owner authority and compare-and-swap evidence. After reservation, the owner identity fence remains immutable; amendment metadata alone never supplies accepted-content or execution authority. Keep the
-team disabled until the operator starts the goal. The effort supervisor is not
-the finite leader.
+Source acceptance stays in the effort's canonical source manifest and admitted task snapshot. A fresh receiver must open the repository-relative selected materials and record coverage and limitations in the effort's goal-home receipt before enablement. Agent Manager owns enrollment and exact run identity; Prompt Manager does not copy accepted revisions or source references into another config. The ordinary parked orchestrator and child-watch route remains the continuation model. Event check-ins are proposed and unavailable; the signal source in Agent Manager alone does not enable them. See the [heartbeat CLI commissioning route](../reference/heartbeat-cli.md#native-delivery-team-commissioning).
 
 ## Engagement Auto-Pause
 

@@ -1,5 +1,9 @@
 import type { Page } from 'rebrowser-playwright';
+import { chmodSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
+  configureAppTargetDownloadBehavior,
   selectAppTargetPage,
   validateAppTargetCapabilities,
   validateAppTargetSpec,
@@ -43,6 +47,39 @@ describe('Electron target admission', () => {
     expect(() => validateAppTargetSpec({ ...target, artifact_digest: '' })).toThrow(
       'artifact_digest'
     );
+  });
+
+  it('binds downloads to a private target-owned directory and configures Chromium', async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'bas-app-target-'));
+    chmodSync(root, 0o700);
+    const downloadPath = path.join(root, 'downloads');
+    mkdirSync(downloadPath, { mode: 0o700 });
+    chmodSync(downloadPath, 0o700);
+    try {
+      const targetWithDownloads = { ...target, test_database_root: root, download_path: downloadPath };
+      expect(() => validateAppTargetSpec(targetWithDownloads)).not.toThrow();
+      const send = jest.fn().mockResolvedValue({});
+      await configureAppTargetDownloadBehavior(targetWithDownloads, send);
+      expect(send).toHaveBeenCalledWith({
+        behavior: 'allowAndName',
+        downloadPath,
+        eventsEnabled: true,
+      });
+      await configureAppTargetDownloadBehavior(targetWithDownloads, send, 'browser-context-1');
+      expect(send).toHaveBeenLastCalledWith({
+        behavior: 'allowAndName',
+        downloadPath,
+        eventsEnabled: true,
+        browserContextId: 'browser-context-1',
+      });
+      await configureAppTargetDownloadBehavior(target, send);
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(() => validateAppTargetSpec({ ...targetWithDownloads, download_path: path.join(root, '..', 'outside') })).toThrow('downloads child');
+      chmodSync(downloadPath, 0o755);
+      expect(() => validateAppTargetSpec(targetWithDownloads)).toThrow('mode 0700');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('requires the admitted renderer id and origin', async () => {

@@ -278,12 +278,13 @@ func (s *service) Calibration(ctx context.Context, period string) (Calibration, 
 		}
 		cutoff = s.clock.Now().In(s.clock.Now().Location()).AddDate(0, 0, -days).Format("2006-01-02")
 	}
-	query := `SELECT m.reported_minutes, a.duration_minutes FROM manual_actuals m JOIN calendar_allocations a ON a.id=m.allocation_id WHERE m.allocation_id<>'' AND a.duration_minutes>0`
+	query := `SELECT SUM(m.reported_minutes), a.duration_minutes FROM manual_actuals m JOIN calendar_allocations a ON a.id=m.allocation_id WHERE m.allocation_id<>'' AND a.duration_minutes>0`
 	args := []any{}
 	if cutoff != "" {
 		query += ` AND m.local_date>=?`
 		args = append(args, cutoff)
 	}
+	query += ` GROUP BY a.id, a.duration_minutes ORDER BY MAX(m.local_date), a.id`
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return Calibration{}, fmt.Errorf("read calibration evidence: %w", err)
@@ -340,7 +341,8 @@ func (s *service) GoalVariances(ctx context.Context) ([]GoalVariance, error) {
 		FROM goals g LEFT JOIN milestones m ON m.goal_id=g.id
 		GROUP BY g.id, g.target_date, g.completed_date
 		HAVING COALESCE(NULLIF(g.target_date,''), NULLIF(MIN(NULLIF(m.original_due_date,'')),''), NULLIF(MIN(NULLIF(m.due_date,'')),''), '') <> ''
-		   AND COALESCE(NULLIF(g.completed_date,''), NULLIF(MAX(NULLIF(m.completed_date,'')),''), '') <> ''`)
+		   AND COALESCE(NULLIF(g.completed_date,''), NULLIF(MAX(NULLIF(m.completed_date,'')),''), '') <> ''
+		   AND (NULLIF(g.completed_date,'') <> '' OR (COUNT(m.goal_id) > 0 AND COUNT(CASE WHEN NULLIF(m.completed_date,'') IS NULL THEN 1 END) = 0))`)
 	if err != nil {
 		return nil, fmt.Errorf("read goal variances: %w", err)
 	}

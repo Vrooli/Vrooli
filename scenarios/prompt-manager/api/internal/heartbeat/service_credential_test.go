@@ -211,7 +211,7 @@ func TestQueuedServiceModeRefreshesRequestCredential(t *testing.T) {
 	queueDir := t.TempDir()
 	q := newTeamExecutionContext("team-1", executor, queueDir, client)
 	completed := make(chan struct{}, 1)
-	executor.OnComplete = func(_ string, agentID string) {
+	executor.OnRunComplete = func(_ string, agentID, _ string) {
 		q.OnMemberComplete(agentID)
 		completed <- struct{}{}
 	}
@@ -252,7 +252,7 @@ func TestQueuedServiceModeRefreshesRequestCredential(t *testing.T) {
 	if recoveredProof.origin != createRunCallerOriginService || recoveredProof.authorization != "" {
 		t.Fatalf("restart must restore only the service mode marker, got %+v", recoveredProof)
 	}
-	executor.OnComplete = func(_ string, agentID string) {
+	executor.OnRunComplete = func(_ string, agentID, _ string) {
 		restarted.OnMemberComplete(agentID)
 		completed <- struct{}{}
 	}

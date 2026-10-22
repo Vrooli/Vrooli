@@ -28,7 +28,10 @@ func TestLiveTreeHasNoDeclarationErrors(t *testing.T) {
 		t.Fatalf("load member declarations: %v", err)
 	}
 	skillIDs, _ := LoadSkillIDs(storeDir)
-	taxonomies, _ := LoadAllTaxonomies(repoRoot)
+	taxonomies, err := LoadAllTaxonomies(repoRoot)
+	if err != nil {
+		t.Fatalf("load canonical taxonomy declarations: %v", err)
+	}
 
 	result := Validate(members, ValidationOptions{
 		RepoRoot:   repoRoot,
@@ -58,6 +61,11 @@ func TestLiveTreeHasNoDeclarationErrors(t *testing.T) {
 	sort.Strings(rules)
 	for _, rule := range rules {
 		t.Errorf("declaration error %s: %d finding(s)", rule, byRule[rule])
+	}
+	for _, f := range result.Findings {
+		if f.Kind == KindDeclaration && f.Severity == SeverityError {
+			t.Errorf("%s: %s:%d: %s", f.Rule, f.Path, f.Line, f.Detail)
+		}
 	}
 	t.Errorf("the checked-in tree has declaration errors; run `prompt-manager graph topics` to see them, and `prompt-manager graph runtime` for the observations this gate deliberately ignores")
 }

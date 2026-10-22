@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","authoring"]
   icon: "fileedit"
   status: "active"
-  revision: 44
+  revision: 45
   createdAt: "2026-01-23T00:00:00Z"
-  updatedAt: "2026-02-04T21:15:00Z"
+  updatedAt: "2026-10-20T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager"]
@@ -91,7 +91,7 @@ You **must:**
 
 - Include `{{TARGET}}` in file paths, audit commands, and documentation paths.
 - Cite canon (`docs/agent-system/<file>.md`) instead of restating universal quality bars.
-- Set `modes[0] = "steer"` in `skill.json`.
+- Set `metadata.modes[0] = "steer"` in the authoritative `SKILL.md` frontmatter. Regenerate `skill.json` with `skill-sidecar-gen`; do not edit the generated sidecar.
 
 You **must NOT:**
 

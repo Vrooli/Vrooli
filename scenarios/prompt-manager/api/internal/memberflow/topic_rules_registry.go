@@ -68,7 +68,7 @@ func DefaultTopicRules() []Rule {
 		},
 		one("missing_destination_schema", SeverityWarning, ruleMissingDestinationSchema),
 		one("dangling_por_sink", SeverityError, ruleDanglingPORSink),
-		one("team_role_member_drift", SeverityError, options(ruleTeamRoleMemberDrift)),
+		one("team_role_member_drift", SeverityError, options(ruleTeamMembershipDrift)),
 		one("prose_topic_leak", SeverityWarning, ruleProseTopicLeak),
 		// One function, six ids. This ran six times per validation pass, each
 		// run discarding five sixths of its own output.

@@ -1,0 +1,34 @@
+{
+  "captured_at": "2026-10-20T15:24:26+00:00",
+  "attribution": "Codex bounded implementation worker for ORCH-E1-ATOMIC-LINKED-COMPLETION-20261020 after focused validation",
+  "files": [
+    {
+      "path": "scenarios/personal-planner/api/internal/work/sqlite.go",
+      "sha256": "dbb4550df54d10d7845ee394991f8fc08ff4ed740282e7b89c123779eb9f3cf0",
+      "bytes": 7933,
+      "lines": 180
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/work/sqlite_test.go",
+      "sha256": "2b4c0895b903b6d0645c8282211202abb451365e02ab14a6cc533bb819097360",
+      "bytes": 11816,
+      "lines": 185
+    }
+  ],
+  "admitted_path_deltas": [
+    {
+      "path": "scenarios/personal-planner/api/internal/work/sqlite.go",
+      "runtime_or_test_lines": 9,
+      "baseline_lines": 171,
+      "current_lines": 180,
+      "delta_explanation": "Transaction boundary and contextual error/commit handling"
+    },
+    {
+      "path": "scenarios/personal-planner/api/internal/work/sqlite_test.go",
+      "runtime_or_test_lines": 65,
+      "baseline_lines": 120,
+      "current_lines": 185,
+      "delta_explanation": "Downstream rollback and successful/idempotent completion assertions"
+    }
+  ]
+}

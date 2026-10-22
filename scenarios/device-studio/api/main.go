@@ -137,8 +137,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("physical candidate owners failed: %v", err)
 	}
-	if _, err := physicalOwners.InitializeReviewedStarter(context.Background()); err != nil {
-		log.Fatalf("reviewed physical starter initialization failed: %v", err)
+	starterAvailability, err := physicalOwners.BootstrapStartersForStartup(context.Background())
+	if err != nil {
+		log.Fatalf("physical starter bootstrap failed: %v", err)
+	}
+	log.Printf("physical starter bootstrap available=%v degraded=%d", starterAvailability.Available, len(starterAvailability.Issues))
+	for _, issue := range starterAvailability.Issues {
+		log.Printf("optional physical starter %q unavailable; existing revisions were preserved: %v", issue.StarterID, issue.Err)
 	}
 
 	libraryBlobs, err := routedblobstore.New(fileRoots, "library")

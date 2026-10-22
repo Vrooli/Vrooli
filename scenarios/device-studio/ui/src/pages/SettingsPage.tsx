@@ -4,6 +4,7 @@ import { Select } from "@vrooli/react-component-library/Select/1";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 import { HealthCard } from "../features/health/HealthCard";
+import { fetchOptionalCapabilities, type CapabilityAvailability } from "../api/capabilities";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation, type Locale } from "../i18n";
@@ -35,6 +36,8 @@ export function SettingsPage() {
   const [creditNotice, setCreditNotice] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState<DeviceStudioCreditBalance | null>(null);
   const [balanceBusy, setBalanceBusy] = useState(false);
+  const [optionalCapabilities, setOptionalCapabilities] = useState<CapabilityAvailability[] | null>(null);
+  const [capabilityCheckFailed, setCapabilityCheckFailed] = useState(false);
 
   async function refreshCreditBalance() {
     if (!desktopAuth?.getCreditBalance) {
@@ -65,6 +68,16 @@ export function SettingsPage() {
   }, [desktopAuth]);
 
   useEffect(() => { void refreshCreditBalance(); }, [desktopAuth]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchOptionalCapabilities().then((states) => {
+      if (active) setOptionalCapabilities(states);
+    }).catch(() => {
+      if (active) setCapabilityCheckFailed(true);
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -244,6 +257,35 @@ export function SettingsPage() {
           {creditStatus?.state !== "shared" && <button type="button" disabled={!desktopAuth?.setCreditSessionSharing || creditBusy || creditStatus === null} onClick={() => void setCreditSharing(true)}>{t(strings.pages.settings.account.creditShare)}</button>}
           {(creditStatus?.state === "shared" || creditStatus?.state === "signed_out" || creditStatus?.state === "unavailable") && <button type="button" disabled={!desktopAuth?.setCreditSessionSharing || creditBusy} onClick={() => void setCreditSharing(false)}>{t(strings.pages.settings.account.creditStop)}</button>}
         </div>
+      </section>
+      <section data-testid="settings-optional-capabilities" aria-labelledby="settings-capabilities-heading" className="flex flex-col gap-space-sm rounded-lg border border-border-subtle p-space-md">
+        <div>
+          <h2 id="settings-capabilities-heading" className="text-lg font-semibold">{t(strings.pages.settings.capabilities.heading)}</h2>
+          <p className="text-sm text-muted-foreground">{t(strings.pages.settings.capabilities.description)}</p>
+        </div>
+        {(["ai-gateway", "workspace-sandbox"] as const).map((id) => {
+          const item = optionalCapabilities?.find((state) => state.id === id);
+          const state = capabilityCheckFailed ? "unknown" : item?.status ?? "unknown";
+          const name = id === "ai-gateway"
+            ? strings.pages.settings.capabilities.aiGateway
+            : strings.pages.settings.capabilities.workspaceSandbox;
+          const statusLabel = state === "available"
+            ? strings.pages.settings.capabilities.available
+            : state === "unavailable"
+              ? strings.pages.settings.capabilities.unavailable
+              : strings.pages.settings.capabilities.unknown;
+          return <div key={id} data-testid={`settings-capability-${id}`} data-status={state} className="rounded-md border border-border-subtle p-space-sm">
+            <p className="font-medium">{t(name)} · {t(statusLabel)}</p>
+            <p className="text-sm text-muted-foreground">{item?.message ?? t(capabilityCheckFailed
+              ? strings.pages.settings.capabilities.checkFailed
+              : optionalCapabilities === null
+                ? strings.pages.settings.capabilities.checking
+                : strings.pages.settings.capabilities.unobserved)}</p>
+            {item && <p className="text-xs text-muted-foreground">{t(strings.pages.settings.capabilities.source)}</p>}
+            {item?.operatorCommand && <p className="text-xs text-muted-foreground">{t(strings.pages.settings.capabilities.operatorAction)}: <code>{item.operatorCommand}</code></p>}
+            {item?.checkedAt && <p className="text-xs text-muted-foreground">{t(strings.pages.settings.capabilities.observed)}: {new Date(item.checkedAt).toLocaleString()}</p>}
+          </div>;
+        })}
       </section>
       <details className="flex flex-col gap-space-sm">
         <summary className="min-h-11 cursor-pointer py-space-sm font-medium">{t(strings.pages.settings.diagnostics)}</summary>

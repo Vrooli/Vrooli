@@ -1,6 +1,7 @@
 import type { Page } from 'rebrowser-playwright';
 import type { AppTargetKind, AppTargetSpec, SessionSpec } from '../types';
 import path from 'node:path';
+import { lstatSync } from 'node:fs';
 
 type JsonTarget = {
   id?: unknown;
@@ -45,6 +46,38 @@ export function validateAppTargetSpec(target: AppTargetSpec): void {
   if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
     throw new Error('app-target CDP endpoint must not contain credentials or opaque query data');
   }
+  if (target.download_path) {
+    if (!target.test_database_root || !path.isAbsolute(target.download_path) || !path.isAbsolute(target.test_database_root)) {
+      throw new Error('app-target download path requires absolute target-owned root and download directory');
+    }
+    const root = path.resolve(target.test_database_root);
+    const downloadPath = path.resolve(target.download_path);
+    if (root !== target.test_database_root || downloadPath !== target.download_path || downloadPath !== path.join(root, 'downloads')) {
+      throw new Error('app-target download directory must be the clean downloads child of its target-owned root');
+    }
+    for (const [label, directory] of [['root', root], ['download', downloadPath]] as const) {
+      const info = lstatSync(directory);
+      if (!info.isDirectory() || info.isSymbolicLink() || (info.mode & 0o777) !== 0o700) {
+        throw new Error(`app-target ${label} download directory must be private and mode 0700`);
+      }
+    }
+  }
+}
+
+export async function configureAppTargetDownloadBehavior(
+  target: Pick<AppTargetSpec, 'download_path'>,
+  send: (params: { behavior: 'allowAndName'; downloadPath: string; eventsEnabled: true; browserContextId?: string }) => Promise<unknown>,
+  browserContextId?: string
+): Promise<void> {
+  if (!target.download_path) return;
+  // Playwright's Download artifact is addressed by Chromium's GUID filename.
+  // allowAndName keeps the on-disk name aligned with that artifact path.
+  await send({
+    behavior: 'allowAndName',
+    downloadPath: target.download_path,
+    eventsEnabled: true,
+    ...(browserContextId ? { browserContextId } : {}),
+  });
 }
 
 /**

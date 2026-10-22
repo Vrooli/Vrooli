@@ -84,7 +84,10 @@ func TestQueuePromotionSaveFailureDoesNotStartWorker(t *testing.T) {
 	}
 
 	queue.OnMemberComplete("occupied")
-	if len(queue.running) != 0 || len(queue.queue) != 1 || !queue.queued["queued-agent"] {
+	retained, retainedOK := queue.running["occupied"]
+	if !retainedOK || retained.ProfileKey != "occupied-profile" || len(queue.running) != 1 ||
+		len(queue.queue) != 1 || queue.queue[0].AgentID != "queued-agent" ||
+		queue.queue[0].ProfileKey != "queued-profile" || !queue.queued["queued-agent"] {
 		t.Fatalf("failed promotion did not restore the queued admission: running=%v queue=%v", queue.running, queue.queue)
 	}
 	select {

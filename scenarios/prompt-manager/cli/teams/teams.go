@@ -5,6 +5,7 @@ package teams
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -552,7 +553,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "team",
 				Aliases:     []string{"teams", "t"},
 				NeedsAPI:    true,
-				Description: "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|retention|prune|import-cc|export-cc|trigger)",
+				Description: "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|execution-status|retention|prune|import-cc|export-cc|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -598,6 +599,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdRemoveMember(ctx, subArgs)
 	case "roles":
 		return cmdRoles(ctx, subArgs)
+	case "roles-set":
+		return cmdRolesSet(ctx, subArgs)
 	case "org-list":
 		return cmdOrgList(ctx, subArgs)
 	case "org-set":
@@ -626,6 +629,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatTrigger(ctx, subArgs)
 	case "heartbeat-logs":
 		return cmdHeartbeatLogs(ctx, subArgs)
+	case "heartbeat-attempts":
+		return cmdHeartbeatAttempts(ctx, subArgs)
+	case "execution-status":
+		return cmdExecutionStatus(ctx, subArgs)
 	case "heartbeat-control":
 		return cmdTeamHeartbeatControl(ctx, subArgs)
 	case "queue-clear":
@@ -711,6 +718,7 @@ Subcommands:
   update-member <team-id> <agent-id> Update a team member
   remove-member <team-id> <agent-id> Remove a member from a team
   roles <team-id>                   List team roles
+  roles-set <team-id> --file <path> Replace team roles from a JSON array
   org-list <team-id>                List org chart edges
   org-set <team-id> <report-id> <manager-id> Set reporting line
   org-remove <team-id> <report-id>  Remove reporting line
@@ -727,6 +735,8 @@ Heartbeat Commands:
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat; --on-demand --profile=key creates a disabled reviewer without a timer
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
+  heartbeat-attempts <team-id> <agent-id>      List bounded dispatch attempts (--limit 1..200)
+  execution-status <team-id>                   Read current execution queue ownership
   heartbeat-control <team-id> <action>        Status, pause, resume, or set team auto-pause policy
   queue-clear <team-id> <agent-id>            Clear a stuck running entry from the team queue
 
@@ -1355,6 +1365,47 @@ func cmdRoles(ctx appctx.Context, args []string) error {
 	return nil
 }
 
+func cmdRolesSet(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("roles-set", flag.ContinueOnError)
+	file := fs.String("file", "", "JSON file containing the complete role array")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: team roles-set <team-id> --file <path> [--json]")
+	}
+	teamID := strings.TrimSpace(fs.Arg(0))
+	if teamID == "" {
+		return fmt.Errorf("team id is required")
+	}
+	if strings.TrimSpace(*file) == "" {
+		return fmt.Errorf("--file is required; provide the complete JSON role array")
+	}
+	raw, err := cliutil.ReadFileString(*file)
+	if err != nil {
+		return fmt.Errorf("read roles file: %w", err)
+	}
+	var roles []Role
+	if err := json.Unmarshal([]byte(raw), &roles); err != nil {
+		return fmt.Errorf("parse roles file: %w", err)
+	}
+	if roles == nil {
+		return fmt.Errorf("roles file must contain a JSON array; use [] to clear all roles")
+	}
+	var updated []Role
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/roles", url.PathEscape(teamID)), map[string]any{"roles": roles}, &updated); err != nil {
+		return fmt.Errorf("failed to set team roles: %w", err)
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(updated)
+	}
+	fmt.Printf("Updated %d roles for team %s\n", len(updated), teamID)
+	return nil
+}
+
 func cmdOrgList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("org-list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
@@ -1587,6 +1638,8 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 type HeartbeatConfig struct {
 	CreationProof           json.RawMessage           `json:"creationProof,omitempty"`
 	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	SchedulerState          *HeartbeatSchedulerState  `json:"schedulerState,omitempty"`
+	SchedulerRegistered     bool                      `json:"schedulerRegistered"`
 	TeamID                  string                    `json:"teamId"`
 	AgentID                 string                    `json:"agentId"`
 	Enabled                 bool                      `json:"enabled"`
@@ -1605,6 +1658,15 @@ type HeartbeatConfig struct {
 	NextExecution           string                    `json:"nextExecution,omitempty"`
 	CreatedAt               string                    `json:"createdAt"`
 	UpdatedAt               string                    `json:"updatedAt"`
+}
+
+// HeartbeatSchedulerState preserves the scheduler's bounded runtime status
+// returned by the owner API, including the latest callback timestamp.
+type HeartbeatSchedulerState struct {
+	Running      bool       `json:"running"`
+	StartError   string     `json:"start_error,omitempty"`
+	Registered   int        `json:"registered"`
+	LastCallback *time.Time `json:"last_callback,omitempty"`
 }
 
 type HeartbeatFleetHealth struct {
@@ -2452,23 +2514,187 @@ func cmdHeartbeatLogs(ctx appctx.Context, args []string) error {
 	return nil
 }
 
+type heartbeatAttemptListResponse struct {
+	Attempts      []json.RawMessage `json:"attempts"`
+	Total         int               `json:"total"`
+	TotalExact    *bool             `json:"totalExact"`
+	HasMore       bool              `json:"hasMore"`
+	ScannedEvents int               `json:"scannedEvents"`
+}
+
+func cmdHeartbeatAttempts(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-attempts", flag.ContinueOnError)
+	limit := fs.Int("limit", 20, "Maximum attempts to return (1-200)")
+	offset := fs.Int("offset", 0, "Skip attempts within the bounded recent window")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 2 {
+		return fmt.Errorf("usage: team heartbeat-attempts <team-id> <agent-id> [--limit 1..200] [--offset N] [--json]")
+	}
+	teamID := strings.TrimSpace(fs.Arg(0))
+	agentID := strings.TrimSpace(fs.Arg(1))
+	if teamID == "" || agentID == "" {
+		return fmt.Errorf("team id and agent id are required")
+	}
+	if *limit < 1 || *limit > 200 {
+		return fmt.Errorf("--limit must be between 1 and 200")
+	}
+	if *offset < 0 {
+		return fmt.Errorf("--offset must be zero or greater")
+	}
+
+	query := url.Values{
+		"team_id":  {teamID},
+		"agent_id": {agentID},
+		"limit":    {strconv.Itoa(*limit)},
+		"offset":   {strconv.Itoa(*offset)},
+	}
+	var raw json.RawMessage
+	if err := ctx.GetWithQuery("/heartbeat-attempts", query, &raw); err != nil {
+		return fmt.Errorf("failed to list heartbeat attempts: %w", err)
+	}
+	var resp heartbeatAttemptListResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return fmt.Errorf("decode heartbeat attempt response: %w", err)
+	}
+	if *jsonOut {
+		var formatted bytes.Buffer
+		if err := json.Indent(&formatted, raw, "", "  "); err != nil {
+			return fmt.Errorf("format heartbeat attempt response: %w", err)
+		}
+		_, err := fmt.Fprintln(os.Stdout, formatted.String())
+		return err
+	}
+
+	fmt.Printf("Heartbeat attempts for %s/%s: %d returned", teamID, agentID, len(resp.Attempts))
+	if resp.TotalExact == nil {
+		fmt.Printf(" of %d reported", resp.Total)
+	} else if *resp.TotalExact {
+		fmt.Printf(" of %d exact in this event window", resp.Total)
+	} else {
+		fmt.Printf(" of at least %d observed across %d events", resp.Total, resp.ScannedEvents)
+	}
+	if resp.HasMore {
+		fmt.Print(" (more available in the bounded recent window)")
+	}
+	fmt.Println()
+	for _, attempt := range resp.Attempts {
+		fmt.Printf("  %s\n", attempt)
+	}
+	return nil
+}
+
+func cmdExecutionStatus(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("execution-status", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: team execution-status <team-id> [--json]")
+	}
+	teamID := strings.TrimSpace(fs.Arg(0))
+	if teamID == "" {
+		return fmt.Errorf("team id is required")
+	}
+
+	var raw json.RawMessage
+	path := fmt.Sprintf("/teams/%s/execution-status", url.PathEscape(teamID))
+	if err := ctx.Get(path, &raw); err != nil {
+		return fmt.Errorf("failed to read team execution status: %w", err)
+	}
+	if *jsonOut {
+		var formatted bytes.Buffer
+		if err := json.Indent(&formatted, raw, "", "  "); err != nil {
+			return fmt.Errorf("format team execution status: %w", err)
+		}
+		_, err := fmt.Fprintln(os.Stdout, formatted.String())
+		return err
+	}
+
+	var status teamQueueStatus
+	if err := json.Unmarshal(raw, &status); err != nil {
+		return fmt.Errorf("decode team execution status: %w", err)
+	}
+	fmt.Printf("Team %s execution: %s (policy=%s, maxConcurrentRuns=%d)\n", status.TeamID, status.State, status.QueuePolicy, status.MaxConcurrentRuns)
+	for _, group := range []struct {
+		label string
+		ids   []string
+	}{
+		{"Running", status.RunningAgentIDs},
+		{"Queue", status.Queue},
+		{"Uncertain ownership", status.UncertainAgentIDs},
+		{"Unreachable owner", status.UnreachableAgentIDs},
+		{"Paused owner", status.PausedAgentIDs},
+		{"Approval pending", status.ApprovalPendingAgentIDs},
+		{"Needs review", status.NeedsReviewAgentIDs},
+		{"Watcher unavailable", status.WatcherUnavailableAgentIDs},
+		{"Preparation interrupted", status.PreparationInterruptedAgentIDs},
+		{"Admission deferred", status.AdmissionDeferredAgentIDs},
+	} {
+		if len(group.ids) > 0 {
+			fmt.Printf("%s: %s\n", group.label, strings.Join(group.ids, ", "))
+		}
+	}
+	for _, owner := range status.Owners {
+		fmt.Printf("Owner %s (%s)", owner.AgentID, owner.Phase)
+		if owner.State != "" {
+			fmt.Printf(" state=%s", owner.State)
+		}
+		if owner.DispatchStage != "" {
+			fmt.Printf(" dispatch=%s", owner.DispatchStage)
+		}
+		if owner.DispatchFailurePhase != "" || owner.DispatchFailureCode != "" {
+			fmt.Printf(" failure=%s/%s", owner.DispatchFailurePhase, owner.DispatchFailureCode)
+		}
+		if owner.TaskID != "" {
+			fmt.Printf(" task=%s", owner.TaskID)
+		}
+		if owner.RunID != "" {
+			fmt.Printf(" run=%s", owner.RunID)
+		}
+		if owner.ObligationID != "" {
+			fmt.Printf(" obligation=%s", owner.ObligationID)
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
 // teamQueueStatus mirrors the heartbeat.TeamExecutionStatus shape returned
 // by GET /teams/{id}/execution-status and DELETE /teams/{id}/queue/running/{agentId}.
 type teamQueueStatus struct {
-	TeamID                         string   `json:"teamId"`
-	State                          string   `json:"state"`
-	RunningAgentIDs                []string `json:"runningAgentIds"`
-	Queue                          []string `json:"queue"`
-	QueuePolicy                    string   `json:"queuePolicy"`
-	MaxConcurrentRuns              int      `json:"maxConcurrentRuns"`
-	UncertainAgentIDs              []string `json:"uncertainAgentIds"`
-	UnreachableAgentIDs            []string `json:"unreachableAgentIds"`
-	PausedAgentIDs                 []string `json:"pausedAgentIds"`
-	ApprovalPendingAgentIDs        []string `json:"approvalPendingAgentIds"`
-	NeedsReviewAgentIDs            []string `json:"needsReviewAgentIds"`
-	WatcherUnavailableAgentIDs     []string `json:"watcherUnavailableAgentIds"`
-	PreparationInterruptedAgentIDs []string `json:"preparationInterruptedAgentIds"`
-	AdmissionDeferredAgentIDs      []string `json:"admissionDeferredAgentIds"`
+	TeamID                         string               `json:"teamId"`
+	State                          string               `json:"state"`
+	RunningAgentIDs                []string             `json:"runningAgentIds"`
+	Queue                          []string             `json:"queue"`
+	QueuePolicy                    string               `json:"queuePolicy"`
+	MaxConcurrentRuns              int                  `json:"maxConcurrentRuns"`
+	UncertainAgentIDs              []string             `json:"uncertainAgentIds"`
+	UnreachableAgentIDs            []string             `json:"unreachableAgentIds"`
+	PausedAgentIDs                 []string             `json:"pausedAgentIds"`
+	ApprovalPendingAgentIDs        []string             `json:"approvalPendingAgentIds"`
+	NeedsReviewAgentIDs            []string             `json:"needsReviewAgentIds"`
+	WatcherUnavailableAgentIDs     []string             `json:"watcherUnavailableAgentIds"`
+	PreparationInterruptedAgentIDs []string             `json:"preparationInterruptedAgentIds"`
+	AdmissionDeferredAgentIDs      []string             `json:"admissionDeferredAgentIds"`
+	Owners                         []teamExecutionOwner `json:"owners"`
+}
+
+type teamExecutionOwner struct {
+	AgentID              string `json:"agentId"`
+	Phase                string `json:"phase"`
+	State                string `json:"state,omitempty"`
+	DispatchStage        string `json:"dispatchStage,omitempty"`
+	DispatchFailurePhase string `json:"dispatchFailurePhase,omitempty"`
+	DispatchFailureCode  string `json:"dispatchFailureCode,omitempty"`
+	TaskID               string `json:"taskId,omitempty"`
+	RunID                string `json:"runId,omitempty"`
+	AdmissionOrigin      string `json:"admissionOrigin,omitempty"`
+	OwnerStartedAt       string `json:"ownerStartedAt,omitempty"`
+	ObligationID         string `json:"obligationId,omitempty"`
 }
 
 func cmdQueueClear(ctx appctx.Context, args []string) error {

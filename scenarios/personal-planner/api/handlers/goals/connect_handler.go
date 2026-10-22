@@ -37,7 +37,11 @@ func (h *connectHandler) ListGoals(c context.Context, _ *connect.Request[v.ListG
 }
 
 func (h *connectHandler) CreateGoal(c context.Context, r *connect.Request[v.CreateGoalRequest]) (*connect.Response[v.CreateGoalResponse], error) {
-	x, e := h.deps.Service.Create(c, g.CreateInput{Title: r.Msg.Title, Purpose: r.Msg.Purpose, ProgressMethod: r.Msg.ProgressMethod, TargetBasisPoints: r.Msg.TargetBasisPoints})
+	var measure *g.Measure
+	if r.Msg.Measure != nil {
+		measure = &g.Measure{Unit: r.Msg.Measure.Unit, TargetAmountMinor: r.Msg.Measure.TargetAmountMinor, CurrencyCode: r.Msg.Measure.CurrencyCode, Basis: r.Msg.Measure.Basis, Recurrence: r.Msg.Measure.Recurrence, Period: r.Msg.Measure.Period}
+	}
+	x, e := h.deps.Service.Create(c, g.CreateInput{Title: r.Msg.Title, Purpose: r.Msg.Purpose, ProgressMethod: r.Msg.ProgressMethod, TargetBasisPoints: r.Msg.TargetBasisPoints, TargetDate: r.Msg.TargetDate, Measure: measure})
 	if e != nil {
 		return nil, g.ToConnectError(e)
 	}

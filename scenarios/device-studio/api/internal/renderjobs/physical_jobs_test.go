@@ -2,6 +2,9 @@ package renderjobs
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"image"
 	"strconv"
 	"strings"
@@ -9,6 +12,7 @@ import (
 
 	"device-studio/internal/composition"
 	"device-studio/internal/jobs"
+	"device-studio/internal/library"
 	"device-studio/internal/motions"
 	"device-studio/internal/physical"
 	"device-studio/internal/presentations"
@@ -16,6 +20,202 @@ import (
 	"device-studio/internal/shots"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
 )
+
+func TestPhysicalInputBuilderFingerprintBindsCompiledShotClosure(t *testing.T) {
+	digest := func(value string) string { return digestBytes([]byte(value)) }
+	deviceGeometry := physical.ArtifactRef{BundleID: "device-bundle", BundleRevision: 2, ManifestSHA256: digest("device-manifest"), ReviewSHA256: digest("device-review"), ArtifactID: "device-glb", Role: library.RoleGeometryGLB, SizeBytes: 100, SHA256: digest("device-bytes")}
+	sceneGeometry := physical.ArtifactRef{BundleID: "scene-bundle", BundleRevision: 3, ManifestSHA256: digest("scene-manifest"), ReviewSHA256: digest("scene-review"), ArtifactID: "scene-glb", Role: library.RoleGeometryGLB, SizeBytes: 200, SHA256: digest("scene-bytes")}
+	deviceJSON := []byte(`{"geometry_sha256":"` + deviceGeometry.SHA256 + `","display_mask_sha256":"` + digest("mask") + `"}`)
+	sceneJSON := []byte(`{"reflection_profile":"` + digest("reflection") + `"}`)
+	base := physicalClosure{
+		Version: physicalClosureVersion, ProjectID: "project", ShotID: "shot", Revision: 1, RecipeSHA256: digest("shot-recipe"),
+		WorkerKey: "workers/" + digest("worker") + "/device-studio-api", WorkerSHA256: digest("worker"), AdapterSHA256: digest("adapter"), ScreenKey: "screen/" + digest("screen"),
+		Manifest: rendering.PhysicalRenderManifest{
+			Device:    rendering.PhysicalCandidateSnapshot{ID: "device", Revision: 2, CanonicalJSON: deviceJSON, CanonicalSHA: digest(string(deviceJSON))},
+			Scene:     rendering.PhysicalCandidateSnapshot{ID: "scene", Revision: 3, CanonicalJSON: sceneJSON, CanonicalSHA: digest(string(sceneJSON))},
+			Motion:    rendering.PhysicalCandidateSnapshot{ID: "motion", Revision: 1, CanonicalSHA: digest("motion-candidate"), CanonicalJSON: []byte(`{"motion":"root-track"}`)},
+			Assets:    []rendering.PhysicalAssetInput{{Role: "device_geometry", BindingID: "device_geometry", Reference: deviceGeometry, Name: "device.glb"}, {Role: "scene_geometry", BindingID: "scene_geometry", Reference: sceneGeometry, Name: "scene.glb"}},
+			Screen:    rendering.PhysicalScreenInput{DisplayID: "front", OriginalMediaID: "screen-media", OriginalMediaSHA256: digest("screen-source"), Raster: rendering.ImageBinding{Name: "screen.png", SHA256: digest("screen-raster"), SizeBytes: 100}, PresentationProfile: "presentation-v3", PresentationVersion: "3", ConfigSHA256: digest("presentation-config"), LayoutSHA256: digest("presentation-layout"), RasterSHA256: digest("screen-raster"), Width: 1206, Height: 2622, UVSet: "TEXCOORD_0", MappingProfile: "physical-screen-mapping-v1"},
+			Placement: rendering.PhysicalPlacement{DeviceSupportID: "base", SceneSupportID: "table", SelectedCameraID: "camera-front"},
+			Profile:   rendering.PhysicalRenderProfile{ID: "physical-still-v1", DigestSHA256: digest("render-profile"), Backend: "OPTIX", Samples: 256},
+			Output:    rendering.PhysicalOutputPlan{ProfileID: rendering.PhysicalStillProfile, Kind: "still_png", Width: 2560, Height: 1440, Codec: "png", OutputName: rendering.PhysicalStillOutputName},
+		},
+	}
+	route := routePin{Root: "/primary/device-studio", TestMode: false}
+	inputFor := func(closure physicalClosure) (jobs.Input, string) {
+		t.Helper()
+		encoded, err := encodePhysicalClosure(closure)
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded = append(encoded, '\n') // same bytes hashed and pinned by physical submit
+		closureSHA := digestBytes(encoded)
+		outputProfile := OutputProfilePNG
+		if closure.Manifest.Output.ProfileID == rendering.PhysicalPreviewProfile {
+			outputProfile = OutputProfilePhysicalPreviewPNG
+		}
+		input := physicalJobInput(route, closure, closureBlobPrefix+closureSHA+".json", closureSHA, closure.WorkerKey, closure.WorkerSHA256, outputProfile)
+		_, fingerprint, err := jobs.CanonicalInput(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return input, fingerprint
+	}
+	_, baseline := inputFor(base)
+	mutations := []struct {
+		name string
+		edit func(*physicalClosure)
+	}{
+		{"source raster", func(c *physicalClosure) {
+			c.Manifest.Screen.OriginalMediaSHA256 = digest("screen-source-v2")
+			c.Manifest.Screen.RasterSHA256 = digest("screen-raster-v2")
+			c.Manifest.Screen.Raster.SHA256 = digest("screen-raster-v2")
+		}},
+		{"device geometry and display mask", func(c *physicalClosure) {
+			raw := []byte(`{"geometry_sha256":"` + digest("device-geometry-v2") + `","display_mask_sha256":"` + digest("mask-v2") + `"}`)
+			c.Manifest.Device.CanonicalJSON = raw
+			c.Manifest.Device.CanonicalSHA = digest(string(raw))
+			c.Manifest.Assets[0].Reference.SHA256 = digest("device-geometry-v2")
+		}},
+		{"presentation configuration and layout", func(c *physicalClosure) {
+			c.Manifest.Screen.ConfigSHA256 = digest("config-v2")
+			c.Manifest.Screen.LayoutSHA256 = digest("layout-v2")
+		}},
+		{"scene geometry and reflection", func(c *physicalClosure) {
+			raw := []byte(`{"reflection_profile":"` + digest("reflection-v2") + `"}`)
+			c.Manifest.Scene.CanonicalJSON = raw
+			c.Manifest.Scene.CanonicalSHA = digest(string(raw))
+			c.Manifest.Assets[1].Reference.SHA256 = digest("scene-geometry-v2")
+		}},
+		{"camera and placement", func(c *physicalClosure) {
+			c.Manifest.Placement.SelectedCameraID = "camera-side"
+			c.Manifest.Placement.SupportPivot.X = 0.125
+		}},
+		{"motion candidate", func(c *physicalClosure) { c.Manifest.Motion.CanonicalSHA = digest("motion-candidate-v2") }},
+		{"render profile", func(c *physicalClosure) {
+			c.Manifest.Profile.Backend = "CPU"
+			c.Manifest.Profile.DigestSHA256 = digest("render-profile-v2")
+		}},
+		{"output profile and raster", func(c *physicalClosure) {
+			c.Manifest.Output.Width = 1920
+			c.Manifest.Output.ProfileID = "device-studio-physical-preview-960x540-v1"
+		}},
+	}
+	for _, tc := range mutations {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var changed physicalClosure
+			if err := json.Unmarshal(data, &changed); err != nil {
+				t.Fatal(err)
+			}
+			tc.edit(&changed)
+			input, fingerprint := inputFor(changed)
+			if fingerprint == baseline {
+				t.Fatalf("compiled physical closure dependency did not invalidate input fingerprint: %s", tc.name)
+			}
+			binding := bindingByRole(input, "physical_closure")
+			if binding.SHA256 == "" || binding.ArtifactID != closureBlobPrefix+binding.SHA256+".json" {
+				t.Fatalf("closure bytes are not the bound cache dependency: %+v", binding)
+			}
+		})
+	}
+}
+
+type qualificationReadabilityFixture struct {
+	revision  shots.Revision
+	review    shots.ReadabilityReview
+	reviewErr error
+}
+
+func (f qualificationReadabilityFixture) ResolveForRender(_ context.Context, shotID string, revision int64) (shots.ResolvedShot, error) {
+	if shotID != f.revision.ShotID || revision != f.revision.Revision {
+		return shots.ResolvedShot{}, errors.New("unexpected saved shot revision lookup")
+	}
+	return shots.ResolvedShot{ProjectID: "project", Shot: shots.Shot{ID: shotID, ProjectID: "project"}, Revision: f.revision}, nil
+}
+
+func (f qualificationReadabilityFixture) GetOutputReadabilityReview(_ context.Context, projectID, shotID string, revision int64, renderID, outputSHA string) (shots.ReadabilityReview, error) {
+	if projectID != "project" || shotID != "shot" || revision != 2 || renderID != "render" || outputSHA != strings.Repeat("b", 64) {
+		return shots.ReadabilityReview{}, errors.New("unexpected exact readability review lookup")
+	}
+	return f.review, f.reviewErr
+}
+
+type qualificationProofResolverOnly struct {
+	revision shots.Revision
+}
+
+func (f qualificationProofResolverOnly) ResolveForRender(_ context.Context, shotID string, revision int64) (shots.ResolvedShot, error) {
+	return shots.ResolvedShot{ProjectID: "project", Shot: shots.Shot{ID: shotID, ProjectID: "project"}, Revision: f.revision}, nil
+}
+
+func TestDeclaredReadabilityProofMustHaveExactAcceptedReviewForQualification(t *testing.T) {
+	outputSHA := strings.Repeat("b", 64)
+	input := jobs.Input{
+		ProjectID: "project", SubjectKind: jobs.SubjectPhysicalRender, SubjectID: "shot",
+		ShotRevisionID: shotRevisionID("shot", 2), ShotRevision: 2,
+		Bindings: []jobs.ArtifactBinding{{Role: "shot_snapshot", ArtifactID: shotRevisionID("shot", 2), RevisionID: "revision:2", SHA256: strings.Repeat("a", 64)}},
+	}
+	revision := shots.Revision{ShotID: "shot", Revision: 2, Snapshot: &shotsv1.ShotSnapshot{ReadabilityProof: &shotsv1.ReadabilityProof{RegionName: "title"}}}
+	accepted := shots.ReadabilityReview{ProjectID: "project", ShotID: "shot", ShotRevision: 2, RenderID: "render", OutputSHA256: outputSHA, Verdict: int32(shotsv1.ReadabilityVerdict_READABILITY_VERDICT_ACCEPTED)}
+	output := jobs.OutputRef{SHA256: outputSHA, Kind: "physical_still_png"}
+
+	for _, tc := range []struct {
+		name    string
+		fixture qualificationReadabilityFixture
+		valid   bool
+	}{
+		{name: "accepted exact review", fixture: qualificationReadabilityFixture{revision: revision, review: accepted}, valid: true},
+		{name: "missing review", fixture: qualificationReadabilityFixture{revision: revision, reviewErr: shots.ErrReadabilityReviewNotFound}},
+		{name: "rejected review", fixture: qualificationReadabilityFixture{revision: revision, review: func() shots.ReadabilityReview {
+			r := accepted
+			r.Verdict = int32(shotsv1.ReadabilityVerdict_READABILITY_VERDICT_REJECTED)
+			return r
+		}()}},
+		{name: "stale revision review", fixture: qualificationReadabilityFixture{revision: revision, review: func() shots.ReadabilityReview { r := accepted; r.ShotRevision = 1; return r }()}},
+		{name: "stale output review", fixture: qualificationReadabilityFixture{revision: revision, review: func() shots.ReadabilityReview { r := accepted; r.OutputSHA256 = strings.Repeat("c", 64); return r }()}},
+		{name: "undeclared proof remains independent", fixture: qualificationReadabilityFixture{revision: shots.Revision{ShotID: "shot", Revision: 2, Snapshot: &shotsv1.ShotSnapshot{}}, reviewErr: shots.ErrReadabilityReviewNotFound}, valid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Coordinator{shots: tc.fixture}
+			err := c.requireDeclaredReadabilityReview(context.Background(), jobs.Job{ID: "render", Input: input}, output)
+			if tc.valid && err != nil {
+				t.Fatalf("valid qualification readability binding rejected: %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Fatal("missing, rejected, or stale declared proof was allowed to qualify")
+			}
+		})
+	}
+
+	legacy := jobs.Job{ID: "legacy-render", Input: jobs.Input{ProjectID: "project", SubjectKind: jobs.SubjectPhysicalRender}}
+	if err := (&Coordinator{}).requireDeclaredReadabilityReview(context.Background(), legacy, output); err != nil {
+		t.Fatalf("unbound legacy qualification unexpectedly required a shot proof: %v", err)
+	}
+	withoutReviewOwner := &Coordinator{shots: qualificationProofResolverOnly{revision: revision}}
+	if err := withoutReviewOwner.requireDeclaredReadabilityReview(context.Background(), jobs.Job{ID: "render", Input: input}, output); err == nil {
+		t.Fatal("declared proof was qualified without a readability review owner")
+	}
+}
+
+func TestPhysicalStillWallTimeIsBoundedByExplicitBackend(t *testing.T) {
+	for backend, want := range map[string]uint32{
+		"CPU":   rendering.PhysicalStillCPUWallTimeSeconds,
+		"CUDA":  rendering.PhysicalStillWallTimeSeconds,
+		"OPTIX": rendering.PhysicalStillWallTimeSeconds,
+	} {
+		got, err := physicalStillWallTime(backend)
+		if err != nil || got != want {
+			t.Errorf("physicalStillWallTime(%q) = %d, %v; want %d", backend, got, err, want)
+		}
+	}
+	if _, err := physicalStillWallTime("AUTO"); err == nil {
+		t.Fatal("unspecified backend received a still wall-time profile")
+	}
+}
 
 func TestPhysicalRecordingClosureUsesTheVerifiedLayoutIdentity(t *testing.T) {
 	fill := presentations.RGB{R: 24, G: 26, B: 29}

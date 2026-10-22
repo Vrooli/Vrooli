@@ -17,6 +17,7 @@ import (
 	"program-runtime/internal/budgets"
 	"program-runtime/internal/pydeps"
 
+	"github.com/vrooli/api-core/database"
 	requestprovenance "github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/pyenv-go"
 )
@@ -388,7 +389,7 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	request := map[string]any{"source": source, "include_materialized": includeMaterialized, "program_id": programID, "provenance": provenance, "caller": map[string]string{"run_id": caller.RunID, "agent_profile": caller.AgentProfile, "skill_id": caller.SkillID, "harness": caller.Harness}}
+	request := map[string]any{"source": source, "include_materialized": includeMaterialized, "program_id": programID, "provenance": provenance, "caller": map[string]string{"run_id": caller.RunID, "agent_profile": caller.AgentProfile, "skill_id": caller.SkillID, "harness": caller.Harness}, "test_mode": database.IsTestMode(ctx)}
 	if token := requestprovenance.ForwardedIdentityToken(ctx); token != "" {
 		// Carry verified agent proof only over the private execution pipe.
 		// It is absent from program source, receipts, caller fields and storage.

@@ -1,11 +1,14 @@
 package workspace
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
 
 const profileID = "default"
+
+var ErrUnverifiedWorkspacePrincipal = errors.New("verified workspace principal required")
 
 type Profile struct {
 	ID                   string

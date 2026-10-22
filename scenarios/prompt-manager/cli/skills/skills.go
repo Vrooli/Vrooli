@@ -309,7 +309,9 @@ func usageText() string {
 	return `Usage: prompt-manager skill <subcommand> [args]
 
 Subcommands:
-  list, ls              List all skills
+  list, ls              List skills (filters below)
+  list filters: --folder core|local|drafts, --tag <tag>, --mode <mode>
+                --without-programmatic-home, --json
   topology              Report each skill's pack and generated projection status
   refresh               Preview native freshness; apply an exact reviewed digest
   show, get <id>        Show skill details

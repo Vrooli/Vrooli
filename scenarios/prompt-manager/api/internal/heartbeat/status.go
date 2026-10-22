@@ -1,5 +1,7 @@
 package heartbeat
 
+import "time"
+
 func ownerRunObligationState(status string) string {
 	if IsNeedsReviewStatus(status) {
 		return ObligationNeedsReview
@@ -8,6 +10,36 @@ func ownerRunObligationState(status string) string {
 		return ObligationPaused
 	}
 	return ObligationRunning
+}
+
+type ownerRunObservation struct {
+	state          string
+	status         string
+	terminal       bool
+	startedAt      time.Time
+	startedAtKnown bool
+}
+
+// observeOwnerRun is the shared interpretation of an exact owner lookup.
+// Queue and registry recovery keep their own persistence and admission rules,
+// but must classify identity, uncertainty, lifecycle status, and original
+// start time consistently.
+func observeOwnerRun(expectedRunID string, run *Run, err error) ownerRunObservation {
+	if err != nil {
+		return ownerRunObservation{state: ObligationOwnerUnreachable, status: ObligationOwnerUnreachable}
+	}
+	if run == nil || expectedRunID == "" || run.ID != expectedRunID {
+		return ownerRunObservation{state: ObligationDispatchUncertain, status: ObligationDispatchUncertain}
+	}
+	observation := ownerRunObservation{status: run.Status, terminal: IsTerminalStatus(run.Status)}
+	if observation.startedAt, observation.startedAtKnown = parseOwnerRunStartedAt(run.StartedAt); !observation.startedAtKnown {
+		observation.startedAt = time.Time{}
+	}
+	if observation.terminal {
+		return observation
+	}
+	observation.state = ownerRunObligationState(run.Status)
+	return observation
 }
 
 // Terminal run statuses returned by agent-manager.
