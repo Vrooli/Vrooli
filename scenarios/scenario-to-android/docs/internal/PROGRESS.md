@@ -37,3 +37,15 @@ Use this table shape when appending entries.
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
 - [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map
+
+## Governed native-project builds — 2026-10-22
+
+Added `project_kind=native` to the existing build/sign/artifact pipeline. Native source is copied into a unique private build directory, bounded and fingerprinted, with required files and manifest metadata checked; symlinks and conflicting package metadata are refused. Portal's ordinary TV preview uses this path, without Capacitor generation or in-place source mutation. Debug-only cleartext qualification accepts one private IP; release builds cannot request it. The synchronous build handler now extends its response deadline to match the existing bounded builder rather than dropping the HTTP response at 30 seconds.
+
+Focused native preparation/isolation/policy tests passed. Test Genie `20261022-161830-e6d61d24` unit and dependencies passed before the later response-deadline/source-consistency refinements. Real APK/AAB builds succeeded through the owner; v0.1.2 APK was installed through Device Control. The first v0.1.1 build produced artifacts but lost its HTTP response; its retained failure and source/artifact provenance were later corroborated by an owner build returning identical artifact bytes. Native UI qualification belongs to Portal and remains incomplete.
+
+### Qualification checkpoint — 2026-10-22
+
+The v0.1.3 ordinary APK displays native pages. An asserted connection-screen trial proves host UFW drops the TV's connection to the LAN Portal gateway; both native HTTP and WebView timeout. The existing HTTPS route is reachable by the TV and responds with HTTP 302, while a host-side probe received 403; these are different observations and neither is a catalog success. Inputs enumeration shows HDMI 1/2/3 and AV; switching was not attempted. Explicit sleep/wake verbs were accepted, but state remained on, so physical sleep is unverified. The preview was returned to stock Home and held leases released.
+
+Focused native preparation and build handler packages passed again after source-consistency/response-deadline refinements. v0.1.3 was built and installed through owners; its application manifest has ordinary launcher categories and no HOME category.

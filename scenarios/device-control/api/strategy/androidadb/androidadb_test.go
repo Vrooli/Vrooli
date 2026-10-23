@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"device-control/strategy"
 
@@ -276,7 +277,10 @@ func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
 }
 
 func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {
-	runner := &scriptedRunner{responses: map[string][]byte{}}
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell settings get system user_rotation":          []byte("null"),
+		"adb -s serial-1 shell settings get system accelerometer_rotation": []byte("1"),
+	}}
 	adapter := NewWithRunner(runner, "serial-1")
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "rotate", Value: "landscape"}))
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "network", Value: "offline"}))
@@ -288,6 +292,34 @@ func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {
 	require.Contains(t, strings.Join(runner.calls, "\n"), "svc data enable")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "am start -a android.intent.action.VIEW -d hello-mobile://home -p com.example.hello")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "am start -a android.intent.action.SEND -c android.intent.category.DEFAULT -t text/plain -p com.example.hello --es android.intent.extra.TEXT 'Hello Mobile share probe'")
+}
+
+func TestRotationRestorationPreservesAbsentSettings(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell settings get system user_rotation":          []byte("null"),
+		"adb -s serial-1 shell settings get system accelerometer_rotation": []byte("1"),
+		"adb -s serial-1 shell dumpsys input":                              []byte("mCurrentRotation=0"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1")
+	state, err := adapter.ReadState(context.Background())
+	require.NoError(t, err)
+	require.NoError(t, adapter.RestoreState(context.Background(), state))
+	require.Contains(t, runner.calls, "adb -s serial-1 shell settings delete system user_rotation")
+	require.Contains(t, runner.calls, "adb -s serial-1 shell settings put system accelerometer_rotation 1")
+	require.NotContains(t, runner.calls, "adb -s serial-1 shell settings put system user_rotation 0")
+}
+
+func TestKeyguardCleanupDoesNotWriteRotation(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{}}
+	require.NoError(t, NewWithRunner(runner, "serial-1").RestoreState(context.Background(), strategy.DeviceState{}))
+	require.Empty(t, runner.calls)
+}
+
+func TestRotateRefusesUnknownRecoverySettings(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{}}
+	err := NewWithRunner(runner, "serial-1").Actuate(context.Background(), strategy.Actuation{Action: "rotate", Value: "landscape"})
+	require.ErrorContains(t, err, "exact raw settings")
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "settings put")
 }
 
 func TestActuateObservationClipboardAndLogcatVerbsUseExactADBArguments(t *testing.T) {
@@ -476,6 +508,45 @@ func TestAppLifecyclePackageStateVerifiesInstallation(t *testing.T) {
 	require.False(t, prefix.Installed)
 }
 
+func TestLaunchUsesTVActivityAndReportsObservedForeground(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER -p org.smarttube.stable": []byte("org.smarttube.stable/.MainActivity\n"),
+		"adb -s serial-1 shell am start -W -n org.smarttube.stable/.MainActivity":                                                                                       []byte("Status: ok\nActivity: org.smarttube.stable/.MainActivity\n"),
+		"adb -s serial-1 shell dumpsys window": []byte("mCurrentFocus=Window{abc u0 org.smarttube.stable/.MainActivity}"),
+	}}
+	result, err := NewWithRunner(runner, "serial-1").AppLifecycle(context.Background(), strategy.AppLifecycleRequest{Operation: "launch", Package: "org.smarttube.stable"})
+	require.NoError(t, err)
+	require.Equal(t, "foreground_observed", result.Outcome)
+	require.Equal(t, "org.smarttube.stable", result.ForegroundPackage)
+	require.Contains(t, result.Diagnostic, "Status: ok")
+	require.False(t, result.ObservedAt.IsZero())
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "monkey")
+}
+
+func TestLaunchFallsBackToOrdinaryLauncherAndRejectsZeroExitError(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER -p com.android.tv.settings": []byte("No activity found"),
+		"adb -s serial-1 shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.android.tv.settings":          []byte("com.android.tv.settings/.MainSettings"),
+		"adb -s serial-1 shell am start -W -n com.android.tv.settings/.MainSettings":                                                                                       []byte("Error: Activity not started, permission denied"),
+	}}
+	err := NewWithRunner(runner, "serial-1").Actuate(context.Background(), strategy.Actuation{Action: "launch", Package: "com.android.tv.settings"})
+	require.ErrorContains(t, err, "permission denied")
+}
+
+func TestLaunchDoesNotClaimForegroundFromAcceptanceAlone(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER -p org.smarttube.stable": []byte("org.smarttube.stable/.MainActivity"),
+		"adb -s serial-1 shell am start -W -n org.smarttube.stable/.MainActivity":                                                                                       []byte("Status: ok"),
+		"adb -s serial-1 shell dumpsys window": []byte("mCurrentFocus=Window{abc u0 com.google.android.apps.tv.dreamx/.DreamActivity}"),
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	result, err := NewWithRunner(runner, "serial-1").AppLifecycle(ctx, strategy.AppLifecycleRequest{Operation: "launch", Package: "org.smarttube.stable"})
+	require.NoError(t, err)
+	require.Equal(t, "accepted", result.Outcome)
+	require.Equal(t, "com.google.android.apps.tv.dreamx", result.ForegroundPackage)
+}
+
 func TestCapabilityProbeKeepsIndependentCapabilitiesAfterScreenshotDecodeFailure(t *testing.T) { // [REQ:DVC-P0-011]
 	// A device whose screencap returns non-image bytes must report screenshot
 	// unavailable while every independently-probed capability stays available.
@@ -573,4 +644,16 @@ func indexOfCall(calls []string, fragment string) int {
 		}
 	}
 	return len(calls)
+}
+
+func TestRestartUsesOnlyExactBoundTransportAndReturnsAcceptance(t *testing.T) {
+	runner := &scriptedRunner{}
+	require.Error(t, NewWithRunner(runner, "").RestartDevice(context.Background()))
+	require.Empty(t, runner.calls)
+	adapter := NewWithRunner(runner, "serial-1")
+	require.NoError(t, adapter.RestartDevice(context.Background()))
+	require.Equal(t, []string{"adb -s serial-1 reboot"}, runner.calls)
+	runner.errors = map[string]error{"adb -s serial-1 reboot": errors.New("transport refused")}
+	require.ErrorContains(t, adapter.RestartDevice(context.Background()), "transport refused")
+	require.Len(t, runner.calls, 2, "owner must not retry a restart with uncertain effect")
 }

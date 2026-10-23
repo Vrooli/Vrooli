@@ -21,6 +21,8 @@ const (
 	CapScreenshot      = "screenshot"
 	CapScreenRecording = "screen-recording"
 	CapNetworkControl  = "network-control"
+	CapReverseTCP      = "reverse-tcp"
+	CapDeviceRestart   = "device-restart"
 	CapOrientation     = "orientation"
 	CapClipboard       = "clipboard"
 	CapFileTransfer    = "file-transfer"
@@ -149,17 +151,24 @@ type InputActuator interface {
 	Actuate(context.Context, Actuation) error
 }
 
+// DeviceRestarter requests one restart of the exact bound device. Acceptance
+// does not prove that a boot completed; reconnect and inspect independently.
+type DeviceRestarter interface {
+	RestartDevice(context.Context) error
+}
+
 // AppLifecycleRequest is the typed lifecycle boundary. Package is the only
 // identity accepted by the built-in mobile lifecycle adapters; Executable is
 // reserved for adapters that provide their own allowlist and must never be
 // interpreted as a shell command.
 type AppLifecycleRequest struct {
-	Operation  string   `json:"operation"`
-	Package    string   `json:"package,omitempty"`
-	Executable string   `json:"executable,omitempty"`
-	Arguments  []string `json:"arguments,omitempty"`
-	Permission string   `json:"permission,omitempty"`
-	Value      string   `json:"value,omitempty"`
+	Operation     string   `json:"operation"`
+	Package       string   `json:"package,omitempty"`
+	Executable    string   `json:"executable,omitempty"`
+	Arguments     []string `json:"arguments,omitempty"`
+	Permission    string   `json:"permission,omitempty"`
+	Value         string   `json:"value,omitempty"`
+	ExpectedValue string   `json:"expected_value,omitempty"`
 }
 
 type AppLifecycleResult struct {
@@ -172,6 +181,67 @@ type AppLifecycleResult struct {
 	// reports the live on-device fact.
 	Installed bool   `json:"installed"`
 	Version   string `json:"version,omitempty"`
+	// Outcome separates a command acknowledgement from a live foreground
+	// observation. Neither proves a rendered frame or application readiness.
+	Outcome                string            `json:"outcome,omitempty"`
+	ForegroundPackage      string            `json:"foreground_package,omitempty"`
+	ObservedAt             time.Time         `json:"observed_at,omitempty"`
+	Diagnostic             string            `json:"diagnostic,omitempty"`
+	HomeComponent          string            `json:"home_component,omitempty"`
+	PreviousHomeComponent  string            `json:"previous_home_component,omitempty"`
+	AndroidUser            string            `json:"android_user,omitempty"`
+	HomeCandidates         []HomeCandidate   `json:"home_candidates,omitempty"`
+	HomeRoleHolders        *[]string         `json:"home_role_holders,omitempty"`
+	HomeUnavailable        map[string]string `json:"home_unavailable,omitempty"`
+	EnabledSetting         string            `json:"enabled_setting,omitempty"`
+	PreviousEnabledSetting string            `json:"previous_enabled_setting,omitempty"`
+	ServiceComponent       string            `json:"service_component,omitempty"`
+	ServiceConfigured      *bool             `json:"service_configured,omitempty"`
+	ServiceEnabled         *bool             `json:"service_enabled,omitempty"`
+	ServiceBound           *bool             `json:"service_bound,omitempty"`
+	ServiceCrashed         *bool             `json:"service_crashed,omitempty"`
+	ServiceBinding         *bool             `json:"service_binding,omitempty"`
+	UIAutomationActive     *bool             `json:"ui_automation_active,omitempty"`
+	ResumedActivity        string            `json:"resumed_activity,omitempty"`
+	ResumedActivitySource  string            `json:"resumed_activity_source,omitempty"`
+	FocusedWindowActivity  string            `json:"focused_window_activity,omitempty"`
+	BootCount              string            `json:"boot_count,omitempty"`
+	UptimeSeconds          *float64          `json:"uptime_seconds,omitempty"`
+	ProcessExits           []ProcessExit     `json:"process_exits,omitempty"`
+	ApplicationStatus      map[string]string `json:"application_status,omitempty"`
+}
+
+type ProcessExit struct {
+	Process    string `json:"process"`
+	ReasonCode int    `json:"reason_code"`
+	Reason     string `json:"reason"`
+	Timestamp  string `json:"timestamp,omitempty"`
+}
+
+type HomeCandidate struct {
+	Component      string `json:"component"`
+	Priority       *int   `json:"priority,omitempty"`
+	EnabledSetting *int   `json:"enabled_setting,omitempty"`
+}
+
+func (r AppLifecycleResult) MarshalJSON() ([]byte, error) {
+	type alias AppLifecycleResult
+	var installed *bool
+	if r.Operation == "package-state" {
+		value := r.Installed
+		installed = &value
+	}
+	var observedAt *time.Time
+	if !r.ObservedAt.IsZero() {
+		value := r.ObservedAt
+		observedAt = &value
+	}
+	// Absence of a package-state query is unknown, not installed=false.
+	return json.Marshal(struct {
+		alias
+		Installed  *bool      `json:"installed,omitempty"`
+		ObservedAt *time.Time `json:"observed_at,omitempty"`
+	}{alias: alias(r), Installed: installed, ObservedAt: observedAt})
 }
 
 // AppLifecycle is optional. A strategy must implement the interface before a
@@ -262,22 +332,26 @@ type SemanticResult struct {
 }
 
 type DeviceState struct {
-	ForegroundPackage string                   `json:"foreground_package,omitempty"`
-	ScreenState       string                   `json:"screen_state,omitempty"`
-	LockState         string                   `json:"lock_state,omitempty"`
-	Orientation       string                   `json:"orientation,omitempty"`
-	AutoRotate        bool                     `json:"auto_rotate"`
-	AutoRotateKnown   bool                     `json:"-"`
-	BatteryLevel      int                      `json:"battery_level,omitempty"`
-	Charging          bool                     `json:"charging"`
-	ChargingKnown     bool                     `json:"-"`
-	ThermalStatus     string                   `json:"thermal_status,omitempty"`
-	DisplayWidth      int                      `json:"display_width,omitempty"`
-	DisplayHeight     int                      `json:"display_height,omitempty"`
-	DisplayDensity    int                      `json:"display_density,omitempty"`
-	Unavailable       map[string]string        `json:"unavailable,omitempty"`
-	Properties        map[string]PropertyValue `json:"properties,omitempty"`
-	Conflicts         map[string]string        `json:"conflicts,omitempty"`
+	ForegroundPackage string `json:"foreground_package,omitempty"`
+	ScreenState       string `json:"screen_state,omitempty"`
+	LockState         string `json:"lock_state,omitempty"`
+	Orientation       string `json:"orientation,omitempty"`
+	AutoRotate        bool   `json:"auto_rotate"`
+	AutoRotateKnown   bool   `json:"-"`
+	// RotationSettings retains raw adapter settings for exact cleanup. Missing
+	// entries are unknown; the literal "null" represents an absent Android key.
+	// This private snapshot must never become an API or evidence payload.
+	RotationSettings map[string]string        `json:"-"`
+	BatteryLevel     int                      `json:"battery_level,omitempty"`
+	Charging         bool                     `json:"charging"`
+	ChargingKnown    bool                     `json:"-"`
+	ThermalStatus    string                   `json:"thermal_status,omitempty"`
+	DisplayWidth     int                      `json:"display_width,omitempty"`
+	DisplayHeight    int                      `json:"display_height,omitempty"`
+	DisplayDensity   int                      `json:"display_density,omitempty"`
+	Unavailable      map[string]string        `json:"unavailable,omitempty"`
+	Properties       map[string]PropertyValue `json:"properties,omitempty"`
+	Conflicts        map[string]string        `json:"conflicts,omitempty"`
 }
 
 // MarshalJSON does not publish zero-value mobile fields for transports that
@@ -319,6 +393,28 @@ type PropertyValue struct {
 
 type StateReader interface {
 	ReadState(context.Context) (DeviceState, error)
+}
+
+type VoiceInspection struct {
+	MicrophoneFeature                             *bool
+	AssistantRoleHolders                          []string
+	AssistantComponent, VoiceInteractionComponent *string
+	VoiceInteractionServices, PolicyInputTypes    []string
+	Unavailable                                   map[string]string
+}
+
+type DeviceInspection struct {
+	Voice                                                *VoiceInspection
+	ObservedAt                                           time.Time
+	ABIs                                                 []string
+	MemoryTotalBytes, DataTotalBytes, DataAvailableBytes *uint64
+	WebViewPackage, WebViewVersion, HomeComponent        string
+	LowRAM                                               *bool
+	Unavailable                                          map[string]string
+}
+
+type Inspector interface {
+	Inspect(context.Context) (DeviceInspection, error)
 }
 
 // StateObserver runs until ctx is cancelled and publishes one event for each
@@ -629,11 +725,25 @@ func Tiers(d Declaration) []string {
 	return tiers
 }
 
+// ReverseTCPForwarder creates an ephemeral device-loopback to host-loopback
+// TCP route. The returned cleanup reconciles partial setup and verifies removal.
+// Its caller must retain the device lease until cleanup has completed.
+type ReverseTCPForwarder interface {
+	OpenReverseTCP(context.Context, int, int) (func(context.Context) error, error)
+}
+
+type ReverseTCPRemover interface {
+	RemoveReverseTCP(context.Context, int, int) error
+}
+
 func StepKinds(d Declaration) []string {
 	if d.Status != StatusAvailable {
 		return []string{}
 	}
 	steps := []string{}
+	if d.Capabilities[CapReverseTCP].Status == StatusAvailable {
+		steps = append(steps, "reverse-tcp", "reverse-tcp-remove")
+	}
 	if d.Capabilities[CapScreenshot].Status == StatusAvailable {
 		steps = append(steps, "observe")
 	}

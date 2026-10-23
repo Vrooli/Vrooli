@@ -188,3 +188,43 @@ governed by the policy profile.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+## Native build profiles
+
+For `ANDROID_PROJECT_KIND=native`, `ANDROID_NATIVE_PROFILE` selects a declared
+profile in the source project's bounded `vrooli-native.json`. An omitted value
+uses `default_profile`, or preserves legacy root metadata when none is declared.
+An unknown profile fails. Each profile declares package_name, app_name and
+home_enabled; the Java namespace remains independent. The owner overlays these
+fields only in its isolated snapshot, preserves custom metadata and fingerprints
+the effective selection. The source directory is never edited by a build.
+
+The CLI, HTTP build/generate handlers and native builder propagate the same
+`native_profile` value. Artifact metadata includes selected profile, package,
+version, applied native name and signing mode/reference. Verify those fields
+before installation; a successful build does not prove the requested channel.
+
+Portal's native project declares ordinary `preview` and Home-eligible `daily`
+profiles with different application IDs. Build daily with `ANDROID_SIGNING=required`
+and `ANDROID_SIGNING_IDENTITY` referring to the owner-managed key. Use the existing
+`android signing-provision` operation for a missing identity. Never print private
+key material. `ANDROID_PREVIEW_CLEARTEXT_HOST` remains debug-only and cannot be
+combined with required release signing.
+### Retained Android build artifacts
+
+The HTTP build owner retains verified APK and AAB bytes in the request's routed
+scenario data directory, under `builds/artifacts/<combined-sha256>/`. Returned
+`local_path`, `metadata.apk_path` and `metadata.aab_path` point at these retained
+files; `artifact.json` preserves version, package, profile and signing identity
+metadata without signing material. Gradle workspaces remain disposable.
+Native generation also returns `source_digest`, carried into build metadata:
+it fingerprints the captured source and selected profile/preview-network inputs.
+It identifies build inputs; the APK+AAB checksum separately identifies outputs.
+
+Publication verifies the existing APK + NUL byte + AAB checksum and combined
+size before returning success. Repeated identical artifacts reuse verified
+bytes; conflicting/corrupt retained bytes fail rather than being overwritten.
+Retention accepts bounded regular files (at most 1 GiB combined) and respects
+request cancellation. Test-mode requests require their leased file root and
+cannot fall back to the live data directory. Retention is storage evidence,
+not proof of device qualification or release promotion.

@@ -10,9 +10,45 @@ import (
 	"strings"
 
 	"device-control/internal/evidence"
+	"device-control/strategy"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/storage"
 )
+
+// Failure diagnostics are observational, bounded by the run, and use the same
+// producer redaction policy as explicit observations. Unknown/locked/off screens
+// are not captured, and the original assertion outcome is always preserved.
+func (s *Service) captureAssertionFailure(ctx context.Context, strat strategy.Strategy, flow Flow, step Step, actor string) (*evidence.Reference, error) {
+	reader, ok := strat.(strategy.StateReader)
+	if !ok {
+		return nil, fmt.Errorf("live screen state unavailable")
+	}
+	state, err := reader.ReadState(ctx)
+	if err != nil || state.LockState != "unlocked" || state.ScreenState != "on" {
+		return nil, fmt.Errorf("visible surface unavailable")
+	}
+	observer, ok := strat.(strategy.Observer)
+	if !ok {
+		return nil, fmt.Errorf("screen observation unavailable")
+	}
+	frame, err := observer.Observe(ctx)
+	if err != nil {
+		return nil, err
+	}
+	redacted, err := evidence.RedactCaptureWithRegions(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
+	if err != nil {
+		return nil, err
+	}
+	ref, err := evidence.NewReference(uuid.NewString(), redacted.Bytes, redacted)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.persistArtifact(ctx, ref.ID, redacted.Bytes, "image"); err != nil {
+		return nil, err
+	}
+	return &ref, nil
+}
 
 func sensitiveRegions(step Step) []evidence.Region {
 	raw, ok := step.Arguments["sensitive_regions"].([]any)

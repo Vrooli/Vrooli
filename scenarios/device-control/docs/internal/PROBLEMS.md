@@ -575,3 +575,10 @@ endpoint-bound TV records `transport: wireless` instead of an empty value.
   errors). Scoped re-run confirmed `api`, `quality`, and `contracts` pass after
   declaring `device app` in `cli/manifest.json`.
 - Measured: 2026-09-17
+
+### Scoped W3 inspection repair — 2026-10-22
+
+- Rung: W3, localized runtime-inspection implementation/qualification under the authorized TV research; no W0–W2 gate or full readiness claim.
+- Evidence: fixed read-only voice configuration facts were absent from InspectDevice. Additive proto/owner inspection now returns configuration and explicit unknowns; focused VoiceInspection/Inspection tests and live CLI/Connect delivery pass. Current hardware microphone feature is false; role-holder probe is unknown, not proof of absence.
+- Remaining: reliable native/WebView readiness and input replacement are unqualified by two failed local trials. Physical audio access and Assistant role selection need separate bounded prototypes. WebView attachment cleanup source finding is tracked by `knw-1792696363648007859`; CDP attachment was not exercised.
+- Measured: 2026-10-22. Unit run `20261022-192128-ae97fc18` retains unrelated desktop fixture and coverage failures; original issues remain unchanged.

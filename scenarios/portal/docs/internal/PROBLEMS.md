@@ -48,9 +48,9 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
+### 2026-10-22 - Remaining TV preview qualification after native delivery
 
-_None yet._
-
+Scoped W3 delivery implements the ordinary native preview. Native Home and Nooch rendering/return now have physical evidence, but repeat entry timed out in trial 3f0e3263-ebf7-4b9d-9d96-fc07b34c0812. Keep that cancelled terminal result; do not convert passed chapters into an overall PASS. Hardware qualification remains for favorites persistence/reorder, explicit offline/stale states, large text/reduced motion, full app remote operation and masked header parity. Reset only the preview between clean-search trials: owner text input appended Nooch to Nooch in trial 4. Nooch applied icons remain placeholders, so use the wordmark pending approved Brand Manager assets. Home-first paired identity/local TLS/automatic fallback, authenticated travel, isolated TV emulator, microphone and Home routing remain separate gates. Prior LAN firewall block and WebView-forward teardown issue remain unresolved; no host policy changes authorized or performed. Source and acceptance in android-tv/README.md.
 ## Work ladder
 
 - Rung: W1/W2 implementation contract established; evidence remains planned.
@@ -85,3 +85,17 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## 2026-10-22 — TV cannot reach the host application gateway
+
+**Symptom:** The physical TV's native library times out; its WebView reports `ERR_CONNECTION_TIMED_OUT` for the same Portal origin.
+
+**Root cause:** The host kernel records UFW BLOCK for TCP SYN packets from this TV to Portal's UI gateway during the asserted connection trial. Host-local requests to that listener return HTTP 200. ADB reachability is a separate, host-initiated connection and does not prove TV-to-host access.
+
+**Workaround:** Local native TV shortcuts remain available. The existing HTTPS Portal route may provide an authenticated alternative; it must be qualified independently. No firewall or exposure change was performed.
+
+**Real fix:** Admit the exact trusted TV to the required application gateway through an operator-managed host policy, or qualify an existing authenticated HTTPS route. Then prove catalog loading and an actual application render on the TV. The current privilege broker only supports bridge admission on its fixed port and cloud edge ports; do not repurpose those identities or add a private firewall implementation to Portal/Device Control.
+
+**Owner:** Control plane for host admission; Portal for subsequent TV experience qualification.
+
+**Refs:** Private experiment `tv-capabilities-20261022T144942Z/implementation-20261022`, `host-firewall-evidence.txt`, `v4-corrected-library-frame.png`, `v4-corrected-portal-frame.png`.

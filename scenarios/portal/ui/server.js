@@ -1,42 +1,38 @@
-import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
+import { createScenarioServer, proxyToApi } from '@vrooli/api-base/server'
+import { createApplicationProxy } from './server/applicationProxy.js'
 
-// Both ports come from the scenario lifecycle. createScenarioServer already
-// rejects either one when it is missing or unparseable, so these guards change
-// no behaviour: the process still refuses to start. What they change is the
-// message — the library reports "Invalid UI_PORT configuration", which names
-// the symptom, and these name the cause and the fix.
 const uiPort = process.env.UI_PORT
-if (!uiPort) {
-  throw new Error(
-    'UI_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start portal` rather than running server.js directly.',
-  )
-}
-
+if (!uiPort) throw new Error('UI_PORT is not set. Start Portal through the Vrooli scenario lifecycle.')
 const apiPort = process.env.API_PORT
-if (!apiPort) {
-  throw new Error(
-    'API_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start portal` rather than running server.js directly.',
-  )
-}
+if (!apiPort) throw new Error('API_PORT is not set. Start Portal through the Vrooli scenario lifecycle.')
 
+const applicationProxy = createApplicationProxy({ apiPort })
 const connectRpcPath = /^\/vrooli\.portal\.v1\./
-
-startScenarioServer({
+const app = createScenarioServer({
   uiPort,
   apiPort,
   distDir: './dist',
   serviceName: 'portal',
   corsOrigins: '*',
-  setupRoutes(app) {
-    app.use((req, res, next) => {
-      if (!connectRpcPath.test(req.path)) {
-        next()
-        return
-      }
-
-      proxyToApi(req, res, req.originalUrl || req.url, {
-        apiPort,
-      }).catch(next)
+  setupRoutes(expressApp) {
+    expressApp.use(applicationProxy.router)
+    expressApp.use((req, res, next) => {
+      if (!connectRpcPath.test(req.path)) return next()
+      proxyToApi(req, res, req.originalUrl || req.url, { apiPort }).catch(next)
     })
   },
 })
+const server = app.listen(Number(uiPort), '0.0.0.0', () => {
+  console.log(`Portal UI listening on port ${uiPort}`)
+})
+server.on('upgrade', (req, socket, head) => {
+  applicationProxy.handleUpgrade(req, socket, head).then(handled => {
+    if (!handled) socket.destroy()
+  }).catch(() => socket.destroy())
+})
+const shutdown = () => {
+  applicationProxy.destroy()
+  server.close(() => process.exit(0))
+}
+process.once('SIGTERM', shutdown)
+process.once('SIGINT', shutdown)

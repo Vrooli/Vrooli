@@ -169,6 +169,14 @@ func main() {
 		Builder:         builder,
 		SigningIdentity: builds.DefaultSigningIdentity,
 		Generate:        builder.Generate,
+		Retain: func(ctx context.Context, artifact deliveryramp.Artifact) (deliveryramp.Artifact, error) {
+			root, err := fileRoots.PickRequired(ctx, storage.ClassData)
+			if err != nil {
+				return deliveryramp.Artifact{}, err
+			}
+			fileRoots.RecordWrite(ctx)
+			return builds.RetainArtifact(ctx, root, artifact)
+		},
 		ProvisionSigning: func(ctx context.Context, identity string) error {
 			if builder.Signing == nil {
 				return fmt.Errorf("secrets-manager credential client is not configured")

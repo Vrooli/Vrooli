@@ -40,3 +40,7 @@ export const watchDeviceEvents = (id: string, onEvent: (event: { device_id: stri
 export const validateFlow = (strategy_id: string, flow: unknown) => request<{ runnable: boolean; gaps: string[]; warnings: string[] }>("/api/v1/flows/validate", { method: "POST", body: JSON.stringify({ strategy_id, flow }) });
 export const runFlow = (device_id: string, actor: string, lease_token: string, flow: unknown) => request<{ run_id: string; disposition: string; chapters?: Array<{ id: string; disposition: string; message: string }>; resolutions?: Array<{ target: string; rung: string; confidence: number }>; evidence?: Array<{ id: string; kind: string; checksum?: string; sha256?: string; size_bytes: number; created_at: string; applied_rules?: string[]; redaction_verified: boolean; recording_method?: string; effective_fps?: number; disposition?: string; disposition_reason?: string }> | null }>("/api/v1/flows/run", { method: "POST", body: JSON.stringify({ device_id, actor, lease_token, flow }) });
 export const auditRecords = () => request<{ records: Array<{ id: string; actor: string; device_id: string; verb: string; outcome: string; created_at: string }> }>("/api/v1/evidence/audit");
+
+export const evidenceUrl = (id: string) => buildApiUrl(`/api/v1/evidence/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
+
+export const reconnectDevice = (id: string) => request<{ device: Device }>(`/api/v1/devices/${encodeURIComponent(id)}/reconnect`, { method: "POST", body: "{}" });

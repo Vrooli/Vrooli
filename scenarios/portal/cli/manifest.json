@@ -635,53 +635,159 @@
           "name": "build",
           "description": "Build one gated context brief",
           "flags": [
-            {"name": "prompt", "description": "Prompt text"},
-            {"name": "prompt-file", "description": "Read prompt text from a file, or - for stdin", "local_only": true, "bind_waiver": "The CLI handler reads this local file and sends only the resulting prompt text in the typed request."},
-            {"name": "consumer", "description": "portal-llm, portal-agent, or external-harness", "default": "external-harness"},
-            {"name": "render", "description": "agent, system-prompt, or none", "default": "none", "local_only": true, "bind_waiver": "Rendering selects the CLI presentation after the typed response returns; it is not part of the service request."},
-            {"name": "budget-ms", "description": "Hard search budget in milliseconds"}
+            {
+              "name": "prompt",
+              "description": "Prompt text"
+            },
+            {
+              "name": "prompt-file",
+              "description": "Read prompt text from a file, or - for stdin",
+              "local_only": true,
+              "bind_waiver": "The CLI handler reads this local file and sends only the resulting prompt text in the typed request."
+            },
+            {
+              "name": "consumer",
+              "description": "portal-llm, portal-agent, or external-harness",
+              "default": "external-harness"
+            },
+            {
+              "name": "render",
+              "description": "agent, system-prompt, or none",
+              "default": "none",
+              "local_only": true,
+              "bind_waiver": "Rendering selects the CLI presentation after the typed response returns; it is not part of the service request."
+            },
+            {
+              "name": "budget-ms",
+              "description": "Hard search budget in milliseconds"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Build"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BriefService",
+            "method": "Build"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "get",
           "description": "Read one stored context brief",
-          "positionals": [{"name": "id", "required": true, "description": "Brief id"}],
-          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Get"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brief id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BriefService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List stored context briefs newest first",
           "flags": [
-            {"name": "consumer", "description": "Consumer filter"},
-            {"name": "chat-id", "description": "Chat filter"},
-            {"name": "session-ref", "description": "External session filter"},
-            {"name": "limit", "description": "Maximum briefs", "default": "50"}
+            {
+              "name": "consumer",
+              "description": "Consumer filter"
+            },
+            {
+              "name": "chat-id",
+              "description": "Chat filter"
+            },
+            {
+              "name": "session-ref",
+              "description": "External session filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum briefs",
+              "default": "50"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "List"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BriefService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "record-use",
           "description": "Record use of a brief item",
           "positionals": [
-            {"name": "brief-id", "required": true, "description": "Brief id"},
-            {"name": "item-index", "required": true, "description": "Zero-based item index"},
-            {"name": "kind", "required": true, "description": "opened, copied, referenced, or rejected"}
+            {
+              "name": "brief-id",
+              "required": true,
+              "description": "Brief id"
+            },
+            {
+              "name": "item-index",
+              "required": true,
+              "description": "Zero-based item index"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "opened, copied, referenced, or rejected"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "RecordUse"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BriefService",
+            "method": "RecordUse"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "stats",
           "description": "Report brief delivery, withholding, and item usage rates",
           "flags": [
-            {"name": "window", "description": "Window in days", "default": "7", "bind": {"field": "window_days"}},
-            {"name": "consumer", "description": "Optional consumer filter"}
+            {
+              "name": "window",
+              "description": "Window in days",
+              "default": "7",
+              "bind": {
+                "field": "window_days"
+              }
+            },
+            {
+              "name": "consumer",
+              "description": "Optional consumer filter"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BriefService", "method": "Stats"},
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BriefService",
+            "method": "Stats"
+          },
           "measure": {
             "domain": "brief",
             "intent": "Measure context brief delivery, withholding, and item usage over a bounded window.",
@@ -701,24 +807,66 @@
               "summary_template": "Context brief delivery and usage metrics"
             }
           },
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "hook",
           "description": "Render a prompt-time context hook response",
           "needs_api": false,
-          "flags": [{"name": "runtime", "required": true, "description": "Agent runtime name"}],
-          "binding": {"kind": "local", "handler": "hook"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "runtime",
+              "required": true,
+              "description": "Agent runtime name"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "hook"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "hooks",
           "description": "Install, remove, or inspect the context brief hook",
           "needs_api": false,
-          "positionals": [{"name": "action", "required": true, "description": "install, remove, or status"}],
-          "flags": [{"name": "runtime", "description": "Agent runtime name"}],
-          "binding": {"kind": "local", "handler": "hooks"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write", "network:internal"]}
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "install, remove, or status"
+            }
+          ],
+          "flags": [
+            {
+              "name": "runtime",
+              "description": "Agent runtime name"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "hooks"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -841,6 +989,59 @@
               "description": "Exact owner surface ID",
               "local_only": true,
               "bind_waiver": "The CLI handler assembles these exact-reference parts into the nested SurfaceRef request."
+            }
+          ]
+        },
+        {
+          "name": "apps",
+          "description": "List application runtime inventory; TV compatibility remains unverified",
+          "positionals": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplicationCatalogService",
+            "method": "ListApplications"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "app-url",
+          "description": "Resolve the current browser URL of a running application",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Exact scenario identity",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplicationCatalogService",
+            "method": "ResolveApplication"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "gateway",
+              "description": "Use Portal’s same-origin application gateway",
+              "bind": {
+                "field": "use_gateway"
+              },
+              "bool": true
             }
           ]
         }

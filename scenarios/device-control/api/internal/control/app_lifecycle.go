@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"device-control/strategy"
 	"github.com/google/uuid"
@@ -30,7 +31,7 @@ type AppLifecycleResponse struct {
 
 func lifecycleNeedsConfirmation(operation string) bool {
 	switch operation {
-	case "package-state":
+	case "home-state", "package-state", "accessibility-state", "foreground-state", "process-state", "app-status":
 		return false
 	default:
 		return true
@@ -50,6 +51,9 @@ func validateAppLifecycleRequest(request strategy.AppLifecycleRequest) error {
 	}
 	if len(request.Permission) > 256 || len(request.Value) > 4096 {
 		return fmt.Errorf("lifecycle parameters exceed bounded limits")
+	}
+	if len(request.ExpectedValue) > 64 || (request.ExpectedValue != "" && request.Operation != "package-enabled-set") {
+		return fmt.Errorf("expected_value is only supported for checked package enabled-state changes")
 	}
 	return nil
 }
@@ -74,6 +78,16 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	if !ok {
 		return AppLifecycleResponse{}, fmt.Errorf("device %q has no available transport", deviceID)
 	}
+	if request.Operation == "home-set" || request.Operation == "package-enabled-set" {
+		reader, readable := adapter.(strategy.StateReader)
+		if !readable {
+			return AppLifecycleResponse{}, fmt.Errorf("device configuration requires observable unlocked state")
+		}
+		state, err := reader.ReadState(ctx)
+		if err != nil || state.LockState != "unlocked" || state.ScreenState != "on" {
+			return AppLifecycleResponse{}, fmt.Errorf("device configuration requires an unlocked, on-screen device")
+		}
+	}
 	declaration, err := adapter.Describe(ctx)
 	if err != nil {
 		return AppLifecycleResponse{}, fmt.Errorf("describe lifecycle strategy: %w", err)
@@ -97,6 +111,9 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	commandID := uuid.NewString()
 	result, operationErr := lifecycle.AppLifecycle(ctx, request.AppLifecycleRequest)
 	outcome := "success"
+	if result.Outcome != "" {
+		outcome = result.Outcome
+	}
 	if operationErr != nil {
 		outcome = "failed"
 	}
@@ -110,7 +127,7 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 			transport = record.Transport
 		}
 	}
-	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: transport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, RedactionVerified: true, Interactive: true, EvidenceBacked: false}
+	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: transport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true, EvidenceBacked: false}
 	s.persistDirectAudit(ctx, audit)
 	response := AppLifecycleResponse{CommandID: commandID, Result: result, Audit: audit}
 	if operationErr != nil {

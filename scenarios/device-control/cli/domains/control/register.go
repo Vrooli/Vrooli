@@ -18,7 +18,7 @@ import (
 )
 
 func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{Name: "device", Description: "Inventory and onboard governed devices", NeedsAPI: true, Subcommands: []cliapp.Command{
+	return cliapp.SubcommandGroup{Name: "device", Description: "Inventory and onboard governed devices", NeedsAPI: true, Subcommands: append(inspectionCommands(core), []cliapp.Command{
 		command("list", "List devices with probed capability snapshots", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
 			b, err := core.Request(http.MethodGet, "/devices", nil, nil)
 			if err != nil {
@@ -119,8 +119,8 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			body["repeat"] = repeat
 			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/actuate", body, "Device actuation")
 		}),
-		command("app", "Run one lease-owned app lifecycle operation", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}, Flags: []cliapp.Flag{{Name: "operation", Required: true, Description: "launch, focus, close, minimize, restore, stop, uninstall, clear-data, grant-permission, revoke-permission, or package-state"}, {Name: "package", Required: true, Description: "fully-qualified package identity"}, {Name: "permission", Description: "permission for grant or revoke"}, {Name: "value", Description: "bounded operation value"}, {Name: "lease", Required: true, Description: "held lease token"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "confirmed", Bool: true, Description: "explicitly confirm the lifecycle side effect"}}}, func(ctx cliapp.RunContext) error {
-			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/apps", map[string]any{"operation": ctx.Flag("operation"), "package": ctx.Flag("package"), "permission": ctx.Flag("permission"), "value": ctx.Flag("value"), "lease_token": ctx.Flag("lease"), "actor": ctx.Flag("actor"), "confirmed": ctx.BoolFlag("confirmed")}, "App lifecycle")
+		command("app", "Run one lease-owned app lifecycle operation", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}, Flags: []cliapp.Flag{{Name: "operation", Required: true, Description: "app-status, process-state, foreground-state, accessibility-state, package-enabled-set, home-state, home-set, launch, focus, close, minimize, restore, stop, uninstall, clear-data, grant-permission, revoke-permission, or package-state"}, {Name: "package", Required: true, Description: "fully-qualified package identity"}, {Name: "permission", Description: "permission for grant or revoke"}, {Name: "value", Description: "bounded operation value"}, {Name: "expected-value", Description: "expected previous setting for package-enabled-set"}, {Name: "lease", Required: true, Description: "held lease token"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "confirmed", Bool: true, Description: "explicitly confirm the lifecycle side effect"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/apps", map[string]any{"operation": ctx.Flag("operation"), "package": ctx.Flag("package"), "permission": ctx.Flag("permission"), "value": ctx.Flag("value"), "expected_value": ctx.Flag("expected-value"), "lease_token": ctx.Flag("lease"), "actor": ctx.Flag("actor"), "confirmed": ctx.BoolFlag("confirmed")}, "App lifecycle")
 		}),
 		command("watch", "Print state changes until interrupted", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
 			return watchDevice(ctx, core, ctx.Positional("id"))
@@ -150,7 +150,7 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		command("reconnect", "Reconnect a promoted Android device over wireless ADB", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
 			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/reconnect", nil, "Wireless device reconnect")
 		}),
-	}}
+	}...)}
 }
 
 func readPairingPIN(reader io.Reader, prompt io.Writer) (string, error) {

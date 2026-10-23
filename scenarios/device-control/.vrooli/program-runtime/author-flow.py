@@ -1,6 +1,8 @@
+import json
+
 inputs = program.inputs()
 learn.task(operation="device-control.author-flow", key={"device": inputs.get("device_id", ""), "context_key": inputs.get("context_key", "")})
-envelope={"program":"device-control.author-flow","version":"1","status":"failed","phase":"validate","inputs":{},
+envelope={"program":"device-control.author-flow","version":"2","status":"failed","phase":"validate","inputs":{},
  "signals":{},"errors":[],"evidence":[]}
 handles={}
 def fail(status,klass,detail,where):
@@ -74,7 +76,7 @@ def step_report():
     envelope["signals"]["learning"] = {"feedback_ref": learn.result("flow", artifact=artifact)}
     learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
                   envelope["evidence"] if status == "verified_success" else [])
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False))
     return None
 STATES={"validate":step_validate,"collect":step_collect,"act":step_act,"report":step_report}
 state="validate"

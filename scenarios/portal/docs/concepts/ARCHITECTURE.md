@@ -1,5 +1,23 @@
 # Architecture — Portal
 
+## Native TV preview target (22 October 2026)
+
+The Android TV presentation belongs in `android-tv/` within Portal. Its initial
+APK is an ordinary Leanback application, without a HOME intent filter or default
+launcher changes. Native Horizon navigation, local application shortcuts, focus,
+Back behavior, and cached presentation work without Device Control or a host.
+Portal remains the authority for Vrooli catalog identity, access, readiness, and
+launch metadata. One on-demand full-screen WebView hosts a selected experience.
+Start with the active system provider; add another engine only for demonstrated
+compatibility failures and measured resource cost.
+
+Scenario to Android owns native build, signing, distribution, and Android
+validation. Device Control owns deployment, observation, bounded remote tests,
+and recovery. Preview qualification covers one real Vrooli library, one usable
+experience, remote navigation, authentication, offline behavior, sleep/resume,
+and stock-Home recovery. HOME registration and debloating require separate
+decisions after this qualification. This target is not an implementation claim.
+
 This document is the scenario's system map. It explains the invariant
 shape inherited from the `react-vite` template, then points to the
 specialized documents that own product domains, workflows, data,

@@ -62,6 +62,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 		module.EndpointDescriptor{ID: "device_rpc_connect", Path: devicesconnect.DeviceServiceConnectDeviceProcedure, Method: "POST", Summary: "Show device onboarding", Category: "devices"},
 		module.EndpointDescriptor{ID: "device_rpc_reconnect", Path: devicesconnect.DeviceServiceReconnectDeviceProcedure, Method: "POST", Summary: "Reconnect a wireless device", Category: "devices"},
 		module.EndpointDescriptor{ID: "device_rpc_volume", Path: devicesconnect.DeviceServiceExecuteVolumeProcedure, Method: "POST", Summary: "Execute semantic volume operation", Category: "devices"},
+		module.EndpointDescriptor{ID: "device_rpc_inspect", Path: devicesconnect.DeviceServiceInspectDeviceProcedure, Method: "POST", Summary: "Inspect device hardware and runtime", Description: "Read bounded hardware, storage, active WebView, and default Home facts without device writes.", Category: "devices"},
 		module.EndpointDescriptor{ID: "strategy_rpc_list", Path: strategiesconnect.StrategyServiceListStrategiesProcedure, Method: "POST", Summary: "List strategies", Category: "strategies"},
 		module.EndpointDescriptor{ID: "strategy_rpc_verify", Path: strategiesconnect.StrategyServiceVerifyStrategyProcedure, Method: "POST", Summary: "Verify strategy", Category: "strategies"},
 		module.EndpointDescriptor{ID: "session_rpc_list", Path: sessionsconnect.SessionServiceListSessionsProcedure, Method: "POST", Summary: "List sessions", Category: "sessions"},

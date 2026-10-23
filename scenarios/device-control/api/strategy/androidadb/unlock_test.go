@@ -137,7 +137,7 @@ func TestUnlockReportsHumanAndUnsupportedMethodsWithoutActuation(t *testing.T) {
 func TestRestoreStateReLocksDeviceThatStartedLocked(t *testing.T) {
 	runner := &restorationRunner{}
 	adapter := NewWithRunner(runner, "serial-1")
-	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked", Orientation: "portrait"})
+	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked"})
 	require.NoError(t, err)
 	require.True(t, runner.locked)
 	require.Contains(t, strings.Join(runner.calls, "\n"), "KEYCODE_POWER")
@@ -147,7 +147,7 @@ func TestRestoreStateWaitsForAsynchronousKeyguardTransition(t *testing.T) {
 	runner := &restorationRunner{lockAfterProbes: 2}
 	adapter := NewWithRunner(runner, "serial-1")
 
-	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked", Orientation: "portrait"})
+	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked"})
 
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, runner.lockProbeCount, 3)

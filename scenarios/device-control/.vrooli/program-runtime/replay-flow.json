@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "device-control.replay-flow",
-  "version": "1",
+  "version": "2",
   "helpers": {
     "program": "1"
   },

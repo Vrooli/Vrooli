@@ -16,6 +16,16 @@ import (
 
 type successfulProbeRunner struct{}
 
+func TestLifecycleResultOmitsUnknownInstalledState(t *testing.T) {
+	encoded, err := json.Marshal(strategy.AppLifecycleResult{Operation: "launch", Status: "available", Outcome: "accepted"})
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), `"installed"`)
+	require.NotContains(t, string(encoded), `"observed_at"`)
+	encoded, err = json.Marshal(strategy.AppLifecycleResult{Operation: "package-state", Status: "available"})
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"installed":false`)
+}
+
 func TestDeviceStateOmitsUnknownMobileBooleans(t *testing.T) {
 	encoded, err := json.Marshal(strategy.DeviceState{Properties: map[string]strategy.PropertyValue{"volume": {Value: 0.7, Status: strategy.StatusAvailable}}})
 	require.NoError(t, err)
@@ -90,7 +100,7 @@ func TestDeclaredAndroidStepsHaveExecutorImplementations(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusAvailable, declaration.Status)
 	implemented := map[string]bool{}
-	for _, kind := range []string{"observe", "tap", "key", "wait", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "screen", "semantic-target", "semantic-assert", "install", "launch", "focus", "close", "minimize", "restore", "stop", "uninstall", "clear-data", "package-state", "grant-permission", "revoke-permission", "device-logs", "logcat-start", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "clipboard-write", "screenrecord", "rotate", "network", "deep-link", "share"} {
+	for _, kind := range []string{"observe", "tap", "key", "wait", "reverse-tcp", "reverse-tcp-remove", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "screen", "semantic-target", "semantic-assert", "install", "launch", "focus", "close", "minimize", "restore", "stop", "uninstall", "clear-data", "package-state", "grant-permission", "revoke-permission", "device-logs", "logcat-start", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "clipboard-write", "screenrecord", "rotate", "network", "deep-link", "share"} {
 		implemented[kind] = true
 	}
 	implemented["recording-start"] = true

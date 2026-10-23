@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Route, Routes } from "react-router-dom";
+import { Link, Route, Routes } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
 import { renderWithProviders } from "../test-utils";
@@ -12,6 +12,9 @@ const api = vi.hoisted(() => ({
   listSessions: vi.fn(),
   readDeviceState: vi.fn(),
   releaseSession: vi.fn(),
+  runFlow: vi.fn(),
+  reconnectDevice: vi.fn(),
+  evidenceUrl: vi.fn((id: string) => `/evidence/${id}`),
   watchDeviceEvents: vi.fn(),
 }));
 
@@ -25,7 +28,7 @@ function renderPage(deviceId = "fixture-device") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  api.acquireSession.mockResolvedValue({ session: { id: "lease-1", lease_token: "token" } });
+  api.acquireSession.mockResolvedValue({ session: { id: "lease-1", lease_token: "token", expires_at: "2099-01-01T00:00:00Z" } });
   api.releaseSession.mockResolvedValue({});
   api.listSessions.mockResolvedValue({ sessions: [] });
   api.watchDeviceEvents.mockReturnValue(() => undefined);
@@ -46,12 +49,69 @@ describe("DeviceDetailPage capability composition", () => {
     expect(screen.queryByTestId(selectors.pages.deviceLiveView)).not.toBeInTheDocument();
   });
 
-  it("renders a phone live view and no directional remote", async () => {
+  it("renders a captured screen and a directional remote together", async () => {
     api.describeDevice.mockResolvedValue({ device: { id: "phone", name: "Phone", kind: "physical", strategy_id: "android-adb", status: "available", capabilities: [{ name: "input", status: "available" }, { name: "screenshot", status: "available" }] } });
     api.readDeviceState.mockResolvedValue({ screen_state: "on" });
     renderPage("phone");
     expect(await screen.findByTestId(selectors.pages.deviceLiveView)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.deviceRemotePanel)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.deviceLiveView).compareDocumentPosition(screen.getByTestId(selectors.pages.deviceCapabilityMatrix)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("captures an actual frame through the evidence owner", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }, { name: "input", status: "available" }] } });
+    api.readDeviceState.mockResolvedValue({ screen_state: "on" });
+    api.runFlow.mockResolvedValue({ disposition: "passed", evidence: [{ id: "frame-1", created_at: "2026-10-22T15:00:00Z" }] });
+    renderPage("tv");
+    fireEvent.click((await screen.findByTestId(selectors.pages.deviceLiveView)).querySelector("button") as HTMLButtonElement);
+    await waitFor(() => expect(screen.getByTestId(selectors.pages.deviceLiveView).querySelector("img")).toHaveAttribute("src", "/evidence/frame-1"));
+    expect(api.runFlow).toHaveBeenCalledWith("tv", "browser-operator", "token", expect.objectContaining({ require_unlocked: true, steps: [{ id: "screen", kind: "observe" }] }));
+  });
+
+  it("does not enable controls from stale transports", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "input", status: "available" }], transports: [{ name: "wireless", health: "stale", capabilities: { input: { name: "input", status: "available" } } }] } });
+    api.readDeviceState.mockResolvedValue({});
+    renderPage("tv");
+    await screen.findByTestId(selectors.pages.deviceCapabilityMatrix);
     expect(screen.queryByTestId(selectors.pages.deviceRemotePanel)).not.toBeInTheDocument();
+  });
+
+  it("retains a usable page and reports capture failure", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }, { name: "input", status: "available" }] } });
+    api.readDeviceState.mockResolvedValue({ screen_state: "on" });
+    api.runFlow.mockResolvedValueOnce({ disposition: "failed", chapters: [{ disposition: "failed", message: "The visible surface is locked" }] });
+    renderPage("tv");
+    fireEvent.click((await screen.findByTestId(selectors.pages.deviceLiveView)).querySelector("button") as HTMLButtonElement);
+    expect(await screen.findByRole("alert")).toHaveTextContent("The visible surface is locked");
+    expect(screen.getByTestId(selectors.pages.deviceRemotePanel)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.deviceLiveView).querySelector("img")).toBeNull();
+  });
+
+  it("does not borrow another operator's listed lease", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "input", status: "available" }] } });
+    api.readDeviceState.mockResolvedValue({});
+    api.listSessions.mockResolvedValue({ sessions: [{ id: "other-lease", actor: "other-operator", device_id: "tv", state: "held", lease_token: "private-other-token", expires_at: "2099-01-01T00:00:00Z" }] });
+    api.acquireSession.mockRejectedValueOnce(new Error("Device is busy"));
+    renderPage("tv");
+    fireEvent.click((await screen.findByTestId(selectors.pages.deviceRemotePanel)).querySelector("button") as HTMLButtonElement);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Device is busy");
+    expect(api.actuateDevice).not.toHaveBeenCalled();
+    expect(api.releaseSession).not.toHaveBeenCalled();
+  });
+
+  it("releases the old device lease and acquires a new lease after route navigation", async () => {
+    api.describeDevice.mockImplementation((id: string) => Promise.resolve({ device: { id, name: id, strategy_id: "android-adb", status: "available", capabilities: [{ name: "input", status: "available" }] } }));
+    api.readDeviceState.mockResolvedValue({});
+    api.actuateDevice.mockResolvedValue({});
+    api.acquireSession.mockResolvedValueOnce({ session: { id: "lease-a", lease_token: "token-a", expires_at: "2099-01-01T00:00:00Z" } }).mockResolvedValueOnce({ session: { id: "lease-b", lease_token: "token-b", expires_at: "2099-01-01T00:00:00Z" } });
+    renderWithProviders(<><Link to="/devices/tv-b">Other TV</Link><Routes><Route path="/devices/:deviceId" element={<DeviceDetailPage />} /></Routes></>, { routerEntries: ["/devices/tv-a"] });
+    fireEvent.click((await screen.findByTestId(selectors.pages.deviceRemotePanel)).querySelector("button") as HTMLButtonElement);
+    await waitFor(() => expect(api.actuateDevice).toHaveBeenCalledWith("tv-a", expect.anything()));
+    fireEvent.click(screen.getByRole("link", { name: "Other TV" }));
+    await waitFor(() => expect(api.releaseSession).toHaveBeenCalledWith("lease-a"));
+    fireEvent.click((await screen.findByTestId(selectors.pages.deviceRemotePanel)).querySelector("button") as HTMLButtonElement);
+    await waitFor(() => expect(api.actuateDevice).toHaveBeenCalledWith("tv-b", expect.objectContaining({ lease_token: "token-b" })));
+    expect(api.acquireSession).toHaveBeenCalledTimes(2);
   });
 
   it("generates property controls from descriptors", async () => {
@@ -86,7 +146,9 @@ describe("DeviceDetailPage capability composition", () => {
     fireEvent.blur(label);
     await waitFor(() => expect(api.actuateDevice).toHaveBeenCalled());
     expect(api.acquireSession).toHaveBeenCalled();
-    expect(api.releaseSession).toHaveBeenCalled();
+    expect(api.acquireSession).toHaveBeenCalledTimes(1);
+    fireEvent.click(await screen.findByRole("button", { name: "End control session" }));
+    await waitFor(() => expect(api.releaseSession).toHaveBeenCalledWith("lease-1"));
   });
 
   it("renders loading, request failure, unreachable, and stale probe states", async () => {

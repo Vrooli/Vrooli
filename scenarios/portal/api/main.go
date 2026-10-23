@@ -95,6 +95,7 @@ func main() {
 		messageH.Module(db, clk, searchService, briefService, contextService),
 		searchH.Module(searchService),
 		surfacesH.Module(internalsurfaces.DefaultCatalog(clk.Now)),
+		surfacesH.ApplicationsModule(internalsurfaces.DefaultApplications()),
 		surfacesH.DesktopModule(os.Getenv("PORTAL_DESKTOP_OWNER_SOCKET")),
 		surfacesH.OperatorModule(),
 	)

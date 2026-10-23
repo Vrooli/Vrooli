@@ -55,6 +55,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, messageH.Endpoints...)
 	out = append(out, searchH.Endpoints...)
 	out = append(out, surfacesH.Endpoints...)
+	out = append(out, surfacesH.ApplicationEndpoints...)
 	out = append(out, surfacesH.DesktopEndpoints...)
 	out = append(out, surfacesH.OperatorEndpoints...)
 	return out

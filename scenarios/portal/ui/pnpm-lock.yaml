@@ -26,6 +26,9 @@ importers:
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.20.0)
+      '@vrooli/audio-capture-browser':
+        specifier: file:../../../packages/audio-capture-browser
+        version: file:../../../packages/audio-capture-browser(react@18.3.1)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge(react@18.3.1)
@@ -796,6 +799,9 @@ packages:
   '@types/react@18.3.28':
     resolution: {integrity: sha512-z9VXpC7MWrhfWipitjNdgCauoMLRdIILQsAEV+ZesIzBq/oUlxk0m3ApZuMFCXdnS4U7KrI+l3WRUEGQ8K1QKw==}
 
+  '@types/react@18.3.31':
+    resolution: {integrity: sha512-vfEqpXTvwT91yhmwdfouStN2hSKwTvyRs8qpLfADyrq/kxDw0hZM7Wk9Ug1FELj8hIby+S/+kQCSRFF32nv2Qw==}
+
   '@types/react@18.3.5':
     resolution: {integrity: sha512-WeqMfGJLGuLCqHGYRGHxnKrXcTitc6L/nBUWfWPcTarG3t9PsquqUMuVeXZeca+mglY4Vo5GZjCi0A3Or2lnxA==}
 
@@ -1002,6 +1008,11 @@ packages:
     peerDependencies:
       express: ^4.18.2
       ws: ^8.16.0
+
+  '@vrooli/audio-capture-browser@file:../../../packages/audio-capture-browser':
+    resolution: {directory: ../../../packages/audio-capture-browser, type: directory}
+    peerDependencies:
+      react: ^18.0.0
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -3535,7 +3546,16 @@ snapshots:
     dependencies:
       '@types/react': 18.3.28
 
+  '@types/react-dom@18.3.7(@types/react@18.3.31)':
+    dependencies:
+      '@types/react': 18.3.31
+
   '@types/react@18.3.28':
+    dependencies:
+      '@types/prop-types': 15.7.15
+      csstype: 3.2.3
+
+  '@types/react@18.3.31':
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
@@ -3785,6 +3805,12 @@ snapshots:
       - '@bufbuild/protobuf'
       - '@testing-library/dom'
       - react-native
+
+  '@vrooli/audio-capture-browser@file:../../../packages/audio-capture-browser(react@18.3.1)':
+    dependencies:
+      '@types/react': 18.3.31
+      '@types/react-dom': 18.3.7(@types/react@18.3.31)
+      react: 18.3.1
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge(react@18.3.1)':
     optionalDependencies:

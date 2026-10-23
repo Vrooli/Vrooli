@@ -309,6 +309,22 @@
       "category": "surfaces"
     },
     {
+      "id": "applications_list",
+      "path": "/vrooli.portal.v1.surfaces.ApplicationCatalogService/ListApplications",
+      "method": "POST",
+      "summary": "List Vrooli applications",
+      "description": "Project control-plane runtime inventory without assuming TV qualification.",
+      "category": "surfaces"
+    },
+    {
+      "id": "applications_resolve",
+      "path": "/vrooli.portal.v1.surfaces.ApplicationCatalogService/ResolveApplication",
+      "method": "POST",
+      "summary": "Resolve a running application",
+      "description": "Resolve an existing application browser URL; application access remains with its owner.",
+      "category": "surfaces"
+    },
+    {
       "id": "desktop_reconcile_open",
       "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/ReconcileOpen",
       "method": "POST",

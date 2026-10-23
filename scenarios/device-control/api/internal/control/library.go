@@ -139,7 +139,7 @@ func ValidatePromotionCandidate(flow Flow) error {
 		return fmt.Errorf("empty flow cannot be promoted")
 	}
 	switch flow.Steps[len(flow.Steps)-1].Kind {
-	case "semantic-assert", "assert-frame-different", "property-assert":
+	case "assert-foreground", "semantic-assert", "assert-frame-different", "property-assert":
 		return nil
 	default:
 		return fmt.Errorf("promotion requires a terminal outcome assertion")

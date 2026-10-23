@@ -129,6 +129,7 @@ type flowAuthStrategy struct {
 	locked              bool
 	failReadAfterUnlock bool
 	cancelOnUnlock      context.CancelFunc
+	restoredStates      []strategy.DeviceState
 }
 
 func (s *flowAuthStrategy) ReadState(ctx context.Context) (strategy.DeviceState, error) {
@@ -160,10 +161,47 @@ func (s *flowAuthStrategy) RestoreState(ctx context.Context, state strategy.Devi
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	s.restoredStates = append(s.restoredStates, state)
 	if state.LockState == "locked" {
 		s.locked = true
 	}
 	return nil
+}
+
+func TestObservationOnlyFlowDoesNotRestoreUnchangedDeviceState(t *testing.T) {
+	adapter := &flowAuthStrategy{Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)}
+	svc := New(strategyregistry.New(adapter))
+	result, err := svc.Run(context.Background(), Flow{RequireUnlocked: true, Steps: []Step{{ID: "frame", Kind: "observe"}}}, "fake", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Empty(t, adapter.restoredStates, "read-only observation must not invoke a device writer")
+	require.Empty(t, result.Restoration)
+}
+
+func TestDescribeKnownStaleDeviceDoesNotDiscoverOtherTransports(t *testing.T) {
+	svc := New(strategyregistry.New())
+	old := time.Now().UTC().Add(-time.Hour)
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "known-tv", Kind: "physical", Serial: "tv-serial", StrategyID: "android-adb", Transport: "wireless", ObservedAt: old})
+	svc.attached = failingAttachedReader{}
+	device, err := svc.DescribeDevice(context.Background(), " known-tv ")
+	require.NoError(t, err)
+	require.Equal(t, "known-tv", device.ID)
+	require.Equal(t, old, device.ObservedAt)
+}
+
+func TestVerifiedReconnectRefreshesReachabilityAndCapabilities(t *testing.T) {
+	adapter := newPersistentWirelessStrategy()
+	adapter.endpoint = "192.168.1.42:5555"
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: adapter.ID(), Transport: "wireless", ObservedAt: time.Now().UTC().Add(-time.Hour)})
+	svc.transportStrategies["wireless-device"] = adapter
+	before := time.Now().UTC()
+	device, err := svc.ReconnectWireless(context.Background(), " wireless-device ")
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, device.Health)
+	require.False(t, device.ObservedAt.Before(before))
+	require.Equal(t, "192.168.1.43:37123", device.Endpoint)
+	require.NotEmpty(t, device.Capabilities)
 }
 
 func TestLeaseAndAuditSurviveServiceReconstruction(t *testing.T) {
@@ -1712,4 +1750,197 @@ func TestObservationSessionsAreBounded(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.AcquireObservationContext(ctx, "fake", "reader", time.Minute)
 	require.NoError(t, err)
+}
+
+type semanticReadinessStrategy struct {
+	*fakes.Strategy
+	calls   int
+	failFor int
+	locked  bool
+}
+
+func (s *semanticReadinessStrategy) Actuate(ctx context.Context, event strategy.Actuation) error {
+	s.calls++
+	if s.calls <= s.failFor {
+		return errors.New("expected control is not ready")
+	}
+	return s.Strategy.Actuate(ctx, event)
+}
+
+func (s *semanticReadinessStrategy) ReadState(context.Context) (strategy.DeviceState, error) {
+	lock := "unlocked"
+	if s.locked {
+		lock = "locked"
+	}
+	return strategy.DeviceState{ScreenState: "on", LockState: lock}, nil
+}
+
+func semanticReadinessService(t *testing.T, failFor int) (*Service, *semanticReadinessStrategy) {
+	t.Helper()
+	adapter := &semanticReadinessStrategy{Strategy: fakes.New("semantic-ready", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot), failFor: failFor}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "semantic-tv", StrategyID: adapter.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	return svc, adapter
+}
+
+func TestSemanticReadinessRetriesReadOnlyAssertionsButNotInput(t *testing.T) {
+	svc, adapter := semanticReadinessService(t, 1)
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "ready", Kind: "semantic-assert", Target: "Nooch", Arguments: map[string]any{"expected": "Nooch"}, RetryBudget: 2}}}, "semantic-tv", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, 2, adapter.calls)
+	require.Equal(t, 2, result.Chapters[0].Attempts)
+	svc, adapter = semanticReadinessService(t, 10)
+	result, err = svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "press", Kind: "key", Target: "DPAD_CENTER", RetryBudget: 3}}}, "semantic-tv", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Equal(t, 1, adapter.calls, "input effects must never be replayed by readiness retry")
+}
+
+func TestSemanticFailureRetainsRedactedFrameBeforeRestoration(t *testing.T) {
+	svc, _ := semanticReadinessService(t, 10)
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "ready", Kind: "semantic-assert", Target: "Nooch", Arguments: map[string]any{"expected": "Nooch"}, RetryBudget: 1}}}, "semantic-tv", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Contains(t, result.Chapters[0].Message, "not ready")
+	require.Len(t, result.Evidence, 1)
+	require.True(t, result.Evidence[0].RedactionVerified)
+	require.False(t, result.Evidence[0].OptedOut)
+	require.Len(t, result.Chapters[0].EvidenceIDs, 1)
+}
+
+func TestSemanticFailureDoesNotCaptureLockedScreen(t *testing.T) {
+	svc, adapter := semanticReadinessService(t, 10)
+	adapter.locked = true
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "ready", Kind: "semantic-assert", Target: "Nooch", Arguments: map[string]any{"expected": "Nooch"}}}}, "semantic-tv", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Empty(t, result.Evidence)
+}
+
+type foregroundReadinessStrategy struct {
+	*semanticReadinessStrategy
+	foreground             string
+	stateReads, readyAfter int
+}
+
+func (s *foregroundReadinessStrategy) ReadState(ctx context.Context) (strategy.DeviceState, error) {
+	state, err := s.semanticReadinessStrategy.ReadState(ctx)
+	s.stateReads++
+	state.ForegroundPackage = s.foreground
+	if s.readyAfter > 0 && s.stateReads > s.readyAfter {
+		state.ForegroundPackage = "com.example.app"
+	}
+	return state, err
+}
+
+func foregroundReadinessService(t *testing.T, foreground string, readyAfter int) (*Service, *foregroundReadinessStrategy) {
+	t.Helper()
+	adapter := &foregroundReadinessStrategy{semanticReadinessStrategy: &semanticReadinessStrategy{Strategy: fakes.New("foreground-ready", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot)}, foreground: foreground, readyAfter: readyAfter}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "foreground-tv", StrategyID: adapter.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	return svc, adapter
+}
+
+func TestForegroundAssertionRequiresActualMatchingObservation(t *testing.T) {
+	for _, test := range []struct{ name, foreground, disposition string }{{"matching", "com.example.app", "passed"}, {"different", "com.example.other", "failed"}, {"unknown", "", "failed"}} {
+		t.Run(test.name, func(t *testing.T) {
+			svc, adapter := foregroundReadinessService(t, test.foreground, 0)
+			result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "actual-app", Kind: "assert-foreground", Target: "com.example.app"}}}, "foreground-tv", "operator")
+			require.NoError(t, err)
+			require.Equal(t, test.disposition, result.Disposition)
+			require.Zero(t, adapter.calls, "foreground assertion must never launch or actuate the app")
+			if test.disposition == "failed" {
+				require.Len(t, result.Evidence, 1)
+				require.True(t, result.Evidence[0].RedactionVerified)
+			}
+		})
+	}
+}
+
+func TestForegroundReadinessRetriesObservationWithoutRepeatingLaunch(t *testing.T) {
+	svc, adapter := foregroundReadinessService(t, "com.example.other", 2)
+	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "actual-app", Kind: "assert-foreground", Target: "com.example.app", RetryBudget: 2}}}, "foreground-tv", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, 2, result.Chapters[0].Attempts)
+	require.Zero(t, adapter.calls)
+}
+
+type restartFlowStrategy struct {
+	*semanticReadinessStrategy
+	restarts int
+}
+
+func (s *restartFlowStrategy) RestartDevice(context.Context) error { s.restarts++; return nil }
+
+func TestRestartFlowIsSingleExplicitEffectAndDryRunDoesNotRestart(t *testing.T) {
+	for _, dry := range []bool{false, true} {
+		adapter := &restartFlowStrategy{semanticReadinessStrategy: &semanticReadinessStrategy{Strategy: fakes.New("restart-ready", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot, strategy.CapDeviceRestart)}}
+		svc := New(strategyregistry.New(adapter))
+		svc.devices.Upsert(devicedomain.Record{ID: "restart-tv", StrategyID: adapter.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+		result, err := svc.Run(context.Background(), Flow{Transport: "rest", RequireUnlocked: true, SuppressActuation: dry, Steps: []Step{{ID: "restart", Kind: "restart-device"}}}, "restart-tv", "operator")
+		require.NoError(t, err)
+		require.Equal(t, "passed", result.Disposition)
+		expected := 1
+		if dry {
+			expected = 0
+		}
+		require.Equal(t, expected, adapter.restarts)
+		require.Zero(t, adapter.calls, "restart must use its typed seam rather than generic arbitrary actuation")
+	}
+}
+
+func TestRestartContractRejectsRetriesArgumentsAndFollowingActions(t *testing.T) {
+	valid := Flow{RequireUnlocked: true, Steps: []Step{{ID: "restart", Kind: "restart-device"}}}
+	require.NoError(t, validateFlowContract(valid))
+	for _, mutate := range []func(*Flow){func(f *Flow) { f.RetryBudget = 1 }, func(f *Flow) { f.Steps[0].RetryBudget = 1 }, func(f *Flow) { f.RequireUnlocked = false }, func(f *Flow) { f.Steps[0].Target = "bootloader" }, func(f *Flow) { f.Steps[0].Arguments = map[string]any{"command": "reboot"} }, func(f *Flow) { f.Steps = append(f.Steps, Step{ID: "after", Kind: "key", Target: "HOME"}) }} {
+		candidate := valid
+		candidate.Steps = append([]Step(nil), valid.Steps...)
+		mutate(&candidate)
+		require.Error(t, validateFlowContract(candidate))
+	}
+}
+
+func TestHomeSetFlowRequiresExplicitPriorAndCannotRetry(t *testing.T) {
+	valid := Flow{RequireUnlocked: true, Steps: []Step{{ID: "home", Kind: "home-set", Target: "com.example.daily", Arguments: map[string]any{"value": "com.example.stock/.Home"}}}}
+	require.NoError(t, validateFlowContract(valid))
+	for _, mutate := range []func(*Flow){func(f *Flow) { f.RetryBudget = 1 }, func(f *Flow) { f.Steps[0].RetryBudget = 1 }, func(f *Flow) { f.RequireUnlocked = false }, func(f *Flow) { f.Steps[0].Arguments = nil }, func(f *Flow) { f.Steps[0].Target = "invalid" }} {
+		copy := valid
+		copy.Steps = append([]Step(nil), valid.Steps...)
+		mutate(&copy)
+		require.Error(t, validateFlowContract(copy))
+	}
+}
+
+func TestCheckedPackageConfigurationPreservesLeaseConfirmationAndUnlockGates(t *testing.T) {
+	for _, test := range []struct {
+		name                     string
+		lease, confirmed, locked bool
+		wantCalls                int
+	}{{"missing-lease", false, true, false, 0}, {"missing-confirmation", true, false, false, 0}, {"locked", true, true, true, 0}, {"authorized", true, true, false, 1}} {
+		t.Run(test.name, func(t *testing.T) {
+			adapter := &semanticReadinessStrategy{Strategy: fakes.New("config", strategy.StatusAvailable, strategy.CapAppLifecycle), locked: test.locked}
+			svc := New(strategyregistry.New(adapter))
+			svc.devices.Upsert(devicedomain.Record{ID: "config", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+			request := AppLifecycleOperation{Actor: "operator", Confirmed: test.confirmed, AppLifecycleRequest: strategy.AppLifecycleRequest{Operation: "package-enabled-set", Package: "com.example.home", Value: "disabled-user", ExpectedValue: "default"}}
+			if test.lease {
+				lease, err := svc.Acquire("config", "operator", time.Minute)
+				require.NoError(t, err)
+				request.LeaseToken = lease.LeaseToken
+			}
+			_, err := svc.ExecuteAppLifecycle(context.Background(), "config", request)
+			if test.wantCalls == 0 {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			calls := adapter.LifecycleCalls()
+			require.Len(t, calls, test.wantCalls)
+			if len(calls) > 0 {
+				require.Equal(t, "default", calls[0].ExpectedValue)
+				require.Equal(t, "disabled-user", calls[0].Value)
+			}
+		})
+	}
 }

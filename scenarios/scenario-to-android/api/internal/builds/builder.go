@@ -57,19 +57,20 @@ var packagePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){2,}
 const capacitorVersion = "6.1.0"
 
 type projectConfig struct {
-	PackageName string
-	AppName     string
-	VersionName string
-	VersionCode int
-	TargetSDK   int
-	BrandName   string
-	BrandID     string
-	BrandSource string
-	Primary     string
-	Secondary   string
-	Accent      string
-	Background  string
-	TextColor   string
+	NativeProfile string
+	PackageName   string
+	AppName       string
+	VersionName   string
+	VersionCode   int
+	TargetSDK     int
+	BrandName     string
+	BrandID       string
+	BrandSource   string
+	Primary       string
+	Secondary     string
+	Accent        string
+	Background    string
+	TextColor     string
 }
 
 // GeneratedProject is the operator-facing result of rendering the Android
@@ -77,15 +78,16 @@ type projectConfig struct {
 // material; Build consumes the same project preparation seam to produce APK
 // and AAB outputs.
 type GeneratedProject struct {
-	ProjectPath string    `json:"project_path"`
-	SourceRef   string    `json:"source_ref"`
-	PackageName string    `json:"package_name"`
-	AppName     string    `json:"app_name"`
-	TargetSDK   int       `json:"target_sdk"`
-	BrandID     string    `json:"brand_id,omitempty"`
-	BrandName   string    `json:"brand_name,omitempty"`
-	BrandSource string    `json:"branding_source"`
-	GeneratedAt time.Time `json:"generated_at"`
+	ProjectPath  string    `json:"project_path"`
+	SourceRef    string    `json:"source_ref"`
+	SourceDigest string    `json:"source_digest,omitempty"`
+	PackageName  string    `json:"package_name"`
+	AppName      string    `json:"app_name"`
+	TargetSDK    int       `json:"target_sdk"`
+	BrandID      string    `json:"brand_id,omitempty"`
+	BrandName    string    `json:"brand_name,omitempty"`
+	BrandSource  string    `json:"branding_source"`
+	GeneratedAt  time.Time `json:"generated_at"`
 }
 
 func (b Builder) Generate(ctx context.Context, request deliveryramp.BuildRequest) (GeneratedProject, error) {
@@ -178,6 +180,14 @@ func (b Builder) Build(ctx context.Context, request deliveryramp.BuildRequest) (
 	}
 	artifact.Metadata["branding_source"] = config.BrandSource
 	artifact.Metadata["brand_name"] = config.BrandName
+	artifact.Metadata["version_name"] = config.VersionName
+	artifact.Metadata["version_code"] = strconv.Itoa(config.VersionCode)
+	if generated.SourceDigest != "" {
+		artifact.Metadata["source_digest"] = generated.SourceDigest
+	}
+	if config.NativeProfile != "" {
+		artifact.Metadata["native_profile"] = config.NativeProfile
+	}
 	if buildType == "release" {
 		artifact.Metadata["signing_identity"] = signingIdentity
 	}
@@ -190,6 +200,12 @@ func (b Builder) prepareProject(ctx context.Context, request deliveryramp.BuildR
 	}
 	if ctx == nil {
 		return GeneratedProject{}, projectConfig{}, fmt.Errorf("Android build context is required")
+	}
+	if request.Parameters["project_kind"] == "native" {
+		return b.prepareNativeProject(ctx, request)
+	}
+	if kind := request.Parameters["project_kind"]; kind != "" && kind != "web" {
+		return GeneratedProject{}, projectConfig{}, fmt.Errorf("unknown Android project_kind %q", kind)
 	}
 	parameters := cloneParameters(request.Parameters)
 	loadAssignedBrand(ctx, parameters)

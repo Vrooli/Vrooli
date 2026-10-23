@@ -52,8 +52,10 @@ class Program:
 class Programs(unittest.TestCase):
     def run_program(self, name, inputs, api, library=None, runtime=None):
         scope = {'inputs': inputs, 'device_control': api, 'lib': library, 'program_runtime': runtime, 'program': Program(inputs), 'learn': Learn()}
-        with contextlib.redirect_stdout(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
             exec(compile((ROOT / (name + '.py')).read_text(), name, 'exec'), scope)
+        if name in ('author-flow', 'replay-flow'):
+            self.assertEqual(scope['envelope'], json.loads(output.getvalue()), 'governed output must be a JSON envelope')
         self.learning = scope['learn']
         return scope['envelope']
 

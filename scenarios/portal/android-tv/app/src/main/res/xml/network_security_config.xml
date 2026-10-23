@@ -1,0 +1,1 @@
+<network-security-config><base-config cleartextTrafficPermitted="false"/><debug-overrides><trust-anchors><certificates src="system"/></trust-anchors></debug-overrides></network-security-config>

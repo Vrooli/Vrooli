@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -115,7 +116,33 @@ func validateFlowContract(flow Flow) error {
 		return fmt.Errorf("flow retry_budget must be between 0 and %d", maxRetryBudget)
 	}
 	ids := map[string]struct{}{}
+	reversePorts := map[int]bool{}
 	for _, step := range flow.Steps {
+		if step.Kind == "home-set" && (!flow.RequireUnlocked || step.RetryBudget != 0 || flow.RetryBudget != 0) {
+			return fmt.Errorf("home-set requires an unlocked flow without retries")
+		}
+		if step.Kind == "home-set" {
+			prior, _ := step.Arguments["value"].(string)
+			if !androidPackageName.MatchString(step.Target) || len(step.Arguments) != 1 || prior == "" || len(prior) > 512 {
+				return fmt.Errorf("home-set requires one package target and expected prior Home value")
+			}
+		}
+		if step.Kind == "restart-device" && (len(flow.Steps) != 1 || !flow.RequireUnlocked || step.Target != "" || len(step.Arguments) != 0 || step.RetryBudget != 0 || flow.RetryBudget != 0) {
+			return fmt.Errorf("restart-device requires one unlocked, argument-free step without retries")
+		}
+		if step.Kind == "assert-foreground" && (strings.TrimSpace(step.Target) == "" || len(step.Target) > 256) {
+			return fmt.Errorf("step %q requires a bounded foreground application identity", step.ID)
+		}
+		if step.Kind == "reverse-tcp" || step.Kind == "reverse-tcp-remove" {
+			devicePort, _, err := reverseTCPPorts(step)
+			if err != nil {
+				return fmt.Errorf("step %q: %w", step.ID, err)
+			}
+			if reversePorts[devicePort] || len(reversePorts) >= 4 {
+				return fmt.Errorf("reverse-tcp requires at most four distinct device ports")
+			}
+			reversePorts[devicePort] = true
+		}
 		if strings.TrimSpace(step.ID) == "" {
 			return fmt.Errorf("flow step id is required")
 		}
@@ -141,6 +168,17 @@ func validateFlowContract(flow Flow) error {
 		}
 	}
 	return nil
+}
+
+// Numeric TCP endpoints only; no shell, privileged ports, or socket paths.
+func reverseTCPPorts(step Step) (int, int, error) {
+	devicePort, err := strconv.Atoi(step.Target)
+	raw, ok := step.Arguments["host_port"].(float64)
+	hostPort := int(raw)
+	if err != nil || !ok || raw != float64(hostPort) || devicePort < 1024 || devicePort > 65535 || hostPort < 1024 || hostPort > 65535 {
+		return 0, 0, fmt.Errorf("reverse-tcp requires integer device/host TCP ports from 1024 through 65535")
+	}
+	return devicePort, hostPort, nil
 }
 
 func validateCondition(condition Condition) error {
@@ -240,13 +278,25 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	stateManager := &sessionsdomain.StateManager{}
 	stateRestorer, hasStateRestorer := strat.(strategy.StateRestorer)
 	restorationPrepared := false
+	var restorationState strategy.DeviceState
 	prepareRestoration := func(snapshot strategy.DeviceState, snapshotErr error) {
-		if restorationPrepared || snapshotErr != nil || !hasStateRestorer || snapshot.Orientation == "" {
+		if snapshotErr != nil || !hasStateRestorer {
 			return
 		}
-		state := snapshot
+		if snapshot.LockState == "locked" {
+			restorationState.LockState = snapshot.LockState
+		}
+		if snapshot.Orientation != "" && restorationState.Orientation == "" {
+			restorationState.Orientation = snapshot.Orientation
+			restorationState.AutoRotate = snapshot.AutoRotate
+			restorationState.AutoRotateKnown = snapshot.AutoRotateKnown
+			restorationState.RotationSettings = snapshot.RotationSettings
+		}
+		if restorationPrepared {
+			return
+		}
 		stateManager.Push("device-state", func(restoreCtx context.Context) error {
-			return stateRestorer.RestoreState(restoreCtx, state)
+			return stateRestorer.RestoreState(restoreCtx, restorationState)
 		})
 		restorationPrepared = true
 	}
@@ -269,7 +319,6 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		restoreBeforeReturn()
 		return result, nil
 	}
-	var preAuthState *strategy.DeviceState
 	if flow.RequireUnlocked || flow.AuthProfileID != "" {
 		reader, readerOK := strat.(strategy.StateReader)
 		if !readerOK {
@@ -279,13 +328,13 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		if stateErr != nil || (state.LockState != "locked" && state.LockState != "unlocked") {
 			return authFailure("device lock state is unknown; flow stopped")
 		}
-		stateSnapshot := state
-		preAuthState = &stateSnapshot
-		prepareRestoration(state, nil)
 		if state.LockState == "locked" {
 			if flow.AuthProfileID == "" {
 				return authFailure("device is locked and no authentication profile was supplied")
 			}
+			// Register cleanup before unlocking, including partial failures. An
+			// authentication flow owns keyguard cleanup, not orientation settings.
+			prepareRestoration(strategy.DeviceState{LockState: "locked"}, nil)
 			unlock, unlockErr := s.UnlockDevice(runctx, flow.AuthProfileID, deviceID, actor, sess.LeaseToken)
 			if unlockErr != nil || (unlock.Outcome != authdomain.OutcomeUnlocked && unlock.Outcome != authdomain.OutcomeAlreadyUnlocked) {
 				message := unlock.Outcome
@@ -294,16 +343,6 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 				}
 				return authFailure("unlock precondition failed: " + message)
 			}
-		}
-	}
-	if !restorationPrepared {
-		if reader, readerOK := strat.(strategy.StateReader); readerOK {
-			snapshot, snapshotErr := reader.ReadState(ctx)
-			if preAuthState != nil {
-				snapshot = *preAuthState
-				snapshotErr = nil
-			}
-			prepareRestoration(snapshot, snapshotErr)
 		}
 	}
 	recordingHandles := map[string]strategy.RecordingHandle{}
@@ -339,6 +378,18 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	dispatch := func(stepctx context.Context, event strategy.Actuation) error {
 		if flow.SuppressActuation {
 			return nil
+		}
+		if event.Action == "rotate" && restorationState.Orientation == "" {
+			reader, readable := strat.(strategy.StateReader)
+			if !readable || !hasStateRestorer {
+				return fmt.Errorf("rotation requires a restorable state snapshot")
+			}
+			snapshot, err := reader.ReadState(stepctx)
+			if err != nil || snapshot.Orientation == "" || (snapshot.RotationSettings != nil && len(snapshot.RotationSettings) != 2) {
+				return fmt.Errorf("rotation baseline is unavailable")
+			}
+			snapshot.LockState = ""
+			prepareRestoration(snapshot, nil)
 		}
 		if lifecycleFlowAction(event.Action) {
 			lifecycle, lifecycleOK := strat.(strategy.AppLifecycle)
@@ -433,6 +484,35 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			// proves the device is awake and unlocked.
 			if stepErr == nil {
 				switch step.Kind {
+				case "reverse-tcp-remove":
+					remover, ok := strat.(strategy.ReverseTCPRemover)
+					if !ok {
+						stepErr = fmt.Errorf("selected strategy does not support reverse TCP recovery")
+						break
+					}
+					devicePort, hostPort, parseErr := reverseTCPPorts(step)
+					if parseErr != nil {
+						stepErr = parseErr
+						break
+					}
+					stepErr = remover.RemoveReverseTCP(stepctx, devicePort, hostPort)
+
+				case "reverse-tcp":
+					forwarder, supported := strat.(strategy.ReverseTCPForwarder)
+					if !supported {
+						stepErr = fmt.Errorf("strategy does not implement reverse TCP forwarding")
+						break
+					}
+					devicePort, hostPort, parseErr := reverseTCPPorts(step)
+					if parseErr != nil {
+						stepErr = parseErr
+						break
+					}
+					cleanup, openErr := forwarder.OpenReverseTCP(stepctx, devicePort, hostPort)
+					if cleanup != nil {
+						stateManager.Push(fmt.Sprintf("reverse-tcp-%d", devicePort), cleanup)
+					}
+					stepErr = openErr
 				case "tap":
 					x, y, e := coordinates(step)
 					if e != nil {
@@ -658,6 +738,37 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 				case "semantic-assert":
 					expected, _ := step.Arguments["expected"].(string)
 					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Expected: expected})
+				case "restart-device":
+					restarter, ok := strat.(strategy.DeviceRestarter)
+					if !ok {
+						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapDeviceRestart, Operation: step.Kind}
+						break
+					}
+					if !flow.SuppressActuation {
+						stepErr = restarter.RestartDevice(stepctx)
+					}
+				case "assert-foreground":
+					reader, ok := strat.(strategy.StateReader)
+					if !ok {
+						stepErr = fmt.Errorf("strategy does not expose live foreground state")
+						break
+					}
+					if strings.TrimSpace(step.Target) == "" {
+						stepErr = fmt.Errorf("foreground assertion requires an application identity")
+						break
+					}
+					state, err := reader.ReadState(stepctx)
+					if err != nil {
+						stepErr = err
+						break
+					}
+					if state.ForegroundPackage == "" || state.Unavailable["foreground_package"] != "" {
+						stepErr = fmt.Errorf("foreground application is unknown")
+						break
+					}
+					if state.ForegroundPackage != step.Target {
+						stepErr = fmt.Errorf("foreground application %q does not match %q", state.ForegroundPackage, step.Target)
+					}
 				case "rotate", "network":
 					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
 				case "deep-link":
@@ -763,7 +874,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 							}
 						}
 					}
-				case "install", "launch", "stop", "uninstall", "clear-data", "grant-permission", "revoke-permission", "package-state":
+				case "home-set", "install", "launch", "stop", "uninstall", "clear-data", "grant-permission", "revoke-permission", "package-state":
 					packageName := step.Target
 					if value, ok := step.Arguments["package"].(string); ok && value != "" {
 						packageName = value
@@ -822,6 +933,20 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			}
 		}
 		chapter.Attempts = attempts + 1
+		if stepErr != nil && runctx.Err() == nil && (step.Kind == "semantic-assert" || step.Kind == "semantic-target" || step.Kind == "assert-foreground") {
+			var unavailable *strategy.AvailabilityError
+			if !errors.As(stepErr, &unavailable) {
+				diagnosticCtx, stopDiagnostic := context.WithTimeout(runctx, 3*time.Second)
+				ref, captureErr := s.captureAssertionFailure(diagnosticCtx, strat, flow, step, actor)
+				stopDiagnostic()
+				if captureErr == nil {
+					result.Evidence = append(result.Evidence, *ref)
+				} else {
+					// Keep the original failure; diagnostic capture never changes it to a pass.
+					stepErr = fmt.Errorf("%w; failure frame unavailable", stepErr)
+				}
+			}
+		}
 		cancel()
 		disconnected := false
 		var availability *strategy.AvailabilityError
@@ -983,7 +1108,7 @@ func (s *Service) evaluateFlowCondition(ctx context.Context, strat strategy.Stra
 
 func retryableFlowStep(kind string) bool {
 	switch kind {
-	case "wait", "property-get", "property-assert", "sensor-read":
+	case "wait", "property-get", "property-assert", "sensor-read", "semantic-assert", "assert-foreground":
 		// These operations are observational or locally repeatable. Native
 		// effects remain one-shot unless their strategy supplies a stronger
 		// idempotency contract.
@@ -1080,7 +1205,7 @@ func (s *Service) finishCommandReceipt(ctx context.Context, deviceID, transport,
 
 func requiresVisibleSurface(kind string) bool {
 	switch kind {
-	case "observe", "semantic-target", "recording-start", "screenrecord":
+	case "observe", "semantic-target", "semantic-assert", "assert-foreground", "recording-start", "screenrecord":
 		return true
 	default:
 		return false

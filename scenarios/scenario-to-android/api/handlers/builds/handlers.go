@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"scenario-to-android/internal/builds"
 
@@ -13,33 +14,49 @@ import (
 type Surface struct {
 	Builder          builds.Builder
 	Generate         func(context.Context, deliveryramp.BuildRequest) (builds.GeneratedProject, error)
+	Retain           func(context.Context, deliveryramp.Artifact) (deliveryramp.Artifact, error)
 	SigningIdentity  string
 	ProvisionSigning func(context.Context, string) error
 }
 
 type request struct {
-	SourceRef       string `json:"source_ref"`
-	ScenarioName    string `json:"scenario_name,omitempty"`
-	PackageName     string `json:"package_name,omitempty"`
-	AppName         string `json:"app_name,omitempty"`
-	VersionName     string `json:"version_name,omitempty"`
-	VersionCode     string `json:"version_code,omitempty"`
-	TargetSDK       string `json:"target_sdk,omitempty"`
-	Signing         string `json:"signing,omitempty"`
-	SigningIdentity string `json:"signing_identity,omitempty"`
+	ProjectKind          string `json:"project_kind,omitempty"`
+	NativeProfile        string `json:"native_profile,omitempty"`
+	PreviewCleartextHost string `json:"preview_cleartext_host,omitempty"`
+	SourceRef            string `json:"source_ref"`
+	ScenarioName         string `json:"scenario_name,omitempty"`
+	PackageName          string `json:"package_name,omitempty"`
+	AppName              string `json:"app_name,omitempty"`
+	VersionName          string `json:"version_name,omitempty"`
+	VersionCode          string `json:"version_code,omitempty"`
+	TargetSDK            string `json:"target_sdk,omitempty"`
+	Signing              string `json:"signing,omitempty"`
+	SigningIdentity      string `json:"signing_identity,omitempty"`
 }
 
 func BuilderHandler(surface Surface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Gradle may outlive the shared server's thirty-second write deadline.
+		// Keep the build bounded and leave time to return its actual outcome.
+		ctx, cancel := context.WithTimeout(r.Context(), 4*time.Minute)
+		defer cancel()
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(5 * time.Minute))
 		var input request
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			http.Error(w, "decode Android build request: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		artifact, err := surface.Builder.Build(r.Context(), deliveryramp.BuildRequest{SourceRef: input.SourceRef, Parameters: parameters(input)})
+		artifact, err := surface.Builder.Build(ctx, deliveryramp.BuildRequest{SourceRef: input.SourceRef, Parameters: parameters(input)})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
+		}
+		if surface.Retain != nil {
+			artifact, err = surface.Retain(ctx, artifact)
+			if err != nil {
+				http.Error(w, "retain Android build: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		writeJSON(w, artifact)
 	}
@@ -93,7 +110,7 @@ func ProvisionSigningHandler(surface Surface) http.HandlerFunc {
 }
 
 func parameters(input request) map[string]string {
-	return map[string]string{"scenario_name": input.ScenarioName, "package_name": input.PackageName, "app_name": input.AppName, "version_name": input.VersionName, "version_code": input.VersionCode, "target_sdk": input.TargetSDK, "signing": input.Signing, "signing_identity": input.SigningIdentity}
+	return map[string]string{"native_profile": input.NativeProfile, "preview_cleartext_host": input.PreviewCleartextHost, "project_kind": input.ProjectKind, "scenario_name": input.ScenarioName, "package_name": input.PackageName, "app_name": input.AppName, "version_name": input.VersionName, "version_code": input.VersionCode, "target_sdk": input.TargetSDK, "signing": input.Signing, "signing_identity": input.SigningIdentity}
 }
 
 func writeJSON(w http.ResponseWriter, value any) {

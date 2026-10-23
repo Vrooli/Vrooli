@@ -7,6 +7,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBuildRequestCarriesNativeProfileAndSigningIdentity(t *testing.T) {
+	t.Setenv("ANDROID_SOURCE_REF", "/native/source")
+	t.Setenv("ANDROID_PROJECT_KIND", "native")
+	t.Setenv("ANDROID_NATIVE_PROFILE", "daily")
+	t.Setenv("ANDROID_SIGNING_IDENTITY", "vrooli/portal/tv-home-signing-key")
+	request, err := buildRequest()
+	require.NoError(t, err)
+	require.Equal(t, "daily", request["native_profile"])
+	require.Equal(t, "native", request["project_kind"])
+	require.Equal(t, "vrooli/portal/tv-home-signing-key", request["signing_identity"])
+}
+
 func TestSelectPhysicalTargetPrefersAvailablePhysicalTarget(t *testing.T) {
 	body, err := json.Marshal(androidCatalog{Targets: []catalogTarget{
 		{Descriptor: map[string]any{"target_id": "android:emulator:local", "available": true}, Kind: "local"},

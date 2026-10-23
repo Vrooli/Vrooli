@@ -46,6 +46,18 @@ func registerConnectServices(r *mux.Router, h *handler) {
 
 type deviceConnect struct{ h *handler }
 
+func (c *deviceConnect) InspectDevice(ctx context.Context, req *connect.Request[devicesv1.InspectDeviceRequest]) (*connect.Response[devicesv1.InspectDeviceResponse], error) {
+	profile, err := c.h.service.InspectDevice(ctx, req.Msg.DeviceId, req.Msg.Transport)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	var voice *devicesv1.VoiceInspection
+	if v := profile.Voice; v != nil {
+		voice = &devicesv1.VoiceInspection{MicrophoneFeature: v.MicrophoneFeature, AssistantRoleHolders: v.AssistantRoleHolders, AssistantComponent: v.AssistantComponent, VoiceInteractionComponent: v.VoiceInteractionComponent, VoiceInteractionServices: v.VoiceInteractionServices, PolicyInputTypes: v.PolicyInputTypes, Unavailable: v.Unavailable}
+	}
+	return connect.NewResponse(&devicesv1.InspectDeviceResponse{DeviceId: req.Msg.DeviceId, Transport: req.Msg.Transport, ObservedAt: timestamppb.New(profile.ObservedAt), Abis: profile.ABIs, MemoryTotalBytes: profile.MemoryTotalBytes, DataTotalBytes: profile.DataTotalBytes, DataAvailableBytes: profile.DataAvailableBytes, WebviewPackage: profile.WebViewPackage, WebviewVersion: profile.WebViewVersion, HomeComponent: profile.HomeComponent, LowRam: profile.LowRAM, Voice: voice, Unavailable: profile.Unavailable}), nil
+}
+
 func (c *deviceConnect) ListDevices(ctx context.Context, _ *connect.Request[devicesv1.ListDevicesRequest]) (*connect.Response[devicesv1.ListDevicesResponse], error) {
 	items := c.h.service.Devices(ctx)
 	out := make([]*devicesv1.Device, 0, len(items))

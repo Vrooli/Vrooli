@@ -1,5 +1,15 @@
 # Architecture — Scenario to Android
 
+## Native TV delivery target (22 October 2026)
+
+Support Portal's checked-in native Android TV project through the existing build,
+artifact, signing, and distribution owners. Do not turn the Capacitor renderer
+into a launcher or create a parallel build service. A preview artifact must expose
+Leanback launch metadata and must omit HOME registration. Hardware qualification
+must retain the target ABI, resource profile, active WebView provider, remote
+navigation results, and recovery evidence. This is a delivery target, not evidence
+that native TV builds are currently supported.
+
 This document is the scenario's system map. It explains the invariant
 shape inherited from the `react-vite` template, then points to the
 specialized documents that own product domains, workflows, data,

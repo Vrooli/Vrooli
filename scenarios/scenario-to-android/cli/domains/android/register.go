@@ -14,8 +14,8 @@ import (
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "android", Description: "Operate the Android delivery ramp", NeedsAPI: true, Subcommands: []cliapp.Command{
 		{Name: "targets", Description: "Probe local, emulator, physical, and bridge Android targets", NeedsAPI: true, RunCtx: get(core, "/android/targets")},
-		{Name: "generate", Description: "Render a generated Capacitor Android project without building artifacts", NeedsAPI: true, RunCtx: generate(core)},
-		{Name: "build", Description: "Build a debug APK and AAB from a scenario web bundle", NeedsAPI: true, RunCtx: build(core)},
+		{Name: "generate", Description: "Prepare a native project or generated Capacitor project without building artifacts", NeedsAPI: true, RunCtx: generate(core)},
+		{Name: "build", Description: "Build an APK and AAB from a native project or scenario web bundle", NeedsAPI: true, RunCtx: build(core)},
 		{Name: "signing-provision", Description: "Generate and store the Android upload key through secrets-manager", NeedsAPI: true, RunCtx: signingProvision(core)},
 		{Name: "run", Description: "Build, install, drive, and record one server-owned Android validation run", NeedsAPI: true, RunCtx: run(core)},
 		{Name: "conformance-plan", Description: "Show the generated-app Android conformance chapters", NeedsAPI: true, RunCtx: get(core, "/android/conformance-plan")},
@@ -38,15 +38,18 @@ func buildRequest() (map[string]string, error) {
 		return nil, fmt.Errorf("ANDROID_SOURCE_REF is required")
 	}
 	return map[string]string{
-		"source_ref":       source,
-		"scenario_name":    strings.TrimSpace(getenv("ANDROID_ARTIFACT_SCENARIO")),
-		"package_name":     strings.TrimSpace(getenv("ANDROID_ARTIFACT_PACKAGE")),
-		"app_name":         strings.TrimSpace(getenv("ANDROID_ARTIFACT_APP")),
-		"version_name":     strings.TrimSpace(getenv("ANDROID_ARTIFACT_VERSION")),
-		"version_code":     strings.TrimSpace(getenv("ANDROID_ARTIFACT_VERSION_CODE")),
-		"target_sdk":       strings.TrimSpace(getenv("ANDROID_TARGET_SDK")),
-		"signing":          strings.TrimSpace(getenv("ANDROID_SIGNING")),
-		"signing_identity": strings.TrimSpace(getenv("ANDROID_SIGNING_IDENTITY")),
+		"source_ref":             source,
+		"project_kind":           strings.TrimSpace(getenv("ANDROID_PROJECT_KIND")),
+		"native_profile":         strings.TrimSpace(getenv("ANDROID_NATIVE_PROFILE")),
+		"preview_cleartext_host": strings.TrimSpace(getenv("ANDROID_PREVIEW_CLEARTEXT_HOST")),
+		"scenario_name":          strings.TrimSpace(getenv("ANDROID_ARTIFACT_SCENARIO")),
+		"package_name":           strings.TrimSpace(getenv("ANDROID_ARTIFACT_PACKAGE")),
+		"app_name":               strings.TrimSpace(getenv("ANDROID_ARTIFACT_APP")),
+		"version_name":           strings.TrimSpace(getenv("ANDROID_ARTIFACT_VERSION")),
+		"version_code":           strings.TrimSpace(getenv("ANDROID_ARTIFACT_VERSION_CODE")),
+		"target_sdk":             strings.TrimSpace(getenv("ANDROID_TARGET_SDK")),
+		"signing":                strings.TrimSpace(getenv("ANDROID_SIGNING")),
+		"signing_identity":       strings.TrimSpace(getenv("ANDROID_SIGNING_IDENTITY")),
 	}, nil
 }
 

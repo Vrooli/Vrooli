@@ -1303,6 +1303,14 @@
       "category": "devices"
     },
     {
+      "id": "device_rpc_inspect",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/InspectDevice",
+      "method": "POST",
+      "summary": "Inspect device hardware and runtime",
+      "description": "Read bounded hardware, storage, active WebView, and default Home facts without device writes.",
+      "category": "devices"
+    },
+    {
       "id": "strategy_rpc_list",
       "path": "/vrooli.device_control.v1.strategies.StrategyService/ListStrategies",
       "method": "POST",

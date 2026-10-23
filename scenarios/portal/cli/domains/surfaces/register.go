@@ -1,9 +1,11 @@
 package surfaces
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"fmt"
+
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/cli-core/cliapp"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	surfacesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/surfaces"
@@ -13,7 +15,26 @@ import (
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	client := surfacesconnect.NewSurfaceCatalogServiceClient(httpClient, baseURL)
+	apps := surfacesconnect.NewApplicationCatalogServiceClient(httpClient, baseURL)
 	return cliapp.LoadFromManifest(manifest, "surfaces", map[string]func(cliapp.RunContext) error{
+		"ApplicationCatalogService.ListApplications": func(ctx cliapp.RunContext) error {
+			response, err := apps.ListApplications(context.Background(), connect.NewRequest(&surfacesv1.ListApplicationsRequest{}))
+			if err != nil {
+				return cliapp.WrapAPIError("list applications", err, nil)
+			}
+			report := cliapp.ListReport{ResultsHeading: "Applications", Summary: []string{"Runtime availability does not establish TV compatibility."}}
+			for _, app := range response.Msg.Applications {
+				report.Results = append(report.Results, fmt.Sprintf("%s · %s · TV %s", app.Scenario, app.RuntimeState, app.TvQualification))
+			}
+			return cliapp.RenderProtoList(ctx, response.Msg, report)
+		},
+		"ApplicationCatalogService.ResolveApplication": func(ctx cliapp.RunContext) error {
+			response, err := apps.ResolveApplication(context.Background(), connect.NewRequest(&surfacesv1.ResolveApplicationRequest{Scenario: ctx.Positional("scenario"), UseGateway: ctx.BoolFlag("gateway")}))
+			if err != nil {
+				return cliapp.WrapAPIError("resolve application", err, nil)
+			}
+			return cliapp.RenderProtoList(ctx, response.Msg, cliapp.ListReport{Results: []string{response.Msg.Url}})
+		},
 		"SurfaceCatalogService.List": func(ctx cliapp.RunContext) error {
 			response, err := client.List(context.Background(), connect.NewRequest(&surfacesv1.ListRequest{}))
 			if err != nil {
@@ -38,6 +59,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		},
 	})
 }
+
 func report(descriptors []*commonv1.SurfaceDescriptor, sources []*surfacesv1.SourceStatus) cliapp.ListReport {
 	result := cliapp.ListReport{Summary: []string{fmt.Sprintf("%d offered surface(s); owner admission is required for access.", len(descriptors))}, ResultsHeading: "Surfaces"}
 	for _, source := range sources {

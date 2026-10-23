@@ -52,8 +52,8 @@
           }
         },
         {
-      "name": "state",
-      "description": "Read live state from a device",
+          "name": "state",
+          "description": "Read live state from a device",
           "positionals": [
             {
               "name": "id",
@@ -116,8 +116,8 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-          "permissions": [
-            "network:internal"
+            "permissions": [
+              "network:internal"
             ],
             "requires_confirmation": true
           }
@@ -481,6 +481,73 @@
           },
           "governance": {
             "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Read hardware and runtime facts without device writes",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "transport",
+              "description": "Exact observed transport profile",
+              "bind": {
+                "field": "transport"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "InspectDevice"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "observe",
+          "description": "Capture a redacted still frame through the existing flow owner",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "lease",
+              "required": true
+            },
+            {
+              "name": "actor",
+              "required": true
+            },
+            {
+              "name": "transport"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"
@@ -859,6 +926,9 @@
               "network:internal",
               "filesystem:read"
             ]
+          },
+          "architecture": {
+            "primary_field": "runnable"
           }
         },
         {
@@ -897,6 +967,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primary_field": "run_id"
           }
         },
         {
@@ -1045,6 +1118,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primary_field": "run_id"
           }
         }
       ]

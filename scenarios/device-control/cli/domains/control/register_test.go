@@ -232,3 +232,40 @@ func TestPairInteractiveStartsHandshakeBeforeReadingPIN(t *testing.T) {
 		t.Fatalf("output = %q, want pairing result", stdout.String())
 	}
 }
+
+func TestCheckedPackageSettingCarriesExpectedValueAndConfirmation(t *testing.T) {
+	var received map[string]any
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/api/v1/devices/tv-1/apps" {
+			t.Fatalf("unexpected route %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write([]byte(`{"result":{"outcome":"enabled_setting_verified"}}`))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var app cliapp.Command
+	for _, candidate := range Group(core).Subcommands {
+		if candidate.Name == "app" {
+			app = candidate
+		}
+	}
+	if app.RunCtx == nil {
+		t.Fatal("app command handler missing")
+	}
+	var out bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(app.Args, []string{"tv-1", "--operation", "package-enabled-set", "--package", "com.example.home", "--value", "disabled-user", "--expected-value", "default", "--lease", "test-lease", "--confirmed", "--json"}, core, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if received["expected_value"] != "default" || received["value"] != "disabled-user" || received["confirmed"] != true {
+		t.Fatalf("checked request lost its precondition or confirmation: %+v", received)
+	}
+}

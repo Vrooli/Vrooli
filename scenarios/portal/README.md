@@ -28,6 +28,9 @@ optional dependencies.
 - A manifest-driven CLI with chat, message, integration, and search commands.
 - A local Assistant migration CLI that inventories and exports legacy records
   without starting or deleting the old runtime.
+- A native Android TV launcher in [android-tv](android-tv/README.md), built
+  through Scenario to Android. Installed TV apps and navigation work locally;
+  optional Portal experiences have a separate experimental readiness boundary.
 
 ## Running The Scenario
 

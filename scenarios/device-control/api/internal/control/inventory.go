@@ -323,12 +323,17 @@ func claimsForDevice(device strategy.Device) []identity.IdentityClaim {
 	return []identity.IdentityClaim{claim}
 }
 
-// DescribeDevice returns the device-oriented declaration after refreshing the
-// inventory. The transport profiles are accumulated by the identity store,
-// while the legacy scalar fields remain as the selected/default transport.
+// DescribeDevice returns a known identity without requiring discovery of every
+// other device. Historical observations remain historical; this read does not
+// manufacture a new reachability or capability timestamp.
 func (s *Service) DescribeDevice(ctx context.Context, id string) (Device, error) {
+	id = strings.TrimSpace(id)
+	if record, found := s.devices.Get(id); found {
+		return deviceFromRecord(record), nil
+	}
+	// Discover only when the identity has never been observed locally.
 	for _, device := range s.Devices(ctx) {
-		if device.ID == strings.TrimSpace(id) {
+		if device.ID == id {
 			return device, nil
 		}
 	}
@@ -529,6 +534,7 @@ func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Devic
 // Android adapter to replace a stale endpoint through authenticated mDNS
 // discovery. The stable device identity remains bound to the onboarded serial.
 func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, error) {
+	id = strings.TrimSpace(id)
 	s.mu.Lock()
 	s.restoreTransportStrategies()
 	record, ok := s.devices.Get(strings.TrimSpace(id))
@@ -551,6 +557,15 @@ func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, err
 	if !ok || strings.TrimSpace(endpointProvider.WirelessEndpoint()) == "" {
 		return Device{}, fmt.Errorf("strategy %q did not expose a verified wireless endpoint", record.StrategyID)
 	}
+	// Reconnect proves identity and reachability. Probe capabilities on that
+	// verified endpoint instead of carrying forward a stale capability set.
+	declaration, err := adapter.Describe(ctx)
+	if err != nil {
+		return Device{}, fmt.Errorf("probe reconnected endpoint: %w", err)
+	}
+	if declaration.Status != strategy.StatusAvailable {
+		return Device{}, fmt.Errorf("reconnected endpoint is not available: %s", declaration.Status)
+	}
 	state := transportState{DeviceID: id, Serial: record.Serial, StrategyID: record.StrategyID, Transport: "wireless", Endpoint: strings.TrimSpace(endpointProvider.WirelessEndpoint()), UpdatedAt: time.Now().UTC()}
 	if err := s.persistTransportState(ctx, state); err != nil {
 		return Device{}, err
@@ -560,6 +575,11 @@ func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, err
 	record.Status = strategy.StatusAvailable
 	record.Health = strategy.StatusAvailable
 	record.HealthReason = "wireless ADB endpoint reconnected and identity verified"
+	record.Endpoint = state.Endpoint
+	record.ObservedAt = state.UpdatedAt
+	record.Capabilities = mapCaps(declaration)
+	record.Operations = append([]string(nil), declaration.Operations...)
+	record.Properties = append([]strategy.PropertyDescriptor(nil), declaration.Properties...)
 	updated := s.devices.UpsertIdentity(record)
 	s.mu.Unlock()
 	return deviceFromRecord(updated), nil

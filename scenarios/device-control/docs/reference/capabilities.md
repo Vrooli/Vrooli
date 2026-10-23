@@ -586,3 +586,113 @@ that only exposes DesktopOwnerService cannot accept these requests. Portal
 DesktopSessionService forwards through this account namespace with no-store
 responses and bounded requests; local CLI commands retain OwnerService.
 Portal login/session UI and live authorized browser validation remain pending.
+
+## Observed foreground assertions
+
+The `assert-foreground` flow step compares its bounded `target` application
+identity with a fresh `StateReader` foreground observation. It never launches,
+replays input, or treats launch acknowledgement as success. Unknown/unavailable
+foreground state fails. A bounded retry budget repeats reads only, using the
+normal step deadline. This permits native app entry to be a terminal assertion
+in a reusable flow without requiring a particular app's text to be stable.
+Use a separate redacted observation to establish what actually rendered.
+
+Example step: `{"id":"actual-app","kind":"assert-foreground","target":"org.smarttube.stable","timeout_ms":12000,"retry_budget":3}`.
+The visible-surface gate and normal failure-frame privacy policy apply. A passed
+foreground check establishes the selected app, not media playback, authentication
+or complete app readiness. Unsupported transports must report the missing state
+rather than substituting a command acknowledgement.
+
+### Checked Home selection and device restart
+
+`home-set` is a typed app lifecycle operation. Its package is the desired Home
+application; `value` is the expected previous Home component from fresh device
+inspection. The owner requires a confirmed held lease and an unlocked, lit
+screen, resolves the active Android user and a real HOME activity for that
+package, compares the previous default, then invokes Android's supported Home
+selection command. `home_verified` requires matching readback. A command's
+`Success` without matching readback is an uncertain effect that requires fresh
+inspection, never an automatic retry. Stock launcher packages stay enabled.
+The result retains previous/current Home components and Android user identity.
+Home inspection now explicitly resolves the active Android user.
+
+A flow may also contain `home-set` with `target` as the package and
+`arguments.value` as the expected prior component. It requires
+`require_unlocked: true` and zero flow/step retries. The existing direct
+`device app --operation home-set --package … --value … --lease … --confirmed`
+command is suitable for a checked selection or restoration. UI selection is
+preferred when it persists on the OEM device.
+
+`restart-device` uses a separate typed adapter seam and `device-restart`
+capability. The Android capability probe reads boot-complete state; executing
+it requests one restart of the exact bound ADB target. It accepts no target,
+arguments, boot modes or retries, must be the only step of an unlocked flow,
+and cannot be promoted as an outcome-verified saved flow. Its passed chapter
+means the restart request was accepted, not that boot completed. Reconnect the
+same durable device and independently verify Home/foreground/visible state.
+The owner does not automatically retry a restart with an uncertain effect.
+
+`assert-foreground` is also accepted as a terminal saved-flow assertion. A
+launch acknowledgement remains insufficient for promotion. Device readiness,
+visible rendering and media playback remain separate claims.
+
+`home-state` is a read-only, lease-owned app query. It separates effective Home
+resolution, each HOME activity's priority and current-user enabled setting,
+and the selected Home role when readable. Missing role facts remain unknown.
+Only the bounded Home facts are returned; raw package/role dumps are not exposed.
+
+`accessibility-state` is another read-only, lease-owned app query. `package`
+and `value` identify one service's installed application and class. It reads
+the active Android user's configured service list and accessibility enabled
+setting, returning only that target's exact component and configured/enabled
+booleans. Recognized active-user runtime dumps can additionally report bound,
+binding and crashed state; unrecognized facts remain absent. An empty Bound
+services set proves absence; a vendor dump without exact service identities
+cannot prove this target is bound. UI automation activity is reported separately
+when its dump format is recognized. Unknown configuration fails with no invented
+false value. This query changes no services and returns no other service names,
+raw dumps or screen contents. Permission, binding and Home behavior are separate
+claims.
+
+`foreground-state` retains independent top-resumed/activity and focused-window
+components, boot count and uptime when readable. It explicitly reports a
+package disagreement instead of declaring one physical screen from it. Raw
+task/window contents are never returned. Foreground assertions and ordinary
+state prefer an explicit top-resumed activity, then a unique legacy resumed
+package. Window focus is a fallback only when resumed activity is unknown;
+a stale focused window must not replace a known resumed app. Ambiguous legacy
+resumed packages remain unknown.
+
+`app-status` queries an optional app-owned provider at the fixed URI
+`content://<exact-package>.vrooli.status/state`, scoped to the active Android
+user. It accepts at most 32 strictly validated metadata rows; duplicate keys,
+invalid values and unrecognized output fail closed. The app owns this provider's
+semantics and access protection. No arbitrary URI, write or screen-content
+query is exposed. An absent provider remains unavailable. Launcher-specific
+Home behavior stays in Portal rather than this adapter.
+
+`process-state` returns at most three
+recognized exact-package process exits on supported Android versions: process
+identity, timestamp and whitelisted numeric reason. Private descriptions and
+trace paths are excluded; absent/unrecognized history stays unknown.
+
+For an app that has exited, `device-logs` with target `crash` and the exact
+package in `arguments.package` selects its Java crash blocks from at most 500
+recent crash-buffer records. PID reuse and prefix package collisions are
+excluded before the normal evidence redaction path. No matching record is not
+proof of no crash: older exits, native crashes and OS process kills remain
+unknown. The ordinary live PID log path is unchanged.
+
+`package-enabled-set` is a direct app operation for a separately authorized
+package configuration or exact restoration. `value` is `default`, `enabled` or
+`disabled-user`; `expected_value` is the observed prior setting from the same
+set. It requires the existing confirmed lease and an unlocked, lit device,
+verifies exact package installation for the active Android user, compares the
+prior state and reads the result back. Unknown/stale state stops before mutation.
+No raw command, component disable, arbitrary boot mode, uninstall or data clear
+is accepted by this operation. It has no automatic retry. Restoring original
+`default` uses Android's DEFAULT state, rather than inventing explicit ENABLED.
+
+This capability's implementation does not authorize disabling a TV system app.
+The TV Home rollout must choose that route explicitly, retain original states,
+rehearse exact restoration and qualify the TV services affected before adoption.

@@ -176,3 +176,9 @@ func TestPropertyOutcomeReplayAndRestart(t *testing.T) { // [REQ:DVC-AGENT-REUSE
 	_, err = s.SaveValidatedFlow(ctx, failed.RunID, "fixture-tv", "fixture:volume:v1", saved.ID, 1)
 	require.Error(t, err)
 }
+
+func TestForegroundAssertionCanBePromotedButAcknowledgementsCannot(t *testing.T) {
+	require.NoError(t, ValidatePromotionCandidate(Flow{Steps: []Step{{ID: "observed", Kind: "assert-foreground", Target: "com.example.app"}}}))
+	require.Error(t, ValidatePromotionCandidate(Flow{Steps: []Step{{ID: "accepted", Kind: "launch", Target: "com.example.app"}}}))
+	require.Error(t, ValidatePromotionCandidate(Flow{SuppressActuation: true, Steps: []Step{{ID: "observed", Kind: "assert-foreground", Target: "com.example.app"}}}))
+}

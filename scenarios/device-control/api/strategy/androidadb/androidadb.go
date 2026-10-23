@@ -1165,6 +1165,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		args []string
 		next string
 	}{
+		{strategy.CapDeviceRestart, []string{"shell", "getprop", "sys.boot_completed"}, "restart requires an authorized, boot-complete Android device"},
 		{strategy.CapInput, []string{"shell", "input", "--help"}, "adb shell input is unavailable; verify the device is authorized"},
 		{strategy.CapScreenshot, []string{"exec-out", "screencap", "-p"}, "adb screencap is unavailable; verify the device is authorized"},
 		{strategy.CapSemanticTree, []string{"shell", "uiautomator", "help"}, "uiautomator is unavailable on this device image"},
@@ -1174,8 +1175,14 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		{strategy.CapNetworkControl, []string{"shell", "svc", "wifi"}, "network control is unavailable on this device image"},
 		{strategy.CapClipboard, []string{"shell", "cmd", "clipboard", "help"}, "clipboard service is unavailable on this device image"},
 		{strategy.CapDeviceLogs, []string{"logcat", "-d", "-t", "1"}, "logcat is unavailable; grant device log access"},
+		{strategy.CapReverseTCP, []string{"reverse", "--list"}, "ADB reverse TCP forwarding is unavailable on this selected transport"},
 	}
 	for _, probe := range probes {
+		if probe.name == strategy.CapDeviceRestart {
+			out, err := a.runner.Run(ctx, "adb", a.args(probe.args...)...)
+			caps[probe.name] = strategy.ProbeCapability(probe.name, err == nil && strings.TrimSpace(string(out)) == "1", probe.next, probe.next, "adb shell getprop sys.boot_completed; restart acceptance still requires execution")
+			continue
+		}
 		if probe.name == strategy.CapNetworkControl {
 			available, evidence := a.probeNetworkControl(ctx)
 			caps[probe.name] = strategy.ProbeCapability(probe.name, available, probe.next, probe.next, evidence)
@@ -1241,6 +1248,14 @@ func unavailable(next string) strategy.Declaration {
 	return strategy.UnavailableDeclaration("android-adb", "Android ADB strategy", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next)
 }
 
+func (a *Adapter) RestartDevice(ctx context.Context) error {
+	if strings.TrimSpace(a.serial) == "" && strings.TrimSpace(a.endpoint) == "" {
+		return fmt.Errorf("restart requires one exact bound Android device")
+	}
+	_, err := a.runner.Run(ctx, "adb", a.args("reboot")...)
+	return err
+}
+
 func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	state := strategy.DeviceState{Unavailable: map[string]string{}}
 	probe := func(field string, args ...string) string {
@@ -1267,15 +1282,22 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	if state.Orientation == "" && input != "" {
 		state.Unavailable["orientation"] = "adb " + strings.Join(a.args("shell", "dumpsys", "input"), " ")
 	}
+	rotation := strings.TrimSpace(probe("rotation_setting", "shell", "settings", "get", "system", "user_rotation"))
+	state.RotationSettings = map[string]string{}
+	if rotation == "null" || rotation == "0" || rotation == "1" || rotation == "2" || rotation == "3" {
+		state.RotationSettings["user_rotation"] = rotation
+	}
 	if state.Orientation == "" {
-		rotation := probe("orientation", "shell", "settings", "get", "system", "user_rotation")
 		state.Orientation = orientationValue(rotation)
 		if state.Orientation != "" {
 			delete(state.Unavailable, "orientation")
 		}
 	}
 	autoRotate := probe("auto_rotate", "shell", "settings", "get", "system", "accelerometer_rotation")
-	if strings.TrimSpace(autoRotate) != "" {
+	if value := strings.TrimSpace(autoRotate); value == "0" || value == "1" || value == "null" {
+		state.RotationSettings["accelerometer_rotation"] = value
+	}
+	if strings.TrimSpace(autoRotate) == "0" || strings.TrimSpace(autoRotate) == "1" {
 		state.AutoRotate = strings.TrimSpace(autoRotate) == "1"
 		state.AutoRotateKnown = true
 	}
@@ -1435,6 +1457,11 @@ func (a *Adapter) readLockState(ctx context.Context, state *strategy.DeviceState
 	} {
 		out, err := a.runner.Run(ctx, "adb", a.args(command[:]...)...)
 		if err == nil {
+			if state != nil {
+				if focused := focusedPackage(string(out)); focused != "" && state.ForegroundPackage == "" {
+					state.ForegroundPackage = focused
+				}
+			}
 			if lock := lockState(string(out)); lock != "" {
 				return lock
 			}
@@ -1468,17 +1495,23 @@ func waitForUnlockSettle(ctx context.Context, duration time.Duration) error {
 }
 
 func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) error {
-	rotation := map[string]string{"portrait": "0", "landscape": "1", "reverse-portrait": "2", "reverse-landscape": "3"}[state.Orientation]
-	if rotation == "" {
-		return fmt.Errorf("cannot restore unknown orientation %q", state.Orientation)
-	}
-	if state.AutoRotateKnown {
-		if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "accelerometer_rotation", boolSetting(state.AutoRotate))...); err != nil {
-			return fmt.Errorf("restore auto-rotate: %w", err)
+	if state.Orientation != "" {
+		if len(state.RotationSettings) != 2 {
+			return fmt.Errorf("cannot restore rotation without exact raw settings")
 		}
-	}
-	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "user_rotation", rotation)...); err != nil {
-		return fmt.Errorf("restore orientation: %w", err)
+		for _, name := range []string{"accelerometer_rotation", "user_rotation"} {
+			value, known := state.RotationSettings[name]
+			if !known || (value != "null" && value != "0" && value != "1" && value != "2" && value != "3") {
+				return fmt.Errorf("cannot restore unknown rotation setting %s", name)
+			}
+			args := []string{"shell", "settings", "put", "system", name, value}
+			if value == "null" {
+				args = []string{"shell", "settings", "delete", "system", name}
+			}
+			if _, err := a.runner.Run(ctx, "adb", a.args(args...)...); err != nil {
+				return fmt.Errorf("restore %s: %w", name, err)
+			}
+		}
 	}
 	if state.LockState == "locked" {
 		current, err := a.lockState(ctx)
@@ -1547,11 +1580,18 @@ func boolSetting(value bool) string {
 }
 
 func foregroundPackage(output string) string {
-	match := regexp.MustCompile(`(?i)(?:mResumedActivity|ResumedActivity):.*?\s(?:u\d+\s+)?([A-Za-z0-9._]+)/(?:[A-Za-z0-9.$_]+)`).FindStringSubmatch(output)
-	if len(match) != 2 {
-		return ""
+	if top := topResumedComponent(output); top != "" {
+		return strings.SplitN(top, "/", 2)[0]
 	}
-	return match[1]
+	matches := regexp.MustCompile(`(?i)(?:mResumedActivity|ResumedActivity):.*?\s(?:u\d+\s+)?([A-Za-z0-9._]+)/(?:[A-Za-z0-9.$_]+)`).FindAllStringSubmatch(output, -1)
+	pkg := ""
+	for _, match := range matches {
+		if pkg != "" && pkg != match[1] {
+			return ""
+		}
+		pkg = match[1]
+	}
+	return pkg
 }
 
 func screenState(output string) string {
@@ -1768,7 +1808,11 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			// the same verb is safe when a prior chapter already installed the APK.
 			args = append(args, "install", "-r", event.Value)
 		case "launch":
-			args = append(args, "shell", "monkey", "-p", event.Package, "1")
+			output, err := a.launchPackage(ctx, event.Package)
+			if event.Output != nil {
+				*event.Output = output
+			}
+			return err
 		case "stop":
 			args = append(args, "shell", "am", "force-stop", event.Package)
 		case "uninstall":
@@ -1780,13 +1824,19 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 		case "revoke-permission":
 			args = append(args, "shell", "pm", "revoke", event.Package, event.Permission)
 		case "rotate":
+			// Refuse mutation if exact recovery cannot be captured. Normalized
+			// orientation alone cannot distinguish an absent setting from zero.
+			baseline, err := a.ReadState(ctx)
+			if err != nil || len(baseline.RotationSettings) != 2 {
+				return fmt.Errorf("rotation requires exact raw settings for recovery")
+			}
 			rotations := map[string]string{"portrait": "0", "landscape": "1", "180": "2", "reverse-portrait": "2", "270": "3", "reverse-landscape": "3"}
 			rotation, ok := rotations[strings.ToLower(strings.TrimSpace(event.Value))]
 			if !ok {
 				return fmt.Errorf("rotation must be portrait, landscape, 180, or 270")
 			}
 			args = append(args, "shell", "settings", "put", "system", "accelerometer_rotation", "0")
-			_, err := a.runner.Run(ctx, "adb", a.args(args...)...)
+			_, err = a.runner.Run(ctx, "adb", a.args(args...)...)
 			if err != nil {
 				return err
 			}
@@ -1946,6 +1996,23 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			}
 			return nil
 		case "device-logs":
+			if event.Value == "crash" {
+				if !applicationIdentityPattern.MatchString(event.Package) {
+					return fmt.Errorf("crash logs require one exact package identity")
+				}
+				out, err := a.runner.Run(ctx, "adb", a.args("logcat", "-b", "crash", "-d", "-v", "brief", "-t", "500")...)
+				if err != nil || len(out) > 1024*1024 {
+					return fmt.Errorf("bounded crash buffer is unavailable")
+				}
+				filtered := packageJavaCrashes(string(out), event.Package)
+				if len(filtered) == 0 {
+					return fmt.Errorf("no matching Java crash in the bounded recent buffer; other crash types and older exits remain unknown")
+				}
+				if event.Output != nil {
+					*event.Output = filtered
+				}
+				return nil
+			}
 			if event.Package != "" {
 				pid, pidErr := a.runner.Run(ctx, "adb", a.args("shell", "pidof", event.Package)...)
 				if pidErr != nil || strings.TrimSpace(string(pid)) == "" {
@@ -1995,8 +2062,29 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 // package identity and confirmation policy before reaching this method.
 func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
 	operation := strings.ToLower(strings.TrimSpace(request.Operation))
-	if request.Package == "" || len(request.Package) > 256 || len(request.Arguments) != 0 || request.Executable != "" {
+	if !applicationIdentityPattern.MatchString(request.Package) || len(request.Package) > 256 || len(request.Arguments) != 0 || request.Executable != "" {
 		return strategy.AppLifecycleResult{}, fmt.Errorf("android lifecycle requires one bounded package identity")
+	}
+	if operation == "home-set" {
+		return a.setHome(ctx, request)
+	}
+	if operation == "home-state" {
+		return a.homeState(ctx, request.Package)
+	}
+	if operation == "accessibility-state" {
+		return a.accessibilityState(ctx, request)
+	}
+	if operation == "foreground-state" {
+		return a.foregroundState(ctx, request.Package)
+	}
+	if operation == "process-state" {
+		return a.processState(ctx, request.Package)
+	}
+	if operation == "app-status" {
+		return a.applicationStatus(ctx, request.Package)
+	}
+	if operation == "package-enabled-set" {
+		return a.setPackageEnabled(ctx, request)
 	}
 	supported := map[string]bool{"launch": true, "focus": true, "close": true, "minimize": true, "restore": true, "stop": true, "uninstall": true, "clear-data": true, "grant-permission": true, "revoke-permission": true, "package-state": true}
 	if !supported[operation] {
@@ -2026,10 +2114,88 @@ func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycl
 		event.Action = ""
 		event.Key = &strategy.KeyEvent{Kind: "press", Key: "HOME"}
 	}
+	var output []byte
+	event.Output = &output
 	if err := a.Actuate(ctx, event); err != nil {
 		return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
 	}
-	return strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable}, nil
+	result := strategy.AppLifecycleResult{Operation: operation, Package: request.Package, Status: strategy.StatusAvailable, Outcome: "accepted", Diagnostic: boundedDiagnostic(output)}
+	if event.Action == "launch" {
+		// A successful `am start` can leave Ambient or another task visible.
+		// Retain that distinction rather than claiming the app is ready.
+		observeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+		defer cancel()
+		for {
+			probeCtx, cancelProbe := context.WithTimeout(observeCtx, 2*time.Second)
+			activity, _ := a.runner.Run(probeCtx, "adb", a.args("shell", "dumpsys", "activity", "activities")...)
+			cancelProbe()
+			foreground := foregroundPackage(string(activity))
+			if foreground == "" {
+				window, windowErr := a.runner.Run(observeCtx, "adb", a.args("shell", "dumpsys", "window")...)
+				if windowErr == nil {
+					foreground = focusedPackage(string(window))
+				}
+			}
+			result.ForegroundPackage = foreground
+			if foreground != "" {
+				result.ObservedAt = time.Now().UTC()
+			}
+			if foreground == request.Package {
+				result.Outcome = "foreground_observed"
+				break
+			}
+			if err := waitForUnlockSettle(observeCtx, 200*time.Millisecond); err != nil {
+				result.Reason = "launch accepted; requested foreground was not observed before the deadline"
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+func boundedDiagnostic(output []byte) string {
+	if len(output) > 4096 {
+		output = output[:4096]
+	}
+	return strings.TrimSpace(string(output))
+}
+
+var launchComponentPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.$]*/[A-Za-z0-9_.$]+$`)
+
+func (a *Adapter) launchPackage(ctx context.Context, pkg string) ([]byte, error) {
+	if len(pkg) > 256 || !applicationIdentityPattern.MatchString(pkg) {
+		return nil, fmt.Errorf("launch requires a bounded application identity")
+	}
+	for _, category := range []string{"android.intent.category.LEANBACK_LAUNCHER", "android.intent.category.LAUNCHER"} {
+		resolved, err := a.runner.Run(ctx, "adb", a.args("shell", "cmd", "package", "resolve-activity", "--brief", "-a", "android.intent.action.MAIN", "-c", category, "-p", pkg)...)
+		if err != nil {
+			return resolved, fmt.Errorf("resolve launch activity: %w: %s", err, boundedDiagnostic(resolved))
+		}
+		for _, line := range strings.Split(string(resolved), "\n") {
+			component := strings.TrimSpace(line)
+			if !strings.HasPrefix(component, pkg+"/") || !launchComponentPattern.MatchString(component) {
+				continue
+			}
+			output, err := a.runner.Run(ctx, "adb", a.args("shell", "am", "start", "-W", "-n", component)...)
+			if err != nil {
+				return output, fmt.Errorf("start launch activity: %w: %s", err, boundedDiagnostic(output))
+			}
+			diagnostic := strings.ToLower(string(output))
+			if strings.Contains(diagnostic, "error:") || strings.Contains(diagnostic, "exception") || strings.Contains(diagnostic, "status: timeout") {
+				return output, fmt.Errorf("Android did not start the launch activity: %s", boundedDiagnostic(output))
+			}
+			return output, nil
+		}
+	}
+	return nil, fmt.Errorf("package %q has no resolvable TV or launcher activity", pkg)
+}
+
+func focusedPackage(output string) string {
+	match := regexp.MustCompile(`mCurrentFocus=Window\{[^\n]*?\s([A-Za-z0-9._]+)/[A-Za-z0-9.$_]+`).FindStringSubmatch(output)
+	if len(match) == 2 {
+		return match[1]
+	}
+	return ""
 }
 
 var packageVersionPattern = regexp.MustCompile(`versionName=(\S+)`)
