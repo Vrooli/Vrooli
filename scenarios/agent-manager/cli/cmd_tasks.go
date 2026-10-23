@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -22,10 +23,6 @@ func (a *App) cmdTask(args []string) error {
 	switch args[0] {
 	case "list":
 		return a.taskList(args[1:])
-	case "get":
-		return a.taskGet(args[1:])
-	case "create":
-		return a.taskCreate(args[1:])
 	case "update":
 		return a.taskUpdate(args[1:])
 	case "delete":
@@ -104,26 +101,14 @@ func (a *App) taskList(args []string) error {
 // Task Get
 // =============================================================================
 
-func (a *App) taskGet(args []string) error {
-	fs := flag.NewFlagSet("task get", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	remaining := fs.Args()
-	if len(remaining) == 0 {
-		return fmt.Errorf("usage: agent-manager task get <id>")
-	}
-
-	id := remaining[0]
+func (a *App) taskGet(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
 	body, task, err := a.services.Tasks.Get(id)
 	if err != nil {
 		return err
 	}
 
-	if *jsonOutput || task == nil {
+	if ctx.JSON() || task == nil {
 		cliutil.PrintJSON(body)
 		return nil
 	}
@@ -173,29 +158,18 @@ func (a *App) taskGet(args []string) error {
 // Task Create
 // =============================================================================
 
-func (a *App) taskCreate(args []string) error {
-	fs := flag.NewFlagSet("task create", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	title := fs.String("title", "", "Task title (required)")
-	description := fs.String("description", "", "Task description")
-	scopePath := fs.String("scope-path", "", "Scope path for agent operations")
-	projectRoot := fs.String("project-root", "", "Project root directory")
-	createdBy := fs.String("created-by", "", "Creator identifier")
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if *title == "" {
+func (a *App) taskCreate(ctx cliapp.RunContext) error {
+	title := ctx.Flag("title")
+	if title == "" {
 		return fmt.Errorf("--title is required")
 	}
 
 	req := &domainpb.Task{
-		Title:       *title,
-		Description: *description,
-		ScopePath:   *scopePath,
-		ProjectRoot: *projectRoot,
-		CreatedBy:   *createdBy,
+		Title:       title,
+		Description: ctx.Flag("description"),
+		ScopePath:   ctx.Flag("scope-path"),
+		ProjectRoot: ctx.Flag("project-root"),
+		CreatedBy:   ctx.Flag("created-by"),
 	}
 
 	body, task, err := a.services.Tasks.Create(req)
@@ -203,7 +177,7 @@ func (a *App) taskCreate(args []string) error {
 		return err
 	}
 
-	if *jsonOutput || task == nil {
+	if ctx.JSON() || task == nil {
 		cliutil.PrintJSON(body)
 		return nil
 	}

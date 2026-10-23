@@ -22,6 +22,10 @@ import (
 
 var parkHandlerSecret = []byte("phase4-park-handler-secret-0123456789abc")
 
+type parkHandlerProcessRunner struct{ *runner.MockRunner }
+
+func (parkHandlerProcessRunner) PID(uuid.UUID) int { return 0 }
+
 // setupParkHandler builds a handler wired with an identity secret + a claude-code
 // runner, plus a directly-seeded running run, for park/wake HTTP tests.
 func setupParkHandler(t *testing.T) (*mux.Router, *orchestration.Orchestrator, *domain.Run, string) {
@@ -31,7 +35,7 @@ func setupParkHandler(t *testing.T) (*mux.Router, *orchestration.Orchestrator, *
 	t.Cleanup(cleanup)
 
 	registry := runner.NewRegistry()
-	if err := registry.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
+	if err := registry.Register(parkHandlerProcessRunner{MockRunner: runner.NewMockRunner(domain.RunnerTypeClaudeCode)}); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
 

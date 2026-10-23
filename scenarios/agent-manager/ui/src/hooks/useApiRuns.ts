@@ -35,7 +35,8 @@ export interface RunReportView {
   duration_ms?: string;
   heartbeat_gap_ms?: string;
   turns: number;
-  tokens: number;
+  // ProtoJSON emits int64 as a decimal string; older servers emitted int32 as a number.
+  tokens: number | string;
   cost_usd: number;
   result: { selection_status: string; selection_rule?: string; candidate_count: number; structured_status?: string; structured_method?: string; diagnostic_codes?: string[] };
   event_counts: Record<string, number>;

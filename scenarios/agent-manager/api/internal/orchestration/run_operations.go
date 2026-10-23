@@ -527,6 +527,25 @@ func (e *eventStoreAdapter) LastSequence() int64 {
 	return e.lastSequence
 }
 
+// newRunEventSink owns the run-event persistence/broadcast selection shared by
+// execution, continuation, and recovery. The callback is optional and runs
+// only after a non-replay event has been persisted.
+func newRunEventSink(store event.Store, broadcaster EventBroadcaster, runID uuid.UUID, afterPersist func(*domain.RunEvent)) runner.EventSink {
+	switch {
+	case store != nil && broadcaster != nil:
+		return &broadcastingEventSink{
+			store:        store,
+			runID:        runID,
+			broadcaster:  broadcaster,
+			afterPersist: afterPersist,
+		}
+	case store != nil:
+		return &eventStoreAdapter{store: store, runID: runID, afterPersist: afterPersist}
+	default:
+		return &noOpEventSink{}
+	}
+}
+
 // broadcastingEventSink stores events AND broadcasts them via WebSocket.
 type broadcastingEventSink struct {
 	store        event.Store
@@ -579,19 +598,7 @@ func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
 		o.observeQuotaEvent(evt)
 		o.observeTokenCapUsage(runID, evt)
 	}
-	switch {
-	case o.events != nil && o.broadcaster != nil:
-		return &broadcastingEventSink{
-			store:        o.events,
-			runID:        runID,
-			broadcaster:  o.broadcaster,
-			afterPersist: afterPersist,
-		}
-	case o.events != nil:
-		return &eventStoreAdapter{store: o.events, runID: runID, afterPersist: afterPersist}
-	default:
-		return &noOpEventSink{}
-	}
+	return newRunEventSink(o.events, o.broadcaster, runID, afterPersist)
 }
 
 func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent) {

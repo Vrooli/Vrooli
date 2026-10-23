@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,6 +16,15 @@ import (
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const maxEffortSignalCheckinsPerTick = 100
+
+// EffortSignalWakeController can resume only a retained parked run, with the
+// exact queued signal high-water committed alongside its running transition.
+// It is intentionally separate from the general ActionController surface.
+type EffortSignalWakeController interface {
+	WakeEffortCheckin(context.Context, uuid.UUID, string, int64) error
+}
 
 // Effort signal kinds (DL-2). A check-in dispatcher starts one orchestrator
 // check-in when the log advances past its cursor.
@@ -145,6 +155,168 @@ func (s *EffortService) ListSignals(ctx context.Context, req *pb.ListEffortSigna
 	return &pb.ListEffortSignalsResponse{Signals: signals, LatestSeq: latest}, nil
 }
 
+// dispatchEffortSignalCheckins walks a bounded, rotating keyset of enrolled
+// orchestrator subjects. Per-run cursors make signal delivery durable; this
+// in-memory scan position only prevents a large registry from monopolizing a
+// single scheduler tick and safely resets after restart.
+func (s *EffortService) dispatchEffortSignalCheckins(ctx context.Context) error {
+	if s.signalCursorStore == nil || s.controller == nil {
+		return nil
+	}
+	waker, ok := s.controller.(EffortSignalWakeController)
+	if !ok {
+		return errors.New("retained effort signal wake controller is unavailable")
+	}
+	processed, effortsRead := 0, 0
+	var dispatchErrors []error
+	for processed < maxEffortSignalCheckinsPerTick && effortsRead < maxEffortSignalCheckinsPerTick {
+		var enrollment *pb.EffortEnrollment
+		var err error
+		if s.signalScanSubject != "" {
+			enrollment, _, err = s.repo.GetEffort(ctx, s.signalScanAfter)
+			if errors.Is(err, ErrNotFound) {
+				s.signalScanSubject = ""
+				continue
+			}
+		} else {
+			var rows []*pb.EffortEnrollment
+			rows, err = s.repo.ListEfforts(ctx, s.signalScanAfter, 1)
+			if err == nil && len(rows) > 0 {
+				enrollment = rows[0]
+			}
+		}
+		if err != nil {
+			return errors.Join(append(dispatchErrors, fmt.Errorf("list effort signal owners: %w", err))...)
+		}
+		if enrollment == nil {
+			s.signalScanAfter, s.signalScanSubject = "", ""
+			return errors.Join(dispatchErrors...)
+		}
+		effortsRead++
+		if enrollment.GetWithdrawn() {
+			s.signalScanAfter, s.signalScanSubject = enrollment.GetEffortRef(), ""
+			continue
+		}
+		subjects := orchestratorSignalSubjects(enrollment)
+		next := -1
+		for i, subject := range subjects {
+			if subject.GetRunId() > s.signalScanSubject {
+				next = i
+				break
+			}
+		}
+		if next < 0 {
+			s.signalScanAfter, s.signalScanSubject = enrollment.GetEffortRef(), ""
+			continue
+		}
+		subject := subjects[next]
+		if err := s.dispatchEffortSignalSubject(ctx, waker, enrollment, subject); err != nil {
+			// Keep this exact owner's durable queued cursor pending, but advance
+			// the in-memory scan so one unavailable owner cannot starve later
+			// enrolled goals. Wrapping the keyset retries it on a later tick.
+			dispatchErrors = append(dispatchErrors, err)
+		}
+		s.signalScanAfter, s.signalScanSubject = enrollment.GetEffortRef(), subject.GetRunId()
+		processed++
+	}
+	return errors.Join(dispatchErrors...)
+}
+
+func orchestratorSignalSubjects(e *pb.EffortEnrollment) []*pb.EffortSubject {
+	if e == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	result := make([]*pb.EffortSubject, 0, len(e.GetSubjects()))
+	for _, subject := range e.GetSubjects() {
+		if subject == nil || subject.GetOwner() != "agent-manager" || subject.GetKind() != "run" || subject.GetRole() != "orchestrator" || subject.GetRunId() == "" || subject.GetReference() != subject.GetRunId() || seen[subject.GetRunId()] {
+			continue
+		}
+		if _, err := uuid.Parse(subject.GetRunId()); err != nil {
+			continue
+		}
+		seen[subject.GetRunId()] = true
+		result = append(result, subject)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].GetRunId() < result[j].GetRunId() })
+	return result
+}
+
+func (s *EffortService) dispatchEffortSignalSubject(ctx context.Context, waker EffortSignalWakeController, enrollment *pb.EffortEnrollment, subject *pb.EffortSubject) error {
+	if enrollment == nil || enrollment.GetWithdrawn() {
+		return nil
+	}
+	id, err := uuid.Parse(subject.GetRunId())
+	if err != nil {
+		return nil
+	}
+	run, err := s.controller.GetRun(ctx, id)
+	if err != nil {
+		return fmt.Errorf("read enrolled effort orchestrator %s: %w", id, err)
+	}
+	if run == nil || run.ID != id || !run.Status.IsValid() || run.Status.IsTerminal() || !runCarriesEffortOrchestrator(run, enrollment.GetEffortRef()) {
+		return nil
+	}
+	through := int64(0)
+	cursor, hasCursor := run.EffortSignalCursors[enrollment.GetEffortRef()]
+	if hasCursor && cursor.QueuedSeq > cursor.DeliveredSeq {
+		through = cursor.QueuedSeq
+	} else {
+		var signals []*pb.EffortSignal
+		if hasCursor {
+			signals, _, err = s.repo.ListEffortSignals(ctx, enrollment.GetEffortRef(), cursor.QueuedSeq, defaultSignalPage)
+		} else {
+			// Old enrollments have no proof that their retained history was read.
+			// Coalesce one bounded latest-row catch-up; the neutral wake only asks
+			// the owner to reread current canonical feedback and does not replay text.
+			_, latest, listErr := s.repo.ListEffortSignals(ctx, enrollment.GetEffortRef(), 0, 1)
+			if listErr != nil {
+				return fmt.Errorf("read latest effort signal for %s: %w", enrollment.GetEffortRef(), listErr)
+			}
+			through = latest
+		}
+		if err != nil {
+			return fmt.Errorf("read effort signals for %s: %w", enrollment.GetEffortRef(), err)
+		}
+		if hasCursor {
+			if len(signals) == 0 {
+				return nil
+			}
+			through = signals[len(signals)-1].GetSeq()
+		}
+		cursor, eligible, queueErr := s.signalCursorStore.QueueEffortSignalCursor(ctx, id, enrollment.GetEffortRef(), through)
+		if queueErr != nil {
+			return fmt.Errorf("queue effort signal check-in for %s: %w", id, queueErr)
+		}
+		if !eligible {
+			return nil
+		}
+		if cursor.QueuedSeq <= cursor.DeliveredSeq {
+			return nil
+		}
+		through = cursor.QueuedSeq
+	}
+	if run.Status != domain.RunStatusParked || through <= 0 {
+		return nil
+	}
+	if err := waker.WakeEffortCheckin(ctx, id, enrollment.GetEffortRef(), through); err != nil {
+		return fmt.Errorf("wake retained effort orchestrator %s through signal %d: %w", id, through, err)
+	}
+	return nil
+}
+
+func runCarriesEffortOrchestrator(run *domain.Run, effortRef string) bool {
+	if run == nil || effortRef == "" {
+		return false
+	}
+	for _, ref := range run.WorkReferences {
+		if domain.IsPublicActiveEffortOrchestratorReference(ref) && ref.GetId() == effortRef {
+			return true
+		}
+	}
+	return false
+}
+
 // RecordCallerSignal records a step_back from a worker's epoch-check or a
 // feedback signal from whoever wrote a FEEDBACK.md entry. A named run must
 // exist and carry the effort reference, so a signal can only name a run of
@@ -172,8 +344,12 @@ func (s *EffortService) RecordCallerSignal(ctx context.Context, req *pb.RecordEf
 			return nil, fmt.Errorf("run %s does not carry effort reference %s", req.RunId, req.EffortRef)
 		}
 	}
-	signal, _, err := s.repo.AppendEffortSignal(ctx, req.EffortRef, req.Kind, req.RunId, req.Detail, req.DedupeKey)
-	return signal, err
+	signal, inserted, err := s.repo.AppendEffortSignal(ctx, req.EffortRef, req.Kind, req.RunId, req.Detail, req.DedupeKey)
+	if err != nil {
+		return nil, err
+	}
+	signal.NewlyRecorded = &inserted
+	return signal, nil
 }
 
 // effortRelationship returns the run's relationship to the effort when it

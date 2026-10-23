@@ -155,6 +155,9 @@ type WorkflowRunNode struct {
 	// the task workspace for a fresh run. An empty value retains the workflow
 	// default scope (the project root).
 	ScopePathTemplate string `json:"scopePathTemplate,omitempty"`
+	// ProjectRootTemplate selects a canonical existing checkout from declared
+	// workflow input. It does not widen sandbox writes or scope containment.
+	ProjectRootTemplate string `json:"projectRootTemplate,omitempty"`
 	// SandboxConfig pins literal run authority in the immutable revision.
 	// It is not rendered from worker-controlled outputs or prompt bindings.
 	SandboxConfig    *SandboxConfig         `json:"sandboxConfig,omitempty"`

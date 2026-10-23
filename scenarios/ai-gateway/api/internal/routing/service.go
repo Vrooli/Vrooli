@@ -679,13 +679,27 @@ func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status 
 		PolicyReasons:    append([]string{}, plan.policyReasons...),
 		FailureReasons:   append([]string{}, failures...),
 		FallbackUsed:     fallback,
-		PromptRedacted:   true,
-		ResponseRedacted: true,
+		// The redacted-evidence seam reflects whether a PII-detection pass ran,
+		// not an unconditional claim. A DETECT_PII request scans its own input
+		// text (the "prompt"), so a successful detect pass sets PromptRedacted.
+		// ResponseRedacted stays false until a response-redaction policy exists
+		// (owned by the agent-manager redact follow-up), rather than asserting a
+		// redaction that never happened.
+		PromptRedacted:   detectPassRan(req, status),
+		ResponseRedacted: false,
 		LatencyMs:        latency.Milliseconds(),
 		CreatedAt:        nowUTC(),
 	}
 	populateAttachmentEvidence(ev, req.GetAttachments())
 	return ev
+}
+
+// detectPassRan reports whether a PII-detection pass was applied to this
+// request's input. It is the signal that makes the prompt_redacted route-
+// evidence column meaningful: true only when a DETECT_PII request completed
+// successfully, false otherwise (no detector ran, or it failed).
+func detectPassRan(req *sharedv1.GatewayRequest, status string) bool {
+	return req.GetKind() == sharedv1.RequestKind_REQUEST_KIND_DETECT_PII && status == "succeeded"
 }
 
 func (s *Service) resolveAttachments(ctx context.Context, req *sharedv1.GatewayRequest) (*sharedv1.GatewayRequest, error) {
@@ -785,7 +799,8 @@ func requiredInputModalities(req *sharedv1.GatewayRequest) []sharedv1.Modality {
 	switch req.GetKind() {
 	case sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
 		sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-		sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION:
+		sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
+		sharedv1.RequestKind_REQUEST_KIND_DETECT_PII:
 		add(sharedv1.Modality_MODALITY_TEXT)
 	}
 	for _, attachment := range req.GetAttachments() {
@@ -813,6 +828,8 @@ func roleSupportsKind(role providers.Role, kind sharedv1.RequestKind) bool {
 		return hasAny(caps, "embedding", "embeddings")
 	case sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION:
 		return hasAny(caps, "extract", "structured", "json", "tools", "generate", "chat")
+	case sharedv1.RequestKind_REQUEST_KIND_DETECT_PII:
+		return hasAny(caps, "detect_pii", "detect", "pii")
 	default:
 		return false
 	}

@@ -3,12 +3,14 @@ package inference
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
 
 	"github.com/stretchr/testify/require"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -29,6 +31,39 @@ func TestResourceRepositoryResolvesProviderAndModelThroughResourcePolicy(t *test
 	require.Equal(t, "qwen3.5:4b", result.Model)
 	require.NotZero(t, result.InputTokens)
 	require.Equal(t, int64(4), result.OutputTokens)
+}
+
+func TestMeteredCreditAccountingPreservesKnownZeroAndPendingAbsence(t *testing.T) {
+	_, settled, err := decodeProviderResponse(providers.ProviderMetered, `{"content":"{}","credits_charged":0,"accounting_status":"settled","actual_cost_micros":0}`, "prompt")
+	require.NoError(t, err)
+	require.NotNil(t, settled.creditsCharged)
+	require.Zero(t, *settled.creditsCharged)
+	require.Equal(t, "settled", settled.accountingStatus)
+
+	_, pending, err := decodeProviderResponse(providers.ProviderMetered, `{"content":"{}","credits_charged":0,"accounting_status":"pending_reconciliation"}`, "prompt")
+	require.NoError(t, err)
+	require.Nil(t, pending.creditsCharged)
+	require.Equal(t, "pending_reconciliation", pending.accountingStatus)
+
+	responseUsage := usage(ProviderResult{CreditsCharged: settled.creditsCharged, AccountingStatus: settled.accountingStatus})
+	require.NotNil(t, responseUsage.CreditsCharged)
+	require.Zero(t, *responseUsage.CreditsCharged)
+	require.Equal(t, "settled", responseUsage.AccountingStatus)
+}
+
+func TestDeviceGeometryFundingRolesHaveOneProviderAndNoFallbackCandidates(t *testing.T) {
+	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	require.NoError(t, err)
+	for role, provider := range map[string]string{
+		"device.geometry.byok":           providers.ProviderOpenRouter,
+		"device.geometry.vrooli_credits": providers.ProviderMetered,
+	} {
+		definition, ok := catalog.Roles[role]
+		require.True(t, ok, "missing explicit funding role %s", role)
+		require.Len(t, definition.Candidates, 1, "funding role %s must not have fallback candidates", role)
+		require.Equal(t, provider, definition.Candidates[0].Provider)
+		require.Equal(t, "extract.structured", definition.Candidates[0].ResourceRole)
+	}
 }
 
 func TestResourceRepositoryReturnsTypedUnavailableWhenCandidatesFail(t *testing.T) {
@@ -79,10 +114,73 @@ func TestResourceRepositoryRemoteOnlySkipsLocalCandidates(t *testing.T) {
 	require.Equal(t, "resource-openrouter", runner.Commands[1].Name)
 }
 
+func TestResourceRepositoryProviderCallLimitCountsFailedDispatchAndStopsCandidateFallback(t *testing.T) {
+	failedGenerate := `resource-ollama gateway generate --role chat.one --json --prompt-stdin --require-loopback --temperature 0 --format {"type":"object"}`
+	runner := &providermocks.FakeRunner{
+		Results: map[string]providers.Result{
+			"resource-ollama policy resolve --role chat.one --json": {Stdout: resolveStdout("chat.one", "local-one", providers.SamplingHonored)},
+			"resource-ollama policy resolve --role chat.two --json": {Stdout: resolveStdout("chat.two", "local-two", providers.SamplingHonored)},
+		},
+		Errors:    map[string]error{failedGenerate: errors.New("transport failed")},
+		DefaultOK: true,
+		Default:   providers.Result{Stdout: `{"response":"{\"ok\":true}"}`},
+	}
+	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+		"extract.structured": {Sampling: deterministicRoleSampling(), Candidates: []Candidate{
+			{Provider: "ollama", ResourceRole: "chat.one", Reason: "first"},
+			{Provider: "ollama", ResourceRole: "chat.two", Reason: "fallback"},
+		}},
+	}}
+	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Runner: runner}})
+	require.NoError(t, err)
+	result, err := repository.Run(context.Background(), ProviderRequest{
+		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, MaxProviderCalls: 1,
+	})
+	require.ErrorIs(t, err, ErrUnavailable)
+	require.EqualValues(t, 1, result.ProviderCallsMade)
+	var generateCalls int
+	for _, command := range runner.Commands {
+		if strings.Contains(command.String(), "gateway generate") {
+			generateCalls++
+		}
+	}
+	require.Equal(t, 1, generateCalls, "a failed actual dispatch consumes the total bound before fallback")
+}
+
 func TestDecodeProviderResponseRejectsEmptyResponses(t *testing.T) {
-	_, _, _, _, err := decodeProviderResponse(providers.ProviderOllama, `{"response":""}`, "prompt")
+	_, _, err := decodeProviderResponse(providers.ProviderOllama, `{"response":""}`, "prompt")
 	require.Error(t, err)
 	require.False(t, errors.Is(err, ErrUnavailable))
+}
+
+func TestProviderUsageDistinguishesReportedZeroFromUnknown(t *testing.T) {
+	t.Run("Ollama reports zero prompt and completion counts", func(t *testing.T) {
+		_, got, err := decodeProviderResponse(providers.ProviderOllama, `{"response":"{}","prompt_eval_count":0,"eval_count":0}`, "prompt")
+		require.NoError(t, err)
+		require.Zero(t, got.input)
+		require.Zero(t, got.output)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, got.inputProvenance)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, got.outputProvenance)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, got.costProvenance)
+	})
+	t.Run("Ollama estimates missing prompt and keeps completion unknown", func(t *testing.T) {
+		_, got, err := decodeProviderResponse(providers.ProviderOllama, `{"response":"{}"}`, "prompt")
+		require.NoError(t, err)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE, got.inputProvenance)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, got.outputProvenance)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, got.costProvenance)
+	})
+	t.Run("OpenRouter reported zeros remain reported", func(t *testing.T) {
+		_, got, err := decodeProviderResponse(providers.ProviderOpenRouter, `{"choices":[{"message":{"content":"{}"}}],"usage":{"prompt_tokens":0,"completion_tokens":0,"cost":0}}`, "prompt")
+		require.NoError(t, err)
+		require.Zero(t, got.input)
+		require.Zero(t, got.output)
+		require.Zero(t, got.cost)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, got.inputProvenance)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, got.outputProvenance)
+		require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, got.costProvenance)
+	})
 }
 
 // deterministicRoleSampling mirrors what classify.fast / extract.structured /

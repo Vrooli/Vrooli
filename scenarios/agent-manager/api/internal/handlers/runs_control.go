@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -265,6 +266,14 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 			req.EventTypes[i] = protoconv.RunEventTypeToProto(eventType)
 		}
 	}
+	if rawSummary := r.URL.Query().Get("summary_only"); rawSummary != "" {
+		summaryOnly, err := strconv.ParseBool(rawSummary)
+		if err != nil {
+			writeSimpleError(w, r, "summary_only", "must be a boolean")
+			return
+		}
+		req.SummaryOnly = summaryOnly
+	}
 	if !h.validateProto(w, r, &req) {
 		return
 	}
@@ -294,9 +303,12 @@ func (h *Handler) getRunEventsPage(ctx context.Context, runID uuid.UUID, req *ap
 		if limit < 1 || limit > 1000 {
 			return nil, domain.NewValidationError("limit", "must be between 1 and 1000")
 		}
-		// Fetch one lookahead event so the response distinguishes a complete
-		// page from one that has more events. The public limit remains capped.
-		opts.Limit = int(limit) + 1
+		// Ordinary pages fetch one lookahead event. Summary selection performs
+		// the same lookahead in SQL without loading event payloads.
+		opts.Limit = int(limit)
+		if !req.GetSummaryOnly() {
+			opts.Limit++
+		}
 	}
 	if len(req.EventTypes) > 0 {
 		opts.EventTypes = make([]domain.RunEventType, len(req.EventTypes))
@@ -309,6 +321,19 @@ func (h *Handler) getRunEventsPage(ctx context.Context, runID uuid.UUID, req *ap
 		}
 	}
 
+	if req.GetSummaryOnly() {
+		summary, err := h.svc.GetRunEventSummary(ctx, runID, opts)
+		if err != nil {
+			return nil, err
+		}
+		if summary == nil {
+			return nil, domain.NewInternalError("event store returned no summary", nil)
+		}
+		return &apipb.GetRunEventsResponse{
+			Summary: &apipb.RunEventSummary{Counts: summary.Counts, LatestSequence: summary.LatestSequence},
+			HasMore: summary.HasMore,
+		}, nil
+	}
 	events, err := h.svc.GetRunEvents(ctx, runID, opts)
 	if err != nil {
 		return nil, err

@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
 	agentconfig "agent-manager/internal/config"
+	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
@@ -24,6 +25,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/piimask"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/promptmanager"
@@ -57,10 +59,10 @@ type Orchestrator struct {
 	serialScanMu                      sync.Mutex
 	serialScanFrom, serialScanThrough time.Time
 	serialScanOffset                  int
-	// parkTurnEnds holds, per recently parked run, a channel closed once the
-	// parked turn's agent process has been stopped. WakeRun waits on it so a
-	// continuation never starts beside the still-running parked turn.
-	parkTurnEnds sync.Map // uuid.UUID -> chan struct{}
+	// parkTurnEnds holds, per agent-originated park, the process-exit barrier.
+	// It is installed before the parked state is persisted so a concurrent wake
+	// cannot start a continuation beside the original turn.
+	parkTurnEnds sync.Map // uuid.UUID -> *parkedTurnEnd
 	// parkCompactions holds, per parked run whose session is being compacted,
 	// a channel closed when the compaction ends. WakeRun waits on it.
 	parkCompactions sync.Map // uuid.UUID -> chan struct{}
@@ -114,6 +116,18 @@ type Orchestrator struct {
 
 	// Configuration
 	config OrchestratorConfig
+
+	// conversationPolicy is the declarative visibility/exclusion policy. When a
+	// run matches an `exclude` rule enforced at the import seam, ImportTranscript
+	// writes zero run_events for it. Nil (or a disabled policy) imports
+	// everything, so an unconfigured host is unaffected.
+	conversationPolicy *conversationpolicy.Policy
+	// piiMasker scrubs PII from conversation content for runs matching a
+	// `redact` rule enforced at the import seam. Nil disables masking: a redact
+	// rule then behaves as a recognized, observable no-op (still imported and
+	// searchable), exactly as before W5. When present it is applied BEFORE the
+	// event store write, so no redacted PII ever reaches the search index.
+	piiMasker *piimask.Masker
 	// ownerIdentity names this Agent Manager owner lifetime for durable run
 	// stream and finalization fencing.
 	runtimeOwnerIdentity string
@@ -282,6 +296,17 @@ func (o *Orchestrator) reviveConversationSearch(ctx context.Context, harness, se
 	return o.conversationSearchRevive(ctx, harness, sessionID)
 }
 
+// DeleteRunFromConversationSearch removes a run's derived search documents.
+// Exported so retention (the reconciler's imported-corpus eviction) can drop a
+// run's search projection through the same post-commit hook imports use, rather
+// than reaching into the index directly. No-op when the notifier is unset.
+func (o *Orchestrator) DeleteRunFromConversationSearch(ctx context.Context, runID string) error {
+	if o == nil || o.conversationSearchNotify == nil {
+		return nil
+	}
+	return o.conversationSearchNotify(ctx, "delete_run", runID, "")
+}
+
 func (o *Orchestrator) notifyConversationSearch(ctx context.Context, operation, runID, eventID string) {
 	if o == nil || o.conversationSearchNotify == nil {
 		return
@@ -391,6 +416,46 @@ func WithConfig(cfg OrchestratorConfig) Option {
 	return func(o *Orchestrator) {
 		o.config = cfg
 	}
+}
+
+// WithConversationPolicy installs the declarative visibility/exclusion policy.
+// A nil or disabled policy leaves import behavior unchanged.
+func WithConversationPolicy(policy *conversationpolicy.Policy) Option {
+	return func(o *Orchestrator) {
+		o.conversationPolicy = policy
+	}
+}
+
+// WithPIIMasker installs the PII masking engine used by the `redact` import
+// action. A nil masker leaves redact as a recognized no-op (content is still
+// imported and searchable); a configured masker scrubs PII from a
+// redact-matched run's content before it is persisted as searchable events.
+func WithPIIMasker(masker *piimask.Masker) Option {
+	return func(o *Orchestrator) {
+		o.piiMasker = masker
+	}
+}
+
+// ImportPolicyCounts returns a read-only snapshot of the import-seam
+// visibility/exclusion counters (exclude-at-import, redact-marked). A nil or
+// disabled policy yields a zero snapshot. These counts are process-local and
+// reset on restart. It is safe for concurrent use.
+func (o *Orchestrator) ImportPolicyCounts() conversationpolicy.Counts {
+	if o == nil {
+		return conversationpolicy.Counts{}
+	}
+	return o.conversationPolicy.Snapshot()
+}
+
+// PIIMaskCounts returns a read-only snapshot of the PII masking engine counters
+// (events scanned, spans masked, and the load-bearing fail-closed count). A nil
+// masker yields a zero snapshot. These counts are process-local and reset on
+// restart. It is safe for concurrent use.
+func (o *Orchestrator) PIIMaskCounts() piimask.Counters {
+	if o == nil {
+		return piimask.Counters{}
+	}
+	return o.piiMasker.Snapshot()
 }
 
 // WithOwnerIdentity installs the verifier for presented scenario-authenticator

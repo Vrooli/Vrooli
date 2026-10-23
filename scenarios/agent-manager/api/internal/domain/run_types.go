@@ -64,17 +64,19 @@ type Run struct {
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
-	Tag             string                       `json:"tag,omitempty" db:"tag"`
-	Label           string                       `json:"label,omitempty" db:"label"`
-	LabelSource     RunLabelSource               `json:"labelSource,omitempty" db:"label_source"`
-	Subject         []string                     `json:"subject,omitempty" db:"subject"`
-	OwnerSubject    string                       `json:"ownerSubject,omitempty" db:"owner_subject"`
-	OwnerScopes     []string                     `json:"ownerScopes" db:"owner_scopes"`
-	RequestedScopes []string                     `json:"requestedScopes" db:"requested_scopes"`
-	OwnerExpiresAt  *time.Time                   `json:"ownerExpiresAt,omitempty" db:"owner_expires_at"`
-	WorkReferences  []*eventdomain.WorkReference `json:"workReferences,omitempty" db:"work_references"`
-	Workload        WorkloadRef                  `json:"workload,omitempty" db:"workload"`
-	Billing         BillingSnapshot              `json:"billing,omitempty" db:"billing"`
+	Tag             string         `json:"tag,omitempty" db:"tag"`
+	Label           string         `json:"label,omitempty" db:"label"`
+	LabelSource     RunLabelSource `json:"labelSource,omitempty" db:"label_source"`
+	Subject         []string       `json:"subject,omitempty" db:"subject"`
+	OwnerSubject    string         `json:"ownerSubject,omitempty" db:"owner_subject"`
+	OwnerScopes     []string       `json:"ownerScopes" db:"owner_scopes"`
+	RequestedScopes []string       `json:"requestedScopes" db:"requested_scopes"`
+	OwnerExpiresAt  *time.Time     `json:"ownerExpiresAt,omitempty" db:"owner_expires_at"`
+	// WorkReferences are normalized creation metadata. Repository updates retain
+	// the persisted value because it participates in effort-owner admission.
+	WorkReferences []*eventdomain.WorkReference `json:"workReferences,omitempty" db:"work_references"`
+	Workload       WorkloadRef                  `json:"workload,omitempty" db:"workload"`
+	Billing        BillingSnapshot              `json:"billing,omitempty" db:"billing"`
 	// Sandbox integration
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
 	RunMode       RunMode        `json:"runMode" db:"run_mode"`
@@ -260,6 +262,14 @@ type Run struct {
 	// rejected). Nil for every non-parked run.
 	AwaitHandle *AwaitHandle `json:"awaitHandle,omitempty" db:"await_handle"`
 
+	// EffortSignalCursors are the durable same-run check-in positions for exact
+	// active efforts. They are internal lifecycle metadata, not public run JSON.
+	EffortSignalCursors map[string]EffortSignalCursor `json:"-" db:"effort_signal_cursors"`
+	// EffortSignalReceipt is an internal command consumed by the parked→running
+	// run-row transaction. It advances only the named effort cursor atomically
+	// with the wake; it is never persisted or returned to callers.
+	EffortSignalReceipt *EffortSignalReceipt `json:"-" db:"-"`
+
 	// LastAwaitKey / LastAwaitResult / LastAwaitResolvedAt record the most
 	// recently RESOLVED await: the producer:key, the full result string that was
 	// injected into the woken turn, and when it resolved. They are the durable
@@ -294,6 +304,36 @@ type Run struct {
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// EffortSignalCursor distinguishes signals queued for a parked owner from
+// signals whose check-in wake committed. Both sequence positions are monotonic.
+type EffortSignalCursor struct {
+	QueuedSeq    int64 `json:"queued_seq"`
+	DeliveredSeq int64 `json:"delivered_seq"`
+}
+
+// EffortSignalReceipt is the exact per-effort high-water delivered by one
+// parked→running transition.
+type EffortSignalReceipt struct {
+	EffortRef string
+	Through   int64
+}
+
+// IsPublicActiveEffortReference reports whether a declared work reference may
+// identify a live public effort. Unverified, private, withdrawn, or malformed
+// references do not participate in effort discovery or lifecycle admission.
+func IsPublicActiveEffortReference(ref *eventdomain.WorkReference) bool {
+	return ref != nil && ref.GetKind() == "effort" && ref.GetId() != "" && ref.GetVerified() &&
+		ref.GetVisibility() == eventdomain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC &&
+		ref.GetState() == eventdomain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE
+}
+
+// IsPublicActiveEffortOrchestratorReference identifies the canonical declared
+// reference for an effort's coordinator. The effort ID is the stable identity;
+// revision remains source evidence and does not create a second owner slot.
+func IsPublicActiveEffortOrchestratorReference(ref *eventdomain.WorkReference) bool {
+	return IsPublicActiveEffortReference(ref) && ref.GetRelationship() == "orchestrator"
 }
 
 // GetTag returns the tag for this run, defaulting to the run ID if no custom tag is set.
@@ -513,7 +553,7 @@ type RunSummary struct {
 	FilesModified []string `json:"filesModified,omitempty"`
 	FilesCreated  []string `json:"filesCreated,omitempty"`
 	FilesDeleted  []string `json:"filesDeleted,omitempty"`
-	TokensUsed    int      `json:"tokensUsed,omitempty"`
+	TokensUsed    int64    `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
 	ContextTokens int      `json:"contextTokens,omitempty"`

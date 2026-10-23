@@ -55,6 +55,17 @@ func EmitGenericFailureEvent(ctx context.Context, deps Deps, runID uuid.UUID, er
 	publishEvent(ctx, deps, runID, evt)
 }
 
+// EmitStatusTransition publishes the terminal status selected by orchestration
+// after that status has been persisted. Runner invocations may end without the
+// Run ending (for example when the agent parks), so provider exit is not itself
+// a Run status transition.
+func EmitStatusTransition(ctx context.Context, deps Deps, runID uuid.UUID, oldStatus, newStatus domain.RunStatus, reason string) {
+	if oldStatus == newStatus {
+		return
+	}
+	publishEvent(ctx, deps, runID, domain.NewStatusEvent(runID, string(oldStatus), string(newStatus), reason))
+}
+
 // publishEvent routes a constructed event through the Gate (if wired) or
 // falls back to the event store. It never panics on a nil-shaped Deps so
 // phase functions can be invoked from tests with partial wiring.

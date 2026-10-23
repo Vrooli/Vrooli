@@ -85,6 +85,7 @@ type ApprovalService interface {
 
 type EventService interface {
 	GetRunEvents(context.Context, uuid.UUID, event.GetOptions) ([]*domain.RunEvent, error)
+	GetRunEventSummary(context.Context, uuid.UUID, event.GetOptions) (*event.Summary, error)
 	StreamRunEvents(context.Context, uuid.UUID, event.StreamOptions) (<-chan *domain.RunEvent, error)
 }
 

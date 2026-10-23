@@ -115,6 +115,18 @@ func (r *SQLiteRepository) DeleteRun(ctx context.Context, runID string) (int64, 
 	return r.archiveAndDelete(ctx, `source_run_id = ?`, runID)
 }
 
+// OptimizeIndex merges the FTS5 index segments, reclaiming the on-disk space
+// that deleted documents leave behind. conversation_search_catalog_fts is an
+// FTS5 external-content table, which records deletes as tombstone postings and
+// never reclaims their space on DELETE — so after a bulk eviction the shadow
+// tables stay bloated even though the catalog rows are gone. A periodic optimize
+// is the sanctioned reclaim for that space. Idempotent: optimizing an already
+// merged index is a cheap no-op, so it is safe to call from storage maintenance.
+func (r *SQLiteRepository) OptimizeIndex(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO conversation_search_catalog_fts(conversation_search_catalog_fts) VALUES('optimize')`)
+	return err
+}
+
 func (r *SQLiteRepository) archiveAndDelete(ctx context.Context, predicate string, args ...any) (int64, error) {
 	conn, err := r.db.Conn(ctx)
 	if err != nil {

@@ -153,7 +153,7 @@ func (s *EffortService) loadGoalHome(home string) (*goalhome.Home, error) {
 		at = next
 	}
 	defer at.Close()
-	return goalhome.Load(safeGoalHomeFS{root: at, limit: s.config.FileBytes})
+	return goalhome.LoadBoardProjection(safeGoalHomeFS{root: at, limit: s.config.FileBytes})
 }
 
 // GoalHomeForOrchestrator returns the goal home of the enrolled effort the run
@@ -178,6 +178,9 @@ func (s *EffortService) GoalHomeForOrchestrator(ctx context.Context, run *domain
 			continue
 		}
 		home, err := s.readGoalHome(dir)
+		if err == nil && !home.EpochsComplete {
+			return nil, dir, true, errors.New("goal-home epoch evidence is incomplete; orchestrator decisions require a complete home")
+		}
 		return home, dir, true, err
 	}
 	return nil, "", false, nil
@@ -196,9 +199,16 @@ func (s *EffortService) projectGoalHome(ctx context.Context, e *pb.EffortEnrollm
 		out.State = "unavailable"
 		out.Limitations = append(out.Limitations, "goal home unreadable: "+err.Error())
 	} else {
+		if !home.EpochsComplete {
+			out.State = "partial"
+		}
 		s.goalHomeFileFacts(out, home)
-		s.goalHomeSpendFacts(ctx, out, home)
-		s.goalHomeCapFacts(ctx, out, home, row)
+		if home.EpochsComplete {
+			s.goalHomeSpendFacts(ctx, out, home)
+			s.goalHomeCapFacts(ctx, out, home, row)
+		} else {
+			out.Limitations = append(out.Limitations, "epoch-derived spend and cap facts are unknown until all epoch files are safely readable")
+		}
 	}
 	if decisions, err := s.repo.ListEffortDecisions(ctx, dir, "", 200); err != nil {
 		out.Limitations = append(out.Limitations, "decisions unavailable: "+err.Error())
@@ -230,35 +240,42 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 			out.CurrentAsOf = timestamppb.New(c.At)
 		}
 	}
-	var active *goalhome.EpochFile
-	activePriority := 0
-	for i := len(home.Epochs) - 1; i >= 0; i-- {
-		epoch := home.Epochs[i]
-		if epoch.Epoch.IsAccepted() {
-			if out.LastAcceptedEpoch == "" {
-				out.LastAcceptedEpoch = fmt.Sprintf("E%d", epoch.Number)
-				if accepted := epoch.Epoch.LastAcceptance(); accepted != nil && !accepted.At.IsZero() {
-					out.LastAcceptedAt = timestamppb.New(accepted.At)
+	if !home.EpochsComplete {
+		for _, name := range home.IncompleteEpochFiles {
+			out.Limitations = append(out.Limitations, name+" could not be safely read or parsed; epoch facts are unknown")
+		}
+		out.Limitations = append(out.Limitations, "active and accepted epoch facts are unknown until the epoch set is completely readable; review before acceptance")
+	} else {
+		var active *goalhome.EpochFile
+		activePriority := 0
+		for i := len(home.Epochs) - 1; i >= 0; i-- {
+			epoch := home.Epochs[i]
+			if epoch.Epoch.IsAccepted() {
+				if out.LastAcceptedEpoch == "" {
+					out.LastAcceptedEpoch = fmt.Sprintf("E%d", epoch.Number)
+					if accepted := epoch.Epoch.LastAcceptance(); accepted != nil && !accepted.At.IsZero() {
+						out.LastAcceptedAt = timestamppb.New(accepted.At)
+					}
+					if accepted := epoch.Epoch.LastAcceptance(); accepted != nil && accepted.Yield != nil {
+						out.LastYield = accepted.Yield.String()
+					}
 				}
-				if accepted := epoch.Epoch.LastAcceptance(); accepted != nil && accepted.Yield != nil {
-					out.LastYield = accepted.Yield.String()
-				}
+				continue
 			}
-			continue
+			priority := goalHomeEpochPriority(epoch.Epoch)
+			if active == nil || priority > activePriority {
+				active = &epoch
+				activePriority = priority
+			}
 		}
-		priority := goalHomeEpochPriority(epoch.Epoch)
-		if active == nil || priority > activePriority {
-			active = &epoch
-			activePriority = priority
-		}
-	}
-	if active != nil {
-		out.ActiveEpoch = fmt.Sprintf("E%d", active.Number)
-		out.ActiveStatus = active.Epoch.Fields["status"]
-		rawWorkers := active.Epoch.Fields["workers"]
-		out.ActiveWorkers = goalhome.WorkerRunIDs(rawWorkers)
-		if strings.TrimSpace(rawWorkers) != "" && len(out.ActiveWorkers) == 0 {
-			out.Limitations = append(out.Limitations, "active epoch Workers field is not a well-formed UUID list")
+		if active != nil {
+			out.ActiveEpoch = fmt.Sprintf("E%d", active.Number)
+			out.ActiveStatus = active.Epoch.Fields["status"]
+			rawWorkers := active.Epoch.Fields["workers"]
+			out.ActiveWorkers = goalhome.WorkerRunIDs(rawWorkers)
+			if strings.TrimSpace(rawWorkers) != "" && len(out.ActiveWorkers) == 0 {
+				out.Limitations = append(out.Limitations, "active epoch Workers field is not a well-formed UUID list")
+			}
 		}
 	}
 	for i, item := range home.Queue.NeedsOperator {

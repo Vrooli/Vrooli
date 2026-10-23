@@ -62,8 +62,12 @@ func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testi
 	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
 	require.Equal(t, "ollama", resp.GetEvidence().GetSelectedProvider())
 	require.Equal(t, "qwen3.5:9b", resp.GetEvidence().GetSelectedModel())
-	require.True(t, resp.GetEvidence().GetPromptRedacted())
-	require.True(t, resp.GetEvidence().GetResponseRedacted())
+	// A TEXT_GENERATION request runs no PII-detection pass, so the redacted-
+	// evidence seam reports false (it is meaningful now, not unconditionally
+	// true). The real privacy guarantee is below: the input never appears in the
+	// command string, policy reasons, or output.
+	require.False(t, resp.GetEvidence().GetPromptRedacted())
+	require.False(t, resp.GetEvidence().GetResponseRedacted())
 	require.NotContains(t, strings.Join(resp.GetEvidence().GetPolicyReasons(), " "), "sensitive prompt")
 	require.NotContains(t, resp.GetOutputText(), "sensitive prompt")
 

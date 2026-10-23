@@ -53,7 +53,10 @@ func TestCancelTaskDurablyFencesQueuedAdmissionBeforeDispatch(t *testing.T) {
 	defer d.Close()
 	blockerEntered := make(chan struct{})
 	unblock := make(chan struct{})
-	if err := d.Enqueue(&spawn.Job{RunID: uuid.New(), Fn: func(started spawn.StartedFn) { started(); close(blockerEntered); <-unblock }}); err != nil {
+	if err := d.Enqueue(&spawn.Job{RunID: uuid.New(), Fn: func(spawn.StartedFn) {
+		close(blockerEntered)
+		<-unblock
+	}}); err != nil {
 		t.Fatal(err)
 	}
 	<-blockerEntered
@@ -63,12 +66,15 @@ func TestCancelTaskDurablyFencesQueuedAdmissionBeforeDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	executed := make(chan struct{}, 1)
 	if err := d.EnqueueAdmitted(&spawn.Job{RunID: run.ID, Fn: func(spawn.StartedFn) { executed <- struct{}{} }}, admission); err != nil {
 		t.Fatal(err)
+	}
+	if stats := d.Stats(); stats.StartingCount != 1 || stats.QueueDepth != 1 {
+		t.Fatalf("test setup did not keep the admitted Run queued: stats=%+v", stats)
 	}
 
 	o := &Orchestrator{tasks: repos.Tasks, runs: repos.Runs, dispatcher: d, clock: time.Now}

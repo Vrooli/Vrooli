@@ -3,6 +3,7 @@ package mocks
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"sync"
 
@@ -67,6 +68,58 @@ func (s *FakeEventStore) Get(_ context.Context, runID uuid.UUID, _ event.GetOpti
 	defer s.mu.Unlock()
 	s.ensure()
 	return append([]*domain.RunEvent(nil), s.EventsByRun[runID]...), nil
+}
+
+func (s *FakeEventStore) Summarize(_ context.Context, runID uuid.UUID, opts event.GetOptions) (*event.Summary, error) {
+	if s.GetErr != nil {
+		return nil, s.GetErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensure()
+	selected := make([]*domain.RunEvent, 0, len(s.EventsByRun[runID]))
+	for _, evt := range s.EventsByRun[runID] {
+		if evt == nil || evt.Sequence <= opts.AfterSequence {
+			continue
+		}
+		if opts.Since != nil && !evt.Timestamp.After(*opts.Since) {
+			continue
+		}
+		if len(opts.EventTypes) > 0 {
+			matched := false
+			for _, eventType := range opts.EventTypes {
+				if evt.EventType == eventType {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		selected = append(selected, evt)
+	}
+	sort.Slice(selected, func(i, j int) bool { return selected[i].Sequence < selected[j].Sequence })
+	if opts.Offset > 0 {
+		if opts.Offset >= len(selected) {
+			selected = nil
+		} else {
+			selected = selected[opts.Offset:]
+		}
+	}
+	hasMore := opts.Limit > 0 && len(selected) > opts.Limit
+	if hasMore {
+		selected = selected[:opts.Limit]
+	}
+	summary := &event.Summary{Counts: make(map[string]int64), HasMore: hasMore}
+	for _, evt := range selected {
+		summary.Counts[string(evt.EventType)]++
+		sequence := evt.Sequence
+		if summary.LatestSequence == nil || sequence > *summary.LatestSequence {
+			summary.LatestSequence = &sequence
+		}
+	}
+	return summary, nil
 }
 
 func (s *FakeEventStore) Stream(context.Context, uuid.UUID, event.StreamOptions) (<-chan *domain.RunEvent, error) {

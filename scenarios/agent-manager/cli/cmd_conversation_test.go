@@ -156,6 +156,85 @@ func TestConversationCommandsHandleNoResultsContextStatusAndReindex(t *testing.T
 	}
 }
 
+// statusWithPolicyCounters is the status response fixture carrying a full
+// policy_counters block including a non-zero fail-closed count, so the CLI
+// rendering (human + --json) can be asserted without re-stating the shape in
+// each test.
+const statusWithPolicyCounters = `{"state":"CONVERSATION_INDEX_STATE_READY","activeGeneration":"gen-1",` +
+	`"policyCounters":{"processLocal":true,"excludeAtImport":"3","hideAtSearch":"2","redactMarked":"4",` +
+	`"piiEventsScanned":"7","piiSpansMasked":"9","piiFailClosed":"5","byRule":{"rule-0":"3","rule-1":"2"}}}`
+
+func TestConversationIndexStatusSurfacesPolicyCountersAndFailClosed(t *testing.T) {
+	app, _ := newConversationTestApp(t, func(path string) (int, string) {
+		if path == "/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus" {
+			return http.StatusOK, statusWithPolicyCounters
+		}
+		return http.StatusNotFound, `{}`
+	})
+
+	output := captureStdout(t, func() error { return app.conversationIndexStatus(nil) })
+	for _, expected := range []string{
+		"policy_counters",
+		"process-local (resets on restart)",
+		"exclude_at_import=3",
+		"hide_at_search=2",
+		"redact_marked=4",
+		"events_scanned=7",
+		"spans_masked=9",
+		"WARNING pii_fail_closed=5", // the load-bearing security signal
+		"content was WITHHELD",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("human output missing %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestConversationIndexStatusHealthyFailClosedShowsReassurance(t *testing.T) {
+	app, _ := newConversationTestApp(t, func(path string) (int, string) {
+		if path == "/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus" {
+			return http.StatusOK, `{"state":"CONVERSATION_INDEX_STATE_READY","policyCounters":{"processLocal":true}}`
+		}
+		return http.StatusNotFound, `{}`
+	})
+	output := captureStdout(t, func() error { return app.conversationIndexStatus(nil) })
+	if strings.Contains(output, "WARNING") {
+		t.Fatalf("healthy fail-closed must not warn:\n%s", output)
+	}
+	if !strings.Contains(output, "pii_fail_closed=0 (PII masking healthy)") {
+		t.Fatalf("healthy output missing reassurance line:\n%s", output)
+	}
+}
+
+func TestConversationIndexStatusJSONCarriesFullPolicyCounters(t *testing.T) {
+	app, _ := newConversationTestApp(t, func(path string) (int, string) {
+		if path == "/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus" {
+			return http.StatusOK, statusWithPolicyCounters
+		}
+		return http.StatusNotFound, `{}`
+	})
+	output := captureStdout(t, func() error { return app.conversationIndexStatus([]string{"--json"}) })
+
+	// --json must carry the full structure under stable proto field names.
+	response := &domainpb.GetConversationIndexStatusResponse{}
+	if err := protojson.Unmarshal([]byte(output), response); err != nil {
+		t.Fatalf("round-trip --json: %v\n%s", err, output)
+	}
+	counters := response.GetPolicyCounters()
+	if counters == nil {
+		t.Fatalf("--json dropped policy_counters:\n%s", output)
+	}
+	if counters.GetExcludeAtImport() != 3 || counters.GetHideAtSearch() != 2 || counters.GetRedactMarked() != 4 {
+		t.Fatalf("--json counters mismatch: %+v", counters)
+	}
+	if counters.GetPiiFailClosed() != 5 || !counters.GetProcessLocal() {
+		t.Fatalf("--json fail-closed/process-local mismatch: %+v", counters)
+	}
+	if !strings.Contains(output, `"pii_fail_closed"`) || strings.Contains(output, `"piiFailClosed"`) {
+		t.Fatalf("--json must use stable snake_case field names:\n%s", output)
+	}
+}
+
 func TestConversationCommandPreservesAPIErrors(t *testing.T) {
 	app, _ := newConversationTestApp(t, func(string) (int, string) {
 		return http.StatusBadRequest, `{"code":"invalid_argument","message":"filters.occurred_after is invalid"}`

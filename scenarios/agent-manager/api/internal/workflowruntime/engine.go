@@ -42,6 +42,7 @@ type (
 		ProfileKey      string
 		RoleRef         string
 		ScopePath       string
+		ProjectRoot     string
 		SandboxConfig   *domain.SandboxConfig
 		Tag             string
 		Force           bool
@@ -1399,7 +1400,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
 		request.SandboxConfig = node.Run.SandboxConfig
-		if node.Run.ScopePathTemplate != "" {
+		if node.Run.ScopePathTemplate != "" || node.Run.ProjectRootTemplate != "" {
 			values := map[string]any{}
 			if err := json.Unmarshal(a.InputSnapshot, &values); err != nil {
 				return ChildRequest{}, fmt.Errorf("decode workflow input snapshot for scope path: %w", err)
@@ -1409,6 +1410,13 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 				return ChildRequest{}, fmt.Errorf("render workflow scope path: %w", err)
 			}
 			request.ScopePath = strings.TrimSpace(scopePath)
+			if node.Run.ProjectRootTemplate != "" {
+				root, err := RenderPrompt(node.Run.ProjectRootTemplate, values)
+				if err != nil {
+					return ChildRequest{}, fmt.Errorf("render workflow project root: %w", err)
+				}
+				request.ProjectRoot = strings.TrimSpace(root)
+			}
 		}
 		request.Tag = node.Run.Tag
 		request.Force = node.Run.Force

@@ -367,19 +367,8 @@ func validateSandboxMode(mode SandboxMode) error {
 // - ScopePath is valid (no path traversal)
 // - ContextAttachments are individually valid
 func (t *Task) Validate() error {
-	// Title is required
-	title := strings.TrimSpace(t.Title)
-	if title == "" {
-		return NewValidationErrorWithHint("title", "field is required",
-			"Provide a descriptive title for this task")
-	}
-	if len(title) > 255 {
-		return NewValidationError("title", "must be 255 characters or less")
-	}
-
-	// Description has a reasonable limit (64KB accommodates large agent prompts)
-	if len(t.Description) > 65536 {
-		return NewValidationError("description", "must be 65536 characters or less")
+	if err := t.ValidateBrief(); err != nil {
+		return err
 	}
 
 	// ScopePath is required
@@ -423,6 +412,28 @@ func (t *Task) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+// ValidateBrief checks the title and description fields shared by task create,
+// update, and creator-owned queued-brief edits. It deliberately excludes scope
+// and execution-context validation so a brief correction is not blocked by
+// unrelated legacy task fields.
+func (t *Task) ValidateBrief() error {
+	// Title is required
+	title := strings.TrimSpace(t.Title)
+	if title == "" {
+		return NewValidationErrorWithHint("title", "field is required",
+			"Provide a descriptive title for this task")
+	}
+	if len(title) > 255 {
+		return NewValidationError("title", "must be 255 characters or less")
+	}
+
+	// Description has a reasonable limit (64KB accommodates large agent prompts)
+	if len(t.Description) > 65536 {
+		return NewValidationError("description", "must be 65536 characters or less")
+	}
 	return nil
 }
 

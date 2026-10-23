@@ -101,7 +101,7 @@ func TestStandingGrantDiagnosticUsesFixedReadRouteAndRendersBothModes(t *testing
 			t.Fatalf("diagnostic request unexpectedly carried a body: %d bytes", r.ContentLength)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"outcome":"would_refuse_limit","reason":"grant_limit_reached","observed_at":"2026-10-17T17:00:00Z","limits":[{"dimension":"max_concurrent_runs","current":2,"bound":2}]}`))
+		_, _ = w.Write([]byte(`{"outcome":"would_refuse_limit","reason":"grant_limit_reached","observed_at":"2026-10-17T17:00:00Z","limits":[{"dimension":"max_concurrent_runs","current":2,"bound":2,"contributors":{"count":2,"runs":[{"run_id":"run-123","status":"parked"}],"truncated":true}}]}`))
 	}))
 	t.Cleanup(server.Close)
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
@@ -114,8 +114,8 @@ func TestStandingGrantDiagnosticUsesFixedReadRouteAndRendersBothModes(t *testing
 		args []string
 		want []string
 	}{
-		{name: "text", args: []string{"diagnose-prompt-manager"}, want: []string{"would_refuse_limit", "grant_limit_reached", "max_concurrent_runs: 2.00 / 2.00"}},
-		{name: "json", args: []string{"diagnose-prompt-manager", "--json"}, want: []string{"\"outcome\": \"would_refuse_limit\"", "\"current\": 2", "\"bound\": 2"}},
+		{name: "text", args: []string{"diagnose-prompt-manager"}, want: []string{"would_refuse_limit", "grant_limit_reached", "max_concurrent_runs: 2.00 / 2.00", "counted runs: 2 (truncated)", "run-123 [parked]"}},
+		{name: "json", args: []string{"diagnose-prompt-manager", "--json"}, want: []string{"\"outcome\": \"would_refuse_limit\"", "\"current\": 2", "\"bound\": 2", "\"run_id\": \"run-123\"", "\"status\": \"parked\""}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			output, err := captureStandingGrantStdout(func() error { return app.cmdStandingGrants(tc.args) })

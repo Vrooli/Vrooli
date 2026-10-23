@@ -134,7 +134,7 @@ func validateCandidates(role string, candidates []Candidate) error {
 			}
 		}
 		provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
-		if provider != "ollama" && provider != "openrouter" && provider != "lpbs" {
+		if provider != "ollama" && provider != "openrouter" && provider != "lpbs" && provider != "pii-detector" {
 			return fmt.Errorf("inference role %q candidate provider %q is unsupported", role, candidate.Provider)
 		}
 		key := provider + ":" + candidate.ResourceRole

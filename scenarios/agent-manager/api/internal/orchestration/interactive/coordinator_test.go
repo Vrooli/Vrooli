@@ -19,20 +19,94 @@ import (
 // fakeRunStore records how many times a run was persisted; the run pointer is
 // mutated in place by the coordinator, so tests read fields off the run directly.
 type fakeRunStore struct {
-	mu       sync.Mutex
-	updates  int
-	err      error
-	onUpdate func(*domain.Run)
+	mu                  sync.Mutex
+	updates             int
+	err                 error
+	saved               *domain.Run
+	onGet               func(*fakeRunStore)
+	onUpdate            func(*domain.Run)
+	beforeBegin         func(run, saved *domain.Run)
+	rejectStaleTerminal bool
 }
 
 func (s *fakeRunStore) Update(_ context.Context, run *domain.Run) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.updates++
+	if s.rejectStaleTerminal && s.saved != nil && run.Status.IsTerminal() &&
+		s.saved.InteractiveInvocationStartedAt != nil && run.InteractiveInvocationStartedAt != nil &&
+		!s.saved.InteractiveInvocationStartedAt.Equal(*run.InteractiveInvocationStartedAt) {
+		return domain.NewStateErrorWithID("Run", run.ID.String(), "invocation_changed", "update", "interactive invocation changed; stale observer refused")
+	}
 	if s.onUpdate != nil {
 		s.onUpdate(run)
 	}
+	copy := *run
+	s.saved = &copy
 	return s.err
+}
+
+func (s *fakeRunStore) BeginInteractiveInvocation(_ context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedStartedAt *time.Time, at time.Time) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.beforeBegin != nil {
+		s.beforeBegin(run, s.saved)
+	}
+	if s.saved != nil && (s.saved.Status != expectedStatus || (expectedStartedAt == nil) != (s.saved.InteractiveInvocationStartedAt == nil) ||
+		(expectedStartedAt != nil && !s.saved.InteractiveInvocationStartedAt.Equal(*expectedStartedAt))) {
+		return false, nil
+	}
+	stamp := at
+	run.InteractiveInvocationStartedAt = &stamp
+	run.LifecycleVersion++
+	copy := *run
+	s.saved = &copy
+	return true, nil
+}
+
+func TestFinalizeYieldsWhenInvocationChangesAfterTerminalObservation(t *testing.T) {
+	startedAt := time.Now().Add(-time.Minute).UTC().Truncate(time.Microsecond)
+	newer := startedAt.Add(time.Second)
+	run := newInteractiveRun(domain.RunnerTypeCodex, "retained-rollout.jsonl")
+	run.TaskID = uuid.New()
+	run.SessionID = "native-session"
+	run.WebConsoleSessionID = "web-console-session"
+	run.InteractiveInvocationStartedAt = &startedAt
+	saved := *run
+	saved.InteractiveInvocationStartedAt = &newer
+	store := &fakeRunStore{saved: &saved, rejectStaleTerminal: true}
+	coord := NewCoordinator(CoordinatorDeps{Runs: store})
+	terminal := &runner.TranscriptTerminal{Success: true, ExitCode: 0, TerminalReason: "goal_complete"}
+	err := coord.Finalize(context.Background(), run, terminal, nil)
+	if !errors.Is(err, ErrRunOwnerChanged) {
+		t.Fatalf("stale finalization error = %v, want owner-changed yield", err)
+	}
+	if run.Status != domain.RunStatusRunning || run.InteractiveInvocationStartedAt == nil || !run.InteractiveInvocationStartedAt.Equal(newer) {
+		t.Fatalf("stale observer did not refresh current running owner: status=%s invocation=%v", run.Status, run.InteractiveInvocationStartedAt)
+	}
+	if store.saved.Status != domain.RunStatusRunning {
+		t.Fatalf("terminal write escaped the invocation compare-and-set: stored status=%s", store.saved.Status)
+	}
+}
+
+func (s *fakeRunStore) Get(_ context.Context, id uuid.UUID) (*domain.Run, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.onGet != nil {
+		s.onGet(s)
+	}
+	if s.saved == nil || s.saved.ID != id {
+		return nil, nil
+	}
+	copy := *s.saved
+	return &copy, nil
+}
+
+func (s *fakeRunStore) UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error) {
+	if err := s.Update(ctx, run); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // ctxSensitiveRunStore fails any write made with an already-cancelled or
@@ -51,6 +125,26 @@ func (s *ctxSensitiveRunStore) Update(ctx context.Context, _ *domain.Run) error 
 	defer s.mu.Unlock()
 	s.updates++
 	return nil
+}
+
+func (s *ctxSensitiveRunStore) BeginInteractiveInvocation(ctx context.Context, run *domain.Run, _ domain.RunStatus, _ *time.Time, at time.Time) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	stamp := at
+	run.InteractiveInvocationStartedAt = &stamp
+	return true, nil
+}
+
+func (s *ctxSensitiveRunStore) Get(context.Context, uuid.UUID) (*domain.Run, error) {
+	return nil, nil
+}
+
+func (s *ctxSensitiveRunStore) UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error) {
+	if err := s.Update(ctx, run); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // fakeBroadcaster records the sequence of broadcast run statuses.
@@ -181,6 +275,287 @@ func TestCoordinatorCompletesOnTerminalPerAgent(t *testing.T) {
 	}
 }
 
+func TestLiveCoordinatorRefreshesHeartbeatDuringQuietTail(t *testing.T) {
+	transcript := filepath.Join(t.TempDir(), "quiet.jsonl")
+	if err := os.WriteFile(transcript, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := newInteractiveRun(domain.RunnerTypeClaudeCode, transcript)
+	run.WebConsoleSessionID = "sess-quiet"
+	initialHeartbeat := time.Now().Add(-time.Hour)
+	run.LastHeartbeat = &initialHeartbeat
+	store := &fakeRunStore{}
+	heartbeats := make(chan time.Time, 8)
+	store.onUpdate = func(updated *domain.Run) {
+		if updated.LastHeartbeat != nil && updated.LastHeartbeat.After(initialHeartbeat) {
+			select {
+			case heartbeats <- *updated.LastHeartbeat:
+			default:
+			}
+		}
+	}
+	sink := &collectSink{}
+	coord := NewCoordinator(CoordinatorDeps{
+		Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond)),
+		Sessions:              newFakeSessions("sess-quiet"),
+		Runs:                  store,
+		NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+		Heartbeat:             10 * time.Millisecond,
+		Debounce:              30 * time.Millisecond,
+		ActivityPoll:          5 * time.Millisecond,
+		SessionPoll:           10 * time.Millisecond,
+		SessionReattachWindow: time.Second,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := coord.TailLiveToCompletionWithOptions(ctx, run, TailContext{}, TailCompletionOptions{})
+		done <- err
+	}()
+
+	select {
+	case <-heartbeats:
+		// Heartbeat is an observation of the live coordinator, not evidence of
+		// provider progress. The tail is still waiting for a terminal rollout.
+	case err := <-done:
+		t.Fatalf("live tail returned before heartbeat refresh: %v", err)
+	case <-ctx.Done():
+		t.Fatal("live tail did not refresh its heartbeat while waiting")
+	}
+
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("live tail error = %v, want cancellation", err)
+	}
+
+	store.mu.Lock()
+	updatesAfterReturn := store.updates
+	store.mu.Unlock()
+	draining := true
+	for draining {
+		select {
+		case <-heartbeats:
+		default:
+			draining = false
+		}
+	}
+	select {
+	case <-heartbeats:
+		t.Fatal("heartbeat continued after the live tail returned")
+	case <-time.After(3 * coord.heartbeat):
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.updates != updatesAfterReturn {
+		t.Fatalf("run writes after live tail returned: before=%d after=%d", updatesAfterReturn, store.updates)
+	}
+}
+
+func TestCoordinatorPersistsCodexRotationPathAndFileCursor(t *testing.T) {
+	runDir := t.TempDir()
+	sessionsDir := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13")
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
+	head := fixture[:len(fixture)-2]
+	rolloutA := filepath.Join(sessionsDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	headBytes := []byte(strings.Join(head, "\n") + "\n")
+	if err := os.WriteFile(rolloutA, headBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Minute)
+	if err := os.Chtimes(rolloutA, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	run := newInteractiveRun(domain.RunnerTypeCodex, rolloutA)
+	run.WebConsoleSessionID = "sess-context"
+	sink := &collectSink{}
+	coord, store, _ := newTestCoordinator(t, newFakeSessions("sess-context"), sink)
+	var persisted []struct {
+		path   string
+		cursor int64
+	}
+	store.onUpdate = func(updated *domain.Run) {
+		persisted = append(persisted, struct {
+			path   string
+			cursor int64
+		}{updated.TranscriptPath, updated.TranscriptCursor})
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := coord.TailLiveToCompletionWithOptions(ctx, run, TailContext{RunDir: runDir}, TailCompletionOptions{})
+		done <- err
+	}()
+
+	waitFor(t, time.Second, func() bool { return run.TranscriptCursor == int64(len(headBytes)) })
+	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	fullBytes := []byte(strings.Join(fixture, "\n") + "\n")
+	if err := os.WriteFile(rolloutB, fullBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("tail rotated Codex run: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("tail did not finish after rotation: %v (messages=%d path=%q cursor=%d)", ctx.Err(), sink.count(domain.EventTypeMessage), run.TranscriptPath, run.TranscriptCursor)
+	}
+	if run.TranscriptPath != rolloutB {
+		t.Fatalf("persisted transcript path = %q, want rotated path %q", run.TranscriptPath, rolloutB)
+	}
+	if run.TranscriptCursor != int64(len(fullBytes)) {
+		t.Fatalf("rotated file cursor = %d, want file-local offset %d", run.TranscriptCursor, len(fullBytes))
+	}
+	if got := sink.count(domain.EventTypeMessage); got != 2 {
+		t.Fatalf("message events after one rotation = %d, want 2 (one from each distinct rollout)", got)
+	}
+	resetPersisted := false
+	for _, row := range persisted {
+		if row.path == rolloutB && row.cursor == 0 {
+			resetPersisted = true
+			break
+		}
+	}
+	if !resetPersisted {
+		t.Fatalf("path/cursor reset was not persisted atomically before reading rotated file: %+v", persisted)
+	}
+
+	// A later coordinator starts from the selected file's persisted offset, not
+	// the original seed path or the seed's larger offset. Appending one turn
+	// makes that restart boundary observable without relying on provider state.
+	file, err := os.OpenFile(rolloutB, os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write(fullBytes); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	restartedSink := &collectSink{}
+	restarted, _, _ := newTestCoordinator(t, newFakeSessions("sess-context"), restartedSink)
+	restartCtx, stopRestart := context.WithTimeout(context.Background(), time.Second)
+	defer stopRestart()
+	if _, err := restarted.TailToCompletionWithContext(restartCtx, run, TailContext{RunDir: runDir}, TailCompletionOptions{}); err != nil {
+		t.Fatalf("reattach after rotated rollout: %v", err)
+	}
+	if run.TranscriptPath != rolloutB || run.TranscriptCursor != int64(2*len(fullBytes)) {
+		t.Fatalf("reattached path/cursor = %q/%d, want rotated file at %d", run.TranscriptPath, run.TranscriptCursor, 2*len(fullBytes))
+	}
+	if got := restartedSink.count(domain.EventTypeMessage); got != 2 {
+		t.Fatalf("reattached message events = %d, want the appended turn's user and assistant messages", got)
+	}
+}
+
+func TestLiveTailConsumesNewInvocationInsteadOfBufferedGoalTerminal(t *testing.T) {
+	cases := []struct {
+		name    string
+		initial []string
+	}{
+		{name: "native goal terminal", initial: readCodecFixture(t, "codex_goal_accepted.jsonl")},
+		{name: "failed turn terminal", initial: []string{
+			`{"type":"turn_context","payload":{"turn_id":"old-failed-turn"}}`,
+			`{"type":"event_msg","payload":{"type":"turn_aborted","turn_id":"old-failed-turn","reason":"old provider failure"}}`,
+		}},
+		{name: "idle turn boundary", initial: readCodecFixture(t, "codex_rollout_trace.jsonl")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := t.TempDir()
+			sessionDir := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13")
+			if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(sessionDir, "rollout-2026-07-13T10-00-00-live.jsonl")
+			if err := os.WriteFile(path, []byte(strings.Join(tc.initial, "\n")+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			startedAt := time.Now().Add(-time.Minute).UTC().Truncate(time.Microsecond)
+			run := newInteractiveRun(domain.RunnerTypeCodex, path)
+			run.TaskID = uuid.New()
+			run.SessionID = "fixture-thread"
+			run.WebConsoleSessionID = "wc-live-invocation"
+			run.InteractiveInvocationStartedAt = &startedAt
+			saved := *run
+			fenceVisible := make(chan struct{})
+			var fenced bool
+			store := &fakeRunStore{saved: &saved}
+			store.onGet = func(store *fakeRunStore) {
+				if fenced {
+					return
+				}
+				fenced = true
+				newer := startedAt.Add(time.Second)
+				store.saved.InteractiveInvocationStartedAt = &newer
+				close(fenceVisible)
+			}
+			sink := &collectSink{}
+			coord := NewCoordinator(CoordinatorDeps{
+				Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond)),
+				Sessions:              newFakeSessions("wc-live-invocation"),
+				Runs:                  store,
+				NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+				Debounce:              40 * time.Millisecond,
+				ActivityPoll:          5 * time.Millisecond,
+				SessionPoll:           5 * time.Millisecond,
+				SessionReattachWindow: 40 * time.Millisecond,
+				Heartbeat:             -1,
+			})
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() {
+				done <- coord.TailAndFinalizeLive(ctx, run, TailContext{RunDir: runDir}, TailCompletionOptions{})
+			}()
+			select {
+			case <-fenceVisible:
+			case <-ctx.Done():
+				t.Fatalf("old goal terminal was not inspected before the fence: %v", ctx.Err())
+			}
+			oldMessages := sink.count(domain.EventTypeMessage)
+			newTurn := []string{
+				`{"type":"turn_context","payload":{"turn_id":"continued-live-turn"}}`,
+				`{"type":"event_msg","payload":{"type":"user_message","message":"accepted continuation"}}`,
+				`{"type":"event_msg","payload":{"type":"agent_message","message":"continued response"}}`,
+				`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"continued-live-turn"}}`,
+			}
+			file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0o644)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := file.WriteString(strings.Join(newTurn, "\n") + "\n"); err != nil {
+				_ = file.Close()
+				t.Fatal(err)
+			}
+			if err := file.Close(); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatalf("tail/finalize live continuation: %v", err)
+				}
+			case <-ctx.Done():
+				t.Fatalf("live observer did not consume the response after its newer invocation fence: %v", ctx.Err())
+			}
+			if run.Status != domain.RunStatusComplete || run.InteractiveInvocationStartedAt == nil || !run.InteractiveInvocationStartedAt.After(startedAt) {
+				t.Fatalf("run finalized without retaining the current invocation: status=%s invocation=%v", run.Status, run.InteractiveInvocationStartedAt)
+			}
+			if got := sink.count(domain.EventTypeMessage); got <= oldMessages {
+				t.Fatalf("tail did not consume the later response: messages before=%d after=%d", oldMessages, got)
+			}
+		})
+	}
+}
+
 // TestCoordinatorClaudeIdleDebounceSpansTurns proves a claude end_turn is treated
 // as a TURN boundary, not a run boundary: when the transcript grows (a second
 // turn) within the debounce window, the coordinator keeps tailing and only
@@ -282,7 +657,7 @@ func TestCoordinatorSessionGoneMidTailFails(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	terminal, err := coord.TailToCompletion(ctx, run)
+	terminal, err := coord.TailToCompletionWithContext(ctx, run, TailContext{RunDir: dir}, TailCompletionOptions{})
 	if !errors.Is(err, ErrSessionGone) {
 		t.Fatalf("expected ErrSessionGone, got %v", err)
 	}
@@ -521,6 +896,61 @@ func TestCoordinatorReattachFromCursorNoDuplicateEvents(t *testing.T) {
 	}
 }
 
+func TestCoordinatorRetainsOldTranscriptWhenRotationPersistenceFails(t *testing.T) {
+	runDir := t.TempDir()
+	sessionsDir := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13")
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
+	head := fixture[:len(fixture)-1]
+	rolloutA := filepath.Join(sessionsDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	headBytes := []byte(strings.Join(head, "\n") + "\n")
+	if err := os.WriteFile(rolloutA, headBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Minute)
+	if err := os.Chtimes(rolloutA, old, old); err != nil {
+		t.Fatal(err)
+	}
+	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	if err := os.WriteFile(rolloutB, []byte(strings.Join(fixture, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldProof := errors.New("rotated path write refused")
+	store := &fakeRunStore{}
+	store.onUpdate = func(updated *domain.Run) {
+		if updated.TranscriptPath == rolloutB && updated.TranscriptCursor == 0 {
+			store.err = oldProof
+		}
+	}
+	sink := &collectSink{}
+	coord := NewCoordinator(CoordinatorDeps{
+		Tailer:                NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond)),
+		Sessions:              newFakeSessions("sess-context"),
+		Runs:                  store,
+		NewSink:               func(uuid.UUID) runner.EventSink { return sink },
+		Debounce:              30 * time.Millisecond,
+		ActivityPoll:          5 * time.Millisecond,
+		SessionPoll:           10 * time.Millisecond,
+		SessionReattachWindow: time.Second,
+	})
+	run := newInteractiveRun(domain.RunnerTypeCodex, rolloutA)
+	run.WebConsoleSessionID = "sess-context"
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := coord.TailToCompletionWithContext(ctx, run, TailContext{RunDir: runDir}, TailCompletionOptions{})
+	if !errors.Is(err, oldProof) {
+		t.Fatalf("tail error = %v, want path persistence refusal", err)
+	}
+	if run.TranscriptPath != rolloutA || run.TranscriptCursor != int64(len(headBytes)) {
+		t.Fatalf("in-memory owner path/cursor = %q/%d, want prior proof %q/%d", run.TranscriptPath, run.TranscriptCursor, rolloutA, len(headBytes))
+	}
+	if got := sink.count(domain.EventTypeMessage); got != 1 {
+		t.Fatalf("message events after failed path write = %d, want only seed rollout output", got)
+	}
+}
+
 // waitFor polls cond until it is true or the timeout elapses.
 func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 	t.Helper()
@@ -554,6 +984,66 @@ func TestCoordinatorReservedBindingRefusesPreSubmitPersistenceAndRepeat(t *testi
 			}
 			if len(sessions.calls) != 0 || run.WebConsoleSessionID != tc.existing {
 				t.Fatalf("effects=%v binding=%s", sessions.calls, run.WebConsoleSessionID)
+			}
+		})
+	}
+}
+
+func TestCoordinatorInitialInvocationCASFailureStopsOnlyItsStillOwnedSession(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		advance     func(run, saved *domain.Run)
+		wantCleanup bool
+	}{
+		{
+			name: "cancelled exact owner",
+			advance: func(_ *domain.Run, saved *domain.Run) {
+				saved.Status = domain.RunStatusCancelled
+			},
+			wantCleanup: true,
+		},
+		{
+			name: "newer session and invocation",
+			advance: func(_ *domain.Run, saved *domain.Run) {
+				saved.WebConsoleSessionID = "newer-session"
+				stamp := time.Now().Add(time.Second)
+				saved.InteractiveInvocationStartedAt = &stamp
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := t.TempDir()
+			homeDir := t.TempDir()
+			workingDir := t.TempDir()
+			rollout := filepath.Join(homeDir, ".claude", "projects", SlugifyCwd(workingDir), "rollout-initial.jsonl")
+			writeFile(t, rollout)
+
+			sessions := newFakeSessions("created")
+			substrate := NewSubstrate(sessions, fakeResolver(fakeLaunchInfo{
+				rt: domain.RunnerTypeClaudeCode, tagKey: "CLAUDE_AGENT_TAG", binary: "/usr/bin/claude",
+			}), WithHomeDir(homeDir), WithDiscoveryTimeout(time.Second), WithPollInterval(time.Millisecond), WithPromptBootDelay(0), WithStopGrace(0))
+			store := &fakeRunStore{beforeBegin: tc.advance}
+			coord := NewCoordinator(CoordinatorDeps{Substrate: substrate, Runs: store})
+			started := time.Now().Add(-time.Second)
+			run := newInteractiveRun(domain.RunnerTypeClaudeCode, "")
+			run.TaskID = uuid.New()
+			run.Status = domain.RunStatusStarting
+			run.StartedAt = &started
+			launchErr := coord.Execute(context.Background(), run, LaunchParams{
+				RunID: run.ID, RunnerType: domain.RunnerTypeClaudeCode, Tag: run.Tag,
+				WorkingDir: workingDir, RunDir: runDir, Prompt: "perform the task", Config: run.ResolvedConfig,
+			}, nil)
+			if launchErr == nil || !strings.Contains(launchErr.Error(), "initial interactive invocation owner changed") {
+				t.Fatalf("Execute error = %v, want initial owner-change refusal", launchErr)
+			}
+			calls := sessions.calls
+			interrupted, archived := false, false
+			for _, call := range calls {
+				interrupted = interrupted || call == "interrupt"
+				archived = archived || call == "archive"
+			}
+			if interrupted != tc.wantCleanup || archived != tc.wantCleanup {
+				t.Fatalf("session cleanup calls = %v, want cleanup=%v", calls, tc.wantCleanup)
 			}
 		})
 	}

@@ -26,7 +26,7 @@ func TestRunReportTextRendersRoutingDiscriminatorsAndNoPayloads(t *testing.T) {
 		Diff:   runreport.DiffSummary{Files: 1, Bytes: 8, Available: runreport.Availability{State: "available"}},
 	}
 	text := RunReportText(report)
-	for _, expected := range []string{"Status: failed", "Final output: ambiguous", "schema_invalid", "fallbacks=1", "shell: calls=2 returned=2 success=0 failed=1 unknown=1 unresolved=0", "Efficiency: repeated tool calls=2 files reread=1", "Diff: files=1", "Next:"} {
+	for _, expected := range []string{"Status: failed", "Final output: ambiguous", "schema_invalid", "fallbacks=1", "shell: calls=2 returned=2 success=0 failed=1 unknown=1 unresolved=0", "Efficiency: recognized command retries=2 files reread=1", "Diff: files=1", "Next:"} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("report missing %q:\n%s", expected, text)
 		}

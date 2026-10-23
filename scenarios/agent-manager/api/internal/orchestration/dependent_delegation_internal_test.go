@@ -181,6 +181,69 @@ func TestDependentDelegationAdmissionError_PreservesExecutionRestrictions(t *tes
 	})
 }
 
+func TestDependentExecutionPermissions_EmptyToolListsDoNotEnforcePolicyMode(t *testing.T) {
+	parent := &domain.RunConfig{
+		RunnerType:            domain.RunnerTypeCodex,
+		NetworkAccess:         domain.NetworkAccessFull,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicyEnforced,
+	}
+	child := &domain.RunConfig{
+		RunnerType:            domain.RunnerTypeCodex,
+		NetworkAccess:         domain.NetworkAccessFull,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory,
+		AllowedTools:          []string{"read", "write", "shell"},
+	}
+	if err := dependentExecutionPermissionsError(parent, child); err != nil {
+		t.Fatalf("expected an empty parent tool policy to permit the registered runner's advisory policy: %v", err)
+	}
+}
+
+func TestDependentExecutionPermissions_ActiveToolRestrictionsRequireEnforcement(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		parentAllow []string
+		parentDeny  []string
+		childAllow  []string
+		childDeny   []string
+	}{
+		{
+			name:        "active allow restriction",
+			parentAllow: []string{"read", "write", "shell"},
+			childAllow:  []string{"read", "write", "shell"},
+		},
+		{
+			name:       "active deny restriction",
+			parentDeny: []string{"shell"},
+			childDeny:  []string{"shell"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parent := &domain.RunConfig{
+				RunnerType:            domain.RunnerTypeCodex,
+				NetworkAccess:         domain.NetworkAccessFull,
+				ToolRestrictionPolicy: domain.ToolRestrictionPolicyEnforced,
+				AllowedTools:          tc.parentAllow,
+				DeniedTools:           tc.parentDeny,
+			}
+			child := &domain.RunConfig{
+				RunnerType:            domain.RunnerTypeCodex,
+				NetworkAccess:         domain.NetworkAccessFull,
+				ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory,
+				AllowedTools:          tc.childAllow,
+				DeniedTools:           tc.childDeny,
+			}
+			if err := dependentExecutionPermissionsError(parent, child); err == nil {
+				t.Fatal("expected active parent tool restrictions to require child enforcement")
+			}
+
+			child.ToolRestrictionPolicy = domain.ToolRestrictionPolicyEnforced
+			if err := dependentExecutionPermissionsError(parent, child); err != nil {
+				t.Fatalf("expected matching enforced child restrictions to be retained: %v", err)
+			}
+		})
+	}
+}
+
 func TestAdmitDependentDelegation_NonChildRunIsUnaffected(t *testing.T) {
 	// A run without a parent is not dependent delegation; the gate must not
 	// require a receipt or a repository for it.

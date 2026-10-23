@@ -73,6 +73,7 @@ func persistTerminalRun(deps Deps, run *domain.Run) error {
 // Errors are captured with full context, the failure event is emitted,
 // the failure state is persisted, and the broadcaster is notified.
 func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutput {
+	previousStatus := in.Run.Status
 	now := in.Deps.Now()
 	in.Run.Status = domain.RunStatusFailed
 	in.Run.EndedAt = &now
@@ -94,6 +95,7 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 				"failed to persist failure state: "+updateErr.Error())
 			return FailWithErrorOutput{Outcome: outcome}
 		}
+		EmitStatusTransition(ctx, in.Deps, in.Run.ID, previousStatus, in.Run.Status, "run failed")
 	}
 
 	if in.Deps.Broadcaster != nil {
@@ -150,6 +152,7 @@ func HandleContextError(ctx context.Context, in HandleContextErrorInput) HandleC
 	case context.Canceled:
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "execution cancelled")
 		out.Outcome = domain.RunOutcomeCancelled
+		previousStatus := in.Run.Status
 		now := in.Deps.Now()
 		in.Run.Status = domain.RunStatusCancelled
 		in.Run.EndedAt = &now
@@ -160,6 +163,9 @@ func HandleContextError(ctx context.Context, in HandleContextErrorInput) HandleC
 					"failed to persist cancellation: "+updateErr.Error())
 				return out
 			}
+		}
+		if in.Deps.Runs != nil {
+			EmitStatusTransition(ctx, in.Deps, in.Run.ID, previousStatus, in.Run.Status, "execution cancelled")
 		}
 	}
 

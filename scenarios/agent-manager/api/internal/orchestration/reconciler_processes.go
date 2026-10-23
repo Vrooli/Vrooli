@@ -2,17 +2,19 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration/obs"
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
+
+	"github.com/google/uuid"
 )
 
 // isProcessAlive checks if the process for a run is still running.
@@ -186,8 +188,14 @@ func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string
 
 		command := parts[1]
 
-		// Extract tag from command line (look for --tag argument)
-		tag := extractTagFromCommand(command)
+		// Resolve the tag from the command line, then the environment. codex
+		// injects its tag only via CODEX_AGENT_TAG in the environment (never
+		// argv), and `pgrep -af` reports argv but not the environment — so a
+		// command-only read classifies every detached codex process as tagless
+		// and skips it forever (reconciler_processes.go history: 40+ codex
+		// processes survived weeks past their terminal runs). Mirror the
+		// liveness scan, which already consults both (scanRunnerProcessByTag).
+		tag := runnerProcessTag(command, pid)
 		if tag == "" {
 			continue
 		}
@@ -271,6 +279,19 @@ func extractTagFromEnv(pid int) string {
 	}
 
 	return ""
+}
+
+// runnerProcessTag resolves the agent-manager tag for a scanned runner process,
+// preferring the command line and falling back to the process environment.
+// Env-only-tagged runners (codex sets CODEX_AGENT_TAG in the environment, never
+// argv) are invisible to a command-line-only read, so any caller that must
+// recognize every managed runner process — orphan detection in particular —
+// has to consult both sources.
+func runnerProcessTag(command string, pid int) string {
+	if tag := extractTagFromCommand(command); tag != "" {
+		return tag
+	}
+	return extractTagFromEnv(pid)
 }
 
 // looksLikeAgentManagerTag checks if a tag looks like it was created by agent-manager.
@@ -404,27 +425,47 @@ func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
 }
 
 // killProcess kills a process with retry and escalation.
+//
+// Managed runners are launched as session leaders (Setsid), so the agent binary
+// and everything it spawns (node, shells, cleanup handlers) share a single
+// process group. Signalling only the leader PID leaves those children resident —
+// the residue observed behind reaped codex leaders — so the force step targets
+// the whole process group, matching the Terminator's KillProcessGroup behaviour.
 func (r *Reconciler) killProcess(pid int) error {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return err
 	}
 
-	// Try SIGTERM first
+	// Capture the group before the leader exits; once it is gone the pgid can no
+	// longer be read from /proc, but the group may still hold live children.
+	pgid := processGroupID(pid)
+
+	// Try SIGTERM on the leader first for a graceful shutdown.
 	if err := process.Signal(os.Interrupt); err != nil {
-		// Process might already be dead
+		// Leader is already gone; sweep any surviving group members.
+		if pgid > 0 {
+			killProcessGroupID(pgid)
+		}
 		return nil
 	}
 
 	// Wait a short time for graceful shutdown
 	time.Sleep(500 * time.Millisecond)
 
-	// Check if still running
+	// Check if the leader is still running.
 	if err := process.Signal(nil); err != nil {
-		// Process is dead
+		// Leader is dead; still SIGKILL the group so orphaned children die too.
+		if pgid > 0 {
+			killProcessGroupID(pgid)
+		}
 		return nil
 	}
 
-	// Force kill with SIGKILL
+	// Leader survived SIGTERM: force-kill the whole group, falling back to the
+	// leader alone if the group id is unavailable.
+	if pgid > 0 && killProcessGroupID(pgid) {
+		return nil
+	}
 	return process.Kill()
 }

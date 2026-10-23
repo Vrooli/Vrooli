@@ -82,8 +82,11 @@ func TestExecuteRecordsFailureClassAndRedactsOnFailure(t *testing.T) { // [REQ:A
 	require.NoError(t, err)
 	require.Equal(t, "failed", resp.GetEvidence().GetStatus())
 	require.Equal(t, "timeout", resp.GetEvidence().GetFailureClass())
-	require.True(t, resp.GetEvidence().GetPromptRedacted())
-	require.True(t, resp.GetEvidence().GetResponseRedacted())
+	// No PII-detection pass ran (TEXT_GENERATION) and the request failed, so the
+	// redacted seam is false. The real privacy guarantee is that the input does
+	// not leak into the failure reasons (below).
+	require.False(t, resp.GetEvidence().GetPromptRedacted())
+	require.False(t, resp.GetEvidence().GetResponseRedacted())
 	require.NotContains(t, joinReasons(resp.GetEvidence().GetFailureReasons()), "secret prompt")
 }
 

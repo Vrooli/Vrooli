@@ -2,12 +2,14 @@
 package orchestration
 
 import (
+	"context"
+	"strings"
+
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/repository"
-	"context"
+
 	"github.com/google/uuid"
-	"strings"
 )
 
 func (o *Orchestrator) CreateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error) {
@@ -225,6 +227,26 @@ func (o *Orchestrator) UpdateTask(ctx context.Context, task *domain.Task) (*doma
 		return nil, err
 	}
 	return &updated, nil
+}
+
+// UpdateQueuedTaskBrief commits a creator-owned queued brief edit only if the
+// task still has the same undispatched owner state when the repository writes.
+func (o *Orchestrator) UpdateQueuedTaskBrief(ctx context.Context, id uuid.UUID, createdBy, expectedTitle, expectedDescription, title, description string) (*domain.Task, error) {
+	changed, err := o.tasks.UpdateQueuedBrief(ctx, id, createdBy, expectedTitle, expectedDescription, title, description)
+	if err != nil {
+		return nil, err
+	}
+	if !changed {
+		return nil, domain.NewStateErrorWithID("Task", id.String(), "changed", "update brief", "task is no longer the creator's queued, undispatched work")
+	}
+	updated, err := o.tasks.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if updated == nil {
+		return nil, domain.NewNotFoundError("Task", id)
+	}
+	return updated, nil
 }
 
 func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {

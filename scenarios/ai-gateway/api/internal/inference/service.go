@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -29,6 +30,9 @@ const (
 	// provider can repair its own output. Further attempts rarely converge and
 	// would make cost unpredictable for callers.
 	MaxValidationAttempts = 2
+	// MaxProviderCalls is the largest generic request-level provider execution
+	// ceiling accepted by typed inference. Callers may choose a lower bound.
+	MaxProviderCalls = 8
 )
 
 type Service struct {
@@ -53,6 +57,10 @@ func (s *Service) Run(ctx context.Context, request ProviderRequest) *inferencev1
 }
 
 func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, schema map[string]any, response *inferencev1.RunResponse) *inferencev1.RunResponse {
+	if request.MaxProviderCalls < 0 || request.MaxProviderCalls > MaxProviderCalls {
+		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST,
+			fmt.Sprintf("max_provider_calls must be between 0 and %d", MaxProviderCalls), "max_provider_calls")
+	}
 	if strings.TrimSpace(request.Source) == "" && len(request.Turns) == 0 && len(request.Attachments) == 0 {
 		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "source is required", "source")
 	}
@@ -61,15 +69,25 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 	}
 	var validationErr error
 	for attempt := 0; attempt < MaxValidationAttempts; attempt++ {
+		remaining := request.MaxProviderCalls
+		if remaining > 0 {
+			remaining -= response.ProviderCallsMade
+			if remaining <= 0 {
+				break
+			}
+		}
 		attemptRequest := request
+		attemptRequest.MaxProviderCalls = remaining
 		if validationErr != nil {
 			attemptRequest.Instruction = repairInstruction(request.Instruction, validationErr)
 		}
 		result, err := s.repository.Run(ctx, attemptRequest)
+		response.ProviderCallsMade += result.ProviderCallsMade
 		response.Provider, response.Model = result.Provider, result.Model
 		// Applied is set before the error branch: a refused or truncated call is
 		// exactly when a caller needs to know what the gateway would have sent.
 		response.Applied = appliedSettings(result.Applied)
+		response.SpendAuthorization = result.SpendAuthorization
 		// Usage accumulates across attempts so a caller is billed for the work
 		// actually performed, not only for the attempt that happened to land.
 		addUsage(response.Usage, usage(result))
@@ -92,10 +110,11 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 			continue
 		}
 		response.Validated = true
+		finalizeUsage(response.Usage)
 		return response
 	}
 	return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED,
-		fmt.Sprintf("provider value failed local validation after %d attempts: %v", MaxValidationAttempts, validationErr), "")
+		fmt.Sprintf("provider value failed local validation within the provider-call budget: %v", validationErr), "")
 }
 
 // repairInstruction re-asks with the local validator's rejection attached. The
@@ -149,6 +168,10 @@ func (s *Service) RunBatch(ctx context.Context, requests []ProviderRequest) *inf
 	for _, result := range results {
 		addUsage(response.Usage, result.Usage)
 	}
+	response.Usage.CreditsCharged = aggregateCredits(results)
+	if len(results) != 1 {
+		response.Usage.AccountingStatus = ""
+	}
 	response.Results = results
 	return response
 }
@@ -184,6 +207,9 @@ func (s *Service) Embed(ctx context.Context, role string, texts []string, sampli
 	}
 	response.Provider, response.Model, response.Dimension = result.Provider, result.Model, int32(result.Dimension)
 	response.Usage.InputTokens, response.Usage.CostMicros = result.InputTokens, result.CostMicros
+	response.Usage.InputTokensProvenance = nonUnknownProvenance(result.InputTokensProvenance)
+	response.Usage.OutputTokensProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+	response.Usage.CostProvenance = nonUnknownProvenance(result.CostProvenance)
 	for _, vector := range result.Vectors {
 		if len(vector) != result.Dimension {
 			return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, "embedding_dimension_mismatch", "dimension")
@@ -194,6 +220,7 @@ func (s *Service) Embed(ctx context.Context, role string, texts []string, sampli
 }
 
 func embedError(response *inferencev1.EmbedResponse, code inferencev1.InferenceErrorCode, message, construct string) *inferencev1.EmbedResponse {
+	finalizeUsage(response.Usage)
 	response.Error = &inferencev1.InferenceError{Code: code, Message: message, Construct: construct}
 	return response
 }
@@ -205,16 +232,82 @@ func addUsage(total, item *inferencev1.Usage) {
 	total.InputTokens += item.InputTokens
 	total.OutputTokens += item.OutputTokens
 	total.CostMicros += item.CostMicros
+	total.InputTokensProvenance = combineProvenance(total.InputTokensProvenance, item.InputTokensProvenance)
+	total.OutputTokensProvenance = combineProvenance(total.OutputTokensProvenance, item.OutputTokensProvenance)
+	total.CostProvenance = combineProvenance(total.CostProvenance, item.CostProvenance)
+	if item.CreditsCharged == nil {
+		total.CreditsCharged = nil
+	} else {
+		charged := *item.CreditsCharged
+		total.CreditsCharged = &charged
+	}
+	total.AccountingStatus = item.AccountingStatus
+}
+
+func aggregateCredits(results []*inferencev1.RunResponse) *int64 {
+	if len(results) == 0 {
+		return nil
+	}
+	var total int64
+	for _, result := range results {
+		if result == nil || result.Usage == nil || result.Usage.CreditsCharged == nil || *result.Usage.CreditsCharged < 0 || math.MaxInt64-total < *result.Usage.CreditsCharged {
+			return nil
+		}
+		total += *result.Usage.CreditsCharged
+	}
+	return &total
 }
 
 func usage(result ProviderResult) *inferencev1.Usage {
-	return &inferencev1.Usage{InputTokens: result.InputTokens, OutputTokens: result.OutputTokens, CostMicros: result.CostMicros}
+	value := &inferencev1.Usage{
+		InputTokens: result.InputTokens, OutputTokens: result.OutputTokens, CostMicros: result.CostMicros,
+		InputTokensProvenance:  nonUnknownProvenance(result.InputTokensProvenance),
+		OutputTokensProvenance: nonUnknownProvenance(result.OutputTokensProvenance),
+		CostProvenance:         nonUnknownProvenance(result.CostProvenance),
+		AccountingStatus:       result.AccountingStatus,
+	}
+	if result.CreditsCharged != nil && *result.CreditsCharged >= 0 {
+		charged := *result.CreditsCharged
+		value.CreditsCharged = &charged
+	}
+	return value
 }
 
 func withError(response *inferencev1.RunResponse, code inferencev1.InferenceErrorCode, message, construct string) *inferencev1.RunResponse {
 	response.Validated = false
+	finalizeUsage(response.Usage)
 	response.Error = &inferencev1.InferenceError{Code: code, Message: message, Construct: construct}
 	return response
+}
+
+func nonUnknownProvenance(value inferencev1.UsageProvenance) inferencev1.UsageProvenance {
+	if value == inferencev1.UsageProvenance_USAGE_PROVENANCE_UNSPECIFIED {
+		return inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+	}
+	return value
+}
+
+func combineProvenance(current, next inferencev1.UsageProvenance) inferencev1.UsageProvenance {
+	if current == inferencev1.UsageProvenance_USAGE_PROVENANCE_UNSPECIFIED {
+		return nonUnknownProvenance(next)
+	}
+	next = nonUnknownProvenance(next)
+	if current == inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN || next == inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN {
+		return inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+	}
+	if current == next {
+		return current
+	}
+	return inferencev1.UsageProvenance_USAGE_PROVENANCE_MIXED
+}
+
+func finalizeUsage(value *inferencev1.Usage) {
+	if value == nil {
+		return
+	}
+	value.InputTokensProvenance = nonUnknownProvenance(value.InputTokensProvenance)
+	value.OutputTokensProvenance = nonUnknownProvenance(value.OutputTokensProvenance)
+	value.CostProvenance = nonUnknownProvenance(value.CostProvenance)
 }
 
 func schemaErrorCode(err error) inferencev1.InferenceErrorCode {

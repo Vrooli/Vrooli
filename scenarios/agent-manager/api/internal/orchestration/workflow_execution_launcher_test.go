@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -405,9 +406,11 @@ func TestWorkflowChildLauncherPersistsNodeAuthorityAndReplaysWithoutWidening(t *
 	req := workflowruntime.ChildRequest{
 		ExecutionID: uuid.New(), AttemptID: uuid.New(), NodeID: "worker", ProfileKey: profile.ProfileKey,
 		IdempotencyKey: "workflow-fixed-authority", ScopePath: ".", Prompt: "persisted workflow prompt",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
+		SandboxConfig: &domain.SandboxConfig{
+			Mode:        domain.SandboxModeProtected,
 			NetworkMode: domain.NetworkAccessNone, ManualReview: true, AutoApply: &off, ApplyOnFailure: &off,
-			WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
+			WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+		},
 	}
 	launcher := workflowChildLauncher{o: o}
 	if _, err := launcher.StartFresh(t.Context(), req); !errors.Is(err, spawn.ErrDispatcherClosed) {
@@ -450,8 +453,10 @@ func TestWorkflowChildLauncherKeepsProfileCommandNetworkSeparateFromOuterTranspo
 	profile, err := o.CreateProfile(t.Context(), &domain.AgentProfile{
 		Name: "workflow-network-split", ProfileKey: "fixture/network-split", RoleRef: "code.default",
 		MaxTurns: 2, Timeout: time.Minute, NetworkAccess: domain.NetworkAccessNone,
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
-			NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{}},
+		SandboxConfig: &domain.SandboxConfig{
+			Mode:        domain.SandboxModeProtected,
+			NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -460,8 +465,10 @@ func TestWorkflowChildLauncherKeepsProfileCommandNetworkSeparateFromOuterTranspo
 	req := workflowruntime.ChildRequest{
 		ExecutionID: uuid.New(), AttemptID: uuid.New(), NodeID: "worker", ProfileKey: profile.ProfileKey,
 		IdempotencyKey: "workflow-network-split", ScopePath: ".", Prompt: "persisted workflow prompt",
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
-			NetworkMode: domain.NetworkAccessLocalhost, WritePolicy: &domain.WorkspaceWritePolicy{}},
+		SandboxConfig: &domain.SandboxConfig{
+			Mode:        domain.SandboxModeProtected,
+			NetworkMode: domain.NetworkAccessLocalhost, WritePolicy: &domain.WorkspaceWritePolicy{},
+		},
 	}
 	if _, err := (workflowChildLauncher{o: o}).StartFresh(t.Context(), req); !errors.Is(err, spawn.ErrDispatcherClosed) {
 		t.Fatalf("want refusal after durable admission, got %v", err)
@@ -475,6 +482,57 @@ func TestWorkflowChildLauncherKeepsProfileCommandNetworkSeparateFromOuterTranspo
 	}
 	if run.ResolvedConfig.SandboxConfig == nil || run.ResolvedConfig.SandboxConfig.NetworkMode != domain.NetworkAccessLocalhost {
 		t.Fatalf("outer transport boundary was not preserved: %+v", run.ResolvedConfig.SandboxConfig)
+	}
+}
+
+func TestWorkflowProjectRootCanonicalDirectoryValidation(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "file")
+	if err := os.WriteFile(file, []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []string{"relative/repo", string(filepath.Separator), root + "/../other", filepath.Join(root, "missing"), file} {
+		if _, err := canonicalWorkflowProjectRoot(invalid); err == nil {
+			t.Errorf("invalid root accepted: %s", invalid)
+		}
+	}
+	alias := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := canonicalWorkflowProjectRoot(alias)
+	if err != nil || canonical != root {
+		t.Fatalf("canonical alias: %q %v", canonical, err)
+	}
+}
+
+func TestWorkflowChildLauncherUsesSelectedRootAndKeepsDefaultWithoutTemplate(t *testing.T) {
+	for _, explicit := range []bool{false, true} {
+		t.Run(fmt.Sprint(explicit), func(t *testing.T) {
+			o, repos := newWorkflowChildOrchestrator(t)
+			o.events = &closeDispatcherAfterAppendStore{Store: mocks.NewFakeEventStore(), after: o.dispatcher.Close}
+			profile, err := o.CreateProfile(t.Context(), &domain.AgentProfile{Name: "selected-root", ProfileKey: "fixture/selected-root", RoleRef: "code.default", MaxTurns: 2, Timeout: time.Minute, NetworkAccess: domain.NetworkAccessNone, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected, WritePolicy: &domain.WorkspaceWritePolicy{}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := workflowruntime.ChildRequest{ExecutionID: uuid.New(), AttemptID: uuid.New(), NodeID: "draft", ProfileKey: profile.ProfileKey, IdempotencyKey: "selected-root", ScopePath: ".", Prompt: "work"}
+			want := o.config.DefaultProjectRoot
+			if explicit {
+				want = t.TempDir()
+				req.ProjectRoot = want
+			}
+			if _, err := (workflowChildLauncher{o: o}).StartFresh(t.Context(), req); !errors.Is(err, spawn.ErrDispatcherClosed) {
+				t.Fatalf("expected durable admission: %v", err)
+			}
+			run, err := repos.Runs.GetByIdempotencyKey(t.Context(), req.IdempotencyKey)
+			if err != nil || run == nil {
+				t.Fatalf("run not admitted: %v", err)
+			}
+			task, err := repos.Tasks.Get(t.Context(), run.TaskID)
+			if err != nil || task.ProjectRoot != want {
+				t.Fatalf("wrong selected root: %+v %v", task, err)
+			}
+		})
 	}
 }
 

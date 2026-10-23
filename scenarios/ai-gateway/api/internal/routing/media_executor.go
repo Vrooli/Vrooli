@@ -128,8 +128,13 @@ func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *rout
 			SelectedLocality: "remote",
 			SelectedModel:    model,
 			Status:           "succeeded",
-			PromptRedacted:   true,
-			ResponseRedacted: true,
+			// Redaction evidence reflects whether a real DETECT_PII pass ran, not
+			// an unconditional claim (the same honesty the text path enforces via
+			// detectPassRan). The image-generation path runs no PII detector, so
+			// PromptRedacted is honestly false; ResponseRedacted stays false until
+			// a response-redaction policy exists.
+			PromptRedacted:   detectPassRan(request, "succeeded"),
+			ResponseRedacted: false,
 			CreatedAt:        nowUTC(),
 			PolicyReasons:    []string{"resource-owned image role resolution"},
 		},

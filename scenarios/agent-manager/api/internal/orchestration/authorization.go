@@ -29,8 +29,11 @@ type AuthorizationRequest struct {
 	PID            int       `json:"pid"`
 	HarnessKind    string    `json:"harness_kind"`
 	HarnessSession string    `json:"harness_session"`
-	Policy         string    `json:"policy"`
-	Targets        []string  `json:"targets"`
+	// WebConsoleSessionID is an untrusted expected locator from the launcher;
+	// RequestAuthorization stores only the value returned by the live owner proof.
+	WebConsoleSessionID string   `json:"web_console_session_id,omitempty"`
+	Policy              string   `json:"policy"`
+	Targets             []string `json:"targets"`
 	// Rules asks for several reviewed policies in one consent, each with its
 	// own targets. It replaces Policy/Targets; the two forms are exclusive.
 	Rules            []domain.AuthorizationRule `json:"rules,omitempty"`
@@ -398,6 +401,16 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 			return nil, err
 		}
 	}
+	webConsoleSessionID := ""
+	if o.sessionBindingProofReader != nil {
+		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, req.RunID, req.HarnessSession, req.WebConsoleSessionID, req.HarnessKind)
+		if proofErr != nil || !validSessionBindingTuple(proof, req.RunID, req.HarnessSession, req.WebConsoleSessionID, req.HarnessKind, binding) {
+			return nil, domain.NewValidationError("harness", "live launcher session binding is unavailable")
+		}
+		webConsoleSessionID = proof.WebConsoleSessionID
+	} else if req.WebConsoleSessionID != "" {
+		return nil, domain.NewValidationError("harness", "live launcher session binding verifier is unavailable")
+	}
 	previous, err := o.authorizations.List(ctx, req.PID)
 	if err != nil {
 		return nil, err
@@ -413,6 +426,19 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 		if grant.RunID == req.RunID && grant.DurationSeconds == req.DurationSeconds && grant.HarnessKind == req.HarnessKind && grant.HarnessSession == req.HarnessSession && sameRequesterContext(grant.RequesterContext, req.BigPicture, req.TechnicalDetails) && slices.EqualFunc(grant.PolicyRules(), rules, func(a, b domain.AuthorizationRule) bool {
 			return a.Policy == b.Policy && slices.Equal(a.Targets, b.Targets)
 		}) {
+			if grant.WebConsoleSessionID != "" && grant.WebConsoleSessionID != webConsoleSessionID {
+				return nil, errors.New("pending authorization launcher session binding changed")
+			}
+			if grant.WebConsoleSessionID == "" && webConsoleSessionID != "" {
+				grant.WebConsoleSessionID = webConsoleSessionID
+				changed, err := o.authorizations.Replace(ctx, grant, domain.AuthorizationPending)
+				if err != nil {
+					return nil, err
+				}
+				if !changed {
+					return nil, errors.New("authorization request was decided while refreshing its session binding")
+				}
+			}
 			if grant.NotificationPublishedAt == nil {
 				o.NotifyAuthorizationRequested(ctx, grant)
 			}
@@ -422,7 +448,7 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 	}
 	now := o.now().UTC()
 	policyName, targets := ruleSummary(rules)
-	grant := &domain.AuthorizationGrant{ID: uuid.New(), RunID: req.RunID, State: domain.AuthorizationPending, Policy: policyName, Targets: targets, DurationSeconds: req.DurationSeconds, Binding: binding, HarnessKind: req.HarnessKind, HarnessSession: req.HarnessSession, RequesterContext: requesterContext(req.BigPicture, req.TechnicalDetails), CreatedAt: now, RequestExpiresAt: now.Add(AuthorizationReviewWindow)}
+	grant := &domain.AuthorizationGrant{ID: uuid.New(), RunID: req.RunID, State: domain.AuthorizationPending, Policy: policyName, Targets: targets, DurationSeconds: req.DurationSeconds, Binding: binding, HarnessKind: req.HarnessKind, HarnessSession: req.HarnessSession, WebConsoleSessionID: webConsoleSessionID, RequesterContext: requesterContext(req.BigPicture, req.TechnicalDetails), CreatedAt: now, RequestExpiresAt: now.Add(AuthorizationReviewWindow)}
 	if len(rules) > 1 {
 		grant.Rules = rules
 	}
@@ -585,6 +611,18 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 	if managedID != uuid.Nil && managedID != g.RunID {
 		return nil, errors.New("managed run appeared or changed after consent preparation; prepare a new request")
 	}
+	if o.sessionBindingProofReader != nil {
+		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, g.RunID, g.HarnessSession, g.WebConsoleSessionID, g.HarnessKind)
+		if proofErr != nil || !validSessionBindingTuple(proof, g.RunID, g.HarnessSession, g.WebConsoleSessionID, g.HarnessKind, g.Binding) {
+			return nil, errors.New("authorization launcher session binding is unavailable or changed")
+		}
+		// Older pending requests did not retain this non-authoritative locator.
+		// Resolve it from the same host-session lease and immutable process proof
+		// at approval time; never backfill a run that already exists.
+		g.WebConsoleSessionID = proof.WebConsoleSessionID
+	} else if g.WebConsoleSessionID != "" {
+		return nil, errors.New("authorization launcher session binding verifier is unavailable")
+	}
 	// The approver's login proves who consented; the consent then lasts the
 	// lifetime they approved, not the remainder of their browser session.
 	now, expires := o.now().UTC(), o.now().UTC().Add(time.Duration(g.DurationSeconds)*time.Second)
@@ -664,7 +702,7 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 		return nil, errors.New("authorization request already decided")
 	}
 	if run == nil {
-		attached, err := o.AttachRun(ctx, AttachRunRequest{HarnessKind: g.HarnessKind, HarnessSession: g.HarnessSession, ProcessID: g.Binding.PID})
+		attached, err := o.AttachRun(ctx, AttachRunRequest{HarnessKind: g.HarnessKind, HarnessSession: g.HarnessSession, ProcessID: g.Binding.PID, WebConsoleSessionID: g.WebConsoleSessionID})
 		if err != nil {
 			return nil, err
 		}

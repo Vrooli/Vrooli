@@ -103,7 +103,9 @@ func TestGetObservedReceiptsReturnsConfiguredObservationState(t *testing.T) {
 	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
 	var profile apipb.CreateProfileResponse
 	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
-	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &domainpb.Task{Title: "receipt task", ScopePath: "src/receipts"}})
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &domainpb.Task{
+		Title: "receipt task", Description: "Run the task to create an observed-receipt fixture.", ScopePath: "src/receipts",
+	}})
 	taskRR := httptest.NewRecorder()
 	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
 	var task apipb.CreateTaskResponse
@@ -156,7 +158,9 @@ func TestGetObservedReceiptsExplainsEmptyRuntimeState(t *testing.T) {
 	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
 	var profile apipb.CreateProfileResponse
 	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
-	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &domainpb.Task{Title: "runtime state task", ScopePath: "src/runtime"}})
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &domainpb.Task{
+		Title: "runtime state task", Description: "Run the task to create a runtime-state receipt fixture.", ScopePath: "src/runtime",
+	}})
 	taskRR := httptest.NewRecorder()
 	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
 	var task apipb.CreateTaskResponse

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -15,94 +16,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestEventRepository(t *testing.T) {
+func TestSQLiteStoreReadsLegacyTypedPayloadRow(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	repos := NewRepositories(db, logrus.New())
-	ctx := context.Background()
-
-	// Create task and run first
-	task := &domain.Task{ID: uuid.New(), Title: "Event Task", ScopePath: "/test", Status: domain.TaskStatusQueued}
-	if err := repos.Tasks.Create(ctx, task); err != nil {
-		t.Fatalf("Create task: %v", err)
-	}
-	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
-	if err := repos.Runs.Create(ctx, run); err != nil {
-		t.Fatalf("Create run: %v", err)
-	}
-
-	// Append events
-	events := []*domain.RunEvent{
-		{EventType: domain.EventTypeLog, Data: &domain.LogEventData{Message: "line 1", Level: "info"}},
-		{EventType: domain.EventTypeLog, Data: &domain.LogEventData{Message: "line 2", Level: "info"}},
-		{EventType: domain.EventTypeStatus, Data: &domain.StatusEventData{OldStatus: string(domain.RunStatusPending), NewStatus: string(domain.RunStatusRunning), Reason: "started"}},
-	}
-	if err := repos.Events.Append(ctx, run.ID, events...); err != nil {
-		t.Fatalf("Append: %v", err)
-	}
-
-	// Get all events
-	gotEvents, err := repos.Events.Get(ctx, run.ID, -1, 100)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	if len(gotEvents) != 3 {
-		t.Errorf("expected 3 events, got %d", len(gotEvents))
-	}
-
-	// Check sequence numbers
-	for i, evt := range gotEvents {
-		if evt.Sequence != int64(i) {
-			t.Errorf("expected sequence %d, got %d", i, evt.Sequence)
-		}
-	}
-
-	// Get events after sequence
-	afterEvents, err := repos.Events.Get(ctx, run.ID, 0, 100)
-	if err != nil {
-		t.Fatalf("Get after sequence: %v", err)
-	}
-	if len(afterEvents) != 2 {
-		t.Errorf("expected 2 events after sequence 0, got %d", len(afterEvents))
-	}
-
-	// Get by type
-	logEvents, err := repos.Events.GetByType(ctx, run.ID, []domain.RunEventType{domain.EventTypeLog}, 100)
-	if err != nil {
-		t.Fatalf("GetByType: %v", err)
-	}
-	if len(logEvents) != 2 {
-		t.Errorf("expected 2 log events, got %d", len(logEvents))
-	}
-
-	// Count
-	count, err := repos.Events.Count(ctx, run.ID)
-	if err != nil {
-		t.Fatalf("Count: %v", err)
-	}
-	if count != 3 {
-		t.Errorf("expected count 3, got %d", count)
-	}
-
-	// Delete
-	if err := repos.Events.Delete(ctx, run.ID); err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	count, err = repos.Events.Count(ctx, run.ID)
-	if err != nil {
-		t.Fatalf("Count after delete: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected count 0 after delete, got %d", count)
-	}
-}
-
-func TestEventRepositoryReadsLegacyTypedPayloadRow(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repos := NewRepositories(db, logrus.New())
+	store := event.NewSQLiteStore(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "legacy event task", ScopePath: "/test", Status: domain.TaskStatusQueued}
 	if err := repos.Tasks.Create(ctx, task); err != nil {
@@ -129,7 +48,7 @@ func TestEventRepositoryReadsLegacyTypedPayloadRow(t *testing.T) {
 		t.Fatalf("legacy event fields remain after migration: %s", persisted)
 	}
 
-	events, err := repos.Events.Get(ctx, run.ID, -1, 10)
+	events, err := store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 10})
 	if err != nil {
 		t.Fatalf("read legacy event row: %v", err)
 	}
@@ -149,6 +68,7 @@ func TestInitializeSchemaPreservesLegacyEventBytesAndReadsThem(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 	repos := NewRepositories(db, logrus.New())
+	store := event.NewSQLiteStore(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "legacy startup", ScopePath: "/test", Status: domain.TaskStatusQueued}
 	if err := repos.Tasks.Create(ctx, task); err != nil {
@@ -172,7 +92,7 @@ func TestInitializeSchemaPreservesLegacyEventBytesAndReadsThem(t *testing.T) {
 	if persisted != legacy {
 		t.Fatal("startup rewrote historical evidence")
 	}
-	events, err := repos.Events.Get(ctx, run.ID, -1, 10)
+	events, err := store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 10})
 	if err != nil || len(events) != 1 {
 		t.Fatal("legacy read failed", err)
 	}
@@ -186,10 +106,11 @@ func TestInitializeSchemaPreservesLegacyEventBytesAndReadsThem(t *testing.T) {
 // Checkpoint Repository Tests
 // ============================================================================
 
-func TestEventRepositoryMalformedPayloadFailsGetAndGetByType(t *testing.T) {
+func TestSQLiteStoreMalformedPayloadFailsFilteredAndUnfilteredGet(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 	repos := NewRepositories(db, logrus.New())
+	store := event.NewSQLiteStore(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "event decode", ScopePath: "/test", Status: domain.TaskStatusQueued}
 	if err := repos.Tasks.Create(ctx, task); err != nil {
@@ -204,8 +125,10 @@ func TestEventRepositoryMalformedPayloadFailsGetAndGetByType(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, id, run.ID, 0, "error", time.Now().UTC().Format(time.RFC3339Nano), raw); err != nil {
 		t.Fatal(err)
 	}
-	for _, read := range []func() ([]*domain.RunEvent, error){func() ([]*domain.RunEvent, error) { return repos.Events.Get(ctx, run.ID, -1, 100) }, func() ([]*domain.RunEvent, error) {
-		return repos.Events.GetByType(ctx, run.ID, []domain.RunEventType{domain.EventTypeError}, 100)
+	for _, read := range []func() ([]*domain.RunEvent, error){func() ([]*domain.RunEvent, error) {
+		return store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 100})
+	}, func() ([]*domain.RunEvent, error) {
+		return store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeError}, Limit: 100})
 	}} {
 		got, err := read()
 		var databaseError *domain.DatabaseError

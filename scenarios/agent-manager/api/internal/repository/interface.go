@@ -141,6 +141,10 @@ type TaskRepository interface {
 
 	// Update modifies an existing task.
 	Update(ctx context.Context, task *domain.Task) error
+	// UpdateQueuedBrief updates only title and description when the exact task
+	// is still queued, undispatched, and owned by createdBy. It returns false
+	// when the owner/status fence no longer matches.
+	UpdateQueuedBrief(ctx context.Context, id uuid.UUID, createdBy, expectedTitle, expectedDescription, title, description string) (bool, error)
 	// Delete removes a task by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -153,10 +157,13 @@ type TaskRepository interface {
 type RunRepository interface {
 	// Create stores a run that is not claiming a Task attempt (for example an import).
 	Create(ctx context.Context, run *domain.Run) error
-	// CreateTaskAttempt atomically claims the Task and inserts the Run/creation receipt.
-	// expectedCurrentRunID is nil for an unowned queued/legacy task with no live
-	// historical attempt, or the exact terminal current attempt being replaced.
-	CreateTaskAttempt(ctx context.Context, task *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID, expectedProjectRoot string) error
+	// CreateTaskAttempt atomically claims the Task and inserts the Run/creation
+	// receipt only if the prompt-bearing fields still match expectedTaskSnapshot.
+	// That snapshot must be the persisted task before admission-time normalization
+	// or recovery overrides. expectedCurrentRunID is nil for an unowned queued or
+	// legacy task with no live historical attempt, or the exact terminal attempt
+	// being replaced.
+	CreateTaskAttempt(ctx context.Context, task, expectedTaskSnapshot *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID) error
 	// CancelTaskAttempt atomically records explicit Task cancellation and fences
 	// the exact current Run. Pending Runs become terminal before recovery can
 	// enqueue them; active Runs receive the ordinary cancellation intent and
@@ -179,8 +186,16 @@ type RunRepository interface {
 	// ListByTask retrieves runs for a specific task.
 	ListByTask(ctx context.Context, taskID uuid.UUID, filter ListFilter) ([]*domain.Run, error)
 
-	// Update modifies an existing run.
+	// Update modifies an existing run. A transition into an active status is
+	// checked against the durable effort coordinator owner in the same
+	// transaction, including retained-session continuation lifecycle updates.
 	Update(ctx context.Context, run *domain.Run) error
+	// UpdateInteractiveContinuation atomically commits a new invocation stamp for
+	// a running, parked, or terminal interactive run. The caller supplies the
+	// exact prior status and invocation observed before mutation so the database
+	// can reject a stale continuation without weakening ordinary Update's
+	// current-invocation guard.
+	UpdateInteractiveContinuation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedInvocationStartedAt *time.Time) error
 
 	// TouchHeartbeat atomically updates ONLY a run's last_heartbeat (and
 	// updated_at), and ONLY while it is still in an actively-executing status
@@ -193,6 +208,13 @@ type RunRepository interface {
 	// another goroutine), rewriting status back to running. The status-guarded,
 	// single-column update closes that race at the SQL layer (no TOCTOU).
 	TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
+
+	// BeginInteractiveInvocation atomically advances the invocation evidence for
+	// the exact current interactive owner before its first prompt or a continuation
+	// is sent. The expected status and prior stamp fence stale callers. It updates
+	// no transcript, heartbeat, or task fields, so concurrent tail callbacks
+	// cannot overwrite their stream state.
+	BeginInteractiveInvocation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedStartedAt *time.Time, at time.Time) (bool, error)
 
 	// RequestCancellation atomically stamps the durable cancellation intent on
 	// a run that is still actively executing (running or starting). It returns
@@ -243,6 +265,24 @@ type RunRepository interface {
 	// empty ids contribute nothing; an empty input returns no runs.
 	ListByWebConsoleSessionIDs(ctx context.Context, sessionIDs []string) ([]*domain.Run, error)
 
+	// ListImportedRunIDsOldestFirst returns up to limit imported runs that still
+	// have events, oldest-content-first, for recall-corpus eviction. Runs whose
+	// events were already evicted are excluded so eviction makes progress instead
+	// of re-selecting the same empty runs.
+	ListImportedRunIDsOldestFirst(ctx context.Context, limit int) ([]uuid.UUID, error)
+
+	// DeleteImportedRun hard-deletes one imported run row. Restricted to
+	// execution_mode='imported' so canonical runs can never be removed this way.
+	// Eviction calls it after clearing the run's events and search docs so the
+	// whole unit is gone and its import provenance no longer blocks re-import.
+	DeleteImportedRun(ctx context.Context, id uuid.UUID) error
+
+	// DeleteEmptyImportedRuns bulk-deletes imported run rows that have no events
+	// (eviction stubs). An imported run with no events carries nothing but its
+	// provenance, which would otherwise permanently block re-importing that
+	// session. Returns the number of rows removed.
+	DeleteEmptyImportedRuns(ctx context.Context) (int, error)
+
 	// GetByIdempotencyKey resolves the run durably created under a creation
 	// idempotency key, or nil when no creation was accepted. A retained receipt
 	// with a missing run returns an error, never permission to create again.
@@ -254,6 +294,17 @@ type RunRepository interface {
 	// GetCreationReceipt returns immutable accepted-creation identity, including
 	// when the original run was deleted. Nil means no retained acceptance.
 	GetCreationReceipt(ctx context.Context, key string) (*domain.RunCreationReceipt, error)
+}
+
+// EffortSignalCursorRepository stores the per-effort sequence positions used
+// by a retained orchestrator. Cursor writes are narrow so owner check-ins do
+// not rewrite unrelated live Run state.
+type EffortSignalCursorRepository interface {
+	// QueueEffortSignalCursor raises the queued high-water without moving the
+	// delivered position. It returns false when the run no longer owns the exact
+	// active orchestrator reference. An absent cursor coalesces one latest-row
+	// catch-up because preexisting native consumption cannot be proven.
+	QueueEffortSignalCursor(ctx context.Context, runID uuid.UUID, effortRef string, through int64) (domain.EffortSignalCursor, bool, error)
 }
 
 // RunRecoveryAttacher records ownership of an existing live executor. The
@@ -299,28 +350,6 @@ type RunLabelUpdater interface {
 // seam separate prevents analytics projection from overwriting live run state.
 type RunSubjectUpdater interface {
 	UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error
-}
-
-// -----------------------------------------------------------------------------
-// EventRepository - RunEvent persistence
-// -----------------------------------------------------------------------------
-
-// EventRepository provides persistence for RunEvent entities.
-type EventRepository interface {
-	// Append adds events to a run's event stream.
-	Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error
-
-	// Get retrieves events for a run.
-	Get(ctx context.Context, runID uuid.UUID, afterSequence int64, limit int) ([]*domain.RunEvent, error)
-
-	// GetByType retrieves events of specific types.
-	GetByType(ctx context.Context, runID uuid.UUID, types []domain.RunEventType, limit int) ([]*domain.RunEvent, error)
-
-	// Count returns the number of events for a run.
-	Count(ctx context.Context, runID uuid.UUID) (int64, error)
-
-	// Delete removes all events for a run.
-	Delete(ctx context.Context, runID uuid.UUID) error
 }
 
 // -----------------------------------------------------------------------------

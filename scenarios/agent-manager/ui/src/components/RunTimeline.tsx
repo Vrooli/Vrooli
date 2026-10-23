@@ -112,6 +112,8 @@ export function RunTimeline({
   );
   const [sending, setSending] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied">>({});
+  const copyTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const mountedRef = useRef(false);
   const [continueError, setContinueError] = useState<string | null>(null);
   const [revealedMessages, setRevealedMessages] = useState<Record<string, boolean>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -127,6 +129,16 @@ export function RunTimeline({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
   const { isDesktop } = useViewportSize();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const copyTimers = copyTimersRef.current;
+    return () => {
+      mountedRef.current = false;
+      for (const timer of copyTimers.values()) clearTimeout(timer);
+      copyTimers.clear();
+    };
+  }, []);
 
   const timelineEntries = useMemo(() => buildTimelineEntries(events), [events]);
   const filteredEntries = useMemo(() => filterTimelineEntries(timelineEntries, filters), [timelineEntries, filters]);
@@ -300,10 +312,19 @@ export function RunTimeline({
   const handleCopy = async (messageId: string, content: string) => {
     try {
       await navigator.clipboard.writeText(content);
+      if (!mountedRef.current) return;
+
+      const existingTimer = copyTimersRef.current.get(messageId);
+      if (existingTimer !== undefined) clearTimeout(existingTimer);
       setCopyStatus((prev) => ({ ...prev, [messageId]: "copied" }));
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        if (copyTimersRef.current.get(messageId) === timer) {
+          copyTimersRef.current.delete(messageId);
+        }
+        if (!mountedRef.current) return;
         setCopyStatus((prev) => ({ ...prev, [messageId]: "idle" }));
       }, 2000);
+      copyTimersRef.current.set(messageId, timer);
     } catch {
       // Ignore clipboard failures and preserve current UI state.
     }

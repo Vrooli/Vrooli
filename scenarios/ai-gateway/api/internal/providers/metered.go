@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -62,12 +63,20 @@ type MeteredClient struct {
 }
 
 type MeteredRequest struct {
-	Role            string            `json:"role"`
-	Messages        []MeteredMessage  `json:"messages"`
-	ConstraintsJSON string            `json:"constraints_json,omitempty"`
-	MaxTokens       int               `json:"max_tokens,omitempty"`
-	Metadata        map[string]string `json:"metadata,omitempty"`
-	Profile         sharedv1.Profile  `json:"-"`
+	Role            string                  `json:"role"`
+	Messages        []MeteredMessage        `json:"messages"`
+	ConstraintsJSON string                  `json:"constraints_json,omitempty"`
+	MaxTokens       int                     `json:"max_tokens,omitempty"`
+	Metadata        map[string]string       `json:"metadata,omitempty"`
+	Profile         sharedv1.Profile        `json:"-"`
+	SpendLimit      *inferencev1.SpendLimit `json:"spend_limit,omitempty"`
+	Images          []MeteredImage          `json:"images,omitempty"`
+}
+
+type MeteredImage struct {
+	Data      string `json:"data"`
+	MediaType string `json:"media_type"`
+	SHA256    string `json:"sha256"`
 }
 
 type MeteredMessage struct {
@@ -76,12 +85,15 @@ type MeteredMessage struct {
 }
 
 type MeteredResponse struct {
-	ID               string `json:"id"`
-	Content          string `json:"content"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	CreditsCharged   int64  `json:"credits_charged"`
-	FinishReason     string `json:"finish_reason"`
+	ID                 string                          `json:"id"`
+	Content            string                          `json:"content"`
+	PromptTokens       int64                           `json:"prompt_tokens"`
+	CompletionTokens   int64                           `json:"completion_tokens"`
+	CreditsCharged     int64                           `json:"credits_charged"`
+	FinishReason       string                          `json:"finish_reason"`
+	SpendAuthorization *inferencev1.SpendAuthorization `json:"spend_authorization,omitempty"`
+	AccountingStatus   string                          `json:"accounting_status,omitempty"`
+	ActualCostMicros   *int64                          `json:"actual_cost_micros,omitempty"`
 }
 
 func NewMeteredClient(opts MeteredClientOptions) *MeteredClient {

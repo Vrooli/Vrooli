@@ -13,7 +13,6 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
@@ -27,65 +26,74 @@ type runRepository struct {
 	log *logrus.Logger
 }
 
+func nullableTimesEqual(left, right NullableTime) bool {
+	if left.Valid != right.Valid {
+		return false
+	}
+	return !left.Valid || left.Time.Equal(right.Time)
+}
+
 var _ repository.RunRepository = (*runRepository)(nil)
 
 // runRow is the database row representation for runs.
 type runRow struct {
-	LifecycleVersion               int64              `db:"lifecycle_version"`
-	OwnerIdentity                  string             `db:"owner_identity"`
-	OwnerEpoch                     int64              `db:"owner_epoch"`
-	ID                             uuid.UUID          `db:"id"`
-	TaskID                         sql.NullString     `db:"task_id"`
-	AgentProfileID                 NullableUUID       `db:"agent_profile_id"`
-	Tag                            string             `db:"tag"`
-	Label                          string             `db:"label"`
-	LabelSource                    string             `db:"label_source"`
-	Subject                        sql.NullString     `db:"subject"`
-	OwnerSubject                   sql.NullString     `db:"owner_subject"`
-	OwnerExpiresAt                 NullableTime       `db:"owner_expires_at"`
-	OwnerScopes                    sql.NullString     `db:"owner_scopes"`
-	RequestedScopes                sql.NullString     `db:"requested_scopes"`
-	WorkReferences                 sql.NullString     `db:"work_references"`
-	WorkloadKind                   string             `db:"workload_kind"`
-	WorkloadKey                    string             `db:"workload_key"`
-	WorkloadInstance               string             `db:"workload_instance"`
-	BillingSnapshot                sql.NullString     `db:"billing_snapshot"`
-	SandboxID                      NullableUUID       `db:"sandbox_id"`
-	RunMode                        string             `db:"run_mode"`
-	ExecutionMode                  sql.NullString     `db:"execution_mode"`
-	HarnessKind                    sql.NullString     `db:"harness_kind"`
-	HarnessSessionID               sql.NullString     `db:"harness_session_id"`
-	GoalDelivery                   sql.NullString     `db:"goal_delivery"`
-	TerminalClass                  sql.NullString     `db:"terminal_class"`
-	StopReason                     sql.NullString     `db:"stop_reason"`
-	LastHandoff                    sql.NullString     `db:"last_handoff"`
-	WebConsoleSessionID            sql.NullString     `db:"web_console_session_id"`
-	Status                         string             `db:"status"`
-	StartedAt                      NullableTime       `db:"started_at"`
-	InteractiveInvocationStartedAt NullableTime       `db:"interactive_invocation_started_at"`
-	EndedAt                        NullableTime       `db:"ended_at"`
-	CancelRequestedAt              NullableTime       `db:"cancel_requested_at"`
-	GoalID                         sql.NullString     `db:"goal_id"`
-	Phase                          string             `db:"phase"`
-	LastCheckpointID               NullableUUID       `db:"last_checkpoint_id"`
-	LastHeartbeat                  NullableTime       `db:"last_heartbeat"`
-	ProgressPercent                int                `db:"progress_percent"`
-	IdempotencyKey                 sql.NullString     `db:"idempotency_key"`
-	Summary                        NullableRunSummary `db:"summary"`
-	RunResult                      NullableRunResult  `db:"run_result"`
-	ErrorMsg                       string             `db:"error_msg"`
-	ExitCode                       sql.NullInt32      `db:"exit_code"`
-	ApprovalState                  string             `db:"approval_state"`
-	ApprovedBy                     string             `db:"approved_by"`
-	ApprovedAt                     NullableTime       `db:"approved_at"`
-	FinalizationStatus             string             `db:"finalization_status"`
-	FinalizationError              string             `db:"finalization_error"`
-	FinalizedAt                    NullableTime       `db:"finalized_at"`
-	ResolvedConfig                 NullableRunConfig  `db:"resolved_config"`
-	DiffPath                       string             `db:"diff_path"`
-	LogPath                        string             `db:"log_path"`
-	ChangedFiles                   int                `db:"changed_files"`
-	TotalSizeBytes                 int64              `db:"total_size_bytes"`
+	ExpectedInteractiveStatus       string             `db:"expected_interactive_status"`
+	ExpectedInteractiveInvocationAt NullableTime       `db:"expected_interactive_invocation_at"`
+	LifecycleVersion                int64              `db:"lifecycle_version"`
+	OwnerIdentity                   string             `db:"owner_identity"`
+	OwnerEpoch                      int64              `db:"owner_epoch"`
+	ID                              uuid.UUID          `db:"id"`
+	TaskID                          sql.NullString     `db:"task_id"`
+	AgentProfileID                  NullableUUID       `db:"agent_profile_id"`
+	Tag                             string             `db:"tag"`
+	Label                           string             `db:"label"`
+	LabelSource                     string             `db:"label_source"`
+	Subject                         sql.NullString     `db:"subject"`
+	OwnerSubject                    sql.NullString     `db:"owner_subject"`
+	OwnerExpiresAt                  NullableTime       `db:"owner_expires_at"`
+	OwnerScopes                     sql.NullString     `db:"owner_scopes"`
+	RequestedScopes                 sql.NullString     `db:"requested_scopes"`
+	WorkReferences                  sql.NullString     `db:"work_references"`
+	WorkloadKind                    string             `db:"workload_kind"`
+	WorkloadKey                     string             `db:"workload_key"`
+	WorkloadInstance                string             `db:"workload_instance"`
+	BillingSnapshot                 sql.NullString     `db:"billing_snapshot"`
+	SandboxID                       NullableUUID       `db:"sandbox_id"`
+	RunMode                         string             `db:"run_mode"`
+	ExecutionMode                   sql.NullString     `db:"execution_mode"`
+	HarnessKind                     sql.NullString     `db:"harness_kind"`
+	HarnessSessionID                sql.NullString     `db:"harness_session_id"`
+	GoalDelivery                    sql.NullString     `db:"goal_delivery"`
+	TerminalClass                   sql.NullString     `db:"terminal_class"`
+	StopReason                      sql.NullString     `db:"stop_reason"`
+	LastHandoff                     sql.NullString     `db:"last_handoff"`
+	WebConsoleSessionID             sql.NullString     `db:"web_console_session_id"`
+	Status                          string             `db:"status"`
+	StartedAt                       NullableTime       `db:"started_at"`
+	InteractiveInvocationStartedAt  NullableTime       `db:"interactive_invocation_started_at"`
+	EndedAt                         NullableTime       `db:"ended_at"`
+	CancelRequestedAt               NullableTime       `db:"cancel_requested_at"`
+	GoalID                          sql.NullString     `db:"goal_id"`
+	Phase                           string             `db:"phase"`
+	LastCheckpointID                NullableUUID       `db:"last_checkpoint_id"`
+	LastHeartbeat                   NullableTime       `db:"last_heartbeat"`
+	ProgressPercent                 int                `db:"progress_percent"`
+	IdempotencyKey                  sql.NullString     `db:"idempotency_key"`
+	Summary                         NullableRunSummary `db:"summary"`
+	RunResult                       NullableRunResult  `db:"run_result"`
+	ErrorMsg                        string             `db:"error_msg"`
+	ExitCode                        sql.NullInt32      `db:"exit_code"`
+	ApprovalState                   string             `db:"approval_state"`
+	ApprovedBy                      string             `db:"approved_by"`
+	ApprovedAt                      NullableTime       `db:"approved_at"`
+	FinalizationStatus              string             `db:"finalization_status"`
+	FinalizationError               string             `db:"finalization_error"`
+	FinalizedAt                     NullableTime       `db:"finalized_at"`
+	ResolvedConfig                  NullableRunConfig  `db:"resolved_config"`
+	DiffPath                        string             `db:"diff_path"`
+	LogPath                         string             `db:"log_path"`
+	ChangedFiles                    int                `db:"changed_files"`
+	TotalSizeBytes                  int64              `db:"total_size_bytes"`
 	// CommitHash became additive after the original runs table shipped. SQLite
 	// leaves pre-migration rows NULL even though the migration declares a
 	// default, so it must remain nullable at the repository boundary.
@@ -113,6 +121,8 @@ type runRow struct {
 	CustomEnv sql.NullString `db:"custom_env"`
 	// Await-handle (JSON object) for a parked run; NULL for non-parked runs
 	AwaitHandle sql.NullString `db:"await_handle"`
+	// Per-effort same-run signal positions are returned for owner check-ins.
+	EffortSignalCursors sql.NullString `db:"effort_signal_cursors"`
 	// Last-resolved await (re-fetch SSOT) + re-park guard bookkeeping
 	LastAwaitKey        sql.NullString `db:"last_await_key"`
 	LastAwaitResult     sql.NullString `db:"last_await_result"`
@@ -204,6 +214,7 @@ func (row *runRow) toDomain() *domain.Run {
 		IdentityTokenIssuedAt:     row.IdentityTokenIssuedAt.ToPtr(),
 		CustomEnv:                 parseStringMapJSON(row.CustomEnv),
 		AwaitHandle:               parseAwaitHandleJSON(row.AwaitHandle),
+		EffortSignalCursors:       parseEffortSignalCursorsJSON(row.EffortSignalCursors),
 		LastAwaitKey:              row.LastAwaitKey.String,
 		LastAwaitResult:           row.LastAwaitResult.String,
 		LastAwaitResolvedAt:       row.LastAwaitResolvedAt.ToPtr(),
@@ -464,34 +475,6 @@ func marshalStringMapJSON(m map[string]string) sql.NullString {
 	return sql.NullString{String: string(data), Valid: true}
 }
 
-// parseAwaitHandleJSON decodes the await_handle JSON column into a domain
-// AwaitHandle, returning nil for NULL / empty / malformed values so non-parked
-// runs (and rows written before this column existed) decode to a nil handle.
-func parseAwaitHandleJSON(raw sql.NullString) *domain.AwaitHandle {
-	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
-		return nil
-	}
-	var h domain.AwaitHandle
-	if err := json.Unmarshal([]byte(raw.String), &h); err != nil {
-		return nil
-	}
-	return &h
-}
-
-// marshalAwaitHandleJSON encodes a domain AwaitHandle as the await_handle JSON
-// column, storing NULL (Valid=false) for a nil handle so non-parked runs leave
-// the column empty.
-func marshalAwaitHandleJSON(h *domain.AwaitHandle) sql.NullString {
-	if h == nil {
-		return sql.NullString{}
-	}
-	data, err := json.Marshal(h)
-	if err != nil {
-		return sql.NullString{}
-	}
-	return sql.NullString{String: string(data), Valid: true}
-}
-
 func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	if len(ids) == 0 {
 		return "[]"
@@ -516,6 +499,7 @@ const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	identity_token_hash, identity_token_revoked_at, identity_renewal_anchor_hash, identity_token_issued_at, custom_env, await_handle,
+	effort_signal_cursors,
 	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 	requested_model, actual_model, canary_arm,
 	created_at, updated_at`
@@ -869,116 +853,6 @@ func (r *runRepository) ListByTask(ctx context.Context, taskID uuid.UUID, filter
 	})
 }
 
-func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
-	run.UpdatedAt = time.Now()
-	row := runFromDomain(run)
-
-	// A renewal anchor marks an attached run whose process binding participates
-	// in the broker's proof. Preserve that binding across stale full-row writes;
-	// legacy attached rows without a renewal anchor retain the prior update path.
-	// Renewal-generation columns themselves are intentionally absent here.
-	query := `UPDATE runs SET lifecycle_version = lifecycle_version + CASE WHEN status = :status THEN 0 ELSE 1 END,
-			owner_identity = CASE WHEN :owner_identity <> '' THEN :owner_identity ELSE owner_identity END,
-			owner_epoch = CASE WHEN :owner_epoch > 0 THEN :owner_epoch ELSE owner_epoch END,
-			task_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN task_id ELSE :task_id END,
-			agent_profile_id = :agent_profile_id,
-			tag = :tag, label = :label, label_source = :label_source, subject = :subject,
-			owner_subject = CASE WHEN identity_renewal_anchor_hash <> '' THEN owner_subject ELSE :owner_subject END,
-			owner_expires_at = CASE WHEN identity_renewal_anchor_hash <> '' THEN owner_expires_at ELSE :owner_expires_at END,
-			owner_scopes = CASE WHEN identity_renewal_anchor_hash <> '' THEN owner_scopes ELSE :owner_scopes END,
-			requested_scopes = :requested_scopes, work_references = :work_references, sandbox_id = :sandbox_id, run_mode = :run_mode,
-		execution_mode = CASE WHEN identity_renewal_anchor_hash <> '' THEN execution_mode ELSE :execution_mode END,
-		harness_kind = CASE WHEN identity_renewal_anchor_hash <> '' THEN harness_kind ELSE :harness_kind END,
-		harness_session_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN harness_session_id ELSE :harness_session_id END,
-		goal_delivery = :goal_delivery, terminal_class = :terminal_class, stop_reason = :stop_reason, last_handoff = :last_handoff,
-		web_console_session_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN web_console_session_id ELSE :web_console_session_id END,
-		status = :status,
-		started_at = :started_at, interactive_invocation_started_at = :interactive_invocation_started_at, ended_at = :ended_at, cancel_requested_at = COALESCE(cancel_requested_at, :cancel_requested_at), phase = :phase,
-		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = CASE WHEN last_heartbeat IS NULL OR last_heartbeat < :last_heartbeat THEN :last_heartbeat ELSE last_heartbeat END,
-		progress_percent = :progress_percent, idempotency_key = :idempotency_key,
-		summary = :summary, run_result = :run_result, error_msg = :error_msg, exit_code = :exit_code,
-		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
-		finalization_status = :finalization_status, finalization_error = :finalization_error, finalized_at = :finalized_at,
-		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
-			changed_files = :changed_files, total_size_bytes = :total_size_bytes, commit_hash = :commit_hash, sandbox_config = :sandbox_config,
-			 session_id = :session_id,
-			runner_pid = CASE WHEN identity_renewal_anchor_hash <> '' THEN runner_pid ELSE :runner_pid END,
-			runner_pgid = CASE WHEN identity_renewal_anchor_hash <> '' THEN runner_pgid ELSE :runner_pgid END,
-			transcript_path = :transcript_path, transcript_cursor = :transcript_cursor, transcript_last_seq = :transcript_last_seq,
-			import_source_harness = :import_source_harness, import_source_session_id = :import_source_session_id, imported_at = :imported_at,
-			source_run_ids = :source_run_ids,
-			source_investigation_run_id = :source_investigation_run_id,
-			parent_run_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN parent_run_id ELSE :parent_run_id END,
-		conversation_id = :conversation_id,
-		identity_token_hash = CASE WHEN identity_renewal_anchor_hash <> '' THEN identity_token_hash ELSE :identity_token_hash END,
-		identity_token_revoked_at = CASE WHEN identity_renewal_anchor_hash <> '' THEN COALESCE(identity_token_revoked_at, :identity_token_revoked_at) ELSE :identity_token_revoked_at END,
-		custom_env = :custom_env, await_handle = :await_handle,
-		last_await_key = :last_await_key, last_await_result = :last_await_result,
-		last_await_resolved_at = :last_await_resolved_at, last_wake_seq = :last_wake_seq,
-		same_key_park_streak = :same_key_park_streak,
-		requested_model = :requested_model, actual_model = :actual_model, canary_arm = :canary_arm,
-		updated_at = :updated_at
-		WHERE id = :id AND lifecycle_version = :lifecycle_version
-		  AND (owner_epoch = :owner_epoch OR (owner_epoch = 0 AND :owner_epoch = 1))
-		  AND (fresh_recovery_request_hash = '' OR status = :status)
-		RETURNING lifecycle_version`
-
-	bound, args, err := sqlx.Named(query, row)
-	if err != nil {
-		return wrapDBError("update", "Run", run.ID.String(), err)
-	}
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return wrapDBError("update", "Run", run.ID.String(), err)
-	}
-	defer tx.Rollback()
-	var nextLifecycleVersion int64
-	err = tx.QueryRowContext(ctx, bound, args...).Scan(&nextLifecycleVersion)
-	if errors.Is(err, sql.ErrNoRows) {
-		return domain.NewStateErrorWithID("Run", run.ID.String(), "superseded", "update", "run lifecycle changed or was consumed by fresh recovery; writer refused")
-	}
-	if err != nil {
-		return wrapDBError("update", "Run", run.ID.String(), err)
-	}
-	if run.TaskID != uuid.Nil {
-		if status, ok := taskProjectionForRunStatus(run.Status); ok {
-			_, err := tx.ExecContext(ctx, `UPDATE tasks SET status = ?,
-				updated_at = CASE WHEN status <> ? THEN ? ELSE updated_at END
-				WHERE id = ? AND current_run_id = ? AND status IN (?, ?, ?, ?, ?)`,
-				string(status), string(status), SQLiteTime(run.UpdatedAt), run.TaskID, run.ID,
-				string(domain.TaskStatusQueued), string(domain.TaskStatusRunning), string(domain.TaskStatusNeedsReview), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed))
-			if err != nil {
-				return wrapDBError("project_run_status", "Task", run.TaskID.String(), err)
-			}
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return wrapDBError("update", "Run", run.ID.String(), err)
-	}
-	run.LifecycleVersion = nextLifecycleVersion
-	return nil
-}
-
-func taskProjectionForRunStatus(status domain.RunStatus) (domain.TaskStatus, bool) {
-	switch status {
-	case domain.RunStatusPending, domain.RunStatusStarting, domain.RunStatusRunning, domain.RunStatusParked:
-		return domain.TaskStatusRunning, true
-	case domain.RunStatusNeedsReview:
-		return domain.TaskStatusNeedsReview, true
-	case domain.RunStatusComplete:
-		return domain.TaskStatusCompleted, true
-	case domain.RunStatusFailed, domain.RunStatusCancelled:
-		// Run cancellation is an execution outcome, not the explicit Task cancel
-		// operation. Keep TaskStatusCancelled reserved for that operator action.
-		return domain.TaskStatusFailed, true
-	default:
-		return "", false
-	}
-}
-
-// UpdateRunLabel updates only the two label columns. It is used by the
-// historical transcript backfill and deliberately cannot mutate run identity,
-// attribution, status, or timestamps.
 func (r *runRepository) UpdateRunLabel(ctx context.Context, id uuid.UUID, label string, source domain.RunLabelSource) error {
 	label = strings.TrimSpace(label)
 	if label == "" {
@@ -1034,6 +908,51 @@ func (r *runRepository) TouchHeartbeat(ctx context.Context, id uuid.UUID, at tim
 	return affected > 0, nil
 }
 
+// BeginInteractiveInvocation advances only the retained-session invocation
+// fence for the exact active run owner. Keeping this as a single-column update
+// prevents a concurrent transcript callback from replacing its cursor with a
+// stale full Run snapshot.
+func (r *runRepository) BeginInteractiveInvocation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedStartedAt *time.Time, at time.Time) (bool, error) {
+	if run == nil || run.ID == uuid.Nil || run.TaskID == uuid.Nil || run.Status != domain.RunStatusRunning ||
+		run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive || expectedStatus != domain.RunStatusStarting && expectedStatus != domain.RunStatusRunning ||
+		(expectedStatus == domain.RunStatusRunning && (run.SessionID == "" || run.WebConsoleSessionID == "")) ||
+		(expectedStartedAt != nil && !at.After(*expectedStartedAt)) {
+		return false, fmt.Errorf("begin interactive invocation requires the exact starting or running interactive owner")
+	}
+	priorInvocation := NullableTime{}
+	if expectedStartedAt != nil {
+		priorInvocation = NewNullableTime(expectedStartedAt)
+	}
+	query := `UPDATE runs SET interactive_invocation_started_at = ?, updated_at = ?
+		WHERE id = ? AND task_id = ? AND status = ? AND execution_mode = ? AND lifecycle_version = ?
+		AND interactive_invocation_started_at IS ? AND cancel_requested_at IS NULL
+		AND EXISTS (SELECT 1 FROM tasks WHERE tasks.id = runs.task_id AND tasks.current_run_id = runs.id
+			AND tasks.status NOT IN (?, ?, ?))`
+	args := []any{
+		NewNullableTime(&at), NewNullableTime(&at), run.ID, run.TaskID, string(expectedStatus), string(domain.ExecutionModeInteractive), run.LifecycleVersion, priorInvocation,
+		string(domain.TaskStatusCancelled), string(domain.TaskStatusApproved), string(domain.TaskStatusRejected),
+	}
+	if expectedStatus == domain.RunStatusRunning {
+		query += ` AND session_id = ? AND web_console_session_id = ?`
+		args = append(args, run.SessionID, run.WebConsoleSessionID)
+	}
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, wrapDBError("begin_interactive_invocation", "Run", run.ID.String(), err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("begin_interactive_invocation", "Run", run.ID.String(), err)
+	}
+	if changed != 1 {
+		return false, nil
+	}
+	stamp := at
+	run.InteractiveInvocationStartedAt = &stamp
+	run.UpdatedAt = at
+	return true, nil
+}
+
 // RequestCancellation atomically stamps the durable cancellation intent
 // (cancel_requested_at) on a pending or actively executing run. The first stamp
 // also advances lifecycle_version, fencing full-row writers that read the run
@@ -1086,12 +1005,14 @@ func (r *runRepository) UpdateRunnerStreamState(ctx context.Context, run *domain
 		session_id = ?, runner_pid = ?, runner_pgid = ?,
 		transcript_path = ?, transcript_cursor = MAX(transcript_cursor, ?), transcript_last_seq = MAX(transcript_last_seq, ?), updated_at = ?
 		WHERE id = ? AND status IN (?, ?) AND lifecycle_version = ?
+		  AND interactive_invocation_started_at IS ?
 		  AND (execution_mode IS NULL OR execution_mode <> 'attached' OR identity_renewal_anchor_hash = '')
 		  AND owner_epoch = ?`
 	res, err := r.db.ExecContext(ctx, query,
 		row.SessionID, row.RunnerPID, row.RunnerPGID,
 		row.TranscriptPath, row.TranscriptCursor, row.TranscriptLastSeq, row.UpdatedAt,
-		run.ID, string(domain.RunStatusRunning), string(domain.RunStatusStarting), run.LifecycleVersion, run.OwnerEpoch)
+		run.ID, string(domain.RunStatusRunning), string(domain.RunStatusStarting), run.LifecycleVersion,
+		NewNullableTime(run.InteractiveInvocationStartedAt), run.OwnerEpoch)
 	if err != nil {
 		return false, wrapDBError("update_runner_stream_state", "Run", run.ID.String(), err)
 	}
@@ -1408,6 +1329,71 @@ func (r *runRepository) ListByWebConsoleSessionIDs(ctx context.Context, sessionI
 		}
 	}
 	return runs, nil
+}
+
+// ListImportedRunIDsOldestFirst returns up to limit imported runs that still
+// have events, oldest-content-first (by the original session time, falling back
+// to import/creation time). The EXISTS filter skips already-evicted runs so the
+// recall-corpus eviction loop advances instead of re-selecting empty runs.
+func (r *runRepository) ListImportedRunIDsOldestFirst(ctx context.Context, limit int) ([]uuid.UUID, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	var ids []string
+	query := `SELECT r.id FROM runs r
+		WHERE COALESCE(r.execution_mode, '') = 'imported'
+		  AND EXISTS (SELECT 1 FROM run_events e WHERE e.run_id = r.id)
+		ORDER BY COALESCE(r.started_at, r.imported_at, r.created_at) ASC, r.id ASC
+		LIMIT ?`
+	if err := r.db.SelectContext(ctx, &ids, query, limit); err != nil {
+		return nil, wrapDBError("list_imported_runs_oldest_first", "Run", "", err)
+	}
+	out := make([]uuid.UUID, 0, len(ids))
+	for _, raw := range ids {
+		parsed, err := uuid.Parse(strings.TrimSpace(raw))
+		if err != nil {
+			continue
+		}
+		out = append(out, parsed)
+	}
+	return out, nil
+}
+
+// DeleteImportedRun hard-deletes one imported run row (retention eviction). The
+// execution_mode guard means canonical runs can never be removed through this
+// path. Idempotent: a missing or non-imported id is a no-op. The run's events
+// and derived search docs are removed by the caller; dropping the row clears the
+// import provenance so the session can be re-imported if it later becomes recent.
+func (r *runRepository) DeleteImportedRun(ctx context.Context, id uuid.UUID) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("delete_imported", "Run", id.String(), err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET current_run_id = NULL WHERE current_run_id = ?`, id.String()); err != nil {
+		return wrapDBError("clear_task_attempt", "Run", id.String(), err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM runs WHERE id = ? AND execution_mode = 'imported'`, id); err != nil {
+		return wrapDBError("delete_imported", "Run", id.String(), err)
+	}
+	return tx.Commit()
+}
+
+// DeleteEmptyImportedRuns removes imported run rows with no events in one
+// statement. These are eviction stubs (events gone, row left behind) whose
+// lingering provenance would block re-importing the session.
+func (r *runRepository) DeleteEmptyImportedRuns(ctx context.Context) (int, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM runs
+		WHERE execution_mode = 'imported'
+		  AND NOT EXISTS (SELECT 1 FROM run_events e WHERE e.run_id = runs.id)`)
+	if err != nil {
+		return 0, wrapDBError("delete_empty_imported", "Run", "", err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return 0, wrapDBError("delete_empty_imported_rows", "Run", "", err)
+	}
+	return int(n), nil
 }
 
 func (r *runRepository) Delete(ctx context.Context, id uuid.UUID, expectedStatus domain.RunStatus, expectedLifecycleVersion int64) error {

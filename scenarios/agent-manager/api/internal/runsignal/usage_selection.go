@@ -25,8 +25,10 @@ type usageIdentity struct {
 // bit per source event. Callers retain all events for timeline accounting;
 // Selected controls only which usage payloads contribute token quantities.
 type UsageSelection struct {
-	Selected    []bool
-	Invocations []int
+	Selected                      []bool
+	Invocations                   []int
+	AllInvocationsAuthoritative   bool
+	LatestInvocationAuthoritative bool
 }
 
 // SelectCanonicalUsage preserves the report projection's existing policy: an
@@ -36,7 +38,10 @@ type UsageSelection struct {
 func SelectCanonicalUsage(events []*domain.RunEvent) UsageSelection {
 	selection := UsageSelection{Selected: make([]bool, len(events)), Invocations: make([]int, len(events))}
 	invocations := selection.Invocations
-	terminalUsage := make(map[int]bool)
+	authoritySeen := make(map[int]bool)
+	latestUsageAuthority := make(map[int]bool)
+	hasUsage := make(map[int]bool)
+	invocationUnqualified := make(map[int]bool)
 	invocation := 0
 	for index, event := range events {
 		if event == nil {
@@ -44,10 +49,34 @@ func SelectCanonicalUsage(events []*domain.RunEvent) UsageSelection {
 		}
 		if BeginsRunInvocation(event) {
 			invocation++
+			selection.LatestInvocationAuthoritative = false
 		}
 		invocations[index] = invocation
-		if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority {
-			terminalUsage[invocation] = true
+		if usage, ok := event.Data.(*domain.UsageEventData); ok {
+			hasUsage[invocation] = true
+			if usage.ReconciliationAuthority {
+				authoritySeen[invocation] = true
+			}
+			complete := usage.ReconciliationComplete == nil || *usage.ReconciliationComplete
+			if usage.ReconciliationAuthority && usage.RunnerType == string(domain.RunnerTypeCodex) && usage.ReconciliationComplete == nil {
+				// Older Codex terminal receipts may contain cumulative session
+				// totals without the raw baseline needed to prove their delta.
+				complete = false
+			}
+			if usage.ReconciliationAuthority && !complete {
+				invocationUnqualified[invocation] = true
+			}
+			// The latest usage receipt must be authoritative, and no earlier receipt
+			// in this invocation may have left its quantity interval unqualified.
+			latestUsageAuthority[invocation] = usage.ReconciliationAuthority && complete && !invocationUnqualified[invocation]
+			selection.LatestInvocationAuthoritative = usage.ReconciliationAuthority && complete && !invocationUnqualified[invocation]
+		}
+	}
+	selection.AllInvocationsAuthoritative = len(hasUsage) > 0
+	for invocation := range hasUsage {
+		if !latestUsageAuthority[invocation] || invocationUnqualified[invocation] {
+			selection.AllInvocationsAuthoritative = false
+			break
 		}
 	}
 
@@ -57,7 +86,7 @@ func SelectCanonicalUsage(events []*domain.RunEvent) UsageSelection {
 			continue
 		}
 		usage, ok := event.Data.(*domain.UsageEventData)
-		if !ok || (terminalUsage[invocations[index]] && !usage.ReconciliationAuthority) {
+		if !ok || (authoritySeen[invocations[index]] && !usage.ReconciliationAuthority) {
 			continue
 		}
 		identity := usageIdentity{

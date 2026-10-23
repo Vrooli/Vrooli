@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -352,6 +353,168 @@ func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
 	complete := mk(domain.RunStatusComplete)
 	if updated, err := repos.Runs.TouchHeartbeat(ctx, complete.ID, time.Now()); err != nil || updated {
 		t.Fatalf("TouchHeartbeat(complete): updated=%v err=%v (want false,nil)", updated, err)
+	}
+}
+
+func TestBeginInteractiveInvocationUpdatesOnlyExactRunningOwnerFence(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := createQueuedTask(t, repos, "interactive continuation fence")
+	oldAt := time.Now().Add(-time.Hour).UTC().Truncate(time.Microsecond)
+	run := pendingTaskRun(task.ID)
+	run.ExecutionMode = domain.ExecutionModeInteractive
+	run.SessionID = "native-session"
+	run.WebConsoleSessionID = "web-console-session"
+	run.InteractiveInvocationStartedAt = &oldAt
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if admitted, err := repos.Runs.AdmitCurrentRun(ctx, run, domain.RunStatusPending, time.Now().UTC()); err != nil || !admitted {
+		t.Fatalf("admit current run: admitted=%v err=%v", admitted, err)
+	}
+	owner, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || owner == nil {
+		t.Fatalf("read admitted owner: run=%+v err=%v", owner, err)
+	}
+	staleStream := *owner
+	startedAt := time.Now().UTC().Add(time.Second)
+	updated, err := repos.Runs.BeginInteractiveInvocation(ctx, owner, domain.RunStatusRunning, owner.InteractiveInvocationStartedAt, startedAt)
+	if err != nil || !updated {
+		t.Fatalf("begin invocation: updated=%v err=%v", updated, err)
+	}
+	staleStream.TranscriptCursor = 77
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, &staleStream); err != nil || updated {
+		t.Fatalf("stale invocation stream update: updated=%v err=%v, want rejected", updated, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(startedAt) || got.TranscriptCursor != 0 {
+		t.Fatalf("stale callback crossed invocation fence: invocation=%v cursor=%d", got.InteractiveInvocationStartedAt, got.TranscriptCursor)
+	}
+	currentStream := *got
+	currentStream.TranscriptCursor = 77
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, &currentStream); err != nil || !updated {
+		t.Fatalf("current invocation stream update: updated=%v err=%v", updated, err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(startedAt) || got.TranscriptCursor != 77 {
+		t.Fatalf("current invocation stream cursor was not retained: invocation=%v cursor=%d", got.InteractiveInvocationStartedAt, got.TranscriptCursor)
+	}
+	staleTerminal := staleStream
+	staleTerminal.Status = domain.RunStatusComplete
+	endedAt := time.Now().UTC()
+	staleTerminal.EndedAt = &endedAt
+	if err := repos.Runs.Update(ctx, &staleTerminal); err == nil || !strings.Contains(err.Error(), "interactive invocation changed") {
+		t.Fatalf("stale observer terminal update = %v, want invocation-fence refusal", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.TranscriptCursor != 77 || got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(startedAt) {
+		t.Fatalf("stale terminal observer changed current owner: status=%s cursor=%d invocation=%v", got.Status, got.TranscriptCursor, got.InteractiveInvocationStartedAt)
+	}
+
+	wrongSession := *got
+	wrongSession.WebConsoleSessionID = "replacement-session"
+	if updated, err := repos.Runs.BeginInteractiveInvocation(ctx, &wrongSession, domain.RunStatusRunning, got.InteractiveInvocationStartedAt, startedAt.Add(time.Second)); err != nil || updated {
+		t.Fatalf("mismatched session changed invocation owner: updated=%v err=%v", updated, err)
+	}
+	parked := *got
+	parked.Status = domain.RunStatusParked
+	if err := repos.Runs.Update(ctx, &parked); err != nil {
+		t.Fatalf("park run: %v", err)
+	}
+	if updated, err := repos.Runs.BeginInteractiveInvocation(ctx, got, domain.RunStatusParked, got.InteractiveInvocationStartedAt, startedAt.Add(2*time.Second)); updated {
+		t.Fatalf("parked owner advanced its invocation fence: updated=%v err=%v", updated, err)
+	}
+}
+
+func TestUpdateInteractiveContinuationAtomicallyReplacesTerminalInvocationFence(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := createQueuedTask(t, repos, "terminal interactive continuation CAS")
+	oldAt := time.Now().Add(-time.Hour).UTC().Truncate(time.Microsecond)
+	run := pendingTaskRun(task.ID)
+	run.ExecutionMode = domain.ExecutionModeInteractive
+	run.SessionID = "retained-native-session"
+	run.WebConsoleSessionID = "retained-web-console"
+	run.InteractiveInvocationStartedAt = &oldAt
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if admitted, err := repos.Runs.AdmitCurrentRun(ctx, run, domain.RunStatusPending, time.Now().UTC()); err != nil || !admitted {
+		t.Fatalf("admit current run: admitted=%v err=%v", admitted, err)
+	}
+	terminal, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal.Status = domain.RunStatusComplete
+	endedAt := time.Now().UTC()
+	terminal.EndedAt = &endedAt
+	if err := repos.Runs.Update(ctx, terminal); err != nil {
+		t.Fatalf("complete prior invocation: %v", err)
+	}
+	terminal, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextAt := time.Now().UTC().Add(time.Second)
+	stale := *terminal
+	stale.Status = domain.RunStatusRunning
+	stale.InteractiveInvocationStartedAt = &nextAt
+	stale.EndedAt = nil
+	if err := repos.Runs.UpdateInteractiveContinuation(ctx, &stale, domain.RunStatusFailed, terminal.InteractiveInvocationStartedAt); err == nil {
+		t.Fatal("continuation with a mismatched expected terminal status succeeded")
+	}
+	unchanged, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.Status != domain.RunStatusComplete || unchanged.InteractiveInvocationStartedAt == nil || !unchanged.InteractiveInvocationStartedAt.Equal(oldAt) {
+		t.Fatalf("rejected continuation changed terminal owner: status=%s invocation=%v", unchanged.Status, unchanged.InteractiveInvocationStartedAt)
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*domain.Run)
+	}{
+		{name: "task", mutate: func(candidate *domain.Run) { candidate.TaskID = uuid.New() }},
+		{name: "session", mutate: func(candidate *domain.Run) { candidate.SessionID = "replacement-native-session" }},
+		{name: "web-console session", mutate: func(candidate *domain.Run) { candidate.WebConsoleSessionID = "replacement-web-console" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := *terminal
+			candidate.Status = domain.RunStatusRunning
+			candidate.EndedAt = nil
+			candidate.InteractiveInvocationStartedAt = &nextAt
+			tc.mutate(&candidate)
+			if err := repos.Runs.UpdateInteractiveContinuation(ctx, &candidate, domain.RunStatusComplete, terminal.InteractiveInvocationStartedAt); err == nil {
+				t.Fatalf("continuation with mismatched %s succeeded", tc.name)
+			}
+		})
+	}
+	if err := repos.Runs.UpdateInteractiveContinuation(ctx, &stale, domain.RunStatusComplete, terminal.InteractiveInvocationStartedAt); err != nil {
+		t.Fatalf("commit exact terminal continuation: %v", err)
+	}
+	continued, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if continued.Status != domain.RunStatusRunning || continued.EndedAt != nil || continued.InteractiveInvocationStartedAt == nil || !continued.InteractiveInvocationStartedAt.Equal(nextAt) {
+		t.Fatalf("exact continuation did not atomically replace terminal owner: status=%s ended=%v invocation=%v", continued.Status, continued.EndedAt, continued.InteractiveInvocationStartedAt)
+	}
+	if continued.TaskID != task.ID || continued.SessionID != "retained-native-session" || continued.WebConsoleSessionID != "retained-web-console" {
+		t.Fatalf("continuation changed retained run identity: task=%s session=%q web=%q", continued.TaskID, continued.SessionID, continued.WebConsoleSessionID)
 	}
 }
 
@@ -1060,7 +1223,7 @@ func TestRunUpdateDoesNotAdvanceCallerVersionWhenTaskProjectionRollsBack(t *test
 		t.Fatalf("create task: %v", err)
 	}
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeSandboxed, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create task attempt: %v", err)
 	}
 	current, err := repos.Runs.Get(ctx, run.ID)

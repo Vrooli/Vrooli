@@ -169,6 +169,45 @@ func TestLintResumeBudgetCountsOnlyOpenEntries(t *testing.T) {
 	}
 }
 
+func TestLintAdvisesWhenLoadedEpochExceedsBoardDefaultWithoutChangingResumeBudget(t *testing.T) {
+	baseline := Lint(basHome(t, nil))
+	epoch := "# E99\n\n- Status: accepted\n\n## Directives\n- D1 2026-10-20T03:00:00Z retain the acceptance gate\n\n## Slice log\n2026-10-20T03:01:00Z | verified typed state | exit metric=gates pass | net runtime lines=0 | net test lines=0 | ack=D1\n\n## Notes\n" + strings.Repeat("x\n", DefaultBoardFileBytes/2+2)
+	home := basHome(t, map[string]func(string) string{
+		"epochs/E99.md": func(string) string { return epoch },
+	})
+
+	if got := home.FileBytes["epochs/E99.md"]; got != len(epoch) {
+		t.Fatalf("loaded epoch byte count = %d, want %d", got, len(epoch))
+	}
+	if home.FileBytes[GoalFile] != home.Goal.Bytes || home.FileBytes[QueueFile] != home.Queue.Bytes {
+		t.Fatalf("root file sizes were not retained from the same load: %+v", home.FileBytes)
+	}
+	var parsed *Epoch
+	for _, epochFile := range home.Epochs {
+		if epochFile.Name == "E99.md" {
+			parsed = epochFile.Epoch
+			break
+		}
+	}
+	if parsed == nil || len(parsed.Directives) != 1 || len(parsed.Log) != 1 || len(parsed.Log[0].Acks) != 1 || parsed.Log[0].Acks[0] != "D1" {
+		t.Fatalf("oversized advisory must retain the parsed epoch's typed state: %+v", parsed)
+	}
+	report := Lint(home)
+	var advisory *Finding
+	for i := range report.Findings {
+		if report.Findings[i].Code == "board-file-size-advisory" && report.Findings[i].File == "epochs/E99.md" {
+			advisory = &report.Findings[i]
+			break
+		}
+	}
+	if advisory == nil || advisory.Blocking || !strings.Contains(advisory.Detail, "configured board limits are authoritative") {
+		t.Fatalf("oversized epoch should have a nonblocking default-baseline advisory: %+v", report.Findings)
+	}
+	if report.ResumeSet != baseline.ResumeSet {
+		t.Fatalf("epoch advisory must not change the distinct resume context budget: got %+v, baseline %+v", report.ResumeSet, baseline.ResumeSet)
+	}
+}
+
 func TestSetHandoff(t *testing.T) {
 	queue := readFixture(t, "bas", QueueFile)
 	body := "- 2026-10-07T15:00Z: E26 accepted. Next: admit JX-2 as E27."
@@ -317,10 +356,14 @@ func TestDiminishingReturns(t *testing.T) {
 
 func TestDecidePark(t *testing.T) {
 	decision := []Item{{Text: "Retire Record mode? Options: keep, retire.", Line: 7}}
+	readyAndDecision := Queue{
+		NeedsOperator: decision,
+		Next:          []Item{{Text: "[ready] Independent slice", Ready: true, Line: 12}},
+	}
 	for _, tc := range []struct {
 		name      string
 		children  []string
-		needs     []Item
+		queue     Queue
 		requested time.Duration
 		allowed   bool
 		rule      string
@@ -328,13 +371,15 @@ func TestDecidePark(t *testing.T) {
 	}{
 		{name: "live child gets the backstop", children: []string{"worker"}, rule: ParkRuleLiveChild, allowed: true, timeout: time.Hour},
 		{name: "live child refuses a 12h park", children: []string{"worker"}, requested: 12 * time.Hour, rule: ParkRuleLiveChild},
-		{name: "a decision allows 72h", needs: decision, rule: ParkRuleNeedsOperator, allowed: true, timeout: 72 * time.Hour},
-		{name: "a shorter request is kept", needs: decision, requested: 2 * time.Hour, rule: ParkRuleNeedsOperator, allowed: true, timeout: 2 * time.Hour},
+		{name: "a decision allows 72h when no slice is ready", queue: Queue{NeedsOperator: decision}, rule: ParkRuleNeedsOperator, allowed: true, timeout: 72 * time.Hour},
+		{name: "a shorter wait is kept when no slice is ready", queue: Queue{NeedsOperator: decision}, requested: 2 * time.Hour, rule: ParkRuleNeedsOperator, allowed: true, timeout: 2 * time.Hour},
+		{name: "ready independent work takes precedence over an operator hold", queue: readyAndDecision, requested: 12 * time.Hour, rule: ParkRuleAdmissible},
+		{name: "live child backstop still applies with ready work and an operator hold", children: []string{"worker"}, queue: readyAndDecision, rule: ParkRuleLiveChild, allowed: true, timeout: time.Hour},
 		// DL-1 Gherkin: no live child and nothing under Needs operator.
 		{name: "neither refuses with the admissible-slice rule", requested: 12 * time.Hour, rule: ParkRuleAdmissible},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := DecidePark(tc.children, tc.needs, tc.requested)
+			got := DecidePark(tc.children, tc.queue, tc.requested)
 			if got.Allowed != tc.allowed || got.Rule != tc.rule || (tc.allowed && got.Timeout != tc.timeout) {
 				t.Fatalf("decision = %+v", got)
 			}

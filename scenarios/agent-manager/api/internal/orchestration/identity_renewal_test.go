@@ -32,7 +32,7 @@ func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing
 	var proofCalls int
 	var proofMu sync.Mutex
 	badProof := false
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, wcSession, harness string) (SessionBindingProof, error) {
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, harnessSession, wcSession, harness string) (SessionBindingProof, error) {
 		proofMu.Lock()
 		proofCalls++
 		wrongSession := badProof
@@ -42,7 +42,8 @@ func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing
 		}
 		return SessionBindingProof{
 			ProofVersion: sessionBindingProofVersion, RunID: runID.String(),
-			WebConsoleSessionID: wcSession, HarnessKind: harness, Binding: binding,
+			HarnessSessionID: harnessSession, WebConsoleSessionID: wcSession,
+			HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding,
 		}, nil
 	})
 	clockNow := now.Add(-48 * time.Hour)
@@ -170,11 +171,11 @@ func TestRenewedOwnerlessBaselineKeepsIndependentGrantOnlyCredential(t *testing.
 		t.Fatal(err)
 	}
 	failProof := false
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, wcSession, harness string) (SessionBindingProof, error) {
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, harnessSession, wcSession, harness string) (SessionBindingProof, error) {
 		if failProof {
 			return SessionBindingProof{}, context.DeadlineExceeded
 		}
-		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runID.String(), WebConsoleSessionID: wcSession, HarnessKind: harness, Binding: binding}, nil
+		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runID.String(), HarnessSessionID: harnessSession, WebConsoleSessionID: wcSession, HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding}, nil
 	})
 	o := New(nil, nil, repos.Runs,
 		WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
@@ -247,8 +248,8 @@ func TestRenewalRefusesRevokedOrTerminalAttachedRoot(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, wcSession, harness string) (SessionBindingProof, error) {
-				return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runID.String(), WebConsoleSessionID: wcSession, HarnessKind: harness, Binding: binding}, nil
+			proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, harnessSession, wcSession, harness string) (SessionBindingProof, error) {
+				return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runID.String(), HarnessSessionID: harnessSession, WebConsoleSessionID: wcSession, HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding}, nil
 			})
 			o := New(nil, nil, repos.Runs,
 				WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),

@@ -193,46 +193,49 @@ type DiffSummary struct {
 	Available Availability `json:"available"`
 }
 type RunReport struct {
-	RunID                  uuid.UUID                    `json:"runId"`
-	Status                 domain.RunStatus             `json:"status"`
-	ExitCode               *int                         `json:"exitCode,omitempty"`
-	Error                  string                       `json:"error,omitempty"`
-	Duration               time.Duration                `json:"duration,omitempty"`
-	HeartbeatGap           time.Duration                `json:"heartbeatGap,omitempty"`
-	Turns                  int                          `json:"turns"`
-	Tokens                 int                          `json:"tokens"`
-	CostUSD                float64                      `json:"costUsd"`
-	CostSource             string                       `json:"costSource,omitempty"`
-	ChargeReason           string                       `json:"chargeReason,omitempty"`
-	Result                 ResultSummary                `json:"result"`
-	Events                 map[string]int               `json:"events"`
-	Tools                  []ToolSummary                `json:"tools"`
-	ProjectOwnedToolCalls  int                          `json:"projectOwnedToolCalls"`
-	ExternalToolCalls      int                          `json:"externalToolCalls"`
-	RequestedModel         string                       `json:"requestedModel,omitempty"`
-	ActualModel            string                       `json:"actualModel,omitempty"`
-	FallbackCount          int                          `json:"fallbackCount"`
-	Diff                   DiffSummary                  `json:"diff"`
-	EventsAvailability     Availability                 `json:"eventsAvailability"`
-	ReceiptsAvailability   Availability                 `json:"receiptsAvailability"`
-	LedgerAvailability     Availability                 `json:"ledgerAvailability"`
-	ProjectionAvailability Availability                 `json:"projectionAvailability"`
-	ReceiptCount           int                          `json:"receiptCount"`
-	ReceiptEvidenceIDs     []string                     `json:"receiptEvidenceIds,omitempty"`
-	CrossScenarioCalls     []CrossScenarioCall          `json:"crossScenarioCalls,omitempty"`
-	LedgerTargetRollups    []LedgerTargetRollup         `json:"ledgerTargetRollups,omitempty"`
-	RepeatedToolCalls      int                          `json:"repeatedToolCalls"`
-	FilesReadMoreThanOnce  int                          `json:"filesReadMoreThanOnce"`
-	LongestEventGap        time.Duration                `json:"longestEventGap"`
-	InvocationFacts        []runsignal.InvocationFact   `json:"-"`
-	Episodes               []runsignal.FrictionEpisode  `json:"episodes,omitempty"`
-	SelfReportSpans        []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
-	HelpRecoveries         int                          `json:"helpRecoveries"`
-	UnknownInvocations     int                          `json:"unknownInvocations"`
-	TimeAccounting         runsignal.TimeAccounting     `json:"timeAccounting"`
-	Goal                   GoalProgress                 `json:"goal"`
-	InvocationValidity     EvidenceValidity             `json:"invocationValidity"`
-	WorkReferences         []*eventdomain.WorkReference `json:"workReferences,omitempty"`
+	RunID                   uuid.UUID                    `json:"runId"`
+	Status                  domain.RunStatus             `json:"status"`
+	ExitCode                *int                         `json:"exitCode,omitempty"`
+	Error                   string                       `json:"error,omitempty"`
+	Duration                time.Duration                `json:"duration,omitempty"`
+	HeartbeatGap            time.Duration                `json:"heartbeatGap,omitempty"`
+	Turns                   int                          `json:"turns"`
+	Tokens                  int64                        `json:"tokens"`
+	CostUSD                 float64                      `json:"costUsd"`
+	CostSource              string                       `json:"costSource,omitempty"`
+	ChargeReason            string                       `json:"chargeReason,omitempty"`
+	Result                  ResultSummary                `json:"result"`
+	Events                  map[string]int               `json:"events"`
+	ExecutionErrorEvents    int                          `json:"executionErrorEvents"`
+	RateLimitObservations   int                          `json:"rateLimitObservations"`
+	UnclassifiedErrorEvents int                          `json:"unclassifiedErrorEvents"`
+	Tools                   []ToolSummary                `json:"tools"`
+	ProjectOwnedToolCalls   int                          `json:"projectOwnedToolCalls"`
+	ExternalToolCalls       int                          `json:"externalToolCalls"`
+	RequestedModel          string                       `json:"requestedModel,omitempty"`
+	ActualModel             string                       `json:"actualModel,omitempty"`
+	FallbackCount           int                          `json:"fallbackCount"`
+	Diff                    DiffSummary                  `json:"diff"`
+	EventsAvailability      Availability                 `json:"eventsAvailability"`
+	ReceiptsAvailability    Availability                 `json:"receiptsAvailability"`
+	LedgerAvailability      Availability                 `json:"ledgerAvailability"`
+	ProjectionAvailability  Availability                 `json:"projectionAvailability"`
+	ReceiptCount            int                          `json:"receiptCount"`
+	ReceiptEvidenceIDs      []string                     `json:"receiptEvidenceIds,omitempty"`
+	CrossScenarioCalls      []CrossScenarioCall          `json:"crossScenarioCalls,omitempty"`
+	LedgerTargetRollups     []LedgerTargetRollup         `json:"ledgerTargetRollups,omitempty"`
+	RepeatedToolCalls       int                          `json:"repeatedToolCalls"`
+	FilesReadMoreThanOnce   int                          `json:"filesReadMoreThanOnce"`
+	LongestEventGap         time.Duration                `json:"longestEventGap"`
+	InvocationFacts         []runsignal.InvocationFact   `json:"-"`
+	Episodes                []runsignal.FrictionEpisode  `json:"episodes,omitempty"`
+	SelfReportSpans         []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
+	HelpRecoveries          int                          `json:"helpRecoveries"`
+	UnknownInvocations      int                          `json:"unknownInvocations"`
+	TimeAccounting          runsignal.TimeAccounting     `json:"timeAccounting"`
+	Goal                    GoalProgress                 `json:"goal"`
+	InvocationValidity      EvidenceValidity             `json:"invocationValidity"`
+	WorkReferences          []*eventdomain.WorkReference `json:"workReferences,omitempty"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -283,13 +286,13 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 				// Reconciliation authority resolves interim snapshots and removes
 				// replayed cumulative snapshots using the canonical invocation
 				// projection, while still adding distinct invocations.
-				r.Tokens = int(tokens)
+				r.Tokens = tokens
 			case run.Summary != nil && run.Summary.TokensUsed > 0:
 				// An interim-only or unknown projection must not replace a known
 				// whole-run summary with a smaller partial event total.
 				r.Tokens = run.Summary.TokensUsed
 			default:
-				r.Tokens = int(tokens)
+				r.Tokens = tokens
 			}
 		}
 		r.TimeAccounting = runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt)
@@ -317,6 +320,9 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 			r.InvocationFacts = runsignal.DeriveInvocationFacts(events)
 		}
 		for _, fact := range r.InvocationFacts {
+			if fact.RetryOfCallEventID != "" {
+				r.RepeatedToolCalls++
+			}
 			if fact.HelpRecovery {
 				r.HelpRecoveries++
 			}
@@ -606,7 +612,6 @@ func raiseEpisodeSeverityForRepeatedRules(episodes []runsignal.FrictionEpisode, 
 
 func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 	tools := map[string]*ToolSummary{}
-	toolCalls := map[string]int{}
 	fileReads := map[string]int{}
 	callNames := map[string]string{}
 	costSeen := false
@@ -622,10 +627,6 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 			if call, ok := event.Data.(*domain.ToolCallEventData); ok {
 				if call.ToolCallID != "" {
 					callNames[call.ToolCallID] = call.ToolName
-				}
-				toolCalls[call.ToolName]++
-				if toolCalls[call.ToolName] > 1 {
-					r.RepeatedToolCalls++
 				}
 				if path := runsignal.ReadPath(call); path != "" {
 					fileReads[path]++
@@ -653,6 +654,16 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 
 func (r *RunReport) foldEvent(event *domain.RunEvent, tools map[string]*ToolSummary, costSeen bool) bool {
 	r.Events[string(event.EventType)]++
+	if event.EventType == domain.EventTypeError {
+		switch event.Data.(type) {
+		case *domain.ErrorEventData:
+			r.ExecutionErrorEvents++
+		case *domain.RateLimitEventData:
+			r.RateLimitObservations++
+		default:
+			r.UnclassifiedErrorEvents++
+		}
+	}
 	if event.EventType == domain.EventTypeModelFallbackAttempted {
 		r.FallbackCount++
 	}
@@ -662,7 +673,7 @@ func (r *RunReport) foldEvent(event *domain.RunEvent, tools map[string]*ToolSumm
 			r.CostUSD, r.Tokens = 0, 0
 			costSeen = true
 		}
-		r.Tokens += data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens
+		r.Tokens += int64(data.InputTokens) + int64(data.OutputTokens) + int64(data.CacheReadTokens) + int64(data.CacheCreationTokens)
 	case *domain.ChargeEventData:
 		if data.AmountMicroUSD != nil {
 			r.CostUSD += float64(*data.AmountMicroUSD) / 1_000_000
@@ -742,7 +753,7 @@ func Text(r *RunReport) string {
 	}
 	fmt.Fprintf(&b, "Model: requested=%s actual=%s fallbacks=%d\n", unavailable(r.RequestedModel), unavailable(r.ActualModel), r.FallbackCount)
 	fmt.Fprintf(&b, "Tools: project-owned=%d external=%d\n", r.ProjectOwnedToolCalls, r.ExternalToolCalls)
-	fmt.Fprintf(&b, "Efficiency: repeated tool calls=%d files reread=%d longest event gap=%s\n", r.RepeatedToolCalls, r.FilesReadMoreThanOnce, r.LongestEventGap.Round(0))
+	fmt.Fprintf(&b, "Efficiency: recognized command retries=%d files reread=%d longest event gap=%s\n", r.RepeatedToolCalls, r.FilesReadMoreThanOnce, r.LongestEventGap.Round(0))
 	for _, tool := range r.Tools {
 		fmt.Fprintf(&b, "  %s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
 	}
@@ -756,6 +767,11 @@ func Text(r *RunReport) string {
 		fmt.Fprintf(&b, " %s=%d", key, r.Events[key])
 	}
 	b.WriteByte('\n')
+	if r.EventsAvailability.State == AvailabilityAvailable || r.EventsAvailability.State == AvailabilityEmpty {
+		fmt.Fprintf(&b, "Error event breakdown: typed_execution_errors=%d rate_limit_observations=%d unclassified=%d\n", r.ExecutionErrorEvents, r.RateLimitObservations, r.UnclassifiedErrorEvents)
+	} else {
+		fmt.Fprintf(&b, "Error event breakdown: unavailable (%s)\n", r.EventsAvailability.State)
+	}
 	fmt.Fprintf(&b, "Diff: files=%d bytes=%d (%s)\n", r.Diff.Files, r.Diff.Bytes, r.Diff.Available.State)
 	fmt.Fprintf(&b, "Receipts: %s (%d)\n", r.ReceiptsAvailability.State, r.ReceiptCount)
 	fmt.Fprintf(&b, "Next: agent-manager run result %s; agent-manager run events %s; agent-manager run tools %s --failed; agent-manager run diff %s; agent-manager run receipts %s\n", r.RunID, r.RunID, r.RunID, r.RunID, r.RunID)

@@ -106,6 +106,7 @@ func TestAuth01IndependentDelegationEffectsAndExactParentAdmission(t *testing.T)
 			o.config.MaxConcurrentRuns = 0
 			o.config.DefaultProjectRoot = root
 			newCurrentModelPolicyFixtureOption(t)(o)
+			req.Prompt = "Perform the admitted child work."
 			role := "code.default"
 			req.RoleRef = &role
 			effort := domain.EffortMedium

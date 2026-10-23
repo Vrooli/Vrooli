@@ -2,6 +2,8 @@ package workflowcatalog
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -36,8 +38,10 @@ func TestWorkflowRevisionPinsSandboxAuthority(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := authored["nodes"].([]any)[0].(map[string]any)["run"].(map[string]any)
-	policy := map[string]any{"mode": "protected", "networkMode": "none", "manualReview": true,
-		"autoApply": false, "applyOnFailure": false, "writePolicy": map[string]any{"paths": []string{"src"}}}
+	policy := map[string]any{
+		"mode": "protected", "networkMode": "none", "manualReview": true,
+		"autoApply": false, "applyOnFailure": false, "writePolicy": map[string]any{"paths": []string{"src"}},
+	}
 	run["sandboxConfig"] = policy
 	parse := func() *Result {
 		t.Helper()
@@ -259,6 +263,64 @@ func TestValidateScopePathTemplate(t *testing.T) {
 				t.Fatalf("missing %s diagnostic: %+v", tt.want, result.Diagnostics)
 			}
 		})
+	}
+}
+
+func TestValidateProjectRootRequiresDeclaredImmutableInput(t *testing.T) {
+	for _, test := range []struct {
+		name, template string
+		source         domain.WorkflowBindingSource
+		want           string
+	}{
+		{"declared input", "{{.input.checkout}}", domain.WorkflowBindingInput, ""},
+		{"missing binding", "{{.missing}}", domain.WorkflowBindingInput, "scope_path_unbound"},
+		{"worker output", "{{.input.checkout}}", domain.WorkflowBindingStructured, "project_root_binding"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			d := validDefinition()
+			d.Nodes[0].Run.ProjectRootTemplate = test.template
+			d.Nodes[0].Run.Bindings[0].Source = test.source
+			r, err := Validate(d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.want == "" && domain.HasBlockingDiagnostic(r.Diagnostics) {
+				t.Fatalf("input rejected: %+v", r.Diagnostics)
+			}
+			if test.want != "" && !hasCode(r.Diagnostics, test.want) {
+				t.Fatalf("missing %s: %+v", test.want, r.Diagnostics)
+			}
+		})
+	}
+}
+
+func TestGitControlTowerStagedMessageDeclarationValidatesResolvedPrompt(t *testing.T) {
+	consumer := filepath.Join("..", "..", "..", "..", "git-control-tower")
+	raw, err := os.ReadFile(filepath.Join(consumer, ".vrooli", "agent-manager", "staged-message.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var definition domain.WorkflowDefinition
+	if err = json.Unmarshal(raw, &definition); err != nil {
+		t.Fatal(err)
+	}
+	prompt, err := os.ReadFile(filepath.Join(consumer, "skills", "git-control-tower-staged-message", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition.Nodes[0].Run.PromptRef = nil
+	definition.Nodes[0].Run.PromptTemplate = string(prompt)
+	parsed, err := Validate(definition, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if domain.HasBlockingDiagnostic(parsed.Diagnostics) || parsed.Digest == "" {
+		t.Fatalf("consumer definition cannot reconcile: %+v", parsed.Diagnostics)
+	}
+	for _, diagnostic := range parsed.Diagnostics {
+		if diagnostic.Code == "prompt_unused_binding" {
+			t.Fatalf("unused input boundary: %+v", diagnostic)
+		}
 	}
 }
 

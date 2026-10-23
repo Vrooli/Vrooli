@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
-import { useCodeCopy } from "../hooks/useCodeCopy";
+import { useClipboardFeedback } from "../../../hooks/useClipboardFeedback";
 import { detectLanguage, normalizeLanguage } from "../utils/languageDetection";
 
 interface CodeBlockProps {
@@ -56,7 +56,7 @@ export const CodeBlock = memo(function CodeBlock({
   const safeCode = typeof code === "string" ? code : (code ? String(code) : "");
 
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
-  const { status, copyCode } = useCodeCopy(safeCode);
+  const { status, copyText } = useClipboardFeedback();
 
   const extractedLang = className?.replace(/^language-/, "") || language;
   const normalizedLang = extractedLang
@@ -103,7 +103,7 @@ export const CodeBlock = memo(function CodeBlock({
           {displayLang}
         </span>
         <button
-          onClick={copyCode}
+          onClick={() => { void copyText(safeCode); }}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           aria-label={status === "copied" ? "Copied" : "Copy code"}
         >

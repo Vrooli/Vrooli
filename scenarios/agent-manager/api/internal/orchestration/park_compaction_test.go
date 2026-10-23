@@ -12,6 +12,8 @@ import (
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
+
+	"github.com/google/uuid"
 )
 
 // compactingRunner is a Codex runner that records out-of-band compactions.
@@ -28,6 +30,8 @@ func (r *compactingRunner) CompactSession(_ context.Context, req runner.CompactS
 	}
 	return &runner.CompactSessionResult{Compacted: true, ContextTokens: 120_000}, nil
 }
+
+func (*compactingRunner) PID(uuid.UUID) int { return 0 }
 
 type compactionFixture struct {
 	svc       *orchestration.Orchestrator
@@ -119,16 +123,21 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 
 func TestParkCompaction_CompactsARunThatStaysParked(t *testing.T) {
 	f := newCompactionFixture(t, 100*time.Millisecond)
-	var got runner.CompactSessionRequest
+	got := make(chan runner.CompactSessionRequest, 1)
 	f.runner.compact = func(req runner.CompactSessionRequest) (*runner.CompactSessionResult, error) {
-		got = req
+		got <- req
 		return &runner.CompactSessionResult{Compacted: true, ContextTokens: 120_000}, nil
 	}
 	run := f.parkCodexRun(t, domain.ExecutionModeCodecPipe)
 
-	waitFor(t, "the parked session to be compacted", func() bool { return f.runner.calls.Load() == 1 })
-	if got.SessionID != run.SessionID || got.MinContextTokens != 40_000 || got.Env["CODEX_HOME"] == "" {
-		t.Fatalf("compaction request = %+v, want the run's session, threshold and run-scoped CODEX_HOME", got)
+	var request runner.CompactSessionRequest
+	select {
+	case request = <-got:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for the parked session to be compacted")
+	}
+	if request.SessionID != run.SessionID || request.MinContextTokens != 40_000 || request.Env["CODEX_HOME"] == "" {
+		t.Fatalf("compaction request = %+v, want the run's session, threshold and run-scoped CODEX_HOME", request)
 	}
 }
 

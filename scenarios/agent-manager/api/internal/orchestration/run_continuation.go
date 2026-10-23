@@ -31,6 +31,64 @@ func continuationRequestHash(req ContinueRunRequest) []byte {
 	return sum[:]
 }
 
+const codexUsageBaselineTail = 512
+
+// continuationCodexUsageBaseline returns only the latest retained terminal
+// Codex snapshot in this run's bounded metric tail. A missing/legacy receipt
+// yields an unseeded baseline; it must never be reconstructed from deltas.
+func (o *Orchestrator) continuationCodexUsageBaseline(ctx context.Context, runID uuid.UUID, sessionID string) (*runner.CodexUsageBaseline, error) {
+	baseline := &runner.CodexUsageBaseline{SessionID: strings.TrimSpace(sessionID)}
+	if o.events == nil || baseline.SessionID == "" {
+		return baseline, nil
+	}
+	opts := event.GetOptions{EventTypes: []domain.RunEventType{domain.EventTypeMetric}}
+	summary, err := o.events.Summarize(ctx, runID, opts)
+	if err != nil {
+		return nil, err
+	}
+	if summary == nil {
+		return baseline, nil
+	}
+	count := summary.Counts[string(domain.EventTypeMetric)]
+	if count <= 0 {
+		return baseline, nil
+	}
+	offset := int64(0)
+	if count > codexUsageBaselineTail {
+		offset = count - codexUsageBaselineTail
+	}
+	if offset > int64(int(^uint(0)>>1)) {
+		return baseline, nil
+	}
+	rows, err := o.events.Get(ctx, runID, event.GetOptions{
+		EventTypes: []domain.RunEventType{domain.EventTypeMetric},
+		Limit:      codexUsageBaselineTail,
+		Offset:     int(offset),
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := len(rows) - 1; i >= 0; i-- {
+		usage, ok := rows[i].Data.(*domain.UsageEventData)
+		if !ok || !usage.ReconciliationAuthority {
+			continue
+		}
+		if usage.RunnerType != "" && usage.RunnerType != string(domain.RunnerTypeCodex) {
+			return baseline, nil
+		}
+		// Do not skip a newer receipt without a compatible raw snapshot and
+		// fall back to an older counter: that older value may be stale.
+		snapshot := usage.CodexUsageSnapshot
+		if snapshot == nil || strings.TrimSpace(snapshot.SessionID) != baseline.SessionID || snapshot.InputTokens < 0 || snapshot.CachedInputTokens < 0 || snapshot.OutputTokens < 0 || snapshot.CachedInputTokens > snapshot.InputTokens {
+			return baseline, nil
+		}
+		copy := *snapshot
+		baseline.Snapshot = &copy
+		return baseline, nil
+	}
+	return baseline, nil
+}
+
 func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (_ *domain.Run, returnErr error) {
 	effectsPossible := false
 	defer func() {
@@ -264,6 +322,19 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 			return true, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
 		}
 	}
+	// Persist the new invocation boundary before the prompt can reach the live
+	// session. Recovery may run after transport accepted the prompt but before
+	// Codex has written a corresponding user-turn row; without this fence, an
+	// older retained goal terminal could incorrectly complete the run.
+	startedAt := o.now()
+	updated, err := o.runs.BeginInteractiveInvocation(ctx, run, domain.RunStatusRunning, run.InteractiveInvocationStartedAt, startedAt)
+	if err != nil || !updated {
+		o.markContinuationIdempotencyFailed(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("persist interactive continuation boundary before prompt delivery: %w", err)
+		}
+		return false, domain.NewStateError("Run", "owner_changed", "continue", "the exact running interactive owner changed before prompt delivery")
+	}
 	text := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(req.Message, "\r\n", " "), "\n", " "))
 	// Web Console's SendText forwards LF literally to the PTY. Codex's TUI
 	// requires a named Enter key after a paste; otherwise the directive remains
@@ -386,9 +457,31 @@ func (o *Orchestrator) validateContinuationSession(ctx context.Context, run *dom
 
 func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string, overrides continuationOverrides) (_ *domain.Run, returnErr error) {
 	effectsPossible := false
+	statusCommitted := false
+	handoffStarted := false
 	defer func() {
 		if !effectsPossible {
 			returnErr = domain.RefuseBeforeEffects(returnErr)
+		}
+	}()
+	defer func() {
+		if !statusCommitted || handoffStarted || returnErr == nil {
+			return
+		}
+		// A post-commit setup failure must not leave a parked run looking active
+		// after its check-in cursor has been delivered. Record the failed
+		// continuation admission as a terminal run instead of inviting replay.
+		phases.RevokeIdentityToken(run)
+		endedAt := o.now()
+		_, finalizeErr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+			Run: run, NewStatus: domain.RunStatusFailed, Phase: domain.RunPhaseCompleted,
+			Reason: "Continuation could not be prepared for dispatch", EndedAt: &endedAt,
+			ErrorMsg: returnErr.Error(),
+		})
+		if finalizeErr != nil {
+			obs.Component("continuation").Error("failed to finalize continuation admission error",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, finalizeErr.Error())
+			returnErr = errors.Join(returnErr, finalizeErr)
 		}
 	}()
 	// The immutable resolved config is the sole execution authority.
@@ -447,6 +540,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	}
 
 	now := o.now()
+	var statusPublicationErr error
 	run, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:           run,
 		NewStatus:     domain.RunStatusRunning,
@@ -455,7 +549,19 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 		LastHeartbeat: &now,
 	})
 	if err != nil {
-		return nil, err
+		if run == nil {
+			return nil, err
+		}
+		statusCommitted = true
+		obs.Component("continuation").Error("continuation status committed but event publication failed; proceeding with the retained run",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		statusPublicationErr = err
+		// Continue below: the run-row transition and any signal receipt are
+		// already committed, so start the continuation once and surface the
+		// publication failure without making the retained run look parked.
+		err = nil
+	} else {
+		statusCommitted = true
 	}
 
 	// Emit user message event (with attachment metadata if present, resolved later)
@@ -569,8 +675,9 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 
 	// Execute continuation asynchronously
 	go o.executeContinuation(context.WithoutCancel(ctx), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript)
+	handoffStarted = true
 
-	return o.attachRunActions(ctx, run), nil
+	return o.attachRunActions(ctx, run), statusPublicationErr
 }
 
 // assembleContinuationEnv regenerates the run's identity token and builds the
@@ -967,6 +1074,17 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		Transcript:     transcript,
 		ResolvedConfig: run.ResolvedConfig,
 		SandboxID:      run.SandboxID,
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex {
+		baseline, baselineErr := o.continuationCodexUsageBaseline(execCtx, run.ID, run.SessionID)
+		if baselineErr != nil {
+			// Accounting enrichment must not block an otherwise valid continuation.
+			// The codec marks cumulative usage unknown when this read fails.
+			obs.Component("continuation").Warn("failed to resolve Codex usage baseline",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, baselineErr.Error())
+			baseline = &runner.CodexUsageBaseline{SessionID: run.SessionID}
+		}
+		continueReq.CodexUsageBaseline = baseline
 	}
 
 	// Rebuild owner policy from persisted authority on every fresh process;

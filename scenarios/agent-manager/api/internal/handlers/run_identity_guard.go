@@ -75,6 +75,10 @@ func LifecycleRefusalCount(operation string) uint64 {
 // Operator requests carry no run identity token and continue unchanged.
 // A presented but unverified credential is refused, never treated as absence.
 func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *http.Request, operation string) bool {
+	return h.denyRunInitiatedLifecycleOperationWithGuidance(w, r, operation, "")
+}
+
+func (h *Handler) denyRunInitiatedLifecycleOperationWithGuidance(w http.ResponseWriter, r *http.Request, operation, guidance string) bool {
 	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
 	if token == "" {
 		return false
@@ -113,8 +117,12 @@ func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *h
 	}
 	log.Printf("agent-manager lifecycle refusal caller=%s run_id=%s operation=%s", r.RemoteAddr, claims.RunID, operation)
 
+	message := "run identity cannot perform lifecycle operation"
+	if operation == "create-run" && strings.TrimSpace(guidance) != "" {
+		message += ": " + strings.TrimSpace(guidance)
+	}
 	writeJSON(w, http.StatusForbidden, map[string]any{
-		"error":           "run identity cannot perform lifecycle operation",
+		"error":           message,
 		"operation":       operation,
 		"run_id":          claims.RunID.String(),
 		"run_status":      string(verified.RunStatus),
@@ -194,24 +202,64 @@ func (h *Handler) lineageLifecycleAllowed(r *http.Request, target uuid.UUID, all
 	return h.effortLineageAllowed(r, caller, targetRun)
 }
 
-// orchestratorTaskCreateAllowed admits task creation from a run identity only
-// for a running run whose profile declares OrchestrateScope. A task is an inert
-// record; the child run it is for still passes run-creation admission.
-func (h *Handler) orchestratorTaskCreateAllowed(r *http.Request) bool {
+// orchestratorTaskCaller returns the verified, running profile orchestrator
+// whose identity is carried by the request. Task writes use this as their
+// existing same-run owner proof; it does not grant global task management.
+func (h *Handler) orchestratorTaskCaller(r *http.Request) *domain.Run {
+	caller, allowed := h.taskCreateCaller(r)
+	if !allowed {
+		return nil
+	}
+	return caller
+}
+
+// taskCreateCaller returns a verified active run caller when one is present,
+// along with whether its profile has intrinsic orchestration authority. The
+// caller run is safe attribution for an agent-created task even when creation
+// itself is admitted by an explicit run.create grant.
+func (h *Handler) taskCreateCaller(r *http.Request) (*domain.Run, bool) {
 	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
-	if token == "" || h.svc.IdentityService == nil || h.svc.RunService == nil || h.svc.ProfileService == nil {
-		return false
+	if token == "" || h.svc.IdentityService == nil || h.svc.RunService == nil {
+		return nil, false
 	}
 	verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
 	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
-		return false
+		return nil, false
 	}
 	caller, err := h.svc.GetRun(r.Context(), verified.Claims.RunID)
-	if err != nil || caller == nil || caller.Status != domain.RunStatusRunning || caller.AgentProfileID == nil {
-		return false
+	if err != nil || caller == nil || caller.Status != domain.RunStatusRunning {
+		return nil, false
+	}
+	if caller.AgentProfileID == nil || h.svc.ProfileService == nil {
+		return caller, false
 	}
 	profile, err := h.svc.GetProfile(r.Context(), *caller.AgentProfileID)
-	return err == nil && profile != nil && slices.Contains(profile.DeclaredScopes, OrchestrateScope)
+	if err != nil || profile == nil || !slices.Contains(profile.DeclaredScopes, OrchestrateScope) {
+		return caller, false
+	}
+	return caller, true
+}
+
+// orchestratorTaskCreateAllowed admits task creation from a running profile
+// orchestrator. A task is an inert record; the child run it is for still passes
+// run-creation admission.
+func (h *Handler) orchestratorTaskCreateAllowed(r *http.Request) bool {
+	return h.orchestratorTaskCaller(r) != nil
+}
+
+// orchestratorTaskUpdateTarget limits the intrinsic task-write path to the
+// exact queued, undispatched task created by this running profile orchestrator.
+func (h *Handler) orchestratorTaskUpdateTarget(r *http.Request, taskID uuid.UUID) (*domain.Task, bool) {
+	caller := h.orchestratorTaskCaller(r)
+	if caller == nil {
+		return nil, false
+	}
+	task, err := h.svc.GetTask(r.Context(), taskID)
+	if err != nil || task == nil || task.CreatedBy != caller.ID.String() ||
+		task.Status != domain.TaskStatusQueued || task.CurrentRunID != nil {
+		return nil, false
+	}
+	return task, true
 }
 
 // effortLineageAllowed is the effort-level rule of lineageLifecycleAllowed.

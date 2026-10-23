@@ -27,7 +27,9 @@ func dependentExecutionPermissionsError(parent, child *domain.RunConfig) error {
 	case child.SkipPermissionPrompt && !parent.SkipPermissionPrompt:
 		field = "skipPermissionPrompt"
 	case !parent.ToolRestrictionPolicy.IsValid() || !child.ToolRestrictionPolicy.IsValid() ||
-		(parent.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyEnforced && child.ToolRestrictionPolicy.Effective() != domain.ToolRestrictionPolicyEnforced) ||
+		(parent.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyEnforced &&
+			(len(parent.AllowedTools) > 0 || len(parent.DeniedTools) > 0) &&
+			child.ToolRestrictionPolicy.Effective() != domain.ToolRestrictionPolicyEnforced) ||
 		!delegatedAllowListWithin(parent.AllowedTools, child.AllowedTools) || !delegatedSetContains(child.DeniedTools, parent.DeniedTools):
 		field = "tools"
 	case !delegatedAllowListWithin(parent.AllowedPaths, child.AllowedPaths) || !delegatedSetContains(child.DeniedPaths, parent.DeniedPaths):

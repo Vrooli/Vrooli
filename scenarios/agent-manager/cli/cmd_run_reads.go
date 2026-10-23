@@ -348,7 +348,7 @@ func (a *App) runEvents(args []string) error {
 	follow := fs.Bool("follow", false, "Stream events in real-time (WebSocket)")
 	limit := fs.Int("limit", 0, "Maximum number of events to return")
 	afterSequence := fs.Int64("after-sequence", -1, "Only return events with sequence greater than this value")
-	stats := fs.Bool("stats", false, "Show an event-type summary instead of event payloads")
+	stats := fs.Bool("stats", false, "Show retained event counts for the selected page (limit/after-sequence apply)")
 	failed := fs.Bool("failed", false, "Only show failed tool-result events")
 
 	// Parse with positional ID first
@@ -365,7 +365,6 @@ func (a *App) runEvents(args []string) error {
 	if id == "" {
 		return fmt.Errorf("usage: agent-manager run events <id> [--follow] [--stats] [--failed] [--after-sequence N] [--limit N]")
 	}
-
 	if *follow {
 		return a.streamEvents(id)
 	}
@@ -373,6 +372,37 @@ func (a *App) runEvents(args []string) error {
 	var after *int64
 	if *afterSequence >= 0 {
 		after = afterSequence
+	}
+	if *stats {
+		response, err := a.services.Runs.GetEventSummary(id, *limit, after)
+		if err != nil {
+			return err
+		}
+		if *jsonOutput {
+			body, err := protoMarshalOptions.Marshal(response)
+			if err != nil {
+				return err
+			}
+			cliutil.PrintJSON(body)
+			return nil
+		}
+		summary := response.GetSummary()
+		if len(summary.GetCounts()) == 0 {
+			fmt.Println("No events found")
+			return nil
+		}
+		keys := make([]string, 0, len(summary.GetCounts()))
+		for key := range summary.GetCounts() {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		fmt.Print("Retained rows in selected page: ")
+		for _, key := range keys {
+			fmt.Printf("%s=%d ", key, summary.GetCounts()[key])
+		}
+		fmt.Println()
+		support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id))
+		return nil
 	}
 	body, events, err := a.services.Runs.GetEvents(id, *limit, after)
 	if err != nil {
@@ -391,23 +421,6 @@ func (a *App) runEvents(args []string) error {
 
 	if len(events) == 0 {
 		fmt.Println("No events found")
-		return nil
-	}
-	if *stats {
-		counts := map[string]int{}
-		for _, event := range events {
-			counts[formatEnumValue(event.EventType, "RUN_EVENT_TYPE_", "_")]++
-		}
-		keys := make([]string, 0, len(counts))
-		for key := range counts {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			fmt.Printf("%s=%d ", key, counts[key])
-		}
-		fmt.Println()
-		support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id))
 		return nil
 	}
 

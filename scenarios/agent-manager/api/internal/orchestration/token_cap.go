@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 
@@ -237,11 +236,15 @@ func (o *Orchestrator) checkTokenCap(runID uuid.UUID, state *tokenCapRun) {
 		if limit <= 0 {
 			return
 		}
-		exact, err := o.weightedRunTokens(ctx, run, policy)
+		observed, err := o.weightedRunTokens(ctx, run, policy)
 		if err != nil {
 			obs.Component("token-cap").Warn("token cap recount failed", obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
 			return
 		}
+		if observed == nil {
+			return
+		}
+		exact := *observed
 		state.mu.Lock()
 		// Keep usage observed during the recount; replace only the counted part.
 		arrived := state.estimate - before
@@ -287,13 +290,19 @@ func (o *Orchestrator) tokenCapFor(ctx context.Context, run *domain.Run, policy 
 
 // weightedRunTokens recounts a run's weighted non-cache tokens with the same
 // projection as RunAccounting, so the cap and `run tokens` never disagree.
-func (o *Orchestrator) weightedRunTokens(ctx context.Context, run *domain.Run, policy TokenCapPolicy) (float64, error) {
-	events, err := o.allRunEvents(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric}})
+func (o *Orchestrator) weightedRunTokens(ctx context.Context, run *domain.Run, policy TokenCapPolicy) (*float64, error) {
+	events, err := o.meteredRunEvents(ctx, run.ID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	accounting := withTokenComponents(RunAccounting{}, run, events, o.now())
-	return float64(accounting.NonCacheTokens) * policy.weight(accounting.Model), nil
+	for _, event := range events {
+		if _, ok := event.Data.(*domain.UsageEventData); ok {
+			accounting := withTokenComponents(RunAccounting{}, run, events, o.now())
+			weighted := float64(accounting.NonCacheTokens) * policy.weight(accounting.Model)
+			return &weighted, nil
+		}
+	}
+	return nil, nil
 }
 
 // recordTokenCapNudge records the nudge on the run timeline. With
@@ -385,8 +394,8 @@ func (o *Orchestrator) WeightedRunTokens(ctx context.Context, runID uuid.UUID) (
 }
 
 // TokenCapUsage reads an active run's weighted usage recounted from persisted
-// usage events (nil when unreadable), its resolved cap (0 for none) and the
-// cap mode.
+// usage events (nil before any receipt or when unreadable), its resolved cap
+// (0 for none), and the cap mode.
 func (o *Orchestrator) TokenCapUsage(ctx context.Context, runID uuid.UUID) (*float64, int64, string) {
 	policy := o.capPolicy()
 	run, err := o.runs.Get(ctx, runID)
@@ -398,5 +407,5 @@ func (o *Orchestrator) TokenCapUsage(ctx context.Context, runID uuid.UUID) (*flo
 	if err != nil {
 		return nil, limit, string(policy.Mode)
 	}
-	return &weighted, limit, string(policy.Mode)
+	return weighted, limit, string(policy.Mode)
 }

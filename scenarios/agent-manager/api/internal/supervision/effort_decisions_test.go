@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -58,6 +59,9 @@ func decisionFixture(t *testing.T) (*EffortService, *recordingPublisher, string,
 	t.Helper()
 	s, _, c := effortFixture(t)
 	e := enrollmentFixture(t, s, c, "running")
+	ownerRunID := uuid.MustParse(e.Subjects[0].GetRunId())
+	c.runs[ownerRunID].WorkReferences = []*eventpb.WorkReference{effortReference(e.EffortRef, "orchestrator")}
+	s.SetEffortSignalCursorStore(memoryEffortSignalCursorStore{runs: c.runs})
 	e.DestinationRef = "path:" + decisionHome + "/GOAL.md"
 	if _, err := s.ReconcileMetadata(context.Background(), &pb.ReconcileEffortMetadataRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: "goal-home"}, EffortActor{ID: "owner", Operator: true}); err != nil {
 		t.Fatal(err)

@@ -34,6 +34,21 @@ type StandingGrantUsageReader interface {
 	StandingGrantUsage(ctx context.Context, owner string) (authn.StandingGrantUsage, error)
 }
 
+// ServiceAdmissionCountedRun is the minimal identity/status evidence returned by
+// the fixed, authorized admission diagnostic. It deliberately omits owner and run
+// content; knowing a run ID does not authorize another run read.
+type ServiceAdmissionCountedRun struct {
+	RunID  string `json:"run_id"`
+	Status string `json:"status"`
+}
+
+// StandingGrantUsageDetailsReader extends the existing usage pass with a bounded
+// projection of the exact rows counted. Normal admission continues to use the
+// aggregate-only reader method.
+type StandingGrantUsageDetailsReader interface {
+	StandingGrantUsageWithRuns(ctx context.Context, owner string, limit int) (authn.StandingGrantUsage, []domain.Run, error)
+}
+
 // StandingGrantAuthority is the domain-owned RequestOperationAuthority for a
 // verified service principal. It sources the operator-approved grant durably by
 // the caller's verified subject and delegates the decision to
@@ -96,9 +111,18 @@ const (
 // records or owner identity. Current and Bound represent either a run count or
 // a USD amount, as named by Dimension.
 type ServiceAdmissionLimit struct {
-	Dimension string  `json:"dimension"`
-	Current   float64 `json:"current"`
-	Bound     float64 `json:"bound"`
+	Dimension    string                           `json:"dimension"`
+	Current      float64                          `json:"current"`
+	Bound        float64                          `json:"bound"`
+	Contributors *ServiceAdmissionRunContributors `json:"contributors,omitempty"`
+}
+
+// ServiceAdmissionRunContributors reports the aggregate count and a bounded
+// list of run IDs/statuses that contributed to a concurrency refusal.
+type ServiceAdmissionRunContributors struct {
+	Count     int                          `json:"count"`
+	Runs      []ServiceAdmissionCountedRun `json:"runs"`
+	Truncated bool                         `json:"truncated"`
 }
 
 // ServiceAdmissionDiagnostic is a redacted, read-only projection of the fixed
@@ -113,17 +137,23 @@ type ServiceAdmissionDiagnostic struct {
 }
 
 const serviceAdmissionLimitResultCap = 8
+const serviceAdmissionContributorRunCap = 32
 
 type serviceAdmissionLimitKey struct {
-	dimension string
-	current   float64
-	bound     float64
+	dimension    string
+	current      float64
+	bound        float64
+	contributors string
 }
 
 // diagnoseOperation evaluates current active grants and current usage using
 // the same pure evaluator as normal service admission. It has no principal
 // fabrication, approval-raiser call, or store write.
 func (a *StandingGrantAuthority) diagnoseOperation(ctx context.Context, subject, operation, target string) (ServiceAdmissionDiagnostic, error) {
+	return a.diagnoseOperationWithRunDetails(ctx, subject, operation, target, false)
+}
+
+func (a *StandingGrantAuthority) diagnoseOperationWithRunDetails(ctx context.Context, subject, operation, target string, includeRunDetails bool) (ServiceAdmissionDiagnostic, error) {
 	if a == nil || a.grants == nil || strings.TrimSpace(subject) == "" {
 		return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable"}, fmt.Errorf("%w: grant authority is unavailable", errStandingGrantStateUnavailable)
 	}
@@ -140,8 +170,15 @@ func (a *StandingGrantAuthority) diagnoseOperation(ctx context.Context, subject,
 			continue
 		}
 		var usage authn.StandingGrantUsage
+		var countedRuns []domain.Run
+		var hasCountedRuns bool
 		if a.usage != nil {
-			usage, err = a.usage.StandingGrantUsage(ctx, candidate.Grant.Approver)
+			if detailsReader, ok := a.usage.(StandingGrantUsageDetailsReader); includeRunDetails && ok {
+				usage, countedRuns, err = detailsReader.StandingGrantUsageWithRuns(ctx, candidate.Grant.Approver, serviceAdmissionContributorRunCap)
+				hasCountedRuns = err == nil
+			} else {
+				usage, err = a.usage.StandingGrantUsage(ctx, candidate.Grant.Approver)
+			}
 			if err != nil {
 				return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable", ObservedAt: now.UTC()}, fmt.Errorf("%w: %w", errStandingGrantStateUnavailable, err)
 			}
@@ -168,7 +205,21 @@ func (a *StandingGrantAuthority) diagnoseOperation(ctx context.Context, subject,
 			default:
 				continue
 			}
-			key := serviceAdmissionLimitKey{dimension: limit.Dimension, current: limit.Current, bound: limit.Bound}
+			if includeRunDetails && hasCountedRuns && exceeded.Dimension == authn.StandingGrantConcurrentRunsLimit {
+				projectedRuns := make([]ServiceAdmissionCountedRun, 0, len(countedRuns))
+				for _, run := range countedRuns {
+					projectedRuns = append(projectedRuns, ServiceAdmissionCountedRun{RunID: run.ID.String(), Status: string(run.Status)})
+				}
+				limit.Contributors = &ServiceAdmissionRunContributors{
+					Count:     usage.ConcurrentRuns,
+					Runs:      projectedRuns,
+					Truncated: len(countedRuns) < usage.ConcurrentRuns,
+				}
+			}
+			key := serviceAdmissionLimitKey{
+				dimension: limit.Dimension, current: limit.Current, bound: limit.Bound,
+				contributors: serviceAdmissionContributorKey(limit.Contributors),
+			}
 			if _, exists := seenLimits[key]; exists {
 				continue
 			}
@@ -184,6 +235,18 @@ func (a *StandingGrantAuthority) diagnoseOperation(ctx context.Context, subject,
 		return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable", ObservedAt: now.UTC()}, fmt.Errorf("%w: covered grant evaluation returned no decision", errStandingGrantStateUnavailable)
 	}
 	return diagnostic, nil
+}
+
+func serviceAdmissionContributorKey(contributors *ServiceAdmissionRunContributors) string {
+	if contributors == nil {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%d/%t;", contributors.Count, contributors.Truncated)
+	for _, run := range contributors.Runs {
+		fmt.Fprintf(&b, "%s/%s;", run.RunID, run.Status)
+	}
+	return b.String()
 }
 
 // ApprovalRaiser records (idempotently) an operator approval request for a

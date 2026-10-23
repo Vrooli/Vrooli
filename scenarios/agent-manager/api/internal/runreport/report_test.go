@@ -2,6 +2,7 @@ package runreport
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -103,11 +104,65 @@ func TestBuildIncludesInvestigationDiscriminators(t *testing.T) {
 	if report.Tokens != 15 || report.CostUSD != 1.25 {
 		t.Fatalf("cost discriminators = %d/%f", report.Tokens, report.CostUSD)
 	}
-	if report.RepeatedToolCalls != 2 {
-		t.Fatalf("repeated calls = %d, want 2", report.RepeatedToolCalls)
+	if report.RepeatedToolCalls != 1 {
+		t.Fatalf("repeated calls = %d, want one repeated command signature", report.RepeatedToolCalls)
 	}
 	if report.FilesReadMoreThanOnce != 1 {
 		t.Fatalf("files reread = %d, want 1", report.FilesReadMoreThanOnce)
+	}
+}
+
+func TestBuildCountsRepeatedCommandSignaturesNotToolNames(t *testing.T) {
+	id := uuid.New()
+	first := domain.NewToolCallEvent(id, "shell", "shell-1", map[string]any{"command": "agent-manager run report run-1"})
+	second := domain.NewToolCallEvent(id, "shell", "shell-2", map[string]any{"command": "agent-manager run report run-1"})
+	events := []*domain.RunEvent{first, second}
+	for i := 0; i < 30; i++ {
+		events = append(events, domain.NewToolCallEvent(id, "exec", fmt.Sprintf("exec-%d", i), map[string]any{"input": fmt.Sprintf("const value = %d; text(value)", i)}))
+	}
+	report, err := Build(context.Background(), reportSource{
+		run:    &domain.Run{ID: id},
+		events: events,
+	}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.RepeatedToolCalls != 1 {
+		t.Fatalf("repeated calls = %d, want only the repeated command signature", report.RepeatedToolCalls)
+	}
+}
+
+func TestBuildSeparatesTypedErrorBreakdownFromRawEventCounts(t *testing.T) {
+	id := uuid.New()
+	percent := 2.0
+	events := []*domain.RunEvent{
+		domain.NewErrorEvent(id, "provider_failure", "request failed", false),
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeError, Data: &domain.RateLimitEventData{Provider: "openai", Pool: "primary", UsedPercent: &percent}},
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeError},
+	}
+	report, err := Build(context.Background(), reportSource{run: &domain.Run{ID: id}, events: events}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Events[string(domain.EventTypeError)] != 3 {
+		t.Fatalf("raw error event count = %d, want 3", report.Events[string(domain.EventTypeError)])
+	}
+	if report.ExecutionErrorEvents != 1 || report.RateLimitObservations != 1 || report.UnclassifiedErrorEvents != 1 {
+		t.Fatalf("typed error breakdown = execution:%d quota:%d unclassified:%d", report.ExecutionErrorEvents, report.RateLimitObservations, report.UnclassifiedErrorEvents)
+	}
+	text := Text(report)
+	for _, want := range []string{"error=3", "typed_execution_errors=1", "rate_limit_observations=1", "unclassified=1"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("report text missing %q: %s", want, text)
+		}
+	}
+}
+
+func TestTextDoesNotPresentUnmeasuredErrorBreakdownAsZero(t *testing.T) {
+	report := &RunReport{EventsAvailability: Availability{State: AvailabilityUnavailable, Reason: "event store unavailable"}}
+	text := Text(report)
+	if !strings.Contains(text, "Error event breakdown: unavailable (unavailable)") {
+		t.Fatalf("unavailable events were shown as a measured error breakdown:\n%s", text)
 	}
 }
 

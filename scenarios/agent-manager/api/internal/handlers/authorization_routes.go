@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/supervision"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
@@ -242,6 +243,13 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 }
 
 func agentOperationRoute(r *http.Request, interactive bool) bool {
+	if r.Method == http.MethodPut {
+		// The task handler admits only the verified creator orchestrator's exact
+		// queued, undispatched brief update. It does not expose task management.
+		id := strings.TrimPrefix(r.URL.Path, "/api/v1/tasks/")
+		_, err := uuid.Parse(id)
+		return id != r.URL.Path && err == nil
+	}
 	if r.Method != http.MethodPost {
 		return false
 	}

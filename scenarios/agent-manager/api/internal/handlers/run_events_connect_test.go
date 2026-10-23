@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestAgentManagerConnectGetRunEventsUsesSharedPaginationAndFilter(t *testing.T) {
@@ -63,6 +65,44 @@ func TestAgentManagerConnectGetRunEventsUsesSharedPaginationAndFilter(t *testing
 	require.False(t, last.Msg.GetHasMore())
 	require.Equal(t, "third", last.Msg.GetEvents()[0].GetMessage().GetContent())
 	require.Greater(t, last.Msg.GetEvents()[0].GetSequence(), after)
+
+	summaryLimit := int32(2)
+	summary, err := client.GetRunEvents(ctx, connect.NewRequest(&apipb.GetRunEventsRequest{
+		RunId: run.ID.String(), Limit: &summaryLimit, EventTypes: []domainpb.RunEventType{filter}, SummaryOnly: true,
+	}))
+	require.NoError(t, err)
+	require.Empty(t, summary.Msg.GetEvents())
+	require.Equal(t, map[string]int64{"message": 2}, summary.Msg.GetSummary().GetCounts())
+	require.True(t, summary.Msg.GetHasMore())
+	require.NotNil(t, summary.Msg.GetSummary().LatestSequence)
+	require.Equal(t, int64(2), summary.Msg.GetSummary().GetLatestSequence())
+}
+
+func TestGetRunEventsSummaryRESTUsesMetadataProjection(t *testing.T) {
+	_, router, repos, eventStore := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "REST event summary", ScopePath: ".", Status: domain.TaskStatusQueued}
+	require.NoError(t, repos.Tasks.Create(ctx, task))
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	require.NoError(t, repos.Runs.Create(ctx, run))
+	for _, evt := range []*domain.RunEvent{
+		domain.NewLogEvent(run.ID, "info", "first"),
+		domain.NewMessageEvent(run.ID, "assistant", "second"),
+		domain.NewMessageEvent(run.ID, "assistant", "third"),
+	} {
+		require.NoError(t, eventStore.Append(ctx, run.ID, evt))
+	}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.ID.String()+"/events?summary_only=true&limit=2", nil)
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var decoded apipb.GetRunEventsResponse
+	require.NoError(t, protojson.Unmarshal(response.Body.Bytes(), &decoded))
+	require.Empty(t, decoded.GetEvents())
+	require.Equal(t, map[string]int64{"log": 1, "message": 1}, decoded.GetSummary().GetCounts())
+	require.True(t, decoded.GetHasMore())
+	require.NotNil(t, decoded.GetSummary().LatestSequence)
+	require.Equal(t, int64(1), decoded.GetSummary().GetLatestSequence())
 }
 
 func TestAgentManagerConnectGetRunEventsRejectsInvalidLimits(t *testing.T) {

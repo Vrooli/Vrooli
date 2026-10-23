@@ -128,7 +128,7 @@ func (a *App) runCreate(args []string) error {
 	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage")
 	var targetInstances cliutil.StringList
 	fs.Var(&targetInstances, "target-instance", "Scenario instance this run changes, <scenario>@<instance> (repeatable); a quiesce of another instance skips the run")
-	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Weighted-token cap for this run; may only lower the profile cap")
+	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Observed weighted-token threshold; may only lower the profile limit; action depends on token-cap mode and usage reporting")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err

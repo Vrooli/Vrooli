@@ -426,7 +426,7 @@ func TestTaskCRUD(t *testing.T) {
 
 	// ListByStatus follows the lifecycle owner, not a caller metadata write.
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeSandboxed, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("claim first task attempt: %v", err)
 	}
 	currentTask, err := repos.Tasks.Get(ctx, task.ID)

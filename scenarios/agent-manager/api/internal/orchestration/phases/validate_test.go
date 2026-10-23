@@ -50,6 +50,22 @@ func (f *filterableEventStore) Get(_ context.Context, _ uuid.UUID, opts event.Ge
 	return out, nil
 }
 
+func (f *filterableEventStore) Summarize(ctx context.Context, runID uuid.UUID, opts event.GetOptions) (*event.Summary, error) {
+	events, err := f.Get(ctx, runID, opts)
+	if err != nil {
+		return nil, err
+	}
+	summary := &event.Summary{Counts: make(map[string]int64)}
+	for _, evt := range events {
+		summary.Counts[string(evt.EventType)]++
+		sequence := evt.Sequence
+		if summary.LatestSequence == nil || sequence > *summary.LatestSequence {
+			summary.LatestSequence = &sequence
+		}
+	}
+	return summary, nil
+}
+
 func (f *filterableEventStore) Stream(context.Context, uuid.UUID, event.StreamOptions) (<-chan *domain.RunEvent, error) {
 	ch := make(chan *domain.RunEvent)
 	close(ch)

@@ -11,6 +11,7 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { CodeBlock } from "./markdown/components/CodeBlock";
+import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import type { ContextAttachmentData } from "../types";
 
 interface ContextAttachmentModalProps {
@@ -25,19 +26,12 @@ export function ContextAttachmentModal({
   onOpenChange,
 }: ContextAttachmentModalProps) {
   const [viewMode, setViewMode] = useState<"formatted" | "json">("formatted");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const { status: copyStatus, copyText } = useClipboardFeedback();
 
   if (!attachment) return null;
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(attachment, null, 2));
-      setCopyStatus("copied");
-      setTimeout(() => setCopyStatus("idle"), 2000);
-    } catch {
-      setCopyStatus("error");
-      setTimeout(() => setCopyStatus("idle"), 2000);
-    }
+  const handleCopy = () => {
+    void copyText(JSON.stringify(attachment, null, 2));
   };
 
   const getTypeIcon = () => {

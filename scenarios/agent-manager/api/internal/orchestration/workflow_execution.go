@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -66,6 +68,12 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 			scopePath = "."
 		}
 		projectRoot := l.o.config.DefaultProjectRoot
+		if req.ProjectRoot != "" {
+			projectRoot, err = canonicalWorkflowProjectRoot(req.ProjectRoot)
+			if err != nil {
+				return workflowruntime.ChildState{}, err
+			}
+		}
 		task = &domain.Task{ID: taskID, Title: fmt.Sprintf("Workflow %s node %s", req.ExecutionID, req.NodeID), Description: "Agent Manager workflow node attempt", ScopePath: scopePath, ProjectRoot: projectRoot, Status: domain.TaskStatusQueued, CreatedBy: "workflow-runtime"}
 		if _, err := l.o.CreateTask(ctx, task); err != nil {
 			if existing, getErr := l.o.tasks.Get(ctx, taskID); getErr != nil || existing == nil {
@@ -144,6 +152,27 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	return childStateFromRun(run), nil
 }
 
+// canonicalWorkflowProjectRoot checks an explicitly authored root without
+// creating directories. The workflow adapter owns selecting a trusted checkout;
+// Workspace Sandbox remains the authority for scope and write containment.
+func canonicalWorkflowProjectRoot(root string) (string, error) {
+	if !filepath.IsAbs(root) || filepath.Clean(root) != root || root == string(filepath.Separator) {
+		return "", domain.NewValidationError("projectRoot", "workflow project root must be an absolute clean checkout directory")
+	}
+	canonical, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", domain.NewValidationError("projectRoot", "workflow checkout cannot be resolved")
+	}
+	if canonical == string(filepath.Separator) {
+		return "", domain.NewValidationError("projectRoot", "filesystem root is not a checkout")
+	}
+	info, err := os.Stat(canonical)
+	if err != nil || !info.IsDir() {
+		return "", domain.NewValidationError("projectRoot", "workflow checkout must be an existing directory")
+	}
+	return canonical, nil
+}
+
 func (l workflowChildLauncher) Continue(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
 	if req.SourceRunID == nil {
 		return workflowruntime.ChildState{}, domain.NewValidationError("sourceRunId", "explicit source Run is required")
@@ -202,7 +231,7 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	state := workflowruntime.ChildState{RunID: run.ID, ConversationID: run.ConversationID, Result: run.Result}
 	if run.Summary != nil {
 		state.Turns = run.Summary.TurnsUsed
-		state.Tokens = run.Summary.TokensUsed - run.Summary.ContextTokens
+		state.Tokens = int(run.Summary.TokensUsed - int64(run.Summary.ContextTokens))
 		if state.Tokens < 0 {
 			state.Tokens = 0
 		}

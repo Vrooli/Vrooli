@@ -66,3 +66,7 @@ func (c supervisionRunController) WakeRun(ctx context.Context, id uuid.UUID, res
 	_, err := c.orchestrator.WakeRun(ctx, orchestration.WakeRunInput{RunID: id, Result: result})
 	return err
 }
+
+func (c supervisionRunController) WakeEffortCheckin(ctx context.Context, id uuid.UUID, effortRef string, through int64) error {
+	return c.orchestrator.WakeEffortCheckin(ctx, id, effortRef, through)
+}

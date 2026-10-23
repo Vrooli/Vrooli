@@ -6,18 +6,46 @@ import (
 	"fmt"
 	"time"
 
+	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/piimask"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// PolicyCountersSnapshot aggregates the process-local conversation-policy and
+// PII-masking activity counters that otherwise live only in process memory,
+// across the two independently-wired enforcement seams (import and search) and
+// the masking engine. It is a read-only, point-in-time view. Every count is
+// cumulative-since-start and resets on restart.
+type PolicyCountersSnapshot struct {
+	// ImportCounts is the import-seam visibility/exclusion snapshot (owns
+	// exclude-at-import; its SearchHidden is always zero).
+	ImportCounts conversationpolicy.Counts
+	// SearchCounts is the search-seam visibility snapshot (owns hide-at-search;
+	// its ImportExcluded is always zero).
+	SearchCounts conversationpolicy.Counts
+	// PIICounts is the masking engine snapshot (events scanned, spans masked, and
+	// the load-bearing fail-closed count).
+	PIICounts piimask.Counters
+}
+
+// PolicyCountersProvider returns the current aggregate policy/masking counters.
+// It is injected by wiring so the status handler can report counters living in
+// the orchestrator (import seam + masker) and the search source (search seam)
+// without the adapter importing either. A nil provider means the counters are
+// not available and no policy_counters block is emitted.
+type PolicyCountersProvider func() PolicyCountersSnapshot
+
 // ConversationSearchAdapter translates the generated transport contract to
 // the engine-independent conversation-search service.
 type ConversationSearchAdapter struct {
-	service *conversationsearch.Service
-	indexer *conversationsearch.Indexer
+	service        *conversationsearch.Service
+	indexer        *conversationsearch.Indexer
+	policyCounters PolicyCountersProvider
 }
 
 func NewConversationSearchAdapter(service *conversationsearch.Service, indexer ...*conversationsearch.Indexer) *ConversationSearchAdapter {
@@ -26,6 +54,16 @@ func NewConversationSearchAdapter(service *conversationsearch.Service, indexer .
 		adapter.indexer = indexer[0]
 	}
 	return adapter
+}
+
+// WithPolicyCounters installs the aggregate policy/masking counter provider so
+// `conversation index status` can surface exclude/hide/redact/fail-closed
+// activity. A nil provider leaves the block absent.
+func (a *ConversationSearchAdapter) WithPolicyCounters(provider PolicyCountersProvider) *ConversationSearchAdapter {
+	if a != nil {
+		a.policyCounters = provider
+	}
+	return a
 }
 
 func (a *ConversationSearchAdapter) SearchConversations(ctx context.Context, request *domainpb.SearchConversationsRequest) (*domainpb.SearchConversationsResponse, error) {
@@ -348,7 +386,72 @@ func (a *ConversationSearchAdapter) GetConversationIndexStatus(ctx context.Conte
 			response.State = domainpb.ConversationIndexState_CONVERSATION_INDEX_STATE_STALE
 		}
 	}
+	// Surface codec parse failures so transcript format drift is observable
+	// instead of silently dropping conversations (W1). This is read-only
+	// telemetry; its presence does not change the index state.
+	response.ParseFailures = parseFailuresToProto(codecs.DefaultParseFailureSnapshot())
+	// Surface conversation-policy and PII-masking activity so an operator can see
+	// what exclusion/redaction actually did instead of trusting that a hidden
+	// conversation vanished for the right reason. The fail-closed count in
+	// particular means PII masking could not run and content was withheld. This
+	// is read-only telemetry; its presence does not change the index state.
+	if a.policyCounters != nil {
+		response.PolicyCounters = policyCountersToProto(a.policyCounters())
+	}
 	return response, nil
+}
+
+// policyCountersToProto converts the aggregate snapshot into the status
+// response shape. It always emits a block (with process_local=true) when a
+// provider is wired, even at all-zero: an operator must be able to tell "no
+// policy activity" from "no policy observability", and a zero fail-closed count
+// is itself a reassuring signal worth showing.
+func policyCountersToProto(snapshot PolicyCountersSnapshot) *domainpb.ConversationPolicyCounters {
+	out := &domainpb.ConversationPolicyCounters{
+		ProcessLocal:     true,
+		ExcludeAtImport:  uint64(snapshot.ImportCounts.ImportExcluded),
+		HideAtSearch:     uint64(snapshot.SearchCounts.SearchHidden),
+		RedactMarked:     uint64(snapshot.ImportCounts.RedactMarked + snapshot.SearchCounts.RedactMarked),
+		PiiEventsScanned: uint64(snapshot.PIICounts.EventsScanned),
+		PiiSpansMasked:   uint64(snapshot.PIICounts.SpansMasked),
+		PiiFailClosed:    uint64(snapshot.PIICounts.FailClosed),
+	}
+	byRule := make(map[string]uint64, len(snapshot.ImportCounts.ByRule)+len(snapshot.SearchCounts.ByRule))
+	for rule, count := range snapshot.ImportCounts.ByRule {
+		byRule[rule] += uint64(count)
+	}
+	for rule, count := range snapshot.SearchCounts.ByRule {
+		byRule[rule] += uint64(count)
+	}
+	if len(byRule) > 0 {
+		out.ByRule = byRule
+	}
+	return out
+}
+
+// parseFailuresToProto converts the codecs registry snapshot into the status
+// response shape. It returns nil when nothing has been dropped so a healthy
+// index reports no parse-failure block at all.
+func parseFailuresToProto(snapshot codecs.Snapshot) *domainpb.ConversationParseFailures {
+	if snapshot.Total == 0 {
+		return nil
+	}
+	out := &domainpb.ConversationParseFailures{Total: snapshot.Total}
+	if len(snapshot.BySite) > 0 {
+		out.BySite = make(map[string]uint64, len(snapshot.BySite))
+		for site, count := range snapshot.BySite {
+			out.BySite[site] = count
+		}
+	}
+	for _, sample := range snapshot.Samples {
+		out.Samples = append(out.Samples, &domainpb.ConversationParseFailureSample{
+			RunId:      sample.RunID.String(),
+			Site:       sample.Site,
+			Detail:     sample.Detail,
+			LineSample: sample.LineSample,
+		})
+	}
+	return out
 }
 
 func filtersFromProto(filters *domainpb.ConversationSearchFilters) conversationsearch.SearchFilters {

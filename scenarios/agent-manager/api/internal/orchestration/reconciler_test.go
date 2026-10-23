@@ -3,6 +3,7 @@ package orchestration
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -291,7 +292,7 @@ func TestReconcilerRunOnceReclaimsOnlyOldEmptySandboxesWithMissingOwners(t *test
 	}
 }
 
-func TestReconcilerRunOnceFailsStaleRunWhoseProcessHasExited(t *testing.T) {
+func TestReconcilerRunOnceReviewsStaleRunWithoutRecoveryEvidence(t *testing.T) {
 	repos, _, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)
 	ctx := context.Background()
@@ -313,8 +314,8 @@ func TestReconcilerRunOnceFailsStaleRunWhoseProcessHasExited(t *testing.T) {
 		t.Fatalf("stale-run stats=%+v", stats)
 	}
 	stored, err := repos.Runs.Get(ctx, run.ID)
-	if err != nil || stored.Status != domain.RunStatusFailed || stored.ErrorMsg == "" {
-		t.Fatalf("stale run=%+v err=%v", stored, err)
+	if err != nil || stored.Status != domain.RunStatusNeedsReview || stored.ErrorMsg == "" || stored.TerminalClass != domain.RunTerminalClassInterruption {
+		t.Fatalf("stale run=%+v err=%v, want needs_review with interruption classification", stored, err)
 	}
 }
 
@@ -476,6 +477,57 @@ func TestExtractTagFromCommand(t *testing.T) {
 				t.Errorf("extractTagFromCommand(%q) = %q, want %q", tt.command, got, tt.expected)
 			}
 		})
+	}
+}
+
+// TestRunnerProcessTag_EnvFallback is the regression guard for the orphan-scan
+// leak: a detached codex process carries its tag only in CODEX_AGENT_TAG (the
+// environment), never in argv, and `pgrep -af` shows argv but not the
+// environment. Orphan detection previously read argv only, so every detached
+// codex was classified as tagless and never reaped. runnerProcessTag must
+// resolve the tag from the environment when argv has none.
+func TestRunnerProcessTag_EnvFallback(t *testing.T) {
+	tag := uuid.NewString()
+	cmd := exec.Command("sleep", "30")
+	// Isolated env: only the codex tag, so the assertion cannot be satisfied by
+	// an ambient *_AGENT_TAG inherited from the test runner.
+	cmd.Env = []string{"CODEX_AGENT_TAG=" + tag}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start child: %v", err)
+	}
+	defer func() {
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+	}()
+
+	// Precondition: argv carries no tag token, matching a real detached codex
+	// whose tag lives only in CODEX_AGENT_TAG.
+	if got := extractTagFromCommand("sleep 30"); got != "" {
+		t.Fatalf("precondition: argv should carry no tag, got %q", got)
+	}
+
+	// cmd.Start can return before the child's /proc/<pid>/environ is populated;
+	// the real scanner meets these processes long after exec, so poll briefly
+	// for exec to settle rather than encoding a fixed sleep.
+	var got string
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got = runnerProcessTag("sleep 30", cmd.Process.Pid); got == tag {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if got != tag {
+		t.Errorf("runnerProcessTag env fallback = %q, want %q", got, tag)
+	}
+}
+
+// TestRunnerProcessTag_CommandTakesPrecedence confirms the argv tag wins without
+// an environment read: pid 0 has no readable /proc entry, so a non-empty result
+// proves the command path short-circuited before touching the environment.
+func TestRunnerProcessTag_CommandTakesPrecedence(t *testing.T) {
+	if got := runnerProcessTag("resource-claude-code run --tag argv-tag", 0); got != "argv-tag" {
+		t.Errorf("runnerProcessTag command precedence = %q, want %q", got, "argv-tag")
 	}
 }
 

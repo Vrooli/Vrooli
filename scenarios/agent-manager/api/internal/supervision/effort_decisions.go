@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"agent-manager/internal/domain"
 	"agent-manager/internal/effortdecision"
 	"agent-manager/internal/goalhome"
 
-	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -480,31 +478,24 @@ func (s *EffortService) signalDecisionAnswer(ctx context.Context, d *pb.EffortDe
 	return err
 }
 
-// wakeParkedOrchestrators wakes the effort's parked orchestrator runs with
-// the answer, so a parked orchestrator records it at once. Event-driven
-// check-ins start on the operator_answer signal instead; a run that is not
-// parked is left alone. A failed wake leaves the signal for the next check-in.
+// wakeParkedOrchestrators preserves the immediate operator-answer check-in
+// through the same durable signal cursor used by periodic feedback dispatch.
+// The owner rereads the authoritative signal log; answer prose is not passed
+// as a command payload. Failed wakes remain queued for the next scheduler tick.
 func (s *EffortService) wakeParkedOrchestrators(ctx context.Context, d *pb.EffortDecision) {
-	if s.controller == nil || d == nil || d.EffortRef == "" {
+	if s.controller == nil || s.signalCursorStore == nil || d == nil || d.EffortRef == "" {
+		return
+	}
+	waker, ok := s.controller.(EffortSignalWakeController)
+	if !ok {
 		return
 	}
 	e, _, err := s.repo.GetEffort(ctx, d.EffortRef)
 	if err != nil || e == nil || e.Withdrawn {
 		return
 	}
-	result := fmt.Sprintf("OPERATOR_DECISION %s %s: %s; run `agent-manager effort decision sync %s` first", d.DecisionId, d.State, d.Answer, d.GoalHome)
-	for _, subject := range e.GetSubjects() {
-		if subject.GetRole() != "orchestrator" || subject.GetRunId() == "" {
-			continue
-		}
-		id, err := uuid.Parse(subject.GetRunId())
-		if err != nil {
-			continue
-		}
-		if run, err := s.controller.GetRun(ctx, id); err != nil || run == nil || run.Status != domain.RunStatusParked {
-			continue
-		}
-		_ = s.controller.WakeRun(ctx, id, result)
+	for _, subject := range orchestratorSignalSubjects(e) {
+		_ = s.dispatchEffortSignalSubject(ctx, waker, e, subject)
 	}
 }
 

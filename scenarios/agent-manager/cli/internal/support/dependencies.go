@@ -12,6 +12,8 @@ type Dependencies struct {
 	Effort           CommandFunc
 	Investigation    CommandFunc
 	Task             CommandFunc
+	TaskGet          func(cliapp.RunContext) error
+	TaskCreate       func(cliapp.RunContext) error
 	Run              CommandFunc
 	RunCommands      []cliapp.Command
 	Runner           CommandFunc

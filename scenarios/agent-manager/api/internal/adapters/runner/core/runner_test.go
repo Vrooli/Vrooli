@@ -328,9 +328,7 @@ func (c *fakeCodec) Classify(stderr string, exitCode int) *fallback.ClassifiedEr
 func (c *fakeCodec) Labels() codecs.Labels {
 	return codecs.Labels{
 		StartMessage:         "fake start",
-		EndMessage:           "fake end",
 		ContinueStartMessage: "fake continue start",
-		ContinueEndMessage:   "fake continue end",
 	}
 }
 
@@ -342,12 +340,16 @@ type recordingSink struct {
 	mu     sync.Mutex
 	events []*domain.RunEvent
 	closed bool
+	onEmit func(*domain.RunEvent)
 }
 
 func (s *recordingSink) Emit(event *domain.RunEvent) error {
 	s.mu.Lock()
 	s.events = append(s.events, event)
 	s.mu.Unlock()
+	if s.onEmit != nil {
+		s.onEmit(event)
+	}
 	return nil
 }
 
@@ -485,10 +487,12 @@ func TestExecute_StreamingSuccess(t *testing.T) {
 	}
 
 	events := sink.snapshot()
-	// Expect: status starting, message, tool_call, status complete
-	if len(events) < 4 {
-		t.Fatalf("expected ≥4 events, got %d: %+v", len(events), events)
+	// The runner reports invocation start and provider events. Orchestration
+	// publishes the actual Run terminal status after its finalization policy.
+	if len(events) < 3 {
+		t.Fatalf("expected start, message and tool events, got %d: %+v", len(events), events)
 	}
+	assertRunnerEmittedNoTerminalStatus(t, events)
 	if !sink.closed {
 		t.Fatalf("expected sink to be closed on completion")
 	}
@@ -577,6 +581,7 @@ func TestExecute_StreamingFailure(t *testing.T) {
 	if !strings.Contains(res.ErrorMessage, "no auth") {
 		t.Fatalf("ErrorMessage = %q, expected to contain stderr", res.ErrorMessage)
 	}
+	assertRunnerEmittedNoTerminalStatus(t, sink.snapshot())
 }
 
 func TestExecute_ContextCanceled(t *testing.T) {
@@ -717,6 +722,10 @@ func TestContinue_RoutesContinueArgs(t *testing.T) {
 	}
 	if res.SessionID != "sess-2" {
 		t.Fatalf("SessionID = %q, want sess-2 (codec captured fresh session)", res.SessionID)
+	}
+	assertRunnerEmittedNoTerminalStatus(t, sink.snapshot())
+	if !sink.closed {
+		t.Fatal("expected sink to be closed after continuation invocation")
 	}
 
 	// Continue must call BuildContinueArgs, not BuildArgs.
@@ -1309,6 +1318,45 @@ func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDurableCodexContinueSeedsParserFromRequestBaseline(t *testing.T) {
+	stdout := strings.Join([]string{
+		`{"type":"session_meta","payload":{"id":"same-session"}}`,
+		`{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}}`,
+		`{"type":"event_msg","payload":{"type":"task_complete"}}`,
+	}, "\n") + "\n"
+	codec := availableTestCodec{codecs.NewCodexForTest()}
+	r := newRunnerForTest(t, codec, &fakeLauncher{stdout: stdout})
+	sink := &recordingSink{}
+	file, err := os.CreateTemp(t.TempDir(), "transcript-*.ndjson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	baseline := &runner.CodexUsageBaseline{SessionID: "same-session", Snapshot: &domain.CodexUsageSnapshot{
+		SessionID: "same-session", InputTokens: 100, CachedInputTokens: 20, OutputTokens: 30,
+	}}
+	result, err := r.Continue(t.Context(), runner.ContinueRequest{
+		RunID: uuid.New(), SessionID: "same-session", Prompt: "continue", EventSink: sink,
+		ResolvedConfig:     domain.DefaultRunConfig(),
+		Transcript:         &runner.TranscriptConfig{TranscriptPath: file.Name(), StdoutFile: file},
+		CodexUsageBaseline: baseline,
+	})
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	for _, event := range sink.snapshot() {
+		usage, ok := event.Data.(*domain.UsageEventData)
+		if !ok || !usage.ReconciliationAuthority {
+			continue
+		}
+		if usage.InputTokens != 25 || usage.CacheReadTokens != 30 || usage.OutputTokens != 5 || usage.ReconciliationComplete == nil || !*usage.ReconciliationComplete {
+			t.Fatalf("continuation parser did not receive request baseline: %+v", usage)
+		}
+		return
+	}
+	t.Fatal("authoritative Codex receipt missing from continuation")
 }
 
 // recoveringCodexCodec exposes the concrete Codex codec, including its

@@ -2,17 +2,19 @@
 package codecs
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/config"
-	"agent-manager/internal/domain"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/config"
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 // parseClaudeStreamEvents parses one line from Claude's stream-json
@@ -40,8 +42,11 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 
 	var streamEvent ClaudeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
-		// Silently skip malformed JSON from startup/debug output. Real
-		// streaming events from Claude Code are always well-formed.
+		// Behavior unchanged: still skip. The pre-filter above already dropped
+		// non-JSON banner lines, so a failure HERE is a line that looked like
+		// JSON yet would not parse — a real format-drift signal, not startup
+		// noise. Record it so the drop is observable (W1) instead of silent.
+		recordParseFailure(runID, siteClaudeStreamJSON, err.Error(), line)
 		return nil, nil
 	}
 
@@ -65,10 +70,7 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 
 	case "tool_use":
 		if streamEvent.ToolUse != nil {
-			var input map[string]interface{}
-			if streamEvent.ToolUse.Input != nil {
-				_ = json.Unmarshal(streamEvent.ToolUse.Input, &input)
-			}
+			input := decodeToolInput(runID, siteClaudeToolUseInput, streamEvent.ToolUse.Input)
 			return []*domain.RunEvent{domain.NewToolCallEvent(
 				runID,
 				streamEvent.ToolUse.Name,
@@ -80,7 +82,9 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 	case "tool_result":
 		var resultStr string
 		if streamEvent.Result != nil {
-			_ = json.Unmarshal(streamEvent.Result, &resultStr)
+			if err := json.Unmarshal(streamEvent.Result, &resultStr); err != nil {
+				recordParseFailure(runID, siteClaudeToolResult, err.Error(), string(streamEvent.Result))
+			}
 		}
 		resultStr = runner.StripANSI(resultStr)
 		return []*domain.RunEvent{domain.NewToolResultEvent(
@@ -114,7 +118,9 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		var events []*domain.RunEvent
 		var resultStr string
 		if streamEvent.Result != nil {
-			_ = json.Unmarshal(streamEvent.Result, &resultStr)
+			if err := json.Unmarshal(streamEvent.Result, &resultStr); err != nil {
+				recordParseFailure(runID, siteClaudeResult, err.Error(), string(streamEvent.Result))
+			}
 		}
 		if !streamEvent.IsError {
 			if resultStr == "" {
@@ -149,7 +155,9 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 	case "system":
 		var sysResult string
 		if streamEvent.Result != nil {
-			_ = json.Unmarshal(streamEvent.Result, &sysResult)
+			if err := json.Unmarshal(streamEvent.Result, &sysResult); err != nil {
+				recordParseFailure(runID, siteClaudeSystemResult, err.Error(), string(streamEvent.Result))
+			}
 		}
 		if strings.Contains(strings.ToLower(streamEvent.Subtype), "auto-compact") || isAutoCompactMarker(sysResult) {
 			return []*domain.RunEvent{newClaudeCompactionEvent(state, runID, strings.TrimSpace(sysResult), "auto", "", "")}, nil
@@ -327,10 +335,7 @@ func parseMessageEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEven
 	}
 	toolUses := ev.Message.ExtractToolUses()
 	for _, tool := range toolUses {
-		var input map[string]interface{}
-		if tool.Input != nil {
-			_ = json.Unmarshal(tool.Input, &input)
-		}
+		input := decodeToolInput(runID, siteClaudeToolInput, tool.Input)
 		events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 	}
 	return events
@@ -360,10 +365,7 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 	state.messagesSinceCompact++
 	toolUses := ev.Message.ExtractToolUses()
 	for _, tool := range toolUses {
-		var input map[string]interface{}
-		if tool.Input != nil {
-			_ = json.Unmarshal(tool.Input, &input)
-		}
+		input := decodeToolInput(runID, siteClaudeToolInput, tool.Input)
 		events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 	}
 	if ev.Message.Usage != nil {

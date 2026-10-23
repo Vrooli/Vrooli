@@ -23,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { ScrollArea } from "../components/ui/scroll-area";
 import { probeRunner } from "../hooks/useApi";
 import type { RunStatusCounts } from "../hooks/useApi";
+import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { formatHyphenatedLabel } from "../lib/display";
 import { jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
@@ -392,8 +393,8 @@ function HealthItem({
   message?: string;
   runnerType?: RunnerType;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [probeCopied, setProbeCopied] = useState(false);
+  const { status: messageCopyStatus, copyText: copyMessage } = useClipboardFeedback();
+  const { status: probeCopyStatus, copyText: copyProbe } = useClipboardFeedback();
   const [probing, setProbing] = useState(false);
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
   const probeDetails = probeResult?.details ?? {};
@@ -407,13 +408,8 @@ function HealthItem({
 
   const handleCopy = async () => {
     if (!message) return;
-    try {
-      await navigator.clipboard.writeText(message);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
+    const result = await copyMessage(message);
+    if (!result.ok) console.error("Failed to copy:", result.error);
   };
 
   const handleCopyProbeResult = async () => {
@@ -428,13 +424,8 @@ function HealthItem({
       .filter(Boolean)
       .join("\n");
 
-    try {
-      await navigator.clipboard.writeText(copyText);
-      setProbeCopied(true);
-      setTimeout(() => setProbeCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy probe result:", err);
-    }
+    const result = await copyProbe(copyText);
+    if (!result.ok) console.error("Failed to copy probe result:", result.error);
   };
 
   const handleProbe = async () => {
@@ -482,7 +473,7 @@ function HealthItem({
                   title="Copy full error message"
                   aria-label="Copy error message"
                 >
-                  {copied ? (
+                  {messageCopyStatus === "copied" ? (
                     <Check className="h-3 w-3 text-success" />
                   ) : (
                     <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
@@ -535,7 +526,7 @@ function HealthItem({
                 title="Copy probe result"
                 aria-label="Copy probe result"
               >
-                {probeCopied ? (
+                {probeCopyStatus === "copied" ? (
                   <Check className="h-3 w-3" />
                 ) : (
                   <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />

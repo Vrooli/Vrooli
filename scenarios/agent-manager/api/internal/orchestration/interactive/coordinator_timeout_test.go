@@ -82,7 +82,7 @@ func TestCoordinatorTimeoutInterruptsHarnessAndKeepsItsClosingReceipt(t *testing
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
-	terminal, err := coord.TailToCompletion(ctx, run)
+	terminal, err := coord.TailToCompletionWithContext(ctx, run, TailContext{RunDir: filepath.Dir(path)}, TailCompletionOptions{})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("tail error = %v, want the run's timeout", err)
 	}
@@ -126,7 +126,7 @@ func TestCoordinatorCancellationDoesNotInterruptHarness(t *testing.T) {
 		cancel()
 	}()
 	start := time.Now()
-	_, err := coord.TailToCompletion(ctx, run)
+	_, err := coord.TailToCompletionWithContext(ctx, run, TailContext{RunDir: filepath.Dir(path)}, TailCompletionOptions{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("tail error = %v, want cancellation", err)
 	}
@@ -151,7 +151,7 @@ func TestCoordinatorTimeoutWithoutDrainEndsAtDeadline(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	_, err := coord.TailToCompletion(ctx, run)
+	_, err := coord.TailToCompletionWithContext(ctx, run, TailContext{RunDir: filepath.Dir(path)}, TailCompletionOptions{})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("tail error = %v, want the timeout", err)
 	}

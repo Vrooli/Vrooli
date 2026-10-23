@@ -1,15 +1,17 @@
 package workflowruntime
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 type fixedPromptResolver struct{ resolution PromptResolution }
@@ -247,14 +249,36 @@ func TestEngineRendersRunScopePathFromDeclaredBinding(t *testing.T) {
 	}
 }
 
+func TestEngineRendersRunProjectRootFromImmutableInputBinding(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{
+		RoleRef: "code.default", PromptTemplate: "work", ScopePathTemplate: ".", ProjectRootTemplate: "{{.checkout}}",
+		Bindings: []domain.WorkflowInputBinding{{Name: "checkout", Source: domain.WorkflowBindingInput, Selector: "$.repository_directory", Limit: 1, MaxBytes: 4096, RenderAs: "text", MissingPolicy: "error"}},
+	}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{"repository_directory":"/registered/other-checkout"}`), "external-repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 1 || children.requests[0].projectRoot != "/registered/other-checkout" || children.requests[0].scopePath != "." {
+		t.Fatalf("wrong checkout: %+v", children.requests)
+	}
+}
+
 func TestRecoveryRetainsRevisionSandboxAuthority(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{
 		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{
 			RoleRef: "code.default", PromptTemplate: "work",
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
+			SandboxConfig: &domain.SandboxConfig{
+				Mode:        domain.SandboxModeProtected,
 				NetworkMode: domain.NetworkAccessNone, ManualReview: true,
-				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
+				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+			},
 		}},
 		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
 	}

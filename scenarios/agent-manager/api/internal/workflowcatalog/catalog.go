@@ -463,6 +463,19 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 			add("until_length", path+".run.until", "until completion test must be at most 2048 characters")
 		}
 		validateScopePathTemplate(n.Run.ScopePathTemplate, n.Run.Bindings, path+".run.scopePathTemplate", add)
+		validateScopePathTemplate(n.Run.ProjectRootTemplate, n.Run.Bindings, path+".run.projectRootTemplate", add)
+		if n.Run.ProjectRootTemplate != "" {
+			// A completed worker cannot redirect a later node to another host
+			// checkout. The selected root belongs to the admitted immutable input.
+			if tmpl, err := workflowexpr.ParsePrompt(n.Run.ProjectRootTemplate); err == nil {
+				refs := templateFieldRefs(tmpl.Tree)
+				for _, binding := range n.Run.Bindings {
+					if refs[binding.Name] && binding.Source != domain.WorkflowBindingInput {
+						add("project_root_binding", path+".run.projectRootTemplate", "project root requires workflow_input bindings")
+					}
+				}
+			}
+		}
 		if err := domain.ValidateSandboxConfig(n.Run.SandboxConfig); err != nil {
 			add("sandbox_config", path+".run.sandboxConfig", err.Error())
 		}

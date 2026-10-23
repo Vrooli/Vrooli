@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS runs (
     identity_token_issued_at TEXT,
     custom_env TEXT,
     await_handle TEXT,
+    effort_signal_cursors TEXT NOT NULL DEFAULT '{}',
     last_await_key TEXT DEFAULT '',
     last_await_result TEXT DEFAULT '',
     last_await_resolved_at TEXT,

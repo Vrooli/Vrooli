@@ -53,6 +53,11 @@ func TestGoalHomeParkPolicyReportsByDefaultAndRefusesWhenEnforced(t *testing.T) 
 	if refusal := o.checkGoalHomePark(ctx, orchestrator, ProducerGCT, &twelveHours); refusal != "" {
 		t.Fatalf("the policy applies only to the orchestrator's park on its children: %q", refusal)
 	}
+	readyAndWaiting := goalhome.ParseQueue([]byte("# Queue\n\n## Needs operator\n\n- [decision X-1] Wait for owner? Options: wait, continue.\n\n## Next\n\n- [ready] Independent slice\n\n## Handoff\n\nContinue the independent slice.\n"))
+	o.SetGoalHomeParkSource(fakeGoalHomeParks{home: &goalhome.Home{Queue: readyAndWaiting}})
+	if refusal := o.checkGoalHomePark(ctx, orchestrator, ProducerChildren, &twelveHours); !strings.Contains(refusal, goalhome.ParkRuleAdmissible) {
+		t.Fatalf("ready independent work must take precedence over an operator hold: %q", refusal)
+	}
 	waiting := goalhome.ParseQueue([]byte("# Queue\n\n## Needs operator\n\n- [decision X-1] Close or re-aim?\n\n## Handoff\n\nWaiting.\n"))
 	o.SetGoalHomeParkSource(fakeGoalHomeParks{home: &goalhome.Home{Queue: waiting}})
 	if refusal := o.checkGoalHomePark(ctx, orchestrator, ProducerChildren, &twelveHours); refusal != "" {

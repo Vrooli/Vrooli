@@ -2,11 +2,15 @@ package phases
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
@@ -143,6 +147,78 @@ func TestHandleResultReconcilesDurableCancellationIntent(t *testing.T) {
 	}
 	if repo.run.CancelRequestedAt == nil {
 		t.Fatal("cancellation intent was not retained on the durable run")
+	}
+}
+
+func TestHandleResultPublishesOnlyPersistedTerminalStatus(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	run := &domain.Run{
+		ID: uuid.New(), Tag: uuid.NewString(), RunMode: domain.RunModeInPlace,
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ResolvedConfig: domain.DefaultRunConfig(),
+	}
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	events := mocks.NewFakeEventStore()
+	HandleResult(t.Context(), HandleResultInput{
+		Deps: Deps{Runs: repos.Runs, Events: events},
+		Run:  run,
+		Result: &runner.ExecuteResult{
+			Success: true,
+			Result:  &domain.RunResult{Success: true, Selection: domain.FinalOutputSelection{Status: domain.FinalOutputSelectionSelected}},
+		},
+	})
+
+	statusEvents := events.TypedEvents(run.ID, domain.EventTypeStatus)
+	if len(statusEvents) != 1 {
+		t.Fatalf("status event count = %d, want exactly one persisted terminal transition", len(statusEvents))
+	}
+	status, ok := statusEvents[0].Data.(*domain.StatusEventData)
+	if !ok || status.OldStatus != string(domain.RunStatusRunning) || status.NewStatus != string(domain.RunStatusComplete) {
+		t.Fatalf("status event = %#v, want running -> complete", statusEvents[0].Data)
+	}
+}
+
+func TestHandleResultPublishesNeedsReviewAfterFinalization(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	cfg := domain.DefaultSandboxConfig()
+	cfg.ManualReview = true
+	run := &domain.Run{
+		ID: uuid.New(), Tag: uuid.NewString(), RunMode: domain.RunModeSandboxed,
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ResolvedConfig: domain.DefaultRunConfig(), SandboxConfig: cfg,
+	}
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	events := mocks.NewFakeEventStore()
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetDiffFunc = func(context.Context, uuid.UUID) (*sandbox.DiffResult, error) {
+		return nil, errors.New("diff evidence unavailable")
+	}
+	sandboxID := uuid.New()
+	HandleResult(t.Context(), HandleResultInput{
+		Deps: Deps{Runs: repos.Runs, Events: events},
+		Run:  run, Sandbox: provider, SandboxID: &sandboxID,
+		Result: &runner.ExecuteResult{
+			Success: true,
+			Result:  &domain.RunResult{Success: true, Selection: domain.FinalOutputSelection{Status: domain.FinalOutputSelectionSelected}},
+		},
+	})
+
+	if run.Status != domain.RunStatusNeedsReview {
+		t.Fatalf("run status = %s, want needs_review", run.Status)
+	}
+	statusEvents := events.TypedEvents(run.ID, domain.EventTypeStatus)
+	if len(statusEvents) != 1 {
+		t.Fatalf("status event count = %d, want exactly one persisted transition", len(statusEvents))
+	}
+	status, ok := statusEvents[0].Data.(*domain.StatusEventData)
+	if !ok || status.NewStatus != string(domain.RunStatusNeedsReview) {
+		t.Fatalf("status event = %#v, want needs_review transition", statusEvents[0].Data)
 	}
 }
 

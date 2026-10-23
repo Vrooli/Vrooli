@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -167,6 +168,103 @@ func TestSQLiteStore_Append_MultipleEvents(t *testing.T) {
 		if evt.Sequence != int64(i) {
 			t.Errorf("event %d: expected sequence %d, got %d", i, i, evt.Sequence)
 		}
+	}
+}
+
+func TestSQLiteStore_SummarizeUsesRetainedMetadataAndPageSelection(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	runID := uuid.New()
+	corruptLargePayload := []byte(strings.Repeat("x", 2*1024*1024))
+	rows := []struct {
+		sequence int64
+		typeName string
+		data     []byte
+	}{
+		{0, string(domain.EventTypeLog), []byte{0xff, 0x00}},
+		{1, "future.kind", corruptLargePayload},
+		{2, string(domain.EventTypeMessage), []byte("not-json")},
+		{3, "future.kind", []byte("also-not-json")},
+	}
+	for _, row := range rows {
+		_, err := db.ExecContext(ctx, `INSERT INTO run_events (id,run_id,sequence,event_type,timestamp,schema_version,data) VALUES (?,?,?,?,?,?,?)`, uuid.New(), runID, row.sequence, row.typeName, time.Now().UTC().Format(time.RFC3339Nano), 1, row.data)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	summary, err := store.Summarize(ctx, runID, event.GetOptions{AfterSequence: -1, Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(summary.Counts, map[string]int64{string(domain.EventTypeLog): 1, "future.kind": 1}) {
+		t.Fatalf("limited counts=%v", summary.Counts)
+	}
+	if summary.LatestSequence == nil || *summary.LatestSequence != 1 || !summary.HasMore {
+		t.Fatalf("limited summary=%+v; want latest=1 has_more=true", summary)
+	}
+	zeroSequence, err := store.Summarize(ctx, runID, event.GetOptions{AfterSequence: -1, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if zeroSequence.LatestSequence == nil || *zeroSequence.LatestSequence != 0 || !zeroSequence.HasMore {
+		t.Fatalf("sequence-zero summary=%+v; zero must be present and distinguishable from empty", zeroSequence)
+	}
+
+	filtered, err := store.Summarize(ctx, runID, event.GetOptions{
+		AfterSequence: 0, EventTypes: []domain.RunEventType{"future.kind"}, Limit: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(filtered.Counts, map[string]int64{"future.kind": 1}) || filtered.LatestSequence == nil || *filtered.LatestSequence != 1 || !filtered.HasMore {
+		t.Fatalf("filtered summary=%+v; want first matching row and lookahead", filtered)
+	}
+
+	unlimited, err := store.Summarize(ctx, runID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(unlimited.Counts, map[string]int64{
+		string(domain.EventTypeLog): 1, "future.kind": 2, string(domain.EventTypeMessage): 1,
+	}) || unlimited.LatestSequence == nil || *unlimited.LatestSequence != 3 || unlimited.HasMore {
+		t.Fatalf("unlimited summary=%+v", unlimited)
+	}
+
+	empty, err := store.Summarize(ctx, runID, event.GetOptions{AfterSequence: 9})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(empty.Counts) != 0 || empty.LatestSequence != nil || empty.HasMore {
+		t.Fatalf("empty summary=%+v", empty)
+	}
+
+	if _, err := db.Exec(`CREATE TABLE invocation_read_model_watermarks (run_id TEXT PRIMARY KEY, projection_complete INTEGER NOT NULL DEFAULT 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DeleteBefore(ctx, time.Now().Add(time.Hour), 10); err != nil {
+		t.Fatalf("sweep retained rows: %v", err)
+	}
+	swept, err := store.Summarize(ctx, runID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(swept.Counts) != 0 || swept.LatestSequence != nil {
+		t.Fatalf("post-sweep summary=%+v; want empty retained-row facts", swept)
+	}
+}
+
+func TestSQLiteStore_SummarizeReturnsQueryFailure(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	if _, err := db.Exec(`DROP TABLE run_events`); err != nil {
+		t.Fatal(err)
+	}
+	if summary, err := store.Summarize(context.Background(), uuid.New(), event.GetOptions{AfterSequence: -1}); err == nil || summary != nil {
+		t.Fatalf("summary=%+v error=%v; query failure must not become measured zero", summary, err)
 	}
 }
 

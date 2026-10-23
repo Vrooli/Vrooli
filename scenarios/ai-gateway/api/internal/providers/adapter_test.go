@@ -132,6 +132,55 @@ func TestAdapterMultimodalUsesJSONStdinAndNeverArgv(t *testing.T) { // [REQ:AIGW
 	}
 }
 
+func TestAdapterPiiDetectorExecutionCommand(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	adapter := Adapter{Provider: ProviderPiiDetector, CommandName: "resource-pii-detector", Locality: "local"}
+
+	command, err := adapter.executionCommand(ExecutionRequest{
+		Kind:      sharedv1.RequestKind_REQUEST_KIND_DETECT_PII,
+		Role:      "pii.small",
+		InputText: "mail me at bob@example.com",
+		Timeout:   time.Second,
+	})
+	if err != nil {
+		t.Fatalf("executionCommand() error = %v", err)
+	}
+	if command.String() != "resource-pii-detector gateway detect --text-stdin --json" {
+		t.Fatalf("command = %q", command.String())
+	}
+	if command.Stdin != "mail me at bob@example.com" {
+		t.Fatalf("stdin = %q", command.Stdin)
+	}
+
+	// The detector only executes DETECT_PII; any other kind is an unsupported
+	// request against this provider.
+	if _, err := adapter.executionCommand(ExecutionRequest{
+		Kind:      sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:      "pii.small",
+		InputText: "x",
+	}); err == nil {
+		t.Fatalf("expected unsupported_kind error for TEXT_GENERATION on pii-detector")
+	}
+}
+
+// The entire PII-detection wiring hinges on NewDefaultAdapters including the
+// pii-detector provider; every other adapter test constructs an Adapter{}
+// directly, so a regression that dropped the registration would pass them all.
+func TestNewDefaultAdaptersRegistersPiiDetector(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	var found *Adapter
+	for _, adapter := range NewDefaultAdapters(nil) {
+		if adapter.Provider == ProviderPiiDetector {
+			found = &adapter
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("NewDefaultAdapters did not register the %q provider", ProviderPiiDetector)
+	}
+	if found.CommandName != "resource-pii-detector" || found.Locality != "local" {
+		t.Fatalf("pii-detector adapter = %+v, want resource-pii-detector/local", *found)
+	}
+}
+
 func TestRedactRemovesSecretishOutput(t *testing.T) { // [REQ:AIGW-PROVIDER-FAILURES]
 	got := redact(`Authorization: Bearer abc123 token="secret-value" safe`)
 	if strings.Contains(got, "abc123") || strings.Contains(got, "secret-value") {
@@ -188,6 +237,30 @@ func TestAdapterOpenRouterCommandCarriesTemperatureOnlyWhenSet(t *testing.T) { /
 	}
 	if strings.Contains(command.String(), "--temperature") {
 		t.Fatalf("unset temperature must not reach the command: %s", command.String())
+	}
+}
+
+func TestAdapterLocalOnlyStructuredExecutionRequiresLoopbackAtResourceOwner(t *testing.T) {
+	adapter := Adapter{Provider: ProviderOllama, CommandName: "resource-ollama"}
+	command, err := adapter.executionCommand(ExecutionRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION, Role: "chat.default",
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, InputText: "source", SchemaJSON: `{"type":"object"}`,
+	})
+	if err != nil {
+		t.Fatalf("executionCommand() error = %v", err)
+	}
+	if !strings.Contains(command.String(), "--require-loopback") {
+		t.Fatalf("local-only execution must ask the resource owner to verify its effective endpoint: %s", command)
+	}
+	remoteCommand, err := adapter.executionCommand(ExecutionRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION, Role: "chat.default",
+		Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST, InputText: "source", SchemaJSON: `{"type":"object"}`,
+	})
+	if err != nil {
+		t.Fatalf("executionCommand() error = %v", err)
+	}
+	if strings.Contains(remoteCommand.String(), "--require-loopback") {
+		t.Fatalf("non-local-only execution must retain its existing route policy: %s", remoteCommand)
 	}
 }
 

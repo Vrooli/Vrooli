@@ -81,9 +81,7 @@ func opencodeBase() baseCodec {
 		continuePrefix: "opencode",
 		labels: Labels{
 			StartMessage:         "OpenCode execution started",
-			EndMessage:           "OpenCode execution completed",
 			ContinueStartMessage: "OpenCode continuation started",
-			ContinueEndMessage:   "OpenCode continuation completed",
 		},
 	}
 }
@@ -898,7 +896,9 @@ func parseOpenCodeToolUse(runID uuid.UUID, part *OpenCodePart, workingDir string
 	if part.State != nil && part.State.Input != nil {
 		input = part.State.Input
 	} else if part.Input != nil {
-		_ = json.Unmarshal(part.Input, &input)
+		if err := json.Unmarshal(part.Input, &input); err != nil {
+			recordParseFailure(runID, siteOpenCodeToolInput, err.Error(), string(part.Input))
+		}
 	}
 
 	// OpenCode sometimes bundles call + result in one event with

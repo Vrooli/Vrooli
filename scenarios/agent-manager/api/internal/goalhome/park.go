@@ -8,8 +8,9 @@ import (
 
 // Park policy for an orchestrator (DL-1, decision P-06). A park waits on
 // something: a live direct child (a short backstop for a worker that hangs
-// without ending) or an operator decision recorded under ## Needs operator.
-// With neither, parking only idles the goal.
+// without ending) or an operator decision recorded under ## Needs operator
+// when no independent [ready] slice remains. With neither, parking only idles
+// the goal.
 //
 // `agent-manager effort park` applies this in the CLI, and
 // orchestration.ParkRunFromAgent applies the same DecidePark to an
@@ -39,13 +40,16 @@ type ParkDecision struct {
 // DecidePark picks the longest allowed park and checks requested against it;
 // requested 0 means the maximum. A request over the maximum is refused rather
 // than shortened, so the caller sees the rule.
-func DecidePark(liveChildren []string, needsOperator []Item, requested time.Duration) ParkDecision {
+func DecidePark(liveChildren []string, queue Queue, requested time.Duration) ParkDecision {
 	var decision ParkDecision
+	ready := queue.ReadyNext()
 	switch {
 	case len(liveChildren) > 0:
 		decision = ParkDecision{Rule: ParkRuleLiveChild, Max: ChildBackstop, Reason: fmt.Sprintf("live direct child %s; the timer is only a backstop for a worker that hangs", strings.Join(liveChildren, ", "))}
-	case len(needsOperator) > 0:
-		decision = ParkDecision{Rule: ParkRuleNeedsOperator, Max: DecisionWait, Reason: fmt.Sprintf("%d item(s) under ## Needs operator, first at QUEUE.md line %d; feedback or an answer wakes the run sooner", len(needsOperator), needsOperator[0].Line)}
+	case len(ready) > 0:
+		return ParkDecision{Rule: ParkRuleAdmissible, Reason: fmt.Sprintf("Admissible-slice rule: %d [ready] slice(s) remain under ## Next; continue independent work before parking on ## Needs operator", len(ready))}
+	case len(queue.NeedsOperator) > 0:
+		decision = ParkDecision{Rule: ParkRuleNeedsOperator, Max: DecisionWait, Reason: fmt.Sprintf("%d item(s) under ## Needs operator, first at QUEUE.md line %d; an answered decision or an explicit wake can resume the run sooner", len(queue.NeedsOperator), queue.NeedsOperator[0].Line)}
 	default:
 		return ParkDecision{Rule: ParkRuleAdmissible, Reason: "no live direct child and nothing under ## Needs operator. Admissible-slice rule: admit the next [ready] slice (or plan one), or record a decision with options under ## Needs operator, then park"}
 	}

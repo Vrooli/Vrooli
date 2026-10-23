@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { createElement, useState, type ReactNode } from "react";
 import { test, vi } from "vitest";
 import { RunDetail } from "./RunDetail.js";
@@ -131,4 +131,55 @@ test("RunDetail mobile details lets an operator copy the full identifier and dis
   await waitFor(() => assert.deepEqual(clipboard.writeText.mock.calls, [["mobile-full-run-id"]]));
   fireEvent.click(document.querySelector(".fixed.inset-0.bg-black\\/40")!);
   await waitFor(() => assert.equal(screen.queryByRole("heading", { name: "Run Details" }), null));
+});
+
+test("RunDetail shows copied only after clipboard success and handles a rejected write", async () => {
+  const pending: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
+  const clipboard = {
+    writeText: vi.fn(() => new Promise<void>((resolve, reject) => pending.push({ resolve: () => resolve(), reject }))),
+  };
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard });
+  const run = makeRun({ id: "deferred-mobile-run-id" });
+  const handlers = {
+    onApprove: vi.fn(async () => undefined), onReject: vi.fn(async () => undefined),
+    onRetry: vi.fn(async (value) => value), onResumeFromFailure: vi.fn(), onInvestigate: vi.fn(),
+    onApplyInvestigation: vi.fn(), onStop: vi.fn(async () => undefined), onDelete: vi.fn(),
+    onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined),
+  };
+  const renderDetail = ({ onMobileHeaderLeft, onMobileHeaderRight }: { onMobileHeaderLeft: (node: ReactNode | null) => void; onMobileHeaderRight: (node: ReactNode | null) => void }) => createElement(RunDetail, {
+    run, events: [], diff: null, eventsLoading: false, diffLoading: false,
+    task: null, taskTitle: "Mobile task", profileName: "Reliability",
+    ...handlers, deleteLoading: false, onMobileHeaderLeft, onMobileHeaderRight,
+  });
+  const view = renderWithProviders(createElement(MobileHeaderHost, { children: renderDetail }));
+  try {
+    await waitFor(() => assert.ok(screen.getByTitle("Run details")));
+    fireEvent.click(screen.getByTitle("Run details"));
+    await waitFor(() => assert.ok(screen.getByRole("heading", { name: "Run Details" })));
+    const copyButton = screen.getAllByTitle("Copy run ID: deferred-mobile-run-id")[1]!;
+    const isCopied = () => copyButton.querySelector("svg")?.classList.contains("lucide-check") ?? false;
+    vi.useFakeTimers();
+
+    fireEvent.click(copyButton);
+    assert.equal(isCopied(), false, "pending clipboard writes must not claim success");
+    await act(async () => {
+      pending[0]!.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(isCopied(), true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1499); });
+    assert.equal(isCopied(), true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    assert.equal(isCopied(), false, "RunDetail feedback should clear after 1.5 seconds");
+
+    fireEvent.click(copyButton);
+    await act(async () => {
+      pending[1]!.reject(new Error("clipboard denied"));
+      await Promise.resolve();
+    });
+    assert.equal(isCopied(), false, "a rejected clipboard write must not claim success");
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
+  }
 });

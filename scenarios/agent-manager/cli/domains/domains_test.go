@@ -2,8 +2,10 @@ package domains
 
 import (
 	"agent-manager/cli/internal/support"
+	"bytes"
 	"io"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -78,5 +80,65 @@ func TestExactTopLevelCatalogRequiresTypedArguments(t *testing.T) {
 		if err := app.RunWithWriters(append([]string{"effort"}, args...), io.Discard, io.Discard); err == nil || called {
 			t.Fatal("missing required metadata reached handler", args, err, called)
 		}
+	}
+}
+
+func TestTaskGetCreateUseCanonicalArgumentsAndHelp(t *testing.T) {
+	getCalled, createCalled := false, false
+	var task cliapp.SubcommandGroup
+	for _, group := range SubcommandGroups(support.Dependencies{
+		Task:       func([]string) error { return nil },
+		TaskGet:    func(cliapp.RunContext) error { getCalled = true; return nil },
+		TaskCreate: func(cliapp.RunContext) error { createCalled = true; return nil },
+	}) {
+		if group.Name == "task" {
+			task = group
+			break
+		}
+	}
+	commands := make(map[string]cliapp.Command, len(task.Subcommands))
+	for _, command := range task.Subcommands {
+		commands[command.Name] = command
+	}
+	get, ok := commands["get"]
+	if !ok || get.Run != nil || get.RunCtx == nil || len(get.Args.Positionals) != 1 || get.Args.Positionals[0].Name != "id" || !get.Args.Positionals[0].Required {
+		t.Fatalf("task get registration = %+v", get)
+	}
+	create, ok := commands["create"]
+	if !ok || create.Run != nil || create.RunCtx == nil || len(create.Args.Flags) == 0 || create.Args.Flags[0].Name != "title" || !create.Args.Flags[0].Required {
+		t.Fatalf("task create registration = %+v", create)
+	}
+	for _, tc := range []struct {
+		name string
+		cmd  cliapp.Command
+		args []string
+	}{
+		{name: "get missing id", cmd: get},
+		{name: "get extra id", cmd: get, args: []string{"one", "two"}},
+		{name: "create missing title", cmd: create},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := cliapp.NewTestRunContextFromArgs(tc.cmd.Args, tc.args, nil, io.Discard, io.Discard); err == nil {
+				t.Fatal("invalid arguments were accepted")
+			}
+		})
+	}
+	var stdout, stderr bytes.Buffer
+	app := cliapp.NewApp(cliapp.AppOptions{Name: "agent-manager", SubcommandGroups: []cliapp.SubcommandGroup{task}})
+	if err := app.RunWithWriters([]string{"task", "get", "--help"}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "<id>") {
+		t.Fatalf("task get help omits required ID: %s", stdout.String())
+	}
+	stdout.Reset()
+	if err := app.RunWithWriters([]string{"task", "create", "--help"}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "--title") {
+		t.Fatalf("task create help omits title flag: %s", stdout.String())
+	}
+	if getCalled || createCalled {
+		t.Fatalf("help or invalid arguments reached handlers: get=%t create=%t", getCalled, createCalled)
 	}
 }

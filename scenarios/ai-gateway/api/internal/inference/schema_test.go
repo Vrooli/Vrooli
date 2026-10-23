@@ -2,9 +2,14 @@ package inference
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 )
 
 func TestSchemaGateSupportedSubset(t *testing.T) {
@@ -21,6 +26,10 @@ func TestSchemaGateSupportedSubset(t *testing.T) {
 		{"items", `{"type":"array","items":{"type":"integer"}}`, `[1,2]`},
 		{"pattern", `{"type":"string","pattern":"^[a-z]+$"}`, `"vrooli"`},
 		{"minimum-maximum", `{"type":"number","minimum":1,"maximum":3}`, `2`},
+		{"exclusive-minimum", `{"type":"number","exclusiveMinimum":0}`, `0.1`},
+		{"array-bounds", `{"type":"array","minItems":1,"maxItems":2}`, `[1]`},
+		{"string-bounds", `{"type":"string","minLength":1,"maxLength":2}`, `"é"`},
+		{"closed-object", `{"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}`, `{"name":"ok"}`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			schema, err := gate.Parse(test.schema)
@@ -32,7 +41,7 @@ func TestSchemaGateSupportedSubset(t *testing.T) {
 
 func TestSchemaGateRejectsUnsupportedConstructs(t *testing.T) {
 	gate := SchemaGate{}
-	for _, construct := range []string{"anyOf", "oneOf", "additionalProperties", "minLength", "format"} {
+	for _, construct := range []string{"anyOf", "oneOf", "format"} {
 		t.Run(construct, func(t *testing.T) {
 			_, err := gate.Parse(`{"type":"object","` + construct + `":{}}`)
 			require.Error(t, err)
@@ -40,6 +49,61 @@ func TestSchemaGateRejectsUnsupportedConstructs(t *testing.T) {
 			require.ErrorAs(t, err, &schemaErr)
 			require.Equal(t, construct, schemaErr.Construct)
 		})
+	}
+}
+
+func TestGeometryRecipeSchemaFixtureIsAcceptedAndEnforced(t *testing.T) {
+	fixture, err := os.ReadFile(filepath.Join("testdata", "device-studio-geometry-recipe-schema-v1.json"))
+	require.NoError(t, err)
+	require.Equal(t, "20fe5ac7b117080ea3663ec91145f1b1c6149fbd7683fc7f3f3152a30c3abbfc", fmt.Sprintf("%x", sha256.Sum256(fixture)), "fixture is the retained exact Device Studio geometry.SchemaJSON contract")
+	schema, err := (SchemaGate{}).Parse(string(fixture))
+	require.NoError(t, err)
+	valid := `{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[{"id":"housing","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"},{"id":"display","kind":"box","role":"display","center_mm":[0,0,6],"size_mm":[60,90,1],"rotation_deg":[0,0,0],"bevel_mm":0,"material":"glass"}],"screen":{"part_id":"display","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`
+	require.NoError(t, ValidateJSON(schema, []byte(valid)))
+	for _, invalid := range []string{
+		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[0,150,12],"parts":[{"id":"housing","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"}],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
+		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12,1],"parts":[{"id":"housing","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"}],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
+		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
+		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[{"id":"","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"}],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
+	} {
+		require.Error(t, ValidateJSON(schema, []byte(invalid)))
+	}
+}
+
+func TestSchemaGateBoundsEnforceTypesAndExclusiveEdges(t *testing.T) {
+	cases := []struct {
+		schema, value string
+		valid         bool
+	}{
+		{`{"type":"number","exclusiveMinimum":0,"maximum":1}`, `0`, false},
+		{`{"type":"number","exclusiveMinimum":0,"maximum":1}`, `0.0001`, true},
+		{`{"type":"number","exclusiveMinimum":0,"maximum":1}`, `1`, true},
+		{`{"type":"array","minItems":1,"maxItems":2,"items":{"type":"integer"}}`, `[]`, false},
+		{`{"type":"array","minItems":1,"maxItems":2,"items":{"type":"integer"}}`, `[1,2,3]`, false},
+		{`{"type":"array","minItems":1,"maxItems":2,"items":{"type":"integer"}}`, `["1"]`, false},
+		{`{"type":"string","minLength":1,"maxLength":2}`, `""`, false},
+		{`{"type":"string","minLength":1,"maxLength":2}`, `"abc"`, false},
+		{`{"type":"string","minLength":1,"maxLength":2}`, `"é"`, true},
+		{`{"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}`, `{"name":"ok","extra":1}`, false},
+	}
+	for _, test := range cases {
+		schema, err := (SchemaGate{}).Parse(test.schema)
+		require.NoError(t, err)
+		err = ValidateJSON(schema, []byte(test.value))
+		if test.valid {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+		}
+	}
+	for _, invalid := range []string{
+		`{"type":"array","minItems":-1}`,
+		`{"type":"array","minItems":1.5}`,
+		`{"type":"array","minItems":2,"maxItems":1}`,
+		`{"type":"object","additionalProperties":{}}`,
+	} {
+		_, err := (SchemaGate{}).Parse(invalid)
+		require.Error(t, err)
 	}
 }
 
@@ -75,6 +139,29 @@ func TestServiceBatchPreservesOrderAndAggregatesUsage(t *testing.T) {
 	require.Equal(t, `"second"`, response.GetResults()[1].GetValueJson())
 	require.EqualValues(t, 11, response.GetUsage().GetInputTokens())
 	require.EqualValues(t, 2, response.GetUsage().GetOutputTokens())
+}
+
+func TestServiceRepairRetainsUsageProvenanceAcrossAttempts(t *testing.T) {
+	repository := &provenanceRepairRepository{}
+	response := NewService(repository).Run(t.Context(), ProviderRequest{Source: "brief", SchemaJSON: `{"type":"string"}`, Role: "extract.structured"})
+	require.True(t, response.GetValidated())
+	require.Equal(t, 2, repository.calls)
+	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_MIXED, response.GetUsage().GetInputTokensProvenance())
+	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, response.GetUsage().GetOutputTokensProvenance())
+	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, response.GetUsage().GetCostProvenance())
+	// A reported zero remains distinct from absent cost after adding a known
+	// zero to an attempt whose cost is unknown.
+	require.Zero(t, response.GetUsage().GetCostMicros())
+}
+
+type provenanceRepairRepository struct{ calls int }
+
+func (r *provenanceRepairRepository) Run(context.Context, ProviderRequest) (ProviderResult, error) {
+	r.calls++
+	if r.calls == 1 {
+		return ProviderResult{ValueJSON: `42`, InputTokens: 2, OutputTokens: 0, InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}, nil
+	}
+	return ProviderResult{ValueJSON: `"repaired"`, InputTokens: 3, OutputTokens: 0, CostMicros: 0, InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED}, nil
 }
 
 func TestServiceBatchKeepsOtherItemsWhenOneFailsLocalValidation(t *testing.T) {

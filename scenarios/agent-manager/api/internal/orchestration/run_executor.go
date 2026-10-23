@@ -714,20 +714,7 @@ func (e *RunExecutor) createEventSink() runner.EventSink {
 	if e.gate != nil {
 		return e.gate
 	}
-	var underlying runner.EventSink
-	switch {
-	case e.events != nil && e.broadcaster != nil:
-		underlying = &broadcastingEventSink{
-			store:       e.events,
-			runID:       e.run.ID,
-			broadcaster: e.broadcaster,
-		}
-	case e.events != nil:
-		underlying = &eventStoreAdapter{store: e.events, runID: e.run.ID}
-	default:
-		underlying = &noOpEventSink{}
-	}
-	e.gate = emit.NewGate(underlying)
+	e.gate = emit.NewGate(newRunEventSink(e.events, e.broadcaster, e.run.ID, nil))
 	return e.gate
 }
 

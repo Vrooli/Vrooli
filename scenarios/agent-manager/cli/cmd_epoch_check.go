@@ -34,6 +34,12 @@ type epochCheckReport struct {
 	Signal            *domainpb.EffortSignal `json:"signal,omitempty"`
 }
 
+// shouldWakeOnStepBack suppresses only a server-confirmed duplicate. Errors and
+// older servers omit the optional result, so their existing wake behavior remains.
+func shouldWakeOnStepBack(signal *domainpb.EffortSignal, recordErr error) bool {
+	return recordErr != nil || signal == nil || signal.NewlyRecorded == nil || *signal.NewlyRecorded
+}
+
 // effortEpochCheck is `agent-manager effort epoch-check <epoch-file>`.
 func (a *App) effortEpochCheck(args []string) error {
 	fs := flag.NewFlagSet("effort epoch-check", flag.ContinueOnError)
@@ -46,7 +52,7 @@ func (a *App) effortEpochCheck(args []string) error {
 	spendThreshold := fs.Float64("spend-threshold", 0, "Weighted non-cache tokens of the epoch's workers above which spend fires (0 = not evaluated)")
 	runs := fs.String("runs", "", "Comma-separated worker run IDs for the spend trigger (default: the brief's Workers field)")
 	wakeKey := fs.String("wake-key", "", "On a fired step-back, wake the run parked on this key (the orchestrator's run ID)")
-	effortRef := fs.String("effort", "", "On a fired step-back, record a step_back signal in this effort's signal log (wakes the next check-in)")
+	effortRef := fs.String("effort", "", "On a fired step-back, record a step_back signal only; this does not dispatch supervision. To request a supervisor heartbeat, use `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor` when authorized")
 	acceptance := fs.Bool("acceptance", false, "Orchestrator acceptance check: exit 4 on an unmet typed gate or an unanswered diminishing-returns finding; never exits 3 or wakes")
 	var path string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -84,19 +90,23 @@ func (a *App) effortEpochCheck(args []string) error {
 	report.Findings = goalFindings(path)
 	if *acceptance {
 		report.AcceptanceBlocked = acceptanceBlocks(report)
-	} else if len(report.StepBack) > 0 && *wakeKey != "" {
-		woken, err := a.services.Runs.WakeByKey(&domainpb.WakeParkedRunsRequest{Producer: "children", Key: *wakeKey, Result: "STEP_BACK " + strings.Join(report.StepBack, "; ") + " (epoch " + path + ")"})
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "friction wake failed: %v\n", err)
+	} else if len(report.StepBack) > 0 {
+		newSignal := true
+		if *effortRef != "" {
+			signal, err := a.recordStepBack(*effortRef, path, report.StepBack, len(file.Log))
+			newSignal = shouldWakeOnStepBack(signal, err)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "step_back signal failed: %v\n", err)
+			} else {
+				report.Signal = signal
+			}
 		}
-		report.Woken = woken
-	}
-	if !*acceptance && len(report.StepBack) > 0 && *effortRef != "" {
-		signal, err := a.recordStepBack(*effortRef, path, report.StepBack, len(file.Log))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "step_back signal failed: %v\n", err)
-		} else {
-			report.Signal = signal
+		if *wakeKey != "" && newSignal {
+			woken, err := a.services.Runs.WakeByKey(&domainpb.WakeParkedRunsRequest{Producer: "children", Key: *wakeKey, Result: "STEP_BACK " + strings.Join(report.StepBack, "; ") + " (epoch " + path + ")"})
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "friction wake failed: %v\n", err)
+			}
+			report.Woken = woken
 		}
 	}
 	if *jsonOut {

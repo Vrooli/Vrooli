@@ -2,7 +2,9 @@ package providers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,13 +13,15 @@ import (
 	"strings"
 	"time"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 const (
-	ProviderOllama     = "ollama"
-	ProviderOpenRouter = "openrouter"
-	ProviderMetered    = "lpbs"
+	ProviderOllama      = "ollama"
+	ProviderOpenRouter  = "openrouter"
+	ProviderMetered     = "lpbs"
+	ProviderPiiDetector = "pii-detector"
 )
 
 // Typed provider-limit codes. They are the provider-neutral seam between a
@@ -88,11 +92,13 @@ type ExecutionRequest struct {
 	// request field. The gateway still validates the returned value locally.
 	SchemaJSON  string
 	Attachments []*sharedv1.Attachment
+	SpendLimit  *inferencev1.SpendLimit
 }
 
 type ExecutionResult struct {
-	OutputText string
-	ExitCode   int
+	OutputText         string
+	ExitCode           int
+	SpendAuthorization *inferencev1.SpendAuthorization
 }
 
 type ResolvedRole struct {
@@ -182,6 +188,7 @@ func NewDefaultAdapters(runner CommandRunner) []Adapter {
 	return []Adapter{
 		{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner},
 		{Provider: ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote", Runner: runner},
+		{Provider: ProviderPiiDetector, CommandName: "resource-pii-detector", Locality: "local", Runner: runner},
 	}
 }
 
@@ -330,6 +337,11 @@ func parseSamplingSupport(declared map[string]string) map[string]SamplingSupport
 	return out
 }
 
+func digestBytes(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
 func (a Adapter) Smoke(ctx context.Context) SmokeResult {
 	inventory, err := a.ListRoles(ctx)
 	if err != nil {
@@ -358,10 +370,17 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 		if a.Metered == nil {
 			return ExecutionResult{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}
 		}
+		images := make([]MeteredImage, 0, len(req.Attachments))
+		for _, attachment := range req.Attachments {
+			if attachment == nil || attachment.GetInlineBytes() == nil {
+				return ExecutionResult{}, errors.New("metered route requires inline image references")
+			}
+			images = append(images, MeteredImage{Data: base64.StdEncoding.EncodeToString(attachment.GetInlineBytes()), MediaType: attachment.GetMediaType(), SHA256: digestBytes(attachment.GetInlineBytes())})
+		}
 		result, err := a.Metered.Run(ctx, MeteredRequest{
 			Role: req.Role, Messages: []MeteredMessage{{Role: "user", Content: req.InputText}},
 			ConstraintsJSON: req.SchemaJSON, MaxTokens: int(req.MaxOutputTokens),
-			Profile: req.Profile,
+			Profile: req.Profile, SpendLimit: req.SpendLimit, Images: images,
 		})
 		if err != nil {
 			return ExecutionResult{}, mapCommandError(a.Provider, err)
@@ -370,7 +389,7 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 		if marshalErr != nil {
 			return ExecutionResult{}, fmt.Errorf("encode metered inference result: %w", marshalErr)
 		}
-		return ExecutionResult{OutputText: string(encoded)}, nil
+		return ExecutionResult{OutputText: string(encoded), SpendAuthorization: result.SpendAuthorization}, nil
 	}
 	command, err := a.executionCommand(req)
 	if err != nil {
@@ -380,10 +399,29 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 	if err != nil {
 		return ExecutionResult{ExitCode: result.ExitCode}, mapCommandError(a.Provider, err)
 	}
-	return ExecutionResult{
-		OutputText: strings.TrimSpace(result.Stdout),
-		ExitCode:   result.ExitCode,
-	}, nil
+	output := strings.TrimSpace(result.Stdout)
+	var spendAuthorization *inferencev1.SpendAuthorization
+	if a.Provider == ProviderOpenRouter && req.SpendLimit != nil {
+		var envelope map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(output), &envelope); err != nil {
+			return ExecutionResult{}, fmt.Errorf("decode OpenRouter capped response: %w", err)
+		}
+		authorizationJSON := envelope["vrooli_spend_authorization"]
+		if len(authorizationJSON) == 0 {
+			return ExecutionResult{}, errors.New("OpenRouter owner omitted spend authorization evidence")
+		}
+		spendAuthorization = &inferencev1.SpendAuthorization{}
+		if err := json.Unmarshal(authorizationJSON, spendAuthorization); err != nil {
+			return ExecutionResult{}, fmt.Errorf("decode OpenRouter spend authorization: %w", err)
+		}
+		delete(envelope, "vrooli_spend_authorization")
+		clean, err := json.Marshal(envelope)
+		if err != nil {
+			return ExecutionResult{}, err
+		}
+		output = string(clean)
+	}
+	return ExecutionResult{OutputText: output, ExitCode: result.ExitCode, SpendAuthorization: spendAuthorization}, nil
 }
 
 func (a Adapter) runPolicyRoles(ctx context.Context) (Result, error) {
@@ -419,6 +457,8 @@ func (a Adapter) executionCommand(req ExecutionRequest) (Command, error) {
 		return a.ollamaExecutionCommand(req, role, input, timeout)
 	case ProviderOpenRouter:
 		return a.openRouterExecutionCommand(req, role, input, timeout)
+	case ProviderPiiDetector:
+		return a.piiDetectorExecutionCommand(req, role, input, timeout)
 	default:
 		return Command{}, &CommandError{Code: "unsupported_provider", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("provider %q does not expose a gateway execution command", a.Provider)}
 	}
@@ -442,6 +482,9 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 		args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 		if jsonEnvelope {
 			args = []string{"gateway", "generate", "--role", role, "--json", "--input-json-stdin"}
+		}
+		if req.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY {
+			args = append(args, "--require-loopback")
 		}
 		if req.MaxOutputTokens > 0 {
 			args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
@@ -484,6 +527,14 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 	if req.MaxOutputTokens > 0 {
 		args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
 	}
+	if req.SpendLimit != nil {
+		args = append(args, "--max-cost-micros", strconv.FormatInt(req.SpendLimit.GetMaxCostMicros(), 10),
+			"--operation-id", req.SpendLimit.GetOperationId(),
+			"--input-fingerprint", req.SpendLimit.GetInputFingerprint(),
+			"--funding-route", req.SpendLimit.GetFundingRoute())
+		args = append(args, "--reference-sha256", strings.Join(req.SpendLimit.GetReferenceSha256(), ","))
+		args = append(args, "--image-count", strconv.FormatInt(int64(req.SpendLimit.GetImageCount()), 10))
+	}
 	// Absent this flag the resource falls through to its role's declared
 	// request_defaults.temperature. Passing it only when the gateway actually
 	// has a value keeps that fallback reachable instead of pinning every call.
@@ -498,6 +549,23 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 		args = append(args, "--response-format", format)
 	}
 	return Command{Name: a.CommandName, Args: args, Stdin: stdin, Timeout: timeout}, nil
+}
+
+// piiDetectorExecutionCommand maps a DETECT_PII request to the pii-detector
+// resource CLI gateway. The CLI emits the detect result ({spans,...}) as JSON on
+// stdout, which Execute returns verbatim as OutputText. The role is carried for
+// provenance only; the detector's active model (policy/role) governs the NER
+// pass, and the deterministic regex/checksum pass always runs.
+func (a Adapter) piiDetectorExecutionCommand(req ExecutionRequest, _ string, input string, timeout time.Duration) (Command, error) {
+	if req.Kind != sharedv1.RequestKind_REQUEST_KIND_DETECT_PII {
+		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable by pii-detector", req.Kind.String())}
+	}
+	return Command{
+		Name:    a.CommandName,
+		Args:    []string{"gateway", "detect", "--text-stdin", "--json"},
+		Stdin:   input,
+		Timeout: timeout,
+	}, nil
 }
 
 type multimodalEnvelope struct {

@@ -132,6 +132,7 @@ func TestTailerLiveReplayPerAgent(t *testing.T) {
 					RunID:          uuid.New(),
 					RunnerType:     tc.runnerType,
 					TranscriptPath: path,
+					RunDir:         dir,
 					Sink:           sink,
 				})
 				done <- outcome{term, err}
@@ -292,6 +293,71 @@ func TestTailerCodexRotation(t *testing.T) {
 	}
 	if sink.count(domain.EventTypeMessage) == 0 {
 		t.Errorf("expected the agent_message from the rotated rollout")
+	}
+}
+
+func TestTailerRefusesUnpersistedCodexRotation(t *testing.T) {
+	runDir := t.TempDir()
+	sessDir := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13")
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
+	head := fixture[:len(fixture)-1]
+	rolloutA := filepath.Join(sessDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	if err := os.WriteFile(rolloutA, []byte(strings.Join(head, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Minute)
+	if err := os.Chtimes(rolloutA, old, old); err != nil {
+		t.Fatal(err)
+	}
+	rolloutB := filepath.Join(sessDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	if err := os.WriteFile(rolloutB, []byte(strings.Join(fixture, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeErr := errors.New("run path persistence refused")
+	sink := &collectSink{}
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(time.Millisecond))
+	_, err := tailer.Tail(context.Background(), TailParams{
+		RunID:          uuid.New(),
+		RunnerType:     domain.RunnerTypeCodex,
+		TranscriptPath: rolloutA,
+		RunDir:         runDir,
+		Sink:           sink,
+		OnTranscriptPath: func(path string) error {
+			if path != rolloutB {
+				t.Fatalf("selected path = %q, want rotated path %q", path, rolloutB)
+			}
+			return writeErr
+		},
+	})
+	if !errors.Is(err, writeErr) {
+		t.Fatalf("Tail error = %v, want path persistence error", err)
+	}
+	if got := sink.count(domain.EventTypeMessage); got != 1 {
+		t.Fatalf("messages after refused rotation = %d, want only the pinned rollout's message", got)
+	}
+}
+
+func TestTailerRefusesUnscopedCodexRediscovery(t *testing.T) {
+	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
+	head := fixture[:len(fixture)-1]
+	path := filepath.Join(t.TempDir(), "seed.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Join(head, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := tailer.Tail(ctx, TailParams{
+		RunID:          uuid.New(),
+		RunnerType:     domain.RunnerTypeCodex,
+		TranscriptPath: path,
+	})
+	if err == nil || !strings.Contains(err.Error(), "run-scoped run directory") {
+		t.Fatalf("Tail error = %v, want refusal before unscoped Codex discovery", err)
 	}
 }
 
@@ -649,7 +715,7 @@ func TestTailerCompletesOnePostGoalContinuationTurnOnlyWithoutNewGoal(t *testing
 			}
 			params := TailParams{
 				RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex,
-				TranscriptPath: path, SessionID: "fixture-thread",
+				TranscriptPath: path, RunDir: filepath.Dir(path), SessionID: "fixture-thread",
 				StartCursor: startCursor, Until: "complete the fixture",
 				CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
 			}

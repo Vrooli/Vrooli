@@ -139,7 +139,11 @@ func (o *Orchestrator) compactParkedRun(runID uuid.UUID, registeredAt time.Time)
 		close(done)
 	}()
 
-	o.awaitParkedTurnEnd(ctx, runID)
+	if err := o.awaitParkedTurnEnd(ctx, runID); err != nil {
+		obs.Component("park-compaction").Warn("parked turn has not exited; skipping session compaction",
+			obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
+		return
+	}
 	result, err := o.compactRunSession(ctx, run)
 	o.recordParkCompaction(ctx, runID, result, err)
 }

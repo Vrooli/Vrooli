@@ -393,8 +393,9 @@ func createTestProfile(t *testing.T, router *mux.Router) *pb.AgentProfile {
 func createTestTask(t *testing.T, router *mux.Router) *pb.Task {
 	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
 		Task: &pb.Task{
-			Title:     "test-task-" + uuid.New().String()[:8],
-			ScopePath: "src/",
+			Title:       "test-task-" + uuid.New().String()[:8],
+			Description: "Run the task created for this handler test.",
+			ScopePath:   "src/",
 		},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))

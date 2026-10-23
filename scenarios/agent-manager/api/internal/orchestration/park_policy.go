@@ -64,7 +64,7 @@ func (o *Orchestrator) checkGoalHomePark(ctx context.Context, run *domain.Run, p
 	if deadline != nil {
 		requested = deadline.Sub(o.now())
 	}
-	decision := goalhome.DecidePark(live, home.Queue.NeedsOperator, requested)
+	decision := goalhome.DecidePark(live, home.Queue, requested)
 	if decision.Allowed {
 		return ""
 	}

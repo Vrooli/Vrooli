@@ -31,22 +31,44 @@ var standingGrantConcurrencyStatuses = []domain.RunStatus{
 }
 
 func (r standingGrantUsageReader) StandingGrantUsage(ctx context.Context, owner string) (authn.StandingGrantUsage, error) {
+	usage, _, err := r.read(ctx, owner, 0)
+	return usage, err
+}
+
+// StandingGrantUsageWithRuns returns the same aggregate usage as StandingGrantUsage
+// plus a bounded list of the exact rows counted. The diagnostic uses this method
+// only after its existing investigator authorization succeeds.
+func (r standingGrantUsageReader) StandingGrantUsageWithRuns(ctx context.Context, owner string, limit int) (authn.StandingGrantUsage, []domain.Run, error) {
+	return r.read(ctx, owner, limit)
+}
+
+func (r standingGrantUsageReader) read(ctx context.Context, owner string, runLimit int) (authn.StandingGrantUsage, []domain.Run, error) {
 	if r.orch == nil || owner == "" {
-		return authn.StandingGrantUsage{}, nil
+		return authn.StandingGrantUsage{}, nil, nil
+	}
+	if runLimit < 0 {
+		runLimit = 0
 	}
 	concurrent := 0
 	committedUSD := 0.0
+	var countedRuns []domain.Run
+	if runLimit > 0 {
+		countedRuns = make([]domain.Run, 0, runLimit)
+	}
 	for i := range standingGrantConcurrencyStatuses {
 		status := standingGrantConcurrencyStatuses[i]
 		runs, err := r.orch.ListRuns(ctx, orchestration.RunListOptions{Status: &status})
 		if err != nil {
-			return authn.StandingGrantUsage{}, err
+			return authn.StandingGrantUsage{}, nil, err
 		}
 		for _, run := range runs {
 			if run == nil || run.OwnerSubject != owner {
 				continue
 			}
 			concurrent++
+			if len(countedRuns) < runLimit {
+				countedRuns = append(countedRuns, domain.Run{ID: run.ID, Status: run.Status})
+			}
 			// Committed spend uses the ONLY per-run USD figure the domain already
 			// records: the run's accumulated cost estimate (RunSummary.CostEstimate,
 			// derived from metered usage). There is no admission-time per-run USD
@@ -57,13 +79,14 @@ func (r standingGrantUsageReader) StandingGrantUsage(ctx context.Context, owner 
 			// concurrency, so this is a small, bounded read, not a scan.
 			full, err := r.orch.GetRun(ctx, run.ID)
 			if err != nil {
-				return authn.StandingGrantUsage{}, err
+				return authn.StandingGrantUsage{}, nil, err
 			}
 			if full != nil && full.Summary != nil {
 				committedUSD += full.Summary.CostEstimate
 			}
 		}
 	}
+
 	// CommittedBudgetUSD is the committed-spend FLOOR already attributed to the
 	// owner's non-terminal runs. It is honest (never an estimate) but an
 	// APPROXIMATION of true committed spend in two bounded ways:
@@ -75,5 +98,5 @@ func (r standingGrantUsageReader) StandingGrantUsage(ctx context.Context, owner 
 	// caller that is actually under budget. The concurrency bound remains the firm
 	// limit; the budget bound now additionally refuses an owner whose live runs
 	// have ALREADY committed at or beyond MaxRunBudgetUSD.
-	return authn.StandingGrantUsage{ConcurrentRuns: concurrent, CommittedBudgetUSD: committedUSD}, nil
+	return authn.StandingGrantUsage{ConcurrentRuns: concurrent, CommittedBudgetUSD: committedUSD}, countedRuns, nil
 }

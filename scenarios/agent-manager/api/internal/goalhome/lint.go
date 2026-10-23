@@ -2,6 +2,7 @@ package goalhome
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -38,6 +39,21 @@ func Lint(home *Home) *LintReport {
 	}
 	for _, missing := range home.Missing {
 		add(Finding{Code: "missing-file", Blocking: missing == GoalFile || missing == QueueFile, File: missing, Detail: missing + " is missing from the goal home"})
+	}
+	files := make([]string, 0, len(home.FileBytes))
+	for file := range home.FileBytes {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	for _, file := range files {
+		size := home.FileBytes[file]
+		if size > DefaultBoardFileBytes {
+			add(Finding{
+				Code:   "board-file-size-advisory",
+				File:   file,
+				Detail: fmt.Sprintf("%s is %d bytes, above the supervisor board default per-file read cap of %d bytes; configured board limits are authoritative", file, size, DefaultBoardFileBytes),
+			})
+		}
 	}
 
 	resume := ResumeSet{Goal: home.Goal.Bytes, Queue: home.Queue.Bytes, OpenFeedback: home.Feedback.OpenBytes, OpenWorkarounds: home.Workarounds.OpenBytes, Budget: ResumeBudgetBytes}

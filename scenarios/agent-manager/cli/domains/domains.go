@@ -55,8 +55,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"policy-disable", "Disable supervision policy"}),
 		support.SubcommandGroup("investigation", "Run bounded caller-neutral investigations", deps.Investigation,
 			[2]string{"start", "Start or reattach a typed investigation"}, [2]string{"get", "Get a typed investigation"}, [2]string{"list", "List typed investigations"}, [2]string{"wait", "Wait for a typed investigation"}, [2]string{"cancel", "Cancel a typed investigation"}),
-		support.SubcommandGroup("task", "Manage tasks", deps.Task,
-			[2]string{"list", "List all tasks"}, [2]string{"get", "Get task details"}, [2]string{"create", "Create a task"}, [2]string{"update", "Update a task"}, [2]string{"delete", "Delete a cancelled task"}, [2]string{"cancel", "Cancel a queued or running task"}),
+		taskGroup(deps),
 		maintenanceGroup(deps),
 		storageGroup(deps),
 		support.SubcommandGroup("standing-grants", "Create, list, diagnose, or revoke operator-approved standing grants", deps.StandingGrants,
@@ -76,6 +75,34 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		runs.SubcommandGroup(deps),
 		measures.Register(),
 	}
+}
+
+func taskGroup(deps support.Dependencies) cliapp.SubcommandGroup {
+	group := support.SubcommandGroup("task", "Manage tasks", deps.Task,
+		[2]string{"list", "List all tasks"}, [2]string{"get", "Get task details"}, [2]string{"create", "Create a task"}, [2]string{"update", "Update a task"}, [2]string{"delete", "Delete a cancelled task"}, [2]string{"cancel", "Cancel a queued or running task"})
+	for i := range group.Subcommands {
+		command := &group.Subcommands[i]
+		switch command.Name {
+		case "get":
+			command.Run = nil
+			command.RunCtx = deps.TaskGet
+			command.Usage = "agent-manager task get <id> [--json]"
+			command.Args.Positionals = []cliapp.Positional{{Name: "id", Required: true, Description: "Task ID"}}
+		case "create":
+			command.Run = nil
+			command.RunCtx = deps.TaskCreate
+			command.Usage = "agent-manager task create --title <title> [options] [--json]"
+			command.Args.Flags = []cliapp.Flag{
+				{Name: "title", Required: true, Description: "Task title"},
+				{Name: "description", Description: "Task description"},
+				{Name: "scope-path", Description: "Scope path for agent operations"},
+				{Name: "project-root", Description: "Project root directory"},
+				{Name: "created-by", Description: "Creator identifier"},
+			}
+			command.HelpText = "Creates a task with its title and optional description, scope, project root, and creator."
+		}
+	}
+	return group
 }
 
 func maintenanceGroup(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -206,8 +233,8 @@ func goalHomeCommand(command *cliapp.Command) bool {
 	switch command.Name {
 	case "epoch-check":
 		command.Usage = "agent-manager effort epoch-check <epoch-file> [--acceptance] [--wake-key <run-id>] [--effort <ref>] [--runs ids] [--spend-threshold n] [--json]"
-		command.HelpText = "Prints step-back triggers, typed exit gates (G<n> test|journey|inventory|review|custom) as met or unmet, the measured yield and goal-level findings. Exits 3 on STEP_BACK and wakes --wake-key. An epoch with an ACCEPTED line never exits 3 or wakes. --acceptance is the orchestrator's check: exit 4 on an unmet gate or an unanswered diminishing-returns finding; it never exits 3 or wakes." + reference
-		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "acceptance", Bool: true, LocalOnly: true, Description: "Orchestrator acceptance check (exit 4 when refused)"}, {Name: "wake-key", LocalOnly: true, Description: "Orchestrator run ID to wake on STEP_BACK"}, {Name: "effort", LocalOnly: true, Description: "Effort reference whose signal log records a step_back on STEP_BACK"}, {Name: "runs", LocalOnly: true, Description: "Worker run IDs for the spend trigger"}, {Name: "spend-threshold", LocalOnly: true, Description: "Weighted non-cache tokens above which spend fires"}}
+		command.HelpText = "Prints step-back triggers, typed exit gates (G<n> test|journey|inventory|review|custom) as met or unmet, the measured yield and goal-level findings. Exits 3 on STEP_BACK and wakes --wake-key. --effort records a step_back signal only; it does not dispatch supervision. To request a supervisor heartbeat, use `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor` when authorized. An epoch with an ACCEPTED line never exits 3 or wakes. --acceptance is the orchestrator's check: exit 4 on an unmet gate or an unanswered diminishing-returns finding; it never exits 3 or wakes." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "acceptance", Bool: true, LocalOnly: true, Description: "Orchestrator acceptance check (exit 4 when refused)"}, {Name: "wake-key", LocalOnly: true, Description: "Orchestrator run ID to wake on STEP_BACK"}, {Name: "effort", LocalOnly: true, Description: "Record a step_back signal only; does not dispatch supervision. Use `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor` to request a supervisor heartbeat when authorized"}, {Name: "runs", LocalOnly: true, Description: "Worker run IDs for the spend trigger"}, {Name: "spend-threshold", LocalOnly: true, Description: "Weighted non-cache tokens above which spend fires"}}
 	case "lint":
 		command.Usage = "agent-manager effort lint <goal home> [--json]"
 		command.HelpText = "Fails (exit 4), naming each rule, when the resume set (GOAL.md, QUEUE.md, open FEEDBACK, open WORKAROUNDS) exceeds 30,000 bytes, QUEUE.md does not have exactly one handoff or it exceeds 4 KB, no ## Next item is marked [ready] and ## Needs operator is empty, open operator or supervisor feedback is not named in the handoff, or diminishing returns has no [re-aim] item under ## Needs operator. Reads files only." + reference
@@ -217,9 +244,9 @@ func goalHomeCommand(command *cliapp.Command) bool {
 		command.HelpText = "Atomically replaces the single ## Handoff section of QUEUE.md (creating it after ## Needs operator when missing). Writes nothing when the text is unchanged. Refuses (exit 4) text over 4 KB, a queue with more than one handoff, and a QUEUE.md that changed during the write. Reads and writes files only." + reference
 		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "file", LocalOnly: true, Description: "Markdown file holding the handoff text"}, {Name: "stdin", Bool: true, LocalOnly: true, Description: "Read the handoff text from standard input"}}
 	case "park":
-		command.Usage = "agent-manager effort park <goal home> --run <run-id> [--timeout D] [--json]"
-		command.HelpText = "Parks the orchestrator (producer children, keyed by its run) for up to 1h while a direct child run is live, or up to 72h while ## Needs operator holds an item; otherwise refuses (exit 4) with the admissible-slice rule. --timeout may only shorten the maximum." + reference
-		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "run", LocalOnly: true, Description: "The calling orchestrator's run ID"}, {Name: "timeout", LocalOnly: true, Description: "Park length, at most the rule's maximum"}, {Name: "identity-token", LocalOnly: true, Description: "Owning run's identity token (defaults to the run environment)"}}
+		command.Usage = "agent-manager effort park <goal home> [--run <run-id>] [--timeout D] [--json]"
+		command.HelpText = "Parks the orchestrator (producer children, keyed by its run) for up to 1h while a direct child run is live, or up to 72h while ## Needs operator holds an item; otherwise refuses (exit 4) with the admissible-slice rule. --run defaults to the verified calling run; inspect the returned park run status and await handle in the JSON receipt, and preserve any refusal or command error." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "run", LocalOnly: true, Description: "Optional explicit run ID; must match the verified calling run"}, {Name: "timeout", LocalOnly: true, Description: "Park length, at most the rule's maximum"}, {Name: "identity-token", LocalOnly: true, Description: "Owning run's identity token (defaults to the run environment)"}}
 	case "signals":
 		command.Usage = "agent-manager effort signals <effort-ref> [--after N] [--limit 100] [--json]"
 		command.HelpText = "Lists the effort's durable signals with seq greater than --after, in seq order, and the latest seq. Kinds: child_run_ended (a linked non-orchestrator run ended), step_back (epoch-check --effort), feedback (recorded by `effort signal --kind feedback` for a new operator or supervisor FEEDBACK entry), operator_answer (a decision was answered or defaulted), cap_stop (a run stopped at its weighted-token cap). One fact is one signal." + reference

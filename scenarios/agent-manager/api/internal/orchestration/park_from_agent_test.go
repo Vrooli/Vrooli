@@ -2,23 +2,82 @@ package orchestration_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
 
 // parkFromAgentSecret is the shared identity secret used to mint test tokens.
 var parkFromAgentSecret = []byte("phase4-park-from-agent-secret-0123456789")
+
+type parkProcessVisibleRunner struct {
+	*runner.MockRunner
+	pid atomic.Int32
+}
+
+func (r *parkProcessVisibleRunner) PID(uuid.UUID) int { return int(r.pid.Load()) }
+
+type immediateParkWaiter struct{ started chan struct{} }
+
+func (immediateParkWaiter) Producer() string { return "immediate-park-test" }
+
+func (w immediateParkWaiter) Wait(context.Context, string) (string, error) {
+	close(w.started)
+	return "ready", nil
+}
+
+type blockingParkWaiter struct{ started chan struct{} }
+
+func (blockingParkWaiter) Producer() string { return "manual-park-test" }
+
+func (w blockingParkWaiter) Wait(ctx context.Context, _ string) (string, error) {
+	close(w.started)
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+type wakeOnParkedPersistRepository struct {
+	repository.RunRepository
+	onParked func(*domain.Run)
+}
+
+type failParkedStatusEventStore struct {
+	event.Store
+	err            error
+	failNextStatus *atomic.Int32
+}
+
+func (s failParkedStatusEventStore) Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
+	for _, evt := range events {
+		if evt != nil && evt.EventType == domain.EventTypeStatus && s.failNextStatus.CompareAndSwap(1, 0) {
+			return s.err
+		}
+	}
+	return s.Store.Append(ctx, runID, events...)
+}
+
+func (r wakeOnParkedPersistRepository) Update(ctx context.Context, run *domain.Run) error {
+	if err := r.RunRepository.Update(ctx, run); err != nil {
+		return err
+	}
+	if run.Status == domain.RunStatusParked && r.onParked != nil {
+		r.onParked(run)
+	}
+	return nil
+}
 
 // newParkFromAgentSvc builds an orchestrator wired with a claude-code runner and
 // the shared identity secret, plus a running run, for ParkRunFromAgent auth tests.
@@ -48,8 +107,9 @@ func newParkFromAgentSvcWithStopObserver(t *testing.T) (*orchestration.Orchestra
 		stopCalls.Add(1)
 		return nil
 	}
+	processRunner := &parkProcessVisibleRunner{MockRunner: mockRunner}
 	registry := runner.NewRegistry()
-	if err := registry.Register(mockRunner); err != nil {
+	if err := registry.Register(processRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
 
@@ -135,6 +195,297 @@ func TestParkRunFromAgent_OwningTokenParks(t *testing.T) {
 	}
 	if reloaded.Status != domain.RunStatusParked {
 		t.Fatalf("persisted status = %s, want parked", reloaded.Status)
+	}
+}
+
+func TestParkRunFromAgent_ImmediateWaiterWaitsForOriginalProcessExit(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	continued := make(chan struct{}, 1)
+	stopCalled := make(chan struct{}, 1)
+	baseRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	baseRunner.SetAvailable(true, "available")
+	baseRunner.SetCapabilities(runner.Capabilities{SupportsMessages: true, SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"}})
+	baseRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued <- struct{}{}
+		return &runner.ExecuteResult{Success: true}, nil
+	}
+	baseRunner.StopFunc = func(context.Context, uuid.UUID) error {
+		stopCalled <- struct{}{}
+		return nil
+	}
+	processRunner := &parkProcessVisibleRunner{MockRunner: baseRunner}
+	processRunner.pid.Store(1234)
+	runners := runner.NewRegistry()
+	if err := runners.Register(processRunner); err != nil {
+		t.Fatal(err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(runners),
+		orchestration.WithRunStateRoot(t.TempDir()), orchestration.WithIdentitySecret(parkFromAgentSecret),
+		newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	run.ResolvedConfig.Model = "mock-model"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	token := activateToken(t, ctx, repos, run)
+	waiter := immediateParkWaiter{started: make(chan struct{})}
+	registry := orchestration.NewAwaitRegistry(svc, waiter)
+	svc.SetAwaitRegistry(registry)
+	t.Cleanup(func() {
+		processRunner.pid.Store(0)
+		registry.Stop()
+	})
+
+	if _, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: waiter.Producer(), Key: "already-ready", IdentityToken: token,
+	}); err != nil {
+		t.Fatalf("ParkRunFromAgent: %v", err)
+	}
+	select {
+	case <-waiter.started:
+	case <-time.After(time.Second):
+		t.Fatal("immediately-ready waiter was not started")
+	}
+	select {
+	case <-continued:
+		t.Fatal("continuation started while the parked run's original process was live")
+	case <-time.After(250 * time.Millisecond):
+	}
+	select {
+	case <-stopCalled:
+	case <-time.After(4 * time.Second):
+		t.Fatal("park turn-end stop was not attempted")
+	}
+	select {
+	case <-continued:
+		t.Fatal("continuation started before the runner reported process exit")
+	case <-time.After(150 * time.Millisecond):
+	}
+	processRunner.pid.Store(0)
+	select {
+	case <-continued:
+	case <-time.After(5 * time.Second):
+		t.Fatal("continuation did not start after the runner reported process exit")
+	}
+	completed, err := waitForRunCompletion(t, ctx, svc, run.ID, 3*time.Second)
+	if err != nil {
+		t.Fatalf("wait for durable continuation completion: %v", err)
+	}
+	if completed.Status != domain.RunStatusComplete {
+		t.Fatalf("durable continuation status = %s, want complete", completed.Status)
+	}
+}
+
+func TestParkRunFromAgent_InstallsProcessBarrierBeforePublishingParkedRun(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	continued := make(chan struct{}, 1)
+	baseRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	baseRunner.SetAvailable(true, "available")
+	baseRunner.SetCapabilities(runner.Capabilities{SupportsMessages: true, SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"}})
+	baseRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued <- struct{}{}
+		return &runner.ExecuteResult{Success: true}, nil
+	}
+	baseRunner.StopFunc = func(context.Context, uuid.UUID) error { return nil }
+	processRunner := &parkProcessVisibleRunner{MockRunner: baseRunner}
+	processRunner.pid.Store(1234)
+	runners := runner.NewRegistry()
+	if err := runners.Register(processRunner); err != nil {
+		t.Fatal(err)
+	}
+
+	var svc *orchestration.Orchestrator
+	var wakeErr error
+	wakeDuringPersist := wakeOnParkedPersistRepository{
+		RunRepository: repos.Runs,
+		onParked: func(run *domain.Run) {
+			wakeCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+			defer cancel()
+			_, wakeErr = svc.WakeRun(wakeCtx, orchestration.WakeRunInput{RunID: run.ID, Result: "ready"})
+		},
+	}
+	svc = orchestration.New(repos.Profiles, repos.Tasks, wakeDuringPersist,
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(runners),
+		orchestration.WithRunStateRoot(t.TempDir()), orchestration.WithIdentitySecret(parkFromAgentSecret),
+		newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	run.ResolvedConfig.Model = "mock-model"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	token := activateToken(t, ctx, repos, run)
+	t.Cleanup(func() { processRunner.pid.Store(0) })
+
+	if _, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: "test-genie", Key: "already-ready", IdentityToken: token,
+	}); err != nil {
+		t.Fatalf("ParkRunFromAgent: %v", err)
+	}
+	if !errors.Is(wakeErr, context.DeadlineExceeded) {
+		t.Fatalf("wake error = %v, want deadline while waiting on the turn-end barrier", wakeErr)
+	}
+	select {
+	case <-continued:
+		t.Fatalf("continuation started before the original runner exited (wake error: %v)", wakeErr)
+	default:
+	}
+	if got := processRunner.pid.Load(); got == 0 {
+		t.Fatal("runner unexpectedly exited before the wake was held at the publication boundary")
+	}
+}
+
+func TestParkRunFromAgent_RefusesWhenRunnerIsUnavailableBeforePark(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore), orchestration.WithIdentitySecret(parkFromAgentSecret),
+		newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	token := activateToken(t, ctx, repos, run)
+
+	if _, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: "test-genie", Key: "already-ready", IdentityToken: token,
+	}); err == nil {
+		t.Fatal("ParkRunFromAgent succeeded without a runner to stop and drain")
+	}
+	after, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun after unavailable-runner refusal: %v", err)
+	}
+	if after.Status != domain.RunStatusRunning || after.AwaitHandle != nil {
+		t.Fatalf("unavailable-runner refusal changed run state: status=%s await=%+v", after.Status, after.AwaitHandle)
+	}
+}
+
+func TestParkRunFromAgent_CompletesObligationsAfterStatusEventAppendFailure(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	continued := make(chan struct{}, 1)
+	stopCalled := make(chan struct{}, 1)
+	baseRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	baseRunner.SetAvailable(true, "available")
+	baseRunner.SetCapabilities(runner.Capabilities{SupportsMessages: true, SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"}})
+	baseRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued <- struct{}{}
+		return &runner.ExecuteResult{Success: true}, nil
+	}
+	baseRunner.StopFunc = func(context.Context, uuid.UUID) error {
+		stopCalled <- struct{}{}
+		return nil
+	}
+	processRunner := &parkProcessVisibleRunner{MockRunner: baseRunner}
+	processRunner.pid.Store(1234)
+	runners := runner.NewRegistry()
+	if err := runners.Register(processRunner); err != nil {
+		t.Fatal(err)
+	}
+	eventErr := errors.New("status event append unavailable")
+	failNextStatus := &atomic.Int32{}
+	failNextStatus.Store(1)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(failParkedStatusEventStore{Store: eventStore, err: eventErr, failNextStatus: failNextStatus}),
+		orchestration.WithRunners(runners), orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithIdentitySecret(parkFromAgentSecret), newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	run.ResolvedConfig.Model = "mock-model"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	token := activateToken(t, ctx, repos, run)
+	waiter := immediateParkWaiter{started: make(chan struct{})}
+	registry := orchestration.NewAwaitRegistry(svc, waiter)
+	svc.SetAwaitRegistry(registry)
+	t.Cleanup(func() {
+		processRunner.pid.Store(0)
+		registry.Stop()
+	})
+
+	if _, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: waiter.Producer(), Key: "committed-before-event-error", IdentityToken: token,
+	}); !errors.Is(err, eventErr) {
+		t.Fatalf("ParkRunFromAgent error = %v, want the post-commit status-event error", err)
+	}
+	parked, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun after status-event failure: %v", err)
+	}
+	if parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil || parked.AwaitHandle.Key != "committed-before-event-error" {
+		t.Fatalf("durable park = status %s handle %+v, want committed matching handle", parked.Status, parked.AwaitHandle)
+	}
+	select {
+	case <-waiter.started:
+	case <-time.After(time.Second):
+		t.Fatal("committed park's waiter was not registered after event failure")
+	}
+	select {
+	case <-continued:
+		t.Fatal("continuation started before runner process exit")
+	case <-time.After(100 * time.Millisecond):
+	}
+	select {
+	case <-stopCalled:
+	case <-time.After(4 * time.Second):
+		t.Fatal("turn-end stop was not attempted after committed park")
+	}
+	select {
+	case <-continued:
+		t.Fatal("continuation started before PID reported exit")
+	case <-time.After(100 * time.Millisecond):
+	}
+	processRunner.pid.Store(0)
+	select {
+	case <-continued:
+	case <-time.After(5 * time.Second):
+		t.Fatal("committed park waiter did not resume after PID exit")
+	}
+	completed, err := waitForRunCompletion(t, ctx, svc, run.ID, 3*time.Second)
+	if err != nil {
+		t.Fatalf("wait for durable continuation completion: %v", err)
+	}
+	if completed.Status != domain.RunStatusComplete {
+		t.Fatalf("durable continuation status = %s, want complete", completed.Status)
+	}
+}
+
+func TestParkRun_RegistersWaiterAfterCommittedStatusEventAppendFailure(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	eventErr := errors.New("status event append unavailable")
+	failNextStatus := &atomic.Int32{}
+	failNextStatus.Store(1)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(failParkedStatusEventStore{Store: eventStore, err: eventErr, failNextStatus: failNextStatus}),
+		newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	waiter := blockingParkWaiter{started: make(chan struct{})}
+	registry := orchestration.NewAwaitRegistry(svc, waiter)
+	svc.SetAwaitRegistry(registry)
+	t.Cleanup(registry.Stop)
+
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{
+		RunID: run.ID, Producer: waiter.Producer(), Key: "committed-before-event-error",
+	}); !errors.Is(err, eventErr) {
+		t.Fatalf("ParkRun error = %v, want post-commit status-event error", err)
+	}
+	parked, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun after status-event failure: %v", err)
+	}
+	if parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil || parked.AwaitHandle.Key != "committed-before-event-error" {
+		t.Fatalf("durable park = status %s handle %+v, want committed matching handle", parked.Status, parked.AwaitHandle)
+	}
+	select {
+	case <-waiter.started:
+	case <-time.After(time.Second):
+		t.Fatal("committed manual park's waiter was not registered after event failure")
 	}
 }
 
@@ -299,13 +650,19 @@ func TestWakeRun_WaitsForParkedTurnToEnd(t *testing.T) {
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "available")
 	mockRunner.SetCapabilities(runner.Capabilities{SupportsMessages: true, SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"}})
-	mockRunner.StopFunc = func(context.Context, uuid.UUID) error { stopped.Store(true); return nil }
+	processRunner := &parkProcessVisibleRunner{MockRunner: mockRunner}
+	processRunner.pid.Store(1234)
+	mockRunner.StopFunc = func(context.Context, uuid.UUID) error {
+		stopped.Store(true)
+		processRunner.pid.Store(0)
+		return nil
+	}
 	mockRunner.ContinueFunc = func(_ context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
 		continued <- stopped.Load()
 		return &runner.ExecuteResult{Success: true, SessionID: req.SessionID}, nil
 	}
 	registry := runner.NewRegistry()
-	if err := registry.Register(mockRunner); err != nil {
+	if err := registry.Register(processRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
 	svc := orchestration.New(
@@ -334,6 +691,13 @@ func TestWakeRun_WaitsForParkedTurnToEnd(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("timed out waiting for the continuation")
+	}
+	completed, err := waitForRunCompletion(t, ctx, svc, run.ID, 3*time.Second)
+	if err != nil {
+		t.Fatalf("wait for durable continuation completion: %v", err)
+	}
+	if completed.Status != domain.RunStatusComplete {
+		t.Fatalf("durable continuation status = %s, want complete", completed.Status)
 	}
 }
 

@@ -15,11 +15,20 @@ import (
 )
 
 type fakeActionController struct {
-	runs      map[uuid.UUID]*domain.Run
-	continued int
-	stopped   int
-	parked    int
-	woken     int
+	runs            map[uuid.UUID]*domain.Run
+	continued       int
+	stopped         int
+	parked          int
+	woken           int
+	checkins        []effortCheckinCall
+	checkinErr      error
+	checkinErrByRun map[uuid.UUID]error
+}
+
+type effortCheckinCall struct {
+	runID     uuid.UUID
+	effortRef string
+	through   int64
 }
 
 func (c *fakeActionController) GetRun(_ context.Context, id uuid.UUID) (*domain.Run, error) {
@@ -43,6 +52,25 @@ func (c *fakeActionController) ParkRun(_ context.Context, id uuid.UUID, _ string
 func (c *fakeActionController) WakeRun(_ context.Context, id uuid.UUID, _ string) error {
 	c.woken++
 	c.runs[id].Status = domain.RunStatusRunning
+	return nil
+}
+func (c *fakeActionController) WakeEffortCheckin(_ context.Context, id uuid.UUID, effortRef string, through int64) error {
+	if err := c.checkinErrByRun[id]; err != nil {
+		return err
+	}
+	if c.checkinErr != nil {
+		return c.checkinErr
+	}
+	c.woken++
+	c.checkins = append(c.checkins, effortCheckinCall{runID: id, effortRef: effortRef, through: through})
+	run := c.runs[id]
+	run.Status = domain.RunStatusRunning
+	if run.EffortSignalCursors == nil {
+		run.EffortSignalCursors = map[string]domain.EffortSignalCursor{}
+	}
+	cursor := run.EffortSignalCursors[effortRef]
+	cursor.DeliveredSeq = through
+	run.EffortSignalCursors[effortRef] = cursor
 	return nil
 }
 

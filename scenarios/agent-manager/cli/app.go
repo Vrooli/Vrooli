@@ -118,6 +118,8 @@ func (a *App) dependencies() support.Dependencies {
 		Effort:           a.cmdEffort,
 		Investigation:    a.cmdInvestigation,
 		Task:             a.cmdTask,
+		TaskGet:          a.taskGet,
+		TaskCreate:       a.taskCreate,
 		Run:              a.cmdRun,
 		RunCommands:      a.runCommands(),
 		Runner:           a.cmdRunner,

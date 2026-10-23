@@ -31,7 +31,7 @@ func resolvePersistedRunResult(ctx context.Context, store event.Store, runID uui
 	// supersede interim samples and provider turns outrank message counts.
 	fact := invocationreadmodel.ProjectRun(&domain.Run{ID: runID, Summary: &domain.RunSummary{TurnsUsed: fallbackTurns}}, events, time.Now())
 	result := domain.ResolveRunResult(latestTurnResultEvents(events), success, exitCode, terminalReason)
-	return result, domain.SummaryFromRunResult(result, int(fact.Turns), int(fact.TotalTokens), int(fact.InputTokens), fact.TotalCostUSD), nil
+	return result, domain.SummaryFromRunResult(result, int(fact.Turns), fact.TotalTokens, int(fact.InputTokens), fact.TotalCostUSD), nil
 }
 
 // latestTurnResultEvents prevents terminal outputs from earlier continuation

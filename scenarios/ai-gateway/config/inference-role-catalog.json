@@ -14,6 +14,19 @@
         }
       ]
     },
+    "detect.pii.default": {
+      "description": "Detect personally-identifiable information in text and return typed spans. Served by the local pii-detector resource (deterministic regex/checksum pass merged with an NER model). Local-only: PII scanning must not leave the host.",
+      "timeout_ms": 45000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "pii-detector",
+          "resource_role": "pii.small",
+          "model": "policy-resolved",
+          "reason": "The pii-detector resource owns the tiered PII model policy (pii.small default -> pii.default -> pii.large) and always runs the deterministic regex/checksum pass."
+        }
+      ]
+    },
     "classify.fast": {
       "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
       "timeout_ms": 45000,
@@ -63,6 +76,32 @@
           "resource_role": "extract.structured",
           "model": "policy-resolved",
           "reason": "Subscription-backed metered structured-output fallback."
+        }
+      ]
+    },
+    "device.geometry.byok": {
+      "description": "Explicit BYOK-only provider route for Device Studio geometry construction; no candidate fallback.",
+      "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "The caller explicitly selected its owner-managed OpenRouter credential."
+        }
+      ]
+    },
+    "device.geometry.vrooli_credits": {
+      "description": "Explicit Vrooli-credits-only provider route for Device Studio geometry construction; no candidate fallback.",
+      "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "The caller explicitly selected LPBS metered inference and credit accounting."
         }
       ]
     },
@@ -210,6 +249,19 @@
           "resource_role": "code.local",
           "model": "policy-resolved",
           "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at two sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."
+        }
+      ]
+    },
+    "chat.uncensored": {
+      "description": "Explicit-only unrestricted local chat backed by an abliterated model. Callers must name this role deliberately; it is never a default or fallback target, and it has no hosted candidate.",
+      "timeout_ms": 240000,
+      "sampling": { "temperature": 0.7, "overridable": true },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "chat.uncensored",
+          "model": "policy-resolved",
+          "reason": "Local-only by design: unrestricted generation stays on the host and is reachable only through explicit role selection."
         }
       ]
     }

@@ -1,14 +1,20 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/cli/domains"
 	clitest "agent-manager/cli/internal/testutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -81,6 +87,30 @@ func newRichReadApp(t *testing.T) *App {
 	return &App{services: NewServices(api)}
 }
 
+func runRegisteredTaskCommand(t *testing.T, app *App, name string, args ...string) error {
+	t.Helper()
+	for _, group := range domains.SubcommandGroups(app.dependencies()) {
+		if group.Name != "task" {
+			continue
+		}
+		for _, command := range group.Subcommands {
+			if command.Name != name {
+				continue
+			}
+			ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, args, app.core, nil, nil)
+			if err != nil {
+				return err
+			}
+			if command.RunCtx == nil {
+				t.Fatalf("task %s has no typed handler", name)
+			}
+			return command.RunCtx(ctx)
+		}
+	}
+	t.Fatalf("task command %q not registered", name)
+	return nil
+}
+
 func TestReadCommandsRenderRichProfileTaskAndRunResponses(t *testing.T) {
 	app := newRichReadApp(t)
 	for _, args := range [][]string{{"list"}, {"get", "profile-1"}, {"update", "profile-1", "--name=updated", "--profile-key=updated", "--description=updated", "--role-ref=code.review", "--max-turns=6", "--timeout=30s", "--sandbox-mode=tracking", "--sandbox-retention-mode=keep_active"}} {
@@ -88,10 +118,13 @@ func TestReadCommandsRenderRichProfileTaskAndRunResponses(t *testing.T) {
 			t.Fatalf("profile %v: %v", args, err)
 		}
 	}
-	for _, args := range [][]string{{"list"}, {"get", "task-1"}, {"update", "task-1", "--title=updated", "--description=updated", "--scope-path=ui", "--project-root=/repo"}} {
+	for _, args := range [][]string{{"list"}, {"update", "task-1", "--title=updated", "--description=updated", "--scope-path=ui", "--project-root=/repo"}} {
 		if err := app.cmdTask(args); err != nil {
 			t.Fatalf("task %v: %v", args, err)
 		}
+	}
+	if err := runRegisteredTaskCommand(t, app, "get", "task-1"); err != nil {
+		t.Fatalf("task get: %v", err)
 	}
 	for _, args := range [][]string{{"list"}, {"get", "run-1"}} {
 		if err := app.cmdRun(args); err != nil {
@@ -222,7 +255,7 @@ func TestProfileAndTaskCreateEnsureRenderNeutralResponses(t *testing.T) {
 			t.Fatalf("profile %v: %v", args, err)
 		}
 	}
-	if err := app.cmdTask([]string{"create", "--title=triage"}); err != nil {
+	if err := runRegisteredTaskCommand(t, app, "create", "--title=triage"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -288,8 +321,6 @@ func TestTaskCommandsValidateAndUseServiceContracts(t *testing.T) {
 	app := &App{services: services}
 	for _, args := range [][]string{
 		{"list", "--status=queued", "--quiet"},
-		{"get", "task-1", "--json"},
-		{"create", "--title=triage failure", "--description=inspect evidence", "--scope-path=api", "--project-root=/workspace"},
 		{"delete", "task-1", "--force"},
 		{"cancel", "task-1", "--json"},
 	} {
@@ -297,13 +328,75 @@ func TestTaskCommandsValidateAndUseServiceContracts(t *testing.T) {
 			t.Fatalf("task %v: %v", args, err)
 		}
 	}
-	if err := app.cmdTask([]string{"create"}); err == nil {
+	if err := runRegisteredTaskCommand(t, app, "get"); err == nil {
+		t.Fatal("get without ID should fail")
+	}
+	if err := runRegisteredTaskCommand(t, app, "get", "task-1", "extra"); err == nil {
+		t.Fatal("get with extra positional should fail")
+	}
+	if err := runRegisteredTaskCommand(t, app, "get", "task-1", "--json"); err != nil {
+		t.Fatalf("get with JSON: %v", err)
+	}
+	if err := runRegisteredTaskCommand(t, app, "create", "--title=triage failure", "--description=inspect evidence", "--scope-path=api", "--project-root=/workspace"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := runRegisteredTaskCommand(t, app, "create"); err == nil {
 		t.Fatal("create without title should fail")
 	}
-	for _, args := range [][]string{{"get"}, {"update"}, {"delete"}, {"cancel"}, {"unknown"}} {
+	if err := runRegisteredTaskCommand(t, app, "create", "--title="); err == nil {
+		t.Fatal("create with an empty title should fail")
+	}
+	for _, args := range [][]string{{"update"}, {"delete"}, {"cancel"}, {"unknown"}} {
 		if err := app.cmdTask(args); err == nil {
 			t.Fatalf("task %v should fail validation", args)
 		}
+	}
+}
+
+func TestTaskGetCreateTypedHandlersPreserveRESTMapping(t *testing.T) {
+	var getPath string
+	var created *domainpb.Task
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/tasks/task-42":
+			getPath = r.URL.Path
+			_, _ = w.Write([]byte(richResponse(t, &apipb.GetTaskResponse{Task: &domainpb.Task{Id: "task-42", Title: "existing"}})))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/tasks":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			var request apipb.CreateTaskRequest
+			if err := protojson.Unmarshal(body, &request); err != nil {
+				t.Error(err)
+				return
+			}
+			created = request.GetTask()
+			_, _ = w.Write([]byte(richResponse(t, &apipb.CreateTaskResponse{Task: &domainpb.Task{Id: "task-new", Title: request.GetTask().GetTitle()}})))
+		default:
+			t.Errorf("unexpected task request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL}
+	}, nil)
+	app := &App{services: NewServices(api)}
+	if err := runRegisteredTaskCommand(t, app, "get", "task-42", "--json"); err != nil {
+		t.Fatal(err)
+	}
+	if err := runRegisteredTaskCommand(t, app, "create", "--title=triage", "--description=inspect evidence", "--scope-path=api", "--project-root=/workspace", "--created-by=operator"); err != nil {
+		t.Fatal(err)
+	}
+	if getPath != "/api/v1/tasks/task-42" {
+		t.Fatalf("get path = %q", getPath)
+	}
+	if created == nil || created.Title != "triage" || created.Description != "inspect evidence" || created.ScopePath != "api" || created.ProjectRoot != "/workspace" || created.CreatedBy != "operator" {
+		encoded, _ := json.Marshal(created)
+		t.Fatalf("created request task = %s", encoded)
 	}
 }
 

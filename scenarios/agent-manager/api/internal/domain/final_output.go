@@ -220,7 +220,7 @@ func candidateEvidence(candidate FinalOutputCandidate) []string {
 
 // SummaryFromRunResult is the only compatibility projection for new terminal
 // results. Metrics remain available even when final-output selection abstains.
-func SummaryFromRunResult(result *RunResult, turns, tokens, contextTokens int, cost float64) *RunSummary {
+func SummaryFromRunResult(result *RunResult, turns int, tokens int64, contextTokens int, cost float64) *RunSummary {
 	if result == nil && turns == 0 && tokens == 0 && contextTokens == 0 && cost == 0 {
 		return nil
 	}

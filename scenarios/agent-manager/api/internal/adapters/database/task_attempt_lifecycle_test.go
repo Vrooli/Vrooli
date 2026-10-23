@@ -2,7 +2,9 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +15,425 @@ import (
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
+
+func TestRunUpdateCannotChangeCreationWorkReferences(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := createQueuedTask(t, repos, "immutable run identity")
+	originalRef := activeEffortOrchestratorRef("effort:original", "orchestrator")
+	run := pendingTaskRun(task.ID)
+	run.WorkReferences = []*eventpb.WorkReference{originalRef}
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	stored, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || stored == nil {
+		t.Fatalf("read created run: run=%+v err=%v", stored, err)
+	}
+
+	// Keep the same active status so the lifecycle version does not change.
+	// Generic Update must still reject an attempt to replace creation identity.
+	stored.WorkReferences = []*eventpb.WorkReference{
+		activeEffortOrchestratorRef("effort:replacement", "orchestrator"),
+	}
+	err = repos.Runs.Update(ctx, stored)
+	var stateErr *domain.StateError
+	if !errors.As(err, &stateErr) || stateErr.CurrentState != "immutable_identity" {
+		t.Fatalf("Update error = %v, want immutable_identity state error", err)
+	}
+
+	after, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || after == nil {
+		t.Fatalf("read run after rejected update: run=%+v err=%v", after, err)
+	}
+	if after.Status != domain.RunStatusPending || len(after.WorkReferences) != 1 || after.WorkReferences[0].GetId() != originalRef.GetId() {
+		t.Fatalf("rejected update changed persisted identity or status: status=%s refs=%+v", after.Status, after.WorkReferences)
+	}
+}
+
+func TestQueuedBriefMutationAndAttemptAdmissionFenceBothOrderings(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	creator := uuid.NewString()
+
+	makeOwnedQueued := func(title string) *domain.Task {
+		t.Helper()
+		task := &domain.Task{ID: uuid.New(), Title: title, Description: "Initial brief", ScopePath: ".", Status: domain.TaskStatusQueued, CreatedBy: creator}
+		if err := repos.Tasks.Create(ctx, task); err != nil {
+			t.Fatalf("create queued task: %v", err)
+		}
+		stored, err := repos.Tasks.Get(ctx, task.ID)
+		if err != nil || stored == nil {
+			t.Fatalf("read queued task: task=%+v err=%v", stored, err)
+		}
+		return stored
+	}
+
+	t.Run("brief update wins and stale admission must reload", func(t *testing.T) {
+		task := makeOwnedQueued("brief-first")
+		staleSnapshot := *task
+		changed, err := repos.Tasks.UpdateQueuedBrief(ctx, task.ID, creator, staleSnapshot.Title, staleSnapshot.Description, "Corrected title", "Corrected brief")
+		if err != nil || !changed {
+			t.Fatalf("queued brief CAS changed=%v err=%v; want success", changed, err)
+		}
+
+		staleRun := pendingTaskRun(task.ID)
+		if err := repos.Runs.CreateTaskAttempt(ctx, &staleSnapshot, &staleSnapshot, staleRun, nil); err == nil {
+			t.Fatal("stale task snapshot admitted after brief update")
+		}
+		missing, err := repos.Runs.Get(ctx, staleRun.ID)
+		if err != nil || missing != nil {
+			t.Fatalf("stale admission wrote a run: run=%+v err=%v", missing, err)
+		}
+
+		fresh, err := repos.Tasks.Get(ctx, task.ID)
+		if err != nil || fresh == nil || fresh.Title != "Corrected title" || fresh.Description != "Corrected brief" || fresh.Status != domain.TaskStatusQueued {
+			t.Fatalf("read corrected queued task: task=%+v err=%v", fresh, err)
+		}
+		freshRun := pendingTaskRun(fresh.ID)
+		if err := repos.Runs.CreateTaskAttempt(ctx, fresh, fresh, freshRun, nil); err != nil {
+			t.Fatalf("admit refreshed task snapshot: %v", err)
+		}
+		admitted, err := repos.Runs.Get(ctx, freshRun.ID)
+		if err != nil || admitted == nil || admitted.Status != domain.RunStatusPending {
+			t.Fatalf("fresh admission was not preserved: run=%+v err=%v", admitted, err)
+		}
+	})
+
+	t.Run("prompt context changes invalidate prepared task snapshot", func(t *testing.T) {
+		task := makeOwnedQueued("context-fence")
+		prepared := *task
+		updated := *task
+		updated.ContextAttachments = []domain.ContextAttachment{{Type: "note", Content: "new context"}}
+		if err := repos.Tasks.Update(ctx, &updated); err != nil {
+			t.Fatalf("update queued context: %v", err)
+		}
+		run := pendingTaskRun(task.ID)
+		if err := repos.Runs.CreateTaskAttempt(ctx, &prepared, &prepared, run, nil); err == nil {
+			t.Fatal("admitted a prompt prepared from stale context attachments")
+		}
+		missing, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil || missing != nil {
+			t.Fatalf("stale context admission wrote a run: run=%+v err=%v", missing, err)
+		}
+	})
+
+	t.Run("dispatch wins and brief update is refused", func(t *testing.T) {
+		task := makeOwnedQueued("dispatch-first")
+		run := pendingTaskRun(task.ID)
+		if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+			t.Fatalf("admit task attempt: %v", err)
+		}
+		changed, err := repos.Tasks.UpdateQueuedBrief(ctx, task.ID, creator, task.Title, task.Description, task.Title, "Too late")
+		if err != nil || changed {
+			t.Fatalf("queued brief CAS after dispatch changed=%v err=%v; want a clean refusal", changed, err)
+		}
+		stored, err := repos.Tasks.Get(ctx, task.ID)
+		if err != nil || stored == nil {
+			t.Fatalf("read dispatched task: task=%+v err=%v", stored, err)
+		}
+		if stored.Description != "Initial brief" || stored.Status != domain.TaskStatusRunning || stored.CurrentRunID == nil || *stored.CurrentRunID != run.ID {
+			t.Fatalf("refused brief update changed admitted task: %+v", stored)
+		}
+	})
+}
+
+func activeEffortOrchestratorRef(id, role string) *eventpb.WorkReference {
+	return &eventpb.WorkReference{
+		Kind:         "effort",
+		Id:           id,
+		Revision:     "source-r1",
+		Relationship: role,
+		Verified:     true,
+		Visibility:   eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State:        eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}
+}
+
+func createQueuedTask(t *testing.T, repos *Repositories, title string) *domain.Task {
+	t.Helper()
+	task := &domain.Task{ID: uuid.New(), Title: title, ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(context.Background(), task); err != nil {
+		t.Fatalf("create task %q: %v", title, err)
+	}
+	return task
+}
+
+func setRunStatus(t *testing.T, repos *Repositories, run *domain.Run, status domain.RunStatus) *domain.Run {
+	t.Helper()
+	run.Status = status
+	run.UpdatedAt = time.Now().UTC()
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update run %s to %s: %v", run.ID, status, err)
+	}
+	stored, err := repos.Runs.Get(context.Background(), run.ID)
+	if err != nil || stored == nil {
+		t.Fatalf("read run %s after status update: run=%v err=%v", run.ID, stored, err)
+	}
+	return stored
+}
+
+func TestEffortOrchestratorAdmissionCoordinatesCreateAndContinue(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	const effortID = "effort:shared-owner"
+
+	// A worker for the same effort does not claim the coordinator slot.
+	workerTask := createQueuedTask(t, repos, "effort worker")
+	worker := pendingTaskRun(workerTask.ID)
+	worker.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "worker")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, workerTask, workerTask, worker, nil); err != nil {
+		t.Fatalf("admit effort worker: %v", err)
+	}
+
+	ownerTask := createQueuedTask(t, repos, "original orchestrator")
+	owner := pendingTaskRun(ownerTask.ID)
+	owner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, ownerTask, ownerTask, owner, nil); err != nil {
+		t.Fatalf("admit original orchestrator beside worker: %v", err)
+	}
+
+	newTask := createQueuedTask(t, repos, "new orchestrator")
+	newOwner := pendingTaskRun(newTask.ID)
+	newOwner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil); err == nil {
+		t.Fatal("new orchestrator was admitted while the original owner was active")
+	}
+	newTask, err := repos.Tasks.Get(ctx, newTask.ID)
+	if err != nil || newTask.CurrentRunID != nil || newTask.Status != domain.TaskStatusQueued {
+		t.Fatalf("refused create changed the candidate Task: task=%+v err=%v", newTask, err)
+	}
+
+	owner = setRunStatus(t, repos, owner, domain.RunStatusRunning)
+	owner = setRunStatus(t, repos, owner, domain.RunStatusParked)
+	if err := repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil); err == nil {
+		t.Fatal("new orchestrator was admitted while the original owner was parked")
+	}
+
+	// The original run may continue itself while it owns the effort. The exact
+	// run transition is checked in the same transaction as its reactivation.
+	continued, err := repos.Runs.AdmitCurrentRun(ctx, owner, domain.RunStatusParked, time.Now().UTC())
+	if err != nil || !continued {
+		t.Fatalf("same-owner continuation admission = %v, err=%v", continued, err)
+	}
+
+	otherTask := createQueuedTask(t, repos, "different effort orchestrator")
+	other := pendingTaskRun(otherTask.ID)
+	other.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef("effort:independent", "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, otherTask, otherTask, other, nil); err != nil {
+		t.Fatalf("distinct effort admission was blocked: %v", err)
+	}
+
+	// A failed attempt does not reserve a slot or poison the Task. Once the
+	// previous owner is terminal, ordinary creation may claim it.
+	owner = setRunStatus(t, repos, owner, domain.RunStatusComplete)
+	newOwner = pendingTaskRun(newTask.ID)
+	newOwner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil); err != nil {
+		t.Fatalf("create after terminal owner: %v", err)
+	}
+}
+
+func TestEffortOrchestratorCreateRacesTerminalOwnerUpdateAtomically(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	const effortID = "effort:admission-race"
+
+	ownerTask := createQueuedTask(t, repos, "terminal orchestrator")
+	owner := pendingTaskRun(ownerTask.ID)
+	owner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, ownerTask, ownerTask, owner, nil); err != nil {
+		t.Fatal(err)
+	}
+	owner = setRunStatus(t, repos, owner, domain.RunStatusComplete)
+
+	newTask := createQueuedTask(t, repos, "racing orchestrator")
+	newOwner := pendingTaskRun(newTask.ID)
+	newOwner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+
+	start := make(chan struct{})
+	created := make(chan error, 1)
+	continued := make(chan struct {
+		err error
+	}, 1)
+	go func() {
+		<-start
+		created <- repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil)
+	}()
+	go func() {
+		<-start
+		owner.Status = domain.RunStatusRunning
+		err := repos.Runs.Update(ctx, owner)
+		continued <- struct {
+			err error
+		}{err: err}
+	}()
+	close(start)
+	createErr := <-created
+	continueResult := <-continued
+	createAdmitted := createErr == nil
+	continueAdmitted := continueResult.err == nil
+	if createAdmitted == continueAdmitted {
+		t.Fatalf("same-effort admissions did not select exactly one owner: createErr=%v continueResult=%+v", createErr, continueResult)
+	}
+
+	var err error
+	if createAdmitted {
+		owner, err = repos.Runs.Get(ctx, owner.ID)
+		if err != nil || owner.Status != domain.RunStatusComplete {
+			t.Fatalf("losing continuation changed original owner: run=%+v err=%v", owner, err)
+		}
+		newOwner, err = repos.Runs.Get(ctx, newOwner.ID)
+		if err != nil || newOwner == nil || newOwner.Status != domain.RunStatusPending {
+			t.Fatalf("winning create was not durably recorded: run=%+v err=%v", newOwner, err)
+		}
+	} else {
+		if continueResult.err != nil {
+			t.Fatalf("both admissions failed: createErr=%v continuationErr=%v", createErr, continueResult.err)
+		}
+		owner, err = repos.Runs.Get(ctx, owner.ID)
+		if err != nil || owner.Status != domain.RunStatusRunning {
+			t.Fatalf("winning continuation was not durably recorded: run=%+v err=%v", owner, err)
+		}
+		newTask, err = repos.Tasks.Get(ctx, newTask.ID)
+		if err != nil || newTask.CurrentRunID != nil || newTask.Status != domain.TaskStatusQueued {
+			t.Fatalf("losing create changed candidate Task: task=%+v err=%v", newTask, err)
+		}
+	}
+}
+
+func TestEffortOrchestratorCreateRacesTerminalOwnerAdmissionAtomically(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	const effortID = "effort:admission-api-race"
+
+	ownerTask := createQueuedTask(t, repos, "terminal orchestrator")
+	owner := pendingTaskRun(ownerTask.ID)
+	owner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, ownerTask, ownerTask, owner, nil); err != nil {
+		t.Fatal(err)
+	}
+	owner = setRunStatus(t, repos, owner, domain.RunStatusComplete)
+
+	newTask := createQueuedTask(t, repos, "racing orchestrator")
+	newOwner := pendingTaskRun(newTask.ID)
+	newOwner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef(effortID, "orchestrator")}
+	admitOwner := *owner
+	start := make(chan struct{})
+	created := make(chan error, 1)
+	continued := make(chan struct {
+		admitted bool
+		err      error
+	}, 1)
+	go func() {
+		<-start
+		created <- repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil)
+	}()
+	go func() {
+		<-start
+		admitted, err := repos.Runs.AdmitCurrentRun(ctx, &admitOwner, domain.RunStatusComplete, time.Now().UTC())
+		continued <- struct {
+			admitted bool
+			err      error
+		}{admitted: admitted, err: err}
+	}()
+	close(start)
+	createErr := <-created
+	continueResult := <-continued
+	createAdmitted := createErr == nil
+	continueAdmitted := continueResult.err == nil && continueResult.admitted
+	if createAdmitted == continueAdmitted {
+		t.Fatalf("same-effort admissions did not select exactly one owner: createErr=%v continueResult=%+v", createErr, continueResult)
+	}
+	if continueResult.err != nil {
+		t.Fatalf("continuation admission errored: %v", continueResult.err)
+	}
+
+	if createAdmitted {
+		stored, err := repos.Runs.Get(ctx, owner.ID)
+		if err != nil || stored.Status != domain.RunStatusComplete {
+			t.Fatalf("losing continuation changed original owner: run=%+v err=%v", stored, err)
+		}
+		newTask, err = repos.Tasks.Get(ctx, newTask.ID)
+		if err != nil || newTask.CurrentRunID == nil || *newTask.CurrentRunID != newOwner.ID {
+			t.Fatalf("winning create was not durably recorded: task=%+v err=%v", newTask, err)
+		}
+	} else {
+		stored, err := repos.Runs.Get(ctx, owner.ID)
+		if err != nil || stored.Status != domain.RunStatusRunning {
+			t.Fatalf("winning continuation was not durably recorded: run=%+v err=%v", stored, err)
+		}
+		newTask, err = repos.Tasks.Get(ctx, newTask.ID)
+		if err != nil || newTask.CurrentRunID != nil || newTask.Status != domain.TaskStatusQueued {
+			t.Fatalf("losing create changed candidate Task: task=%+v err=%v", newTask, err)
+		}
+	}
+}
+
+func TestEffortOrchestratorContinuationWaitsForWALWriterWithoutReadUpgrade(t *testing.T) {
+	tmpDir := t.TempDir()
+	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "admission.db"))
+	sqlDB, err := sqlx.Connect("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(4)
+	defer sqlDB.Close()
+	db := &DB{DB: sqlDB, log: logrus.New()}
+	if err := db.initSchema(); err != nil {
+		t.Fatal(err)
+	}
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := createQueuedTask(t, repos, "WAL continuation")
+	owner := pendingTaskRun(task.ID)
+	owner.WorkReferences = []*eventpb.WorkReference{activeEffortOrchestratorRef("effort:wal-continuation", "orchestrator")}
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, owner, nil); err != nil {
+		t.Fatal(err)
+	}
+	owner = setRunStatus(t, repos, owner, domain.RunStatusComplete)
+
+	blocker, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := blocker.ExecContext(ctx, `UPDATE tasks SET updated_at = updated_at WHERE id = ?`, task.ID); err != nil {
+		_ = blocker.Rollback()
+		t.Fatal(err)
+	}
+	owner.Status = domain.RunStatusRunning
+	continued := make(chan error, 1)
+	go func() { continued <- repos.Runs.Update(ctx, owner) }()
+	time.Sleep(150 * time.Millisecond)
+	select {
+	case err := <-continued:
+		_ = blocker.Rollback()
+		t.Fatalf("continuation completed while WAL writer was held: %v", err)
+	default:
+	}
+	if err := blocker.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-continued; err != nil {
+		t.Fatalf("continuation failed after WAL writer committed: %v", err)
+	}
+	stored, err := repos.Runs.Get(ctx, owner.ID)
+	if err != nil || stored.Status != domain.RunStatusRunning {
+		t.Fatalf("continued owner = %+v, err=%v", stored, err)
+	}
+}
 
 func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testing.T) {
 	db, cleanup := setupTestDB(t)
@@ -29,7 +449,7 @@ func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testi
 		t.Fatal(err)
 	}
 	first := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, first, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, first, nil); err != nil {
 		t.Fatalf("admit first attempt: %v", err)
 	}
 	gotTask, err := repos.Tasks.Get(ctx, task.ID)
@@ -44,7 +464,7 @@ func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testi
 	if err != nil || gotTask.Status != domain.TaskStatusRunning || gotTask.CurrentRunID == nil || *gotTask.CurrentRunID != first.ID {
 		t.Fatalf("stale content edit overwrote lifecycle state: task=%+v err=%v", gotTask, err)
 	}
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, pendingTaskRun(task.ID), gotTask.CurrentRunID, task.ProjectRoot); err == nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, pendingTaskRun(task.ID), gotTask.CurrentRunID); err == nil {
 		t.Fatal("second attempt admitted while current attempt is active")
 	}
 	first.Status = domain.RunStatusRunning
@@ -86,7 +506,7 @@ func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testi
 		t.Fatalf("recompleted task projection = %+v, err=%v", gotTask, err)
 	}
 	second := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, gotTask, second, gotTask.CurrentRunID, gotTask.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, gotTask, gotTask, second, gotTask.CurrentRunID); err != nil {
 		t.Fatalf("admit serial attempt: %v", err)
 	}
 	first.Status = domain.RunStatusFailed // A delayed prior-attempt outcome.
@@ -124,7 +544,7 @@ func TestTaskAttemptAdmissionAllowsUnambiguousLegacyHistoryOnly(t *testing.T) {
 	if err := repos.Runs.Update(ctx, old); err != nil {
 		t.Fatal(err)
 	}
-	if err := repos.Runs.CreateTaskAttempt(ctx, terminal, pendingTaskRun(terminal.ID), nil, terminal.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, terminal, terminal, pendingTaskRun(terminal.ID), nil); err != nil {
 		t.Fatalf("new explicit attempt should not need to select legacy terminal history: %v", err)
 	}
 
@@ -132,7 +552,7 @@ func TestTaskAttemptAdmissionAllowsUnambiguousLegacyHistoryOnly(t *testing.T) {
 	if err := repos.Runs.Create(ctx, pendingTaskRun(active.ID)); err != nil {
 		t.Fatal(err)
 	}
-	if err := repos.Runs.CreateTaskAttempt(ctx, active, pendingTaskRun(active.ID), nil, active.ProjectRoot); err == nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, active, active, pendingTaskRun(active.ID), nil); err == nil {
 		t.Fatal("admitted a task with an unowned nonterminal historical run")
 	}
 	rows, err := repos.Runs.ListByTask(ctx, active.ID, repository.ListFilter{Limit: 10})
@@ -163,7 +583,7 @@ func TestConcurrentTaskAttemptAdmissionsHaveOneExactWinner(t *testing.T) {
 			run := pendingTaskRun(task.ID)
 			ready.Done()
 			<-start
-			err := repos.Runs.CreateTaskAttempt(ctx, &domain.Task{ID: task.ID, ProjectRoot: task.ProjectRoot, Status: domain.TaskStatusQueued}, run, nil, task.ProjectRoot)
+			err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil)
 			results <- result{runID: run.ID, err: err}
 		}()
 	}
@@ -315,7 +735,7 @@ func TestTaskCancellationAndRunProjectionShareExactCurrentRunFence(t *testing.T)
 		t.Fatal(err)
 	}
 	run := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	run.Status = domain.RunStatusRunning
@@ -350,7 +770,7 @@ func TestResumeAdmissionAdvancesRunLifecycleVersionAndFencesOldFinalizer(t *test
 		t.Fatal(err)
 	}
 	run := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	run.Status = domain.RunStatusNeedsReview
@@ -403,7 +823,7 @@ func TestResumeAdmissionRollbackCannotOverwriteCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	run.Status = domain.RunStatusNeedsReview
@@ -436,7 +856,7 @@ func TestCancelPendingAttemptIsDurableBeforeRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	_, changed, err := repos.Runs.CancelTaskAttempt(ctx, task.ID, &run.ID, false, task.UpdatedAt.Add(time.Second))
@@ -463,7 +883,7 @@ func TestCancelPendingAttemptWithExecutorClaimPersistsCancellationIntent(t *test
 		t.Fatal(err)
 	}
 	run := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	_, changed, err := repos.Runs.CancelTaskAttempt(ctx, task.ID, &run.ID, true, task.UpdatedAt.Add(time.Second))
@@ -514,7 +934,7 @@ func TestDeleteTerminalRunRequiresExactLifecycleSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := pendingTaskRun(task.ID)
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	run.Status = domain.RunStatusComplete

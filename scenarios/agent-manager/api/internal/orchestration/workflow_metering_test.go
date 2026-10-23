@@ -200,3 +200,45 @@ func TestContinuationReceiptRequiresLatestInvocationAuthority(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkflowTokenAuthorityIsIndependentFromEarlierChargeCoverage(t *testing.T) {
+	zero := int64(0)
+	runID := uuid.New()
+	run := &domain.Run{ID: runID, Status: domain.RunStatusComplete, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription}}
+	events := []*domain.RunEvent{
+		domain.NewStatusEvent(runID, "starting", "running", "first invocation"),
+		{Data: &domain.UsageEventData{InputTokens: 10, ReconciliationAuthority: true}},
+		// The continuation boundary starts another invocation. The first
+		// invocation has an authoritative token receipt but no charge receipt.
+		domain.NewStatusEvent(runID, "cancelled", "running", "continuation"),
+		{Data: &domain.UsageEventData{
+			InputTokens: 5, ReconciliationAuthority: true,
+			Charge: &domain.ChargeEventData{Basis: domain.ChargeBasisSubscription, AmountMicroUSD: &zero},
+		}},
+	}
+
+	state, err := meteredWorkflowChildState(run, events, time.Now())
+	if err != nil || !state.TokensKnown || state.Tokens != 15 || state.ChargeMeasured || state.ChargeMicroUSD != 0 {
+		t.Fatalf("token completeness was coupled to prior charge coverage: %+v %v", state, err)
+	}
+}
+
+func TestWorkflowTokenCompletenessStillRequiresEveryInvocationReceipt(t *testing.T) {
+	zero := int64(0)
+	runID := uuid.New()
+	run := &domain.Run{ID: runID, Status: domain.RunStatusComplete, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription}}
+	events := []*domain.RunEvent{
+		domain.NewStatusEvent(runID, "starting", "running", "first invocation"),
+		{Data: &domain.UsageEventData{InputTokens: 10}},
+		domain.NewStatusEvent(runID, "cancelled", "running", "continuation"),
+		{Data: &domain.UsageEventData{
+			InputTokens: 5, ReconciliationAuthority: true,
+			Charge: &domain.ChargeEventData{Basis: domain.ChargeBasisSubscription, AmountMicroUSD: &zero},
+		}},
+	}
+
+	state, err := meteredWorkflowChildState(run, events, time.Now())
+	if err != nil || state.TokensKnown || state.Tokens != 15 || state.ChargeMeasured || state.ChargeMicroUSD != 0 {
+		t.Fatalf("later invocation receipt concealed earlier incomplete token usage: %+v %v", state, err)
+	}
+}

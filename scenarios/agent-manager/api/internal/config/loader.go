@@ -7,9 +7,12 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"agent-manager/internal/conversationpolicy"
 )
 
 // LoadLevers loads configuration with the following precedence (highest first):
@@ -30,12 +33,38 @@ func LoadLevers() (*Levers, error) {
 	// Apply environment variable overrides
 	applyEnvOverrides(&levers)
 
+	// Merge the dedicated conversation-policy file. Inline rules (from the main
+	// config file) win, so an operator who set rules there is not overridden by a
+	// stale sidecar file; otherwise the sidecar file — which the CLI edits — is
+	// the source of truth. A missing file is simply no policy.
+	if len(levers.ConversationPolicy.Rules) == 0 {
+		doc, err := conversationpolicy.LoadDocument(conversationpolicy.ResolveFilePath(RepoRoot()))
+		if err != nil {
+			return nil, err
+		}
+		levers.ConversationPolicy.Rules = doc.Rules
+	}
+
 	// Validate final configuration
 	if err := levers.Validate(); err != nil {
 		return nil, err
 	}
 
 	return &levers, nil
+}
+
+// RepoRoot resolves the Vrooli repository root the same way the server's
+// composition root does: PROJECT_ROOT when set, else three levels up from the
+// scenario working directory. It is exported so the CLI (a separate module that
+// shares this package) resolves the identical conversation-policy file path.
+func RepoRoot() string {
+	if root := strings.TrimSpace(os.Getenv("PROJECT_ROOT")); root != "" {
+		return root
+	}
+	if abs, err := filepath.Abs(filepath.Join("..", "..", "..")); err == nil {
+		return abs
+	}
+	return ""
 }
 
 // loadFromFile reads configuration from a JSON file.
@@ -184,6 +213,25 @@ func applyEnvOverrides(l *Levers) {
 	}
 	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_MIN_BYTES"); v > 0 {
 		l.Storage.ImportedToolCompactionMinBytes = v
+	}
+	// Imported-corpus eviction budget. Presence-checked (not >0) so an operator
+	// can set 0 to disable eviction, e.g. while capturing a specific transcript.
+	if raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_MAX_BYTES")); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v >= 0 {
+			l.Storage.ImportedCorpusMaxBytes = v
+		}
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_EVICTION_BATCH"); v > 0 {
+		l.Storage.ImportedCorpusEvictionBatch = v
+	}
+
+	// Transcript-import levers. The interval keeps its historical env name; the
+	// scan-roots list is new and is additive to the built-in harness roots.
+	if v := getEnvDuration("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL"); v > 0 {
+		l.TranscriptImport.Interval = v
+	}
+	if v := envStringList("AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS"); len(v) > 0 {
+		l.TranscriptImport.ScanRoots = v
 	}
 }
 

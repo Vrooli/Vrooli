@@ -63,35 +63,28 @@ cancellation and destructive maintenance retain termination authority.
 
 ## Recovery-first restart procedure
 
-An ordinary Agent Manager restart is safe while detached runners are active:
+For an operator-authorized ordinary Agent Manager restart:
 
-1. Confirm the run is `running`, `parked`, or `needs_review`, and note its run
-   ID from the run report.
-2. Run `vrooli scenario restart agent-manager --force-lifecycle
-   --lifecycle-override-reason "recovery-first restart; retain identified
-   detached runners"`. The audited recovery-first path restarts the control
-   plane and reconciler without authorizing termination of a positively
-   identified detached runner.
-3. Wait for Agent Manager health and startup recovery to report ready.
-4. Inspect the run report and recovery events. A reattached run should retain
-   its runner identity, owner epoch, transcript cursor, checkpoint, and prior
-   progress.
-5. If the runner disappeared without terminal evidence, resolve the resulting
-   `needs_review` interruption explicitly. Do not start a duplicate turn until
-   effect and terminal evidence review is complete.
+1. Record the original run IDs, status, session/runner identity and available
+   transcript/checkpoint evidence.
+2. Run `vrooli scenario restart agent-manager` (or the scenario's `make restart`).
+   The control plane stages a stale replacement before stopping the serving
+   instance. It preserves detached API executors and does not require Agent
+   Manager to close admission or drain itself. No force flag or maintenance
+   credential is needed for this ordinary restart path.
+3. Wait for health and startup recovery readiness.
+4. Read the same run IDs and recovery events. Verify preserved session/runner
+   identity, transcript progress and normal continuation. Readiness alone is
+   not proof of useful recovery.
+5. If a runner disappeared without terminal evidence, resolve the resulting
+   `needs_review` interruption through the owner. Do not start a duplicate turn
+   before reviewing effects and terminal evidence.
 
-If the owner is still starting and returns `503 startup recovery is not ready`,
-the same explicitly audited command may adopt the already-closed maintenance
-fence and continue the replacement. A generic unavailable-owner response, an
-identified current executor, or an open admission fence still refuses the
-restart. This distinction is important: startup-recovery uncertainty is handed
-to the new owner for reattachment, while destructive operations continue to
-require complete inventory evidence.
-
-This procedure does not promise survival of a host reboot or loss of the
-durable state provider. Destructive maintenance and explicit run cancellation
-remain separate operations and may terminate the runner after their authority
-and evidence checks succeed.
+This preserves detached executors, not arbitrary same-process-group helpers.
+It does not promise survival of host reboot or durable storage loss. Normal
+stop, destructive maintenance, explicit run cancellation and standalone setup
+have separate contracts; do not apply the ordinary restart exception to them.
+See [maintenance and readiness](internal/PROBLEMS.md) for the retained boundaries.
 
 ## Interactive runs
 

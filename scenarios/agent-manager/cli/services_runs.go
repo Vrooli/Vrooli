@@ -303,6 +303,48 @@ func (s *RunService) GetDiff(id string) ([]byte, *domainpb.RunDiff, error) {
 
 // GetEvents retrieves events for a run.
 func (s *RunService) GetEvents(id string, limit int, afterSequence *int64) ([]byte, []*domainpb.RunEvent, error) {
+	body, response, err := s.getEventResponse(id, limit, afterSequence, false, "decode run events response")
+	if err != nil {
+		return body, nil, err
+	}
+	return body, response.GetEvents(), nil
+}
+
+// GetEventPage retrieves one bounded event page and preserves its cursor
+// metadata for callers that need to continue through a selected sequence range.
+func (s *RunService) GetEventPage(id string, limit int, afterSequence *int64) (*apipb.GetRunEventsResponse, error) {
+	_, response, err := s.getEventResponse(id, limit, afterSequence, false, "decode run event page")
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+// GetEventSummary retrieves the retained-row summary without event payloads.
+func (s *RunService) GetEventSummary(id string, limit int, afterSequence *int64) (*apipb.GetRunEventsResponse, error) {
+	_, response, err := s.getEventResponse(id, limit, afterSequence, true, "decode run event summary response")
+	if err != nil {
+		return nil, err
+	}
+	if response.Summary == nil || len(response.Events) != 0 {
+		return nil, fmt.Errorf("agent-manager API did not return the requested payload-free event summary; update the API before using --stats")
+	}
+	return response, nil
+}
+
+func (s *RunService) getEventResponse(id string, limit int, afterSequence *int64, summary bool, decodeContext string) ([]byte, *apipb.GetRunEventsResponse, error) {
+	body, err := s.api.Get("/api/v1/runs/"+id+"/events", runEventsQuery(limit, afterSequence, summary))
+	if err != nil {
+		return body, nil, err
+	}
+	response := &apipb.GetRunEventsResponse{}
+	if err := unmarshalProtoResponse(body, response); err != nil {
+		return body, nil, fmt.Errorf("%s: %w", decodeContext, err)
+	}
+	return body, response, nil
+}
+
+func runEventsQuery(limit int, afterSequence *int64, summary bool) url.Values {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -310,17 +352,10 @@ func (s *RunService) GetEvents(id string, limit int, afterSequence *int64) ([]by
 	if afterSequence != nil {
 		query.Set("after_sequence", fmt.Sprintf("%d", *afterSequence))
 	}
-
-	body, err := s.api.Get("/api/v1/runs/"+id+"/events", query)
-	if err != nil {
-		return body, nil, err
+	if summary {
+		query.Set("summary_only", "true")
 	}
-
-	var resp apipb.GetRunEventsResponse
-	if err := unmarshalProtoResponse(body, &resp); err != nil {
-		return body, nil, nil
-	}
-	return body, resp.Events, nil
+	return query
 }
 
 // Delete removes a run.

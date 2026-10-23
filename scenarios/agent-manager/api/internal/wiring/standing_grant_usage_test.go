@@ -17,7 +17,7 @@ import (
 
 // ownerRun persists a non-terminal run for owner carrying an accumulated cost
 // estimate, so the usage reader can attribute committed spend to that owner.
-func ownerRun(t *testing.T, repos *testRepos, taskID uuid.UUID, owner string, costUSD float64) {
+func ownerRun(t *testing.T, repos *testRepos, taskID uuid.UUID, owner string, costUSD float64) uuid.UUID {
 	t.Helper()
 	run := &domain.Run{
 		ID:           uuid.New(),
@@ -30,6 +30,7 @@ func ownerRun(t *testing.T, repos *testRepos, taskID uuid.UUID, owner string, co
 	if err := repos.Runs.Create(context.Background(), run); err != nil {
 		t.Fatalf("create owner run: %v", err)
 	}
+	return run.ID
 }
 
 type testRepos = database.Repositories
@@ -55,17 +56,25 @@ func TestStandingGrantUsageEnforcesBudgetFromLiveRunSpend(t *testing.T) {
 
 	const owner = "operator-owner"
 	// Two live runs for this owner: committed spend $30 + $15 = $45.
-	ownerRun(t, repos, task.ID, owner, 30)
-	ownerRun(t, repos, task.ID, owner, 15)
+	ownerRunIDs := map[string]struct{}{
+		ownerRun(t, repos, task.ID, owner, 30).String(): {},
+		ownerRun(t, repos, task.ID, owner, 15).String(): {},
+	}
 	// A run for a DIFFERENT owner must not be attributed here.
-	ownerRun(t, repos, task.ID, "someone-else", 1000)
+	foreignRunID := ownerRun(t, repos, task.ID, "someone-else", 1000).String()
 
-	usage, err := reader.StandingGrantUsage(ctx, owner)
+	usage, countedRuns, err := reader.StandingGrantUsageWithRuns(ctx, owner, 1)
 	if err != nil {
 		t.Fatalf("usage read: %v", err)
 	}
 	if usage.ConcurrentRuns != 2 {
 		t.Fatalf("concurrency should count only this owner's runs: got %d want 2", usage.ConcurrentRuns)
+	}
+	if len(countedRuns) != 1 {
+		t.Fatalf("diagnostic should cap counted run identities at one: %+v", countedRuns)
+	}
+	if _, ok := ownerRunIDs[countedRuns[0].ID.String()]; !ok || countedRuns[0].ID.String() == foreignRunID || countedRuns[0].Status != domain.RunStatusPending {
+		t.Fatalf("diagnostic included a foreign run or lost its status: %+v", countedRuns[0])
 	}
 	if usage.CommittedBudgetUSD != 45 {
 		t.Fatalf("committed budget should sum this owner's live-run spend: got %v want 45", usage.CommittedBudgetUSD)

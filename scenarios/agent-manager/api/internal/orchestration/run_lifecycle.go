@@ -24,8 +24,18 @@ type RunStatusTransitionInput struct {
 	// StopReason, when set on a terminal transition, is written with the
 	// status in the same update (with its terminal class).
 	StopReason domain.RunStopReason
+	// InteractiveContinuation is set only by the retained-session continuation
+	// path, which must atomically replace the exact prior invocation fence while
+	// moving a parked or terminal run back to Running.
+	InteractiveContinuation                bool
+	ExpectedInteractiveInvocationStartedAt *time.Time
 }
 
+// applyRunStatusTransition returns a nonnil run with an error only when the
+// run-row update committed but its subsequent status-event append failed. A
+// nil run with an error means the row update did not commit. Callers that own
+// post-commit obligations can therefore finish them without hiding the
+// publication error or probing durable state a second time.
 func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunStatusTransitionInput) (*domain.Run, error) {
 	run := input.Run
 	if run == nil {
@@ -45,6 +55,9 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 			return nil, domain.NewStateError(
 				"Run", string(previousStatus), "transition to "+string(input.NewStatus), reason)
 		}
+	}
+	if input.InteractiveContinuation && (previousStatus != input.NewStatus && ((!previousStatus.IsTerminal() && previousStatus != domain.RunStatusParked) || input.NewStatus != domain.RunStatusRunning || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive)) {
+		return nil, domain.NewValidationError("interactiveContinuation", "requires a parked or terminal interactive run transitioning to Running")
 	}
 
 	now := o.now()
@@ -91,8 +104,16 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 	run.UpdatedAt = now
 
-	if err := o.runs.Update(ctx, run); err != nil {
-		return nil, err
+	var updateErr error
+	if input.InteractiveContinuation {
+		updateErr = o.runs.UpdateInteractiveContinuation(ctx, run, previousStatus, input.ExpectedInteractiveInvocationStartedAt)
+	} else if previousStatus.IsTerminal() && input.NewStatus == domain.RunStatusRunning && run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return nil, domain.NewValidationError("interactiveContinuation", "terminal interactive runs require the explicit continuation path")
+	} else {
+		updateErr = o.runs.Update(ctx, run)
+	}
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	if previousStatus != input.NewStatus && o.events != nil {
@@ -103,7 +124,11 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 			input.Reason,
 		)
 		if err := o.appendAndBroadcastEvents(ctx, run.ID, statusEvent); err != nil {
-			return nil, err
+			// The Run update above has committed. Return that committed projection
+			// with the publication error so lifecycle owners can finish any
+			// post-commit obligations without treating the transition as rolled
+			// back. Repository update failures still return nil before this point.
+			return o.attachRunActions(ctx, run), err
 		}
 	}
 

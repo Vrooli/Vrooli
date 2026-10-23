@@ -104,7 +104,7 @@ func (o *Orchestrator) RecoverStandaloneTerminalAccounting(ctx context.Context) 
 				continue
 			}
 			inspected++
-			if _, state, err := o.meteredRun(ctx, run.ID); err == nil && state.TokensKnown && state.ChargeMeasured {
+			if _, state, _, err := o.meteredRun(ctx, run.ID); err == nil && state.TokensKnown && state.ChargeMeasured {
 				sweep.settle(run.ID)
 				continue
 			}

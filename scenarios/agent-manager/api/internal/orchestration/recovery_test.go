@@ -35,18 +35,8 @@ func TestReconcilerRecognizesRecordedLegacyContinuationProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec.runners = registry
-	cmd := exec.CommandContext(t.Context(), "sleep", "10")
-	cmd.Env = []string{"OPENCODE_AGENT_TAG=" + native.ContinuationTag(runner.ContinueRequest{RunID: run.ID})}
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	cmd := startTaggedLegacyExecutor(t, "OPENCODE_AGENT_TAG", native.ContinuationTag(runner.ContinueRequest{RunID: run.ID}), "10", false)
 	run.RunnerPID = cmd.Process.Pid
-	// /proc can briefly expose the pre-exec image on heavily loaded hosts.
-	deadline := time.Now().Add(time.Second)
-	for extractTagFromEnv(run.RunnerPID) == "" && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
 	if !rec.isProcessAlive(t.Context(), run) {
 		t.Fatal("recorded continuation declared dead because its tag differs from canonical tag")
 	}
@@ -83,12 +73,7 @@ func TestRestartRecoveryDoesNotTimeoutReattachedLegacyExecutor(t *testing.T) {
 	attachedAt := time.Now().UTC()
 	rec.clock = func() time.Time { return attachedAt }
 	run.TranscriptPath = writeRecoveryTranscript(t, "")
-	cmd := exec.CommandContext(t.Context(), "sleep", "30")
-	cmd.Env = []string{"OPENCODE_AGENT_TAG=" + native.ContinuationTag(runner.ContinueRequest{RunID: run.ID})}
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	cmd := startTaggedLegacyExecutor(t, "OPENCODE_AGENT_TAG", native.ContinuationTag(runner.ContinueRequest{RunID: run.ID}), "30", false)
 	run.RunnerPID = cmd.Process.Pid
 	if err := repos.Runs.Create(t.Context(), run); err != nil {
 		t.Fatal(err)
@@ -160,16 +145,10 @@ func TestRecoveryArtifactFailurePreservesLiveLegacyExecutor(t *testing.T) {
 				t.Fatal(err)
 			}
 			rec.runners = registry
-			cmd := exec.CommandContext(t.Context(), "sleep", "30")
-			// The negative baseline must not invoke host resource cleanup CLIs.
-			// sleep was resolved above; liveness uses this exact recorded PID.
-			t.Setenv("PATH", t.TempDir())
 			legacyTag := native.ContinuationTag(runner.ContinueRequest{RunID: run.ID})
-			cmd.Env = []string{"OPENCODE_AGENT_TAG=" + legacyTag}
-			if err := cmd.Start(); err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+			// PATH isolation proves exact /proc identity is sufficient; process
+			// startup waits for that identity before checking the recovery path.
+			cmd := startTaggedLegacyExecutor(t, "OPENCODE_AGENT_TAG", legacyTag, "30", true)
 			run.RunnerPID = cmd.Process.Pid
 			if err := repos.Runs.Create(t.Context(), run); err != nil {
 				t.Fatal(err)
@@ -202,6 +181,35 @@ func TestRecoveryArtifactFailurePreservesLiveLegacyExecutor(t *testing.T) {
 				t.Errorf("missing named owner diagnosis: %q", diagnosis)
 			}
 		})
+	}
+}
+
+// startTaggedLegacyExecutor waits for the exact process environment evidence
+// consumed by isProcessAlive. Cmd.Start can return while /proc still exposes a
+// pre-exec image, so callers must not make a liveness assertion until the tag
+// for this exact run is visible on the recorded PID.
+func startTaggedLegacyExecutor(t *testing.T, envName, tag, lifetime string, isolatePath bool) *exec.Cmd {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), "sleep", lifetime)
+	cmd.Env = []string{envName + "=" + tag}
+	if isolatePath {
+		// Command construction resolves sleep before PATH is isolated. This keeps
+		// the test from using pgrep or any host cleanup CLI as a fallback.
+		t.Setenv("PATH", t.TempDir())
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	deadline := time.Now().Add(time.Second)
+	for {
+		if got := extractTagFromEnv(cmd.Process.Pid); got == tag {
+			return cmd
+		}
+		if !time.Now().Before(deadline) {
+			t.Fatalf("process %d did not expose exact continuation tag %q before deadline", cmd.Process.Pid, tag)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
@@ -468,6 +476,30 @@ func TestRecoverRun_DeadProcessWithoutTerminalEventPreservesRecoverableInterrupt
 	}
 }
 
+func TestRecoverRun_DeadProcessWithoutTranscriptParserPreservesInterruption(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	run.ResolvedConfig = nil
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+
+	if _, err := reconciler.RecoverRun(context.Background(), run.ID); err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+
+	got, err := repos.Runs.Get(context.Background(), run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if got.Status != domain.RunStatusNeedsReview || got.TerminalClass != domain.RunTerminalClassInterruption || got.StopReason != domain.RunStopReasonCrash {
+		t.Fatalf("recovery without parser projected (%s,%s,%s), want needs_review/interruption/crash", got.Status, got.TerminalClass, got.StopReason)
+	}
+	if got.Result != nil || got.ExitCode != nil {
+		t.Fatalf("recovery without terminal evidence invented a result: result=%+v exit=%v", got.Result, got.ExitCode)
+	}
+}
+
 func TestHandleStaleRun_DrainsTranscriptBeforeFailing(t *testing.T) {
 	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
 	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
@@ -490,6 +522,34 @@ func TestHandleStaleRun_DrainsTranscriptBeforeFailing(t *testing.T) {
 	}
 	if stats.RunsRecovered != 1 {
 		t.Fatalf("runs recovered = %d, want 1", stats.RunsRecovered)
+	}
+}
+
+func TestHandleStaleRun_DoesNotClaimFailureWhenTranscriptIsUnavailable(t *testing.T) {
+	reconciler, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	stale := time.Now().Add(-15 * time.Minute)
+	run.LastHeartbeat = &stale
+	run.TranscriptPath = filepath.Join(t.TempDir(), "missing-transcript.ndjson")
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+
+	stats := &ReconcileStats{}
+	reconciler.handleStaleRun(context.Background(), run, stats)
+
+	got, err := repos.Runs.Get(context.Background(), run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Fatalf("status = %s, want %s while terminal evidence is unavailable", got.Status, domain.RunStatusRunning)
+	}
+	if got.EndedAt != nil || got.ExitCode != nil || got.ErrorMsg != "" {
+		t.Fatalf("unavailable transcript was projected as a terminal result: ended=%v exit=%v error=%q", got.EndedAt, got.ExitCode, got.ErrorMsg)
+	}
+	if len(stats.Errors) == 0 {
+		t.Fatal("expected recovery evidence failure to remain observable")
 	}
 }
 

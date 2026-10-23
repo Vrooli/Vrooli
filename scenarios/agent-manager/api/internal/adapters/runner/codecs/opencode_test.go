@@ -372,10 +372,7 @@ func TestOpenCode_DecodeStreamLine_TextEmitsAssistantMessage(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Role != "assistant" || msg.Content != "Hello there" {
-		t.Errorf("got role=%s content=%q", msg.Role, msg.Content)
-	}
+	requireMessage(t, events, 0, "assistant", "Hello there")
 }
 
 func TestOpenCode_DecodeStreamLine_ToolUseInProgress(t *testing.T) {
@@ -383,10 +380,7 @@ func TestOpenCode_DecodeStreamLine_ToolUseInProgress(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	tool := events[0].Data.(*domain.ToolCallEventData)
-	if tool.ToolName != "write" {
-		t.Errorf("tool=%s", tool.ToolName)
-	}
+	requireToolCall(t, events, 0, "write")
 }
 
 func TestOpenCode_DecodeStreamLine_ToolUseCompleted_EmitsCallAndResult(t *testing.T) {
@@ -394,10 +388,8 @@ func TestOpenCode_DecodeStreamLine_ToolUseCompleted_EmitsCallAndResult(t *testin
 	if len(events) != 2 {
 		t.Fatalf("got %d events", len(events))
 	}
-	if events[0].EventType != domain.EventTypeToolCall || events[1].EventType != domain.EventTypeToolResult {
-		t.Errorf("event types: %s, %s", events[0].EventType, events[1].EventType)
-	}
-	r := events[1].Data.(*domain.ToolResultEventData)
+	requireToolCall(t, events, 0, "")
+	r := requireType[*domain.ToolResultEventData](t, events, 1)
 	if r.Output != "file written" {
 		t.Errorf("output=%q", r.Output)
 	}
@@ -408,17 +400,12 @@ func TestOpenCode_DecodeStreamLine_StepFinish_NonTerminal(t *testing.T) {
 	if state.stepTermina {
 		t.Error("non-terminal reason should not flag stepTermina")
 	}
-	hasCost := false
-	for _, e := range events {
-		if _, ok := e.Data.(*domain.UsageEventData); ok {
-			hasCost = true
-		}
-	}
-	if !hasCost {
+	usages := eventsOfType[*domain.UsageEventData](events)
+	if len(usages) == 0 {
 		t.Error("expected cost event")
 	}
-	for _, e := range events {
-		if usage, ok := e.Data.(*domain.UsageEventData); ok && usage.TurnIndex != 1 {
+	for _, usage := range usages {
+		if usage.TurnIndex != 1 {
 			t.Errorf("turn index=%d, want 1", usage.TurnIndex)
 		}
 	}
@@ -431,19 +418,10 @@ func TestOpenCode_DecodeStreamLine_StepFinish_Terminal_FlagsState(t *testing.T) 
 		t.Error("expected stepTermina=true for reason=stop")
 	}
 	// Should produce both cost and message events.
-	hasCost, hasMsg := false, false
-	for _, e := range events {
-		if _, ok := e.Data.(*domain.UsageEventData); ok {
-			hasCost = true
-		}
-		if md, ok := e.Data.(*domain.MessageEventData); ok && md.Content == "All done." {
-			hasMsg = true
-		}
-	}
-	if !hasCost {
+	if len(eventsOfType[*domain.UsageEventData](events)) == 0 {
 		t.Error("expected cost event")
 	}
-	if !hasMsg {
+	if countMessages(events, "", "All done.") == 0 {
 		t.Error("expected message event from step_finish.text")
 	}
 	// OnEarlyTerminate must reflect the flag.
@@ -468,10 +446,10 @@ func TestOpenCode_DecodeStreamLine_StepFinish_Cancelled(t *testing.T) {
 
 func TestOpenCode_DecodeStreamLine_TopLevelError(t *testing.T) {
 	events, _ := opencodeDecode(t, NewOpenCodeForTest(), opencodeSamples["error_top"])
-	if len(events) != 1 || events[0].EventType != domain.EventTypeError {
+	if len(events) != 1 {
 		t.Fatalf("got %v", events)
 	}
-	errData := events[0].Data.(*domain.ErrorEventData)
+	errData := requireType[*domain.ErrorEventData](t, events, 0)
 	if errData.Code != "AUTH" {
 		t.Errorf("code=%s", errData.Code)
 	}
@@ -482,10 +460,10 @@ func TestOpenCode_DecodeStreamLine_TopLevelError(t *testing.T) {
 
 func TestOpenCode_DecodeStreamLine_ErrorInPart(t *testing.T) {
 	events, _ := opencodeDecode(t, NewOpenCodeForTest(), opencodeSamples["error_in_part"])
-	if len(events) != 1 || events[0].EventType != domain.EventTypeError {
+	if len(events) != 1 {
 		t.Fatalf("got %v", events)
 	}
-	errData := events[0].Data.(*domain.ErrorEventData)
+	errData := requireType[*domain.ErrorEventData](t, events, 0)
 	if errData.Message != "runtime failure" {
 		t.Errorf("msg=%s", errData.Message)
 	}
@@ -493,10 +471,10 @@ func TestOpenCode_DecodeStreamLine_ErrorInPart(t *testing.T) {
 
 func TestOpenCode_DecodeStreamLine_Thinking(t *testing.T) {
 	events, _ := opencodeDecode(t, NewOpenCodeForTest(), opencodeSamples["thinking"])
-	if len(events) != 1 || events[0].EventType != domain.EventTypeLog {
+	if len(events) != 1 {
 		t.Fatalf("got %v", events)
 	}
-	logData := events[0].Data.(*domain.LogEventData)
+	logData := requireType[*domain.LogEventData](t, events, 0)
 	if logData.Level != "debug" {
 		t.Errorf("level=%s", logData.Level)
 	}
@@ -510,8 +488,7 @@ func TestOpenCode_DecodeStreamLine_UserMessage(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Role != "user" {
+	if msg := requireType[*domain.MessageEventData](t, events, 0); msg.Role != "user" {
 		t.Errorf("role=%s", msg.Role)
 	}
 }

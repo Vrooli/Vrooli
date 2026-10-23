@@ -134,7 +134,7 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		if r.isProcessAlive(ctx, run) {
 			return nil, fmt.Errorf("no transcript parser available for live executor")
 		}
-		return &RecoverResult{Run: run, Idempotent: true, Message: "no transcript parser available"}, nil
+		return r.recordRecoveredInterruption(ctx, run, "no transcript parser available; terminal outcome is unverified")
 	}
 
 	terminal, err := r.drainTranscript(ctx, run, transcriptPath, state, parser)
@@ -155,7 +155,7 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		return &RecoverResult{Run: run, Recovered: true, Message: fmt.Sprintf("resumed run %s from transcript at offset %d", run.ID, run.TranscriptCursor)}, nil
 	}
 
-	return r.failRecoveredRun(ctx, run, "runner exited before terminal event")
+	return r.recordRecoveredInterruption(ctx, run, "runner exited before terminal event")
 }
 
 func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal) (*RecoverResult, error) {
@@ -217,10 +217,10 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 		return &RecoverResult{Run: run, Recovered: true, Message: "recovered terminal failure from transcript"}, nil
 	}
 
-	return r.failRecoveredRun(ctx, run, "runner exited before terminal event")
+	return r.recordRecoveredInterruption(ctx, run, "runner exited before terminal event")
 }
 
-func (r *Reconciler) failRecoveredRun(ctx context.Context, run *domain.Run, message string) (*RecoverResult, error) {
+func (r *Reconciler) recordRecoveredInterruption(ctx context.Context, run *domain.Run, message string) (*RecoverResult, error) {
 	now := r.now()
 	// A dead executor without a terminal transcript is not evidence of an
 	// ordinary provider failure. Preserve the run as a resumable interruption
@@ -380,13 +380,7 @@ func (r *Reconciler) recoveryParser(ctx context.Context, run *domain.Run) (runne
 }
 
 func (r *Reconciler) recoveryEventSink(runID uuid.UUID) runner.EventSink {
-	if r.events != nil {
-		if r.broadcaster != nil {
-			return &broadcastingEventSink{store: r.events, runID: runID, broadcaster: r.broadcaster}
-		}
-		return &eventStoreAdapter{store: r.events, runID: runID}
-	}
-	return &noOpEventSink{}
+	return newRunEventSink(r.events, r.broadcaster, runID, nil)
 }
 
 func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) error {

@@ -117,14 +117,24 @@ func TestEffortContradictoryRunStateKeepsAccountingUnknown(t *testing.T) {
 type effortRegistryFixture struct{ runs []*domain.Run }
 
 func (f effortRegistryFixture) List(_ context.Context, filter repository.RunListFilter) ([]*domain.Run, error) {
-	if filter.Offset >= len(f.runs) {
+	runs := f.runs
+	if filter.NonTerminalOnly {
+		runs = make([]*domain.Run, 0, len(f.runs))
+		for _, run := range f.runs {
+			switch run.Status {
+			case domain.RunStatusPending, domain.RunStatusStarting, domain.RunStatusRunning, domain.RunStatusNeedsReview, domain.RunStatusParked:
+				runs = append(runs, run)
+			}
+		}
+	}
+	if filter.Offset >= len(runs) {
 		return nil, nil
 	}
 	end := filter.Offset + filter.Limit
-	if end > len(f.runs) {
-		end = len(f.runs)
+	if end > len(runs) {
+		end = len(runs)
 	}
-	return f.runs[filter.Offset:end], nil
+	return runs[filter.Offset:end], nil
 }
 
 func TestEffortActualScanClearsNotScannedButRetainsCurrentFailure(t *testing.T) {
@@ -745,7 +755,7 @@ func TestEffortRunRegistryRotationPersistsOffsetAndFiltersReferences(t *testing.
 	runs := make([]*domain.Run, 105)
 	for i := range runs {
 		id := uuid.New()
-		runs[i] = &domain.Run{ID: id, Status: domain.RunStatusRunning}
+		runs[i] = &domain.Run{ID: id, Status: domain.RunStatusComplete}
 		controller.runs[id] = runs[i]
 	}
 	work := func(id, relationship string, verified bool, visibility eventpb.WorkReferenceVisibility, state eventpb.WorkReferenceState) *eventpb.WorkReference {
@@ -802,7 +812,63 @@ func TestEffortRunRegistryRotationPersistsOffsetAndFiltersReferences(t *testing.
 		t.Fatalf("rotated worker did not project as one effort assignment: %+v", board.Rows)
 	}
 	assignment := board.Rows[0].Assignments[0]
-	if assignment.GetSubject().GetRunId() != targetID.String() || assignment.GetRuntimeState() != "running" {
-		t.Fatalf("rotated verified worker projection=%+v; want exact run %s running", assignment, targetID)
+	if assignment.GetSubject().GetRunId() != targetID.String() || assignment.GetRuntimeState() != "complete" {
+		t.Fatalf("rotated verified worker projection=%+v; want exact run %s complete", assignment, targetID)
+	}
+}
+
+func TestEffortRunRegistryPrioritizesCurrentOwnerOverHistoricalOffset(t *testing.T) {
+	s, repo, _ := effortFixture(t)
+	ctx := context.Background()
+	workspaceFixture(t, s.config.Root, "current-owner", "effort:current-owner", nil)
+	workspaceFixture(t, s.config.Root, "historical-owner", "effort:historical-owner", nil)
+
+	ref := func(id, relationship string) *eventpb.WorkReference {
+		return &eventpb.WorkReference{
+			Kind:         "effort",
+			Id:           id,
+			Relationship: relationship,
+			Verified:     true,
+			Visibility:   eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+			State:        eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+		}
+	}
+	current := &domain.Run{
+		ID:             uuid.New(),
+		Status:         domain.RunStatusParked,
+		WorkReferences: []*eventpb.WorkReference{ref("effort:current-owner", "orchestrator")},
+	}
+	history := make([]*domain.Run, 201)
+	for i := range history {
+		history[i] = &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete}
+	}
+	historical := history[99] // newest run plus 99 history rows puts this at offset 100.
+	historical.WorkReferences = []*eventpb.WorkReference{ref("effort:historical-owner", "worker")}
+	runs := append([]*domain.Run{current}, history...)
+	s.SetRunRegistry(effortRegistryFixture{runs: runs})
+	if err := repo.SaveEffortRegistryOffset(ctx, 100); err != nil {
+		t.Fatal(err)
+	}
+
+	discovery, err := s.ReconcileDiscovery(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentEnrollment, _, err := repo.GetEffort(ctx, "effort:current-owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(currentEnrollment.Subjects) != 1 || currentEnrollment.Subjects[0].RunId != current.ID.String() || currentEnrollment.Subjects[0].Role != "orchestrator" {
+		t.Fatalf("current owner was not joined ahead of historical cursor: %+v", currentEnrollment.Subjects)
+	}
+	historicalEnrollment, _, err := repo.GetEffort(ctx, "effort:historical-owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(historicalEnrollment.Subjects) != 1 || historicalEnrollment.Subjects[0].RunId != historical.ID.String() || historicalEnrollment.Subjects[0].Role != "worker" {
+		t.Fatalf("historical owner was not joined from the rotating page: %+v", historicalEnrollment.Subjects)
+	}
+	if !discovery.Partial {
+		t.Fatal("bounded registry sampling should remain explicit")
 	}
 }

@@ -31,20 +31,22 @@ const sessionBindingProofMaxBytes = 4096
 type SessionBindingProof struct {
 	ProofVersion        int                    `json:"proof_version"`
 	RunID               string                 `json:"run_id"`
+	HarnessSessionID    string                 `json:"harness_session_id"`
 	WebConsoleSessionID string                 `json:"web_console_session_id"`
 	HarnessKind         string                 `json:"harness_kind"`
+	OwnerKind           string                 `json:"owner_kind"`
 	Binding             cliutil.ProcessBinding `json:"binding"`
 }
 
 // SessionBindingProofReader is deliberately narrow and read-only.
 type SessionBindingProofReader interface {
-	ReadWebConsoleSessionBinding(context.Context, uuid.UUID, string, string) (SessionBindingProof, error)
+	ReadSessionBinding(context.Context, uuid.UUID, string, string, string) (SessionBindingProof, error)
 }
 
-type SessionBindingProofReaderFunc func(context.Context, uuid.UUID, string, string) (SessionBindingProof, error)
+type SessionBindingProofReaderFunc func(context.Context, uuid.UUID, string, string, string) (SessionBindingProof, error)
 
-func (f SessionBindingProofReaderFunc) ReadWebConsoleSessionBinding(ctx context.Context, runID uuid.UUID, webConsoleSessionID, harnessKind string) (SessionBindingProof, error) {
-	return f(ctx, runID, webConsoleSessionID, harnessKind)
+func (f SessionBindingProofReaderFunc) ReadSessionBinding(ctx context.Context, runID uuid.UUID, harnessSessionID, webConsoleSessionID, harnessKind string) (SessionBindingProof, error) {
+	return f(ctx, runID, harnessSessionID, webConsoleSessionID, harnessKind)
 }
 
 // NewCLISessionBindingProofReader uses the installed control-plane owner command
@@ -62,10 +64,17 @@ func (b *limitedProofOutput) Write(p []byte) (int, error) {
 	return b.Buffer.Write(p)
 }
 
-func readCLISessionBindingProof(parent context.Context, runID uuid.UUID, webConsoleSessionID, harnessKind string) (SessionBindingProof, error) {
+func readCLISessionBindingProof(parent context.Context, runID uuid.UUID, harnessSessionID, webConsoleSessionID, harnessKind string) (SessionBindingProof, error) {
 	ctx, cancel := context.WithTimeout(parent, sessionBindingProofTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "vrooli", "agent", "identity-binding", "--run-id", runID.String(), "--web-console-session-id", webConsoleSessionID, "--harness-kind", harnessKind, "--json")
+	args := []string{"agent", "identity-binding", "--harness-session-id", harnessSessionID, "--harness-kind", harnessKind, "--json"}
+	if runID != uuid.Nil {
+		args = append(args, "--run-id", runID.String())
+	}
+	if webConsoleSessionID != "" {
+		args = append(args, "--web-console-session-id", webConsoleSessionID)
+	}
+	cmd := exec.CommandContext(ctx, "vrooli", args...)
 	cmd.WaitDelay = 100 * time.Millisecond
 	cmd.Env = withoutAgentIdentity(os.Environ())
 	var stdout limitedProofOutput
@@ -127,7 +136,7 @@ func (o *Orchestrator) resolveAttachedBaselineRenewal(ctx context.Context, peerP
 	if !renewableAttachedRoot(run, anchorHash, anchorClaims) {
 		return "", false, nil
 	}
-	proof, err := o.sessionBindingProofReader.ReadWebConsoleSessionBinding(ctx, run.ID, run.WebConsoleSessionID, run.HarnessKind)
+	proof, err := o.sessionBindingProofReader.ReadSessionBinding(ctx, run.ID, run.HarnessSessionID, run.WebConsoleSessionID, run.HarnessKind)
 	if err != nil || !validSessionBindingProof(proof, run, peerPID) {
 		return "", false, identityRefreshUnavailable(err)
 	}
@@ -241,10 +250,28 @@ func sameRenewalBinding(a, b *domain.Run) bool {
 
 func validSessionBindingProof(proof SessionBindingProof, run *domain.Run, peerPID int) bool {
 	return proof.ProofVersion == sessionBindingProofVersion && run != nil &&
-		proof.RunID == run.ID.String() && proof.WebConsoleSessionID == run.WebConsoleSessionID &&
+		proof.RunID == run.ID.String() && proof.HarnessSessionID == run.HarnessSessionID &&
+		proof.WebConsoleSessionID == run.WebConsoleSessionID && proof.OwnerKind == "web-console-session" &&
 		proof.HarnessKind == run.HarnessKind && proof.Binding.PID == run.RunnerPID &&
 		proof.Binding.PID > 1 && proof.Binding.UID >= 0 && proof.Binding.Start != "" &&
 		proof.Binding.Boot != "" && proof.Binding.Cgroup != "" && cliutil.ProcessDescendsFrom(peerPID, proof.Binding)
+}
+
+func validSessionBindingTuple(proof SessionBindingProof, runID uuid.UUID, harnessSessionID, expectedWebConsoleSessionID, harnessKind string, binding cliutil.ProcessBinding) bool {
+	expectedRunID := ""
+	if runID != uuid.Nil {
+		expectedRunID = runID.String()
+	}
+	if proof.ProofVersion != sessionBindingProofVersion || proof.RunID != expectedRunID ||
+		proof.HarnessSessionID != harnessSessionID || proof.HarnessKind != harnessKind ||
+		proof.OwnerKind == "" || proof.Binding != binding || binding.PID <= 1 || binding.UID < 0 ||
+		binding.Start == "" || binding.Boot == "" || binding.Cgroup == "" {
+		return false
+	}
+	if expectedWebConsoleSessionID != "" && proof.WebConsoleSessionID != expectedWebConsoleSessionID {
+		return false
+	}
+	return proof.WebConsoleSessionID == "" || proof.OwnerKind == "web-console-session"
 }
 
 func attachedRenewalGeneration(anchor *identity.Claims, issuedAt time.Time, ownerExpiresAt *time.Time, secret []byte) (string, time.Time, error) {

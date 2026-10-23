@@ -40,17 +40,13 @@ type RunAccounting struct {
 // dispatched a run outside a workflow (for example, a Swarm goal run) has no
 // workflow receipt; this is its equivalent.
 func (o *Orchestrator) RunAccounting(ctx context.Context, runID uuid.UUID) (RunAccounting, error) {
-	run, state, err := o.meteredRun(ctx, runID)
+	run, state, events, err := o.meteredRun(ctx, runID)
 	if err != nil {
 		return RunAccounting{}, err
 	}
 	out, err := runAccountingFromState(run, state)
 	if err != nil {
 		return out, err
-	}
-	events, err := o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric}})
-	if err != nil {
-		return RunAccounting{}, err
 	}
 	return withTokenComponents(out, run, events, o.now()), nil
 }
@@ -68,20 +64,28 @@ func withTokenComponents(out RunAccounting, run *domain.Run, events []*domain.Ru
 // meteredRun loads a run and its durable accounting events and applies the
 // owner metering. Workflow child inspection and standalone accounting share it
 // so the two can never read different evidence.
-func (o *Orchestrator) meteredRun(ctx context.Context, runID uuid.UUID) (*domain.Run, workflowruntime.ChildState, error) {
+func (o *Orchestrator) meteredRun(ctx context.Context, runID uuid.UUID) (*domain.Run, workflowruntime.ChildState, []*domain.RunEvent, error) {
 	run, err := o.GetRun(ctx, runID)
 	if err != nil {
-		return nil, workflowruntime.ChildState{}, err
+		return nil, workflowruntime.ChildState{}, nil, err
 	}
-	events, err := o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
+	events, err := o.meteredRunEvents(ctx, runID)
 	if err != nil {
-		return nil, workflowruntime.ChildState{}, err
+		return nil, workflowruntime.ChildState{}, nil, err
 	}
 	state, err := meteredWorkflowChildState(run, events, o.now())
 	if err != nil {
-		return nil, workflowruntime.ChildState{}, err
+		return nil, workflowruntime.ChildState{}, nil, err
 	}
-	return run, state, nil
+	return run, state, events, nil
+}
+
+// meteredRunEvents returns the complete stream needed by metering and its
+// token-component projection. Keeping invocation status events in this one
+// read prevents identical authoritative receipts in separate continuations
+// from being deduplicated as though they belonged to one invocation.
+func (o *Orchestrator) meteredRunEvents(ctx context.Context, runID uuid.UUID) ([]*domain.RunEvent, error) {
+	return o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
 }
 
 // runAccountingFromState projects metering onto the accounting contract.

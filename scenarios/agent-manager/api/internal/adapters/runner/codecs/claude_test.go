@@ -360,10 +360,7 @@ func TestClaude_DecodeStreamLine_SystemInit(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	logData, ok := events[0].Data.(*domain.LogEventData)
-	if !ok {
-		t.Fatalf("expected LogEventData, got %T", events[0].Data)
-	}
+	logData := requireType[*domain.LogEventData](t, events, 0)
 	if logData.Level != "debug" {
 		t.Errorf("level=%s want debug", logData.Level)
 	}
@@ -378,18 +375,9 @@ func TestClaude_DecodeStreamLine_AssistantText(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("got %d events, want message plus per-turn usage", len(events))
 	}
-	if events[0].EventType != domain.EventTypeMessage {
-		t.Errorf("type=%s want message", events[0].EventType)
-	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Role != "assistant" {
-		t.Errorf("role=%s", msg.Role)
-	}
-	if msg.Content != "Hello! I'm ready to help you." {
-		t.Errorf("content=%q", msg.Content)
-	}
-	usage, ok := events[1].Data.(*domain.UsageEventData)
-	if !ok || usage.TurnIndex != 1 || usage.InputTokens != 2 || usage.OutputTokens != 5 {
+	requireMessage(t, events, 0, "assistant", "Hello! I'm ready to help you.")
+	usage := requireType[*domain.UsageEventData](t, events, 1)
+	if usage.TurnIndex != 1 || usage.InputTokens != 2 || usage.OutputTokens != 5 {
 		t.Errorf("usage=%#v, want turn 1 with 2 input and 5 output", events[1].Data)
 	}
 }
@@ -400,13 +388,7 @@ func TestClaude_DecodeStreamLine_AssistantToolUse(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("got %d events, want tool call plus per-turn usage", len(events))
 	}
-	if events[0].EventType != domain.EventTypeToolCall {
-		t.Errorf("type=%s want tool_call", events[0].EventType)
-	}
-	tool := events[0].Data.(*domain.ToolCallEventData)
-	if tool.ToolName != "Write" {
-		t.Errorf("tool=%s", tool.ToolName)
-	}
+	tool := requireToolCall(t, events, 0, "Write")
 	if fp, ok := tool.Input["file_path"].(string); !ok || fp != "/tmp/test.txt" {
 		t.Errorf("file_path=%v", tool.Input["file_path"])
 	}
@@ -422,18 +404,15 @@ func TestClaudePerTurnUsageSumsToTerminalAuthority(t *testing.T) {
 		`{"type":"assistant","message":{"role":"assistant","content":[],"usage":{"input_tokens":30,"output_tokens":4}}}`,
 		`{"type":"result","subtype":"success","is_error":false,"num_turns":3,"result":"done","usage":{"input_tokens":60,"output_tokens":9}}`,
 	}
-	var usage []*domain.UsageEventData
+	var all []*domain.RunEvent
 	for _, line := range lines {
 		events, err := c.DecodeStreamLine(state, runID, line)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, event := range events {
-			if data, ok := event.Data.(*domain.UsageEventData); ok {
-				usage = append(usage, data)
-			}
-		}
+		all = append(all, events...)
 	}
+	usage := eventsOfType[*domain.UsageEventData](all)
 	if len(usage) != 4 {
 		t.Fatalf("usage events=%d, want three turns plus terminal", len(usage))
 	}
@@ -458,10 +437,7 @@ func TestClaude_DecodeStreamLine_AssistantTextAndTool(t *testing.T) {
 		t.Fatalf("got %d events, want >=2", len(events))
 	}
 	// First event should be the text message
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Content != "Let me create that file." {
-		t.Errorf("first event content=%q", msg.Content)
-	}
+	requireMessage(t, events, 0, "", "Let me create that file.")
 }
 
 func TestClaude_DecodeStreamLine_UserToolResult(t *testing.T) {
@@ -470,10 +446,7 @@ func TestClaude_DecodeStreamLine_UserToolResult(t *testing.T) {
 	if len(events) == 0 {
 		t.Fatal("expected events")
 	}
-	if events[0].EventType != domain.EventTypeToolResult {
-		t.Errorf("type=%s want tool_result", events[0].EventType)
-	}
-	r := events[0].Data.(*domain.ToolResultEventData)
+	r := requireType[*domain.ToolResultEventData](t, events, 0)
 	if r.ToolCallID != "toolu_01KKEKfCADiJJApRkJF86t8R" {
 		t.Errorf("toolCallID=%q", r.ToolCallID)
 	}
@@ -488,7 +461,7 @@ func TestClaude_DecodeStreamLine_UserToolResultError(t *testing.T) {
 	if len(events) == 0 {
 		t.Fatal("expected events")
 	}
-	r := events[0].Data.(*domain.ToolResultEventData)
+	r := requireType[*domain.ToolResultEventData](t, events, 0)
 	if r.Success {
 		t.Fatal("tool_result Success = true, want false for is_error content block")
 	}
@@ -502,14 +475,7 @@ func TestClaude_DecodeStreamLine_ResultSuccess(t *testing.T) {
 	events := decodeOne(t, c, claudeCodeSamples["result_success"])
 	// Should produce usage and charge events; success result with non-empty
 	// result text + lastAssistant=="" emits a synthetic assistant message.
-	hasUsage, hasCharge := false, false
-	for _, e := range events {
-		_, usage := e.Data.(*domain.UsageEventData)
-		_, charge := e.Data.(*domain.ChargeEventData)
-		hasUsage = hasUsage || usage
-		hasCharge = hasCharge || charge
-	}
-	if !hasUsage || !hasCharge {
+	if len(eventsOfType[*domain.UsageEventData](events)) == 0 || len(eventsOfType[*domain.ChargeEventData](events)) == 0 {
 		t.Errorf("expected UsageEventData and ChargeEventData in %d events", len(events))
 	}
 }
@@ -521,13 +487,7 @@ func TestClaude_DecodeStreamLine_ResultError_RateLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	hasRL := false
-	for _, e := range events {
-		if _, ok := e.Data.(*domain.RateLimitEventData); ok {
-			hasRL = true
-		}
-	}
-	if !hasRL {
+	if len(eventsOfType[*domain.RateLimitEventData](events)) == 0 {
 		t.Error("expected RateLimitEventData")
 	}
 	// Codec captures rate-limit on state for PostClassify to flip later.
@@ -543,7 +503,7 @@ func TestClaude_DecodeStreamLine_Error(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	errData := events[0].Data.(*domain.ErrorEventData)
+	errData := requireType[*domain.ErrorEventData](t, events, 0)
 	if errData.Code != "rate_limit" {
 		t.Errorf("code=%s", errData.Code)
 	}
@@ -558,9 +518,7 @@ func TestClaude_DecodeStreamLine_Usage(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	if _, ok := events[0].Data.(*domain.MetricEventData); !ok {
-		t.Errorf("expected MetricEventData, got %T", events[0].Data)
-	}
+	requireType[*domain.MetricEventData](t, events, 0)
 }
 
 func TestClaude_DecodeStreamLine_NonJsonLines(t *testing.T) {
@@ -605,10 +563,7 @@ func TestClaude_DecodeStreamLine_MessageDelta_LogsWithoutText(t *testing.T) {
 	if len(events) == 0 {
 		t.Fatal("expected debug log event")
 	}
-	logData, ok := events[0].Data.(*domain.LogEventData)
-	if !ok {
-		t.Fatalf("expected LogEventData, got %T", events[0].Data)
-	}
+	logData := requireType[*domain.LogEventData](t, events, 0)
 	if logData.Level != "debug" {
 		t.Errorf("level=%s", logData.Level)
 	}
@@ -630,10 +585,7 @@ func TestClaude_DecodeStreamLine_MessageDelta_TextBuffer(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event from flush, got %d", len(events))
 	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Content != "Hello, world!" {
-		t.Errorf("flushed content=%q", msg.Content)
-	}
+	requireMessage(t, events, 0, "", "Hello, world!")
 }
 
 func TestClaude_DecodeStreamLine_ContentBlockStart_ToolUse(t *testing.T) {
@@ -663,10 +615,7 @@ func TestClaude_DecodeStreamLine_ContentBlockDelta_TextAndJSON(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 tool_call event, got %d", len(events))
 	}
-	tc := events[0].Data.(*domain.ToolCallEventData)
-	if tc.ToolName != "Bash" {
-		t.Errorf("tool=%s", tc.ToolName)
-	}
+	tc := requireToolCall(t, events, 0, "Bash")
 	if cmd, ok := tc.Input["command"].(string); !ok || cmd != "ls" {
 		t.Errorf("command=%v", tc.Input["command"])
 	}
@@ -906,11 +855,7 @@ func TestParseClaudeResultEvent_ErrorMaxTurns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	errEvent := findErrorEvent(events)
-	if errEvent == nil {
-		t.Fatal("expected error event")
-	}
-	errData := errEvent.Data.(*domain.ErrorEventData)
+	errData := firstOfType[*domain.ErrorEventData](t, events)
 	if errData.Code != "execution_error" {
 		t.Errorf("code=%s", errData.Code)
 	}
@@ -925,11 +870,7 @@ func TestParseClaudeResultEvent_ErrorMaxTurns(t *testing.T) {
 func TestParseClaudeResultEvent_ErrorEmpty(t *testing.T) {
 	c := NewClaudeForTest()
 	events, _ := c.DecodeStreamLine(c.NewState(), uuid.New(), diagnosticSamples["result_error_empty"])
-	errEvent := findErrorEvent(events)
-	if errEvent == nil {
-		t.Fatal("expected error event")
-	}
-	errData := errEvent.Data.(*domain.ErrorEventData)
+	errData := firstOfType[*domain.ErrorEventData](t, events)
 	if strings.TrimSpace(errData.Message) == "" {
 		t.Fatal("message must not be empty")
 	}
@@ -941,11 +882,7 @@ func TestParseClaudeResultEvent_ErrorEmpty(t *testing.T) {
 func TestParseClaudeResultEvent_ErrorDuringExecution_CarriesResultText(t *testing.T) {
 	c := NewClaudeForTest()
 	events, _ := c.DecodeStreamLine(c.NewState(), uuid.New(), diagnosticSamples["result_error_during"])
-	errEvent := findErrorEvent(events)
-	if errEvent == nil {
-		t.Fatal("expected error event")
-	}
-	errData := errEvent.Data.(*domain.ErrorEventData)
+	errData := firstOfType[*domain.ErrorEventData](t, events)
 	if !strings.Contains(errData.Message, "internal API error") {
 		t.Errorf("expected result_text in message: %q", errData.Message)
 	}
@@ -962,13 +899,7 @@ func TestParseClaudeResultEvent_RateLimitPrecedence(t *testing.T) {
 			t.Errorf("rate-limit shape should not produce ErrorEventData: %+v", e.Data)
 		}
 	}
-	hasRL := false
-	for _, e := range events {
-		if _, ok := e.Data.(*domain.RateLimitEventData); ok {
-			hasRL = true
-		}
-	}
-	if !hasRL {
+	if len(eventsOfType[*domain.RateLimitEventData](events)) == 0 {
 		t.Error("expected RateLimitEventData")
 	}
 }
@@ -1041,10 +972,7 @@ func TestDecodeStreamLine_CompactionFlow(t *testing.T) {
 	if len(events2) != 1 {
 		t.Fatalf("expected 1 compaction event, got %d", len(events2))
 	}
-	if events2[0].EventType != domain.EventTypeCompaction {
-		t.Errorf("type=%s want compaction", events2[0].EventType)
-	}
-	cd := events2[0].Data.(*domain.CompactionEventData)
+	cd := requireType[*domain.CompactionEventData](t, events2, 0)
 	if cd.Summary != "We fixed the auth bug..." {
 		t.Errorf("summary=%q", cd.Summary)
 	}
@@ -1065,10 +993,7 @@ func TestDecodeStreamLine_AutoCompactSystem(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	cd, ok := events[0].Data.(*domain.CompactionEventData)
-	if !ok {
-		t.Fatalf("expected CompactionEventData, got %T", events[0].Data)
-	}
+	cd := requireType[*domain.CompactionEventData](t, events, 0)
 	if cd.Trigger != "auto" {
 		t.Errorf("trigger=%s want auto", cd.Trigger)
 	}
@@ -1091,7 +1016,7 @@ func TestClaudeCompactionUsesAdjacentTurnUsage(t *testing.T) {
 	if len(compaction) != 1 {
 		t.Fatalf("compaction events=%d", len(compaction))
 	}
-	data := compaction[0].Data.(*domain.CompactionEventData)
+	data := requireType[*domain.CompactionEventData](t, compaction, 0)
 	if data.TokensBefore != 100 || data.TokensAfter != 0 {
 		t.Fatalf("before boundary=%+v, want before=100 and after initially zero", data)
 	}
@@ -1112,10 +1037,7 @@ func TestDecodeStreamLine_ANSIInMessageContent(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Content != "hello world" {
-		t.Errorf("ANSI not stripped, got %q", msg.Content)
-	}
+	requireMessage(t, events, 0, "", "hello world")
 }
 
 func TestDecodeStreamLine_ANSIInToolResult(t *testing.T) {
@@ -1125,7 +1047,7 @@ func TestDecodeStreamLine_ANSIInToolResult(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	r := events[0].Data.(*domain.ToolResultEventData)
+	r := requireType[*domain.ToolResultEventData](t, events, 0)
 	if r.Output != "file created" {
 		t.Errorf("ANSI not stripped, got %q", r.Output)
 	}
@@ -1204,21 +1126,14 @@ func TestClaudeTranscriptDoesNotDuplicateFinalAssistant(t *testing.T) {
 	assistant := parser.ParseTranscriptLine(runID, `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"done"}]},"session_id":"session-1"}`)
 	result := parser.ParseTranscriptLine(runID, `{"type":"result","subtype":"success","is_error":false,"result":"done","session_id":"session-1"}`)
 
-	got := 0
+	var all []*domain.RunEvent
 	for _, res := range []runner.TranscriptParseResult{assistant, result} {
 		if res.Err != nil {
 			t.Fatalf("ParseTranscriptLine: %v", res.Err)
 		}
-		for _, event := range res.Events {
-			if event.EventType == domain.EventTypeMessage {
-				msg := event.Data.(*domain.MessageEventData)
-				if msg.Role == "assistant" && msg.Content == "done" {
-					got++
-				}
-			}
-		}
+		all = append(all, res.Events...)
 	}
-	if got != 1 {
+	if got := countMessages(all, "assistant", "done"); got != 1 {
 		t.Fatalf("assistant message count = %d, want 1", got)
 	}
 }
@@ -1229,16 +1144,7 @@ func TestClaudeTranscriptResultSynthesizesAssistantWhenNoAssistantEventExists(t 
 	if res.Err != nil {
 		t.Fatalf("ParseTranscriptLine: %v", res.Err)
 	}
-	got := 0
-	for _, event := range res.Events {
-		if event.EventType == domain.EventTypeMessage {
-			msg := event.Data.(*domain.MessageEventData)
-			if msg.Role == "assistant" && msg.Content == "fallback summary" {
-				got++
-			}
-		}
-	}
-	if got != 1 {
+	if got := countMessages(res.Events, "assistant", "fallback summary"); got != 1 {
 		t.Fatalf("fallback assistant message count = %d, want 1", got)
 	}
 }
@@ -1383,15 +1289,3 @@ func TestBuildErrorDetails_OmitsEmptyStringFields(t *testing.T) {
 // =============================================================================
 // Misc helpers
 // =============================================================================
-
-func findErrorEvent(events []*domain.RunEvent) *domain.RunEvent {
-	for _, e := range events {
-		if e == nil {
-			continue
-		}
-		if _, ok := e.Data.(*domain.ErrorEventData); ok {
-			return e
-		}
-	}
-	return nil
-}

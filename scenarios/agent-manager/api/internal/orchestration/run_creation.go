@@ -29,6 +29,24 @@ import (
 
 const maxWorkReferenceDeclarations = 100
 
+func validateEffectiveRunInput(task *domain.Task, prompt string) error {
+	if task == nil {
+		return domain.NewValidationError("task", "cannot be nil")
+	}
+	for i := range task.ContextAttachments {
+		if task.ContextAttachments[i].Validate() == nil {
+			// Image attachments are passed to the runner separately from the text
+			// prompt, so a valid image-only task is still actionable.
+			return nil
+		}
+	}
+	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, nil, prompt)
+	if strings.TrimSpace(systemPrompt) != "" || strings.TrimSpace(userMessage) != "" {
+		return nil
+	}
+	return domain.NewValidationErrorWithHint("prompt", "a run needs an explicit prompt, a task description, or context attachments", "provide task instructions before creating a run")
+}
+
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
 	// Public caller projections are not authority, including in-process callers.
 	req.caller, req.profileAdmission = nil, nil
@@ -180,7 +198,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 
 	// Normalize a copy; rejected admission must not update task storage.
 	taskCopy := *task
-	expectedProjectRoot := taskCopy.ProjectRoot
+	expectedTaskSnapshot := taskCopy
 	task = &taskCopy
 	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths).
 	// Fall back to DefaultProjectRoot when the task has no project root set.
@@ -355,6 +373,10 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		return nil, err
 	}
 	if err := validateExecutionContainment(req.ExecutionMode, sandboxConfig.Mode, resolvedConfig); err != nil {
+		failCreation()
+		return nil, err
+	}
+	if err := validateEffectiveRunInput(task, req.Prompt); err != nil {
 		failCreation()
 		return nil, err
 	}
@@ -617,7 +639,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		failCreation()
 		return nil, domain.NewConfigMissingError("runs", "repository not configured", nil)
 	}
-	if err := o.runs.CreateTaskAttempt(ctx, task, run, task.CurrentRunID, expectedProjectRoot); err != nil {
+	if err := o.runs.CreateTaskAttempt(ctx, task, &expectedTaskSnapshot, run, task.CurrentRunID); err != nil {
 		failCreation()
 		return nil, err
 	}

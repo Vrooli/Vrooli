@@ -9,9 +9,11 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/goalhome"
 
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 const goalHomeRef = "scenarios/browser-automation-studio/docs/internal/goal"
@@ -312,6 +314,120 @@ func TestEffortGoalHomeRefusesSymlinkedHome(t *testing.T) {
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
 	if facts == nil || facts.State != "unavailable" || facts.ActiveEpoch != "" || len(facts.NeedsOperator) != 0 {
 		t.Fatalf("a symlinked goal home must read unavailable: %+v", facts)
+	}
+}
+
+func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testing.T) {
+	root := t.TempDir()
+	epoch := "# E99\n\n- Status: in-progress\n\n## Slice log\n" + strings.Repeat("x\n", goalhome.DefaultBoardFileBytes/2+2)
+	goalHomeTree(t, root, map[string]func(string) string{
+		"GOAL.md": func(text string) string {
+			title, rest, _ := strings.Cut(text, "\n")
+			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-20\n" + rest
+		},
+		"QUEUE.md": func(text string) string {
+			return strings.Replace(text, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Review the current handoff", 1)
+		},
+		"epochs/E99.md": func(string) string { return epoch },
+	})
+
+	defaultService, _, defaultController := effortFixture(t)
+	defaultService.config.ProjectRoot = root
+	if defaultService.config.FileBytes != int64(goalhome.DefaultBoardFileBytes) {
+		t.Fatalf("board default cap = %d, want shared default %d", defaultService.config.FileBytes, goalhome.DefaultBoardFileBytes)
+	}
+	defaultFacts := goalHomeBoardRow(t, defaultService, defaultController).GetGoalHome()
+	if defaultFacts == nil || defaultFacts.State != "partial" {
+		t.Fatalf("an oversized epoch should preserve a partial bounded projection: %+v", defaultFacts)
+	}
+	if defaultFacts.DestinationMetric != "journeys" || defaultFacts.CurrentValue == nil || len(defaultFacts.NeedsOperator) == 0 {
+		t.Fatalf("bounded GOAL and QUEUE facts should remain visible: %+v", defaultFacts)
+	}
+	if defaultFacts.ActiveEpoch != "" || defaultFacts.LastAcceptedEpoch != "" || defaultFacts.WeightedTokensPerAcceptedEpoch != nil || len(defaultFacts.CapUsage) != 0 {
+		t.Fatalf("incomplete epoch evidence must not project epoch-derived claims: %+v", defaultFacts)
+	}
+	if !strings.Contains(strings.Join(defaultFacts.Limitations, "\n"), "epochs/E99.md") || !strings.Contains(strings.Join(defaultFacts.Limitations, "\n"), "review before acceptance") {
+		t.Fatalf("partial projection must identify the unknown epoch and require review: %+v", defaultFacts.Limitations)
+	}
+	board, err := defaultService.Board(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board.Rows) != 1 || board.Rows[0].NextAction != "review goal-home evidence" || !board.Partial {
+		t.Fatalf("an otherwise quiet row must direct review of incomplete epoch evidence: %+v", board.Rows)
+	}
+	orchestrator := enrollmentFixture(t, defaultService, defaultController, domain.RunStatusRunning)
+	orchestrator.DestinationRef = "path:" + goalHomeRef + "/GOAL.md"
+	if _, err := defaultService.ReconcileMetadata(context.Background(), &pb.ReconcileEffortMetadataRequest{
+		Enrollment: orchestrator, ExpectedRevision: orchestrator.Revision, IdempotencyKey: "goal-home-partial-orchestrator",
+	}, EffortActor{ID: "owner", Operator: true}); err != nil {
+		t.Fatal(err)
+	}
+	partialRun := &domain.Run{WorkReferences: []*eventpb.WorkReference{{
+		Kind: "effort", Id: orchestrator.EffortRef, Relationship: "orchestrator", Verified: true,
+		Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State:      eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}}}
+	partialHome, _, found, err := defaultService.GoalHomeForOrchestrator(context.Background(), partialRun)
+	if err == nil || !found || partialHome != nil {
+		t.Fatalf("orchestrator policy reader must fail closed on cached partial epoch evidence: home=%+v found=%t err=%v", partialHome, found, err)
+	}
+	rootHandle, err := openSafeRoot(filepath.Join(root, filepath.FromSlash(goalHomeRef)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, strictErr := goalhome.Load(safeGoalHomeFS{root: rootHandle, limit: defaultService.config.FileBytes})
+	rootHandle.Close()
+	if strictErr == nil {
+		t.Fatal("strict goal-home loading must still reject the oversized epoch")
+	}
+
+	defaultService.config.FileBytes = int64(len(epoch) + 1)
+	defaultService.goalHomes.mu.Lock()
+	delete(defaultService.goalHomes.homes, goalHomeRef)
+	defaultService.goalHomes.mu.Unlock()
+	customBoard, err := defaultService.Board(context.Background(), nil)
+	if err != nil || len(customBoard.Rows) < 1 {
+		t.Fatalf("board with configured larger cap: %v %+v", err, customBoard)
+	}
+	var customFacts *pb.EffortGoalHome
+	for _, row := range customBoard.Rows {
+		if row.GetGoalHome() != nil && row.GetGoalHome().GetPath() == goalHomeRef {
+			customFacts = row.GetGoalHome()
+			break
+		}
+	}
+	if customFacts == nil || customFacts.State != "available" || customFacts.ActiveEpoch != "E99" {
+		t.Fatalf("a configured larger safe-read cap must remain authoritative and preserve typed epoch parsing: %+v", customFacts)
+	}
+}
+
+func TestEffortGoalHomePartialProjectionDoesNotFollowEpochSymlinks(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	home := goalHomeTree(t, s.config.ProjectRoot, map[string]func(string) string{
+		"GOAL.md": func(text string) string {
+			title, rest, _ := strings.Cut(text, "\n")
+			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-20\n" + rest
+		},
+	})
+	epoch := filepath.Join(home, "epochs", "E25.md")
+	if err := os.Remove(epoch); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "E25.md")
+	if err := os.WriteFile(outside, []byte("# E25\n\n- Status: accepted\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, epoch); err != nil {
+		t.Fatal(err)
+	}
+	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if facts == nil || facts.State != "partial" || facts.DestinationMetric == "" || facts.LastAcceptedEpoch != "" {
+		t.Fatalf("a symlinked epoch must remain unread and leave only known root facts visible: %+v", facts)
+	}
+	if !strings.Contains(strings.Join(facts.Limitations, "\n"), "epochs/E25.md") {
+		t.Fatalf("the unsafe epoch must be named as incomplete: %+v", facts.Limitations)
 	}
 }
 

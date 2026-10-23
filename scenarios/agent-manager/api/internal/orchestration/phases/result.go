@@ -101,6 +101,7 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 		}
 	}
 
+	previousStatus := in.Run.Status
 	now := in.Deps.Now()
 	in.Run.EndedAt = &now
 	in.Run.UpdatedAt = now
@@ -131,6 +132,9 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 				"failed to persist run result: "+err.Error())
 			return out
 		}
+	}
+	if in.Deps.Runs != nil {
+		EmitStatusTransition(ctx, in.Deps, in.Run.ID, previousStatus, in.Run.Status, "run result finalized")
 	}
 	if in.Deps.Broadcaster != nil {
 		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)

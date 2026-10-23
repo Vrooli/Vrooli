@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
@@ -43,6 +44,64 @@ func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
 				t.Fatal("persistence changed owner ceiling or scope presence")
 			}
 		}
+	}
+}
+
+func TestEffortSignalCursorIsPerRunMonotonicAndWakeReceiptIsAtomic(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	effortRef := "effort:cursor-owner"
+	run := &domain.Run{
+		ID: uuid.New(), Status: domain.RunStatusParked, Phase: domain.RunPhaseExecuting,
+		WorkReferences: []*eventdomain.WorkReference{{Kind: "effort", Id: effortRef, Relationship: "orchestrator", Verified: true,
+			Visibility: eventdomain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+			State:      eventdomain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	queued, eligible, err := repos.Runs.(repository.EffortSignalCursorRepository).QueueEffortSignalCursor(ctx, run.ID, effortRef, 10)
+	if err != nil || !eligible || queued.QueuedSeq != 10 || queued.DeliveredSeq != 0 {
+		t.Fatalf("first cursor queue should offer one coalesced catch-up: %+v eligible=%v err=%v", queued, eligible, err)
+	}
+	queued, eligible, err = repos.Runs.(repository.EffortSignalCursorRepository).QueueEffortSignalCursor(ctx, run.ID, effortRef, 12)
+	if err != nil || !eligible || queued.QueuedSeq != 12 || queued.DeliveredSeq != 0 {
+		t.Fatalf("queue cursor: %+v eligible=%v err=%v", queued, eligible, err)
+	}
+	queued, eligible, err = repos.Runs.(repository.EffortSignalCursorRepository).QueueEffortSignalCursor(ctx, run.ID, effortRef, 11)
+	if err != nil || !eligible || queued.QueuedSeq != 12 || queued.DeliveredSeq != 0 {
+		t.Fatalf("older queue regressed cursor: %+v eligible=%v err=%v", queued, eligible, err)
+	}
+	stored, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || stored.EffortSignalCursors[effortRef] != queued {
+		t.Fatalf("cursor did not survive read: %+v err=%v", stored, err)
+	}
+	stored.Status = domain.RunStatusRunning
+	stored.EffortSignalReceipt = &domain.EffortSignalReceipt{EffortRef: effortRef, Through: 12}
+	if err := repos.Runs.Update(ctx, stored); err != nil {
+		t.Fatal(err)
+	}
+	delivered, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || delivered.EffortSignalCursors[effortRef] != (domain.EffortSignalCursor{QueuedSeq: 12, DeliveredSeq: 12}) {
+		t.Fatalf("wake receipt was not committed with status transition: %+v err=%v", delivered, err)
+	}
+	// A narrow cursor write must survive an unrelated stale full-row update.
+	stale, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := repos.Runs.(repository.EffortSignalCursorRepository).QueueEffortSignalCursor(ctx, run.ID, effortRef, 15); err != nil {
+		t.Fatal(err)
+	}
+	stale.Summary = &domain.RunSummary{Description: "unrelated update"}
+	if err := repos.Runs.Update(ctx, stale); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || latest.EffortSignalCursors[effortRef] != (domain.EffortSignalCursor{QueuedSeq: 15, DeliveredSeq: 12}) {
+		t.Fatalf("stale full-row update overwrote queued signal: %+v err=%v", latest, err)
 	}
 }
 
@@ -508,7 +567,7 @@ func TestInteractiveInvocationBoundaryPersistsWithLifecycleAndKeepsOriginalStart
 	}
 	stale := *run
 	run.Status, run.Phase, run.InteractiveInvocationStartedAt = domain.RunStatusRunning, domain.RunPhaseExecuting, &attempt
-	if err := repos.Runs.Update(t.Context(), run); err != nil {
+	if err := repos.Runs.UpdateInteractiveContinuation(t.Context(), run, domain.RunStatusComplete, nil); err != nil {
 		t.Fatal(err)
 	}
 	// A historical observer cannot overwrite the atomically admitted attempt.

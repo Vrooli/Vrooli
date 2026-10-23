@@ -79,6 +79,34 @@
       "documents": [
         {"path": "perf/2026-05-04-ui-lists-resize-graphs-audit.md", "docType": "ui-performance-audit", "title": "UI Performance Audit", "description": "Profiler audit for lists, resize behavior, and graphs", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
+    },
+    {
+      "id": "business",
+      "title": "Business",
+      "documents": [
+        {
+          "path": "business/GO-TO-MARKET.md",
+          "docType": "go-to-market",
+          "title": "Go to market",
+          "description": "Efficiency positioning, customer job and supported evidence boundaries",
+          "maturity": "draft",
+          "requiredBy": [
+            "monetizable"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "business/MONETIZATION.md",
+          "docType": "monetization",
+          "title": "Monetization",
+          "description": "Paid-value hypotheses and billing/outcome evidence boundaries",
+          "maturity": "draft",
+          "requiredBy": [
+            "monetizable"
+          ],
+          "completion": "optional"
+        }
+      ]
     }
   ]
 }

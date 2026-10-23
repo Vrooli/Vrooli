@@ -165,7 +165,9 @@ func createRunnableTestRun(t *testing.T, router *mux.Router) *pb.Run {
 	var profile apipb.CreateProfileResponse
 	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
 
-	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: key, ScopePath: "src/sync-run"}})
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{
+		Title: key, Description: "Complete the handler test run.", ScopePath: "src/sync-run",
+	}})
 	taskRR := httptest.NewRecorder()
 	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
 	if taskRR.Code != http.StatusCreated {

@@ -319,35 +319,9 @@ func (s *SQLiteStore) notifySubscribers(runID uuid.UUID, events []*domain.RunEve
 
 // Get retrieves events for a run with optional filtering.
 func (s *SQLiteStore) Get(ctx context.Context, runID uuid.UUID, opts GetOptions) ([]*domain.RunEvent, error) {
-	// Build the query dynamically based on options
-	var conditions []string
-	var args []interface{}
+	where, args := eventSelection(runID, opts)
 
-	conditions = append(conditions, "run_id = ?")
-	args = append(args, runID)
-
-	// AfterSequence filter
-	conditions = append(conditions, "sequence > ?")
-	args = append(args, opts.AfterSequence)
-
-	// Since timestamp filter
-	if opts.Since != nil {
-		conditions = append(conditions, "timestamp > ?")
-		args = append(args, sqliteTime(*opts.Since))
-	}
-
-	// EventTypes filter
-	if len(opts.EventTypes) > 0 {
-		placeholders := make([]string, len(opts.EventTypes))
-		for i, t := range opts.EventTypes {
-			placeholders[i] = "?"
-			args = append(args, string(t))
-		}
-		conditions = append(conditions, fmt.Sprintf("event_type IN (%s)", strings.Join(placeholders, ",")))
-	}
-
-	query := fmt.Sprintf("SELECT %s FROM run_events WHERE %s ORDER BY sequence ASC",
-		eventColumns, strings.Join(conditions, " AND "))
+	query := fmt.Sprintf("SELECT %s FROM run_events WHERE %s ORDER BY sequence ASC", eventColumns, where)
 
 	// Apply limit first (required before OFFSET in standard SQL)
 	if opts.Limit > 0 {
@@ -375,6 +349,75 @@ func (s *SQLiteStore) Get(ctx context.Context, runID uuid.UUID, opts GetOptions)
 		result[i] = evt
 	}
 	return result, nil
+}
+
+type eventSummaryRow struct {
+	EventType     string `db:"event_type"`
+	Count         int64  `db:"event_count"`
+	Latest        int64  `db:"latest_sequence"`
+	SelectedCount int64  `db:"selected_count"`
+}
+
+// Summarize groups the same ordered/filterable selection as Get, but reads only
+// sequence and event_type. The limit+1 row is used for HasMore and excluded
+// from the returned counts and latest sequence.
+func (s *SQLiteStore) Summarize(ctx context.Context, runID uuid.UUID, opts GetOptions) (*Summary, error) {
+	where, args := eventSelection(runID, opts)
+	selectedQuery := fmt.Sprintf("SELECT sequence,event_type FROM run_events WHERE %s ORDER BY sequence ASC", where)
+	selectedArgs := append([]interface{}(nil), args...)
+	if opts.Limit > 0 {
+		selectedQuery += " LIMIT ?"
+		selectedArgs = append(selectedArgs, opts.Limit+1)
+	} else if opts.Offset > 0 {
+		selectedQuery += " LIMIT -1"
+	}
+	if opts.Offset > 0 {
+		selectedQuery += " OFFSET ?"
+		selectedArgs = append(selectedArgs, opts.Offset)
+	}
+
+	pageQuery := "SELECT sequence,event_type FROM selected ORDER BY sequence ASC"
+	if opts.Limit > 0 {
+		pageQuery += " LIMIT ?"
+		selectedArgs = append(selectedArgs, opts.Limit)
+	}
+	query := fmt.Sprintf(`WITH selected AS (%s), page AS (%s), grouped AS (
+		SELECT event_type,COUNT(*) AS event_count,MAX(sequence) AS latest_sequence FROM page GROUP BY event_type
+	) SELECT event_type,event_count,latest_sequence,(SELECT COUNT(*) FROM selected) AS selected_count FROM grouped`, selectedQuery, pageQuery)
+	var rows []eventSummaryRow
+	if err := s.db.SelectContext(ctx, &rows, query, selectedArgs...); err != nil {
+		return nil, dbError("summarize_events", err)
+	}
+	summary := &Summary{Counts: make(map[string]int64)}
+	for _, row := range rows {
+		summary.Counts[row.EventType] = row.Count
+		latest := row.Latest
+		if summary.LatestSequence == nil || latest > *summary.LatestSequence {
+			summary.LatestSequence = &latest
+		}
+		if opts.Limit > 0 && row.SelectedCount > int64(opts.Limit) {
+			summary.HasMore = true
+		}
+	}
+	return summary, nil
+}
+
+func eventSelection(runID uuid.UUID, opts GetOptions) (string, []interface{}) {
+	conditions := []string{"run_id = ?", "sequence > ?"}
+	args := []interface{}{runID, opts.AfterSequence}
+	if opts.Since != nil {
+		conditions = append(conditions, "timestamp > ?")
+		args = append(args, sqliteTime(*opts.Since))
+	}
+	if len(opts.EventTypes) > 0 {
+		placeholders := make([]string, len(opts.EventTypes))
+		for i, eventType := range opts.EventTypes {
+			placeholders[i] = "?"
+			args = append(args, string(eventType))
+		}
+		conditions = append(conditions, fmt.Sprintf("event_type IN (%s)", strings.Join(placeholders, ",")))
+	}
+	return strings.Join(conditions, " AND "), args
 }
 
 // Stream returns a channel that receives events in real-time.
@@ -471,6 +514,24 @@ func (s *SQLiteStore) Delete(ctx context.Context, runID uuid.UUID) error {
 	delete(s.subscribers, runID)
 
 	return nil
+}
+
+// LiveBytes reports the database's live (non-freelist) byte size using cheap
+// pragmas — the same measure storage-health budgets against. Retention uses it
+// to decide when imported-corpus eviction has brought the store back under
+// budget, without scanning dbstat across a multi-GB file.
+func (s *SQLiteStore) LiveBytes(ctx context.Context) (int64, error) {
+	var pageCount, freelistCount, pageSize int64
+	if err := s.db.QueryRowContext(ctx, "PRAGMA page_count").Scan(&pageCount); err != nil {
+		return 0, dbError("pragma_page_count", err)
+	}
+	if err := s.db.QueryRowContext(ctx, "PRAGMA freelist_count").Scan(&freelistCount); err != nil {
+		return 0, dbError("pragma_freelist_count", err)
+	}
+	if err := s.db.QueryRowContext(ctx, "PRAGMA page_size").Scan(&pageSize); err != nil {
+		return 0, dbError("pragma_page_size", err)
+	}
+	return (pageCount - freelistCount) * pageSize, nil
 }
 
 // Verify interface compliance

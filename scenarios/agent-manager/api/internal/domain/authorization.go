@@ -24,6 +24,9 @@ type AuthorizationGrant struct {
 	Binding         cliutil.ProcessBinding `json:"binding"`
 	HarnessKind     string                 `json:"harness_kind"`
 	HarnessSession  string                 `json:"harness_session"`
+	// WebConsoleSessionID is copied only from a live, verified launch-owner
+	// proof. It is a session locator, not human identity or authority.
+	WebConsoleSessionID string `json:"web_console_session_id,omitempty"`
 	// RequesterContext is private review material, never public grant metadata.
 	RequesterContext       *AuthorizationRequesterContext  `json:"-"`
 	CreatedAt              time.Time                       `json:"created_at"`

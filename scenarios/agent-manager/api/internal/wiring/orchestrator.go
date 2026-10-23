@@ -30,6 +30,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/permissionpolicy"
+	"agent-manager/internal/piimask"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/promptmanager"
@@ -251,6 +252,21 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions))
 	}
+	if levers != nil {
+		importPolicy, policyErr := levers.ConversationPolicy.Policy()
+		if policyErr != nil {
+			return OrchestratorDependencies{}, fmt.Errorf("compile conversation import policy: %w", policyErr)
+		}
+		if importPolicy.Enabled() {
+			opts = append(opts, orchestration.WithConversationPolicy(importPolicy))
+			// Wire the PII masker alongside the policy so a `redact` rule can
+			// actually scrub PII (via the ai-gateway DETECT_PII route) before a
+			// matched run is indexed. The detector is resolved at call time and
+			// invoked only for a redact-matched import, so an operator with only
+			// exclude/index rules pays nothing. Fail-closed is owned by the masker.
+			opts = append(opts, orchestration.WithPIIMasker(piimask.New(piimask.NewGatewayDetector())))
+		}
+	}
 	// Pin the web-console UI base only when an operator fixed one via the
 	// environment. Otherwise leave it unset so the orchestrator resolves a
 	// request-correct, tunnel-aware URL per link (a localhost port here would
@@ -272,7 +288,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		reconcilerCfg = orchestration.ReconcilerConfigWithSettings(reconcilerCfg, settingsStore.Get())
 		reconcilerCfg.OwnerIdentity = runtimeOwnerIdentity
 	}
-	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver)}
+	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver), orchestration.WithReconcilerLiveBytes(eventStore.LiveBytes), orchestration.WithReconcilerSearchDeleteRun(orch.DeleteRunFromConversationSearch)}
 	if interactiveSessions != nil {
 		reconcilerOpts = append(reconcilerOpts, orchestration.WithReconcilerInteractive(interactiveSessions))
 	}
@@ -332,6 +348,11 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	effortConfig := effortDiscoveryConfig()
 	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, effortConfig)
 	supervisionService.Efforts.SetRunRegistry(repos.Runs)
+	effortSignalCursors, ok := repos.Runs.(supervision.EffortSignalCursorStore)
+	if !ok {
+		return OrchestratorDependencies{}, fmt.Errorf("run repository does not support retained effort signal cursors")
+	}
+	supervisionService.Efforts.SetEffortSignalCursorStore(effortSignalCursors)
 	supervisionService.Efforts.SetQuotaObservationStore(quotaObservationStore)
 	supervisionService.Efforts.SetSpendReader(orch)
 	orch.SetGoalHomeParkSource(supervisionService.Efforts)
@@ -349,7 +370,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, transcriptImportInterval()), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, levers.TranscriptImport.Interval, levers.TranscriptImport.ScanRoots...), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 func frictionPublishInterval() time.Duration {
@@ -363,18 +384,6 @@ func frictionPublishInterval() time.Duration {
 	}
 	if parsed > 24*time.Hour {
 		return 24 * time.Hour
-	}
-	return parsed
-}
-
-func transcriptImportInterval() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL"))
-	if raw == "" {
-		return 6 * time.Hour
-	}
-	parsed, err := time.ParseDuration(raw)
-	if err != nil || parsed <= 0 {
-		return 6 * time.Hour
 	}
 	return parsed
 }

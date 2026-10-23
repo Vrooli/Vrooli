@@ -4,18 +4,116 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
 	"github.com/google/uuid"
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 )
+
+func TestCreateRunInteractivePersistsStartingBeforeWebConsoleLaunch(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	root := t.TempDir()
+	sessions := newRecordingSessions()
+	sessions.shellScreen = "fixture$ "
+	statusAtLaunch := make(chan domain.RunStatus, 1)
+	registry := runner.NewRegistry()
+	if err := registry.Register(core.NewRunner(codecs.NewCodexForTestWithBinary("/bin/true"), nil, nil)); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithEvents(eventStore), WithInteractiveSessions(sessions), WithRunners(registry), WithRunStateRoot(root),
+		WithIdentitySecret([]byte("interactive-public-create-fixture-secret")), newCurrentModelPolicyFixtureOption(t))
+	task, err := svc.CreateTask(ctx, &domain.Task{
+		Title: "interactive public create", Description: "complete the recorded interactive task", ScopePath: ".", ProjectRoot: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	trace, err := os.ReadFile(filepath.Join("..", "adapters", "runner", "codecs", "testdata", "codex_rollout_trace.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions.onCreate = func() {
+		currentTask, err := repos.Tasks.Get(ctx, task.ID)
+		if err != nil || currentTask.CurrentRunID == nil {
+			t.Errorf("read current run at launch: task=%+v err=%v", currentTask, err)
+			return
+		}
+		currentRun, err := repos.Runs.Get(ctx, *currentTask.CurrentRunID)
+		if err != nil || currentRun == nil {
+			t.Errorf("read persisted run at launch: run=%+v err=%v", currentRun, err)
+			return
+		}
+		statusAtLaunch <- currentRun.Status
+		runDir, err := runstate.RunDir(root, currentRun.ID)
+		if err != nil {
+			t.Errorf("resolve run state dir: %v", err)
+			return
+		}
+		rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "26", "rollout-public-create.jsonl")
+		if err := os.MkdirAll(filepath.Dir(rollout), 0o755); err != nil {
+			t.Errorf("mkdir rollout: %v", err)
+			return
+		}
+		if err := os.WriteFile(rollout, trace, 0o600); err != nil {
+			t.Errorf("write rollout: %v", err)
+		}
+	}
+	role := "code.default"
+	network := domain.NetworkAccessNone
+	mode := domain.RunModeInPlace
+	run, err := svc.CreateRun(ctx, authenticatedInternalCreateRunFixture(svc, CreateRunRequest{
+		TaskID: task.ID, RoleRef: &role, NetworkAccess: &network, RunMode: &mode,
+		PreferredRunner: string(domain.RunnerTypeCodex), ExecutionMode: domain.ExecutionModeInteractive,
+		Prompt: "complete the recorded interactive task", SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+	}))
+	if err != nil {
+		t.Fatalf("public CreateRun: %v", err)
+	}
+	select {
+	case status := <-statusAtLaunch:
+		if status != domain.RunStatusStarting {
+			t.Fatalf("persisted status before Web Console launch = %s, want starting (created run %s)", status, run.ID)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("interactive dispatcher did not reach Web Console launch")
+	}
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		current, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Fatalf("read dispatched run: %v", err)
+		}
+		if current.Status.IsTerminal() {
+			if current.Status != domain.RunStatusComplete {
+				t.Fatalf("public interactive run ended %s: %s", current.Status, current.ErrorMsg)
+			}
+			if current.StartedAt == nil || current.InteractiveInvocationStartedAt == nil {
+				t.Fatalf("completed run lacks invocation lifecycle timestamps: %+v", current)
+			}
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("public interactive run did not reach a terminal state")
+}
 
 // These spies count effects explicitly. Unimplemented embedded dependencies
 // panic if refusal accidentally reaches another service or dispatch path.

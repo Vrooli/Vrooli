@@ -79,9 +79,7 @@ func grokBase() baseCodec {
 		continuePrefix: "grok",
 		labels: Labels{
 			StartMessage:         "Grok execution started",
-			EndMessage:           "Grok execution completed",
 			ContinueStartMessage: "Grok continuation started",
-			ContinueEndMessage:   "Grok continuation completed",
 		},
 	}
 }
@@ -464,10 +462,7 @@ func (p *grokTranscriptParser) parseACPLine(runID uuid.UUID, line string) (runne
 			}
 		}
 	case "tool_call":
-		var input map[string]interface{}
-		if len(u.RawInput) > 0 {
-			_ = json.Unmarshal(u.RawInput, &input)
-		}
+		input := decodeToolInput(runID, siteGrokToolInput, u.RawInput)
 		result.Events = []*domain.RunEvent{domain.NewToolCallEvent(runID, u.Title, u.ToolCallID, input)}
 	case "tool_call_update":
 		// Only the terminal states emit a result; in_progress/detail

@@ -63,9 +63,7 @@ func claudeBase() baseCodec {
 		goalStatus:     claudeGoalStatus,
 		labels: Labels{
 			StartMessage:         "Claude Code execution started",
-			EndMessage:           "Claude Code execution completed",
 			ContinueStartMessage: "Claude Code continuation started",
-			ContinueEndMessage:   "Claude Code continuation completed",
 		},
 	}
 }

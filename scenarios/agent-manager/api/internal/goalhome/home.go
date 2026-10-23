@@ -21,6 +21,9 @@ const (
 	FeedbackFile    = "FEEDBACK.md"
 	WorkaroundsFile = "WORKAROUNDS.md"
 	EpochsDir       = "epochs"
+	// DefaultBoardFileBytes is the supervisor board's default per-file safe-read cap.
+	// Board configuration may override it; goal-home lint uses it only as an advisory baseline.
+	DefaultBoardFileBytes = 128 * 1024
 )
 
 // Home is one parsed goal home. A missing file reads as empty and is listed
@@ -33,8 +36,16 @@ type Home struct {
 	Epochs      []EpochFile
 	Missing     []string
 	Warnings    []Finding
+	// EpochsComplete is false only for the bounded board projection when one or
+	// more epoch files could not be safely read or parsed. Strict Load remains
+	// all-or-nothing for epoch read failures.
+	EpochsComplete bool
+	// IncompleteEpochFiles names bounded E<n>.md files whose facts are unknown.
+	IncompleteEpochFiles []string
 	// QueueData is QUEUE.md exactly as read.
 	QueueData []byte
+	// FileBytes records sizes of all successfully loaded goal-home files.
+	FileBytes map[string]int
 }
 
 // EpochFile is one parsed epochs/E<n>.md.
@@ -156,12 +167,27 @@ var (
 // Load reads a goal home from fsys, whose root is the goal-home directory.
 // Only read failures other than a missing file are errors.
 func Load(fsys fs.FS) (*Home, error) {
-	home := &Home{}
+	return load(fsys, false)
+}
+
+// LoadBoardProjection reads the bounded facts used by the supervision board.
+// It retains valid top-level goal, queue, feedback and workaround facts when
+// an epoch is unavailable, while marking the entire epoch set incomplete.
+// Callers must not infer active/accepted epoch facts from the readable subset.
+func LoadBoardProjection(fsys fs.FS) (*Home, error) {
+	return load(fsys, true)
+}
+
+func load(fsys fs.FS, tolerateEpochGaps bool) (*Home, error) {
+	home := &Home{FileBytes: make(map[string]int), EpochsComplete: true}
 	read := func(name string) ([]byte, error) {
 		data, err := fs.ReadFile(fsys, name)
 		if errors.Is(err, fs.ErrNotExist) {
 			home.Missing = append(home.Missing, name)
 			return nil, nil
+		}
+		if err == nil {
+			home.FileBytes[name] = len(data)
 		}
 		return data, err
 	}
@@ -195,10 +221,21 @@ func Load(fsys fs.FS) (*Home, error) {
 		}
 		data, err := fs.ReadFile(fsys, path.Join(EpochsDir, entry.Name()))
 		if err != nil {
+			if tolerateEpochGaps {
+				home.EpochsComplete = false
+				home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, path.Join(EpochsDir, entry.Name()))
+				continue
+			}
 			return nil, err
 		}
+		home.FileBytes[path.Join(EpochsDir, entry.Name())] = len(data)
 		epoch, err := ParseEpoch(bytes.NewReader(data))
 		if err != nil {
+			if tolerateEpochGaps {
+				home.EpochsComplete = false
+				home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, path.Join(EpochsDir, entry.Name()))
+				continue
+			}
 			home.Warnings = append(home.Warnings, Finding{Code: "epoch-unreadable", File: path.Join(EpochsDir, entry.Name()), Detail: err.Error()})
 			continue
 		}

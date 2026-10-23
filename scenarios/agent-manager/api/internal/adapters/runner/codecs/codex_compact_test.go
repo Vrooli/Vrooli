@@ -24,8 +24,12 @@ while IFS= read -r line; do
   case "$line" in
     *'"method":"initialize"'*) echo "{\"id\":$id,\"result\":{}}" ;;
     *'"method":"thread/resume"'*)
+      case "$line" in
+        *'"excludeTurns":true'*) ;;
+        *) echo "{\"id\":$id,\"error\":{\"code\":-32602,\"message\":\"thread/resume must exclude turns\"}}"; continue ;;
+      esac
       echo '{"method":"thread/tokenUsage/updated","params":{"threadId":"thread-1"}}'
-      echo "{\"id\":$id,\"result\":{\"thread\":{}}}" ;;
+      echo "{\"id\":$id,\"result\":{\"thread\":{\"id\":\"thread-1\",\"status\":\"idle\"}}}" ;;
     *'"method":"thread/compact/start"'*)
       echo "{\"id\":$id,\"result\":{}}"
       case "$FAKE_MODE" in
@@ -92,7 +96,7 @@ func TestCodexCompactSessionCompactsThroughAppServer(t *testing.T) {
 	log, _ := os.ReadFile(logPath)
 	for _, want := range []string{
 		"CODEX_HOME=" + home,
-		`"method":"thread/resume","params":{"model":"gpt-6-luna","threadId":"thread-1"}`,
+		`"method":"thread/resume","params":{"excludeTurns":true,"model":"gpt-6-luna","threadId":"thread-1"}`,
 		`"method":"thread/compact/start","params":{"threadId":"thread-1"}`,
 	} {
 		if !strings.Contains(string(log), want) {

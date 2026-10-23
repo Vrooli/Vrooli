@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/orchestration/testutil"
 	"github.com/google/uuid"
 )
 
@@ -105,6 +106,108 @@ func TestCreateRunAdmissionUsesFinalSandboxConfig(t *testing.T) {
 	}
 	if got := saved.ResolvedConfig.Admission.PassedControlArgs; !reflect.DeepEqual(got, want) {
 		t.Fatalf("admission recorded stale controls: got %v, final launch %v", got, want)
+	}
+}
+
+func TestCreateRunRejectsMissingEffectiveInputBeforeAdmission(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	registry := runner.NewRegistry()
+	codec := codecs.NewCodexForTest()
+	if err := registry.Register(&launchInfoStub{
+		MockRunner:  runner.NewMockRunner(domain.RunnerTypeCodex),
+		controlArgs: codec.ControlArgs,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	o := New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		WithEvents(eventStore),
+		WithRunners(registry),
+		WithIdempotency(repos.Idempotency),
+	)
+	t.Cleanup(o.dispatcher.Close)
+	newCurrentModelPolicyFixtureOption(t)(o)
+
+	task, err := o.CreateTask(ctx, &domain.Task{
+		Title:       "empty run input",
+		ScopePath:   ".",
+		ProjectRoot: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	role, network := "code.default", domain.NetworkAccessNone
+	const key = "empty-effective-input"
+	for attempt := 0; attempt < 2; attempt++ {
+		_, err := o.CreateRun(ctx, authenticatedInternalCreateRunFixture(o, CreateRunRequest{
+			TaskID: task.ID, RoleRef: &role, NetworkAccess: &network, IdempotencyKey: key,
+			ExecutionMode: domain.ExecutionModeInteractive,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+		}))
+		var validation *domain.ValidationError
+		if !errors.As(err, &validation) || validation.Field != "prompt" {
+			runs, _ := o.ListRuns(ctx, RunListOptions{TaskID: &task.ID})
+			currentTask, _ := o.GetTask(ctx, task.ID)
+			byKey, _ := o.runs.GetByIdempotencyKey(ctx, key)
+			t.Fatalf("attempt %d: expected prompt validation refusal, got %v (runs=%d currentRun=%v idempotencyRun=%v dispatcher=%+v)", attempt+1, err, len(runs), currentTask.CurrentRunID, byKey, o.dispatcher.Stats())
+		}
+	}
+
+	updatedTask, err := o.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updatedTask.CurrentRunID != nil {
+		t.Fatalf("empty-input refusal claimed task for run %s", updatedTask.CurrentRunID)
+	}
+	if updatedTask.Status != domain.TaskStatusQueued {
+		t.Fatalf("empty-input refusal changed task status to %q", updatedTask.Status)
+	}
+	runs, err := o.ListRuns(ctx, RunListOptions{TaskID: &task.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 0 {
+		t.Fatalf("empty-input refusal persisted %d run(s)", len(runs))
+	}
+	byKey, err := o.runs.GetByIdempotencyKey(ctx, key)
+	if err != nil || byKey != nil {
+		t.Fatalf("empty-input refusal persisted idempotency owner: run=%v err=%v", byKey, err)
+	}
+	idempotency, err := repos.Idempotency.Check(ctx, key)
+	if err != nil || idempotency != nil {
+		t.Fatalf("empty-input refusal reserved idempotency key: record=%v err=%v", idempotency, err)
+	}
+	if stats := o.dispatcher.Stats(); stats.QueueDepth != 0 || stats.ActiveCount != 0 || stats.StartingCount != 0 {
+		t.Fatalf("empty-input refusal dispatched work: %+v", stats)
+	}
+}
+
+func TestEffectiveRunInputValidationPreservesUsableInputs(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		task      *domain.Task
+		prompt    string
+		wantError bool
+	}{
+		{name: "inherited description", task: &domain.Task{Description: "  do the task  "}},
+		{name: "explicit prompt", task: &domain.Task{}, prompt: "  do the task  "},
+		{name: "whitespace override does not fall back to description", task: &domain.Task{Description: "do the task"}, prompt: "  ", wantError: true},
+		{name: "text attachment only", task: &domain.Task{ContextAttachments: []domain.ContextAttachment{{Type: "note", Content: "reference material"}}}},
+		{name: "image attachment only", task: &domain.Task{ContextAttachments: []domain.ContextAttachment{{Type: "image", AttachmentID: "image-id"}}}},
+		{name: "empty input", task: &domain.Task{}, wantError: true},
+		{name: "invalid attachment is not usable context", task: &domain.Task{ContextAttachments: []domain.ContextAttachment{{Type: "image"}}}, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateEffectiveRunInput(tc.task, tc.prompt)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("validation error = %v, wantError %v", err, tc.wantError)
+			}
+		})
 	}
 }
 

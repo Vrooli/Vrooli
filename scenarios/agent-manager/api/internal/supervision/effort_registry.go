@@ -8,6 +8,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 
+	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -19,17 +20,41 @@ type EffortRunRegistry interface {
 	List(context.Context, repository.RunListFilter) ([]*domain.Run, error)
 }
 
+// EffortSignalCursorStore keeps per-effort signal delivery positions on the
+// exact retained run. The run repository implements this narrow capability.
+type EffortSignalCursorStore interface {
+	QueueEffortSignalCursor(context.Context, uuid.UUID, string, int64) (domain.EffortSignalCursor, bool, error)
+}
+
 func (s *EffortService) SetRunRegistry(r EffortRunRegistry) { s.runRegistry = r }
 
 func publicActiveEffortReference(ref *eventpb.WorkReference) bool {
-	return ref.GetKind() == "effort" && ref.GetId() != "" && ref.GetVerified() && ref.GetVisibility() == eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC && ref.GetState() == eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE
+	return domain.IsPublicActiveEffortReference(ref)
 }
+
 func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDiscovery) error {
 	if s.runRegistry == nil {
 		d.Findings = append(d.Findings, &pb.EffortDiscoveryFinding{Source: "agent-manager:runs", Code: "registry_unavailable", Reason: "canonical run registry is not configured"})
 		d.Partial = true
 		return nil
 	}
+	// Current owners need a prompt join even when the rotating historical
+	// cursor is deep in the run list. This bounded sample uses the canonical
+	// nonterminal filter and shares the same reference validation and CAS below.
+	active, err := s.runRegistry.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 101}, NonTerminalOnly: true})
+	if err != nil {
+		return err
+	}
+	activeMore := len(active) > 100
+	if activeMore {
+		active = active[:100]
+		d.Partial = true
+		d.Findings = append(d.Findings, &pb.EffortDiscoveryFinding{Source: "agent-manager:runs", Code: "active_registry_sample", Reason: "nonterminal run sample capped at 100; fresh joins for all current owner references are not guaranteed"})
+	}
+	if err := s.reconcileRunReferences(ctx, d, active); err != nil {
+		return err
+	}
+
 	offset, err := s.repo.EffortRegistryOffset(ctx)
 	if err != nil {
 		return err
@@ -43,6 +68,17 @@ func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDi
 		runs = runs[:100]
 		d.Partial = true
 	}
+	if err := s.reconcileRunReferences(ctx, d, runs); err != nil {
+		return err
+	}
+	next := 0
+	if more {
+		next = offset + len(runs)
+	}
+	return s.repo.SaveEffortRegistryOffset(ctx, next)
+}
+
+func (s *EffortService) reconcileRunReferences(ctx context.Context, d *pb.EffortDiscovery, runs []*domain.Run) error {
 	for _, run := range runs {
 		if run == nil {
 			continue
@@ -95,14 +131,10 @@ func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDi
 			}
 			// Keep the workspace source cut independent of derived run joins. Otherwise
 			// the next unchanged file scan drops joins and manufactures a change.
-			if err = s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("registry:%s:%d", e.EffortRef, e.Revision), effortDigest(e)); err != nil {
+			if err := s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("registry:%s:%d", e.EffortRef, e.Revision), effortDigest(e)); err != nil {
 				return err
 			}
 		}
 	}
-	next := 0
-	if more {
-		next = offset + len(runs)
-	}
-	return s.repo.SaveEffortRegistryOffset(ctx, next)
+	return nil
 }

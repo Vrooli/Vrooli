@@ -88,8 +88,16 @@ var ErrResumableInterruption = errors.New("interactive provider interruption is 
 // RunStore is the minimal persistence seam the coordinator needs.
 // repository.RunRepository satisfies it.
 type RunStore interface {
+	Get(ctx context.Context, id uuid.UUID) (*domain.Run, error)
 	Update(ctx context.Context, run *domain.Run) error
+	BeginInteractiveInvocation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedStartedAt *time.Time, at time.Time) (bool, error)
+	UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error)
 }
+
+var (
+	ErrRunOwnerUnavailable = errors.New("interactive run owner could not be verified")
+	ErrRunOwnerChanged     = errors.New("interactive run owner changed during observation")
+)
 
 // StatusBroadcaster broadcasts a run status change to any live subscribers.
 // The orchestration EventBroadcaster satisfies it. Optional (nil is safe).
@@ -223,15 +231,63 @@ func NewCoordinator(deps CoordinatorDeps) *Coordinator {
 	return c
 }
 
-// tailContext carries the per-run facts the tailer needs to re-discover a
-// rotated codex rollout. The live path fills it from LaunchParams; the recovery
-// path leaves it zero (run.TranscriptPath is the pinned seed, which still tails
-// correctly — codex rotation across a restart is not followed, matching the
-// design's decision not to persist the run dir).
-type tailContext struct {
+// TailContext carries durable per-run facts the tailer needs to re-discover a
+// rotated rollout after a continuation or restart recovery.
+type TailContext struct {
 	RunDir     string
 	WorkingDir string
 	LaunchedAt time.Time
+}
+
+func (c *Coordinator) persistTranscriptPath(ctx context.Context, run *domain.Run, path string) error {
+	if path == "" || path == run.TranscriptPath {
+		return nil
+	}
+	if c.deps.Runs == nil {
+		return fmt.Errorf("interactive transcript path change requires durable run owner")
+	}
+	previousPath, previousCursor := run.TranscriptPath, run.TranscriptCursor
+	run.TranscriptPath = path
+	run.TranscriptCursor = 0
+	if err := c.deps.Runs.Update(ctx, run); err != nil {
+		run.TranscriptPath = previousPath
+		run.TranscriptCursor = previousCursor
+		return err
+	}
+	return nil
+}
+
+// refreshNewerInvocation reloads the exact retained run before an observed
+// terminal can close it. A continuation may be accepted while this coordinator
+// is still draining the preceding turn; that durable invocation fence makes the
+// earlier terminal stale until the new turn is consumed.
+func (c *Coordinator) refreshNewerInvocation(ctx context.Context, run *domain.Run) (bool, error) {
+	if run == nil || run.InteractiveInvocationStartedAt == nil {
+		return false, nil
+	}
+	current, err := c.deps.Runs.Get(ctx, run.ID)
+	if err != nil {
+		return false, err
+	}
+	if current == nil || current.ID != run.ID || current.TaskID != run.TaskID ||
+		current.SessionID != run.SessionID || current.WebConsoleSessionID != run.WebConsoleSessionID {
+		return false, ErrRunOwnerUnavailable
+	}
+	if !current.Status.IsActive() {
+		*run = *current
+		return false, ErrRunOwnerChanged
+	}
+	if current.InteractiveInvocationStartedAt == nil {
+		return false, ErrRunOwnerUnavailable
+	}
+	if current.InteractiveInvocationStartedAt.Equal(*run.InteractiveInvocationStartedAt) {
+		return false, nil
+	}
+	if !current.InteractiveInvocationStartedAt.After(*run.InteractiveInvocationStartedAt) {
+		return false, ErrRunOwnerUnavailable
+	}
+	*run = *current
+	return true, nil
 }
 
 // Execute runs the full live interactive lifecycle for a run: launch the session
@@ -294,6 +350,7 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 	var mu sync.Mutex
 	now := c.clock()
 	mu.Lock()
+	priorInvocation := run.InteractiveInvocationStartedAt
 	run.Status = domain.RunStatusRunning
 	run.Phase = domain.RunPhaseExecuting
 	if run.StartedAt == nil {
@@ -303,6 +360,21 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 	run.LastHeartbeat = &now
 	run.UpdatedAt = now
 	mu.Unlock()
+	if run.InteractiveInvocationStartedAt != nil {
+		updated, err := c.deps.Runs.BeginInteractiveInvocation(ctx, run, domain.RunStatusStarting, priorInvocation, *run.InteractiveInvocationStartedAt)
+		if err != nil {
+			return errors.Join(
+				fmt.Errorf("persist initial interactive invocation fence: %w", err),
+				c.cleanupUnadmittedInitialSession(run, priorInvocation, res.SessionID, p.RunnerType, p.RunDir),
+			)
+		}
+		if !updated {
+			return errors.Join(
+				fmt.Errorf("initial interactive invocation owner changed before it reached Running"),
+				c.cleanupUnadmittedInitialSession(run, priorInvocation, res.SessionID, p.RunnerType, p.RunDir),
+			)
+		}
+	}
 	if uerr := c.update(ctx, &mu, run); uerr != nil {
 		return uerr
 	}
@@ -311,21 +383,52 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 		onRunning()
 	}
 
-	stopHeartbeat := c.startHeartbeat(ctx, &mu, run)
-	defer stopHeartbeat()
+	tc := TailContext{RunDir: p.RunDir, WorkingDir: p.WorkingDir, LaunchedAt: now}
+	return c.TailAndFinalizeLive(ctx, run, tc, TailCompletionOptions{})
+}
 
-	tc := tailContext{RunDir: p.RunDir, WorkingDir: p.WorkingDir}
-	terminal, tailErr := c.tailToCompletion(ctx, run, tc, &mu, TailCompletionOptions{})
-	return c.Finalize(ctx, run, terminal, tailErr)
+// cleanupUnadmittedInitialSession stops a launched session only while the
+// durable row still names this exact session and its pre-launch invocation.
+// A failed/ambiguous CAS may mean cancellation won, but a newer invocation or
+// session must never be stopped by the stale launcher.
+func (c *Coordinator) cleanupUnadmittedInitialSession(run *domain.Run, priorInvocation *time.Time, sessionID string, runnerType domain.RunnerType, runDir string) error {
+	if run == nil || c.deps.Runs == nil || c.deps.Substrate == nil || sessionID == "" {
+		return nil
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	current, err := c.deps.Runs.Get(cleanupCtx, run.ID)
+	if err != nil {
+		return fmt.Errorf("verify unadmitted interactive session owner before cleanup: %w", err)
+	}
+	if current == nil || current.TaskID != run.TaskID || current.WebConsoleSessionID != sessionID ||
+		!nullableTimesEqual(current.InteractiveInvocationStartedAt, priorInvocation) ||
+		(current.Status != domain.RunStatusStarting && current.Status != domain.RunStatusCancelled && current.Status != domain.RunStatusFailed) {
+		return nil
+	}
+	if err := c.deps.Substrate.Stop(cleanupCtx, sessionID, interactiveSource(current)); err != nil {
+		return fmt.Errorf("stop unadmitted interactive session %s: %w", sessionID, err)
+	}
+	if err := c.deps.Substrate.CleanupCredentials(runnerType, runDir); err != nil {
+		return fmt.Errorf("clean credentials after unadmitted interactive session: %w", err)
+	}
+	return nil
+}
+
+func nullableTimesEqual(left, right *time.Time) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return left.Equal(*right)
 }
 
 // TailToCompletion drains the run's agent-owned transcript from its persisted
-// cursor and follows it to a run boundary. It is the reusable core of both the
-// live path and restart recovery: every success terminal is a turn boundary,
-// and the run is complete only once the transcript stops growing for the
-// debounce window (design R2). It returns the last terminal marker seen and a
-// non-nil error only for a vanished session (ErrSessionGone) or a cancelled
-// context.
+// cursor and follows it to a run boundary. It is the reusable tail core for
+// live execution and restart recovery; the live wrapper additionally owns
+// heartbeat refresh. Every success terminal is a turn boundary, and the run
+// completes only once the transcript stops growing for the debounce window
+// (design R2). It returns the last terminal marker seen and a non-nil error
+// only for a vanished session (ErrSessionGone) or a cancelled context.
 func (c *Coordinator) TailToCompletion(ctx context.Context, run *domain.Run) (*runner.TranscriptTerminal, error) {
 	return c.TailToCompletionWithOptions(ctx, run, c.deps.CompletionOptions)
 }
@@ -334,9 +437,9 @@ func (c *Coordinator) TailToCompletion(ctx context.Context, run *domain.Run) (*r
 // without changing the normal live/recovery tail contract.
 type TailCompletionOptions struct {
 	// CompleteAfterFirstSuccessfulTurnWithoutGoalMarker is used only when a
-	// completed native goal is continued without reinstalling that goal. The
-	// first successful turn in the new invocation then closes the continued run
-	// only if no new goal marker is observed.
+	// terminal native goal (complete or blocked) is continued without
+	// reinstalling that goal. The first successful turn in the new invocation
+	// then closes the continued run only if no new goal marker is observed.
 	CompleteAfterFirstSuccessfulTurnWithoutGoalMarker bool
 }
 
@@ -344,8 +447,26 @@ type TailCompletionOptions struct {
 // invocation-scoped completion policy. Existing callers use TailToCompletion
 // and keep the default behavior.
 func (c *Coordinator) TailToCompletionWithOptions(ctx context.Context, run *domain.Run, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
+	return c.TailToCompletionWithContext(ctx, run, TailContext{}, options)
+}
+
+// TailToCompletionWithContext drains an invocation with persisted per-run
+// discovery context. It does not refresh LastHeartbeat; restart recovery uses
+// this path because it observes an existing owner rather than owning its live
+// execution.
+func (c *Coordinator) TailToCompletionWithContext(ctx context.Context, run *domain.Run, tailCtx TailContext, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	var mu sync.Mutex
-	return c.tailToCompletion(ctx, run, tailContext{}, &mu, options)
+	return c.tailToCompletion(ctx, run, tailCtx, &mu, options)
+}
+
+// TailLiveToCompletionWithOptions drives a live invocation with the same
+// heartbeat lifecycle used by initial Execute and interactive continuation.
+// The heartbeat stops and joins before this method returns.
+func (c *Coordinator) TailLiveToCompletionWithOptions(ctx context.Context, run *domain.Run, tailCtx TailContext, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
+	var mu sync.Mutex
+	stopHeartbeat := c.startHeartbeat(ctx, &mu, run)
+	defer stopHeartbeat()
+	return c.tailToCompletion(ctx, run, tailCtx, &mu, options)
 }
 
 // tailToCompletion follows the transcript to a run boundary. When the run's
@@ -353,7 +474,7 @@ func (c *Coordinator) TailToCompletionWithOptions(ctx context.Context, run *doma
 // bounded grace, so the harness's closing record (codex writes turn_aborted,
 // which its parser turns into the turn's usage receipt) is stored before the run
 // is finalized. The result still reports the timeout.
-func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
+func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc TailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	loopCtx, timedOut, release := c.timeoutInterruptContext(ctx, run)
 	defer release()
 	terminal, err := c.tailLoop(loopCtx, run, tc, mu, options)
@@ -366,6 +487,37 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 		return terminal, context.DeadlineExceeded
 	}
 	return terminal, err
+}
+
+// TailAndFinalizeLive keeps the active owner attached when an accepted
+// continuation supersedes a terminal already buffered by this tailer.
+func (c *Coordinator) TailAndFinalizeLive(ctx context.Context, run *domain.Run, tc TailContext, options TailCompletionOptions) error {
+	return c.tailAndFinalize(ctx, run, tc, options, true)
+}
+
+// TailAndFinalize reattaches without a live heartbeat, as used by restart
+// recovery. Both paths share the same invocation-fence and terminal commit.
+func (c *Coordinator) TailAndFinalize(ctx context.Context, run *domain.Run, tc TailContext, options TailCompletionOptions) error {
+	return c.tailAndFinalize(ctx, run, tc, options, false)
+}
+
+func (c *Coordinator) tailAndFinalize(ctx context.Context, run *domain.Run, tc TailContext, options TailCompletionOptions, live bool) error {
+	for {
+		var terminal *runner.TranscriptTerminal
+		var tailErr error
+		if live {
+			terminal, tailErr = c.TailLiveToCompletionWithOptions(ctx, run, tc, options)
+		} else {
+			terminal, tailErr = c.TailToCompletionWithContext(ctx, run, tc, options)
+		}
+		finalErr := c.Finalize(ctx, run, terminal, tailErr)
+		if !errors.Is(finalErr, ErrRunOwnerChanged) || !run.Status.IsActive() || ctx.Err() != nil {
+			if errors.Is(finalErr, ErrRunOwnerChanged) && !run.Status.IsActive() {
+				return nil
+			}
+			return finalErr
+		}
+	}
 }
 
 // timeoutInterruptContext returns the context the tail runs under. Without a
@@ -398,7 +550,7 @@ func (c *Coordinator) timeoutInterruptContext(ctx context.Context, run *domain.R
 	}
 }
 
-func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
+func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc TailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	var sink runner.EventSink
 	if c.deps.NewSink != nil {
 		sink = c.deps.NewSink(run.ID)
@@ -411,16 +563,36 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 	onAdvance := func(cur, lastSeq int64) error {
 		mu.Lock()
 		defer mu.Unlock()
-		if cur > cursor {
-			cursor = cur
-		}
-		if cur > run.TranscriptCursor {
-			run.TranscriptCursor = cur
-		}
+		// TranscriptCursor is an offset in TranscriptPath, not a global byte
+		// counter. Tailer commits path changes before reading the new file, so
+		// every advance here belongs to the currently selected file.
+		cursor = cur
+		run.TranscriptCursor = cur
 		if lastSeq > run.TranscriptLastSeq {
 			run.TranscriptLastSeq = lastSeq
 		}
-		return c.deps.Runs.Update(context.Background(), run)
+		updated, err := c.deps.Runs.UpdateRunnerStreamState(context.Background(), run)
+		if err != nil {
+			return err
+		}
+		if !updated {
+			return ErrRunOwnerChanged
+		}
+		return nil
+	}
+	onTranscriptPath := func(path string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if path == "" || path == run.TranscriptPath {
+			return nil
+		}
+		previousLocalCursor := cursor
+		if err := c.persistTranscriptPath(context.Background(), run, path); err != nil {
+			cursor = previousLocalCursor
+			return err
+		}
+		cursor = 0
+		return nil
 	}
 	onSessionID := func(sessionID string) error {
 		mu.Lock()
@@ -429,7 +601,14 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 			return nil
 		}
 		run.SessionID = sessionID
-		return c.deps.Runs.Update(context.Background(), run)
+		updated, err := c.deps.Runs.UpdateRunnerStreamState(context.Background(), run)
+		if err != nil {
+			return err
+		}
+		if !updated {
+			return ErrRunOwnerChanged
+		}
+		return nil
 	}
 	var lastGoal *runner.GoalMarker
 	onGoalStatus := func(marker runner.GoalMarker) error {
@@ -481,6 +660,7 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 			GoalDrainTimeout: c.debounce,
 			Sink:             sink,
 			OnAdvance:        onAdvance,
+			OnTranscriptPath: onTranscriptPath,
 			OnSessionID:      onSessionID,
 			OnGoalStatus:     onGoalStatus,
 			GoalMarkerObserved: func() bool {
@@ -498,6 +678,17 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 			return firstTerminal(term, lastTerminal), ErrSessionGone
 		}
 		if err != nil {
+			if errors.Is(err, ErrRunOwnerChanged) {
+				newer, refreshErr := c.refreshNewerInvocation(ctx, run)
+				if refreshErr == nil && newer {
+					lastTerminal = nil
+					continue
+				}
+				if refreshErr != nil {
+					return nil, fmt.Errorf("%w: %v", ErrRunOwnerUnavailable, refreshErr)
+				}
+				return nil, ErrRunOwnerChanged
+			}
 			if c.recoverableInterruption.Load() {
 				// The watcher cancelled the tail so the coordinator can wait for
 				// the delayed retry. Keep this coordinator attached when a fresh
@@ -518,6 +709,14 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 		}
 		if term == nil {
 			return lastTerminal, nil
+		}
+		newer, refreshErr := c.refreshNewerInvocation(ctx, run)
+		if refreshErr != nil {
+			return nil, fmt.Errorf("%w: %v", ErrRunOwnerUnavailable, refreshErr)
+		}
+		if newer {
+			lastTerminal = nil
+			continue
 		}
 		if !term.Success {
 			return term, nil
@@ -544,6 +743,14 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 		boundary := cursor
 		mu.Unlock()
 		if !c.awaitNextTurn(ctx, run, tc, boundary) {
+			newer, refreshErr = c.refreshNewerInvocation(ctx, run)
+			if refreshErr != nil {
+				return nil, fmt.Errorf("%w: %v", ErrRunOwnerUnavailable, refreshErr)
+			}
+			if newer {
+				lastTerminal = nil
+				continue
+			}
 			return term, nil
 		}
 	}
@@ -572,7 +779,7 @@ func (c *Coordinator) structuredResultSatisfied(ctx context.Context, run *domain
 // cursor, because nothing is reading the file between turns. claude writes its
 // interactive-only records (file-history-snapshot/ai-title/last-prompt) only at
 // the start of a NEW turn, so file growth is a faithful new-turn signal.
-func (c *Coordinator) awaitNextTurn(ctx context.Context, run *domain.Run, tc tailContext, boundary int64) bool {
+func (c *Coordinator) awaitNextTurn(ctx context.Context, run *domain.Run, tc TailContext, boundary int64) bool {
 	deadline := c.clock().Add(c.debounce)
 	for {
 		if c.transcriptGrew(run, tc, boundary) {
@@ -589,7 +796,7 @@ func (c *Coordinator) awaitNextTurn(ctx context.Context, run *domain.Run, tc tai
 
 // transcriptGrew reports whether new transcript bytes exist beyond boundary, or
 // (for codex) a strictly newer rollout has rotated in.
-func (c *Coordinator) transcriptGrew(run *domain.Run, tc tailContext, boundary int64) bool {
+func (c *Coordinator) transcriptGrew(run *domain.Run, tc TailContext, boundary int64) bool {
 	path := run.TranscriptPath
 	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex {
 		if newest, err := findTranscript(DiscoverParams{
@@ -790,6 +997,9 @@ func (c *Coordinator) VerifySession(ctx context.Context, run *domain.Run) (bool,
 // been ended for ReconcilerConfig.InteractiveSessionRetention; continuing after
 // that requires a new run.
 func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal, tailErr error) error {
+	if errors.Is(tailErr, ErrRunOwnerChanged) || errors.Is(tailErr, ErrRunOwnerUnavailable) {
+		return tailErr
+	}
 	if errors.Is(tailErr, ErrResumableInterruption) {
 		return nil
 	}
@@ -797,9 +1007,10 @@ func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *r
 		return nil
 	}
 
+	var finalizeErr error
 	switch {
 	case terminal != nil && terminal.Success:
-		return c.finalizeComplete(ctx, run, terminal)
+		finalizeErr = c.finalizeComplete(ctx, run, terminal)
 	case terminal != nil && !terminal.Success:
 		msg := terminal.ErrorMessage
 		if msg == "" {
@@ -813,20 +1024,45 @@ func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *r
 		if terminal.StopReason != "" {
 			run.StopReason = terminal.StopReason
 		}
-		return c.finalizeFailed(ctx, run, msg)
+		finalizeErr = c.finalizeFailed(ctx, run, msg)
 	case errors.Is(tailErr, ErrSessionGone):
 		run.TerminalClass = domain.RunTerminalClassInterruption
 		run.StopReason = domain.RunStopReasonSessionLost
-		return c.finalizeFailed(ctx, run, fmt.Sprintf(
+		finalizeErr = c.finalizeFailed(ctx, run, fmt.Sprintf(
 			"web-console session %s no longer exists; interactive run cannot be recovered", run.WebConsoleSessionID))
 	case errors.Is(tailErr, context.DeadlineExceeded):
 		// The run hit its configured timeout ceiling. Phase 3 types this as the
 		// timeout interruption (terminal_class=interruption, stop_reason=timeout)
 		// with the last handoff attached; the terminal reason is recorded now.
-		return c.finalizeTimeout(ctx, run)
+		finalizeErr = c.finalizeTimeout(ctx, run)
 	default:
-		return c.finalizeFailed(ctx, run, "interactive run ended without a terminal marker")
+		finalizeErr = c.finalizeFailed(ctx, run, "interactive run ended without a terminal marker")
 	}
+	if !isInvocationFenceConflict(finalizeErr) {
+		return finalizeErr
+	}
+	current, err := c.deps.Runs.Get(ctx, run.ID)
+	if err != nil {
+		return fmt.Errorf("%w: read current run after terminal compare-and-set refused: %v", ErrRunOwnerUnavailable, err)
+	}
+	if current == nil || current.ID != run.ID || current.TaskID != run.TaskID ||
+		current.SessionID != run.SessionID || current.WebConsoleSessionID != run.WebConsoleSessionID {
+		return ErrRunOwnerUnavailable
+	}
+	if current.Status.IsActive() && current.InteractiveInvocationStartedAt != nil && run.InteractiveInvocationStartedAt != nil &&
+		current.InteractiveInvocationStartedAt.Equal(*run.InteractiveInvocationStartedAt) {
+		return ErrRunOwnerUnavailable
+	}
+	*run = *current
+	if !current.Status.IsActive() {
+		return nil
+	}
+	return ErrRunOwnerChanged
+}
+
+func isInvocationFenceConflict(err error) bool {
+	var stateErr *domain.StateError
+	return errors.As(err, &stateErr) && stateErr.Operation == "update" && stateErr.Reason == "interactive invocation changed; stale observer refused"
 }
 
 func (c *Coordinator) finalizeComplete(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal) error {

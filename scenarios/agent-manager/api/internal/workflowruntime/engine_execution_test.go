@@ -170,6 +170,7 @@ type (
 		prompt        string
 		profile       string
 		scopePath     string
+		projectRoot   string
 		sandboxConfig *domain.SandboxConfig
 		maxTurns      int
 		timeout       time.Duration
@@ -217,7 +218,7 @@ func (f *fakeChildren) launch(req ChildRequest) (ChildState, error) {
 	if !ok {
 		id = uuid.New()
 		f.byKey[req.IdempotencyKey] = id
-		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, sandboxConfig: req.SandboxConfig, maxTurns: req.MaxTurns, timeout: req.Timeout, effects: append([]string(nil), req.AllowedEffects...)})
+		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, projectRoot: req.ProjectRoot, sandboxConfig: req.SandboxConfig, maxTurns: req.MaxTurns, timeout: req.Timeout, effects: append([]string(nil), req.AllowedEffects...)})
 	}
 	state := f.states[id]
 	state.RunID = id

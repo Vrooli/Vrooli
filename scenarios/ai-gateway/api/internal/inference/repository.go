@@ -31,30 +31,45 @@ type ProviderRequest struct {
 	// resolved resource role's declared cap". It is request-level because the
 	// budget depends on caller data a role cannot know.
 	MaxOutputTokens int32
+	// MaxProviderCalls is the caller's total adapter execution ceiling across
+	// candidate fallback and schema repair. Zero preserves legacy policy.
+	MaxProviderCalls int32
+	SpendLimit       *inferencev1.SpendLimit
 }
 
 type ProviderResult struct {
-	ValueJSON            string
-	Provider             string
-	Model                string
-	CoordinateConvention string
-	InputTokens          int64
-	OutputTokens         int64
-	CostMicros           int64
+	ValueJSON              string
+	Provider               string
+	Model                  string
+	CoordinateConvention   string
+	InputTokens            int64
+	OutputTokens           int64
+	CostMicros             int64
+	CreditsCharged         *int64
+	AccountingStatus       string
+	InputTokensProvenance  inferencev1.UsageProvenance
+	OutputTokensProvenance inferencev1.UsageProvenance
+	CostProvenance         inferencev1.UsageProvenance
 	// Applied records what the gateway actually sent and what the resolved role
 	// declares, so a caller records provenance that is true rather than
 	// provenance that echoes its own request.
-	Applied       AppliedSettings
-	ContextWindow int32
+	Applied            AppliedSettings
+	ContextWindow      int32
+	SpendAuthorization *inferencev1.SpendAuthorization
+	// ProviderCallsMade counts adapter Execute attempts, including failures.
+	// It is not a receipt of provider HTTP requests completed.
+	ProviderCallsMade int32
 }
 
 type EmbeddingResult struct {
-	Vectors     [][]float64
-	Provider    string
-	Model       string
-	Dimension   int
-	InputTokens int64
-	CostMicros  int64
+	Vectors               [][]float64
+	Provider              string
+	Model                 string
+	Dimension             int
+	InputTokens           int64
+	CostMicros            int64
+	InputTokensProvenance inferencev1.UsageProvenance
+	CostProvenance        inferencev1.UsageProvenance
 }
 
 // AppliedSettings is the gateway's honest account of one execution. It

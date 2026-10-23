@@ -27,7 +27,9 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 	request := internalinference.ProviderRequest{
 		Source: req.Msg.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(), Profile: req.Msg.GetProfile(),
 		Turns: req.Msg.GetTurns(), Attachments: req.Msg.GetAttachments(),
-		MaxOutputTokens: req.Msg.GetMaxOutputTokens(),
+		MaxOutputTokens:  req.Msg.GetMaxOutputTokens(),
+		MaxProviderCalls: req.Msg.GetMaxProviderCalls(),
+		SpendLimit:       req.Msg.GetSpendLimit(),
 	}
 	// A present SamplingControls with no temperature is not the same as an
 	// explicit 0, so read presence through the optional accessor rather than the

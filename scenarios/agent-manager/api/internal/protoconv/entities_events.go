@@ -164,7 +164,7 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				CurrentAction:      data.CurrentAction,
 				TurnsCompleted:     int32(data.TurnsCompleted),
 				TurnsTotal:         int32(data.TurnsTotal),
-				TokensUsed:         int32(data.TokensUsed),
+				TokensUsed:         data.TokensUsed,
 				ElapsedSeconds:     data.ElapsedSeconds,
 				EstimatedRemaining: data.EstimatedRemaining,
 			},

@@ -9,25 +9,146 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/sqlcompat"
+
+	"github.com/jmoiron/sqlx"
 )
 
 const maxSourcePageSize = 1000
 
+// The LoadSourcePage and loadDocuments queries share the same projection
+// columns, join shape, tombstone guard, and (modulo a cursor gate) logical
+// deletion guard. Keeping them as const fragments means a change to the hide
+// logic or the column surface lives in exactly one place; only the WHERE head,
+// the deletion cursor gate, and the ORDER BY/paging differ between the two
+// read paths.
+const sourceSelectFromJoin = `SELECT
+        e.id AS event_id, e.run_id, e.sequence, e.event_type, e.timestamp, e.schema_version, e.data,
+        r.label AS run_label, r.status AS run_status,
+        COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '') AS harness,
+        COALESCE(r.import_source_harness, '') AS import_source_harness,
+        COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '') AS source_session_id,
+        COALESCE(r.harness_kind, '') AS runner,
+        COALESCE(NULLIF(r.actual_model, ''), r.requested_model, '') AS model,
+        COALESCE(r.agent_profile_id, '') AS profile,
+        COALESCE(r.tag, '') AS tag,
+        COALESCE(r.workload_kind, '') AS workload_kind,
+        COALESCE(r.workload_key, '') AS workload_key,
+        COALESCE(t.project_root, '') AS project_scope,
+        COALESCE(t.scope_path, '') AS cwd_scope
+    FROM run_events e
+    JOIN runs r ON r.id = e.run_id
+    LEFT JOIN tasks t ON t.id = r.task_id`
+
+// sourceTombstoneClause drops any run whose external owner has revoked search
+// visibility (identity-keyed, survives index repair).
+const sourceTombstoneClause = `
+      AND NOT EXISTS (
+        SELECT 1 FROM conversation_search_external_tombstones tombstone
+        WHERE tombstone.source_harness = COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '')
+          AND tombstone.source_session_id = COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '')
+      )`
+
+// sourceDeletionClausePaged is the logical-deletion guard with a cursor gate:
+// a message_deleted event only hides its target when it is at or before the
+// snapshot high-water mark, so a deletion committed after the snapshot does not
+// retroactively remove a row from this page (? = 0 disables the gate).
+const sourceDeletionClausePaged = `
+      AND NOT EXISTS (
+        SELECT 1 FROM run_events deletion
+        WHERE deletion.run_id = e.run_id
+          AND deletion.event_type = 'message_deleted'
+          AND (? = 0 OR deletion.rowid <= ?)
+          AND COALESCE(
+            json_extract(deletion.data, '$.targetEventId'),
+            json_extract(deletion.data, '$.target_event_id'),
+            ''
+          ) = e.id
+      )`
+
+// sourceDeletionClauseUngated is the logical-deletion guard without a cursor
+// gate, used by the single-run/single-event incremental path where there is no
+// snapshot to gate against.
+const sourceDeletionClauseUngated = `
+      AND NOT EXISTS (
+        SELECT 1 FROM run_events deletion
+        WHERE deletion.run_id = e.run_id
+          AND deletion.event_type = 'message_deleted'
+          AND COALESCE(
+            json_extract(deletion.data, '$.targetEventId'),
+            json_extract(deletion.data, '$.target_event_id'),
+            ''
+          ) = e.id
+      )`
+
 type SQLiteSource struct {
 	db         sqlcompat.DB
 	normalizer *Normalizer
+	// policy hides documents matching a search-seam `exclude` rule. The data is
+	// still indexed-eligible at the source but is filtered before normalization,
+	// so an excluded run never reaches either the lexical or the semantic index.
+	// Nil or disabled means every row passes through.
+	policy *conversationpolicy.Policy
 }
 
-func NewSQLiteSource(db sqlcompat.DB, normalizer *Normalizer) (*SQLiteSource, error) {
+// SQLiteSourceOption configures an optional SQLiteSource dependency.
+type SQLiteSourceOption func(*SQLiteSource)
+
+// WithVisibilityPolicy installs the declarative visibility policy consulted at
+// the search seam. A nil or disabled policy leaves source loading unchanged.
+func WithVisibilityPolicy(policy *conversationpolicy.Policy) SQLiteSourceOption {
+	return func(s *SQLiteSource) { s.policy = policy }
+}
+
+func NewSQLiteSource(db sqlcompat.DB, normalizer *Normalizer, opts ...SQLiteSourceOption) (*SQLiteSource, error) {
 	if db == nil {
 		return nil, errors.New("conversation source database is required")
 	}
 	if normalizer == nil {
 		return nil, errors.New("conversation source normalizer is required")
 	}
-	return &SQLiteSource{db: db, normalizer: normalizer}, nil
+	source := &SQLiteSource{db: db, normalizer: normalizer}
+	for _, opt := range opts {
+		opt(source)
+	}
+	return source, nil
+}
+
+// searchPolicyFilter hides rows matching a search-seam `exclude` rule. It
+// counts each distinct hidden run once (not once per event) so the observable
+// count reflects hidden conversations rather than a document multiplier. A nil
+// or disabled policy returns a filter that passes everything through.
+type searchPolicyFilter struct {
+	policy *conversationpolicy.Policy
+	seen   map[string]struct{}
+}
+
+func (s *SQLiteSource) newSearchPolicyFilter() *searchPolicyFilter {
+	return &searchPolicyFilter{policy: s.policy, seen: map[string]struct{}{}}
+}
+
+// hidden reports whether a source row must be kept out of the index/results.
+func (f *searchPolicyFilter) hidden(row sourceRow) bool {
+	if !f.policy.Enabled() {
+		return false
+	}
+	fields := conversationpolicy.Fields{
+		Harness:      row.Harness,
+		Model:        row.Model,
+		ProjectScope: row.ProjectScope.String,
+		CwdScope:     row.CWDScope.String,
+		Tag:          row.Tag,
+	}
+	if !f.policy.Evaluate(conversationpolicy.EnforceSearch, fields).Hidden() {
+		return false
+	}
+	if _, counted := f.seen[row.RunID]; !counted {
+		f.seen[row.RunID] = struct{}{}
+		f.policy.RecordSearchHide(fields) // count this conversation once
+	}
+	return true
 }
 
 // SnapshotCursor captures the append-only event high-water mark without
@@ -51,40 +172,11 @@ func (s *SQLiteSource) LoadSourcePage(ctx context.Context, cursor *SourceCursor,
 	if limit <= 0 || limit > maxSourcePageSize {
 		return SourcePage{}, fmt.Errorf("source page limit must be between 1 and %d", maxSourcePageSize)
 	}
-	query := `SELECT
-        e.id AS event_id, e.run_id, e.sequence, e.event_type, e.timestamp, e.schema_version, e.data,
-        r.label AS run_label, r.status AS run_status,
-        COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '') AS harness,
-        COALESCE(r.import_source_harness, '') AS import_source_harness,
-        COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '') AS source_session_id,
-        COALESCE(r.harness_kind, '') AS runner,
-        COALESCE(NULLIF(r.actual_model, ''), r.requested_model, '') AS model,
-        COALESCE(r.agent_profile_id, '') AS profile,
-        COALESCE(r.tag, '') AS tag,
-        COALESCE(r.workload_kind, '') AS workload_kind,
-        COALESCE(r.workload_key, '') AS workload_key,
-        COALESCE(t.project_root, '') AS project_scope,
-        COALESCE(t.scope_path, '') AS cwd_scope
-    FROM run_events e
-    JOIN runs r ON r.id = e.run_id
-    LEFT JOIN tasks t ON t.id = r.task_id
-    WHERE e.event_type IN ('message', 'tool_call', 'tool_result')
-      AND NOT EXISTS (
-        SELECT 1 FROM conversation_search_external_tombstones tombstone
-        WHERE tombstone.source_harness = COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '')
-          AND tombstone.source_session_id = COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '')
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM run_events deletion
-        WHERE deletion.run_id = e.run_id
-          AND deletion.event_type = 'message_deleted'
-          AND (? = 0 OR deletion.rowid <= ?)
-          AND COALESCE(
-            json_extract(deletion.data, '$.targetEventId'),
-            json_extract(deletion.data, '$.target_event_id'),
-            ''
-          ) = e.id
-      )`
+	query := sourceSelectFromJoin +
+		`
+    WHERE e.event_type IN ('message', 'tool_call', 'tool_result')` +
+		sourceTombstoneClause +
+		sourceDeletionClausePaged
 	snapshotMaxRowID := int64(0)
 	if cursor != nil {
 		snapshotMaxRowID = cursor.SnapshotMaxEventRowID
@@ -115,18 +207,9 @@ func (s *SQLiteSource) LoadSourcePage(ctx context.Context, cursor *SourceCursor,
 	if err != nil {
 		return SourcePage{}, fmt.Errorf("load canonical conversation page: %w", err)
 	}
-	defer rows.Close()
-
-	raw := make([]sourceRow, 0, limit+1)
-	for rows.Next() {
-		var row sourceRow
-		if err := rows.StructScan(&row); err != nil {
-			return SourcePage{}, fmt.Errorf("scan canonical conversation source: %w", err)
-		}
-		raw = append(raw, row)
-	}
-	if err := rows.Err(); err != nil {
-		return SourcePage{}, fmt.Errorf("iterate canonical conversation page: %w", err)
+	raw, err := scanSourceRows(rows, limit+1)
+	if err != nil {
+		return SourcePage{}, fmt.Errorf("load canonical conversation page: %w", err)
 	}
 
 	hasMore := len(raw) > limit
@@ -134,16 +217,13 @@ func (s *SQLiteSource) LoadSourcePage(ctx context.Context, cursor *SourceCursor,
 		raw = raw[:limit]
 	}
 	page := SourcePage{}
-	for _, row := range raw {
-		source, err := row.sourceMessage()
-		if err != nil {
-			return SourcePage{}, err
-		}
-		documents, err := s.normalizer.Normalize(source)
-		if err != nil {
-			return SourcePage{}, fmt.Errorf("normalize source event %q: %w", row.EventID, err)
-		}
-		page.Documents = append(page.Documents, documents...)
+	// Visibility policy, search seam: a run matching an `exclude` rule is kept
+	// out of the derived index entirely (both lexical and semantic). Paging
+	// still advances past the skipped row — the cursor below is computed from
+	// the unfiltered page — so a policy change later re-includes the run.
+	page.Documents, err = s.normalizeRows(raw, s.newSearchPolicyFilter())
+	if err != nil {
+		return SourcePage{}, err
 	}
 	if hasMore && len(raw) > 0 {
 		last := raw[len(raw)-1]
@@ -177,52 +257,62 @@ func (s *SQLiteSource) LoadEventDocuments(ctx context.Context, runID, eventID st
 }
 
 func (s *SQLiteSource) loadDocuments(ctx context.Context, runID, eventID string) ([]Document, error) {
-	rows, err := s.db.QueryxContext(ctx, `SELECT
-        e.id AS event_id, e.run_id, e.sequence, e.event_type, e.timestamp, e.schema_version, e.data,
-        r.label AS run_label, r.status AS run_status,
-        COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '') AS harness,
-        COALESCE(r.import_source_harness, '') AS import_source_harness,
-        COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '') AS source_session_id,
-        COALESCE(r.harness_kind, '') AS runner,
-        COALESCE(NULLIF(r.actual_model, ''), r.requested_model, '') AS model,
-        COALESCE(r.agent_profile_id, '') AS profile,
-        COALESCE(r.tag, '') AS tag,
-        COALESCE(r.workload_kind, '') AS workload_kind,
-        COALESCE(r.workload_key, '') AS workload_key,
-        COALESCE(t.project_root, '') AS project_scope,
-        COALESCE(t.scope_path, '') AS cwd_scope
-    FROM run_events e
-    JOIN runs r ON r.id = e.run_id
-    LEFT JOIN tasks t ON t.id = r.task_id
+	query := sourceSelectFromJoin +
+		`
     WHERE e.run_id = ?
-	  AND (? = '' OR e.id = ?)
-      AND e.event_type IN ('message', 'tool_call', 'tool_result')
-      AND NOT EXISTS (
-        SELECT 1 FROM conversation_search_external_tombstones tombstone
-        WHERE tombstone.source_harness = COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '')
-          AND tombstone.source_session_id = COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '')
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM run_events deletion
-        WHERE deletion.run_id = e.run_id
-          AND deletion.event_type = 'message_deleted'
-          AND COALESCE(
-            json_extract(deletion.data, '$.targetEventId'),
-            json_extract(deletion.data, '$.target_event_id'),
-            ''
-          ) = e.id
-      )
-    ORDER BY e.timestamp ASC, e.sequence ASC, e.id ASC`, runID, eventID, eventID)
+      AND (? = '' OR e.id = ?)
+      AND e.event_type IN ('message', 'tool_call', 'tool_result')` +
+		sourceTombstoneClause +
+		sourceDeletionClauseUngated +
+		`
+    ORDER BY e.timestamp ASC, e.sequence ASC, e.id ASC`
+	rows, err := s.db.QueryxContext(ctx, query, runID, eventID, eventID)
 	if err != nil {
 		return nil, fmt.Errorf("load canonical conversation run %q: %w", runID, err)
 	}
-	defer rows.Close()
+	raw, err := scanSourceRows(rows, 0)
+	if err != nil {
+		return nil, fmt.Errorf("load canonical conversation run %q: %w", runID, err)
+	}
+	// Incremental projection path: hide a policy-excluded run so a queued
+	// upsert cannot re-add it to the index between full scans.
+	documents, err := s.normalizeRows(raw, s.newSearchPolicyFilter())
+	if err != nil {
+		return nil, err
+	}
+	if documents == nil {
+		documents = make([]Document, 0)
+	}
+	return documents, nil
+}
 
-	documents := make([]Document, 0)
+// scanSourceRows drains a source query into sourceRow values. capacityHint, when
+// positive, pre-sizes the slice. It closes rows before returning.
+func scanSourceRows(rows *sqlx.Rows, capacityHint int) ([]sourceRow, error) {
+	defer rows.Close()
+	out := make([]sourceRow, 0, capacityHint)
 	for rows.Next() {
 		var row sourceRow
 		if err := rows.StructScan(&row); err != nil {
-			return nil, fmt.Errorf("scan canonical conversation run %q: %w", runID, err)
+			return nil, fmt.Errorf("scan canonical conversation source: %w", err)
+		}
+		out = append(out, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate canonical conversation source: %w", err)
+	}
+	return out, nil
+}
+
+// normalizeRows applies the search-seam visibility filter then normalizes each
+// surviving row into index documents. The filter counts each hidden
+// conversation once (see searchPolicyFilter), so both read paths share one
+// hide-accounting implementation.
+func (s *SQLiteSource) normalizeRows(raw []sourceRow, filter *searchPolicyFilter) ([]Document, error) {
+	var documents []Document
+	for _, row := range raw {
+		if filter.hidden(row) {
+			continue
 		}
 		source, err := row.sourceMessage()
 		if err != nil {
@@ -233,9 +323,6 @@ func (s *SQLiteSource) loadDocuments(ctx context.Context, runID, eventID string)
 			return nil, fmt.Errorf("normalize source event %q: %w", row.EventID, err)
 		}
 		documents = append(documents, normalized...)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate canonical conversation run %q: %w", runID, err)
 	}
 	return documents, nil
 }

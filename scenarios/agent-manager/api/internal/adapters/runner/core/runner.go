@@ -406,7 +406,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 
 	r.logRunnerExited(req.RunID, req.EventSink, result, duration)
 
-	r.emitCompletion(req.EventSink, req.RunID, result.Success, r.codec.Labels().EndMessage, false)
+	closeEventSink(req.EventSink)
 
 	return result, nil
 }
@@ -504,6 +504,13 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	startTime := time.Now()
 	state := r.codec.NewState()
+	if setter, ok := state.(runner.ContinuationUsageBaselineSetter); ok {
+		baseline := runner.CodexUsageBaseline{SessionID: req.SessionID}
+		if req.CodexUsageBaseline != nil && req.CodexUsageBaseline.SessionID == req.SessionID {
+			baseline = *req.CodexUsageBaseline
+		}
+		setter.SetContinuationUsageBaseline(baseline)
+	}
 	r.applyStateBilling(state, req.GetConfig())
 	tag := r.codec.ContinueTag(req)
 
@@ -618,7 +625,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	r.logRunnerExited(req.RunID, req.EventSink, result, duration)
 
-	r.emitCompletion(req.EventSink, req.RunID, result.Success, r.codec.Labels().ContinueEndMessage, true)
+	closeEventSink(req.EventSink)
 
 	return result, nil
 }
@@ -780,7 +787,7 @@ func (r *Runner) classifyResult(
 	result.Summary = domain.SummaryFromRunResult(
 		result.Result,
 		metrics.TurnsUsed,
-		runner.TotalTokens(*metrics),
+		int64(runner.TotalTokens(*metrics)),
 		metrics.TokensInput,
 		metrics.CostEstimateUSD,
 	)
@@ -840,20 +847,13 @@ func (r *Runner) emitStart(sink runner.EventSink, runID uuid.UUID, message strin
 	))
 }
 
-// emitCompletion sends the final status event and closes the sink.
-// Closing the sink signals downstream consumers (broadcaster, recovery
-// drainer) that no more events will arrive for this run.
-func (r *Runner) emitCompletion(sink runner.EventSink, runID uuid.UUID, success bool, message string, _ bool) {
+// closeEventSink signals downstream consumers that this runner invocation has
+// no more provider events. Orchestration owns the Run's actual terminal status
+// and publishes it after reconciling the durable lifecycle state.
+func closeEventSink(sink runner.EventSink) {
 	if sink == nil {
 		return
 	}
-	finalStatus := string(domain.RunStatusComplete)
-	if !success {
-		finalStatus = string(domain.RunStatusFailed)
-	}
-	_ = sink.Emit(domain.NewStatusEvent(
-		runID, string(domain.RunStatusRunning), finalStatus, message,
-	))
 	_ = sink.Close()
 }
 
@@ -939,7 +939,6 @@ func (r *Runner) executeWithDurableTranscript(
 		launcher:     launcher,
 		request:      launchReq,
 		startMessage: r.codec.Labels().StartMessage,
-		endMessage:   r.codec.Labels().EndMessage,
 		isContinue:   false,
 	})
 }
@@ -991,19 +990,19 @@ func (r *Runner) continueWithDurableTranscript(
 		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
 	}
 	result, err := r.runDurable(ctx, durableInputs{
-		runID:        req.RunID,
-		config:       req.GetConfig(),
-		sandboxID:    req.SandboxID,
-		sink:         req.EventSink,
-		transcript:   req.Transcript,
-		state:        state,
-		startTime:    startTime,
-		launcher:     launcher,
-		request:      launchReq,
-		startMessage: r.codec.Labels().ContinueStartMessage,
-		endMessage:   r.codec.Labels().ContinueEndMessage,
-		isContinue:   true,
-		sessionID:    req.SessionID,
+		runID:         req.RunID,
+		config:        req.GetConfig(),
+		sandboxID:     req.SandboxID,
+		sink:          req.EventSink,
+		transcript:    req.Transcript,
+		state:         state,
+		usageBaseline: req.CodexUsageBaseline,
+		startTime:     startTime,
+		launcher:      launcher,
+		request:       launchReq,
+		startMessage:  r.codec.Labels().ContinueStartMessage,
+		isContinue:    true,
+		sessionID:     req.SessionID,
 	})
 	if result != nil && result.SessionID == "" {
 		result.SessionID = req.SessionID
@@ -1012,18 +1011,18 @@ func (r *Runner) continueWithDurableTranscript(
 }
 
 type durableInputs struct {
-	runID        uuid.UUID
-	config       *domain.RunConfig
-	sandboxID    *uuid.UUID
-	sink         runner.EventSink
-	transcript   *runner.TranscriptConfig
-	state        codecs.State
-	startTime    time.Time
-	launcher     runner.Launcher
-	request      runner.LaunchRequest
-	startMessage string
-	endMessage   string
-	isContinue   bool
+	runID         uuid.UUID
+	config        *domain.RunConfig
+	sandboxID     *uuid.UUID
+	sink          runner.EventSink
+	transcript    *runner.TranscriptConfig
+	state         codecs.State
+	usageBaseline *runner.CodexUsageBaseline
+	startTime     time.Time
+	launcher      runner.Launcher
+	request       runner.LaunchRequest
+	startMessage  string
+	isContinue    bool
 	// sessionID is the continued session, used when the stream does not
 	// restate it.
 	sessionID string
@@ -1249,6 +1248,13 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	liveDone := make(chan struct{})
 	liveCursor := transcriptStart
 	transcriptParser := r.codec.NewTranscriptParser()
+	if setter, ok := transcriptParser.(runner.ContinuationUsageBaselineSetter); ok && in.isContinue {
+		baseline := runner.CodexUsageBaseline{SessionID: in.sessionID}
+		if in.usageBaseline != nil && in.usageBaseline.SessionID == in.sessionID {
+			baseline = *in.usageBaseline
+		}
+		setter.SetContinuationUsageBaseline(baseline)
+	}
 	if in.config != nil {
 		if setter, ok := transcriptParser.(runner.TranscriptModelSetter); ok {
 			setter.SetTranscriptModel(in.config.Model)
@@ -1415,7 +1421,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	result.Summary = domain.SummaryFromRunResult(
 		result.Result,
 		metrics.TurnsUsed,
-		runner.TotalTokens(metrics),
+		int64(runner.TotalTokens(metrics)),
 		metrics.TokensInput,
 		metrics.CostEstimateUSD,
 	)
@@ -1434,7 +1440,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 
 	r.logRunnerExited(in.runID, in.sink, result, time.Since(in.startTime))
 
-	r.emitCompletion(in.sink, in.runID, result.Success, in.endMessage, in.isContinue)
+	closeEventSink(in.sink)
 
 	return result, nil
 }

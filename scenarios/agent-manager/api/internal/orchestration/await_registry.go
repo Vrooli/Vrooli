@@ -30,9 +30,11 @@ import (
 //   - cancel    → Cancel/Stop fires the ctx  → exit WITHOUT waking (the run was
 //     stopped/woken elsewhere; that path owns the terminal/running transition)
 
-// wakeTimeout bounds the WakeRun call a watcher makes once its wait resolves, so
-// a stuck resume cannot leak the watcher goroutine forever.
-const wakeTimeout = 30 * time.Second
+// wakeTimeout bounds the WakeRun call a watcher makes once its wait resolves.
+// WakeRun may wait for a parked-session compaction before starting the
+// continuation, so retain the prior 30s continuation allowance after the
+// compaction's own maximum duration.
+const wakeTimeout = parkCompactionTimeout + 30*time.Second
 
 // awaitWaker is the narrow orchestrator surface the registry drives. The
 // concrete *Orchestrator satisfies it; the seam keeps registry tests free of a
@@ -51,16 +53,23 @@ type AwaitRegistry struct {
 	waker   awaitWaker
 	waiters map[string]Waiter
 
-	mu     sync.Mutex
-	active map[uuid.UUID]context.CancelFunc
-	wg     sync.WaitGroup
-	closed bool
+	mu             sync.Mutex
+	active         map[uuid.UUID]*awaitRegistration
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+	wg             sync.WaitGroup
+	closed         bool
+}
+
+type awaitRegistration struct {
+	cancel context.CancelFunc
 }
 
 // NewAwaitRegistry builds a registry over the given waker, indexing each Waiter
 // by its Producer key. A Waiter with a duplicate producer overrides the prior
 // one (last wins); nil waiters are ignored.
 func NewAwaitRegistry(waker awaitWaker, waiters ...Waiter) *AwaitRegistry {
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 	idx := make(map[string]Waiter, len(waiters))
 	for _, w := range waiters {
 		if w == nil {
@@ -69,9 +78,11 @@ func NewAwaitRegistry(waker awaitWaker, waiters ...Waiter) *AwaitRegistry {
 		idx[w.Producer()] = w
 	}
 	return &AwaitRegistry{
-		waker:   waker,
-		waiters: idx,
-		active:  make(map[uuid.UUID]context.CancelFunc),
+		waker:          waker,
+		waiters:        idx,
+		active:         make(map[uuid.UUID]*awaitRegistration),
+		shutdownCtx:    shutdownCtx,
+		shutdownCancel: shutdownCancel,
 	}
 }
 
@@ -120,14 +131,16 @@ func (r *AwaitRegistry) Register(runID uuid.UUID, handle *domain.AwaitHandle) {
 		r.mu.Unlock()
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	r.active[runID] = cancel
+	ctx, cancel := context.WithCancel(r.shutdownCtx)
+	registration := &awaitRegistration{cancel: cancel}
+	r.active[runID] = registration
 	r.wg.Add(1)
 	r.mu.Unlock()
 
 	go func() {
+		defer cancel()
 		defer obs.RecoverToFailure("await watcher", nil)
-		r.watch(ctx, runID, *handle)
+		r.watch(ctx, runID, registration, *handle)
 	}()
 }
 
@@ -139,11 +152,11 @@ func (r *AwaitRegistry) Cancel(runID uuid.UUID) {
 		return
 	}
 	r.mu.Lock()
-	cancel := r.active[runID]
+	registration := r.active[runID]
 	delete(r.active, runID)
 	r.mu.Unlock()
-	if cancel != nil {
-		cancel()
+	if registration != nil {
+		registration.cancel()
 	}
 }
 
@@ -156,15 +169,11 @@ func (r *AwaitRegistry) Stop() {
 	}
 	r.mu.Lock()
 	r.closed = true
-	cancels := make([]context.CancelFunc, 0, len(r.active))
-	for id, cancel := range r.active {
-		cancels = append(cancels, cancel)
+	for id := range r.active {
 		delete(r.active, id)
 	}
 	r.mu.Unlock()
-	for _, cancel := range cancels {
-		cancel()
-	}
+	r.shutdownCancel()
 	r.wg.Wait()
 }
 
@@ -200,9 +209,9 @@ func (r *AwaitRegistry) RecoverParkedRuns(ctx context.Context) (int, error) {
 }
 
 // watch is one parked run's waiter goroutine.
-func (r *AwaitRegistry) watch(ctx context.Context, runID uuid.UUID, handle domain.AwaitHandle) {
+func (r *AwaitRegistry) watch(ctx context.Context, runID uuid.UUID, registration *awaitRegistration, handle domain.AwaitHandle) {
 	defer r.wg.Done()
-	defer r.deregister(runID)
+	defer r.deregister(runID, registration)
 
 	waiter := r.waiters[handle.Producer]
 	if waiter == nil {
@@ -246,7 +255,7 @@ func (r *AwaitRegistry) watch(ctx context.Context, runID uuid.UUID, handle domai
 // wake resumes the run with the resolved result. WakeRun is idempotent, so a
 // race against an external wake/stop is safe.
 func (r *AwaitRegistry) wake(runID uuid.UUID, handle domain.AwaitHandle, result string, timedOut bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), wakeTimeout)
+	ctx, cancel := context.WithTimeout(r.shutdownCtx, wakeTimeout)
 	defer cancel()
 	if _, err := r.waker.WakeRun(ctx, WakeRunInput{RunID: runID, Result: result, TimedOut: timedOut}); err != nil {
 		r.log().Error("wake failed",
@@ -259,9 +268,11 @@ func (r *AwaitRegistry) wake(runID uuid.UUID, handle domain.AwaitHandle, result 
 
 // deregister removes a watcher's entry on exit. The map may already lack the
 // entry (Cancel/Stop removed it); that is fine.
-func (r *AwaitRegistry) deregister(runID uuid.UUID) {
+func (r *AwaitRegistry) deregister(runID uuid.UUID, registration *awaitRegistration) {
 	r.mu.Lock()
-	delete(r.active, runID)
+	if r.active[runID] == registration {
+		delete(r.active, runID)
+	}
 	r.mu.Unlock()
 }
 

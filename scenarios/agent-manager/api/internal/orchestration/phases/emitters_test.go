@@ -91,6 +91,10 @@ func (failingPhaseEventStore) Get(context.Context, uuid.UUID, event.GetOptions) 
 	return nil, nil
 }
 
+func (failingPhaseEventStore) Summarize(context.Context, uuid.UUID, event.GetOptions) (*event.Summary, error) {
+	return &event.Summary{Counts: map[string]int64{}}, nil
+}
+
 func (failingPhaseEventStore) Stream(context.Context, uuid.UUID, event.StreamOptions) (<-chan *domain.RunEvent, error) {
 	return nil, nil
 }

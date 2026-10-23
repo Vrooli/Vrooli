@@ -79,6 +79,57 @@ func TestApplyEnvOverridesPreservesZeroOnlySettingsAndCompatibilityPrecedence(t 
 	}
 }
 
+// The transcript-import interval keeps its historical env name and the new
+// scan-roots list is applied additively; unset env leaves the defaults (6h, no
+// extra roots).
+func TestApplyEnvOverridesTranscriptImport(t *testing.T) {
+	t.Run("overrides from env", func(t *testing.T) {
+		levers := DefaultLevers()
+		t.Setenv("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL", "15m")
+		t.Setenv("AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS", " /srv/remote-transcripts , ~/extra/sessions ,  ")
+		applyEnvOverrides(&levers)
+		if levers.TranscriptImport.Interval != 15*time.Minute {
+			t.Fatalf("interval = %v, want 15m", levers.TranscriptImport.Interval)
+		}
+		if got := levers.TranscriptImport.ScanRoots; len(got) != 2 || got[0] != "/srv/remote-transcripts" || got[1] != "~/extra/sessions" {
+			t.Fatalf("scan roots = %#v", got)
+		}
+	})
+	t.Run("unset env keeps defaults", func(t *testing.T) {
+		levers := DefaultLevers()
+		applyEnvOverrides(&levers)
+		if levers.TranscriptImport.Interval != 6*time.Hour {
+			t.Fatalf("interval = %v, want 6h default", levers.TranscriptImport.Interval)
+		}
+		if len(levers.TranscriptImport.ScanRoots) != 0 {
+			t.Fatalf("scan roots = %#v, want none by default", levers.TranscriptImport.ScanRoots)
+		}
+	})
+	t.Run("invalid interval is ignored (safe fallback)", func(t *testing.T) {
+		levers := DefaultLevers()
+		t.Setenv("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL", "not-a-duration")
+		applyEnvOverrides(&levers)
+		if levers.TranscriptImport.Interval != 6*time.Hour {
+			t.Fatalf("interval = %v, want 6h after invalid env", levers.TranscriptImport.Interval)
+		}
+	})
+}
+
+func TestTranscriptImportLeversValidate(t *testing.T) {
+	ok := TranscriptImportLevers{Interval: 15 * time.Minute, ScanRoots: []string{"/srv/x"}}
+	if err := ok.Validate(); err != nil {
+		t.Fatalf("valid levers rejected: %v", err)
+	}
+	tooFast := TranscriptImportLevers{Interval: time.Second}
+	if err := tooFast.Validate(); err == nil {
+		t.Fatal("interval below 1m must be rejected")
+	}
+	emptyRoot := TranscriptImportLevers{Interval: time.Hour, ScanRoots: []string{"  "}}
+	if err := emptyRoot.Validate(); err == nil {
+		t.Fatal("empty scan root must be rejected")
+	}
+}
+
 func TestLeversForProfileChangesOnlyDocumentedOperationalDefaults(t *testing.T) {
 	development := LeversForProfile(ProfileDevelopment)
 	testingProfile := LeversForProfile(ProfileTesting)

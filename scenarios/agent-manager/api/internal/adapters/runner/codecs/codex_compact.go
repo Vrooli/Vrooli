@@ -115,7 +115,7 @@ func runCodexAppServerCompaction(ctx context.Context, bin, sessionID string, req
 	if err := session.notify(codexMethodInitialized); err != nil {
 		return fail("initialized", err)
 	}
-	resume := map[string]any{"threadId": sessionID}
+	resume := map[string]any{"threadId": sessionID, "excludeTurns": true}
 	if model := strings.TrimSpace(req.Model); model != "" {
 		resume["model"] = model
 	}

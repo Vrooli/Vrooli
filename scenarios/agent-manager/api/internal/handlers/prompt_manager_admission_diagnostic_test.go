@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/domain"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
@@ -19,9 +21,10 @@ import (
 )
 
 type diagnosticUsage struct {
-	byOwner map[string]authn.StandingGrantUsage
-	err     error
-	seen    []string
+	byOwner     map[string]authn.StandingGrantUsage
+	runsByOwner map[string][]domain.Run
+	err         error
+	seen        []string
 }
 
 func (u *diagnosticUsage) StandingGrantUsage(_ context.Context, owner string) (authn.StandingGrantUsage, error) {
@@ -30,6 +33,18 @@ func (u *diagnosticUsage) StandingGrantUsage(_ context.Context, owner string) (a
 		return authn.StandingGrantUsage{}, u.err
 	}
 	return u.byOwner[owner], nil
+}
+
+func (u *diagnosticUsage) StandingGrantUsageWithRuns(_ context.Context, owner string, limit int) (authn.StandingGrantUsage, []domain.Run, error) {
+	u.seen = append(u.seen, owner)
+	if u.err != nil {
+		return authn.StandingGrantUsage{}, nil, u.err
+	}
+	runs := append([]domain.Run(nil), u.runsByOwner[owner]...)
+	if limit >= 0 && len(runs) > limit {
+		runs = runs[:limit]
+	}
+	return u.byOwner[owner], runs, nil
 }
 
 func admissionDiagnosticHandler(authority *StandingGrantAuthority, raiser ApprovalRaiser) http.Handler {
@@ -79,9 +94,17 @@ func TestPromptManagerAdmissionDiagnosticReportsFixedAggregateWithoutRaisingAppr
 	)); err != nil {
 		t.Fatal(err)
 	}
-	usage := &diagnosticUsage{byOwner: map[string]authn.StandingGrantUsage{
-		"grant-owner": {ConcurrentRuns: 2},
-	}}
+	usage := &diagnosticUsage{
+		byOwner: map[string]authn.StandingGrantUsage{
+			"grant-owner": {ConcurrentRuns: 2},
+		},
+		runsByOwner: map[string][]domain.Run{
+			"grant-owner": {
+				{ID: uuid.MustParse("00000000-0000-4000-8000-000000000001"), Status: domain.RunStatusParked},
+				{ID: uuid.MustParse("00000000-0000-4000-8000-000000000002"), Status: domain.RunStatusNeedsReview},
+			},
+		},
+	}
 	raiser := &fakeRaiser{}
 	authority := NewStandingGrantAuthority(repo, usage, nil)
 	principal := admissionDiagnosticPrincipal(
@@ -99,16 +122,58 @@ func TestPromptManagerAdmissionDiagnosticReportsFixedAggregateWithoutRaisingAppr
 	if got.Limits[0].Dimension != string(authn.StandingGrantConcurrentRunsLimit) || got.Limits[0].Current != 2 || got.Limits[0].Bound != 2 {
 		t.Fatalf("wrong aggregate limit: %+v", got.Limits[0])
 	}
+	contributors := got.Limits[0].Contributors
+	if contributors == nil || contributors.Count != 2 || contributors.Truncated || len(contributors.Runs) != 2 {
+		t.Fatalf("wrong counted-run projection: %+v", contributors)
+	}
+	if contributors.Runs[0] != (ServiceAdmissionCountedRun{RunID: "00000000-0000-4000-8000-000000000001", Status: string(domain.RunStatusParked)}) || contributors.Runs[1] != (ServiceAdmissionCountedRun{RunID: "00000000-0000-4000-8000-000000000002", Status: string(domain.RunStatusNeedsReview)}) {
+		t.Fatalf("wrong counted run IDs/statuses: %+v", contributors.Runs)
+	}
 	if got.ObservedAt.IsZero() || len(raiser.raised) != 0 {
 		t.Fatalf("diagnostic lacks observation time or raised approval: observed=%v raises=%+v", got.ObservedAt, raiser.raised)
 	}
 	if len(usage.seen) != 1 || usage.seen[0] != "grant-owner" {
 		t.Fatalf("usage read did not use grant owner: %v", usage.seen)
 	}
-	for _, secret := range []string{"prompt-manager", "grant-owner", "investigator-owner", "investigator-run"} {
+	for _, secret := range []string{"prompt-manager", "grant-owner", "investigator-owner", "investigator-run", "task-private", "prompt-private"} {
 		if strings.Contains(w.Body.String(), secret) {
 			t.Fatalf("diagnostic leaked private identity %q: %s", secret, w.Body.String())
 		}
+	}
+}
+
+func TestPromptManagerAdmissionDiagnosticCapsCountedRunDetailsAndReportsTotal(t *testing.T) {
+	now := time.Now()
+	repo := &memStandingGrants{}
+	if err := repo.Put(context.Background(), standingGrantRecord(promptManagerAdmissionDiagnosticSubject, "grant-owner", now.Add(time.Hour), authn.StandingGrantLimits{MaxConcurrentRuns: 1})); err != nil {
+		t.Fatal(err)
+	}
+	runs := make([]domain.Run, serviceAdmissionContributorRunCap+1)
+	for i := range runs {
+		runs[i] = domain.Run{ID: uuid.New(), Status: domain.RunStatusParked}
+	}
+	usage := &diagnosticUsage{
+		byOwner:     map[string]authn.StandingGrantUsage{"grant-owner": {ConcurrentRuns: len(runs)}},
+		runsByOwner: map[string][]domain.Run{"grant-owner": runs},
+	}
+	principal := admissionDiagnosticPrincipal(
+		admissionDiagnosticGrant([]string{"agent.investigate"}, []string{promptManagerAdmissionDiagnosticTarget}),
+		"agent-manager:write",
+	)
+	w := requestAdmissionDiagnostic(admissionDiagnosticHandler(NewStandingGrantAuthority(repo, usage, nil), nil), &principal)
+	if w.Code != http.StatusOK {
+		t.Fatalf("authorized read returned %d: %s", w.Code, w.Body.String())
+	}
+	got := decodeAdmissionDiagnostic(t, w)
+	if got.Outcome != ServiceAdmissionWouldRefuseLimit || len(got.Limits) != 1 {
+		t.Fatalf("unexpected diagnostic: %+v", got)
+	}
+	contributors := got.Limits[0].Contributors
+	if contributors == nil || contributors.Count != len(runs) || !contributors.Truncated || len(contributors.Runs) != serviceAdmissionContributorRunCap {
+		t.Fatalf("contributor cap/count was not explicit: %+v", contributors)
+	}
+	if got.Limits[0].Current != float64(contributors.Count) {
+		t.Fatalf("aggregate current %v diverges from contributor count %d", got.Limits[0].Current, contributors.Count)
 	}
 }
 
@@ -127,6 +192,11 @@ func TestPromptManagerAdmissionDiagnosticAcceptsApprovedAgentManagementWildcard(
 	got := decodeAdmissionDiagnostic(t, w)
 	if got.Outcome != ServiceAdmissionWouldRequireApproval || got.Reason != "no_covering_grant" {
 		t.Fatalf("wildcard investigation read changed the independent service admission result: %+v", got)
+	}
+	for _, limit := range got.Limits {
+		if limit.Contributors != nil {
+			t.Fatalf("non-limit outcome exposed counted runs: %+v", limit.Contributors)
+		}
 	}
 }
 
@@ -200,6 +270,9 @@ func TestPromptManagerAdmissionDiagnosticDoesNotTreatServiceRunGrantAsInvestigat
 	if w.Code != http.StatusForbidden || len(raiser.raised) != 0 {
 		t.Fatalf("service run-creation authority reached diagnostic or raised ask: status=%d raises=%+v body=%s", w.Code, raiser.raised, w.Body.String())
 	}
+	if strings.Contains(w.Body.String(), `"contributors"`) {
+		t.Fatalf("unauthorized caller received counted-run details: %s", w.Body.String())
+	}
 }
 
 func TestPromptManagerAdmissionDiagnosticPreservesMixedGrantAdmissionSemantics(t *testing.T) {
@@ -232,6 +305,9 @@ func TestPromptManagerAdmissionDiagnosticPreservesMixedGrantAdmissionSemantics(t
 	if len(usage.seen) != 2 {
 		t.Fatalf("diagnostic did not evaluate both active owners: %v", usage.seen)
 	}
+	if strings.Contains(w.Body.String(), `"contributors"`) {
+		t.Fatalf("admitted outcome exposed refusal contributors: %s", w.Body.String())
+	}
 }
 
 func TestPromptManagerAdmissionDiagnosticReportsBudgetAggregate(t *testing.T) {
@@ -258,6 +334,9 @@ func TestPromptManagerAdmissionDiagnosticReportsBudgetAggregate(t *testing.T) {
 		got.Limits[0].Dimension != string(authn.StandingGrantBudgetLimit) ||
 		got.Limits[0].Current != 55 || got.Limits[0].Bound != 50 {
 		t.Fatalf("budget refusal was not projected faithfully: %+v", got)
+	}
+	if got.Limits[0].Contributors != nil || strings.Contains(w.Body.String(), `"contributors"`) {
+		t.Fatalf("non-concurrency refusal exposed counted runs: %+v", got.Limits[0])
 	}
 }
 
@@ -325,6 +404,9 @@ func TestPromptManagerAdmissionDiagnosticReportsAskWithoutSideEffectAndUnavailab
 			if got.Outcome != tc.wantOutcome || got.Reason != tc.wantReason {
 				t.Fatalf("unexpected diagnostic: %+v", got)
 			}
+			if strings.Contains(w.Body.String(), `"contributors"`) {
+				t.Fatalf("non-concurrency outcome exposed counted runs: %s", w.Body.String())
+			}
 			if len(raiser.raised) != 0 {
 				t.Fatalf("read path raised approval: %+v", raiser.raised)
 			}
@@ -386,6 +468,9 @@ func TestPromptManagerAdmissionDiagnosticRejectsUnverifiedOrNoncoveringAgents(t 
 			}
 			if strings.Contains(w.Body.String(), "prompt-manager") || strings.Contains(w.Body.String(), "grant_limit") {
 				t.Fatalf("refusal disclosed diagnostic data: %s", w.Body.String())
+			}
+			if strings.Contains(w.Body.String(), `"contributors"`) {
+				t.Fatalf("unauthorized investigator received counted-run details: %s", w.Body.String())
 			}
 		})
 	}

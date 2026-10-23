@@ -35,6 +35,15 @@ func TestOrchestratorReportSourceProjectsInvocationUsageOnce(t *testing.T) {
 	if fullyReconciled {
 		t.Fatal("projection treated an interim-only invocation as fully reconciled")
 	}
+
+	latePartial := append(append([]*domain.RunEvent{}, events...), &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 1}})
+	latePartialTokens, fullyReconciled := source.CanonicalUsageProjection(&domain.Run{ID: runID}, latePartial)
+	if fullyReconciled {
+		t.Fatal("projection treated usage after an authority receipt as fully reconciled")
+	}
+	if latePartialTokens != 50 {
+		t.Fatalf("late partial usage changed receipt-based quantity selection: got %d, want 50", latePartialTokens)
+	}
 }
 
 func TestRunProjectionCanonicalTokensMatchTimeAccountingBuckets(t *testing.T) {

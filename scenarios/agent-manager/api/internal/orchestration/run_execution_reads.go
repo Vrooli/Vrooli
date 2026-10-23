@@ -83,6 +83,13 @@ func (o *Orchestrator) GetRunEvents(ctx context.Context, runID uuid.UUID, opts e
 	return o.events.Get(ctx, runID, opts)
 }
 
+func (o *Orchestrator) GetRunEventSummary(ctx context.Context, runID uuid.UUID, opts event.GetOptions) (*event.Summary, error) {
+	if o.events == nil {
+		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)
+	}
+	return o.events.Summarize(ctx, runID, opts)
+}
+
 func (o *Orchestrator) StreamRunEvents(ctx context.Context, runID uuid.UUID, opts event.StreamOptions) (<-chan *domain.RunEvent, error) {
 	if o.events == nil {
 		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)

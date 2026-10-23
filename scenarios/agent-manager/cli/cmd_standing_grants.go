@@ -67,9 +67,17 @@ func (a *App) standingGrantsDiagnosePromptManager(args []string) error {
 		Reason     string `json:"reason"`
 		ObservedAt string `json:"observed_at"`
 		Limits     []struct {
-			Dimension string  `json:"dimension"`
-			Current   float64 `json:"current"`
-			Bound     float64 `json:"bound"`
+			Dimension    string  `json:"dimension"`
+			Current      float64 `json:"current"`
+			Bound        float64 `json:"bound"`
+			Contributors *struct {
+				Count int `json:"count"`
+				Runs  []struct {
+					RunID  string `json:"run_id"`
+					Status string `json:"status"`
+				} `json:"runs"`
+				Truncated bool `json:"truncated"`
+			} `json:"contributors,omitempty"`
 		} `json:"limits"`
 		LimitsTruncated bool `json:"limits_truncated"`
 	}
@@ -80,6 +88,17 @@ func (a *App) standingGrantsDiagnosePromptManager(args []string) error {
 	fmt.Printf("Prompt Manager run.create: %s (%s; observed %s)\n", result.Outcome, result.Reason, result.ObservedAt)
 	for _, limit := range result.Limits {
 		fmt.Printf("  %s: %.2f / %.2f\n", limit.Dimension, limit.Current, limit.Bound)
+		if limit.Contributors == nil {
+			continue
+		}
+		fmt.Printf("    counted runs: %d", limit.Contributors.Count)
+		if limit.Contributors.Truncated {
+			fmt.Print(" (truncated)")
+		}
+		fmt.Println()
+		for _, run := range limit.Contributors.Runs {
+			fmt.Printf("      %s [%s]\n", run.RunID, run.Status)
+		}
 	}
 	if result.LimitsTruncated {
 		fmt.Println("  Additional exceeded bounds are omitted.")

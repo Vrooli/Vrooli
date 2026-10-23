@@ -154,16 +154,17 @@ func RegisterStandingGrants(r *mux.Router, admin StandingGrantAdmin) {
 	}).Methods(http.MethodGet)
 }
 
-// RegisterPromptManagerAdmissionDiagnostic exposes only the aggregate
-// run.create decision for the fixed Prompt Manager service subject. It is a
-// read-only agent.investigate operation and never calls the approval raiser.
+// RegisterPromptManagerAdmissionDiagnostic exposes the fixed Prompt Manager
+// run.create decision and bounded counted-run identities for concurrency
+// refusals. It is a read-only agent.investigate operation and never calls the
+// approval raiser.
 func RegisterPromptManagerAdmissionDiagnostic(r *mux.Router, authority *StandingGrantAuthority) {
 	r.HandleFunc(promptManagerAdmissionDiagnosticPath, func(w http.ResponseWriter, r *http.Request) {
 		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.investigate", promptManagerAdmissionDiagnosticTarget); err != nil {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "authorized investigation identity required"})
 			return
 		}
-		diagnostic, err := authority.diagnoseOperation(r.Context(), promptManagerAdmissionDiagnosticSubject, "run.create", RunCreationTarget)
+		diagnostic, err := authority.diagnoseOperationWithRunDetails(r.Context(), promptManagerAdmissionDiagnosticSubject, "run.create", RunCreationTarget, true)
 		if err != nil {
 			if diagnostic.ObservedAt.IsZero() {
 				diagnostic.ObservedAt = time.Now().UTC()

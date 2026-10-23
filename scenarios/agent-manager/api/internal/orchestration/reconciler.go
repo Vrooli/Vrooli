@@ -158,6 +158,16 @@ type Reconciler struct {
 	eventRetention    event.RetentionStore
 	artifactRetention artifact.RetentionCollector
 
+	// liveBytesFn measures the database's live byte size and searchDeleteRun
+	// drops a run's derived search documents. Together they let the storage
+	// maintenance pass evict the oldest imported runs when the recall corpus
+	// exceeds its budget. Both nil → imported-corpus eviction is a no-op.
+	liveBytesFn     func(context.Context) (int64, error)
+	searchDeleteRun func(context.Context, string) error
+	// searchOptimize merges the conversation-search FTS index to reclaim the
+	// tombstone space deletes leave behind. Nil → the reclaim step no-ops.
+	searchOptimize func(context.Context) error
+
 	// State
 	mu           sync.Mutex
 	running      bool
@@ -370,6 +380,28 @@ func WithReconcilerEventRetention(store event.RetentionStore) ReconcilerOption {
 
 func WithReconcilerArtifactRetention(collector artifact.RetentionCollector) ReconcilerOption {
 	return func(r *Reconciler) { r.artifactRetention = collector }
+}
+
+// WithReconcilerLiveBytes wires the database live-byte measure used to decide
+// when the imported recall corpus must be evicted back under budget.
+func WithReconcilerLiveBytes(fn func(context.Context) (int64, error)) ReconcilerOption {
+	return func(r *Reconciler) { r.liveBytesFn = fn }
+}
+
+// WithReconcilerSearchDeleteRun wires the per-run search-document deletion used
+// when evicting imported runs, so an evicted run leaves no orphan FTS rows.
+func WithReconcilerSearchDeleteRun(fn func(context.Context, string) error) ReconcilerOption {
+	return func(r *Reconciler) { r.searchDeleteRun = fn }
+}
+
+// SetSearchOptimize installs the conversation-search FTS reclaim hook. It is a
+// post-construction setter because the search repository is wired in the
+// composition root after the reconciler is built, mirroring the orchestrator's
+// SetConversationSearchNotifier.
+func (r *Reconciler) SetSearchOptimize(fn func(context.Context) error) {
+	if r != nil {
+		r.searchOptimize = fn
+	}
 }
 
 func (r *Reconciler) resolveRunStateRoot(ctx context.Context) (string, error) {
@@ -729,6 +761,17 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 		stats.Errors = append(stats.Errors, "artifact retention: "+err.Error())
 	} else {
 		stats.ArtifactsPruned = deleted
+	}
+	// Bound the imported recall corpus (retention-exempt events) to its byte
+	// budget before returning freed pages below, so a runaway import backfill
+	// self-heals instead of only alarming.
+	// Reclaim dead search-index space BEFORE eviction, so eviction measures the
+	// post-reclaim size and sheds live recall only when genuinely over budget.
+	if err := r.reclaimSearchIndex(ctx); err != nil {
+		stats.Errors = append(stats.Errors, "search index reclaim: "+err.Error())
+	}
+	if _, err := r.evictImportedCorpus(ctx); err != nil {
+		stats.Errors = append(stats.Errors, "imported corpus eviction: "+err.Error())
 	}
 	r.recordImportedEventCompaction(ctx, &stats)
 

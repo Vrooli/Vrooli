@@ -174,7 +174,7 @@ func (a *App) scenarioSmokeWait(runID string, timeout time.Duration) (*domainpb.
 }
 
 func isTerminalRunStatus(status domainpb.RunStatus) bool {
-	return status == domainpb.RunStatus_RUN_STATUS_COMPLETE || status == domainpb.RunStatus_RUN_STATUS_FAILED || status == domainpb.RunStatus_RUN_STATUS_CANCELLED
+	return status == domainpb.RunStatus_RUN_STATUS_COMPLETE || status == domainpb.RunStatus_RUN_STATUS_FAILED || status == domainpb.RunStatus_RUN_STATUS_CANCELLED || status == domainpb.RunStatus_RUN_STATUS_UNKNOWN
 }
 
 func scenarioSmokeAssert(name string, ok bool, detail string) bool {

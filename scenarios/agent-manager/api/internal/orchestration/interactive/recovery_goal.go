@@ -214,13 +214,15 @@ func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) 
 	var lastGoal *runner.GoalMarker
 	var goalTime time.Time
 	sessionMatched := false
+	sessionMismatch := false
 	cursor, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
 		RunID: run.ID, Transcript: run.TranscriptPath, EndAt: before.Size(),
 		ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
 			result := parser.ParseTranscriptLine(id, line)
 			if result.SessionID != "" {
 				if result.SessionID != run.SessionID {
-					result.Err = fmt.Errorf("retained goal session does not match owner run")
+					sessionMismatch = true
+					result.Err = fmt.Errorf("retained goal transcript does not prove the exact owner session")
 				} else {
 					sessionMatched = true
 				}
@@ -253,8 +255,53 @@ func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) 
 	if !os.SameFile(before, after) || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) || cursor != before.Size() {
 		return nil, fmt.Errorf("retained goal transcript changed or has an incomplete tail; no finalization")
 	}
-	if !sessionMatched || lastGoal == nil || terminal == nil || !strings.HasPrefix(terminal.TerminalReason, "goal_") || terminal.TerminalReason != "goal_"+string(lastGoal.Status) || goalTime.IsZero() || goalTime.Before(*attemptStart) || !runner.NativeGoalObjectiveMatches(lastGoal.Objective, run.ResolvedConfig.Until) {
+	if sessionMismatch || !sessionMatched {
+		return nil, fmt.Errorf("retained goal transcript does not prove the exact owner session")
+	}
+	if lastGoal == nil || terminal == nil || !strings.HasPrefix(terminal.TerminalReason, "goal_") || terminal.TerminalReason != "goal_"+string(lastGoal.Status) || goalTime.IsZero() || goalTime.Before(*attemptStart) || !runner.NativeGoalObjectiveMatches(lastGoal.Objective, run.ResolvedConfig.Until) {
 		return nil, nil
 	}
 	return &RetainedGoalEvidence{Terminal: terminal, Marker: *lastGoal, At: goalTime}, nil
+}
+
+// InspectCurrentRetainedGoal resolves the exact run's current transcript before
+// inspecting it. A Codex continuation may have rotated to a new rollout while
+// the durable run row still names the prior one. The candidate is inspected
+// without changing ownership; only an exact-session transcript is then
+// committed through the same atomic path/cursor update used by the live tailer.
+func (c *Coordinator) InspectCurrentRetainedGoal(ctx context.Context, run *domain.Run, tc TailContext) (*RetainedGoalEvidence, error) {
+	if run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex {
+		return c.InspectRetainedGoal(ctx, run)
+	}
+	if c.deps.Tailer == nil || strings.TrimSpace(tc.RunDir) == "" {
+		return nil, fmt.Errorf("current Codex goal inspection requires the exact run-scoped transcript directory")
+	}
+	path, err := c.deps.Tailer.DiscoverCurrentTranscript(TailParams{
+		RunID:          run.ID,
+		RunnerType:     run.ResolvedConfig.RunnerType,
+		TranscriptPath: run.TranscriptPath,
+		SessionID:      run.SessionID,
+		RunDir:         tc.RunDir,
+		WorkingDir:     tc.WorkingDir,
+		LaunchedAt:     tc.LaunchedAt,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("discover current Codex transcript: %w", err)
+	}
+	if path == "" {
+		return nil, fmt.Errorf("no current Codex transcript found in the run-scoped directory")
+	}
+	candidate := *run
+	candidate.TranscriptPath = path
+	if path != run.TranscriptPath {
+		candidate.TranscriptCursor = 0
+	}
+	evidence, err := c.InspectRetainedGoal(ctx, &candidate)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.persistTranscriptPath(ctx, run, path); err != nil {
+		return nil, fmt.Errorf("persist current Codex transcript selection: %w", err)
+	}
+	return evidence, nil
 }

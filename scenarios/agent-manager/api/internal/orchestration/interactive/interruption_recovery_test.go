@@ -411,7 +411,7 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		terminal, err := coord.TailToCompletion(ctx, run)
+		terminal, err := coord.TailToCompletionWithContext(ctx, run, TailContext{RunDir: filepath.Dir(path)}, TailCompletionOptions{})
 		done <- outcome{terminal: terminal, err: err}
 	}()
 

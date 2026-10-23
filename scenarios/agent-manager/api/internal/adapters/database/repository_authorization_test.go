@@ -17,7 +17,8 @@ func authorizationGrantFixture(now time.Time) *domain.AuthorizationGrant {
 		ID: uuid.New(), RunID: uuid.New(), State: domain.AuthorizationPending,
 		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"},
 		DurationSeconds: 57600, HarnessKind: "codex", HarnessSession: "fixture",
-		CreatedAt: now.UTC(), RequestExpiresAt: now.Add(24 * time.Hour).UTC(),
+		WebConsoleSessionID: "verified-web-console-session",
+		CreatedAt:           now.UTC(), RequestExpiresAt: now.Add(24 * time.Hour).UTC(),
 	}
 }
 
@@ -43,14 +44,14 @@ func TestAuthorizationRepositoryNotificationCodecIsDurableAndRedacted(t *testing
 		t.Fatal(err)
 	}
 	decoded, err := decodeAuthorization(string(encoded))
-	if err != nil || decoded.NotificationSnapshot == nil || decoded.NotificationSnapshot.EventID != g.NotificationSnapshot.EventID || decoded.NotificationPublishedAt == nil || !decoded.NotificationPublishedAt.Equal(published) {
+	if err != nil || decoded.NotificationSnapshot == nil || decoded.NotificationSnapshot.EventID != g.NotificationSnapshot.EventID || decoded.NotificationPublishedAt == nil || !decoded.NotificationPublishedAt.Equal(published) || decoded.WebConsoleSessionID != g.WebConsoleSessionID {
 		t.Fatalf("production wrapper codec lost notification metadata: %+v err=%v", decoded, err)
 	}
 	if err := repo.Create(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	stored, err := repo.Get(ctx, g.ID)
-	if err != nil || stored.NotificationSnapshot == nil || stored.NotificationPublishedAt == nil {
+	if err != nil || stored.NotificationSnapshot == nil || stored.NotificationPublishedAt == nil || stored.WebConsoleSessionID != g.WebConsoleSessionID {
 		t.Fatalf("repository round trip lost notification metadata: %+v err=%v", stored, err)
 	}
 	publicJSON, err := json.Marshal(stored)

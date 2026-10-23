@@ -349,7 +349,6 @@ func TestCommandsRejectMissingRequiredArguments(t *testing.T) {
 	tests := map[string]func([]string) error{
 		"profile get id": app.profileGet, "profile update id": app.profileUpdate,
 		"profile delete id": app.profileDelete, "profile create name": app.profileCreate,
-		"task get id": app.taskGet, "task create title": app.taskCreate,
 		"run get id": app.runGet, "run create task": app.runCreate,
 	}
 	for name, command := range tests {

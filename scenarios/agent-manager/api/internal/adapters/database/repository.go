@@ -27,7 +27,6 @@ type Repositories struct {
 	WorkflowExecutions    repository.WorkflowExecutionRepository
 	Tasks                 repository.TaskRepository
 	Runs                  repository.RunRepository
-	Events                repository.EventRepository
 	Checkpoints           repository.CheckpointRepository
 	Idempotency           repository.IdempotencyRepository
 	Policies              repository.PolicyRepository
@@ -49,7 +48,6 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		WorkflowExecutions:    &workflowExecutionRepository{db: db, log: log},
 		Tasks:                 &taskRepository{db: db, log: log},
 		Runs:                  &runRepository{db: db, log: log},
-		Events:                &eventRepository{db: db, log: log},
 		Checkpoints:           &checkpointRepository{db: db, log: log},
 		Idempotency:           &idempotencyRepository{db: db, log: log},
 		Policies:              &policyRepository{db: db, log: log},
@@ -485,6 +483,21 @@ func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
 	return nil
 }
 
+func (r *taskRepository) UpdateQueuedBrief(ctx context.Context, id uuid.UUID, createdBy, expectedTitle, expectedDescription, title, description string) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `UPDATE tasks
+		SET title = ?, description = ?, updated_at = ?
+		WHERE id = ? AND created_by = ? AND status = ? AND current_run_id IS NULL AND title = ? AND description = ?`,
+		title, description, SQLiteTime(time.Now().UTC()), id, createdBy, string(domain.TaskStatusQueued), expectedTitle, expectedDescription)
+	if err != nil {
+		return false, wrapDBError("update_queued_brief", "Task", id.String(), err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("update_queued_brief_rows", "Task", id.String(), err)
+	}
+	return rows == 1, nil
+}
+
 func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM tasks WHERE id = ? AND status = ? AND NOT EXISTS (
 		SELECT 1 FROM runs WHERE runs.task_id = tasks.id AND runs.status NOT IN (?, ?, ?))`
@@ -503,12 +516,14 @@ func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // CreateTaskAttempt atomically claims the Task projection and records the new
-// Run plus its idempotency receipt. expectedCurrentRunID is nil for an
-// unowned queued/legacy task with no live historical attempt, and otherwise
-// must name the exact terminal attempt being replaced.
-func (r *runRepository) CreateTaskAttempt(ctx context.Context, task *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID, expectedProjectRoot string) error {
+// Run plus its idempotency receipt only if the prompt-bearing fields still
+// match the exact persisted snapshot used to prepare that Run.
+func (r *runRepository) CreateTaskAttempt(ctx context.Context, task, expectedTaskSnapshot *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID) error {
 	if task == nil || run == nil || run.TaskID == uuid.Nil || run.TaskID != task.ID {
 		return fmt.Errorf("task attempt requires a matching task and run")
+	}
+	if expectedTaskSnapshot == nil || expectedTaskSnapshot.ID != task.ID {
+		return fmt.Errorf("task attempt requires a matching persisted task snapshot")
 	}
 	prepareRunForInsert(run)
 	now := SQLiteTime(run.CreatedAt)
@@ -517,8 +532,17 @@ func (r *runRepository) CreateTaskAttempt(ctx context.Context, task *domain.Task
 		return wrapDBError("claim_task_attempt", "Task", task.ID.String(), err)
 	}
 	defer tx.Rollback()
-	query := `UPDATE tasks SET status = ?, current_run_id = ?, project_root = ?, updated_at = ? WHERE id = ? AND project_root = ?`
-	args := []any{string(domain.TaskStatusRunning), run.ID.String(), task.ProjectRoot, now, task.ID, expectedProjectRoot}
+	effortIDs := activeEffortOrchestratorIDs(run)
+	guard, guardArgs, err := effortOrchestratorAdmissionGuard(run.ID.String(), effortIDs)
+	if err != nil {
+		return fmt.Errorf("prepare effort orchestrator admission: %w", err)
+	}
+	storedSnapshot := taskFromDomain(expectedTaskSnapshot)
+	query := `UPDATE tasks SET status = ?, current_run_id = ?, project_root = ?, updated_at = ?
+		WHERE id = ? AND project_root = ? AND title = ? AND description = ? AND scope_path = ?
+		AND json(context_attachments) = json(?)`
+	args := []any{string(domain.TaskStatusRunning), run.ID.String(), task.ProjectRoot, now, task.ID, storedSnapshot.ProjectRoot,
+		storedSnapshot.Title, storedSnapshot.Description, storedSnapshot.ScopePath, storedSnapshot.ContextAttachments}
 	if expectedCurrentRunID == nil {
 		query += ` AND current_run_id IS NULL AND status IN (?, ?, ?) AND NOT EXISTS (
 			SELECT 1 FROM runs WHERE runs.task_id = tasks.id AND runs.status IN (?, ?, ?, ?, ?))`
@@ -528,6 +552,8 @@ func (r *runRepository) CreateTaskAttempt(ctx context.Context, task *domain.Task
 			SELECT 1 FROM runs WHERE runs.id = ? AND runs.task_id = tasks.id AND runs.status IN (?, ?, ?))`
 		args = append(args, expectedCurrentRunID.String(), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed), expectedCurrentRunID.String(), string(domain.RunStatusComplete), string(domain.RunStatusFailed), string(domain.RunStatusCancelled))
 	}
+	query += guard
+	args = append(args, guardArgs...)
 	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return wrapDBError("claim_task_attempt", "Task", task.ID.String(), err)
@@ -537,6 +563,15 @@ func (r *runRepository) CreateTaskAttempt(ctx context.Context, task *domain.Task
 		return err
 	}
 	if claimed != 1 {
+		if len(effortIDs) > 0 {
+			conflict, err := activeEffortOrchestratorConflictForIDs(ctx, tx, run.ID.String(), effortIDs)
+			if err != nil {
+				return wrapDBError("check_effort_orchestrator_owner", "Run", run.ID.String(), err)
+			}
+			if conflict {
+				return domain.NewStateErrorWithID("Run", run.ID.String(), "active_effort_owner", "create", "another nonterminal orchestrator run already owns this effort")
+			}
+		}
 		return domain.NewStateErrorWithID("Task", task.ID.String(), string(task.Status), "start run", "task attempt changed or is not eligible; no run was admitted")
 	}
 	if err := r.insertRun(ctx, tx, run); err != nil {
@@ -668,15 +703,24 @@ func (r *runRepository) AdmitCurrentRun(ctx context.Context, run *domain.Run, ex
 		return false, wrapDBError("admit_current_run", "Run", run.ID.String(), err)
 	}
 	defer tx.Rollback()
+	effortIDs := activeEffortOrchestratorIDs(run)
+	guard, guardArgs, err := effortOrchestratorAdmissionGuard(run.ID.String(), effortIDs)
+	if err != nil {
+		return false, fmt.Errorf("prepare effort orchestrator admission: %w", err)
+	}
 	var lifecycleVersion int64
-	err = tx.QueryRowContext(ctx, `UPDATE runs SET status = ?, updated_at = ?,
+	query := `UPDATE runs SET status = ?, updated_at = ?,
 		lifecycle_version = lifecycle_version + CASE WHEN status <> ? THEN 1 ELSE 0 END
 		WHERE id = ? AND task_id = ? AND status = ? AND lifecycle_version = ? AND cancel_requested_at IS NULL
 		AND EXISTS (SELECT 1 FROM tasks WHERE tasks.id = runs.task_id
-			AND tasks.current_run_id = runs.id AND tasks.status NOT IN (?, ?, ?))
-		RETURNING lifecycle_version`,
+			AND tasks.current_run_id = runs.id AND tasks.status NOT IN (?, ?, ?))`
+	query += guard + ` RETURNING lifecycle_version`
+	args := []any{
 		string(domain.RunStatusRunning), SQLiteTime(at), string(domain.RunStatusRunning), run.ID, run.TaskID, string(expectedStatus), run.LifecycleVersion,
-		string(domain.TaskStatusCancelled), string(domain.TaskStatusApproved), string(domain.TaskStatusRejected)).Scan(&lifecycleVersion)
+		string(domain.TaskStatusCancelled), string(domain.TaskStatusApproved), string(domain.TaskStatusRejected),
+	}
+	args = append(args, guardArgs...)
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&lifecycleVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

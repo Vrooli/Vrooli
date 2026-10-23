@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/adapters/database"
 	capabilities "agent-manager/internal/capabilities"
 	agentconfig "agent-manager/internal/config"
+	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
@@ -80,45 +81,46 @@ func (h *searchControlTokens) get(providerID string) string {
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
-	recovery               *maintenance.Recovery
-	maintenance            *maintenance.Handler
-	lifecycleService       *maintenance.LifecycleService
-	capabilityRegistry     *capabilities.Registry
-	db                     *database.DB
-	fileRoots              *filerouting.RoutedRoots
-	router                 *mux.Router
-	orchestrator           *orchestration.Orchestrator
-	statsService           orchestration.StatsService
-	statsRepo              repository.StatsRepository
-	pricingService         pricing.Service
-	pricingRepository      pricing.Repository
-	wsHub                  *handlers.WebSocketHub
-	reconciler             *orchestration.Reconciler
-	awaitRegistry          *orchestration.AwaitRegistry
-	workflowNudger         *orchestration.WorkflowNudger
-	transcriptImporter     *orchestration.TranscriptImportScheduler
-	frictionPublisher      *orchestration.FrictionPublishScheduler
-	modelHealthProbe       *healthstore.Probe
-	modelPolicyDrift       *modelpolicydrift.Scheduler
-	rolePolicyState        *rolepolicy.State
-	permissionPolicyState  *permissionpolicy.State
-	permissionPolicy       *permissionpolicy.Service
-	storage                storage.Service
-	statsEngine            *stats.Engine
-	healthStore            *healthstore.Store
-	eventRepo              eventlog.Repository
-	supervisionService     *supervision.Service
-	supervisionScheduler   *supervision.Scheduler
-	watchActionAuthorizer  handlers.WatchActionAuthorizer
-	invocationReadModel    invocationreadmodel.Store
-	conversationSearch     *conversationsearch.Service
-	conversationSemantic   *conversationsearch.SemanticRuntime
-	conversationIndexer    *conversationsearch.Indexer
-	conversationSearchFile string
-	conversationTokens     *searchControlTokens
-	searchRegistrationStop context.CancelFunc
-	storageHealth          *storageHealthRuntime
-	workspaceSandbox       interface {
+	recovery                 *maintenance.Recovery
+	maintenance              *maintenance.Handler
+	lifecycleService         *maintenance.LifecycleService
+	capabilityRegistry       *capabilities.Registry
+	db                       *database.DB
+	fileRoots                *filerouting.RoutedRoots
+	router                   *mux.Router
+	orchestrator             *orchestration.Orchestrator
+	statsService             orchestration.StatsService
+	statsRepo                repository.StatsRepository
+	pricingService           pricing.Service
+	pricingRepository        pricing.Repository
+	wsHub                    *handlers.WebSocketHub
+	reconciler               *orchestration.Reconciler
+	awaitRegistry            *orchestration.AwaitRegistry
+	workflowNudger           *orchestration.WorkflowNudger
+	transcriptImporter       *orchestration.TranscriptImportScheduler
+	frictionPublisher        *orchestration.FrictionPublishScheduler
+	modelHealthProbe         *healthstore.Probe
+	modelPolicyDrift         *modelpolicydrift.Scheduler
+	rolePolicyState          *rolepolicy.State
+	permissionPolicyState    *permissionpolicy.State
+	permissionPolicy         *permissionpolicy.Service
+	storage                  storage.Service
+	statsEngine              *stats.Engine
+	healthStore              *healthstore.Store
+	eventRepo                eventlog.Repository
+	supervisionService       *supervision.Service
+	supervisionScheduler     *supervision.Scheduler
+	watchActionAuthorizer    handlers.WatchActionAuthorizer
+	invocationReadModel      invocationreadmodel.Store
+	conversationSearch       *conversationsearch.Service
+	conversationSemantic     *conversationsearch.SemanticRuntime
+	conversationIndexer      *conversationsearch.Indexer
+	conversationSearchFile   string
+	conversationSearchPolicy *conversationpolicy.Policy
+	conversationTokens       *searchControlTokens
+	searchRegistrationStop   context.CancelFunc
+	storageHealth            *storageHealthRuntime
+	workspaceSandbox         interface {
 		IsAvailable(context.Context) (bool, string)
 	}
 }
@@ -196,7 +198,12 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("initialize conversation search cursor signer: %w", err)
 	}
 	conversationRepository := conversationsearch.NewSQLiteRepository(db)
-	conversationSource, err := conversationsearch.NewSQLiteSource(db, conversationsearch.MustNormalizer(conversationsearch.NormalizerConfig{}))
+	searchVisibilityPolicy, err := levers.ConversationPolicy.Policy()
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("compile conversation visibility policy: %w", err)
+	}
+	conversationSource, err := conversationsearch.NewSQLiteSource(db, conversationsearch.MustNormalizer(conversationsearch.NormalizerConfig{}), conversationsearch.WithVisibilityPolicy(searchVisibilityPolicy))
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("initialize conversation search source: %w", err)
@@ -254,6 +261,10 @@ func NewServer() (*Server, error) {
 		_, err := db.ExecContext(ctx, `DELETE FROM conversation_search_external_tombstones WHERE source_harness = ? AND source_session_id = ?`, harness, sessionID)
 		return err
 	})
+	// Storage maintenance reclaims dead FTS index space under pressure through
+	// the search domain's own optimize, so the eviction budget is spent on live
+	// recall rather than FTS5 tombstones left by deleted documents.
+	deps.Reconciler.SetSearchOptimize(conversationRepository.OptimizeIndex)
 	srv := &Server{
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
@@ -262,12 +273,13 @@ func NewServer() (*Server, error) {
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
-		conversationSearch:     conversationSearch,
-		conversationSemantic:   &semanticRuntime,
-		conversationIndexer:    conversationIndexer,
-		conversationSearchFile: conversationSearchFile,
-		conversationTokens:     conversationTokens,
-		workspaceSandbox:       deps.WorkspaceSandbox,
+		conversationSearch:       conversationSearch,
+		conversationSemantic:     &semanticRuntime,
+		conversationIndexer:      conversationIndexer,
+		conversationSearchFile:   conversationSearchFile,
+		conversationSearchPolicy: searchVisibilityPolicy,
+		conversationTokens:       conversationTokens,
+		workspaceSandbox:         deps.WorkspaceSandbox,
 	}
 	// One gate and routed store serve every admission path and the owner endpoint.
 	// Install before recovery workers or HTTP can admit work.
@@ -466,6 +478,7 @@ func (s *Server) setupRoutes() {
 		WorkspaceSandbox:         s.workspaceSandbox,
 		ConversationSearch:       s.conversationSearch,
 		ConversationIndexer:      s.conversationIndexer,
+		ConversationSearchPolicy: s.conversationSearchPolicy,
 		ConversationSemantic:     s.conversationSemantic,
 		ConversationSearchFile:   s.conversationSearchFile,
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },

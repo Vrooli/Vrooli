@@ -41,9 +41,7 @@ func antigravityBase() baseCodec {
 		continuePrefix: "antigravity",
 		labels: Labels{
 			StartMessage:         "Antigravity execution started",
-			EndMessage:           "Antigravity execution completed",
 			ContinueStartMessage: "Antigravity continuation started",
-			ContinueEndMessage:   "Antigravity continuation completed",
 		},
 	}
 }

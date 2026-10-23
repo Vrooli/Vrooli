@@ -48,7 +48,7 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 	out := &apipb.RunReport{
 		RunId: report.RunID.String(), Status: string(report.Status), Error: report.Error,
 		DurationMs: report.Duration.Milliseconds(), HeartbeatGapMs: report.HeartbeatGap.Milliseconds(),
-		Turns: int32(report.Turns), Tokens: int32(report.Tokens), CostUsd: report.CostUSD,
+		Turns: int32(report.Turns), Tokens: report.Tokens, CostUsd: report.CostUSD,
 		Result:      &apipb.RunReportResult{SelectionStatus: string(report.Result.SelectionStatus), SelectionRule: report.Result.SelectionRule, CandidateCount: int32(report.Result.CandidateCount), StructuredStatus: string(report.Result.StructuredStatus), StructuredMethod: report.Result.StructuredMethod, DiagnosticCodes: report.Result.DiagnosticCodes},
 		EventCounts: map[string]int32{}, ProjectOwnedToolCalls: int32(report.ProjectOwnedToolCalls), ExternalToolCalls: int32(report.ExternalToolCalls),
 		RequestedModel: report.RequestedModel, ActualModel: report.ActualModel, FallbackCount: int32(report.FallbackCount),
@@ -62,6 +62,11 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 	if report.ExitCode != nil {
 		code := int32(*report.ExitCode)
 		out.ExitCode = &code
+	}
+	if report.EventsAvailability.State == runreport.AvailabilityAvailable || report.EventsAvailability.State == runreport.AvailabilityEmpty {
+		out.ErrorBreakdown = &apipb.RunReportErrorBreakdown{
+			ExecutionErrors: int32(report.ExecutionErrorEvents), RateLimitObservations: int32(report.RateLimitObservations), Unclassified: int32(report.UnclassifiedErrorEvents),
+		}
 	}
 	for eventType, count := range report.Events {
 		out.EventCounts[eventType] = int32(count)

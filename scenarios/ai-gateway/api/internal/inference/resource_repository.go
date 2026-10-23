@@ -2,6 +2,8 @@ package inference
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 
 	"ai-gateway/internal/providers"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -112,7 +115,12 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	if !ok {
 		return ProviderResult{}, fmt.Errorf("%w: inference role %q is not declared", ErrUnavailable, request.Role)
 	}
+	if err := validateGeometrySpendLimit(request); err != nil {
+		return ProviderResult{}, err
+	}
 	var failures []string
+	var providerCallsMade int32
+	var usageIncomplete bool
 	// samplingRefused records that at least one candidate was skipped purely
 	// because it could not honour a caller-supplied control. It changes the
 	// terminal error from "nothing worked" to the specific, actionable
@@ -142,7 +150,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			if errors.Is(err, ErrRoleForbidsSampling) {
 				// A role that forbids overrides forbids them everywhere, so
 				// walking further candidates could only produce the same answer.
-				return ProviderResult{}, fmt.Errorf("%w: inference role %q declares no overridable sampling", ErrRoleForbidsSampling, request.Role)
+				return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: inference role %q declares no overridable sampling", ErrRoleForbidsSampling, request.Role)
 			}
 			samplingRefused = true
 			failures = append(failures, fmt.Sprintf("%s: temperature not honored by resolved role %s (%s)", candidate.Provider, candidate.ResourceRole, support))
@@ -151,7 +159,10 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		maxOutputTokens, capSource := resolveOutputCap(request, resolved)
 		prompt := providerPrompt(request, resolved.CoordinateConvention)
 		if resolved.ContextWindow > 0 && estimateTokens(prompt)+int64(maxOutputTokens) > int64(resolved.ContextWindow) {
-			return ProviderResult{}, fmt.Errorf("%w: assembled input and requested output cap do not fit the resolved model policy", ErrContextOverflow)
+			return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: assembled input and requested output cap do not fit the resolved model policy", ErrContextOverflow)
+		}
+		if request.MaxProviderCalls > 0 && providerCallsMade >= request.MaxProviderCalls {
+			return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: request limit of %d provider calls exhausted", ErrUnavailable, request.MaxProviderCalls)
 		}
 		applied := AppliedSettings{
 			TemperatureSent:       temperature,
@@ -159,6 +170,9 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			MaxOutputTokens:       maxOutputTokens,
 			MaxOutputTokensSource: capSource,
 		}
+		// Count immediately before the actual adapter dispatch, so errors are
+		// included and candidate fallback can never cross the caller's ceiling.
+		providerCallsMade++
 		execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
 			Kind:      sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
 			Role:      candidate.ResourceRole,
@@ -172,28 +186,135 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			Temperature:     temperature,
 			SchemaJSON:      providerSchema(request),
 			Attachments:     requestAttachments(request),
+			SpendLimit:      request.SpendLimit,
 		})
 		if err != nil {
+			usageIncomplete = true
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
-		value, inputTokens, outputTokens, costMicros, err := decodeProviderResponse(candidate.Provider, execution.OutputText, prompt)
+		if request.SpendLimit != nil && !spendAuthorizationMatches(request, execution.SpendAuthorization) {
+			usageIncomplete = true
+			failures = append(failures, candidate.Provider+": provider owner did not return matching spend-cap authorization")
+			continue
+		}
+		value, usage, err := decodeProviderResponse(candidate.Provider, execution.OutputText, prompt)
 		if err != nil {
+			usageIncomplete = true
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
+		}
+		if usageIncomplete {
+			usage.inputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+			usage.costProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
 		}
 		return ProviderResult{
 			ValueJSON: value, Provider: resolved.Provider, Model: resolved.Model,
 			CoordinateConvention: resolved.CoordinateConvention,
-			InputTokens:          inputTokens, OutputTokens: outputTokens, CostMicros: costMicros,
-			Applied:       applied,
-			ContextWindow: resolved.ContextWindow,
+			InputTokens:          usage.input, OutputTokens: usage.output, CostMicros: usage.cost,
+			CreditsCharged:        usage.creditsCharged,
+			AccountingStatus:      usage.accountingStatus,
+			InputTokensProvenance: usage.inputProvenance, OutputTokensProvenance: usage.outputProvenance, CostProvenance: usage.costProvenance,
+			Applied:            applied,
+			SpendAuthorization: execution.SpendAuthorization,
+			ContextWindow:      resolved.ContextWindow, ProviderCallsMade: providerCallsMade,
 		}, nil
 	}
 	if samplingRefused {
-		return ProviderResult{}, fmt.Errorf("%w: no candidate for inference role %q honors an explicit temperature (%s)", ErrUnsupportedSampling, request.Role, strings.Join(failures, "; "))
+		return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: no candidate for inference role %q honors an explicit temperature (%s)", ErrUnsupportedSampling, request.Role, strings.Join(failures, "; "))
 	}
-	return ProviderResult{}, fmt.Errorf("%w: no inference candidate completed for role %q (%s)", ErrUnavailable, request.Role, strings.Join(failures, "; "))
+	return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: no inference candidate completed for role %q (%s)", ErrUnavailable, request.Role, strings.Join(failures, "; "))
+}
+
+func spendAuthorizationMatches(request ProviderRequest, authorization *inferencev1.SpendAuthorization) bool {
+	limit := request.SpendLimit
+	if limit == nil || authorization == nil || authorization.GetStatus() != "authorized" || authorization.GetAuthorizationId() == "" ||
+		authorization.GetMaxCostMicros() != limit.GetMaxCostMicros() || authorization.GetOperationId() != limit.GetOperationId() ||
+		authorization.GetInputFingerprint() != limit.GetInputFingerprint() || authorization.GetFundingRoute() != limit.GetFundingRoute() ||
+		authorization.GetImageCount() != limit.GetImageCount() || authorization.GetOutputTokensBound() != request.MaxOutputTokens ||
+		authorization.GetInputTokensBound() <= 0 || authorization.GetContextWindowTokens() < authorization.GetInputTokensBound()+authorization.GetOutputTokensBound() ||
+		authorization.GetModel() == "" || authorization.GetProviderControlsSha256() == "" || authorization.GetContextSource() != "openrouter-current-endpoint-metadata" && authorization.GetContextSource() != "lpbs-current-endpoint-metadata" {
+		return false
+	}
+	if len(authorization.GetReferenceSha256()) != len(limit.GetReferenceSha256()) {
+		return false
+	}
+	for i, digest := range limit.GetReferenceSha256() {
+		if authorization.GetReferenceSha256()[i] != digest {
+			return false
+		}
+	}
+	return true
+}
+
+func validateGeometrySpendLimit(request ProviderRequest) error {
+	geometryRole := strings.HasPrefix(strings.TrimSpace(request.Role), "device.geometry.")
+	remote := request.Profile == sharedv1.Profile_PROFILE_REMOTE_ONLY
+	if !geometryRole {
+		if request.SpendLimit != nil {
+			return fmt.Errorf("%w: spend limits are supported only for device geometry roles", ErrUnavailable)
+		}
+		return nil
+	}
+	if !remote {
+		if request.SpendLimit != nil {
+			return fmt.Errorf("%w: local geometry requests must not carry a remote spend limit", ErrUnavailable)
+		}
+		return nil
+	}
+	limit := request.SpendLimit
+	if limit == nil || limit.GetMaxCostMicros() <= 0 || limit.GetOperationId() == "" || !validHexDigest(limit.GetInputFingerprint()) || limit.GetImageCount() < 1 || limit.GetImageCount() > 4 || int(limit.GetImageCount()) != len(request.Attachments) || len(limit.GetReferenceSha256()) != len(request.Attachments) {
+		return fmt.Errorf("%w: remote geometry requires a positive spend ceiling bound to operation, fingerprint, and all reference images", ErrUnavailable)
+	}
+	if request.MaxProviderCalls != 1 {
+		return fmt.Errorf("%w: spend-limited geometry allows one provider execution", ErrUnavailable)
+	}
+	expectedRoute := "byok"
+	if strings.TrimSpace(request.Role) == "device.geometry.vrooli_credits" {
+		expectedRoute = "vrooli_credits"
+	} else if strings.TrimSpace(request.Role) != "device.geometry.byok" {
+		return fmt.Errorf("%w: unsupported remote geometry role", ErrUnavailable)
+	}
+	if limit.GetFundingRoute() != expectedRoute || !validOperationID(limit.GetOperationId()) {
+		return fmt.Errorf("%w: spend authorization route or operation identity does not match the request", ErrUnavailable)
+	}
+	for index, attachment := range request.Attachments {
+		if attachment == nil || len(attachment.GetInlineBytes()) == 0 || attachment.GetModality() != sharedv1.Modality_MODALITY_IMAGE {
+			return fmt.Errorf("%w: spend-limited geometry requires pinned inline image attachments", ErrUnavailable)
+		}
+		digest := sha256.Sum256(attachment.GetInlineBytes())
+		if hex.EncodeToString(digest[:]) != strings.ToLower(strings.TrimSpace(limit.GetReferenceSha256()[index])) {
+			return fmt.Errorf("%w: reference image digest does not match the spend limit", ErrUnavailable)
+		}
+	}
+	return nil
+}
+
+func validHexDigest(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
+func validOperationID(value string) bool {
+	if len(value) != 36 {
+		return false
+	}
+	for index, char := range value {
+		if index == 8 || index == 13 || index == 18 || index == 23 {
+			if char != '-' {
+				return false
+			}
+			continue
+		}
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *ResourceRepository) Embed(ctx context.Context, role string, texts []string) (EmbeddingResult, error) {
@@ -246,6 +367,8 @@ func (r *ResourceRepository) Embed(ctx context.Context, role string, texts []str
 		result.Provider, result.Model = providerName, model
 		result.InputTokens += inputTokens
 		result.CostMicros += costMicros
+		result.InputTokensProvenance = combineProvenance(result.InputTokensProvenance, inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE)
+		result.CostProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
 	}
 	return result, nil
 }
@@ -315,20 +438,38 @@ func providerSchema(request ProviderRequest) string {
 	return `{"type":"object","required":["found","bounds","confidence"],"properties":{"found":{"type":"boolean"},"bounds":{"type":"array","items":{"type":"number"}},"confidence":{"type":"number","minimum":0,"maximum":1}}}`
 }
 
-func decodeProviderResponse(provider, raw, prompt string) (string, int64, int64, int64, error) {
+type providerUsage struct {
+	input, output, cost                               int64
+	creditsCharged                                    *int64
+	accountingStatus                                  string
+	inputProvenance, outputProvenance, costProvenance inferencev1.UsageProvenance
+}
+
+func decodeProviderResponse(provider, raw, prompt string) (string, providerUsage, error) {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
 	case providers.ProviderOllama:
 		var response struct {
-			Response  string `json:"response"`
-			EvalCount int64  `json:"eval_count"`
+			Response        string `json:"response"`
+			PromptEvalCount *int64 `json:"prompt_eval_count"`
+			EvalCount       *int64 `json:"eval_count"`
 		}
 		if err := json.Unmarshal([]byte(raw), &response); err != nil {
-			return "", 0, 0, 0, fmt.Errorf("decode Ollama response: %w", err)
+			return "", providerUsage{}, fmt.Errorf("decode Ollama response: %w", err)
 		}
 		if strings.TrimSpace(response.Response) == "" {
-			return "", 0, 0, 0, errors.New("Ollama returned an empty response")
+			return "", providerUsage{}, errors.New("Ollama returned an empty response")
 		}
-		return ExtractJSONValue(response.Response), estimateTokens(prompt), response.EvalCount, 0, nil
+		usage := providerUsage{input: estimateTokens(prompt), inputProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE, costProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}
+		if response.PromptEvalCount != nil && *response.PromptEvalCount >= 0 {
+			usage.input, usage.inputProvenance = *response.PromptEvalCount, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		}
+		if response.EvalCount != nil && *response.EvalCount >= 0 {
+			usage.output = *response.EvalCount
+			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		} else {
+			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+		}
+		return ExtractJSONValue(response.Response), usage, nil
 	case providers.ProviderOpenRouter:
 		var response struct {
 			Choices []struct {
@@ -336,43 +477,76 @@ func decodeProviderResponse(provider, raw, prompt string) (string, int64, int64,
 					Content string `json:"content"`
 				} `json:"message"`
 			} `json:"choices"`
-			Usage struct {
-				PromptTokens     int64   `json:"prompt_tokens"`
-				CompletionTokens int64   `json:"completion_tokens"`
-				Cost             float64 `json:"cost"`
+			Usage *struct {
+				PromptTokens     *int64   `json:"prompt_tokens"`
+				CompletionTokens *int64   `json:"completion_tokens"`
+				Cost             *float64 `json:"cost"`
 			} `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(raw), &response); err != nil {
-			return "", 0, 0, 0, fmt.Errorf("decode OpenRouter response: %w", err)
+			return "", providerUsage{}, fmt.Errorf("decode OpenRouter response: %w", err)
 		}
 		if len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" {
-			return "", 0, 0, 0, errors.New("OpenRouter returned no completion")
+			return "", providerUsage{}, errors.New("OpenRouter returned no completion")
 		}
-		inputTokens := response.Usage.PromptTokens
-		if inputTokens == 0 {
-			inputTokens = estimateTokens(prompt)
+		usage := providerUsage{}
+		if response.Usage != nil && response.Usage.PromptTokens != nil && *response.Usage.PromptTokens >= 0 {
+			usage.input, usage.inputProvenance = *response.Usage.PromptTokens, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		} else {
+			usage.input, usage.inputProvenance = estimateTokens(prompt), inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE
 		}
-		return ExtractJSONValue(response.Choices[0].Message.Content), inputTokens, response.Usage.CompletionTokens, int64(math.Round(response.Usage.Cost * 1_000_000)), nil
+		if response.Usage != nil && response.Usage.CompletionTokens != nil && *response.Usage.CompletionTokens >= 0 {
+			usage.output, usage.outputProvenance = *response.Usage.CompletionTokens, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		} else {
+			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+		}
+		if response.Usage != nil && response.Usage.Cost != nil && !math.IsNaN(*response.Usage.Cost) && !math.IsInf(*response.Usage.Cost, 0) && *response.Usage.Cost >= 0 {
+			usage.cost, usage.costProvenance = int64(math.Round(*response.Usage.Cost*1_000_000)), inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		} else {
+			usage.costProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+		}
+		return ExtractJSONValue(response.Choices[0].Message.Content), usage, nil
 	case providers.ProviderMetered:
 		var response struct {
 			Content          string `json:"content"`
-			PromptTokens     int64  `json:"prompt_tokens"`
-			CompletionTokens int64  `json:"completion_tokens"`
-			CreditsCharged   int64  `json:"credits_charged"`
+			PromptTokens     *int64 `json:"prompt_tokens"`
+			CompletionTokens *int64 `json:"completion_tokens"`
+			CreditsCharged   *int64 `json:"credits_charged"`
+			AccountingStatus string `json:"accounting_status"`
+			ActualCostMicros *int64 `json:"actual_cost_micros"`
 		}
 		if err := json.Unmarshal([]byte(raw), &response); err != nil {
-			return "", 0, 0, 0, fmt.Errorf("decode metered inference response: %w", err)
+			return "", providerUsage{}, fmt.Errorf("decode metered inference response: %w", err)
 		}
 		if strings.TrimSpace(response.Content) == "" {
-			return "", 0, 0, 0, errors.New("metered inference returned an empty response")
+			return "", providerUsage{}, errors.New("metered inference returned an empty response")
 		}
-		inputTokens := response.PromptTokens
-		if inputTokens == 0 {
-			inputTokens = estimateTokens(prompt)
+		usage := providerUsage{costProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}
+		if response.PromptTokens != nil && *response.PromptTokens >= 0 {
+			usage.input, usage.inputProvenance = *response.PromptTokens, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		} else {
+			usage.input, usage.inputProvenance = estimateTokens(prompt), inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE
 		}
-		return ExtractJSONValue(response.Content), inputTokens, response.CompletionTokens, 0, nil
+		if response.CompletionTokens != nil && *response.CompletionTokens >= 0 {
+			usage.output, usage.outputProvenance = *response.CompletionTokens, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		} else {
+			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
+		}
+		// CreditsCharged is deliberately not converted to USD cost. A present
+		// zero is retained as an observed value; absence stays unknown.
+		if (response.AccountingStatus == "" || response.AccountingStatus == "settled") && response.CreditsCharged != nil && *response.CreditsCharged >= 0 {
+			value := *response.CreditsCharged
+			usage.creditsCharged = &value
+		}
+		if response.AccountingStatus == "settled" || response.AccountingStatus == "pending_reconciliation" {
+			usage.accountingStatus = response.AccountingStatus
+		}
+		if response.ActualCostMicros != nil && *response.ActualCostMicros >= 0 {
+			usage.cost, usage.costProvenance = *response.ActualCostMicros, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
+		}
+		return ExtractJSONValue(response.Content), usage, nil
 	default:
-		return "", 0, 0, 0, fmt.Errorf("unsupported provider %q", provider)
+		return "", providerUsage{}, fmt.Errorf("unsupported provider %q", provider)
 	}
 }
 

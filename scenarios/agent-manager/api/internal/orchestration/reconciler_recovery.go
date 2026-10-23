@@ -596,86 +596,27 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 		run = full
 	}
 
-	// Use the hydrated heartbeat. A list snapshot can be stale even though
-	// the active executor renewed its lease before this check.
-	if run.LastHeartbeat != nil {
-		heartbeatAge = r.now().Sub(*run.LastHeartbeat)
-	}
 	result, recoveryErr := r.recoverRun(ctx, run, true)
-	if recoveryErr != nil && r.isProcessAlive(ctx, run) {
-		// Artifact failure is not executor death. In particular, neither an
-		// old heartbeat nor an old attempt deadline authorizes terminating a
-		// positively identified process when recovery evidence is unavailable.
+	if recoveryErr != nil {
+		// Failed, missing, or unpersistable recovery evidence is not a terminal
+		// runner verdict. Keep the durable run state available for a later retry
+		// or owner diagnosis. Do not project Failed from process absence; a
+		// positively identified live process remains under the existing recovery
+		// owner and a failed recovery write remains visible as an error.
 		stats.Errors = append(stats.Errors, recoveryErr.Error())
-		r.log().Warn("live executor retained for agent-manager owner diagnosis", obs.KeyRunID, run.ID.String(), obs.KeyError, recoveryErr.Error())
+		r.log().Warn("stale run recovery remains unresolved", obs.KeyRunID, run.ID.String(), obs.KeyError, recoveryErr.Error())
 		return
 	}
-	if recoveryErr == nil && result != nil {
+	if result != nil {
 		if result.Recovered {
 			stats.RunsRecovered++
 		}
-		if run.Status == domain.RunStatusComplete || run.Status == domain.RunStatusFailed || run.Status == domain.RunStatusCancelled {
-			return
-		}
-		if result.Recovered {
-			// Recovery attached an owner to the surviving executor. The old
-			// process heartbeat is not a timeout for that new owner. In
-			// particular a long tool call survives an AM restart unchanged.
-			return
-		}
-	}
-
-	// Interactive runs live in a web-console tmux pane, not a local tagged child.
-	// recoverRun already verified the session (GetSession) and reattached the
-	// tailer or finalized the run, so the pgid scan / MaxRecoveryAge kill below
-	// must not run — it would falsely fail a healthy interactive run.
-	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		// Recovery owns terminal, review, and reattachment outcomes. Do not
+		// reinterpret a second process scan as a different terminal verdict.
 		return
 	}
-
-	// First, check if the process is actually still running
-	processAlive := r.isProcessAlive(ctx, run)
-
-	if !processAlive {
-		// Process died but DB wasn't updated - mark as failed
-		r.log().Warn("run process not found, marking failed",
-			obs.KeyRunID, run.ID.String(),
-			"tag", tag,
-			"heartbeatAge", heartbeatAge.Round(time.Second).String(),
-		)
-		r.markRunFailed(ctx, run, fmt.Sprintf("process terminated unexpectedly (detected by reconciler after %v without heartbeat, tag=%s)",
-			heartbeatAge.Round(time.Second), tag))
-		return
-	}
-
-	// Process is alive but heartbeat is stale - could be legitimate slow work,
-	// or the executor is gone (e.g., agent-manager restarted) and nobody is
-	// managing this process anymore.
-	r.log().Info("run stale but process alive",
-		obs.KeyRunID, run.ID.String(),
-		"lastHeartbeat", formatTimePtr(run.LastHeartbeat),
-	)
-
-	// MaxRecoveryAge is an observation threshold, not permission to terminate
-	// a positively identified detached runner. A control-plane restart can
-	// leave a healthy executor quiet while it is in a long provider call;
-	// killing it here would turn temporary ownership loss into data loss.
-	if r.config.MaxRecoveryAge > 0 && heartbeatAge > r.config.MaxRecoveryAge {
-		r.log().Warn("run exceeded recovery observation age; retaining live process for owner diagnosis",
-			obs.KeyRunID, run.ID.String(),
-			"tag", tag,
-			"heartbeatAge", heartbeatAge.Round(time.Second).String(),
-			"maxRecoveryAge", r.config.MaxRecoveryAge.String(),
-		)
-		return
-	}
-
-	if r.config.AutoRecover {
-		// The process is alive but the executor heartbeat loop isn't updating.
-		// Don't reset LastHeartbeat here: it remains useful evidence for the
-		// current owner diagnosis. Count the retained executor as recovered.
-		stats.RunsRecovered++
-	}
+	stats.Errors = append(stats.Errors, "stale run recovery returned no owner outcome for run "+run.ID.String())
+	r.log().Warn("stale run recovery returned no owner outcome", obs.KeyRunID, run.ID.String())
 }
 
 // markRunFailed marks a run as failed due to unexpected termination.

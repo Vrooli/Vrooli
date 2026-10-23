@@ -17,6 +17,7 @@ type TaskService interface {
 	GetTask(context.Context, uuid.UUID) (*domain.Task, error)
 	ListTasks(context.Context, ListOptions) ([]*domain.Task, error)
 	UpdateTask(context.Context, *domain.Task) (*domain.Task, error)
+	UpdateQueuedTaskBrief(context.Context, uuid.UUID, string, string, string, string, string) (*domain.Task, error)
 	CancelTask(context.Context, uuid.UUID) error
 	DeleteTask(context.Context, uuid.UUID) error
 }

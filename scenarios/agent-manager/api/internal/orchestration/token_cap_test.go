@@ -140,6 +140,38 @@ func TestTokenCapReportOnlyWeighsSolAndNeverStops(t *testing.T) {
 	}
 }
 
+func TestRunAccountingAndTokenCapPreserveIdenticalReceiptsAcrossContinuations(t *testing.T) {
+	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
+	o := tokenCapOrchestrator(repos, events, TokenCapReport)
+	ctx := context.Background()
+	usage := func() *domain.RunEvent {
+		return &domain.RunEvent{RunID: run.ID, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{
+			PayloadKind: domain.PayloadKindUsage, InputTokens: 100, CacheReadTokens: 5000,
+			TurnIndex: 1, Model: "gpt-6-luna", RunnerType: string(domain.RunnerTypeCodex), ReconciliationAuthority: true,
+		}}
+	}
+	if err := events.Append(ctx, run.ID,
+		domain.NewStatusEvent(run.ID, "starting", "running", "first invocation"),
+		usage(),
+		domain.NewStatusEvent(run.ID, "complete", "running", "continuation"),
+		usage(),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	accounting, err := o.RunAccounting(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if accounting.Tokens != 10200 || accounting.CacheReadTokens != 10000 || accounting.NonCacheTokens != 200 {
+		t.Errorf("full-stream accounting lost a continuation: %+v", accounting)
+	}
+	weighted, err := o.weightedRunTokens(ctx, run, o.capPolicy())
+	if err != nil || weighted == nil || *weighted != 200 {
+		t.Errorf("token-cap weight disagreed with full run accounting: got %v, err=%v", weighted, err)
+	}
+}
+
 func TestTokenCapSeedsFromPersistedUsageAfterRestart(t *testing.T) {
 	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
 	// Usage persisted before this owner instance existed.
@@ -154,6 +186,25 @@ func TestTokenCapSeedsFromPersistedUsageAfterRestart(t *testing.T) {
 		current, err := repos.Runs.Get(context.Background(), run.ID)
 		return err == nil && current.StopReason == domain.RunStopReasonTokenCap
 	})
+}
+
+func TestTokenCapUsageDistinguishesMissingAndZeroReceipts(t *testing.T) {
+	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
+	o := tokenCapOrchestrator(repos, events, TokenCapReport)
+	ctx := context.Background()
+	weighted, limit, mode := o.TokenCapUsage(ctx, run.ID)
+	if weighted != nil || limit != 1000 || mode != string(TokenCapReport) {
+		t.Fatalf("missing usage = %v, %d, %q; want unknown with configured cap", weighted, limit, mode)
+	}
+	for _, tokens := range []int{0, 25} {
+		if err := events.Append(ctx, run.ID, usageEvent(run.ID, "gpt-6-luna", tokens, tokens+1)); err != nil {
+			t.Fatal(err)
+		}
+		weighted, _, _ = o.TokenCapUsage(ctx, run.ID)
+		if weighted == nil || *weighted != float64(tokens) {
+			t.Fatalf("after %d-token receipt, usage = %v", tokens, weighted)
+		}
+	}
 }
 
 func TestTokenCapPolicyFromEnvDefaultsOff(t *testing.T) {

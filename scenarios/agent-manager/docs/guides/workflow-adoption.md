@@ -67,6 +67,15 @@ containment remain launch-time checks owned by Workspace Sandbox.
 This pins run authority; it does not by itself authorize who may register a
 workflow, prove all transports isolated, or qualify a candidate for publication.
 
+For consumers that operate several registered checkouts, a Run node may declare
+`projectRootTemplate` in addition to `scopePathTemplate`. Root placeholders must
+bind only to immutable `workflow_input`, never worker output. The consumer must
+resolve the selected repository through its trusted registry rather than accept
+an arbitrary UI path. Agent Manager requires an absolute, clean, existing
+directory and resolves symlinks before persisting the task root. Workspace
+Sandbox still confines scope and writes to that root; this does not grant new
+write authority. Omitted `projectRootTemplate` retains the configured default.
+
 ## Typed results
 
 Typed nodes require a present, valid result before successful routing. A success

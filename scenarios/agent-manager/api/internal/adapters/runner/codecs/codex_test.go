@@ -277,13 +277,7 @@ func TestCodex_DecodeStreamLine_FileChange(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	if events[0].EventType != domain.EventTypeToolCall {
-		t.Errorf("type=%s want tool_call", events[0].EventType)
-	}
-	tool := events[0].Data.(*domain.ToolCallEventData)
-	if tool.ToolName != "file_change" {
-		t.Errorf("name=%s", tool.ToolName)
-	}
+	tool := requireToolCall(t, events, 0, "file_change")
 	files, ok := tool.Input["files"].([]map[string]string)
 	if !ok || len(files) != 1 {
 		t.Fatalf("files=%v", tool.Input["files"])
@@ -314,16 +308,7 @@ func TestCodex_DecodeStreamLine_FileChangeMultiple(t *testing.T) {
 
 func TestCodex_DecodeStreamLine_AgentMessage(t *testing.T) {
 	events := codexDecodeOne(t, NewCodexForTest(), codexSamples["agent_message"], "")
-	if events[0].EventType != domain.EventTypeMessage {
-		t.Errorf("type=%s", events[0].EventType)
-	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Role != "assistant" {
-		t.Errorf("role=%s", msg.Role)
-	}
-	if msg.Content != "Created `test123.txt` containing `hello`." {
-		t.Errorf("content=%q", msg.Content)
-	}
+	requireMessage(t, events, 0, "assistant", "Created `test123.txt` containing `hello`.")
 }
 
 func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
@@ -535,12 +520,9 @@ func TestCodexLiveCodecPipeObservesNativeRateLimitMetadata(t *testing.T) {
 	if err != nil || len(events) != 1 {
 		t.Fatalf("live decode events=%d err=%v", len(events), err)
 	}
-	data, ok := events[0].Data.(*domain.RateLimitEventData)
-	if !ok || data.UsedPercent == nil || *data.UsedPercent != percent || data.Provider != "openai" {
+	data := requireType[*domain.RateLimitEventData](t, events, 0)
+	if data.UsedPercent == nil || *data.UsedPercent != percent || data.Provider != "openai" {
 		t.Fatalf("live quota event=%+v", events[0].Data)
-	}
-	if _, ok := events[0].Data.(*domain.ErrorEventData); ok {
-		t.Fatal("healthy native quota metadata became a generic error event")
 	}
 }
 
@@ -550,8 +532,8 @@ func TestCodexToolResultRetainsNestedProcessMetadata(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	data, ok := events[0].Data.(*domain.ToolResultEventData)
-	if !ok || data.DurationMS == nil || *data.DurationMS != 1250 || data.ExitCode != nil {
+	data := requireType[*domain.ToolResultEventData](t, events, 0)
+	if data.DurationMS == nil || *data.DurationMS != 1250 || data.ExitCode != nil {
 		t.Fatalf("nested metadata=%+v", data)
 	}
 }
@@ -577,26 +559,20 @@ func TestCodex_ANSIStrippedFromMessage(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("got %d events", len(events))
 	}
-	msg := events[0].Data.(*domain.MessageEventData)
-	if msg.Content != "Bold and green text" {
-		t.Errorf("got %q", msg.Content)
-	}
+	requireMessage(t, events, 0, "", "Bold and green text")
 }
 
 func TestCodex_ANSIStrippedFromToolOutput(t *testing.T) {
 	line := "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"tool_result\",\"name\":\"bash\",\"output\":\"\\u001b[32mSuccess\\u001b[0m: file created\"}}"
 	events := codexDecodeOne(t, NewCodexForTest(), line, "")
-	found := false
-	for _, e := range events {
-		if r, ok := e.Data.(*domain.ToolResultEventData); ok {
-			if r.Output != "Success: file created" {
-				t.Errorf("got %q", r.Output)
-			}
-			found = true
-		}
-	}
-	if !found {
+	results := eventsOfType[*domain.ToolResultEventData](events)
+	if len(results) == 0 {
 		t.Error("no ToolResultEventData found")
+	}
+	for _, r := range results {
+		if r.Output != "Success: file created" {
+			t.Errorf("got %q", r.Output)
+		}
 	}
 }
 
@@ -775,6 +751,154 @@ func TestCodexRetainedTerminalReceiptConservesCumulativeUsage(t *testing.T) {
 	}
 }
 
+func TestCodexContinuationUsesSameSessionCumulativeBaseline(t *testing.T) {
+	const session = "codex-session-a"
+	parse := func(parser runner.TranscriptParser, runID uuid.UUID, typ, payload string) runner.TranscriptParseResult {
+		return parser.ParseTranscriptLine(runID, fmt.Sprintf(`{"type":%q,"payload":%s}`, typ, payload))
+	}
+
+	runID := uuid.New()
+	first := NewCodexForTest().NewTranscriptParser()
+	parse(first, runID, "session_meta", `{"id":"`+session+`"}`)
+	parse(first, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":30}}}`)
+	firstReceipt := requireTerminalUsage(t, parse(first, runID, "event_msg", `{"type":"task_complete"}`))
+	if firstReceipt.InputTokens != 80 || firstReceipt.CacheReadTokens != 20 || firstReceipt.OutputTokens != 30 || firstReceipt.ReconciliationComplete == nil || !*firstReceipt.ReconciliationComplete {
+		t.Fatalf("first session receipt=%+v", firstReceipt)
+	}
+	if firstReceipt.CodexUsageSnapshot == nil || firstReceipt.CodexUsageSnapshot.SessionID != session {
+		t.Fatalf("raw cumulative snapshot missing: %+v", firstReceipt.CodexUsageSnapshot)
+	}
+
+	continued := NewCodexForTest().NewTranscriptParser()
+	continued.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: firstReceipt.CodexUsageSnapshot})
+	parse(continued, runID, "session_meta", `{"id":"`+session+`"}`)
+	parse(continued, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`)
+	secondReceipt := requireTerminalUsage(t, parse(continued, runID, "event_msg", `{"type":"task_complete"}`))
+	if secondReceipt.InputTokens != 25 || secondReceipt.CacheReadTokens != 30 || secondReceipt.OutputTokens != 5 || secondReceipt.ReconciliationComplete == nil || !*secondReceipt.ReconciliationComplete {
+		t.Fatalf("continuation receipt did not use raw same-session baseline: %+v", secondReceipt)
+	}
+
+	// A replayed cumulative snapshot contributes no second increment.
+	replay := NewCodexForTest().NewTranscriptParser()
+	replay.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: firstReceipt.CodexUsageSnapshot})
+	parse(replay, runID, "session_meta", `{"id":"`+session+`"}`)
+	line := `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`
+	parse(replay, runID, "event_msg", line)
+	duplicate := parse(replay, runID, "event_msg", line)
+	if len(duplicate.Events) != 0 {
+		t.Fatalf("identical provider snapshot replayed as usage: %+v", duplicate.Events)
+	}
+	replayReceipt := requireTerminalUsage(t, parse(replay, runID, "event_msg", `{"type":"task_complete"}`))
+	if replayReceipt.InputTokens != secondReceipt.InputTokens || replayReceipt.CacheReadTokens != secondReceipt.CacheReadTokens || replayReceipt.OutputTokens != secondReceipt.OutputTokens {
+		t.Fatalf("replay changed terminal delta: got %+v want %+v", replayReceipt, secondReceipt)
+	}
+}
+
+func TestCodexContinuationBaselineUnknownResetAndSessionSwitch(t *testing.T) {
+	const session = "codex-session-a"
+	parse := func(parser runner.TranscriptParser, runID uuid.UUID, typ, payload string) runner.TranscriptParseResult {
+		return parser.ParseTranscriptLine(runID, fmt.Sprintf(`{"type":%q,"payload":%s}`, typ, payload))
+	}
+	runID := uuid.New()
+
+	unknown := NewCodexForTest().NewTranscriptParser()
+	unknown.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session})
+	parse(unknown, runID, "session_meta", `{"id":"`+session+`"}`)
+	parse(unknown, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`)
+	unknownReceipt := requireTerminalUsage(t, parse(unknown, runID, "event_msg", `{"type":"task_complete"}`))
+	if unknownReceipt.ReconciliationComplete == nil || *unknownReceipt.ReconciliationComplete {
+		t.Fatalf("missing baseline was qualified: %+v", unknownReceipt)
+	}
+	if unknownReceipt.CodexUsageSnapshot == nil || unknownReceipt.CodexUsageSnapshot.SessionID != session {
+		t.Fatalf("unseeded receipt did not preserve its current raw session snapshot: %+v", unknownReceipt.CodexUsageSnapshot)
+	}
+
+	unknownThenSwitched := NewCodexForTest().NewTranscriptParser()
+	unknownThenSwitched.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session})
+	parse(unknownThenSwitched, runID, "session_meta", `{"id":"`+session+`"}`)
+	parse(unknownThenSwitched, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`)
+	parse(unknownThenSwitched, runID, "session_meta", `{"id":"codex-session-b"}`)
+	parse(unknownThenSwitched, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}}`)
+	unknownSwitchReceipt := requireTerminalUsage(t, parse(unknownThenSwitched, runID, "event_msg", `{"type":"task_complete"}`))
+	if unknownSwitchReceipt.ReconciliationComplete == nil || *unknownSwitchReceipt.ReconciliationComplete {
+		t.Fatalf("session switch incorrectly qualified an earlier unknown counter interval: %+v", unknownSwitchReceipt)
+	}
+
+	reset := NewCodexForTest().NewTranscriptParser()
+	reset.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: &domain.CodexUsageSnapshot{SessionID: session, InputTokens: 1000, CachedInputTokens: 300, OutputTokens: 500}})
+	parse(reset, runID, "session_meta", `{"id":"`+session+`"}`)
+	parse(reset, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}}`)
+	resetReceipt := requireTerminalUsage(t, parse(reset, runID, "event_msg", `{"type":"task_complete"}`))
+	if resetReceipt.InputTokens != 8 || resetReceipt.CacheReadTokens != 4 || resetReceipt.OutputTokens != 3 || resetReceipt.ReconciliationComplete == nil || !*resetReceipt.ReconciliationComplete {
+		t.Fatalf("counter reset did not start a trusted new series: %+v", resetReceipt)
+	}
+
+	switched := NewCodexForTest().NewTranscriptParser()
+	switched.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: &domain.CodexUsageSnapshot{SessionID: session, InputTokens: 1000, CachedInputTokens: 300, OutputTokens: 500}})
+	parse(switched, runID, "session_meta", `{"id":"codex-session-b"}`)
+	parse(switched, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}}`)
+	switchReceipt := requireTerminalUsage(t, parse(switched, runID, "event_msg", `{"type":"task_complete"}`))
+	if switchReceipt.InputTokens != 8 || switchReceipt.CacheReadTokens != 4 || switchReceipt.OutputTokens != 3 || switchReceipt.ReconciliationComplete == nil || !*switchReceipt.ReconciliationComplete || switchReceipt.CodexUsageSnapshot.SessionID != "codex-session-b" {
+		t.Fatalf("new session reused prior session counters: %+v", switchReceipt)
+	}
+}
+
+func TestCodexStreamContinuationDifferencesTerminalSnapshotFromBaseline(t *testing.T) {
+	c := NewCodexForTest()
+	state := c.NewState()
+	state.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{
+		SessionID: "stream-session",
+		Snapshot:  &domain.CodexUsageSnapshot{SessionID: "stream-session", InputTokens: 100, CachedInputTokens: 20, OutputTokens: 30},
+	})
+	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"thread.started","thread_id":"stream-session"}`); err != nil {
+		t.Fatal(err)
+	}
+	events, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"turn.completed","usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, evt := range events {
+		usage, ok := evt.Data.(*domain.UsageEventData)
+		if !ok {
+			continue
+		}
+		if usage.InputTokens != 25 || usage.CacheReadTokens != 30 || usage.OutputTokens != 5 || !usage.ReconciliationAuthority || usage.ReconciliationComplete == nil || !*usage.ReconciliationComplete || usage.CodexUsageSnapshot == nil || usage.CodexUsageSnapshot.InputTokens != 155 {
+			t.Fatalf("stream continuation receipt=%+v", usage)
+		}
+		return
+	}
+	t.Fatalf("stream continuation usage receipt missing: %+v", events)
+}
+
+func TestCodexStreamSessionSwitchStartsIndependentCounterSeries(t *testing.T) {
+	c := NewCodexForTest()
+	state := c.NewState()
+	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"thread.started","thread_id":"old-session"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":300,"output_tokens":500}}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"thread.started","thread_id":"new-session"}`); err != nil {
+		t.Fatal(err)
+	}
+	events, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"turn.completed","usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, evt := range events {
+		usage, ok := evt.Data.(*domain.UsageEventData)
+		if !ok {
+			continue
+		}
+		if usage.InputTokens != 8 || usage.CacheReadTokens != 4 || usage.OutputTokens != 3 || usage.ReconciliationComplete == nil || !*usage.ReconciliationComplete || usage.CodexUsageSnapshot == nil || usage.CodexUsageSnapshot.SessionID != "new-session" {
+			t.Fatalf("new provider session reused old counters: %+v", usage)
+		}
+		return
+	}
+	t.Fatalf("session-switch usage receipt missing: %+v", events)
+}
+
 func TestCodex_ParseTranscriptLine_RolloutTurnsPreserveProviderTurnIDs(t *testing.T) {
 	parser := NewCodexForTest().NewTranscriptParser()
 	runID := uuid.New()
@@ -799,13 +923,10 @@ func TestCodex_ParseTranscriptLine_RolloutResponseItemMessage(t *testing.T) {
 	parser := NewCodexForTest().NewTranscriptParser()
 	runID := uuid.New()
 	result := parser.ParseTranscriptLine(runID, `{"type":"response_item","payload":{"type":"message","id":"msg-1","role":"assistant","content":[{"type":"output_text","text":"The validation-intent receipt contract is preserved."}]}}`)
-	if len(result.Events) != 1 || result.Events[0].EventType != domain.EventTypeMessage {
+	if len(result.Events) != 1 {
 		t.Fatalf("events=%v, want one assistant message", result.Events)
 	}
-	message, ok := result.Events[0].Data.(*domain.MessageEventData)
-	if !ok || message.Role != "assistant" || message.Content != "The validation-intent receipt contract is preserved." {
-		t.Fatalf("message=%+v", result.Events[0].Data)
-	}
+	requireMessage(t, result.Events, 0, "assistant", "The validation-intent receipt contract is preserved.")
 }
 
 func TestCodex_ParseTranscriptLine_RolloutResponseItemUserMessageHonorsRetention(t *testing.T) {
@@ -815,10 +936,7 @@ func TestCodex_ParseTranscriptLine_RolloutResponseItemUserMessageHonorsRetention
 	if len(result.Events) != 1 {
 		t.Fatalf("events=%d, want retained user message", len(result.Events))
 	}
-	message := result.Events[0].Data.(*domain.MessageEventData)
-	if message.Role != "user" || message.Content != "remember this request" {
-		t.Fatalf("message=%+v", message)
-	}
+	requireMessage(t, result.Events, 0, "user", "remember this request")
 }
 
 // =============================================================================
@@ -1111,8 +1229,10 @@ func TestCodexToolDurationRefusesInvalidMetadataIndependently(t *testing.T) {
 		want          *int64
 		warning       bool
 	}{
-		{"zero", "0", codexMS(0), false}, {"fractional", "0.125", codexMS(125), false},
-		{"negative", "-0.001", nil, true}, {"overflow", "1e308", nil, true},
+		{"zero", "0", codexMS(0), false},
+		{"fractional", "0.125", codexMS(125), false},
+		{"negative", "-0.001", nil, true},
+		{"overflow", "1e308", nil, true},
 		{"wrong type", `"bogus"`, nil, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

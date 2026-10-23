@@ -481,6 +481,16 @@ type UsageEventData struct {
 	// authoritative for run-total reconciliation. Per-turn usage remains
 	// available for attribution but is not added again when this is present.
 	ReconciliationAuthority bool `json:"reconciliationAuthority,omitempty"`
+	// ReconciliationComplete is an internal qualification of the token amounts
+	// in an authoritative receipt. Nil preserves legacy behavior for other
+	// providers; false means the receipt's cumulative baseline was unavailable.
+	// Public event conversion deliberately does not expose this field.
+	ReconciliationComplete *bool `json:"reconciliationComplete,omitempty"`
+	// CodexUsageSnapshot retains the provider's raw cumulative counters so a
+	// later continuation of the same native session can difference its next
+	// snapshot. It is internal event-store evidence and is not projected to API
+	// events. Legacy receipts without it cannot seed a baseline.
+	CodexUsageSnapshot *CodexUsageSnapshot `json:"codexUsageSnapshot,omitempty"`
 	// ReconciliationSource says how an authoritative receipt reached the event
 	// store when the live stream did not carry it: ReconciliationSourceTranscriptRecovery
 	// (the harness's own receipt read back from its retained transcript) or
@@ -494,6 +504,16 @@ type UsageEventData struct {
 	WebSearchRequests     int              `json:"webSearchRequests,omitempty"`
 	ServerToolUseRequests int              `json:"serverToolUseRequests,omitempty"`
 	Charge                *ChargeEventData `json:"charge,omitempty"`
+}
+
+// CodexUsageSnapshot is the raw cumulative provider counter captured on a
+// terminal receipt. These values must never be reconstructed from metered
+// deltas or public run totals.
+type CodexUsageSnapshot struct {
+	SessionID         string `json:"sessionId"`
+	InputTokens       int    `json:"inputTokens"`
+	CachedInputTokens int    `json:"cachedInputTokens"`
+	OutputTokens      int    `json:"outputTokens"`
 }
 
 func (d *UsageEventData) EventType() RunEventType { return EventTypeMetric }
@@ -569,7 +589,7 @@ type ProgressEventData struct {
 	CurrentAction      string   `json:"currentAction,omitempty"`
 	TurnsCompleted     int      `json:"turnsCompleted,omitempty"`
 	TurnsTotal         int      `json:"turnsTotal,omitempty"` // 0 means unlimited
-	TokensUsed         int      `json:"tokensUsed,omitempty"`
+	TokensUsed         int64    `json:"tokensUsed,omitempty"`
 	ElapsedSeconds     float64  `json:"elapsedSeconds,omitempty"`
 	EstimatedRemaining float64  `json:"estimatedRemaining,omitempty"` // seconds, -1 if unknown
 }

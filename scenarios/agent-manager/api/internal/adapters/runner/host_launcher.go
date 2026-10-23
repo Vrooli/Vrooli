@@ -29,8 +29,12 @@ func NewHostLauncher() *HostLauncher { return &HostLauncher{} }
 // Launch starts a process via exec.CommandContext.
 //
 // Lifecycle:
-//   - cmd is started with Setpgid so the runner can kill the entire
-//     process tree.
+//   - cmd is started detached (Setsid: a new session, hence a new process
+//     group with pgid == pid, with no controlling terminal) so the runner
+//     can signal the entire process group and survives its launcher closing
+//     a terminal — the daemon reattaches to it on restart via recovery.
+//     Detachment means the child is NOT death-coupled to its launcher; a run
+//     that ends while detached is reclaimed by the reconciler's orphan sweep.
 //   - Stdin (if provided) is copied in a background goroutine and the
 //     pipe is closed when the source is exhausted; otherwise the pipe is
 //     closed immediately so the process doesn't block on input.
@@ -128,6 +132,7 @@ func (h *hostLaunchedProcess) Stdout() io.Reader {
 	}
 	return strings.NewReader("")
 }
+
 func (h *hostLaunchedProcess) Stderr() io.Reader {
 	if h.stderr != nil {
 		return h.stderr

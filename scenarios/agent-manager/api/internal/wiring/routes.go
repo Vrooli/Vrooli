@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/capabilities"
 	"agent-manager/internal/config"
 	"agent-manager/internal/conformance"
+	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
@@ -80,6 +81,7 @@ type RouteDependencies struct {
 	TranscriptImporter       *orchestration.TranscriptImportScheduler
 	ConversationSearch       *conversationsearch.Service
 	ConversationIndexer      *conversationsearch.Indexer
+	ConversationSearchPolicy *conversationpolicy.Policy
 	ConversationSemantic     *conversationsearch.SemanticRuntime
 	ConversationSearchFile   string
 	ConversationControlToken func() string
@@ -200,8 +202,24 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		router.HandleFunc("/api/v1/storage/compact", deps.StorageHealth.Compact).Methods("POST")
 	}
 	if deps.ConversationSearch != nil {
+		adapter := handlers.NewConversationSearchAdapter(deps.ConversationSearch, deps.ConversationIndexer)
+		// Aggregate the process-local policy/masking counters across the two
+		// independently-wired seams: the orchestrator owns the import seam and the
+		// PII masker; the search policy owns the search-hide seam. A nil orchestrator
+		// or search policy simply contributes zeros, so the block is still coherent.
+		orchestrator := deps.Orchestrator
+		searchPolicy := deps.ConversationSearchPolicy
+		adapter.WithPolicyCounters(func() handlers.PolicyCountersSnapshot {
+			snapshot := handlers.PolicyCountersSnapshot{}
+			if orchestrator != nil {
+				snapshot.ImportCounts = orchestrator.ImportPolicyCounts()
+				snapshot.PIICounts = orchestrator.PIIMaskCounts()
+			}
+			snapshot.SearchCounts = searchPolicy.Snapshot()
+			return snapshot
+		})
 		searchPath, searchHandler := domainconnect.NewConversationSearchServiceHandler(
-			handlers.NewConversationSearchConnectHandler(handlers.NewConversationSearchAdapter(deps.ConversationSearch, deps.ConversationIndexer)),
+			handlers.NewConversationSearchConnectHandler(adapter),
 		)
 		router.PathPrefix(strings.TrimRight(searchPath, "/")).Handler(searchHandler)
 	}

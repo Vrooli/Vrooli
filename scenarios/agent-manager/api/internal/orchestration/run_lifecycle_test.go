@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,7 +17,40 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
+
+type gatedContinuationRunRepository struct {
+	repository.RunRepository
+	runID   uuid.UUID
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (r *gatedContinuationRunRepository) Update(ctx context.Context, run *domain.Run) error {
+	if run.ID == r.runID && run.Status == domain.RunStatusRunning {
+		r.once.Do(func() { close(r.entered) })
+		select {
+		case <-r.release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return r.RunRepository.Update(ctx, run)
+}
+
+func (r *gatedContinuationRunRepository) UpdateInteractiveContinuation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedInvocationStartedAt *time.Time) error {
+	if run.ID == r.runID && run.Status == domain.RunStatusRunning {
+		r.once.Do(func() { close(r.entered) })
+		select {
+		case <-r.release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return r.RunRepository.UpdateInteractiveContinuation(ctx, run, expectedStatus, expectedInvocationStartedAt)
+}
 
 func TestStopRun_WithTerminatorEmitsStatusEventAndBroadcast(t *testing.T) {
 	ctx := context.Background()
@@ -467,6 +501,109 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 	}
 	if broadcasts[1].Actions == nil || !broadcasts[1].Actions.CanContinue {
 		t.Fatalf("expected terminal broadcast actions to allow continuation")
+	}
+}
+
+func TestContinueRunAndCreateTaskAttemptShareEffortAdmission(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	continued := make(chan struct{}, 1)
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsMessages: true, SupportsStreaming: true, SupportsCancellation: true,
+		SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued <- struct{}{}
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, SessionID: "should-not-run"}, nil
+	}
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	profileID := uuid.New()
+	ownerID := uuid.New()
+	gate := &gatedContinuationRunRepository{
+		RunRepository: repos.Runs,
+		runID:         ownerID,
+		entered:       make(chan struct{}),
+		release:       make(chan struct{}),
+	}
+	svc := orchestration.New(
+		repos.Profiles, repos.Tasks, gate,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
+	)
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		ID: profileID, Name: "effort-continuation-profile", ProfileKey: "effort-continuation-" + uuid.New().String()[:8],
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	ownerTask := mustCreateTask(t, svc, ctx, &domain.Task{Title: "original effort coordinator", ScopePath: "src/"})
+	newTask := mustCreateTask(t, svc, ctx, &domain.Task{Title: "competing effort coordinator", ScopePath: "src/"})
+	ownerRef := &eventpb.WorkReference{
+		Kind: "effort", Id: "effort:continue-create-race", Revision: "source-r1", Relationship: "orchestrator",
+		Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}
+	now := time.Now().UTC()
+	owner := &domain.Run{
+		ID: ownerID, TaskID: ownerTask.ID, AgentProfileID: &profile.ID, Tag: ownerID.String(),
+		RunMode: domain.RunModeInPlace, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted,
+		SessionID: "sess-before-race", WorkReferences: []*eventpb.WorkReference{ownerRef},
+		StartedAt: &now, EndedAt: &now, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, owner); err != nil {
+		t.Fatalf("create terminal effort owner: %v", err)
+	}
+
+	continueResult := make(chan error, 1)
+	go func() {
+		_, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: ownerID, Message: "continue the original work"})
+		continueResult <- err
+	}()
+	select {
+	case <-gate.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ContinueRun did not reach the shared durable Running transition")
+	}
+
+	newOwnerID := uuid.New()
+	newOwner := &domain.Run{
+		ID: newOwnerID, TaskID: newTask.ID, Tag: newOwnerID.String(), RunMode: domain.RunModeInPlace,
+		Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued,
+		WorkReferences: []*eventpb.WorkReference{ownerRef}, ApprovalState: domain.ApprovalStateNone,
+	}
+	if err := repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil); err != nil {
+		t.Fatalf("create should be eligible while prior owner is terminal: %v", err)
+	}
+	close(gate.release)
+
+	select {
+	case err := <-continueResult:
+		if err == nil {
+			t.Fatal("ContinueRun resumed after another orchestrator claimed the effort")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ContinueRun did not return after releasing the transaction gate")
+	}
+	select {
+	case <-continued:
+		t.Fatal("runner received a continuation after durable effort admission was refused")
+	default:
+	}
+
+	storedOwner, err := repos.Runs.Get(ctx, ownerID)
+	if err != nil || storedOwner.Status != domain.RunStatusComplete {
+		t.Fatalf("refused continuation changed original owner state: run=%+v err=%v", storedOwner, err)
+	}
+	storedNewOwner, err := repos.Runs.Get(ctx, newOwnerID)
+	if err != nil || storedNewOwner.Status != domain.RunStatusPending {
+		t.Fatalf("competing TaskAttempt was not retained: run=%+v err=%v", storedNewOwner, err)
 	}
 }
 

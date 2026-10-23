@@ -2,89 +2,38 @@
 
 ## Open Issues
 
-### Planned maintenance and startup readiness — 2026-09-12
+### Maintenance, restart and startup readiness
 
-The composition root now registers the maintenance schema, installs one durable
-admission gate in orchestration, and mounts `/api/v1/maintenance/admission` using
-the existing routed SQL middleware and canonical verified-human owner authority.
-New runs, continuations, resting-review resumes, failed-run replacements,
-workflow starts/retries and new attachments are fenced. Accepted replays,
-pending recovery, parked wakes and durable active-workflow descendants retain
-their existing execution owner. Force flags cannot bypass maintenance.
+For an authorized ordinary Agent Manager replacement, use `make restart` or
+`vrooli scenario restart agent-manager`. The control plane builds a stale
+replacement before stopping the serving instance and preserves detached API
+executors during the restart. Persistent Web Console sessions and durable run
+recovery remain owned by their existing services. Inspect readiness and the
+original run IDs afterward; a healthy process alone does not prove recovered work.
 
-GET returns a stable closed revision and nested durable/physical inventory.
-Terminal status does not exclude a live executor (including the false-FAILED
-USI PID315576 evidence); resting review without an executor or finalization is
-not active work. History/accounting is retained. Missing-root evidence remains
-unknown until a control-plane reader proves complete descendant/group exclusion.
-The production adapter now calls `vrooli runtime executor-scope --json` with
-JSON stdin containing durable run IDs, current/legacy tags, PID/PGID and optional
-start/end timestamps. It requires exit 0, `schemaVersion=executor-scope-v1`,
-complete coverage and an explicit `absent` verdict for exclusion. Present scoped
-PIDs remain visible; missing, contradictory, partial or unknown evidence blocks
-drain. Indirect dependency restart exclusion and host remediation remain in the
-control plane, not AM.
+Do not require Agent Manager to drain or fence itself for this restart. The
+control plane deliberately removed that circular dependency. A force flag,
+`--local-owner` credential, a new human grant, and manual admission closure are
+not additional prerequisites for ordinary operator-authorized restart. This does
+not authorize stopping runs, destructive maintenance, or restarting dependency
+parents. See [runner recovery](../runner-transcript-recovery.md) for the receiving
+checks and the limitations of durable transcripts.
 
-The revised owner source contract permits 16,384 references / 8 MiB input and
-output with one bounded 4-second indexed host scan. AM mirrors these bounds and
-makes at most one scan per inventory attachment, with one
-identity-only SQL hydration; it does not scan once per historic PID or SQL page.
-The history-scale regression also exposed repeated SQL-page sorting consuming
-the five-second attachment deadline. Candidate classification now streams one
-SQL result into bounded references and samples, closing it before hydration and
-the host read. The attachment deadline is unchanged.
-Read-only SQL on 2026-09-12 found 10,811 retained physical references (10,095
-attached, 715 codec-pipe, 1 interactive). Imported history has no retained physical
-references at this observation cut. Managed codec-pipe/interactive history alone
-has 716 references, so excluding imported rows could not resolve the old 128-ref
-capacity gap. All 10,811 references fit the revised bound. The USI durable run
-now records running PID1957076 at this later cut; no inventory operation changes
-its accounting or executor. Positive false-FAILED PID315576 residue remains a
-regression fixture. Main must coordinate adoption of both owner and AM binaries;
-an old 128-ref owner command still cannot qualify this history. AM reports any
-capacity violation and never discards rows or loops over host scans.
-Root command installation and lifecycle bootstrap are separate
-main/control-plane owner operations.
+Standalone setup/dependency rebuild and operations that do require an owner
+maintenance proof retain their own control-plane gates. Do not transfer the
+restart exception to those operations. The maintenance API reports admission,
+revision, durable work and physical executor inventory. Unknown or partial scope
+is not a drained proof; terminal accounting does not exclude a live process.
+Its host-scope observation comes from `vrooli runtime executor-scope --json`,
+not a private host walker. A closed gate or complete inventory establishes safety,
+not authority. Preserve canonical verified-human requirements on explicit
+maintenance begin/drain/resume; do not impersonate a human to obtain such a proof.
 
-Fresh recovery uses the same client through
-`maintenance.ExcludeExecutor(ctx context.Context, run *domain.Run) error`.
-It returns nil only for complete exact-scope absence. Positive, unknown, partial,
-unavailable or cancelled evidence returns an error. The continuation owner holds
-its admission claim across this observation and dispatch; this read grants no
-lifecycle authority and contains no private host walker.
-
-Resume nonblockingly takes
-`<owner-home>/.vrooli/state/locks/scenario-agent-manager.lock` before the gate
-mutex and holds it through revision-CAS persistence. GET never takes that lock.
-The mounted handler advertises `lifecycleInterlock: "scenario-lock-v1"` only with
-this interlock installed. The root lifecycle bridge requires a positive stable
-revision, `closed=true`, `drained=true`, zero `admitting` and `remaining`, and
-empty `inventory.work`, `inventory.executors`, and `inventory.unknown` with
-`inventory.remaining=0`. No absent or partial projection is an empty proof.
-
-Human owner commands after endpoint bootstrap (not executed by this worker):
-
-```bash
-agent-manager maintenance status --json
-agent-manager maintenance begin --reason "planned AM rollout" --local-owner --json
-agent-manager maintenance drain --timeout 120s --local-owner --json
-```
-
-Only after the complete root proof succeeds may the owner perform its separately
-authorized normal lifecycle adoption, for example `make -C scenarios/agent-manager
-restart`. After startup readiness is true, reopen explicitly with the retained
-closed revision:
-
-```bash
-agent-manager maintenance status --json
-agent-manager maintenance resume --revision <closed-revision> --local-owner --json
-```
-
-Timeout, unknown physical scope or an unavailable API is not restart authority.
-An unavailable old API cannot bootstrap its own new endpoint; that recovery is
-the main/control-plane owner's separate decision. Do not restart AM or one of
-its dependency parents from an admitted agent. No force, accounting purge,
-credential elevation or process termination is part of this protocol.
+Source owners: `internal/lifecycle/lifecycle.go` (restart/build ordering),
+`internal/lifecycle/provider_fence.go` (provider fence), and the teardown owner
+with `TestAgentManagerRestartPreservesDetachedExecutorTree` and
+`TestAgentManagerRestartDoesNotRequireOwnerMaintenance`. A normal stop has a
+different teardown contract and is not a substitute for restart.
 
 Startup recovery runs asynchronously with per-step 30-second contexts. `/health`
 is HTTP200 with `readiness=false` while initializing; `/api/v1/health` and the

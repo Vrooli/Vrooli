@@ -2,6 +2,7 @@ package orchestration_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,15 +18,17 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
+	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // newParkableRun inserts a RunStatusRunning run (with custom env + session +
 // resolved config) directly, bypassing CreateRun's async execution. It is the
 // starting point for park/wake round-trip tests.
-func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, repos *database.Repositories) *domain.Run {
+func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, repos *database.Repositories, workReferences ...*eventdomain.WorkReference) *domain.Run {
 	t.Helper()
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
 		Name:       "park-profile",
@@ -54,6 +57,7 @@ func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orches
 		LastHeartbeat:  &old,
 		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
 		ApprovalState:  domain.ApprovalStateNone,
+		WorkReferences: workReferences,
 		CustomEnv: map[string]string{
 			"VROOLI_SHADOW_SCENARIOS": "agent-manager",
 		},
@@ -287,6 +291,124 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 	if !res.Valid || res.Claims == nil || res.Claims.RunID != run.ID {
 		t.Errorf("woken identity token does not validate/bind to the run: valid=%v claims=%+v", res.Valid, res.Claims)
 	}
+}
+
+func TestWakeEffortCheckinCommitsQueuedCursorWithRetainedRunWake(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{SupportsContinuation: true})
+	started := make(chan runner.ContinueRequest, 1)
+	release := make(chan struct{})
+	finished := make(chan struct{})
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		started <- req
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		close(finished)
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, SessionID: req.SessionID}, nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	eventErr := errors.New("wake status event append unavailable")
+	failNextStatus := &atomic.Int32{}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: 5 * time.Minute, MaxConcurrentRuns: 10}),
+		orchestration.WithEvents(failParkedStatusEventStore{Store: eventStore, err: eventErr, failNextStatus: failNextStatus}), orchestration.WithRunners(registry),
+		orchestration.WithIdentitySecret([]byte("effort-checkin-identity-secret-0123456789")),
+		orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
+	const effortRef = "effort:retained-checkin"
+	run := newParkableRun(t, ctx, svc, repos, &eventdomain.WorkReference{
+		Kind: "effort", Id: effortRef, Relationship: "orchestrator", Verified: true,
+		Visibility: eventdomain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State:      eventdomain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	})
+	if _, _, err := repos.Runs.(repository.EffortSignalCursorRepository).QueueEffortSignalCursor(ctx, run.ID, effortRef, 3); err != nil {
+		t.Fatalf("queue signal cursor: %v", err)
+	}
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "supervision", Key: "effort-checkin"}); err != nil {
+		t.Fatalf("ParkRun: %v", err)
+	}
+	failNextStatus.Store(1)
+	if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{
+		RunID: run.ID, Result: "must not wake for a mismatched effort",
+		EffortSignalReceipt: &domain.EffortSignalReceipt{EffortRef: "effort:other", Through: 3},
+	}); err == nil || !domain.IsPreEffectRefusal(err) {
+		t.Fatalf("mismatched effort receipt should be refused before effects: %v", err)
+	}
+	if err := svc.WakeEffortCheckin(ctx, run.ID, effortRef, 4); err == nil {
+		t.Fatal("unqueued signal receipt should fail before runner dispatch")
+	}
+	stillParked, err := svc.GetStoredRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("read run after rejected receipt: %v", err)
+	}
+	if stillParked.Status != domain.RunStatusParked || stillParked.AwaitHandle == nil || stillParked.EffortSignalCursors[effortRef] != (domain.EffortSignalCursor{QueuedSeq: 3, DeliveredSeq: 0}) {
+		t.Fatalf("rejected receipt changed the parked owner or cursor: status=%s handle=%+v cursor=%+v", stillParked.Status, stillParked.AwaitHandle, stillParked.EffortSignalCursors[effortRef])
+	}
+	select {
+	case <-started:
+		t.Fatal("uncommitted receipt reached runner continuation")
+	default:
+	}
+
+	if err := svc.WakeEffortCheckin(ctx, run.ID, effortRef, 3); !errors.Is(err, eventErr) {
+		t.Fatalf("WakeEffortCheckin error = %v, want committed status-event publication error", err)
+	}
+	var continued runner.ContinueRequest
+	select {
+	case continued = <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for retained run continuation")
+	}
+
+	prompt := continued.Prompt
+	lowerPrompt := strings.ToLower(prompt)
+	if !strings.Contains(prompt, effortRef) || !strings.Contains(prompt, "sequence 3") ||
+		!strings.Contains(lowerPrompt, "reread the current canonical effort feedback") ||
+		!strings.Contains(lowerPrompt, "check-in consumed the previous await") ||
+		!strings.Contains(lowerPrompt, "inspect your current run state") ||
+		!strings.Contains(lowerPrompt, "park this same run again with the same producer and key before ending the turn") ||
+		!strings.Contains(lowerPrompt, "do not treat a prior successful park as proof that this run is currently parked") {
+		t.Fatalf("check-in prompt must direct a current canonical reread: %q", prompt)
+	}
+	for _, untrusted := range []string{"private feedback detail", "operator says: continue", "signal payload"} {
+		if strings.Contains(strings.ToLower(prompt), untrusted) {
+			t.Fatalf("signal detail or authority language leaked into check-in prompt: %q", prompt)
+		}
+	}
+
+	stored, err := svc.GetStoredRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("read woken run: %v", err)
+	}
+	if stored.Status != domain.RunStatusRunning || stored.AwaitHandle != nil {
+		t.Fatalf("check-in did not wake the exact parked run: status=%s handle=%v", stored.Status, stored.AwaitHandle)
+	}
+	if got := stored.EffortSignalCursors[effortRef]; got != (domain.EffortSignalCursor{QueuedSeq: 3, DeliveredSeq: 3}) {
+		t.Fatalf("wake receipt did not commit with status: %+v", got)
+	}
+	if err := svc.WakeEffortCheckin(ctx, run.ID, effortRef, 3); err != nil {
+		t.Fatalf("duplicate check-in should be idempotent: %v", err)
+	}
+	close(release)
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("continuation runner did not finish")
+	}
+	eventually(t, func() bool {
+		finishedRun, err := svc.GetStoredRun(ctx, run.ID)
+		return err == nil && finishedRun.Status.IsTerminal()
+	}, "continuation did not persist its final status")
 }
 
 // TestWakeRun_Timeout_TypedResult verifies the park-deadline path: waking with
@@ -539,7 +661,7 @@ func TestWakeRunRefusesCancelledTaskAndDifferentCurrentOwner(t *testing.T) {
 		svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
 		task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "wake owner", Description: "current owner fence", ScopePath: "src/"})
 		owner := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, Tag: "current-owner", RunMode: domain.RunModeInPlace, ApprovalState: domain.ApprovalStateNone}
-		if err := repos.Runs.CreateTaskAttempt(ctx, task, owner, nil, task.ProjectRoot); err != nil {
+		if err := repos.Runs.CreateTaskAttempt(ctx, task, task, owner, nil); err != nil {
 			t.Fatalf("create exact current attempt: %v", err)
 		}
 		old := time.Now().Add(-time.Minute)

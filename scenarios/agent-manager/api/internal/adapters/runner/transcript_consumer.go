@@ -264,7 +264,7 @@ func TerminalSummaryFromMessage(message string, metrics ExecutionMetrics) *domai
 	return &domain.RunSummary{
 		Description:   message,
 		TurnsUsed:     metrics.TurnsUsed,
-		TokensUsed:    TotalTokens(metrics),
+		TokensUsed:    int64(TotalTokens(metrics)),
 		CostEstimate:  metrics.CostEstimateUSD,
 		ContextTokens: metrics.TokensInput,
 	}

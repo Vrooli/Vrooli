@@ -1,0 +1,4 @@
+135bb11b0ed5cb747b2ec5518342690e3048533a9d088094c22fc30ccc31cadf  scenarios/agent-manager/api/internal/orchestration/park.go
+839d763c04b6b156f5acfb0d5f964ac5585c82ba07db3e701ce0b5b967bd5972  scenarios/agent-manager/api/internal/orchestration/park_test.go
+325f0f77aaac4ea7684f3102779ab6e6fd733cd308ddc99eadc4b2ffccf3490b  scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md
+a7e276d2253091f61d2707c1acca5b4a3c1fa8dd2d2b87cdbf479ee83145f477  scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/skill.json

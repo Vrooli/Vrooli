@@ -19,7 +19,10 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"agent-manager/internal/conversationpolicy"
 )
 
 // =============================================================================
@@ -88,6 +91,50 @@ type Levers struct {
 	// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
 	// (the "Workflow completion nudge + blocking wait" flow).
 	Workflow WorkflowLevers `json:"workflow"`
+
+	// ConversationPolicy is the declarative visibility/exclusion policy for
+	// imported and indexed conversations. It keeps conversations out of import
+	// and/or out of search by harness, model, project scope, cwd scope, or tag.
+	// The rules live in a dedicated file (see conversationpolicy.ResolveFilePath)
+	// rather than inline env, because a list of structured rules does not map
+	// cleanly to a single AGENT_MANAGER_* scalar; config.LoadLevers merges that
+	// file in. The CLI `conversation policy` subcommand edits the same file.
+	ConversationPolicy ConversationPolicyLevers `json:"conversationPolicy"`
+
+	// TranscriptImport controls the periodic sweep that adopts external harness
+	// transcripts into the conversation corpus: how often it runs and which
+	// extra directories it scans beyond the built-in harness roots.
+	TranscriptImport TranscriptImportLevers `json:"transcriptImport"`
+}
+
+// TranscriptImportLevers control the transcript-import sweep. The sweep already
+// scans the built-in harness roots (~/.codex/sessions, ~/.claude/projects) and
+// the per-session web-console Codex homes; these levers tune its cadence and let
+// an operator add further roots for externally-run or remote agents whose
+// transcripts land outside the built-in locations.
+type TranscriptImportLevers struct {
+	// Interval is how often the background sweep runs. A sweep also runs once at
+	// startup regardless of this value. Lower = fresher corpus, more disk walks.
+	// Values below 1m are rejected so a misconfiguration cannot spin the host.
+	// Range: 1m to 24h. Default: 6h.
+	// Env: AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL (a Go duration, e.g. "15m").
+	Interval time.Duration `json:"interval"`
+
+	// ScanRoots are additional transcript directories to sweep, each an absolute
+	// path (a leading ~ is expanded to the user's home). They are scanned in
+	// addition to — never instead of — the built-in harness roots, so adding a
+	// root can only make the corpus more complete. Externally-run / remote agents
+	// that write .jsonl transcripts into a custom directory become importable by
+	// listing that directory here. Default: none.
+	// Env: AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS (comma-separated paths).
+	ScanRoots []string `json:"scanRoots,omitempty"`
+}
+
+// ConversationPolicyLevers carries the compiled visibility/exclusion rules.
+type ConversationPolicyLevers struct {
+	// Rules are the ordered match→action rules (first match wins). Empty means
+	// no policy: everything is imported and searchable.
+	Rules []conversationpolicy.Rule `json:"rules,omitempty"`
 }
 
 // =============================================================================
@@ -345,6 +392,26 @@ type StorageLevers struct {
 	// it at the head and a quarter at the tail.
 	// Range: 1024 to 1048576. Default: 4096.
 	ImportedToolCompactionMinBytes int `json:"importedToolCompactionMinBytes"`
+
+	// ImportedCorpusMaxBytes is the live-byte ceiling eviction enforces: when the
+	// database's live bytes exceed this, the oldest imported runs are evicted
+	// (events removed, a tombstone row kept so the sweep does not re-import them;
+	// the transcript stays on disk) until back under it. Imported events are
+	// exempt from the age sweep, so without this a few multi-GB codex rollouts
+	// drove the live DB to 32GB. This is the enforcement arm storage-health lacks.
+	// It sits below the declared 12 GiB storage budget, leaving headroom for the
+	// native data and the FTS index; dead FTS space is reclaimed separately (see
+	// reclaimSearchIndex) BEFORE eviction, so this ceiling is spent on live recall
+	// rather than tombstones. Canonical (non-imported) runs are never evicted.
+	// 0 disables eviction. Default: 8 GiB.
+	ImportedCorpusMaxBytes int64 `json:"importedCorpusMaxBytes"`
+
+	// ImportedCorpusEvictionBatch caps how many imported runs one eviction pass
+	// removes. It is a ceiling with an early break — a pass stops the moment live
+	// bytes fall under budget — so a steady-state overage evicts only a few runs
+	// while a large one-time backfill (thousands of small old runs) still drains
+	// in a handful of 30s passes instead of hundreds. Default: 500.
+	ImportedCorpusEvictionBatch int `json:"importedCorpusEvictionBatch"`
 }
 
 // =============================================================================
@@ -646,6 +713,8 @@ func DefaultLevers() Levers {
 			StaleRunStateRetentionDays:     30,
 			ImportedToolCompactionDays:     30,
 			ImportedToolCompactionMinBytes: 4096,
+			ImportedCorpusMaxBytes:         8 * 1024 * 1024 * 1024,
+			ImportedCorpusEvictionBatch:    500,
 		},
 		Heartbeat: HeartbeatLevers{
 			RunHeartbeatInterval:    15 * time.Second,
@@ -691,6 +760,10 @@ func DefaultLevers() Levers {
 			NudgeDriveTimeout:           5 * time.Minute,
 			UnarmedWaitWarningThreshold: 15 * time.Minute,
 			UnarmedWaitFailureThreshold: time.Hour,
+		},
+		TranscriptImport: TranscriptImportLevers{
+			Interval:  6 * time.Hour,
+			ScanRoots: nil,
 		},
 	}
 }
@@ -747,7 +820,44 @@ func (l *Levers) Validate() error {
 	if err := l.Workflow.Validate(); err != nil {
 		return wrapConfigSection("workflow", err)
 	}
+	if err := l.ConversationPolicy.Validate(); err != nil {
+		return wrapConfigSection("conversationPolicy", err)
+	}
+	if err := l.TranscriptImport.Validate(); err != nil {
+		return wrapConfigSection("transcriptImport", err)
+	}
 	return nil
+}
+
+// Validate checks the transcript-import cadence is within safe bounds. An empty
+// ScanRoots list is valid (the built-in roots still apply); a configured root
+// must be a non-empty path so a stray empty entry is caught rather than walking
+// the current directory.
+func (t *TranscriptImportLevers) Validate() error {
+	if t.Interval < time.Minute || t.Interval > 24*time.Hour {
+		return NewInvalid("interval", fmt.Sprintf("must be between 1m and 24h, got %v", t.Interval), nil)
+	}
+	for i, root := range t.ScanRoots {
+		if strings.TrimSpace(root) == "" {
+			return NewInvalid(fmt.Sprintf("scanRoots[%d]", i), "must be a non-empty path", nil)
+		}
+	}
+	return nil
+}
+
+// Validate checks every conversation-policy rule compiles.
+func (c *ConversationPolicyLevers) Validate() error {
+	for i, rule := range c.Rules {
+		if err := rule.Validate(); err != nil {
+			return NewInvalid(fmt.Sprintf("rules[%d]", i), err.Error(), err)
+		}
+	}
+	return nil
+}
+
+// Policy compiles the configured rules into an enforceable policy.
+func (c *ConversationPolicyLevers) Policy() (*conversationpolicy.Policy, error) {
+	return conversationpolicy.New(c.Rules)
 }
 
 func (w *WorkflowLevers) Validate() error {

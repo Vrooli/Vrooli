@@ -179,7 +179,11 @@ CREATE INDEX IF NOT EXISTS idx_conversation_search_deleted_source_event
     ON conversation_search_deleted_sources(source_run_id, source_event_id);
 
 -- External owners retain canonical records locally but may revoke derived
--- search visibility. This identity-keyed tombstone survives index repair.
+-- search visibility. This identity-keyed tombstone survives index repair. Every
+-- tombstone is an explicit, user-requested revocation; policy-driven search
+-- hiding is done in memory at the search seam (source_sqlite.go filters rows
+-- against the visibility policy, never writing a durable tombstone), so there
+-- is no manual-vs-policy distinction to persist here.
 CREATE TABLE IF NOT EXISTS conversation_search_external_tombstones (
     source_harness TEXT NOT NULL,
     source_session_id TEXT NOT NULL,

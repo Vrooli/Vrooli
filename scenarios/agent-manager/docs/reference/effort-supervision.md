@@ -148,7 +148,7 @@ epoch worker at a time.
 | `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 when a step-back fires; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
 | `effort lint <goal home>` | Checks the goal-home rules the orchestrator owns; exit 4 on a failing rule. |
 | `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `QUEUE.md`; exit 4 when refused. |
-| `effort park <goal home> --run <id> [--timeout D]` | Parks the orchestrator for as long as goal state allows; exit 4 when refused. |
+| `effort park <goal home> [--run <id>] [--timeout D] [--json]` | Parks the verified calling orchestrator for as long as goal state allows; an explicit run must match its verified identity. Inspect the JSON park status and await handle; exit 4 when refused. |
 
 **Parked-session compaction.** A wake re-sends the parked conversation, and the
 model's prompt cache lasts about 30 minutes, so a late wake pays for the whole
@@ -264,8 +264,7 @@ text over 4 KB, text with its own `#`/`##` or handoff heading, a queue with
 more than one handoff (move old ones to `archive/` first; it never deletes
 them), and a QUEUE.md that changed between read and write.
 
-**Park.** `effort park` lists the run's direct children and reads
-`## Needs operator`:
+**Park.** `effort park <goal home> --json` defaults to the verified calling run; omit `--run`. An explicit `--run` must match that verified identity. Inspect the returned park status and await handle; preserve a nonzero exit or refusal instead of masking it. The command lists the run's direct children and reads `## Needs operator`:
 - a live (non-terminal) child allows up to 1h, a backstop for a hung worker;
 - otherwise an item under `## Needs operator` allows up to 72h;
 - otherwise it refuses with the admissible-slice rule: admit the next
@@ -335,12 +334,24 @@ epoch wins among those active candidates; next comes one marked `admitted`, then
 the highest-numbered remaining unaccepted epoch. Acceptance is grounded in the
 epoch's `ACCEPTED` record and later-directive rule, not its status text.
 
-**Token caps (DL-8).** A profile's `maxWeightedTokens` caps each of its runs;
+**Token caps (DL-8).** A profile's `maxWeightedTokens` sets an observed-usage
+stop threshold for each of its runs;
 `CreateRunRequest.inline_config.max_weighted_tokens` may only lower it. Runs
 without one fall back to `AGENT_MANAGER_TOKEN_CAPS`. Caps act only when
 `AGENT_MANAGER_TOKEN_CAP_MODE` is `report` (timeline records) or `enforce` (an
 85% nudge, typed into interactive runs, then a stop with
-`stop_reason=token_cap` and a `cap_stop` signal).
+`stop_reason=token_cap` and a `cap_stop` signal). The default mode is `off`.
+
+The threshold reacts to persisted provider usage receipts. It is not a strict
+spend ceiling: usage can exceed it between receipts and while stopping. Codex
+codec-pipe execution reports usage at `turn.completed`; interrupted-turn recovery
+reads its rollout after exit and cannot enforce a mid-turn threshold. Interactive
+Codex rollout `token_count` records can report completed model responses while the
+turn continues, but neither in-flight usage nor reporting delay is bounded here.
+Before the first receipt, the supervision view reports unknown usage, not zero.
+Use the existing execution timeout and tool-call limits for their declared bounds;
+do not claim they establish a token ceiling. A hard token ceiling requires a
+qualified runner boundary before another unattended budget-critical experiment.
 
 ## Observation and trigger semantics
 

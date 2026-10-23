@@ -39,6 +39,9 @@ func TestIsTerminalRunStatus(t *testing.T) {
 	if !isTerminalRunStatus(domainpb.RunStatus_RUN_STATUS_COMPLETE) {
 		t.Fatal("complete status must be terminal")
 	}
+	if !isTerminalRunStatus(domainpb.RunStatus_RUN_STATUS_UNKNOWN) {
+		t.Fatal("unknown status is terminal even when outcome evidence is inconclusive")
+	}
 	if isTerminalRunStatus(domainpb.RunStatus_RUN_STATUS_RUNNING) {
 		t.Fatal("running status must not be terminal")
 	}

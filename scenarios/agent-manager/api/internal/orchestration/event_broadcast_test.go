@@ -8,6 +8,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
 )
@@ -22,6 +23,10 @@ func (s failingEventStore) Append(context.Context, uuid.UUID, ...*domain.RunEven
 
 func (s failingEventStore) Get(context.Context, uuid.UUID, event.GetOptions) ([]*domain.RunEvent, error) {
 	return nil, nil
+}
+
+func (s failingEventStore) Summarize(context.Context, uuid.UUID, event.GetOptions) (*event.Summary, error) {
+	return &event.Summary{Counts: map[string]int64{}}, nil
 }
 
 func (s failingEventStore) Stream(context.Context, uuid.UUID, event.StreamOptions) (<-chan *domain.RunEvent, error) {
@@ -95,5 +100,79 @@ func TestBroadcastingEventSink_DoesNotBroadcastWhenAppendFails(t *testing.T) {
 	}
 	if got := broadcaster.eventCount(); got != 0 {
 		t.Fatalf("expected no broadcasts after append failure, got %d", got)
+	}
+}
+
+func TestNewRunEventSinkSharesPersistenceBroadcastAndObserverRouting(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		withStore        bool
+		withBroadcaster  bool
+		wantStored       int
+		wantBroadcasts   int
+		wantObservations int
+	}{
+		{name: "no configured outputs"},
+		{name: "broadcaster without store", withBroadcaster: true},
+		{name: "store only", withStore: true, wantStored: 2, wantObservations: 1},
+		{name: "store and broadcaster", withStore: true, withBroadcaster: true, wantStored: 2, wantBroadcasts: 1, wantObservations: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runID := uuid.New()
+			var store event.Store
+			var fakeStore *mocks.FakeEventStore
+			if tc.withStore {
+				fakeStore = mocks.NewFakeEventStore()
+				store = fakeStore
+			}
+			var broadcaster EventBroadcaster
+			var recording *recordingBroadcaster
+			if tc.withBroadcaster {
+				recording = &recordingBroadcaster{}
+				broadcaster = recording
+			}
+
+			observations := 0
+			observerSawPersistedEvent := false
+			sink := newRunEventSink(store, broadcaster, runID, func(*domain.RunEvent) {
+				observations++
+				persisted, err := fakeStore.Get(t.Context(), runID, event.GetOptions{AfterSequence: -1})
+				if err == nil && len(persisted) == observations {
+					observerSawPersistedEvent = true
+				}
+			})
+			first := domain.NewLogEvent(runID, "info", "first")
+			if err := sink.Emit(first); err != nil {
+				t.Fatalf("emit first event: %v", err)
+			}
+			replay := domain.NewLogEvent(runID, "info", "replayed")
+			replay.PersistenceReplay = true
+			if err := sink.Emit(replay); err != nil {
+				t.Fatalf("emit replay event: %v", err)
+			}
+
+			stored := 0
+			if fakeStore != nil {
+				persisted, err := fakeStore.Get(t.Context(), runID, event.GetOptions{AfterSequence: -1})
+				if err != nil {
+					t.Fatalf("read persisted events: %v", err)
+				}
+				stored = len(persisted)
+			}
+			if stored != tc.wantStored {
+				t.Errorf("persisted events = %d, want %d", stored, tc.wantStored)
+			}
+			if got := observations; got != tc.wantObservations {
+				t.Errorf("after-persist observations = %d, want %d", got, tc.wantObservations)
+			}
+			if tc.wantObservations > 0 && !observerSawPersistedEvent {
+				t.Error("after-persist callback ran before the event was durable")
+			}
+			if recording != nil {
+				if got := recording.eventCount(); got != tc.wantBroadcasts {
+					t.Errorf("broadcast events = %d, want %d", got, tc.wantBroadcasts)
+				}
+			}
+		})
 	}
 }

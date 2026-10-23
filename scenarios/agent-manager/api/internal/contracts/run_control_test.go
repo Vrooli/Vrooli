@@ -108,6 +108,7 @@ func TestLeversFieldLivenessRegistryIsComplete(t *testing.T) {
 		"Execution": "NewOrchestrator", "Safety": "NewOrchestrator", "Concurrency": "NewOrchestrator", "Approval": "NewOrchestrator", "Runners": "NewOrchestrator",
 		"Server": "NewServer", "Storage": "NewOrchestrator", "Heartbeat": "NewOrchestrator", "Recovery": "NewOrchestrator", "Scanner": "NewOrchestrator",
 		"Diagnostics": "NewOrchestrator", "Observability": "Init", "Spawn": "NewOrchestrator", "Sandbox": "NewOrchestrator", "Workflow": "NewOrchestrator",
+		"ConversationPolicy": "NewOrchestrator", "TranscriptImport": "NewOrchestrator",
 	}
 	assertFieldRegistry(t, reflect.TypeOf(config.Levers{}), "Levers", registry)
 	for field, consumer := range map[string]string{

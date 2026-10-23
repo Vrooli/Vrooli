@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
@@ -780,7 +781,7 @@ func TestStatsUsageQueries_ParseCreatedAtTimestamps(t *testing.T) {
 
 	toolCall := domain.NewToolCallEvent(run.ID, "read", "call-1", map[string]interface{}{"path": "README.md"})
 	toolResult := domain.NewToolResultEvent(run.ID, "read", "call-1", "ok", nil)
-	if err := repos.Events.Append(ctx, run.ID, toolCall, toolResult); err != nil {
+	if err := event.NewSQLiteStore(db, logrus.New()).Append(ctx, run.ID, toolCall, toolResult); err != nil {
 		t.Fatalf("Append events: %v", err)
 	}
 
@@ -849,7 +850,7 @@ func TestStatsGetErrorPatterns_ParsesLastSeenTimestamp(t *testing.T) {
 	}
 
 	errEvent := domain.NewErrorEvent(run.ID, "TOOL_FAILED", "tool execution failed", true)
-	if err := repos.Events.Append(ctx, run.ID, errEvent); err != nil {
+	if err := event.NewSQLiteStore(db, logrus.New()).Append(ctx, run.ID, errEvent); err != nil {
 		t.Fatalf("Append error event: %v", err)
 	}
 

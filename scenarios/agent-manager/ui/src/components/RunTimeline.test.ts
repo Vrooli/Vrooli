@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { fromJson } from "@bufbuild/protobuf";
 import { RunEventSchema } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb.js";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import { test, vi } from "vitest";
@@ -453,6 +453,99 @@ test("RunTimeline preserves visible history on failed removal and ignores clipbo
   await waitFor(() => assert.deepEqual(onDeleteMessage.mock.calls, [["removed"]]));
   assert.ok(screen.getByText("Retained in history"));
   vi.unstubAllGlobals();
+});
+
+test("RunTimeline keeps copy feedback per message, resets repeated copies, and clears timers on unmount", async () => {
+  vi.useFakeTimers();
+  try {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn(async () => undefined) },
+    });
+    const view = renderWithProviders(createElement(RunTimeline, {
+      run: makeRun(),
+      events: [
+        makeMessageEvent("copy-one", 1n, "First response"),
+        makeMessageEvent("copy-two", 2n, "Second response"),
+      ],
+      eventsLoading: false,
+      onContinue: vi.fn(async () => undefined),
+      onDeleteMessage: vi.fn(async () => undefined),
+    }));
+    const copyButtons = screen.getAllByTitle("Copy message");
+    const isCopied = (button: HTMLElement) => button.querySelector("svg")?.classList.contains("lucide-check") ?? false;
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+    const copyTimerIds = () => setTimeoutSpy.mock.calls.flatMap(([, delay], index) =>
+      delay === 2000 ? [setTimeoutSpy.mock.results[index]?.value] : []);
+    const wasCleared = (timer: unknown) => clearTimeoutSpy.mock.calls.some(([cleared]) => cleared === timer);
+
+    await act(async () => {
+      fireEvent.click(copyButtons[0]);
+      await Promise.resolve();
+    });
+    assert.equal(isCopied(copyButtons[0]), true);
+    const [firstTimer] = copyTimerIds();
+    assert.ok(firstTimer !== undefined, "copy should schedule its feedback timer");
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    await act(async () => {
+      fireEvent.click(copyButtons[0]);
+      await Promise.resolve();
+    });
+    const [, repeatedTimer] = copyTimerIds();
+    assert.ok(repeatedTimer !== undefined);
+    assert.equal(wasCleared(firstTimer), true, "repeating a copy should replace only that message's prior timer");
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    assert.equal(isCopied(copyButtons[0]), true, "the original timer must not clear feedback for a repeated copy");
+    await act(async () => {
+      fireEvent.click(copyButtons[1]);
+      await Promise.resolve();
+    });
+    const [, , secondMessageTimer] = copyTimerIds();
+    assert.ok(secondMessageTimer !== undefined);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    assert.equal(isCopied(copyButtons[0]), false, "the repeated copy's timer should expire from its latest completion");
+    assert.equal(isCopied(copyButtons[1]), true, "one message's timer must not clear another message's feedback");
+
+    view.unmount();
+    assert.equal(wasCleared(secondMessageTimer), true, "unmount should clear outstanding copy timers");
+  } finally {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  }
+});
+
+test("RunTimeline does not update copy feedback when clipboard resolves after unmount", async () => {
+  vi.useFakeTimers();
+  try {
+    let resolveWrite!: () => void;
+    const writeText = vi.fn(() => new Promise<void>((resolve) => { resolveWrite = resolve; }));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const view = renderWithProviders(createElement(RunTimeline, {
+      run: makeRun(),
+      events: [makeMessageEvent("copy-pending", 1n, "Pending clipboard response")],
+      eventsLoading: false,
+      onContinue: vi.fn(async () => undefined),
+      onDeleteMessage: vi.fn(async () => undefined),
+    }));
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const copyTimerCount = () => setTimeoutSpy.mock.calls.filter(([, delay]) => delay === 2000).length;
+
+    fireEvent.click(screen.getByTitle("Copy message"));
+    assert.deepEqual(writeText.mock.calls, [["Pending clipboard response"]]);
+    assert.equal(copyTimerCount(), 0);
+    view.unmount();
+
+    await act(async () => {
+      resolveWrite();
+      await Promise.resolve();
+    });
+    assert.equal(copyTimerCount(), 0, "a late clipboard success must not create a timer after unmount");
+  } finally {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  }
 });
 
 test("RunTimeline clears a failed submission notice when the operator edits the retained draft", async () => {

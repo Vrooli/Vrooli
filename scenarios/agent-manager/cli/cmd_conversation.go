@@ -30,8 +30,10 @@ func (a *App) cmdConversation(args []string) error {
 		return a.conversationContext(args[1:])
 	case "index":
 		return a.conversationIndex(args[1:])
+	case "policy":
+		return a.conversationPolicy(args[1:])
 	default:
-		return fmt.Errorf("unknown conversation subcommand %q; expected search, context, or index", args[0])
+		return fmt.Errorf("unknown conversation subcommand %q; expected search, context, index, or policy", args[0])
 	}
 }
 
@@ -240,8 +242,58 @@ func (a *App) conversationIndexStatus(args []string) error {
 	if response.GetLastErrorCode() != "" {
 		fmt.Printf("  last_error=%s\n", response.GetLastErrorCode())
 	}
+	printConversationParseFailures(response.GetParseFailures())
+	printConversationPolicyCounters(response.GetPolicyCounters())
 	printConversationDegradations(response.GetDegradations())
 	return nil
+}
+
+// printConversationPolicyCounters reports conversation visibility/exclusion and
+// PII-masking activity so an operator can see what the policy actually did
+// rather than trusting that a hidden/excluded/redacted conversation vanished
+// for the right reason. The fail-closed count is surfaced prominently: a
+// non-zero value means PII masking could NOT run and content was withheld.
+// Nothing is printed when the server does not report counters.
+func printConversationPolicyCounters(counters *domainpb.ConversationPolicyCounters) {
+	if counters == nil {
+		return
+	}
+	scope := "cumulative"
+	if counters.GetProcessLocal() {
+		scope = "process-local (resets on restart)"
+	}
+	fmt.Printf("  policy_counters [%s] exclude_at_import=%d hide_at_search=%d redact_marked=%d\n",
+		scope, counters.GetExcludeAtImport(), counters.GetHideAtSearch(), counters.GetRedactMarked())
+	fmt.Printf("    pii masking: events_scanned=%d spans_masked=%d\n",
+		counters.GetPiiEventsScanned(), counters.GetPiiSpansMasked())
+	// Fail-closed is the load-bearing security signal: PII masking could not run
+	// and content was withheld. Call it out loudly when non-zero.
+	if failClosed := counters.GetPiiFailClosed(); failClosed > 0 {
+		fmt.Printf("    WARNING pii_fail_closed=%d — PII masking could not run; content was WITHHELD (not indexed in the clear)\n", failClosed)
+	} else {
+		fmt.Printf("    pii_fail_closed=0 (PII masking healthy)\n")
+	}
+	for rule, count := range counters.GetByRule() {
+		fmt.Printf("    rule=%s enforced=%d\n", rule, count)
+	}
+}
+
+// printConversationParseFailures reports codec transcript parse failures so a
+// format drift that is silently dropping conversations is visible from the
+// status command. Nothing is printed when no failures have accumulated.
+func printConversationParseFailures(failures *domainpb.ConversationParseFailures) {
+	if failures == nil || failures.GetTotal() == 0 {
+		return
+	}
+	fmt.Printf("  parse_failures total=%d\n", failures.GetTotal())
+	for site, count := range failures.GetBySite() {
+		fmt.Printf("    site=%s count=%d\n", site, count)
+	}
+	samples := failures.GetSamples()
+	for i := len(samples) - 1; i >= 0 && i >= len(samples)-5; i-- {
+		s := samples[i]
+		fmt.Printf("    recent run=%s site=%s detail=%q\n", s.GetRunId(), s.GetSite(), s.GetDetail())
+	}
 }
 
 func (a *App) conversationReindex(args []string) error {

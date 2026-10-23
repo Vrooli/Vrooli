@@ -1,11 +1,19 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 // goalhomeTestdata holds the shared goal-home fixtures; parser and rule tests
@@ -140,5 +148,116 @@ func TestRunWakeByKeyAsksTheServerToMatchProducerAndKey(t *testing.T) {
 	requests := recorder.Requests()
 	if len(requests) != 1 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/runs/wake-by-key" {
 		t.Fatalf("wake by key must be one server-side lookup, got %+v", requests)
+	}
+}
+
+func TestEpochCheckRecordsBeforeWakingOnlyForNewStepBackSignal(t *testing.T) {
+	var mu sync.Mutex
+	order := []string{}
+	keys := map[string]bool{}
+	keyCalls := []string{}
+	seq := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.URL.Path {
+		case apiconnect.AgentManagerServiceRecordEffortSignalProcedure:
+			var request struct {
+				DedupeKey string `json:"dedupe_key"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode signal request: %v", err)
+			}
+			if request.DedupeKey == "" {
+				t.Errorf("record request omitted its dedupe_key")
+			}
+			order = append(order, "record")
+			keyCalls = append(keyCalls, request.DedupeKey)
+			newlyRecorded := !keys[request.DedupeKey]
+			if newlyRecorded {
+				keys[request.DedupeKey] = true
+				seq++
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"seq":"%d","effortRef":"effort:fixture","kind":"step_back","newlyRecorded":%t}`, seq, newlyRecorded)))
+		case "/api/v1/runs/wake-by-key":
+			order = append(order, "wake")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"wokenRunIds":["orchestrator-run"]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL}
+	}, nil)
+	app := &App{services: NewServices(api)}
+	path := writeFile(t, filepath.Join(t.TempDir(), "E7.md"), readGoalhomeFixture(t, "epochs", "flatline.md"))
+
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt == 2 {
+			writeFile(t, path, readGoalhomeFixture(t, "epochs", "flatline.md")+"2026-09-29T09:40:00Z | unit 10 | exit metric=3 | net runtime lines=-5 | net test lines=+2 | ack=-\n")
+		}
+		output, code := runEpochCheck(t, app, path, "--effort", "effort:fixture", "--wake-key", "orchestrator-run")
+		if code != exitStepBack || !strings.Contains(output, "STEP_BACK flatline") {
+			t.Fatalf("attempt %d must preserve the step-back result (exit %d):\n%s", attempt, code, output)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if strings.Join(order, ",") != "record,wake,record,record,wake" {
+		t.Fatalf("signal must be recorded before first/new wake, and replay must not wake: %v", order)
+	}
+	if len(keyCalls) != 3 || keyCalls[0] != keyCalls[1] || keyCalls[1] == keyCalls[2] {
+		t.Fatalf("unchanged attempt must reuse its dedupe key and changed log must create a new one: %v", keyCalls)
+	}
+}
+
+func TestEpochCheckFailsOpenWhenRecordResultIsAbsentOrUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+		code int
+	}{
+		{name: "older response", body: `{"effortRef":"effort:fixture","seq":"1","kind":"step_back"}`, code: http.StatusOK},
+		{name: "record error", body: `{"message":"unavailable"}`, code: http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var mu sync.Mutex
+			order := []string{}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				switch r.URL.Path {
+				case apiconnect.AgentManagerServiceRecordEffortSignalProcedure:
+					order = append(order, "record")
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(tc.code)
+					_, _ = w.Write([]byte(tc.body))
+				case "/api/v1/runs/wake-by-key":
+					order = append(order, "wake")
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"wokenRunIds":[]}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+				return cliutil.APIBaseOptions{DefaultBase: server.URL}
+			}, nil)
+			app := &App{services: NewServices(api)}
+			path := writeFile(t, filepath.Join(t.TempDir(), "E7.md"), readGoalhomeFixture(t, "epochs", "flatline.md"))
+			_, code := runEpochCheck(t, app, path, "--effort", "effort:fixture", "--wake-key", "orchestrator-run")
+			if code != exitStepBack {
+				t.Fatalf("step-back must retain exit %d, got %d", exitStepBack, code)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if strings.Join(order, ",") != "record,wake" {
+				t.Fatalf("missing/failed result must preserve alert wake: %v", order)
+			}
+		})
 	}
 }

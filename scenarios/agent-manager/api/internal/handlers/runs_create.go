@@ -80,15 +80,24 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	// child. This keeps child lineage useful without turning a run identity into
 	// general lifecycle authority.
 	delegatedChild := false
+	createRunGuidance := ""
 	identityToken := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
-	if identityToken != "" && protoReq.ParentRunId != nil {
+	if identityToken != "" && protoReq.ParentRunId == nil {
+		// The guard below verifies any presented token before it emits this
+		// guidance, so malformed or unverified credentials retain their existing
+		// refusal and do not receive a misleading child-creation hint.
+		createRunGuidance = "run identities may create only child runs; set parent_run_id (CLI: --parent-run-id) to the authenticated caller run ID"
+	} else if identityToken != "" {
 		verified, verifyErr := h.svc.VerifyIdentityToken(r.Context(), identityToken)
 		if verifyErr == nil && verified != nil && verified.Valid && verified.Claims != nil {
 			parentID, parseErr := uuid.Parse(protoReq.GetParentRunId())
 			delegatedChild = parseErr == nil && parentID == verified.Claims.RunID
+			if !delegatedChild {
+				createRunGuidance = "parent_run_id (CLI: --parent-run-id) must match the authenticated caller run ID; foreign-parent creation is not permitted"
+			}
 		}
 	}
-	if !delegatedChild && h.denyRunInitiatedLifecycleOperation(w, r, "create-run") {
+	if !delegatedChild && h.denyRunInitiatedLifecycleOperationWithGuidance(w, r, "create-run", createRunGuidance) {
 		return
 	}
 	if !h.validateProto(w, r, &protoReq) {

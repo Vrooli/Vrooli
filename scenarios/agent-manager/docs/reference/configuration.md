@@ -260,6 +260,21 @@ durable storage provider and runner/session evidence.
 | `ImportedToolCompactionDays` | 30 | Age after which imported `tool_call` and `tool_result` payloads are compacted in place to a head and tail excerpt with the original byte count and sha256. Prose is never compacted. Each rewrite queues a conversation-search reindex. `0` disables. |
 | `ImportedToolCompactionMinBytes` | 4096 | Stored payload size above which an imported tool event is compacted; each compacted value keeps a quarter of it at the head and a quarter at the tail. |
 
+## Transcript import
+
+The periodic, idempotent sweep that adopts external harness transcripts into the
+conversation corpus. It always scans the built-in harness roots
+(`~/.codex/sessions`, `~/.claude/projects`) and the per-session web-console Codex
+homes (`~/.vrooli/state/vrooli/web-console/sessions/codex/<session>/sessions`),
+and runs once at startup regardless of interval. The `import-sweep` CLI/REST
+output reports per-root counts and any absent or unreadable root, so a missing
+conversation is traceable to the root it should have come from.
+
+| Field | Default | What it controls |
+|---|---|---|
+| `Interval` | 6h | How often the background sweep runs. Range 1m–24h. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL` (a Go duration). |
+| `ScanRoots` | none | Additional transcript directories to sweep, each an absolute path (leading `~` expands to the home dir). Scanned in addition to — never instead of — the built-in roots, so externally-run / remote agents writing `.jsonl` transcripts into a custom directory become importable. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS` (comma-separated paths). |
+
 ## Scanner
 
 Buffer ceilings for stdout and transcript readers. Higher = handles bigger lines without truncation, more memory.

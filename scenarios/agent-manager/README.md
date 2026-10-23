@@ -12,6 +12,14 @@ agent-manager provides:
 - **Event tracking** with append-only logs of all agent activity
 - **Approval workflows** with diff review before canonical repo changes
 
+## Customer value and positioning
+
+Mizar helps operators understand recurring agent friction and improve supported
+workflows. Aquila supplies the complementary daily conversation/review workspace.
+Read [Go to market](docs/business/GO-TO-MARKET.md) and
+[Monetization](docs/business/MONETIZATION.md) for the efficiency hypothesis,
+workload coverage and limits on cost-saving claims.
+
 ## Choose the right primitive
 
 Agent Manager has two deliberately different integration surfaces:

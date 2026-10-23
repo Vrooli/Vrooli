@@ -3,17 +3,84 @@ package protoconv
 
 import (
 	"encoding/json"
+	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestCumulativeTokenFieldsRoundTripBeyondInt32(t *testing.T) {
+	const tokens int64 = math.MaxInt32 + 12345
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Summary: &domain.RunSummary{TokensUsed: tokens}}
+	encodedRun := RunToProto(run)
+	if encodedRun.Summary.GetTokensUsed() != tokens {
+		t.Fatalf("RunSummary tokens = %d, want %d", encodedRun.Summary.GetTokensUsed(), tokens)
+	}
+	decodedRun := RunFromProto(encodedRun)
+	if decodedRun.Summary.TokensUsed != tokens {
+		t.Fatalf("round-tripped RunSummary tokens = %d, want %d", decodedRun.Summary.TokensUsed, tokens)
+	}
+
+	event := &domain.RunEvent{ID: uuid.New(), RunID: run.ID, Data: &domain.ProgressEventData{TokensUsed: tokens}}
+	encodedEvent := RunEventToProto(event)
+	if got := encodedEvent.GetProgress().GetTokensUsed(); got != tokens {
+		t.Fatalf("ProgressEventData tokens = %d, want %d", got, tokens)
+	}
+	progressJSON, err := protojson.Marshal(encodedEvent.GetProgress())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var progressRoundTrip pb.ProgressEventData
+	if err := protojson.Unmarshal(progressJSON, &progressRoundTrip); err != nil {
+		t.Fatal(err)
+	}
+	if progressRoundTrip.GetTokensUsed() != tokens {
+		t.Fatalf("ProgressEventData ProtoJSON round-trip tokens = %d, want %d", progressRoundTrip.GetTokensUsed(), tokens)
+	}
+
+	body, err := protojson.Marshal(encodedRun.Summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != `{"tokensUsed":"2147495992"}` {
+		t.Fatalf("ProtoJSON int64 shape = %s", body)
+	}
+	var jsonRoundTrip pb.RunSummary
+	if err := protojson.Unmarshal(body, &jsonRoundTrip); err != nil {
+		t.Fatal(err)
+	}
+	if jsonRoundTrip.GetTokensUsed() != tokens {
+		t.Fatalf("ProtoJSON round-trip tokens = %d, want %d", jsonRoundTrip.GetTokensUsed(), tokens)
+	}
+}
+
+func TestCodexUsageBaselineMetadataIsNotPublicRunEventData(t *testing.T) {
+	complete := false
+	event := &domain.RunEvent{
+		ID: uuid.New(), RunID: uuid.New(), EventType: domain.EventTypeMetric,
+		Data: &domain.UsageEventData{
+			PayloadKind: domain.PayloadKindUsage, InputTokens: 10, RunnerType: string(domain.RunnerTypeCodex),
+			ReconciliationAuthority: true, ReconciliationComplete: &complete,
+			CodexUsageSnapshot: &domain.CodexUsageSnapshot{SessionID: "internal-session", InputTokens: 20},
+		},
+	}
+	encoded, err := protojson.Marshal(RunEventToProto(event))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "internal-session") || strings.Contains(string(encoded), "codexUsageSnapshot") || strings.Contains(string(encoded), "reconciliationComplete") {
+		t.Fatalf("internal continuation baseline leaked into public event: %s", encoded)
+	}
+}
 
 func TestRunParentRunIDRoundTrips(t *testing.T) {
 	parentID := uuid.New()

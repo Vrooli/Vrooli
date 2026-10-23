@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/runsignal"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ func (o *Orchestrator) nudgeWorkflowUsage(runID uuid.UUID, evt *domain.RunEvent)
 // Use the same invocation boundaries and deduplication rules as owner
 // accounting. Continuations reuse the Run ID and its cumulative event stream.
 func (l workflowChildLauncher) InspectMetered(ctx context.Context, id uuid.UUID) (workflowruntime.ChildState, error) {
-	run, state, err := l.o.meteredRun(ctx, id)
+	run, state, _, err := l.o.meteredRun(ctx, id)
 	if err == nil && run != nil && state.Terminal && (!state.TokensKnown || !state.ChargeMeasured) {
 		state.AccountingRecoveryUnavailable = !l.terminalAccountingRecoveryAvailable(ctx, run)
 	}
@@ -95,12 +96,12 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 	}
 	state.Tokens, state.Turns, state.ChargeMicroUSD = 0, 0, 0
 	state.ChargeMeasured = false
-	terminalAuthority := false
 	latestUsage, latestCharge := false, false
-	priorInvocationsComplete := true
+	priorChargesComplete := true
 	chargeObserved, chargeComplete := false, true
 	preEffectProven := false
 	runnerAcquired := false
+	usageSelection := runsignal.SelectCanonicalUsage(events)
 	observeCharge := func(charge *domain.ChargeEventData) error {
 		if charge == nil {
 			return nil
@@ -134,10 +135,10 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 			continue
 		}
 		if invocationreadmodel.BeginsRunInvocation(evt) {
-			if latestUsage && (!terminalAuthority || !latestCharge) {
-				priorInvocationsComplete = false
+			if latestUsage && !latestCharge {
+				priorChargesComplete = false
 			}
-			terminalAuthority, latestUsage, latestCharge = false, false, false
+			latestUsage, latestCharge = false, false
 		}
 		if goal, ok := evt.Data.(*domain.GoalStatusChangedEventData); ok {
 			status := runner.GoalStatus(goal.Status)
@@ -164,7 +165,6 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 			latestUsage = true
 			// An earlier receipt cannot close usage observed after its cut.
 			// A later authoritative receipt may establish completion again.
-			terminalAuthority = usage.ReconciliationAuthority
 			if !evt.Timestamp.IsZero() {
 				observations = append(observations, evt.Timestamp)
 			}
@@ -179,14 +179,14 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 		}
 	}
 	state.MeterCadence = workflowruntime.MeterCadenceFromObservations(observations)
-	state.MeterCadence.TerminalAuthority = terminalAuthority
+	state.MeterCadence.TerminalAuthority = usageSelection.LatestInvocationAuthoritative
 	fact := invocationreadmodel.ProjectRun(run, events, now)
 	if fact.TotalTokens < 0 || int64(int(fact.TotalTokens)) != fact.TotalTokens {
 		return state, fmt.Errorf("provider token total overflow for run %s", run.ID)
 	}
 	state.Tokens, state.Turns = int(fact.TotalTokens), int(fact.Turns)
 	state.ChargeMicroUSD = fact.MeteredChargeMicroUSD
-	state.ChargeMeasured = chargeObserved && chargeComplete && latestUsage && latestCharge
+	state.ChargeMeasured = chargeObserved && chargeComplete && priorChargesComplete && latestUsage && latestCharge
 	// A runner adapter can explicitly prove that launch failed before any
 	// provider process existed. In that case zero usage and zero marginal
 	// charge are authoritative, even though no provider receipt was emitted.
@@ -202,7 +202,7 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 	}
 	// StopRun can publish cancelled before the final accounting tail arrives.
 	// A terminal status plus a prior live reading is not a terminal receipt.
-	if state.Terminal && !preEffectProven && (!terminalAuthority || !priorInvocationsComplete) {
+	if state.Terminal && !preEffectProven && (!usageSelection.LatestInvocationAuthoritative || !usageSelection.AllInvocationsAuthoritative) {
 		state.TokensKnown = false
 	}
 	return state, nil

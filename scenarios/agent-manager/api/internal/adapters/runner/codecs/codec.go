@@ -273,14 +273,11 @@ type State interface {
 	SessionID() string
 }
 
-// Labels carries the human-readable status messages a codec uses for
-// Execute/Continue start and completion. Stored once per codec rather
-// than re-derived per-call.
+// Labels carries the human-readable status messages a codec uses when an
+// Execute or Continue invocation starts.
 type Labels struct {
 	StartMessage         string // emitted on Execute start
-	EndMessage           string // emitted on Execute completion
 	ContinueStartMessage string // emitted on Continue start
-	ContinueEndMessage   string // emitted on Continue completion
 }
 
 func messageEventContent(event *domain.RunEvent) string {

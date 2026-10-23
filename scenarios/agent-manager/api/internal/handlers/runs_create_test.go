@@ -100,6 +100,9 @@ func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("unlinked child status = %d, want %d", response.Code, http.StatusForbidden)
 	}
+	if !strings.Contains(response.Body.String(), "set parent_run_id (CLI: --parent-run-id)") {
+		t.Fatalf("missing-parent refusal lacks exact-parent guidance: %s", response.Body.String())
+	}
 	if denied.request.TaskID != uuid.Nil {
 		t.Fatal("unlinked run reached the owner")
 	}
@@ -118,6 +121,9 @@ func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
 	h.CreateRun(response, req)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("mismatched parent status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	if !strings.Contains(response.Body.String(), "parent_run_id (CLI: --parent-run-id) must match the authenticated caller run ID") {
+		t.Fatalf("mismatched-parent refusal is not specific: %s", response.Body.String())
 	}
 	if mismatched.request.TaskID != uuid.Nil {
 		t.Fatal("mismatched child reached the owner")
@@ -146,8 +152,9 @@ func TestCreateRun_Success(t *testing.T) {
 	// Create a task
 	body = encodeProtoJSON(t, &apipb.CreateTaskRequest{
 		Task: &pb.Task{
-			Title:     "Test task for run",
-			ScopePath: "src/",
+			Title:       "Test task for run",
+			Description: "Run the handler test task.",
+			ScopePath:   "src/",
 		},
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
@@ -516,44 +523,25 @@ func TestGetAuditTranscriptServesBoundedPersistedEvidence(t *testing.T) {
 }
 
 func TestDeletePendingRunIsRejectedWithLifecycleGuidance(t *testing.T) {
-	release := make(chan struct{})
-	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mock.ExecuteFunc = func(ctx context.Context, _ runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		select {
-		case <-release:
-			return &runner.ExecuteResult{ExitCode: 0}, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "delete pending run", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { close(release) })
-	_, router := setupTestHandlerWithRunner(t, mock)
-	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{
-		Name: "delete-run", ProfileKey: "delete-run", RoleRef: "code.default",
-		SandboxConfig: &pb.SandboxConfig{Mode: pb.SandboxMode_SANDBOX_MODE_OFF},
-	}})
-	profileRR := httptest.NewRecorder()
-	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
-	var profile apipb.CreateProfileResponse
-	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
-	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "delete-run", ScopePath: "src/delete"}})
-	taskRR := httptest.NewRecorder()
-	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
-	var task apipb.CreateTaskResponse
-	decodeProtoJSON(t, taskRR.Body.Bytes(), &task)
-	profileID := profile.Profile.GetId()
-	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
-	runRR := httptest.NewRecorder()
-	router.ServeHTTP(runRR, authenticatedRunTestRequest(bytes.NewReader(runBody)))
-	if runRR.Code != http.StatusCreated {
-		t.Fatalf("run status=%d body=%s", runRR.Code, runRR.Body.String())
+	// Seed the required lifecycle state without starting an unrelated executor.
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
 	}
-	var run apipb.CreateRunResponse
-	decodeProtoJSON(t, runRR.Body.Bytes(), &run)
 	deleteRR := httptest.NewRecorder()
-	router.ServeHTTP(deleteRR, httptest.NewRequest(http.MethodDelete, "/api/v1/runs/"+run.Run.GetId(), nil))
-	if deleteRR.Code != http.StatusConflict {
+	router.ServeHTTP(deleteRR, httptest.NewRequest(http.MethodDelete, "/api/v1/runs/"+run.ID.String(), nil))
+	if deleteRR.Code != http.StatusConflict || !strings.Contains(deleteRR.Body.String(), "only terminal runs can be deleted") {
 		t.Fatalf("delete pending status=%d body=%s", deleteRR.Code, deleteRR.Body.String())
+	}
+	retained, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || retained == nil || retained.Status != domain.RunStatusPending {
+		t.Fatalf("rejected deletion changed pending run: run=%+v error=%v", retained, err)
 	}
 }
 

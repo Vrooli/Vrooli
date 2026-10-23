@@ -12,8 +12,11 @@ CREATE TABLE IF NOT EXISTS route_events (
   policy_reasons_json TEXT NOT NULL,
   failure_reasons_json TEXT NOT NULL,
   fallback_used INTEGER NOT NULL DEFAULT 0,
-  prompt_redacted INTEGER NOT NULL DEFAULT 1,
-  response_redacted INTEGER NOT NULL DEFAULT 1,
+  -- Honest baseline: redaction defaults to false. The service always writes
+  -- these columns explicitly from a real DETECT_PII pass; the DEFAULT only
+  -- guards non-service writers and must not claim a redaction that never ran.
+  prompt_redacted INTEGER NOT NULL DEFAULT 0,
+  response_redacted INTEGER NOT NULL DEFAULT 0,
   latency_ms INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   breaker_state TEXT NOT NULL DEFAULT '',

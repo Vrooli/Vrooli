@@ -240,35 +240,67 @@ func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *d
 // follow-up lands in the same CLI; if the session is gone, the run cannot be
 // continued in place and an actionable error is returned.
 func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.Run, message string, _ []string, reinstallGoal bool) (*domain.Run, error) {
-	completeAfterFirstTurn := shouldCompleteAfterCompletedGoalContinuation(run, reinstallGoal)
+	if err := o.verifyInteractiveSession(ctx, run); err != nil {
+		return nil, domain.RefuseBeforeEffects(err)
+	}
+	tailContext, err := loadInteractiveTailContextForRun(ctx, run, o.resolveRunStateRoot)
+	if err != nil {
+		obs.Component("interactive").Warn("interactive continuation could not load run-state metadata",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex && strings.TrimSpace(tailContext.RunDir) == "" {
+		return nil, domain.RefuseBeforeEffects(err)
+	}
+	return o.continueInteractiveRunWithVerifiedSession(ctx, run, message, reinstallGoal, tailContext)
+}
+
+// verifyInteractiveSession proves the exact retained session is available
+// before a caller cancels a waiter or changes the Run. Wake uses this before
+// its durable await bookkeeping; Continue uses it through
+// continueInteractiveRun.
+func (o *Orchestrator) verifyInteractiveSession(ctx context.Context, run *domain.Run) error {
+	if run == nil {
+		return domain.NewValidationError("run", "interactive run is required")
+	}
 	if o.interactiveSessions == nil {
-		return nil, domain.RefuseBeforeEffects(domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil))
+		return domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
 	}
 	if run.WebConsoleSessionID == "" {
-		return nil, domain.RefuseBeforeEffects(domain.NewStateError("Run", string(run.Status), "continue",
-			"interactive run has no web-console session to continue"))
+		return domain.NewStateError("Run", string(run.Status), "continue",
+			"interactive run has no web-console session to continue")
 	}
-	// Defensive: a live driver means a turn is still in flight. CanContinueRun
-	// already rejects non-terminal runs, so this only fires on a racing
-	// double-continue.
+	session, err := o.interactiveSessions.GetSession(ctx, run.WebConsoleSessionID)
+	if err != nil {
+		if errors.Is(err, webconsole.ErrSessionNotFound) {
+			return domain.NewStateError("Run", string(run.Status), "continue",
+				fmt.Sprintf("the live web-console session %s for this run no longer exists (ended runs keep their session only for the interactive session retention window); start a new interactive run to continue",
+					run.WebConsoleSessionID))
+		}
+		return err
+	}
+	if session.ID != run.WebConsoleSessionID {
+		return domain.NewStateError("Run", string(run.Status), "continue",
+			fmt.Sprintf("web-console lookup returned session %s for retained session %s", session.ID, run.WebConsoleSessionID))
+	}
+	return nil
+}
+
+func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Context, run *domain.Run, message string, reinstallGoal bool, tailContext interactive.TailContext) (*domain.Run, error) {
+	completeAfterFirstTurn := shouldCompleteAfterTerminalGoalContinuation(run, reinstallGoal)
+	// Defensive: a live driver means a turn is still in flight. ContinueRun's
+	// terminal-state gate and WakeRun's cancel-and-drain handoff normally ensure
+	// no driver remains here; retain this guard for racing callers.
 	if o.interactiveDrivers.has(run.ID) {
 		return nil, domain.RefuseBeforeEffects(domain.NewStateError("Run", string(run.Status), "continue",
 			"an interactive turn is already in progress for this run"))
-	}
-	// The live session must still exist to type into.
-	if _, err := o.interactiveSessions.GetSession(ctx, run.WebConsoleSessionID); err != nil {
-		if errors.Is(err, webconsole.ErrSessionNotFound) {
-			return nil, domain.RefuseBeforeEffects(domain.NewStateError("Run", string(run.Status), "continue",
-				fmt.Sprintf("the live web-console session %s for this run no longer exists (ended runs keep their session only for the interactive session retention window); start a new interactive run to continue",
-					run.WebConsoleSessionID)))
-		}
-		return nil, domain.RefuseBeforeEffects(err)
 	}
 
 	// Reactivate the run (reset the heartbeat in the same transition) and record
 	// the follow-up as a user message, mirroring pipe-mode resumeConversation.
 	now := o.now()
 	transcriptStartCursor := run.TranscriptCursor
+	priorInvocationStartedAt := run.InteractiveInvocationStartedAt
+	var statusPublicationErr error
 	run.InteractiveInvocationStartedAt = &now
 	// Persist this exception with the invocation boundary itself so recovery
 	// can apply it only to this exact admitted continuation after a restart.
@@ -283,14 +315,21 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 		}
 	}
 	run, err := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-		Run:           run,
-		NewStatus:     domain.RunStatusRunning,
-		Phase:         domain.RunPhaseExecuting,
-		Reason:        "Interactive continuation requested",
-		LastHeartbeat: &now,
+		Run:                                    run,
+		NewStatus:                              domain.RunStatusRunning,
+		Phase:                                  domain.RunPhaseExecuting,
+		Reason:                                 "Interactive continuation requested",
+		LastHeartbeat:                          &now,
+		InteractiveContinuation:                true,
+		ExpectedInteractiveInvocationStartedAt: priorInvocationStartedAt,
 	})
 	if err != nil {
-		return nil, err
+		if run == nil {
+			return nil, err
+		}
+		statusPublicationErr = err
+		obs.Component("interactive").Error("interactive continuation status committed but event publication failed; proceeding with the retained session",
+			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
 	if o.events != nil {
 		if aerr := o.appendAndBroadcastEvents(ctx, run.ID, domain.NewMessageEvent(run.ID, "user", message)); aerr != nil {
@@ -343,22 +382,24 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	// Reattach a live coordinator to drive the new turn to completion. Its
 	// turn-boundary debounce closes the follow-up turn exactly like the initial
 	// Execute turn.
-	o.driveInteractiveContinuation(run, completeAfterFirstTurn)
+	o.driveInteractiveContinuation(run, completeAfterFirstTurn, tailContext)
 
-	return o.attachRunActions(ctx, run), nil
+	return o.attachRunActions(ctx, run), statusPublicationErr
 }
 
-// shouldCompleteAfterCompletedGoalContinuation scopes the one-turn terminal
-// rule to a completed native goal that the caller did not reinstall. A new
-// invocation with a reinstalled goal keeps the normal goal-verdict contract.
-func shouldCompleteAfterCompletedGoalContinuation(run *domain.Run, reinstallGoal bool) bool {
+// shouldCompleteAfterTerminalGoalContinuation scopes the one-turn terminal
+// rule to a terminal native goal when the caller did not reinstall it. A
+// follow-up can report on a completed or blocked goal without changing that
+// historical verdict; a reinstalled goal keeps the normal goal-verdict
+// contract.
+func shouldCompleteAfterTerminalGoalContinuation(run *domain.Run, reinstallGoal bool) bool {
 	return !reinstallGoal &&
 		run != nil &&
 		run.Status == domain.RunStatusComplete &&
 		run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive &&
 		run.ResolvedConfig != nil &&
 		strings.TrimSpace(run.ResolvedConfig.Until) != "" &&
-		run.ObservedGoalStatus == string(runner.GoalStatusComplete)
+		(run.ObservedGoalStatus == string(runner.GoalStatusComplete) || run.ObservedGoalStatus == string(runner.GoalStatusBlocked))
 }
 
 // reinstallNativeGoal re-sends the harness-native /goal objective into a live
@@ -402,7 +443,7 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 // interactive driver registry so StopRun can cancel it deterministically. The
 // coordinator mutates its own copy of the run; the persisted DB row is the
 // source of truth.
-func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAfterFirstTurn bool) {
+func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAfterFirstTurn bool, tailContext interactive.TailContext) {
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
 		Tailer:      interactive.NewTailer(interactive.RegistryParser(o.runners)),
 		Sessions:    o.interactiveSessions,
@@ -419,10 +460,9 @@ func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAft
 		defer obs.RecoverToFailure("interactive continuation driver", func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(&runCopy, failure)
 		})
-		terminal, tailErr := coord.TailToCompletionWithOptions(ctx, &runCopy, interactive.TailCompletionOptions{
+		if err := coord.TailAndFinalizeLive(ctx, &runCopy, tailContext, interactive.TailCompletionOptions{
 			CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: completeAfterFirstTurn,
-		})
-		if err := coord.Finalize(ctx, &runCopy, terminal, tailErr); err != nil {
+		}); err != nil {
 			obs.Component("interactive").Warn("interactive continuation finalize failed",
 				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}

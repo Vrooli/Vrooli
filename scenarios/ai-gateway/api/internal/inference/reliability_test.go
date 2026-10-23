@@ -29,7 +29,7 @@ func (r *repairingRepository) Run(_ context.Context, request ProviderRequest) (P
 	if len(r.requests) <= len(r.values) {
 		value = r.values[len(r.requests)-1]
 	}
-	return ProviderResult{ValueJSON: value, Provider: "fake", Model: "test", InputTokens: 5, OutputTokens: 2}, nil
+	return ProviderResult{ValueJSON: value, Provider: "fake", Model: "test", InputTokens: 5, OutputTokens: 2, ProviderCallsMade: 1}, nil
 }
 
 func (r *repairingRepository) snapshot() []ProviderRequest {
@@ -51,6 +51,7 @@ func TestServiceReAsksOnceWhenLocalValidationRejectsTheFirstValue(t *testing.T) 
 
 	require.True(t, response.GetValidated())
 	require.Equal(t, `{"label":"infra"}`, response.GetValueJson())
+	require.EqualValues(t, 2, response.GetProviderCallsMade())
 
 	requests := repository.snapshot()
 	require.Len(t, requests, 2, "a rejected value should be re-asked exactly once")
@@ -81,6 +82,42 @@ func TestServiceStopsReAskingAfterTheAttemptBudget(t *testing.T) {
 	require.Equal(t, "INFERENCE_ERROR_CODE_VALIDATION_FAILED", response.GetError().GetCode().String())
 	require.Len(t, repository.snapshot(), MaxValidationAttempts,
 		"an unbounded repair loop would make cost unpredictable for callers")
+	require.EqualValues(t, MaxValidationAttempts, response.GetProviderCallsMade())
+}
+
+func TestServiceGenericProviderCallLimitIncludesValidationRepair(t *testing.T) {
+	repository := &repairingRepository{values: []string{`{"label":"wrong"}`, `{"label":"infra"}`}}
+	response := NewService(repository).Run(t.Context(), ProviderRequest{
+		Source: "source", SchemaJSON: `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
+		Role: "classify.fast", MaxProviderCalls: 1,
+	})
+	require.False(t, response.GetValidated())
+	require.EqualValues(t, 1, response.GetProviderCallsMade())
+	require.Len(t, repository.snapshot(), 1, "the total cap must prevent schema repair dispatch")
+}
+
+func TestServiceRejectsProviderCallLimitAboveGatewayMaximumBeforeDispatch(t *testing.T) {
+	repository := &repairingRepository{values: []string{`"value"`}}
+	response := NewService(repository).Run(t.Context(), ProviderRequest{
+		Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1,
+	})
+	require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", response.GetError().GetCode().String())
+	require.Equal(t, "max_provider_calls", response.GetError().GetConstruct())
+	require.Empty(t, repository.snapshot())
+}
+
+func TestRunBatchValidatesInternalProviderCallLimitsBeforeDispatch(t *testing.T) {
+	repository := &repairingRepository{values: []string{`"unused"`}}
+	response := NewService(repository).RunBatch(t.Context(), []ProviderRequest{
+		{Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: -1},
+		{Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1},
+	})
+	require.Len(t, response.GetResults(), 2)
+	for _, result := range response.GetResults() {
+		require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", result.GetError().GetCode().String())
+		require.Empty(t, result.GetProviderCallsMade())
+	}
+	require.Empty(t, repository.snapshot(), "invalid per-item bounds must be refused before provider execution")
 }
 
 // A provider failure is terminal here: the repository already walks every
@@ -106,7 +143,7 @@ func (r *countingFailingRepository) Run(context.Context, ProviderRequest) (Provi
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.count++
-	return ProviderResult{}, ErrUnavailable
+	return ProviderResult{ProviderCallsMade: 1}, ErrUnavailable
 }
 
 func (r *countingFailingRepository) calls() int {
@@ -154,6 +191,33 @@ func TestCatalogRejectsATimeoutBeyondTheMaximum(t *testing.T) {
 		},
 	}}
 	require.ErrorContains(t, catalog.Validate(), "exceeds")
+}
+
+// The catalog validator was widened to accept the pii-detector provider
+// alongside ollama/openrouter/lpbs; an unknown provider must still be rejected.
+func TestCatalogValidatesProviderWidening(t *testing.T) {
+	cases := []struct {
+		name     string
+		provider string
+		wantErr  string
+	}{
+		{name: "pii-detector accepted", provider: "pii-detector"},
+		{name: "unknown provider rejected", provider: "bogus", wantErr: "unsupported"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+				"detect.pii.default": {Sampling: deterministicRoleSampling(), Candidates: []Candidate{
+					{Provider: tc.provider, ResourceRole: "pii.small", Reason: "test"},
+				}},
+			}}
+			if tc.wantErr == "" {
+				require.NoError(t, catalog.Validate())
+			} else {
+				require.ErrorContains(t, catalog.Validate(), tc.wantErr)
+			}
+		})
+	}
 }
 
 // A malformed catalog must degrade typed inference alone. Routing, measures,
@@ -210,5 +274,5 @@ type blockingRepository struct {
 func (r *blockingRepository) Run(_ context.Context, request ProviderRequest) (ProviderResult, error) {
 	r.arrived <- struct{}{}
 	<-r.gate
-	return ProviderResult{ValueJSON: `"` + request.Source + `"`, Provider: "fake", Model: "test"}, nil
+	return ProviderResult{ValueJSON: `"` + request.Source + `"`, Provider: "fake", Model: "test", ProviderCallsMade: 1}, nil
 }

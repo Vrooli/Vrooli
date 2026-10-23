@@ -23,6 +23,7 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestExistingTokenlessProcessCanAdoptDurableGrantAndRevocationIsImmediate(t *testing.T) {
@@ -125,6 +126,277 @@ func TestExistingTokenlessProcessCanAdoptDurableGrantAndRevocationIsImmediate(t 
 	verified, err = o.VerifyIdentityToken(ctx, token)
 	if err != nil || verified.Valid {
 		t.Fatal("revoked bearer remained active")
+	}
+}
+
+func TestAuthorizationAttachmentRetainsVerifiedLauncherSession(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const harnessSession, webConsoleSession = "host-launch-session", "verified-wc-session"
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
+		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+			return SessionBindingProof{}, errors.New("session tuple changed")
+		}
+		runSelector := ""
+		if runID != uuid.Nil {
+			runSelector = runID.String()
+		}
+		return SessionBindingProof{
+			ProofVersion: sessionBindingProofVersion, RunID: runSelector,
+			HarnessSessionID: harnessSession, WebConsoleSessionID: webConsoleSession,
+			HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding,
+		}, nil
+	})
+	o := New(nil, nil, repos.Runs,
+		WithEvents(events), WithIdentitySecret([]byte("authorization-binding-secret")),
+		WithAuthorizations(database.NewAuthorizationRepository(db)), WithSessionBindingProofReader(proofReader))
+	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
+	if err != nil {
+		t.Fatalf("request authorization with live launcher proof: %v", err)
+	}
+	if grant.WebConsoleSessionID != webConsoleSession {
+		t.Fatalf("pending grant locator = %q, want verified launcher locator %q", grant.WebConsoleSessionID, webConsoleSession)
+	}
+	stored, err := o.GetAuthorization(ctx, grant.ID)
+	if err != nil || stored.WebConsoleSessionID != webConsoleSession {
+		t.Fatalf("durable grant lost verified session locator: grant=%+v err=%v", stored, err)
+	}
+	policy, _ := authn.InteractivePolicy("swarm-bookkeeping")
+	principal := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess, Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour)}
+	approved, err := o.ApproveAuthorization(requestidentity.WithPrincipal(ctx, principal), grant.ID)
+	if err != nil {
+		t.Fatalf("approve with same exact launcher proof: %v", err)
+	}
+	attached, err := o.GetRun(ctx, approved.RunID)
+	if err != nil || attached.WebConsoleSessionID != webConsoleSession || attached.HarnessSessionID != harnessSession {
+		t.Fatalf("attached run did not retain the exact launcher tuple: run=%+v err=%v", attached, err)
+	}
+	if attached.OwnerSubject != "owner" || len(attached.OwnerScopes) == 0 {
+		t.Fatalf("approved operator attribution was lost: subject=%q scopes=%v", attached.OwnerSubject, attached.OwnerScopes)
+	}
+}
+
+func TestLegacyPendingAuthorizationResolvesLauncherLocatorOnlyAtFreshApproval(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const harnessSession, webConsoleSession = "legacy-pending-host-session", "current-wc-owner"
+	o := New(nil, nil, repos.Runs,
+		WithEvents(events), WithIdentitySecret([]byte("legacy-pending-binding-secret")),
+		WithAuthorizations(database.NewAuthorizationRepository(db)))
+	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if grant.WebConsoleSessionID != "" {
+		t.Fatalf("legacy fixture unexpectedly has a session locator: %q", grant.WebConsoleSessionID)
+	}
+	// This simulates a request already pending before the locator was retained.
+	// The fresh approval resolves it from the original host-session key and the
+	// immutable process binding, not from a replacement consent or run mutation.
+	o.sessionBindingProofReader = SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
+		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+			return SessionBindingProof{}, errors.New("legacy request tuple changed")
+		}
+		runSelector := ""
+		if runID != uuid.Nil {
+			runSelector = runID.String()
+		}
+		return SessionBindingProof{
+			ProofVersion: sessionBindingProofVersion, RunID: runSelector,
+			HarnessSessionID: harnessSession, WebConsoleSessionID: webConsoleSession,
+			HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding,
+		}, nil
+	})
+	reused, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
+	if err != nil || reused.ID != grant.ID {
+		t.Fatalf("refreshing the pending locator replaced consent: reused=%v err=%v", reused != nil && reused.ID == grant.ID, err)
+	}
+	if reused.WebConsoleSessionID != webConsoleSession {
+		t.Fatalf("pending consent did not gain its verified locator: %q", reused.WebConsoleSessionID)
+	}
+	policy, _ := authn.InteractivePolicy("swarm-bookkeeping")
+	principal := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess, Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour)}
+	approved, err := o.ApproveAuthorization(requestidentity.WithPrincipal(ctx, principal), grant.ID)
+	if err != nil {
+		t.Fatalf("fresh approval could not resolve exact current launcher owner: %v", err)
+	}
+	stored, err := o.GetAuthorization(ctx, grant.ID)
+	if err != nil || stored.WebConsoleSessionID != webConsoleSession {
+		t.Fatalf("approval did not persist resolved locator: grant=%+v err=%v", stored, err)
+	}
+	attached, err := o.GetRun(ctx, approved.RunID)
+	if err != nil || attached.WebConsoleSessionID != webConsoleSession || attached.HarnessSessionID != harnessSession {
+		t.Fatalf("freshly attached run lost verified locator: run=%+v err=%v", attached, err)
+	}
+}
+
+func TestAuthorizationRefusesMismatchedLauncherProofBeforeCreatingConsent(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := New(nil, nil, repos.Runs,
+		WithEvents(events), WithIdentitySecret([]byte("mismatched-binding-secret")),
+		WithAuthorizations(database.NewAuthorizationRepository(db)),
+		WithSessionBindingProofReader(SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, _ string, _ string, harness string) (SessionBindingProof, error) {
+			runSelector := ""
+			if runID != uuid.Nil {
+				runSelector = runID.String()
+			}
+			return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector, HarnessSessionID: "different-host-session", WebConsoleSessionID: "wrong-session", HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding}, nil
+		})))
+	_, err = o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "expected-host-session",
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
+	if err == nil {
+		t.Fatal("mismatched host-session proof created consent")
+	}
+	grants, err := o.authorizations.List(ctx, os.Getpid())
+	if err != nil || len(grants) != 0 {
+		t.Fatalf("mismatched proof left a consent row: grants=%d err=%v", len(grants), err)
+	}
+}
+
+func TestAuthorizationRejectsClaimedWebConsoleLocatorWithoutProofReader(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	authRepo := database.NewAuthorizationRepository(db)
+	o := New(nil, nil, repos.Runs,
+		WithEvents(events), WithIdentitySecret([]byte("missing-proof-reader-secret")), WithAuthorizations(authRepo))
+	_, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "claimed-wc-host-session", WebConsoleSessionID: "unverified-wc-session",
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	})
+	if err == nil {
+		t.Fatal("claimed Web Console locator fell back to an unattached session")
+	}
+	grants, err := authRepo.List(ctx, os.Getpid())
+	if err != nil || len(grants) != 0 {
+		t.Fatalf("missing proof reader left consent rows: count=%d err=%v", len(grants), err)
+	}
+}
+
+func TestAuthorizationApprovalRequiresCurrentWebConsoleProofReader(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const harnessSession, webConsoleSession = "approval-proof-host-session", "approval-proof-wc-session"
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
+		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+			return SessionBindingProof{}, errors.New("session tuple changed")
+		}
+		runSelector := ""
+		if runID != uuid.Nil {
+			runSelector = runID.String()
+		}
+		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector,
+			HarnessSessionID: harnessSession, WebConsoleSessionID: webConsoleSession, HarnessKind: harness,
+			OwnerKind: "web-console-session", Binding: binding}, nil
+	})
+	authRepo := database.NewAuthorizationRepository(db)
+	o := New(nil, nil, repos.Runs,
+		WithEvents(events), WithIdentitySecret([]byte("approval-missing-proof-reader-secret")),
+		WithAuthorizations(authRepo), WithSessionBindingProofReader(proofReader))
+	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600})
+	if err != nil {
+		t.Fatalf("request authorization: %v", err)
+	}
+	o.sessionBindingProofReader = nil
+	policy, _ := authn.InteractivePolicy("swarm-bookkeeping")
+	principal := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess,
+		Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour)}
+	if _, err := o.ApproveAuthorization(requestidentity.WithPrincipal(ctx, principal), grant.ID); err == nil {
+		t.Fatal("approval proceeded after required Web Console proof reader became unavailable")
+	}
+	stored, err := authRepo.Get(ctx, grant.ID)
+	if err != nil || stored.State != domain.AuthorizationPending || stored.WebConsoleSessionID != webConsoleSession {
+		t.Fatalf("unavailable proof changed pending consent: state=%q wc=%q err=%v", stored.State, stored.WebConsoleSessionID, err)
+	}
+	runs, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})
+	if err != nil || len(runs) != 0 {
+		t.Fatalf("unavailable proof created attached runs: count=%d err=%v", len(runs), err)
+	}
+}
+
+func TestAuthorizationApprovalRefusesChangedLauncherOwnerBeforeEffects(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const harnessSession, webConsoleSession = "approval-host-session", "approval-wc-session"
+	currentWC := webConsoleSession
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
+		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+			return SessionBindingProof{}, errors.New("session tuple changed")
+		}
+		runSelector := ""
+		if runID != uuid.Nil {
+			runSelector = runID.String()
+		}
+		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector,
+			HarnessSessionID: harnessSession, WebConsoleSessionID: currentWC, HarnessKind: harness,
+			OwnerKind: "web-console-session", Binding: binding}, nil
+	})
+	authRepo := database.NewAuthorizationRepository(db)
+	o := New(nil, nil, repos.Runs,
+		WithEvents(events), WithIdentitySecret([]byte("approval-changed-binding-secret")),
+		WithAuthorizations(authRepo), WithSessionBindingProofReader(proofReader))
+	grant, err := o.RequestAuthorization(ctx, AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: harnessSession,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600})
+	if err != nil {
+		t.Fatalf("request authorization: %v", err)
+	}
+	currentWC = "replacement-wc-session"
+	policy, _ := authn.InteractivePolicy("swarm-bookkeeping")
+	principal := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess, Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour)}
+	if _, err := o.ApproveAuthorization(requestidentity.WithPrincipal(ctx, principal), grant.ID); err == nil {
+		t.Fatal("approval accepted a changed launch-owner locator")
+	}
+	stored, err := authRepo.Get(ctx, grant.ID)
+	if err != nil || stored.State != domain.AuthorizationPending || stored.WebConsoleSessionID != webConsoleSession {
+		t.Fatalf("failed owner recheck mutated pending consent: state=%q wc=%q err=%v", stored.State, stored.WebConsoleSessionID, err)
+	}
+	runs, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 20}})
+	if err != nil || len(runs) != 0 {
+		t.Fatalf("failed owner recheck created a run: runs=%d err=%v", len(runs), err)
 	}
 }
 

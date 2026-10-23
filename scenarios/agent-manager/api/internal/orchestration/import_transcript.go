@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,8 +16,11 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/piimask"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/runstate"
@@ -35,9 +39,23 @@ type ImportTranscriptRequest struct {
 	LabelSource     domain.RunLabelSource
 	SourceHarness   string
 	SourceSessionID string
+	// WebConsoleSessionID attributes an isolated-home transcript back to the
+	// web-console session that launched it. Codex rollouts written under a
+	// per-session CODEX_HOME carry no run identity of their own, so without
+	// this the imported run cannot be grouped with the effort it belongs to.
+	WebConsoleSessionID string
 }
 
 var importedTranscriptTaskID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/imported-transcripts"))
+
+// importTranscriptMaxLineBytes bounds the label/runner-detection line scanners.
+// Codex rollouts legitimately embed >16MB lines (inline images, large tool
+// output); the codex codec already tolerates 32–64MB elsewhere. At 16MB these
+// heuristic scanners returned "token too long" from scanner.Err() and hard-
+// failed the whole import of an otherwise parseable session, so a single large
+// line silently dropped a real run from the evidence corpus. The event parse
+// itself (runner.Consume) reads with an unbounded bufio.Reader and is unaffected.
+const importTranscriptMaxLineBytes = 64 << 20
 
 type transcriptLabelEvidence struct {
 	HarnessTitle string
@@ -50,7 +68,7 @@ func readTranscriptLabelEvidence(source *os.File) (transcriptLabelEvidence, erro
 		return transcriptLabelEvidence{}, err
 	}
 	scanner := bufio.NewScanner(source)
-	scanner.Buffer(make([]byte, 64*1024), 16<<20)
+	scanner.Buffer(make([]byte, 64*1024), importTranscriptMaxLineBytes)
 	var evidence transcriptLabelEvidence
 	const maxSourceBytes = 64 * 1024
 	for scanner.Scan() {
@@ -239,6 +257,74 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if path == "" {
 		return nil, fmt.Errorf("transcript path is required")
 	}
+	source, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open transcript: %w", err)
+	}
+	defer source.Close()
+	detection, err := o.detectTranscriptRunner(source, req.RunnerType)
+	if err != nil {
+		return nil, err
+	}
+	runnerType := detection.RunnerType
+	// Visibility policy, import seam: a run matching an `exclude` rule enforced at
+	// import must never write any run_events (the strongest privacy guarantee,
+	// e.g. private local-model chats). The exclusion is recorded (counter + log)
+	// rather than silent — the explicit counter-measure to the "silently hidden"
+	// failure mode.
+	//
+	// This is evaluated BEFORE the provenance short-circuit below. Otherwise an
+	// `exclude @ import` rule added AFTER a run was imported would be bypassed on
+	// any re-import or sweep: the provenance lookup would take the revive branch
+	// and re-project the already-excluded conversation back into search. So when
+	// an existing run is now import-excluded we also delete it from the derived
+	// search projection, making the exclusion effective rather than merely "no
+	// new events".
+	// redactContent is set when this run matches a `redact` rule at the import
+	// seam. It drives PII masking of every indexed content field below, BEFORE
+	// the event store write, so no redacted PII ever reaches the search index.
+	// It is scoped to the matched run alone: a non-matching import makes zero
+	// detector calls, keeping the common import path free of gateway cost.
+	var redactContent bool
+	if o.conversationPolicy.Enabled() {
+		fields := importPolicyFields(req, runnerType)
+		decision := o.conversationPolicy.RecordImport(fields)
+		if decision.Hidden() {
+			obs.Component("transcript-importer").Info("conversation excluded at import by policy",
+				"rule", conversationpolicy.DescribeRule(decision.Rule),
+				"harness", fields.Harness, "model", fields.Model, "tag", fields.Tag)
+			if req.SourceHarness != "" && req.SourceSessionID != "" {
+				existing, lookupErr := o.runs.GetByImportProvenance(ctx, req.SourceHarness, req.SourceSessionID)
+				if lookupErr != nil {
+					return nil, fmt.Errorf("lookup imported transcript: %w", lookupErr)
+				}
+				if existing != nil {
+					// The run was imported before this rule existed; drop its
+					// derived search projection so the exclusion is real, not
+					// just "no further events". The canonical run_events remain
+					// (removal of the run row is not this seam's job); the
+					// search seam's own exclude rule and this delete keep it out.
+					o.notifyConversationSearch(ctx, "delete_run", existing.ID.String(), "")
+				}
+			}
+			return nil, newImportExcludedError(decision)
+		}
+		if decision.Matched && decision.Action == conversationpolicy.ActionRedact {
+			if o.piiMasker == nil {
+				// A redact rule matched but no masker is wired: this is the
+				// recognized, observable no-op (still imported and searchable).
+				// Log it so the operator can see the rule fired without masking.
+				obs.Component("transcript-importer").Info("conversation matched redact rule but PII masker is not configured; importing unmasked",
+					"rule", conversationpolicy.DescribeRule(decision.Rule),
+					"harness", fields.Harness, "tag", fields.Tag)
+			} else {
+				redactContent = true
+				obs.Component("transcript-importer").Info("conversation matched redact rule; masking PII before index",
+					"rule", conversationpolicy.DescribeRule(decision.Rule),
+					"harness", fields.Harness, "tag", fields.Tag)
+			}
+		}
+	}
 	if req.SourceHarness != "" && req.SourceSessionID != "" {
 		existing, err := o.runs.GetByImportProvenance(ctx, req.SourceHarness, req.SourceSessionID)
 		if err != nil {
@@ -278,16 +364,6 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 			return existing, nil
 		}
 	}
-	source, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open transcript: %w", err)
-	}
-	defer source.Close()
-	detection, err := o.detectTranscriptRunner(source, req.RunnerType)
-	if err != nil {
-		return nil, err
-	}
-	runnerType := detection.RunnerType
 	parserRunner, err := o.runners.Get(runnerType)
 	if err != nil {
 		return nil, fmt.Errorf("unsupported transcript format: %w", err)
@@ -326,6 +402,7 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-imported", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusUnknown, ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot(), TranscriptCodec: string(runnerType), TranscriptCodecScore: detection.Score}, ImportSourceHarness: req.SourceHarness, ImportSourceSessionID: req.SourceSessionID, ImportedAt: &now}
 	run.Label, run.LabelSource = o.resolveImportedLabel(ctx, req, runnerType, labelEvidence)
 	run.GoalID = goalID
+	run.WebConsoleSessionID = strings.TrimSpace(req.WebConsoleSessionID)
 	if strings.TrimSpace(req.Label) != "" {
 		run.Tag = "agent-manager-imported-" + strings.TrimSpace(req.Label)
 	}
@@ -360,7 +437,7 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	var terminal *runner.TranscriptTerminal
 	_, terminal, err = runner.Consume(ctx, runner.ConsumeArgs{RunID: run.ID, Transcript: snapshot.TranscriptPath, ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
 		return parser.ParseTranscriptLine(id, line)
-	}, EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events}, OnAdvance: func(cursor, seq int64) error { run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq; return nil }, OnSessionID: func(id string) error { run.SessionID = id; return nil }, OnLabel: func(label string, source domain.RunLabelSource) error {
+	}, EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events, masker: o.importMaskerIf(redactContent)}, OnAdvance: func(cursor, seq int64) error { run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq; return nil }, OnSessionID: func(id string) error { run.SessionID = id; return nil }, OnLabel: func(label string, source domain.RunLabelSource) error {
 		if source == domain.RunLabelSourceHarness && strings.TrimSpace(label) != "" {
 			run.Label, run.LabelSource = strings.TrimSpace(label), source
 		}
@@ -714,7 +791,7 @@ func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *dom
 		ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
 			return parser.ParseTranscriptLine(id, line)
 		},
-		EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events, messagesOnly: messagesOnly},
+		EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events, messagesOnly: messagesOnly, masker: o.importMaskerIf(o.redactMatchesExistingRun(run))},
 		OnAdvance: func(cursor, seq int64) error {
 			run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq
 			return nil
@@ -876,7 +953,7 @@ func (o *Orchestrator) detectTranscriptRunner(source *os.File, requested domain.
 	// Archived harness records can contain a large compacted JSON payload on a
 	// single line. Detection must inspect those records instead of failing at
 	// Scanner's 64 KiB default before codec scoring begins.
-	scanner.Buffer(make([]byte, 64*1024), 16<<20)
+	scanner.Buffer(make([]byte, 64*1024), importTranscriptMaxLineBytes)
 	type candidateScore struct {
 		typeName domain.RunnerType
 		score    float64
@@ -951,7 +1028,13 @@ type importEventSink struct {
 	ctx          context.Context
 	runID        uuid.UUID
 	messagesOnly bool
-	store        interface {
+	// masker, when non-nil, scrubs PII from every indexed content field of each
+	// event before it is appended. It is wired only for a run matching a
+	// `redact` import rule, so a normal import never pays the detector cost.
+	// Masking is fail-closed: an event whose PII could not be masked is appended
+	// with its content replaced by a loud sentinel, never in the clear.
+	masker *piimask.Masker
+	store  interface {
 		Append(context.Context, uuid.UUID, ...*domain.RunEvent) error
 	}
 }
@@ -966,10 +1049,86 @@ func (s importEventSink) Emit(event *domain.RunEvent) error {
 			copy.Content = transcriptredact.Redact(copy.Content)
 			event = &domain.RunEvent{ID: event.ID, RunID: event.RunID, EventType: event.EventType, Timestamp: event.Timestamp, Data: &copy}
 		}
+		// PII masking (redact policy): mask every indexed content field before
+		// the event reaches the store. This runs AFTER secret redaction above so
+		// both scrubbing passes compose. The masker fails closed internally, so a
+		// detector outage withholds the content (sentinel) rather than leaking it.
+		if s.masker != nil {
+			event, _ = s.masker.MaskEvent(s.ctx, event)
+		}
 	}
 	return s.store.Append(s.ctx, s.runID, event)
 }
 func (s importEventSink) Close() error { return nil }
+
+// importMaskerIf returns the orchestrator's PII masker when masking is required
+// for this import (a redact rule matched), and nil otherwise. Returning nil
+// leaves the event sink unmasked, which is correct for every non-redact import.
+func (o *Orchestrator) importMaskerIf(redact bool) *piimask.Masker {
+	if !redact {
+		return nil
+	}
+	return o.piiMasker
+}
+
+// redactMatchesExistingRun reports whether an already-imported run matches a
+// `redact` rule at the import seam today. The re-import/rehydrate path has no
+// fresh request to evaluate, so it derives the policy fields from the stored
+// run. It does NOT record a counter (RecordImport already fired on the first
+// import); it only answers "should replayed events be masked". Returns false
+// when no masker is configured so rehydrate stays a cheap no-op by default.
+func (o *Orchestrator) redactMatchesExistingRun(run *domain.Run) bool {
+	if o.piiMasker == nil || !o.conversationPolicy.Enabled() || run == nil {
+		return false
+	}
+	harness := strings.TrimSpace(run.ImportSourceHarness)
+	if harness == "" && run.ResolvedConfig != nil {
+		harness = string(run.ResolvedConfig.RunnerType)
+	}
+	fields := conversationpolicy.Fields{Harness: harness, Tag: strings.TrimSpace(run.Tag)}
+	decision := o.conversationPolicy.Evaluate(conversationpolicy.EnforceImport, fields)
+	return decision.Matched && decision.Action == conversationpolicy.ActionRedact
+}
+
+// ImportExcludedError reports that a visibility policy excluded a transcript at
+// the import seam, so no run_events were written. It is a signal, not a
+// failure: the sweep counts it as a policy exclusion rather than an error.
+type ImportExcludedError struct {
+	Decision conversationpolicy.Decision
+}
+
+func (e *ImportExcludedError) Error() string {
+	return "conversation excluded by import policy: " + conversationpolicy.DescribeRule(e.Decision.Rule)
+}
+
+func newImportExcludedError(decision conversationpolicy.Decision) error {
+	return &ImportExcludedError{Decision: decision}
+}
+
+// IsImportExcluded reports whether err is a policy-driven import exclusion.
+func IsImportExcluded(err error) bool {
+	var excluded *ImportExcludedError
+	return errors.As(err, &excluded)
+}
+
+// importPolicyFields builds the policy match surface known at the import seam.
+// Model is usually not yet resolved from the transcript here, so model-based
+// rules are better expressed at the search seam; harness, tag, and scope are
+// reliable at import (enough for "keep this harness's chats out entirely").
+func importPolicyFields(req ImportTranscriptRequest, runnerType domain.RunnerType) conversationpolicy.Fields {
+	harness := strings.TrimSpace(req.SourceHarness)
+	if harness == "" {
+		harness = string(runnerType)
+	}
+	tag := "agent-manager-imported"
+	if label := strings.TrimSpace(req.Label); label != "" {
+		tag = "agent-manager-imported-" + label
+	}
+	return conversationpolicy.Fields{
+		Harness: harness,
+		Tag:     tag,
+	}
+}
 
 func importedRunLifecycleError(operation string) error {
 	return domain.NewValidationErrorWithCode("run", "imported run cannot perform lifecycle operation: "+operation, domain.ErrCodePolicyScope)

@@ -36,7 +36,7 @@ func TestCancelTaskReleasesWakeGateBeforeRunnerStop(t *testing.T) {
 	if !admission.BeginExternalStart() {
 		t.Fatal("failed to mark the admitted run as potentially started")
 	}
-	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
 	// This regression covers the lock scope around terminating an active run.

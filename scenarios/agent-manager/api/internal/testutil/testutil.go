@@ -23,6 +23,6 @@
 //   - assertx/  - domain-aware assertions with useful failure messages.
 //   - httpx/    - HTTP handler and protocol test helpers.
 //
-// Existing SQLite helpers remain in this package for compatibility while DB
-// helpers are migrated incrementally.
+// Database-backed orchestration fixtures live in
+// internal/orchestration/testutil.
 package testutil

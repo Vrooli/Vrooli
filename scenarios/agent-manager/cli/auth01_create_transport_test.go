@@ -8,16 +8,19 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Exercise the actual CLI RunService and shared HTTP transport, with fixture
 // proofs only. Receiving authentication is covered separately by API tests.
 func TestAuth01RunCreateTransportPreservesCallerAndRefusal(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir()) // isolate the process-scoped identity broker socket
 	for _, kind := range []string{"run", "human", "both", "absent-refused"} {
 		t.Run(kind, func(t *testing.T) {
 			runProof, ownerProof := "", ""
 			if kind == "run" || kind == "both" {
-				runProof = "disposable-run-proof"
+				now := time.Now().Unix()
+				runProof = identityTestToken(t, "auth01-fixture-run", now, now+3600)
 			}
 			if kind == "human" || kind == "both" {
 				ownerProof = "disposable-human-proof"
@@ -50,7 +53,8 @@ func TestAuth01RunCreateTransportPreservesCallerAndRefusal(t *testing.T) {
 				if received.TaskId != task || received.GetParentRunId() != parent || received.GetIdempotencyKey() != key {
 					t.Error("lineage or replay key changed")
 				}
-				if strings.Contains(string(body), "disposable-") {
+				if (runProof != "" && strings.Contains(string(body), runProof)) ||
+					(ownerProof != "" && strings.Contains(string(body), ownerProof)) {
 					t.Error("credential copied into body")
 				}
 				w.Header().Set("Content-Type", "application/json")

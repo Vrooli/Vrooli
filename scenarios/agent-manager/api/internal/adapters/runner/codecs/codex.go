@@ -94,9 +94,7 @@ func codexBase() baseCodec {
 		goalStatus:     codexGoalStatus,
 		labels: Labels{
 			StartMessage:         "Codex execution started",
-			EndMessage:           "Codex execution completed",
 			ContinueStartMessage: "Codex continuation started",
-			ContinueEndMessage:   "Codex continuation completed",
 		},
 	}
 }
@@ -256,9 +254,12 @@ type codexState struct {
 	lastRolloutUsage *CodexUsage
 	// Retain the latest rollout usage event so task_complete can promote it
 	// to an authoritative terminal receipt.
-	lastRolloutUsageEvent *domain.RunEvent
-	rolloutReceiptUsage   usageTokens
-	retainUser            bool
+	lastRolloutUsageEvent   *domain.RunEvent
+	rolloutReceiptUsage     usageTokens
+	continuationSessionID   string
+	rolloutBaselineKnown    bool
+	rolloutUsageUnqualified bool
+	retainUser              bool
 	// Goal evidence survives Consume segments with this parser, but cannot be
 	// shared across runs or inferred from a request without its accepted result.
 	goal codexGoalContext
@@ -267,7 +268,7 @@ type codexState struct {
 func (s *codexState) SessionID() string { return s.threadID }
 
 // NewState satisfies [Codec].
-func (c *Codex) NewState() State { return &codexState{} }
+func (c *Codex) NewState() State { return &codexState{rolloutBaselineKnown: true} }
 
 // =============================================================================
 // Stream-event types
@@ -343,16 +344,15 @@ func (c *Codex) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*
 		return result.Events, nil
 	}
 
-	streamEvent, ok := decodeCodexStreamEvent(line)
+	streamEvent, ok := decodeCodexStreamEvent(runID, line)
 	if !ok {
 		return nil, nil
 	}
 
-	// Capture thread_id for session continuation. Only the first one wins
-	// — subsequent events on the same run carry the same id.
-	if streamEvent.ThreadID != "" && s.threadID == "" {
-		s.threadID = streamEvent.ThreadID
-	}
+	// Capture thread_id for session continuation. A continued provider may
+	// switch to a new native session; never difference its counters against the
+	// previous session's baseline.
+	s.observeSession(streamEvent.ThreadID)
 
 	return c.parseCodexEvents(s, runID, streamEvent), nil
 }
@@ -489,7 +489,45 @@ func (c *Codex) ExtractCommand(input map[string]any) runner.CommandExtraction {
 // NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Codex) NewTranscriptParser() runner.TranscriptParser {
-	return &codexTranscriptParser{codec: c, state: &codexState{}}
+	return &codexTranscriptParser{codec: c, state: &codexState{rolloutBaselineKnown: true}}
+}
+
+func (s *codexState) SetContinuationUsageBaseline(baseline runner.CodexUsageBaseline) {
+	s.continuationSessionID = strings.TrimSpace(baseline.SessionID)
+	s.threadID = s.continuationSessionID
+	s.lastRolloutUsage = nil
+	s.rolloutBaselineKnown = false
+	if baseline.Snapshot == nil || s.continuationSessionID == "" || strings.TrimSpace(baseline.Snapshot.SessionID) != s.continuationSessionID {
+		return
+	}
+	if baseline.Snapshot.InputTokens < 0 || baseline.Snapshot.CachedInputTokens < 0 || baseline.Snapshot.OutputTokens < 0 || baseline.Snapshot.CachedInputTokens > baseline.Snapshot.InputTokens {
+		return
+	}
+	s.lastRolloutUsage = &CodexUsage{
+		InputTokens:       baseline.Snapshot.InputTokens,
+		CachedInputTokens: baseline.Snapshot.CachedInputTokens,
+		OutputTokens:      baseline.Snapshot.OutputTokens,
+	}
+	s.rolloutBaselineKnown = true
+}
+
+func (s *codexState) observeSession(sessionID string) {
+	sessionID = strings.TrimSpace(sessionID)
+	if s == nil || sessionID == "" {
+		return
+	}
+	if s.continuationSessionID != "" && sessionID != s.continuationSessionID {
+		// A provider-confirmed session switch starts an independent counter
+		// series; never difference it against the previous session's totals.
+		s.lastRolloutUsage = nil
+		s.rolloutBaselineKnown = true
+	}
+	s.continuationSessionID = sessionID
+	s.threadID = sessionID
+}
+
+func (p *codexTranscriptParser) SetContinuationUsageBaseline(baseline runner.CodexUsageBaseline) {
+	p.state.SetContinuationUsageBaseline(baseline)
 }
 
 func (p *codexTranscriptParser) SetTranscriptModel(model string) {
@@ -538,14 +576,12 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 		return attachGoal(res)
 	}
 
-	streamEvent, ok := decodeCodexStreamEvent(line)
+	streamEvent, ok := decodeCodexStreamEvent(runID, line)
 	if !ok {
 		return attachGoal(runner.TranscriptParseResult{})
 	}
 
-	if streamEvent.ThreadID != "" {
-		p.state.threadID = streamEvent.ThreadID
-	}
+	p.state.observeSession(streamEvent.ThreadID)
 	events := p.codec.parseCodexEvents(p.state, runID, streamEvent)
 
 	result := runner.TranscriptParseResult{
@@ -703,7 +739,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	switch rl.Type {
 	case "session_meta":
 		if pl.ID != "" {
-			p.state.threadID = pl.ID
+			p.state.observeSession(pl.ID)
 			result.SessionID = pl.ID
 		}
 		return result, true
@@ -727,6 +763,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		case "task_started":
 			p.state.rolloutReceiptUsage = usageTokens{}
 			p.state.lastRolloutUsageEvent = nil
+			p.state.rolloutUsageUnqualified = false
 			if p.state.turn == 0 {
 				p.state.turn = 1
 			}
@@ -739,6 +776,12 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				cumulative := pl.Info.TotalTokenUsage != nil
 				if cumulative {
 					usage = pl.Info.TotalTokenUsage
+					if !p.state.rolloutBaselineKnown {
+						p.state.rolloutUsageUnqualified = true
+						// This sample cannot qualify the current receipt, but it is a
+						// valid raw baseline for a later turn in the same session.
+						p.state.rolloutBaselineKnown = true
+					}
 				}
 				delta := rolloutUsageDelta(p.state, usage, cumulative)
 				p.state.rolloutReceiptUsage.InputTokens += delta.InputTokens
@@ -850,6 +893,7 @@ func (p *codexTranscriptParser) rolloutTerminalReceipt(runID uuid.UUID, at time.
 	events := buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, p.state.rolloutReceiptUsage, p.state.billing)
 	usage := events[0].Data.(*domain.UsageEventData)
 	usage.ReconciliationAuthority, usage.Turns, usage.TurnIndex = true, 1, p.state.turn
+	stampCodexUsageQualification(usage, p.state, p.state.threadID)
 	for _, event := range events[1:] {
 		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
 			usage.Charge = charge
@@ -857,6 +901,23 @@ func (p *codexTranscriptParser) rolloutTerminalReceipt(runID uuid.UUID, at time.
 	}
 	events[0].Timestamp = at
 	return events[:1]
+}
+
+func stampCodexUsageQualification(usage *domain.UsageEventData, state *codexState, sessionID string) {
+	if usage == nil || state == nil {
+		return
+	}
+	complete := !state.rolloutUsageUnqualified
+	usage.ReconciliationComplete = &complete
+	if state.lastRolloutUsage == nil || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+	usage.CodexUsageSnapshot = &domain.CodexUsageSnapshot{
+		SessionID:         strings.TrimSpace(sessionID),
+		InputTokens:       state.lastRolloutUsage.InputTokens,
+		CachedInputTokens: state.lastRolloutUsage.CachedInputTokens,
+		OutputTokens:      state.lastRolloutUsage.OutputTokens,
+	}
 }
 
 // rolloutUsageDelta converts Codex's cumulative usage snapshots to increments
@@ -1047,18 +1108,25 @@ func codexRolloutMessageText(raw json.RawMessage) string {
 // =============================================================================
 
 // decodeCodexStreamEvent unwraps a single stdout/transcript line into a
-// *CodexStreamEvent. Returns ok=false for blank or non-JSON lines.
-func decodeCodexStreamEvent(line string) (*CodexStreamEvent, bool) {
+// *CodexStreamEvent. Returns ok=false for blank or non-JSON lines. runID is the
+// run being decoded, used only to attribute a recorded parse failure; a nil
+// uuid is acceptable for call sites without a run (behavior is unchanged
+// either way — the drop is observed, never altered).
+func decodeCodexStreamEvent(runID uuid.UUID, line string) (*CodexStreamEvent, bool) {
 	line = strings.TrimSpace(line)
 	// Some Codex builds prefix events with `data:` (SSE-style).
 	if strings.HasPrefix(line, "data:") {
 		line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 	}
 	if line == "" || line[0] != '{' {
+		// Blank or non-JSON (banner/startup) — an expected, non-drift skip.
 		return nil, false
 	}
 	var ev CodexStreamEvent
 	if err := json.Unmarshal([]byte(line), &ev); err != nil {
+		// The line opened with '{' yet would not parse: real format drift.
+		// Behavior unchanged (still ok=false); record so it is observable (W1).
+		recordParseFailure(runID, siteCodexStreamJSON, err.Error(), line)
 		return nil, false
 	}
 	return &ev, true
@@ -1101,6 +1169,7 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 
 	case "turn.started":
 		state.turn++
+		state.rolloutUsageUnqualified = false
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
 
 	case "turn.completed":
@@ -1115,8 +1184,14 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 			// exec usage, like rollout totals, includes cached input in
 			// input_tokens. Persist disjoint components before pricing or
 			// aggregation, so the cached subset is consumed exactly once.
-			usageEvents := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel,
-				codexUsageDelta(streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens, streamEvent.Usage.CachedInputTokens, true), state.billing), state.turn)
+			delta := rolloutUsageDelta(state, streamEvent.Usage, true)
+			if !state.rolloutBaselineKnown {
+				state.rolloutUsageUnqualified = true
+				// Keep this raw sample for subsequent turns, while leaving the
+				// current receipt unqualified.
+				state.rolloutBaselineKnown = true
+			}
+			usageEvents := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, delta, state.billing), state.turn)
 			var usageData *domain.UsageEventData
 			for _, event := range usageEvents {
 				if usage, ok := event.Data.(*domain.UsageEventData); ok {
@@ -1125,6 +1200,7 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 					// usage here. A process stop alone has no such authority.
 					usage.ReconciliationAuthority = true
 					usage.Turns = state.turn
+					stampCodexUsageQualification(usage, state, state.threadID)
 				}
 				if charge, ok := event.Data.(*domain.ChargeEventData); ok && usageData != nil {
 					usageData.Charge = charge

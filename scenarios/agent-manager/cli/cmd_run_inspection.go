@@ -34,20 +34,25 @@ func (a *App) runReport(args []string) error {
 		return nil
 	}
 	var r struct {
-		RunID     string  `json:"run_id"`
-		Status    string  `json:"status"`
-		Error     string  `json:"error"`
-		Turns     int     `json:"turns"`
-		Tokens    int     `json:"tokens"`
-		Cost      float64 `json:"cost_usd"`
-		Project   int     `json:"project_owned_tool_calls"`
-		External  int     `json:"external_tool_calls"`
-		Fallbacks int     `json:"fallback_count"`
-		Repeated  int     `json:"repeated_tool_calls"`
-		Rereads   int     `json:"files_read_more_than_once"`
-		Longest   int64   `json:"longest_event_gap_ms,string"`
-		Requested string  `json:"requested_model"`
-		Actual    string  `json:"actual_model"`
+		RunID          string      `json:"run_id"`
+		Status         string      `json:"status"`
+		Error          string      `json:"error"`
+		Turns          int         `json:"turns"`
+		Tokens         json.Number `json:"tokens"`
+		Cost           float64     `json:"cost_usd"`
+		Project        int         `json:"project_owned_tool_calls"`
+		External       int         `json:"external_tool_calls"`
+		Fallbacks      int         `json:"fallback_count"`
+		Repeated       int         `json:"repeated_tool_calls"`
+		Rereads        int         `json:"files_read_more_than_once"`
+		ErrorBreakdown *struct {
+			ExecutionErrors       int `json:"execution_errors"`
+			RateLimitObservations int `json:"rate_limit_observations"`
+			Unclassified          int `json:"unclassified"`
+		} `json:"error_breakdown"`
+		Longest   int64  `json:"longest_event_gap_ms,string"`
+		Requested string `json:"requested_model"`
+		Actual    string `json:"actual_model"`
 		Result    struct {
 			Selection   string   `json:"selection_status"`
 			Rule        string   `json:"selection_rule"`
@@ -84,16 +89,23 @@ func (a *App) runReport(args []string) error {
 	if err := json.Unmarshal(body, &r); err != nil {
 		return fmt.Errorf("decode run report: %w", err)
 	}
+	tokens := int64(0)
+	if r.Tokens != "" {
+		tokens, err = r.Tokens.Int64()
+		if err != nil {
+			return fmt.Errorf("decode run report tokens: %w", err)
+		}
+	}
 	fmt.Printf("Run %s\nStatus: %s\n", r.RunID, r.Status)
 	if r.Error != "" {
 		fmt.Printf("Error: %s\n", r.Error)
 	}
-	fmt.Printf("Turns: %d | tokens: %d | cost: $%.4f\nFinal output: %s (%s), candidates=%d\n", r.Turns, r.Tokens, r.Cost, r.Result.Selection, r.Result.Rule, r.Result.Candidates)
+	fmt.Printf("Turns: %d | tokens: %d | cost: $%.4f\nFinal output: %s (%s), candidates=%d\n", r.Turns, tokens, r.Cost, r.Result.Selection, r.Result.Rule, r.Result.Candidates)
 	if r.Result.Structured != "" {
 		fmt.Printf("Structured result: %s (%s) diagnostics=%s\n", r.Result.Structured, r.Result.Method, strings.Join(r.Result.Diagnostics, ","))
 	}
 	fmt.Printf("Tools: project-owned=%d external=%d | model: requested=%s actual=%s fallbacks=%d\n", r.Project, r.External, r.Requested, r.Actual, r.Fallbacks)
-	fmt.Printf("Efficiency: repeated tool calls=%d files reread=%d longest event gap=%s\n", r.Repeated, r.Rereads, (time.Duration(r.Longest) * time.Millisecond).Round(time.Millisecond))
+	fmt.Printf("Efficiency: recognized command retries=%d files reread=%d longest event gap=%s\n", r.Repeated, r.Rereads, (time.Duration(r.Longest) * time.Millisecond).Round(time.Millisecond))
 	for _, tool := range r.Tools {
 		fmt.Printf("  %s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
 	}
@@ -107,6 +119,11 @@ func (a *App) runReport(args []string) error {
 		fmt.Printf(" %s=%d", key, r.Events[key])
 	}
 	fmt.Println()
+	if r.ErrorBreakdown == nil {
+		fmt.Println("Error event breakdown: unavailable (typed breakdown not present)")
+	} else {
+		fmt.Printf("Error event breakdown: typed_execution_errors=%d rate_limit_observations=%d unclassified=%d\n", r.ErrorBreakdown.ExecutionErrors, r.ErrorBreakdown.RateLimitObservations, r.ErrorBreakdown.Unclassified)
+	}
 	fmt.Printf("Diff: files=%d bytes=%d (%s)\n", r.Diff.Files, r.Diff.Bytes, r.Diff.Available.State)
 	fmt.Printf("Receipts: %s (%d)\n", r.Receipts.State, r.ReceiptCount)
 	support.NextSteps(fmt.Sprintf("agent-manager run result %s", id), fmt.Sprintf("agent-manager run events %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id), fmt.Sprintf("agent-manager run diff %s", id), fmt.Sprintf("agent-manager run receipts %s", id))
@@ -294,10 +311,21 @@ func (a *App) runResult(args []string) error {
 		support.NextSteps(fmt.Sprintf("agent-manager run messages %s", args[0]), fmt.Sprintf("agent-manager run report %s", args[0]))
 		return nil
 	}
+	if run.EndedAt == nil && !isTerminalRunStatus(run.Status) {
+		fmt.Printf("Current run status: %s; current execution has no terminal result yet.\n", formatEnumValue(run.Status, "RUN_STATUS_", " "))
+		fmt.Println("The stored result below is retained from an earlier invocation and does not report the current execution.")
+	}
 	selection := run.Result.Selection
+	nextMessageCommand := fmt.Sprintf("agent-manager run messages %s", args[0])
 	fmt.Printf("Selection: %s (%s) candidates=%d\n", selection.GetStatus(), selection.GetRule(), len(run.Result.Candidates))
-	if selection.GetSelectedCandidateId() != "" {
+	if selection.GetStatus() == domainpb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_SELECTED && selection.GetSelectedCandidateId() != "" {
 		fmt.Printf("Selected candidate: %s\n", selection.GetSelectedCandidateId())
+		for _, candidate := range run.Result.Candidates {
+			if candidate.GetId() == selection.GetSelectedCandidateId() && candidate.GetSequence() >= 0 {
+				nextMessageCommand = fmt.Sprintf("agent-manager run messages %s --range %d:%d", args[0], candidate.GetSequence(), candidate.GetSequence())
+				break
+			}
+		}
 	}
 	if run.Result.GetTerminalReason() != "" {
 		fmt.Printf("Terminal reason: %s\n", run.Result.GetTerminalReason())
@@ -320,7 +348,7 @@ func (a *App) runResult(args []string) error {
 			fmt.Printf(": %s\n", diagnostic.GetMessage())
 		}
 	}
-	support.NextSteps(fmt.Sprintf("agent-manager run messages %s", args[0]), fmt.Sprintf("agent-manager run report %s", args[0]))
+	support.NextSteps(nextMessageCommand, fmt.Sprintf("agent-manager run report %s", args[0]))
 	return nil
 }
 
@@ -401,7 +429,12 @@ func (a *App) runMessages(args []string) error {
 	if err != nil {
 		return err
 	}
-	_, events, err := a.services.Runs.GetEvents(id, 0, nil)
+	var events []*domainpb.RunEvent
+	if strings.TrimSpace(*rangeValue) == "" {
+		_, events, err = a.services.Runs.GetEvents(id, 0, nil)
+	} else {
+		events, err = a.messageEventsInRange(id, start, end)
+	}
 	if err != nil {
 		return err
 	}
@@ -440,6 +473,60 @@ func (a *App) runMessages(args []string) error {
 	fmt.Printf("Messages: shown=%d total=%d\n", shown, total)
 	support.NextSteps(fmt.Sprintf("agent-manager run result %s", id), fmt.Sprintf("agent-manager run report %s", id))
 	return nil
+}
+
+func (a *App) messageEventsInRange(id string, start, end int64) ([]*domainpb.RunEvent, error) {
+	const maxPageSize = 1000
+	var after *int64
+	if start > 0 {
+		firstSequence := start - 1
+		after = &firstSequence
+	}
+	cursor := int64(-1)
+	if after != nil {
+		cursor = *after
+	}
+	var events []*domainpb.RunEvent
+	for {
+		// Bound transport by the remaining sequence interval as well as the
+		// API page ceiling. Compare before adding one so [0, MaxInt64] cannot
+		// overflow while calculating its inclusive width.
+		nextSequence := cursor + 1
+		if cursor < start-1 {
+			nextSequence = start
+		}
+		remainingWidth := end - nextSequence
+		pageSize := maxPageSize
+		if remainingWidth < maxPageSize-1 {
+			pageSize = int(remainingWidth + 1)
+		}
+		page, err := a.services.Runs.GetEventPage(id, pageSize, after)
+		if err != nil {
+			return nil, err
+		}
+		if len(page.GetEvents()) == 0 {
+			if page.GetHasMore() {
+				return nil, fmt.Errorf("run event page is empty while more events are available")
+			}
+			return events, nil
+		}
+		lastSequence := cursor
+		for _, event := range page.GetEvents() {
+			if event.GetSequence() <= lastSequence {
+				return nil, fmt.Errorf("run event page is not strictly ordered after sequence %d", lastSequence)
+			}
+			lastSequence = event.GetSequence()
+			if event.GetSequence() >= start && event.GetSequence() <= end {
+				events = append(events, event)
+			}
+		}
+		if lastSequence >= end || !page.GetHasMore() {
+			return events, nil
+		}
+		nextAfter := lastSequence
+		after = &nextAfter
+		cursor = lastSequence
+	}
 }
 
 func parseSequenceRange(value string) (int64, int64, error) {

@@ -127,10 +127,14 @@ type TailParams struct {
 	// time. Zero uses the existing five-second interactive debounce.
 	GoalDrainTimeout time.Duration
 
-	Sink         runner.EventSink
-	OnAdvance    func(cursor, lastSeq int64) error
-	OnSessionID  func(sessionID string) error
-	OnGoalStatus func(marker runner.GoalMarker) error
+	Sink      runner.EventSink
+	OnAdvance func(cursor, lastSeq int64) error
+	// OnTranscriptPath commits a newly selected file before any bytes from that
+	// file are consumed. The cursor is file-local, so callers that persist both
+	// fields must reset it atomically when the path changes.
+	OnTranscriptPath func(path string) error
+	OnSessionID      func(sessionID string) error
+	OnGoalStatus     func(marker runner.GoalMarker) error
 	// StructuredResultSatisfied reports whether the current persisted transcript
 	// satisfies the run's deterministic structured-result contract. It is
 	// checked at a provider success boundary when Until is non-empty, because a
@@ -140,7 +144,7 @@ type TailParams struct {
 	// CompleteAfterFirstSuccessfulTurnWithoutGoalMarker closes a continuation
 	// after its first successful provider turn only when that new invocation
 	// emitted no native goal marker. It is reserved for continuing an already
-	// completed native goal without reinstalling it.
+	// terminal native goal (complete or blocked) without reinstalling it.
 	CompleteAfterFirstSuccessfulTurnWithoutGoalMarker bool
 }
 
@@ -180,6 +184,19 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 
 	path := p.TranscriptPath
 	cursor := p.StartCursor
+	selectPath := func(next string) error {
+		if next == "" || next == path {
+			return nil
+		}
+		if p.OnTranscriptPath != nil {
+			if err := p.OnTranscriptPath(next); err != nil {
+				return fmt.Errorf("persist selected transcript path %q: %w", next, err)
+			}
+		}
+		path = next
+		cursor = 0
+		return nil
+	}
 	turnBoundaries := 0
 	var acceptedGoal *runner.TranscriptTerminal
 	var lastGoalMarker *runner.GoalMarker
@@ -215,8 +232,9 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 				}
 				continue
 			}
-			path = newest
-			cursor = 0
+			if err := selectPath(newest); err != nil {
+				return nil, err
+			}
 		}
 
 		parseLine := func(runID uuid.UUID, line string) runner.TranscriptParseResult {
@@ -296,8 +314,14 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 			}
 			if errors.Is(cerr, fs.ErrNotExist) {
 				// The file vanished (rotation race) or was never created —
-				// drop back to re-discovery.
-				path = ""
+				// re-discover without losing the offset if the same file returns.
+				newest, derr := t.rediscover(p)
+				if derr != nil {
+					return nil, derr
+				}
+				if err := selectPath(newest); err != nil {
+					return nil, err
+				}
 				if !sleepCtx(ctx, t.pollInterval) {
 					return terminal, ctx.Err()
 				}
@@ -362,8 +386,9 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 			return nil, derr
 		}
 		if newest != "" && newest != path {
-			path = newest
-			cursor = 0
+			if err := selectPath(newest); err != nil {
+				return nil, err
+			}
 			continue
 		}
 
@@ -381,6 +406,9 @@ func (t *Tailer) rediscover(p TailParams) (string, error) {
 	if p.RunnerType != domain.RunnerTypeCodex {
 		return p.TranscriptPath, nil
 	}
+	if strings.TrimSpace(p.RunDir) == "" {
+		return "", fmt.Errorf("codex transcript rediscovery requires a run-scoped run directory")
+	}
 	return findTranscript(DiscoverParams{
 		RunnerType: p.RunnerType,
 		WorkingDir: p.WorkingDir,
@@ -389,6 +417,14 @@ func (t *Tailer) rediscover(p TailParams) (string, error) {
 		HomeDir:    t.homeDir,
 		SessionID:  p.SessionID,
 	})
+}
+
+// DiscoverCurrentTranscript returns the path the tailer would select now for
+// this exact run. Recovery uses it before replaying retained goal evidence so
+// an older persisted rollout cannot finalize a run after Codex has rotated to
+// a newer rollout in the same run-scoped home.
+func (t *Tailer) DiscoverCurrentTranscript(p TailParams) (string, error) {
+	return t.rediscover(p)
 }
 
 // sleepCtx waits d or until ctx is done; returns false if ctx was cancelled.

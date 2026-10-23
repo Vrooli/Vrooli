@@ -49,6 +49,41 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		phases.FailWithError(ctx, phases.FailWithErrorInput{Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster}, Run: run, Err: fmt.Errorf("resolve run state root: %w", err)})
 		return
 	}
+	executor := o.newRunExecutor(ctx, run, task, profile, prompt, systemPrompt, runStateRoot, started)
+	if source, ok := o.promptClient.(promptmanager.SourceClient); ok {
+		executor.WithSkillSource(source)
+	}
+
+	if o.healthStore != nil {
+		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.healthStore, run.ID.String()))
+	}
+	if run.SandboxID != nil {
+		workDir := existingSandboxWorkDir
+		if workDir == "" && o.sandbox != nil {
+			if resolved, err := o.sandbox.GetWorkspacePath(ctx, *run.SandboxID); err == nil {
+				workDir = resolved
+			}
+		}
+		executor.WithExistingSandbox(*run.SandboxID, workDir)
+	}
+	if len(attachments) > 0 {
+		executor.WithAttachments(attachments)
+	}
+	if len(customEnv) > 0 {
+		executor.WithCustomEnvironment(customEnv)
+	}
+	executor.Execute(ctx)
+	// Completion-driven advance: a workflow run just reached terminal (a parked
+	// run keeps its attempt open — the wake leg nudges when it later completes).
+	if !executor.parked {
+		o.nudgeWorkflowForRun(run.ID)
+	}
+}
+
+// newRunExecutor owns the configuration shared by fresh and resumed turns.
+// Each path adds only its own checkpoint, runner-policy, and workspace
+// inputs after this common wiring.
+func (o *Orchestrator) newRunExecutor(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt, systemPrompt, runStateRoot string, started spawn.StartedFn) *RunExecutor {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -64,9 +99,6 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	executor.WithIdentitySecret(o.identitySecret)
 	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
-	if source, ok := o.promptClient.(promptmanager.SourceClient); ok {
-		executor.WithSkillSource(source)
-	}
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
 	executor.WithApprovalNotifier(o)
@@ -75,45 +107,17 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if levers, ok := o.executorLevers(); ok {
 		executor.WithLevers(levers)
 	}
-	// Configure executor with checkpoint repository if available
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
 	}
-	if o.healthStore != nil {
-		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.healthStore, run.ID.String()))
-	}
-	if run.SandboxID != nil {
-		workDir := existingSandboxWorkDir
-		if workDir == "" && o.sandbox != nil {
-			if resolved, err := o.sandbox.GetWorkspacePath(ctx, *run.SandboxID); err == nil {
-				workDir = resolved
-			}
-		}
-		executor.WithExistingSandbox(*run.SandboxID, workDir)
-	}
-	// Configure executor with broadcaster for real-time WebSocket updates
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
 	}
 	if o.workspaceSandbox != nil {
 		executor.WithWorkspaceSandboxEnsurer(o.workspaceSandbox)
 	}
-	if len(attachments) > 0 {
-		executor.WithAttachments(attachments)
-	}
-	if len(customEnv) > 0 {
-		executor.WithCustomEnvironment(customEnv)
-	}
-	if len(o.identitySecret) > 0 {
-		executor.WithIdentitySecret(o.identitySecret)
-	}
 	executor.WithOnRunning(started)
-	executor.Execute(ctx)
-	// Completion-driven advance: a workflow run just reached terminal (a parked
-	// run keeps its attempt open — the wake leg nudges when it later completes).
-	if !executor.parked {
-		o.nudgeWorkflowForRun(run.ID)
-	}
+	return executor
 }
 
 // interactiveInitialPrompt reconstructs the single-channel prompt to type into
@@ -217,6 +221,44 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	// Reading/recovering a running session does not invoke this launch gate.
 	if err := validateExecutionContainment(run.ExecutionMode, run.InteractiveSandboxMode(), run.ResolvedConfig); err != nil {
 		o.failInteractiveRun(ctx, run, err.Error())
+		return
+	}
+	// The interactive coordinator's first invocation CAS expects a durable
+	// Starting owner. Codec-pipe execution records this transition in its
+	// executor; interactive execution must do so before preparing or launching
+	// the external Web Console session.
+	if run.Status == domain.RunStatusPending {
+		now := o.now()
+		run.StartedAt = &now
+		starting, transitionErr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+			Run:           run,
+			NewStatus:     domain.RunStatusStarting,
+			Phase:         domain.RunPhaseInitializing,
+			Reason:        "Interactive run starting",
+			LastHeartbeat: &now,
+		})
+		if starting == nil {
+			reason := "run transition was not committed"
+			if transitionErr != nil {
+				reason = transitionErr.Error()
+			}
+			obs.Component("interactive").Warn("interactive run could not enter Starting before launch",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, reason)
+			return
+		}
+		run = starting
+		if transitionErr != nil {
+			// The run-row transition committed; only its event publication failed.
+			// Continue the owned launch while keeping the missing event visible.
+			obs.Component("interactive").Warn("interactive Starting status committed but event publication failed",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, transitionErr.Error())
+		}
+	} else if run.Status != domain.RunStatusStarting {
+		// A stale dispatch must not launch a run that has already moved to a
+		// different lifecycle state. In particular, do not write a failure over
+		// the newer owner through failInteractiveRun.
+		obs.Component("interactive").Warn("interactive dispatch refused outside Pending or Starting",
+			obs.KeyRunID, run.ID.String(), "status", string(run.Status))
 		return
 	}
 
@@ -402,14 +444,7 @@ func validateExecutionContainment(mode domain.ExecutionMode, sandboxMode domain.
 // interactiveEventSink builds the per-run event sink interactive tail events are
 // emitted into, mirroring the codec-pipe executor's sink selection.
 func (o *Orchestrator) interactiveEventSink(runID uuid.UUID) runner.EventSink {
-	switch {
-	case o.events != nil && o.broadcaster != nil:
-		return &broadcastingEventSink{store: o.events, runID: runID, broadcaster: o.broadcaster}
-	case o.events != nil:
-		return &eventStoreAdapter{store: o.events, runID: runID}
-	default:
-		return &noOpEventSink{}
-	}
+	return newRunEventSink(o.events, o.broadcaster, runID, nil)
 }
 
 // failInteractiveRun marks an interactive run failed with an explicit reason
@@ -608,50 +643,14 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		phases.FailWithError(ctx, phases.FailWithErrorInput{Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster}, Run: run, Err: fmt.Errorf("resolve run state root: %w", err)})
 		return
 	}
-	executor := NewRunExecutor(
-		o.runs,
-		o.runners,
-		o.sandbox,
-		o.events,
-		run,
-		task,
-		profile,
-		"", // No new prompt for resume
-		"", // No system prompt for resume (session persists instructions)
-	)
-	executor.WithClock(o.now)
-	executor.WithIdentitySecret(o.identitySecret)
-	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
-	executor.WithRunStateRoot(runStateRoot)
-	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
-	executor.WithStructuredResultResolver(o.structuredResults)
-	executor.WithApprovalNotifier(o)
+	executor := o.newRunExecutor(ctx, run, task, profile, "", "", runStateRoot, started)
 	executor.WithCurrentModelExclusions(currentExclusions)
 	executor.WithCurrentModelAdmission(func(admissionCtx context.Context, candidate domain.ExecutionCandidate, model string) (bool, error) {
 		return o.currentCandidateAllowed(admissionCtx, run.ResolvedConfig, candidate, model)
 	})
-	// Apply orchestration-settings overrides to executor levers when a store
-	// is wired. Defaults come from config.DefaultLevers().
-	if levers, ok := o.executorLevers(); ok {
-		executor.WithLevers(levers)
-	}
 
 	// Configure for resumption
-	if o.checkpoints != nil {
-		executor.WithCheckpointRepository(o.checkpoints)
-	}
-	// Configure executor with broadcaster for real-time WebSocket updates
-	if o.broadcaster != nil {
-		executor.WithBroadcaster(o.broadcaster)
-	}
-	if o.workspaceSandbox != nil {
-		executor.WithWorkspaceSandboxEnsurer(o.workspaceSandbox)
-	}
-	if len(o.identitySecret) > 0 {
-		executor.WithIdentitySecret(o.identitySecret)
-	}
 	executor.WithResumeFrom(checkpoint)
-	executor.WithOnRunning(started)
 
 	executor.Execute(ctx)
 	// Completion-driven advance for a workflow run recovered/resumed after a

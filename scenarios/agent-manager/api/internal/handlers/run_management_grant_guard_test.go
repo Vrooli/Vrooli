@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +18,8 @@ import (
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 const (
@@ -239,7 +243,20 @@ func TestTaskCancelKeepsHumanRouteAndDeniesOtherTaskWrites(t *testing.T) {
 	for _, method := range []string{http.MethodPut, http.MethodDelete} {
 		t.Run(method, func(t *testing.T) {
 			taskID := uuid.New()
-			req := httptest.NewRequest(method, "/api/v1/tasks/"+taskID.String(), nil).WithContext(coreidentity.WithPrincipal(context.Background(), agent))
+			caller := agent
+			var body io.Reader
+			if method == http.MethodPut {
+				// Task edits with an explicit agent.manage proof have their own
+				// positive coverage; this case verifies the intrinsic path alone
+				// cannot admit an unrelated agent.
+				caller.Grant = nil
+				encoded := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
+					TaskId: taskID.String(),
+					Task:   &domainpb.Task{Title: "Queued brief", ScopePath: "scenarios/demo"},
+				})
+				body = bytes.NewReader(encoded)
+			}
+			req := httptest.NewRequest(method, "/api/v1/tasks/"+taskID.String(), body).WithContext(coreidentity.WithPrincipal(context.Background(), caller))
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			if w.Code != http.StatusForbidden {

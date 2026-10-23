@@ -1,0 +1,4 @@
+Command: cd scenarios/agent-manager/api && GOMAXPROCS=2 go test -p 1 -v ./internal/orchestration -run '^TestWakeEffortCheckinCommitsQueuedCursorWithRetainedRunWake$' -count=1
+Result: PASS; ok agent-manager/internal/orchestration 0.096s
+
+Other recorded checks: skill-sidecar-gen completed for large-effort-orchestration; prompt-manager skill read semantic readback matched; git diff --check passed; isolated patch application to captured preimages reconstructed all four final paths byte-for-byte.

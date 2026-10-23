@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -150,18 +151,42 @@ func TestEffortHandoffSetReplacesOnceAndRefusesOversizedText(t *testing.T) {
 }
 
 // parkServer answers the children list with the given runs and records the park.
+const parkTestRunID = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
+
 func parkServer(t *testing.T, children string) (*App, *clitest.RecordingServer) {
+	return parkServerWithRun(t, children, func(runID string) string {
+		return `{"run":{"id":"` + runID + `","status":"RUN_STATUS_RUNNING"}}`
+	})
+}
+
+func parkServerWithRun(t *testing.T, children string, runResponse func(runID string) string) (*App, *clitest.RecordingServer) {
+	return parkServerWithIdentity(t, children, `{"valid":true,"claims":{"run_id":"`+parkTestRunID+`"}}`, runResponse)
+}
+
+func parkServerWithIdentity(t *testing.T, children, identityResponse string, runResponse func(runID string) string) (*App, *clitest.RecordingServer) {
 	t.Helper()
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		if request.Method == "POST" && request.Path == "/api/v1/identity/verify" {
+			return identityResponse
+		}
+		const runPrefix = "/api/v1/runs/"
+		if request.Method == "GET" && strings.HasPrefix(request.Path, runPrefix) {
+			return runResponse(strings.TrimPrefix(request.Path, runPrefix))
+		}
 		if request.Path == "/api/v1/runs" {
 			return `{"runs":[` + children + `]}`
 		}
-		return `{"message":"parked"}`
+		if request.Method == "POST" && strings.HasSuffix(request.Path, "/park") {
+			runID := strings.TrimSuffix(strings.TrimPrefix(request.Path, runPrefix), "/park")
+			return `{"success":true,"message":"parked","run":{"id":"` + runID + `","status":"RUN_STATUS_PARKED","await_handle":{"producer":"children","key":"` + runID + `"}}}`
+		}
+		return `{}`
 	})
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
 		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
 	}, nil)
 	t.Setenv(cliutil.EnvIdentityToken, "orchestrator-token-fixture")
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL())
 	return &App{services: NewServices(api)}, server
 }
 
@@ -175,6 +200,152 @@ func parkRequests(server *clitest.RecordingServer) int {
 	return parks
 }
 
+func TestEffortParkValidatesExactTargetBeforeChildPolicy(t *testing.T) {
+	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
+	for _, tc := range []struct {
+		name        string
+		runResponse func(string) string
+		wantError   string
+	}{
+		{
+			name:        "missing run",
+			runResponse: func(string) string { return `{"run":null}` },
+			wantError:   "returned no run",
+		},
+		{
+			name:        "mismatched run identity",
+			runResponse: func(string) string { return `{"run":{"id":"another-run"}}` },
+			wantError:   "returned mismatched run ID",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, server := parkServerWithRun(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`, tc.runResponse)
+			err := app.effortPark([]string{copyBASGoalHome(t, nil), "--run", run})
+			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("invalid park target should fail before policy evaluation, got %v", err)
+			}
+			requests := server.Requests()
+			if len(requests) != 2 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/identity/verify" || requests[1].Method != "GET" || requests[1].Path != "/api/v1/runs/"+run {
+				t.Fatalf("invalid target must stop after exact Get, got requests: %+v", requests)
+			}
+			if parkRequests(server) != 0 {
+				t.Fatalf("invalid target must not be parked: %+v", requests)
+			}
+		})
+	}
+}
+
+func TestEffortParkDefaultsToVerifiedCallerAndPreservesJSONReceipt(t *testing.T) {
+	app, server := parkServer(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`)
+	output, code := runEffort(t, app, "park", copyBASGoalHome(t, nil), "--json")
+	var receipt struct {
+		Park struct {
+			Success bool `json:"success"`
+			Run     struct {
+				ID          string `json:"id"`
+				Status      string `json:"status"`
+				AwaitHandle struct {
+					Producer string `json:"producer"`
+					Key      string `json:"key"`
+				} `json:"await_handle"`
+			} `json:"run"`
+		} `json:"park"`
+	}
+	if code != 0 || json.Unmarshal([]byte(output), &receipt) != nil || !receipt.Park.Success ||
+		receipt.Park.Run.ID != parkTestRunID || receipt.Park.Run.Status != "RUN_STATUS_PARKED" ||
+		receipt.Park.Run.AwaitHandle.Producer != "children" || receipt.Park.Run.AwaitHandle.Key != parkTestRunID {
+		t.Fatalf("self-defaulted JSON park should preserve the owner receipt (exit %d): %s", code, output)
+	}
+	var targetRead, childRead, parkWrite bool
+	for _, request := range server.Requests() {
+		switch {
+		case request.Method == "GET" && request.Path == "/api/v1/runs/"+parkTestRunID:
+			targetRead = true
+		case request.Method == "GET" && request.Path == "/api/v1/runs" && strings.Contains(request.Query, "parentRunId="+parkTestRunID):
+			childRead = true
+		case request.Method == "POST" && request.Path == "/api/v1/runs/"+parkTestRunID+"/park":
+			parkWrite = true
+		}
+	}
+	if !targetRead || !childRead || !parkWrite {
+		t.Fatalf("verified caller ID must flow through target, child, and park calls: %+v", server.Requests())
+	}
+}
+
+func TestEffortParkRefusesForeignExplicitRunBeforeTargetReads(t *testing.T) {
+	app, server := parkServer(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`)
+	err := app.effortPark([]string{copyBASGoalHome(t, nil), "--run", "another-run"})
+	if err == nil || !strings.Contains(err.Error(), "does not match verified caller run") {
+		t.Fatalf("foreign explicit run should be refused against verified identity, got %v", err)
+	}
+	requests := server.Requests()
+	if len(requests) != 1 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/identity/verify" {
+		t.Fatalf("run mismatch must refuse before target/child reads, got %+v", requests)
+	}
+}
+
+func TestEffortParkUsesConfiguredAPIBaseForVerificationAndRunCalls(t *testing.T) {
+	app, target := parkServer(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`)
+	ambient := clitest.NewRecordingServerForRequests(t, func(clitest.Request) string { return `{}` })
+	t.Setenv("AGENT_MANAGER_API_BASE", ambient.URL())
+	targetAPI := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{Override: target.URL(), EnvVars: []string{"AGENT_MANAGER_API_BASE"}}
+	}, nil)
+	app.services = NewServices(targetAPI)
+
+	output, code := runEffort(t, app, "park", copyBASGoalHome(t, nil), "--json")
+	if code != 0 || !strings.Contains(output, `"RUN_STATUS_PARKED"`) {
+		t.Fatalf("configured target should complete the park flow (exit %d): %s", code, output)
+	}
+	if requests := ambient.Requests(); len(requests) != 0 {
+		t.Fatalf("ambient Agent Manager must receive no verification or run requests: %+v", requests)
+	}
+	requests := target.Requests()
+	if len(requests) != 4 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/identity/verify" ||
+		requests[1].Method != "GET" || requests[1].Path != "/api/v1/runs/"+parkTestRunID ||
+		requests[2].Method != "GET" || requests[2].Path != "/api/v1/runs" ||
+		requests[3].Method != "POST" || requests[3].Path != "/api/v1/runs/"+parkTestRunID+"/park" {
+		t.Fatalf("verification and park operations must share the configured target: %+v", requests)
+	}
+}
+
+func TestEffortParkInvalidIdentityUsesConfiguredAPIBaseBeforeRunReads(t *testing.T) {
+	app, target := parkServerWithIdentity(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`, `{"valid":false,"error":"target rejected token"}`, func(runID string) string {
+		return `{"run":{"id":"` + runID + `","status":"RUN_STATUS_RUNNING"}}`
+	})
+	ambient := clitest.NewRecordingServerForRequests(t, func(clitest.Request) string { return `{"valid":true,"claims":{"run_id":"` + parkTestRunID + `"}}` })
+	t.Setenv("AGENT_MANAGER_API_BASE", ambient.URL())
+	targetAPI := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{Override: target.URL(), EnvVars: []string{"AGENT_MANAGER_API_BASE"}}
+	}, nil)
+	app.services = NewServices(targetAPI)
+
+	err := app.effortPark([]string{copyBASGoalHome(t, nil)})
+	if err == nil || !strings.Contains(err.Error(), "target rejected token") {
+		t.Fatalf("configured target identity refusal should be returned, got %v", err)
+	}
+	if requests := target.Requests(); len(requests) != 1 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/identity/verify" {
+		t.Fatalf("invalid configured identity must stop before target run reads: %+v", requests)
+	}
+	if requests := ambient.Requests(); len(requests) != 0 {
+		t.Fatalf("ambient Agent Manager must receive no identity or run requests: %+v", requests)
+	}
+}
+
+func TestEffortParkRefusesInvalidIdentityBeforeTargetReads(t *testing.T) {
+	app, server := parkServerWithIdentity(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`, `{"valid":false,"error":"token revoked"}`, func(runID string) string {
+		return `{"run":{"id":"` + runID + `","status":"RUN_STATUS_RUNNING"}}`
+	})
+	err := app.effortPark([]string{copyBASGoalHome(t, nil)})
+	if err == nil || !strings.Contains(err.Error(), "token revoked") {
+		t.Fatalf("invalid identity should be refused explicitly, got %v", err)
+	}
+	requests := server.Requests()
+	if len(requests) != 1 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/identity/verify" {
+		t.Fatalf("invalid identity must refuse before target/child reads, got %+v", requests)
+	}
+}
+
 func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
 	app, server := parkServer(t, `{"id":"c33912b5-1b51-49b3-8ddb-aad93600b001","status":"RUN_STATUS_COMPLETE"}`)
@@ -184,6 +355,16 @@ func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 	}
 	if parkRequests(server) != 0 {
 		t.Fatalf("a refused park must not reach the server: %+v", server.Requests())
+	}
+	readyAndDecision := copyBASGoalHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
+		s = strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- [decision X-1] Wait for an owner? Options: wait, continue.\n", 1)
+		return strings.Replace(s, "1. **RD-WF", "1. [ready] **RD-WF", 1)
+	}})
+	if output, code = runEffort(t, app, "park", readyAndDecision, "--run", run); code != exitRefused || !strings.Contains(output, "PARK_REFUSED admissible-slice") || !strings.Contains(output, "ready] slice(s) remain") {
+		t.Fatalf("independent ready work must take precedence over a Needs operator wait (exit %d): %s", code, output)
+	}
+	if parkRequests(server) != 0 {
+		t.Fatalf("a refused park with ready work must not reach the server: %+v", server.Requests())
 	}
 	decision := copyBASGoalHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
 		return strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Retire Record mode? Options: keep, retire. Recommendation: keep.", 1)

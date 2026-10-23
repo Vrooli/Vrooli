@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/goalhome"
 	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
@@ -59,14 +60,17 @@ func (a EffortActor) canReconcileMetadata(e *pb.EffortEnrollment) bool {
 }
 
 type EffortService struct {
-	repo        EffortRepository
-	controller  ActionController
-	config      EffortDiscoveryConfig
-	now         func() time.Time
-	mu          sync.Mutex
-	nextScan    time.Time
-	runRegistry EffortRunRegistry
-	quotaStore  pricing.QuotaObservationRepository
+	repo              EffortRepository
+	controller        ActionController
+	config            EffortDiscoveryConfig
+	now               func() time.Time
+	mu                sync.Mutex
+	nextScan          time.Time
+	runRegistry       EffortRunRegistry
+	signalCursorStore EffortSignalCursorStore
+	signalScanAfter   string
+	signalScanSubject string
+	quotaStore        pricing.QuotaObservationRepository
 	// decisionMu serializes decision transitions (raise, answer, resolve,
 	// record) so each answer yields exactly one operator_answer signal.
 	decisionMu        sync.Mutex
@@ -80,7 +84,7 @@ func NewEffortService(repo EffortRepository, controller ActionController, config
 		config.ScanLimit = 100
 	}
 	if config.FileBytes <= 0 || config.FileBytes > 1024*1024 {
-		config.FileBytes = 128 * 1024
+		config.FileBytes = goalhome.DefaultBoardFileBytes
 	}
 	if config.Interval < time.Second {
 		config.Interval = time.Minute
@@ -95,6 +99,12 @@ func NewEffortService(repo EffortRepository, controller ActionController, config
 // surface. Board reads it once and joins by canonical source run identity.
 func (s *EffortService) SetQuotaObservationStore(store pricing.QuotaObservationRepository) {
 	s.quotaStore = store
+}
+
+// SetEffortSignalCursorStore installs the canonical run-row cursor owner used
+// by the retained-run check-in dispatcher.
+func (s *EffortService) SetEffortSignalCursorStore(store EffortSignalCursorStore) {
+	s.signalCursorStore = store
 }
 
 func quotaObservationProto(o pricing.QuotaObservation) *pb.EffortQuotaObservation {
@@ -413,6 +423,13 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 		}
 		row := s.projectEffort(ctx, e, ob, d)
 		row.GoalHome = s.projectGoalHome(ctx, e, row)
+		if row.GoalHome != nil && row.GoalHome.GetState() == "partial" {
+			b.Partial = true
+			if row.NextAction == "observe" {
+				row.NextAction = "review goal-home evidence"
+				row.Rationale = strings.TrimSpace(row.Rationale + " Goal-home epoch evidence is incomplete; review its named limitation before acceptance.")
+			}
+		}
 		quotaObservationsForRow(row, quotaByRun)
 		cut := proto.Clone(row).(*pb.EffortBoardRow)
 		cut.ObservedAt = nil
@@ -696,5 +713,5 @@ func (s *EffortService) Tick(ctx context.Context) error {
 	}
 	_, err := s.reconcileDiscovery(ctx)
 	s.nextScan = now.Add(s.config.Interval)
-	return errors.Join(err, s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx))
+	return errors.Join(err, s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx), s.dispatchEffortSignalCheckins(ctx))
 }

@@ -35,6 +35,7 @@ import { Label } from "./ui/label";
 import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
+import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useDocumentEscape } from "../hooks/useDocumentEscape";
 import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
@@ -140,7 +141,7 @@ export function RunDetail({
   }, [initialTab, run.id]);
 
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [idCopied, setIdCopied] = useState(false);
+  const { status: runIdCopyStatus, copyText: copyRunId } = useClipboardFeedback(1500);
   const [infoOpen, setInfoOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
@@ -350,14 +351,12 @@ export function RunDetail({
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(run.id);
-                setIdCopied(true);
-                setTimeout(() => setIdCopied(false), 1500);
+                void copyRunId(run.id);
               }}
               title={`Copy run ID: ${run.id}`}
             >
               <code className="font-mono">{run.id.slice(0, 8)}</code>
-              {idCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+              {runIdCopyStatus === "copied" ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
           {/* Action buttons — stop is always primary, rest are inline on desktop / ellipsis on mobile */}
@@ -852,14 +851,12 @@ export function RunDetail({
                   type="button"
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => {
-                    navigator.clipboard.writeText(run.id);
-                    setIdCopied(true);
-                    setTimeout(() => setIdCopied(false), 1500);
+                    void copyRunId(run.id);
                   }}
                   title={`Copy run ID: ${run.id}`}
                 >
                   <code className="font-mono">{run.id.slice(0, 8)}</code>
-                  {idCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {runIdCopyStatus === "copied" ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                 </button>
               </div>
               <RunDetailsContent
