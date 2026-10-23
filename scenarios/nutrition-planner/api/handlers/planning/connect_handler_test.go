@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,16 +66,25 @@ func TestGetPlanReadsLocalWorkspaceWithoutIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	recipes := recipe.NewService(recipe.NewSQLiteRepository(db, clock))
+	soup, err := recipes.Create(context.Background(), recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Soup"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rice, err := recipes.Create(context.Background(), recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Rice"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	repository := internal.NewSQLiteRepository(db, clock)
 	draft := internal.Draft{RunID: "read-model-test", Occurrences: []internal.Occurrence{
-		{Date: "2026-10-03", SlotName: "dinner", RecipeID: "r1", RecipeRevision: 3, RecipeName: "Soup"},
-		{Date: "2026-10-04", SlotName: "dinner", RecipeID: "r2", RecipeRevision: 1, RecipeName: "Rice"},
+		{Date: "2026-10-03", SlotName: "dinner", RecipeID: soup.ID, RecipeRevision: soup.Revision, RecipeName: soup.Name},
+		{Date: "2026-10-04", SlotName: "dinner", RecipeID: rice.ID, RecipeRevision: rice.Revision, RecipeName: rice.Name},
 	}}
 	raw, _ := json.Marshal(draft)
 	if _, err := repository.Apply(context.Background(), ownerWorkspace.ID, 0, string(raw)); err != nil {
 		t.Fatal(err)
 	}
-	handler := NewConnectHandler(workspaces, recipe.NewService(recipe.NewSQLiteRepository(db, clock)), nil, repository, nil, nil, nil)
+	handler := NewConnectHandler(workspaces, recipes, nil, repository, nil, nil, nil)
 	request := connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: ownerWorkspace.ID, FromDate: "2026-10-03", ToDate: "2026-10-03"})
 	response, err := handler.GetPlan(context.Background(), request)
 	if err != nil {
@@ -84,12 +94,170 @@ func TestGetPlanReadsLocalWorkspaceWithoutIdentity(t *testing.T) {
 	if err := json.Unmarshal([]byte(response.Msg.DraftJson), &got); err != nil {
 		t.Fatal(err)
 	}
-	if !response.Msg.HasPlan || response.Msg.CurrentRevision != 1 || len(got.Occurrences) != 1 || got.Occurrences[0].Date != "2026-10-03" || got.Occurrences[0].RecipeRevision != 3 {
+	if !response.Msg.HasPlan || response.Msg.CurrentRevision != 1 || len(got.Occurrences) != 1 || got.Occurrences[0].Date != "2026-10-03" || got.Occurrences[0].RecipeRevision != soup.Revision {
 		t.Fatalf("response=%+v draft=%+v", response.Msg, got)
 	}
 	other := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "unrelated-caller", Verified: true})
 	if _, err := handler.GetPlan(other, request); err != nil {
 		t.Fatalf("caller identity must not select or gate the local workspace: %v", err)
+	}
+}
+
+func TestPlanningConnectRejectsForeignRecipeOccurrencesWithoutMutation(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{workspace.Schema(), recipe.Schema(), internal.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clock := schedule.System()
+	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
+	local, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Local", OwnerSubject: workspace.LocalOwnerSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Foreign", OwnerSubject: workspace.LocalOwnerSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipes := recipe.NewService(recipe.NewSQLiteRepository(db, clock))
+	foreignRecipe, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: foreign.ID, Name: "FOREIGN SECRET DINNER"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	localRecipe, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: local.ID, Name: "Local dinner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans := internal.NewSQLiteRepository(db, clock)
+	h := NewConnectHandler(workspaces, recipes, nil, plans, nil, nil, nil)
+	path, serviceHandler := planningconnect.NewPlanningServiceHandler(h)
+	mux := http.NewServeMux()
+	mux.Handle(path, serviceHandler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := planningconnect.NewPlanningServiceClient(server.Client(), server.URL)
+
+	localDraft, err := json.Marshal(internal.Draft{Occurrences: []internal.Occurrence{{Date: "2026-10-20", SlotName: "dinner", RecipeID: localRecipe.ID, RecipeRevision: localRecipe.Revision, RecipeName: localRecipe.Name}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ApplyPlan(ctx, connect.NewRequest(&planningv1.ApplyPlanRequest{WorkspaceId: local.ID, ExpectedRevision: 0, DraftJson: string(localDraft)})); err != nil {
+		t.Fatalf("same-workspace recipe occurrence apply: %v", err)
+	}
+	if _, err := recipes.Update(ctx, recipe.UpdateInput{WorkspaceID: local.ID, ID: localRecipe.ID, ExpectedRevision: localRecipe.Revision, Name: "Local dinner updated"}); err != nil {
+		t.Fatalf("same-workspace recipe revision update: %v", err)
+	}
+	if _, err := client.GetPlan(ctx, connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: local.ID, FromDate: "2026-10-20", ToDate: "2026-10-20"})); err != nil {
+		t.Fatalf("same-workspace pinned historical revision read: %v", err)
+	}
+	// Establish normal same-workspace success and ownerless access for both workspaces.
+	foreignDraft, err := json.Marshal(internal.Draft{Occurrences: []internal.Occurrence{{Date: "2026-10-20", SlotName: "dinner", RecipeID: foreignRecipe.ID, RecipeRevision: foreignRecipe.Revision, RecipeName: foreignRecipe.Name}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ApplyPlan(ctx, connect.NewRequest(&planningv1.ApplyPlanRequest{WorkspaceId: foreign.ID, ExpectedRevision: 0, DraftJson: string(foreignDraft)})); err != nil {
+		t.Fatalf("same-workspace recipe occurrence apply: %v", err)
+	}
+	if _, err := client.GetPlan(ctx, connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: foreign.ID, FromDate: "2026-10-20", ToDate: "2026-10-20"})); err != nil {
+		t.Fatalf("ownerless same-workspace read: %v", err)
+	}
+
+	// A legacy/corrupt persisted row can outlive the write guard. GetPlan must
+	// reject it before serializing the foreign recipe name to the caller.
+	foreignPlan := internal.Draft{Occurrences: []internal.Occurrence{{Date: "2026-10-21", SlotName: "dinner", RecipeID: foreignRecipe.ID, RecipeName: foreignRecipe.Name}}}
+	foreignPlanJSON, _ := json.Marshal(foreignPlan)
+	if _, err := plans.Apply(ctx, local.ID, 1, string(foreignPlanJSON)); err != nil {
+		t.Fatal(err)
+	}
+	beforeLocalRevision, beforeLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeForeignRevision, beforeForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, readErr := client.GetPlan(ctx, connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: local.ID, FromDate: "2026-10-21", ToDate: "2026-10-21"}))
+	if readErr == nil || got != nil {
+		t.Fatalf("foreign nested recipe read response=%v err=%v, want rejection", got, readErr)
+	}
+	if strings.Contains(readErr.Error(), foreignRecipe.Name) {
+		t.Fatalf("foreign recipe content disclosed in error: %v", readErr)
+	}
+
+	// Foreign occurrences must be rejected whether the selected revision is
+	// missing (legacy shape), pinned on the occurrence, or captured separately.
+	foreignWriteCases := []struct {
+		name  string
+		draft internal.Draft
+	}{
+		{name: "unversioned occurrence", draft: internal.Draft{Occurrences: []internal.Occurrence{{Date: "2026-10-22", SlotName: "dinner", RecipeID: foreignRecipe.ID, RecipeName: foreignRecipe.Name}}}},
+		{name: "pinned occurrence revision", draft: internal.Draft{Occurrences: []internal.Occurrence{{Date: "2026-10-22", SlotName: "dinner", RecipeID: foreignRecipe.ID, RecipeRevision: foreignRecipe.Revision, RecipeName: foreignRecipe.Name}}}},
+		{name: "captured recipe revision", draft: internal.Draft{Occurrences: []internal.Occurrence{{Date: "2026-10-22", SlotName: "dinner", RecipeID: foreignRecipe.ID, RecipeRevision: foreignRecipe.Revision, RecipeName: foreignRecipe.Name}}, InputReferences: []string{fmt.Sprintf("recipe:%s:%d", foreignRecipe.ID, foreignRecipe.Revision)}}},
+		{name: "unresolved foreign candidate", draft: internal.Draft{Unresolved: []internal.Unresolved{{Date: "2026-10-22", CandidateIDs: []string{foreignRecipe.ID}}}}},
+	}
+	for _, tc := range foreignWriteCases {
+		t.Run(tc.name, func(t *testing.T) {
+			writeDraft, err := json.Marshal(tc.draft)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeResponse, writeErr := client.ApplyPlan(ctx, connect.NewRequest(&planningv1.ApplyPlanRequest{WorkspaceId: local.ID, ExpectedRevision: beforeLocalRevision, DraftJson: string(writeDraft)}))
+			if writeErr == nil || writeResponse != nil {
+				t.Fatalf("foreign nested recipe write response=%v err=%v, want rejection", writeResponse, writeErr)
+			}
+			if strings.Contains(writeErr.Error(), foreignRecipe.Name) {
+				t.Fatalf("foreign recipe content disclosed in write error: %v", writeErr)
+			}
+		})
+	}
+	afterLocalRevision, afterLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterForeignRevision, afterForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeLocalRevision != afterLocalRevision || beforeLocalRaw != afterLocalRaw || beforeForeignRevision != afterForeignRevision || beforeForeignRaw != afterForeignRaw {
+		t.Fatalf("foreign reference changed persisted plans: local %d/%s -> %d/%s; foreign %d/%s -> %d/%s", beforeLocalRevision, beforeLocalRaw, afterLocalRevision, afterLocalRaw, beforeForeignRevision, beforeForeignRaw, afterForeignRevision, afterForeignRaw)
+	}
+	candidateDraft, _ := json.Marshal(internal.Draft{Unresolved: []internal.Unresolved{{Date: "2026-10-23", CandidateIDs: []string{foreignRecipe.ID}}}})
+	if _, err := plans.Apply(ctx, local.ID, afterLocalRevision, string(candidateDraft)); err != nil {
+		t.Fatal(err)
+	}
+	beforeCandidateLocalRevision, beforeCandidateLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeCandidateForeignRevision, beforeCandidateForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidateResponse, candidateErr := client.GetPlan(ctx, connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: local.ID, FromDate: "2026-10-23", ToDate: "2026-10-23"}))
+	if candidateErr == nil || candidateResponse != nil {
+		t.Fatalf("foreign unresolved candidate read response=%v err=%v, want rejection", candidateResponse, candidateErr)
+	}
+	if strings.Contains(candidateErr.Error(), foreignRecipe.Name) {
+		t.Fatalf("foreign recipe content disclosed in unresolved candidate error: %v", candidateErr)
+	}
+	afterCandidateLocalRevision, afterCandidateLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterCandidateForeignRevision, afterCandidateForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeCandidateLocalRevision != afterCandidateLocalRevision || beforeCandidateLocalRaw != afterCandidateLocalRaw || beforeCandidateForeignRevision != afterCandidateForeignRevision || beforeCandidateForeignRaw != afterCandidateForeignRaw {
+		t.Fatalf("foreign unresolved candidate read mutated plans: local %d/%s -> %d/%s; foreign %d/%s -> %d/%s", beforeCandidateLocalRevision, beforeCandidateLocalRaw, afterCandidateLocalRevision, afterCandidateLocalRaw, beforeCandidateForeignRevision, beforeCandidateForeignRaw, afterCandidateForeignRevision, afterCandidateForeignRaw)
 	}
 }
 
@@ -731,6 +899,31 @@ func TestNoochConnectRoutesWorkWithoutIdentity(t *testing.T) {
 	if err != nil || applied.Msg.GetRevision() != 2 {
 		t.Fatalf("anonymous apply of reviewed swap: response=%v err=%v", applied, err)
 	}
+	beforeRetryRevision, beforeRetryRaw, err := repository.Get(ctx, ownerWorkspace.ID)
+	if err != nil || beforeRetryRevision != 2 {
+		t.Fatalf("read plan before lost-response retry: revision=%d err=%v", beforeRetryRevision, err)
+	}
+	var beforeRetry internal.Draft
+	if err := json.Unmarshal([]byte(beforeRetryRaw), &beforeRetry); err != nil {
+		t.Fatal(err)
+	}
+	// Model a lost first response: replay the identical workspace, expected
+	// revision, and payload through Connect and require the original receipt.
+	retried, err := client.ApplyPlan(ctx, applyRequest)
+	if err != nil || retried.Msg.GetRevision() != applied.Msg.GetRevision() || retried.Msg.GetPlanJson() != applied.Msg.GetPlanJson() {
+		t.Fatalf("identical committed retry: response=%v err=%v", retried, err)
+	}
+	retryReadback, err := client.GetPlan(ctx, connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: ownerWorkspace.ID, FromDate: "2026-10-03", ToDate: "2026-10-05"}))
+	if err != nil || retryReadback.Msg.GetCurrentRevision() != 2 {
+		t.Fatalf("retry readback revision=%v err=%v", retryReadback, err)
+	}
+	var retryDraft internal.Draft
+	if err := json.Unmarshal([]byte(retryReadback.Msg.GetDraftJson()), &retryDraft); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(retryDraft.Occurrences, beforeRetry.Occurrences) {
+		t.Fatalf("retry changed persisted occurrence identities: before=%+v after=%+v", beforeRetry.Occurrences, retryDraft.Occurrences)
+	}
 	schedulesRequest := connect.NewRequest(&supplementv1.ListSchedulesRequest{WorkspaceId: ownerWorkspace.ID})
 	schedules, err := supplementClient.ListSchedules(ctx, schedulesRequest)
 	if err != nil || len(schedules.Msg.GetSchedules()) != 1 || schedules.Msg.GetSchedules()[0].GetDose() != createdSchedule.Msg.GetSchedule().GetDose() || schedules.Msg.GetSchedules()[0].GetRevision() != createdSchedule.Msg.GetSchedule().GetRevision() {
@@ -782,6 +975,23 @@ func TestNoochConnectRoutesWorkWithoutIdentity(t *testing.T) {
 	}
 	if len(shoppingPreview.Msg.GetLines()) != 2 || shoppingPreview.Msg.GetLines()[0].GetKey() != "ingredient:oats" || shoppingPreview.Msg.GetLines()[0].GetStock() != "unknown" || shoppingPreview.Msg.GetLines()[0].GetPrice() != "unknown" || shoppingPreview.Msg.GetLines()[1].GetKey() != "ingredient:rice" || shoppingPreview.Msg.GetLines()[1].GetNeed() != "300 g" || shoppingPreview.Msg.GetLines()[1].GetStock() != "85 g" || shoppingPreview.Msg.GetLines()[1].GetMissing() != "215 g" || shoppingPreview.Msg.GetLines()[1].GetPackageCount() != "2" || shoppingPreview.Msg.GetLines()[1].GetPortionCost() != "4.5 USD" || shoppingPreview.Msg.GetLines()[1].GetCheckoutTotal() != "6 USD" || shoppingPreview.Msg.GetLines()[1].GetActualSpend() != "unknown" {
 		t.Fatalf("persisted shopping preview=%+v", shoppingPreview.Msg.GetLines())
+	}
+	targetWeekRequest := connect.NewRequest(&planningv1.GetShoppingPreviewRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 2, FromDate: "2026-10-05", ToDate: "2026-10-05"})
+	targetWeek, err := client.GetShoppingPreview(ctx, targetWeekRequest)
+	if err != nil || len(targetWeek.Msg.GetLines()) != 1 || targetWeek.Msg.GetLines()[0].GetSourceRecipeIds()[0] != replacement.ID || targetWeek.Msg.GetLines()[0].GetNeed() != "150 g" {
+		t.Fatalf("target-week grocery preview must contain only target-date demand and provenance: response=%v err=%v", targetWeek, err)
+	}
+	partialRange, err := client.GetShoppingPreview(ctx, connect.NewRequest(&planningv1.GetShoppingPreviewRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 2, FromDate: "2026-10-05"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || partialRange != nil {
+		t.Fatalf("partial grocery date range must be rejected: response=%v err=%v", partialRange, err)
+	}
+	badRange, err := client.GetShoppingPreview(ctx, connect.NewRequest(&planningv1.GetShoppingPreviewRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 2, FromDate: "2026-10-06", ToDate: "2026-10-05"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || badRange != nil {
+		t.Fatalf("reversed grocery date range must be rejected: response=%v err=%v", badRange, err)
+	}
+	staleScoped, err := client.GetShoppingPreview(ctx, connect.NewRequest(&planningv1.GetShoppingPreviewRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, FromDate: "2026-10-05", ToDate: "2026-10-05"}))
+	if connect.CodeOf(err) != connect.CodeAborted || staleScoped != nil {
+		t.Fatalf("scoped grocery preview must preserve revision conflict semantics: response=%v err=%v", staleScoped, err)
 	}
 	stockAfterPlan, err := inventoryRepository.List(ctx, ownerWorkspace.ID)
 	stockTotal := decimalx.KnownInt(0)

@@ -42,6 +42,9 @@ func TestApplyPersistsOccurrencesAndRetriesIdempotently(t *testing.T) {
 	if retried, err := repo.Apply(ctx, "w1", 0, string(raw)); err != nil || retried != 1 {
 		t.Fatalf("identical retry: revision=%d err=%v", retried, err)
 	}
+	if retried, found, err := repo.AppliedRevision(ctx, "w1", 0, string(raw)); err != nil || !found || retried != 1 {
+		t.Fatalf("committed retry lookup: revision=%d found=%v err=%v", retried, found, err)
+	}
 	changed := draft
 	changed.Occurrences = append([]Occurrence(nil), draft.Occurrences...)
 	changed.Occurrences[0].RecipeName = "Different"
@@ -53,6 +56,9 @@ func TestApplyPersistsOccurrencesAndRetriesIdempotently(t *testing.T) {
 		if !errors.As(err, &stale) {
 			t.Fatalf("expected stale conflict, got %v", err)
 		}
+	}
+	if _, found, err := repo.AppliedRevision(ctx, "w1", 0, string(changedRaw)); err != nil || found {
+		t.Fatalf("changed stale draft must not match committed receipt: found=%v err=%v", found, err)
 	}
 	actual, saved, err := repo.Get(ctx, "w1")
 	if err != nil || actual != 1 {

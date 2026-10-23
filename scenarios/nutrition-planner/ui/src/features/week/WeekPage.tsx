@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { Link, useSearchParams } from "react-router-dom";
 import { applyPlan, generatePlan, getPlan, previewSwap, type PlanDraft } from "../../api/planning";
+import { getProfile } from "../../api/profile";
 import { listRecipes } from "../../api/recipes";
 import { listCatalogRevisions, type CatalogRevision } from "../../api/catalog";
 import { ensureWorkspace } from "../../api/workspace";
 import { exportWeeklyPDF } from "../../api/portability";
 import { useDialogFocusTrap } from "../../lib/useDialogFocusTrap";
 import { localDateString } from "../../lib/dates";
+import { firstWeekSlots, mealSlotsFromOnboardingDraft } from "../onboarding/mealSlotDraft";
 import { scheduledSupplementNutrients } from "../../lib/supplementNutrition";
 import { selectors } from "../../consts/selectors";
 import { listIntakes, type IntakeEvent } from "../../api/nutrition";
@@ -24,6 +27,7 @@ function exploreSlotPath(date: string, slot: string, revision: bigint, expectedR
   if (expectedRecipeId) params.set("replace", "occurrence");
   return `/meals/explore?${params.toString()}`;
 }
+function groceriesPath(fromDate: string, toDate: string) { return `/groceries?${new URLSearchParams({ fromDate, toDate }).toString()}`; }
 
 export function WeekPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -121,12 +125,23 @@ export function WeekPage() {
     try {
       setError("");
       setAppliedChanges([]);
-      const mealSlots = dates.flatMap((date) => {
-        const savedSlots = (baseDraft?.occurrences ?? []).filter((occurrence) => occurrence.date === date);
-        if (savedSlots.length === 0) return [{ date, slotName: "dinner", mode: "flexible", quantity: "1" }];
-        return savedSlots.map((occurrence) => ({ date, slotName: occurrence.slotName ?? "dinner", mode: occurrence.mode ?? "flexible", quantity: occurrence.quantity ?? "1", lockedRecipeId: occurrence.locked ? occurrence.recipeId : "" }));
-      });
-      setDraft(await generatePlan({ workspaceId, dates, mealSlots }));
+      let initialSlots;
+      if (!hasPlan) {
+        let draftJson: string | undefined;
+        try {
+          draftJson = (await getProfile(workspaceId))?.draftJson;
+        } catch (err) {
+          if (!(err instanceof ConnectError) || err.code !== Code.NotFound) throw err;
+        }
+        initialSlots = firstWeekSlots(dates, mealSlotsFromOnboardingDraft(draftJson));
+      } else {
+        initialSlots = dates.flatMap((date) => {
+          const savedSlots = (baseDraft?.occurrences ?? []).filter((occurrence) => occurrence.date === date);
+          if (savedSlots.length === 0) return [{ date, slotName: "dinner", mode: "flexible", quantity: "1" }];
+          return savedSlots.map((occurrence) => ({ date, slotName: occurrence.slotName ?? "dinner", mode: occurrence.mode ?? "flexible", quantity: occurrence.quantity ?? "1", lockedRecipeId: occurrence.locked ? occurrence.recipeId : "" }));
+        });
+      }
+      setDraft(await generatePlan({ workspaceId, dates, mealSlots: initialSlots }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to draft this week.");
     }
@@ -297,7 +312,7 @@ export function WeekPage() {
             <span><strong>{occurrenceCount}</strong> meals assigned</span>
             <span><strong>{openCount}</strong> intentionally open slots</span>
             <span><strong>{lockedCount}</strong> locked</span>
-            <a href="/groceries">Review groceries <ChevronRight aria-hidden="true" /></a>
+            <Link to={groceriesPath(dates[0] ?? "", dates[6] ?? "")}>Review groceries <ChevronRight aria-hidden="true" /></Link>
           </div>
           {reviewingDraft && <WeekReview draft={draft} saved={savedDraft} />}
           {appliedChanges.length > 0 && <section className="week-applied-review" aria-label="Saved plan changes">
@@ -308,7 +323,7 @@ export function WeekPage() {
               <p>Saved changes:</p>
               <ul>{appliedChanges.map((change) => <li key={change}>{change}</li>)}</ul>
             </div>
-            <aside><h3>Review what follows</h3><p>Plan changes do not purchase groceries or consume inventory. Review the current grocery quantities separately.</p><a href="/groceries">Review groceries <ChevronRight aria-hidden="true" /></a></aside>
+            <aside><h3>Review what follows</h3><p>Plan changes do not purchase groceries or consume inventory. Review the current grocery quantities separately.</p><Link to={groceriesPath(dates[0] ?? "", dates[6] ?? "")}>Review groceries <ChevronRight aria-hidden="true" /></Link></aside>
           </section>}
           {staleConflict && <section className="week-stale-review" aria-label="Stale plan review">
             <h2>Your draft is still here</h2>
@@ -443,7 +458,7 @@ export function WeekPage() {
                 <p>Active time and elapsed duration remain unknown until timed recipe estimates are verified.</p>
                 <h3>Checkout & portion cost</h3>
                 <p>Prices are not complete for this plan, so no checkout estimate, portion cost or actual spend is shown.</p>
-                <a href="/groceries">Review grocery quantities <ChevronRight aria-hidden="true" /></a>
+                <Link to={groceriesPath(dates[0] ?? "", dates[6] ?? "")}>Review grocery quantities <ChevronRight aria-hidden="true" /></Link>
                 <small>No calendar schedule or duration is inferred from servings.</small>
               </aside>
             </div>

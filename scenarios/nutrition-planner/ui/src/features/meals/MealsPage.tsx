@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { createRecipe, listRecipes, updateRecipe } from "../../api/recipes";
 import { ensureWorkspace } from "../../api/workspace";
 import { exportRecipePDF } from "../../api/portability";
+import { reviewRoutine, type RoutineCaptureReview } from "./routineCapture";
 
 function recipeStatus(recipe: Recipe) {
   return recipe.status ? recipe.status.replace(/_/g, " ") : "Draft";
@@ -21,6 +22,10 @@ export function MealsPage() {
   const [exportingId, setExportingId] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [routineText, setRoutineText] = useState("");
+  const [routineReview, setRoutineReview] = useState<RoutineCaptureReview>();
+  const [routineSaving, setRoutineSaving] = useState(false);
+  const [routineSaved, setRoutineSaved] = useState<Recipe[]>([]);
 
   const filteredRecipes = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -68,6 +73,30 @@ export function MealsPage() {
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = result.filename; anchor.click(); URL.revokeObjectURL(url);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Unable to export this recipe."); }
     finally { setExportingId(""); }
+  }
+
+  async function saveRoutineDrafts() {
+    if (!routineReview || !workspaceId || !routineReview.meals.length) return;
+    setRoutineSaving(true); setError(""); setRoutineSaved([]);
+    try {
+      const created: Recipe[] = [];
+      for (const meal of routineReview.meals) {
+        created.push(await createRecipe({
+          workspaceId,
+          name: meal.name,
+          notes: routineReview.sourceText,
+          originalText: routineReview.sourceText,
+          sourceType: "manual",
+        }));
+      }
+      const refreshed = await listRecipes(workspaceId);
+      setRecipes(refreshed);
+      setRoutineSaved(created);
+      setState("saved");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "The routine draft was not fully saved.");
+      setState("error");
+    } finally { setRoutineSaving(false); }
   }
 
   return <section aria-labelledby="meals-heading" className="meals-page">
@@ -122,5 +151,34 @@ export function MealsPage() {
         <div className="meals-capture-actions"><button type="submit" disabled={state === "saving"}>{state === "saving" ? "Saving…" : editingRecipe ? "Save changes" : "Save draft"}</button>{editingRecipe && <button type="button" onClick={() => { setEditingRecipe(undefined); setName(""); setNotes(""); setSourceUrl(""); setError(""); }}>Cancel edit</button>}</div>
       </form>
     </details>
+
+    <section className="meals-capture" aria-labelledby="routine-capture-heading">
+      <h2 id="routine-capture-heading">Capture an existing routine</h2>
+      <p>Paste meal names with a slot label, such as “Breakfast (daily): smoothie”. Review the result before saving. Missing amounts and supplement details stay unknown.</p>
+      <label htmlFor="routine-source">Your rough routine</label>
+      <textarea id="routine-source" value={routineText} onChange={(event) => { setRoutineText(event.target.value); setRoutineReview(undefined); setRoutineSaved([]); }} placeholder={'Breakfast (daily): smoothie\nLunch (weekdays): tofu meal\nSnack (most afternoons): crunchy snacks\nSupplement: recurring, product and dose not recorded'} />
+      <button type="button" onClick={() => { setError(""); setRoutineSaved([]); setRoutineReview(reviewRoutine(routineText)); }} disabled={!routineText.trim()}>Review routine</button>
+      {routineReview && <div className="mt-4 space-y-3" aria-label="Routine review">
+        <h3>Review the captured details</h3>
+        <p><strong>Original text</strong></p><pre className="whitespace-pre-wrap" data-testid="routine-source-preserved">{routineReview.sourceText}</pre>
+        <ul aria-label="Detected meals and recurring slots">
+          {routineReview.meals.map((meal, index) => <li key={meal.id} className="space-y-1">
+            <label htmlFor={`routine-meal-${meal.id}`}>{meal.slot} · {meal.recurrence}</label>
+            <input id={`routine-meal-${meal.id}`} value={meal.name} onChange={(event) => setRoutineReview((current) => current ? ({ ...current, meals: current.meals.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) }) : current)} />
+            <p>Foods explicitly mentioned: {meal.foods.length ? meal.foods.join(", ") : "none identified"}</p>
+          </li>)}
+        </ul>
+        {routineReview.supplements.length > 0 && <div><h4>Supplement mentions</h4><ul>{routineReview.supplements.map((item, index) => <li key={`${item}-${index}`}>{item} <span>(product and dose unknown)</span></li>)}</ul></div>}
+        {routineReview.questions.length > 0 && <div><h4>Questions that affect the saved routine</h4><ul>{routineReview.questions.map((question) => <li key={question}>{question}</li>)}</ul></div>}
+        <p>Saving keeps these as meal drafts. A recurring template needs a reviewed quantity and basis; no amount or supplement dose is inferred here.</p>
+        <button type="button" onClick={() => void saveRoutineDrafts()} disabled={routineSaving || routineReview.meals.length === 0}>{routineSaving ? "Saving drafts…" : "Save reviewed meal drafts"}</button>
+      </div>}
+      {routineSaved.length > 0 && <div role="status" aria-label="Persisted routine drafts">
+        <h3>Saved draft revisions</h3>
+        <ul>{routineSaved.map((recipe) => <li key={recipe.id}>
+          <Link to={`/recipes/${encodeURIComponent(recipe.id)}/revisions/${recipe.revision.toString()}`}>{recipe.name} · revision {recipe.revision.toString()}</Link>
+        </li>)}</ul>
+      </div>}
+    </section>
   </section>;
 }

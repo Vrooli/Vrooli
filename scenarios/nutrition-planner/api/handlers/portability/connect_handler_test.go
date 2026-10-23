@@ -36,9 +36,11 @@ type checkpointWorkspaceService struct{}
 func (checkpointWorkspaceService) Create(context.Context, workspace.CreateInput) (workspace.Workspace, error) {
 	panic("unused")
 }
+
 func (checkpointWorkspaceService) List(context.Context, string) ([]workspace.Workspace, error) {
 	panic("unused")
 }
+
 func (checkpointWorkspaceService) Get(_ context.Context, id, owner string) (workspace.Workspace, error) {
 	if id != "w1" {
 		return workspace.Workspace{}, workspace.ErrNotFound{ID: id}
@@ -113,6 +115,117 @@ func TestWorkspaceExportIncludesIntakeEventProvenance(t *testing.T) {
 		}
 	}
 	t.Fatal("workspace export omitted intake event")
+}
+
+func TestWorkspaceExportsRejectForeignPlanReferencesWithoutMutation(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{workspace.Schema(), recipe.Schema(), planning.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clock := schedule.System()
+	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
+	local, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Local", OwnerSubject: workspace.LocalOwnerSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Foreign", OwnerSubject: workspace.LocalOwnerSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipes := recipe.NewService(recipe.NewSQLiteRepository(db, clock))
+	localRecipe, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: local.ID, Name: "Local recipe"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignRecipe, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: foreign.ID, Name: "FOREIGN SECRET RECIPE"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans := planning.NewSQLiteRepository(db, clock)
+	foreignDraft, _ := json.Marshal(planning.Draft{Occurrences: []planning.Occurrence{{Date: "2026-10-20", SlotName: "dinner", RecipeID: foreignRecipe.ID, RecipeName: foreignRecipe.Name}}})
+	if _, err := plans.Apply(ctx, local.ID, 0, string(foreignDraft)); err != nil {
+		t.Fatal(err)
+	}
+	h := NewConnectHandler(recipes, workspaces, plans, nil, log.Default())
+	path, serviceHandler := portabilityconnect.NewPortabilityServiceHandler(h)
+	mux := http.NewServeMux()
+	mux.Handle(path, serviceHandler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := portabilityconnect.NewPortabilityServiceClient(server.Client(), server.URL)
+
+	// Recipe export/download stays workspace-scoped and preserves ordinary local output.
+	recipeExport, err := client.ExportRecipes(ctx, connect.NewRequest(&v1.ExportRecipesRequest{WorkspaceId: local.ID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(recipeExport.Msg.ContentJson, localRecipe.Name) || strings.Contains(recipeExport.Msg.ContentJson, foreignRecipe.Name) {
+		t.Fatalf("workspace recipe export has wrong content: %s", recipeExport.Msg.ContentJson)
+	}
+	beforeLocalRevision, beforeLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeForeignRevision, beforeForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	export, exportErr := client.ExportWorkspace(ctx, connect.NewRequest(&v1.ExportWorkspaceRequest{WorkspaceId: local.ID}))
+	if exportErr == nil || export != nil {
+		t.Fatalf("workspace backup response=%v err=%v, want foreign nested reference rejection", export, exportErr)
+	}
+	if strings.Contains(exportErr.Error(), foreignRecipe.Name) {
+		t.Fatalf("foreign recipe content disclosed in export error: %v", exportErr)
+	}
+	afterLocalRevision, afterLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterForeignRevision, afterForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeLocalRevision != afterLocalRevision || beforeLocalRaw != afterLocalRaw || beforeForeignRevision != afterForeignRevision || beforeForeignRaw != afterForeignRaw {
+		t.Fatalf("foreign export changed persisted plans: local %d/%s -> %d/%s; foreign %d/%s -> %d/%s", beforeLocalRevision, beforeLocalRaw, afterLocalRevision, afterLocalRaw, beforeForeignRevision, beforeForeignRaw, afterForeignRevision, afterForeignRaw)
+	}
+	candidatePlan, _ := json.Marshal(planning.Draft{Unresolved: []planning.Unresolved{{Date: "2026-10-21", CandidateIDs: []string{foreignRecipe.ID}}}})
+	if _, err := plans.Apply(ctx, local.ID, afterLocalRevision, string(candidatePlan)); err != nil {
+		t.Fatal(err)
+	}
+	beforeCandidateLocalRevision, beforeCandidateLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeCandidateForeignRevision, beforeCandidateForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidateExport, candidateExportErr := client.ExportWorkspace(ctx, connect.NewRequest(&v1.ExportWorkspaceRequest{WorkspaceId: local.ID}))
+	if candidateExportErr == nil || candidateExport != nil {
+		t.Fatalf("workspace backup with foreign unresolved candidate response=%v err=%v, want rejection", candidateExport, candidateExportErr)
+	}
+	if strings.Contains(candidateExportErr.Error(), foreignRecipe.Name) {
+		t.Fatalf("foreign recipe content disclosed for unresolved candidate: %v", candidateExportErr)
+	}
+	afterCandidateLocalRevision, afterCandidateLocalRaw, err := plans.Get(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterCandidateForeignRevision, afterCandidateForeignRaw, err := plans.Get(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeCandidateLocalRevision != afterCandidateLocalRevision || beforeCandidateLocalRaw != afterCandidateLocalRaw || beforeCandidateForeignRevision != afterCandidateForeignRevision || beforeCandidateForeignRaw != afterCandidateForeignRaw {
+		t.Fatalf("foreign unresolved candidate export mutated plans: local %d/%s -> %d/%s; foreign %d/%s -> %d/%s", beforeCandidateLocalRevision, beforeCandidateLocalRaw, afterCandidateLocalRevision, afterCandidateLocalRaw, beforeCandidateForeignRevision, beforeCandidateForeignRaw, afterCandidateForeignRevision, afterCandidateForeignRaw)
+	}
 }
 
 func TestWorkspaceExportIncludesSupplementScheduleHistoryAndOpaqueProductRevisions(t *testing.T) {

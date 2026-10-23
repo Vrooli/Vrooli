@@ -6,7 +6,6 @@ file to understand what changed without reconstructing history from git.
 Entries are appended when work lands, not while it is still speculative.
 
 ## Progress Log
-
 | Date | Author | Status | Notes |
 |---|---|---|---|
 | 2026-09-18 | opencode | documented | Filled PRD, requirements, concept/business/operations/internal docs, and experience contract from the canonical product specification; implementation not started |
@@ -23,6 +22,7 @@ Entries are appended when work lands, not while it is still speculative.
 | 2026-09-22 | claude | documented | Daily v2.0 redesign: installed the v2.0 specification as canonical (v1.0 kept as Appendix A; duplicate spec copy removed), stored the fifteen approved concept mockups with a reading guide, regenerated PRD targets (OT-P0-016…021, OT-P1-007/008, OT-P2-006 added), requirements modules 20–29, the experience contract, `DESIGN.md` (Warm Kitchen), concept/internal/operations docs, and decisions D-025…D-036; wrote the redesign plan, ledger, operator-feedback ledger, and convergence goal; archived the superseded Plan Manager plan. A read-only audit found the app has never worked end to end (every RPC 401, empty database), so the 2026-09-18 "implemented" rows above are unverified claims (D-035). No product code changed. |
 | 2026-09-22 | claude | documented | Named the app **Nooch** (D-042; display name, `service.json` `displayName`, docs, experience contract, goal; the specification and mockups keep "Daily" as the earlier working name) and set a hard US$15 image-generation cap with an economy guide (D-043); recorded both verbatim in `OPERATOR_FEEDBACK.md` (OF-005, OF-006). No product code changed. |
 
+| 2026-10-22 | codex | done | Localized W3 repair: Nooch production browser router reads shared api-base primary proxy path as basename, retaining root for direct URLs. The new regression failed before the fix: No routes matched location /apps/nutrition-planner/proxy/. All ten route tests pass after, including direct root and gateway Meals navigation. Test Genie unit 20261022-203500-0b8c150f passed with 42 advisory warnings. Lifecycle restart healthy on unchanged ports. Physical TV qualification is recorded in Portal; this repair does not certify TV controls. |
 ## Entry Template
 
 Use this table shape when appending entries.

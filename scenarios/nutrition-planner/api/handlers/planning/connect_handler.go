@@ -36,6 +36,8 @@ type connectHandler struct {
 	logger           *log.Logger
 }
 
+var errPlanRecipeReferenceUnavailable = errors.New("plan references a recipe unavailable at the selected workspace revision")
+
 func NewConnectHandler(workspaces workspace.Service, recipes recipe.Service, profiles profile.Service, plans internal.Repository, shoppingRepo shopping.Repository, feedbackRepo feedback.Repository, logger *log.Logger, evidence ...shopping.Evidence) *connectHandler {
 	if logger == nil {
 		logger = log.Default()
@@ -288,6 +290,12 @@ func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[v1.Ge
 		if err := json.Unmarshal([]byte(raw), &draft); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode saved plan: %w", err))
 		}
+		if err := h.validatePlanWorkspaceReferences(ctx, req.Msg.WorkspaceId, raw); err != nil {
+			if errors.Is(err, errPlanRecipeReferenceUnavailable) {
+				return nil, connect.NewError(connect.CodeAborted, errors.New("saved plan references unavailable workspace recipes"))
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	draft.Occurrences = filterOccurrences(draft.Occurrences, req.Msg.FromDate, req.Msg.ToDate)
 	draft.Unresolved = filterUnresolved(draft.Unresolved, req.Msg.FromDate, req.Msg.ToDate)
@@ -351,6 +359,11 @@ func (h *connectHandler) ApplyPlan(ctx context.Context, req *connect.Request[v1.
 			return nil, connect.NewError(connect.CodePermissionDenied, err)
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if revision, found, err := h.plans.AppliedRevision(ctx, req.Msg.WorkspaceId, req.Msg.ExpectedRevision, req.Msg.DraftJson); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	} else if found {
+		return connect.NewResponse(&v1.ApplyPlanResponse{Revision: revision, PlanJson: req.Msg.DraftJson}), nil
 	}
 	currentRevision, currentRaw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
 	if err != nil {
@@ -649,11 +662,31 @@ func (h *connectHandler) GetShoppingPreview(ctx context.Context, req *connect.Re
 	if req.Msg.ExpectedRevision >= 0 && revision != req.Msg.ExpectedRevision {
 		return nil, connect.NewError(connect.CodeAborted, internal.ErrStaleInputs{WorkspaceID: req.Msg.WorkspaceId, Expected: req.Msg.ExpectedRevision, Actual: revision})
 	}
+	fromDate, toDate := req.Msg.GetFromDate(), req.Msg.GetToDate()
+	if (fromDate == "") != (toDate == "") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from_date and to_date must be provided together"))
+	}
+	if fromDate != "" {
+		from, fromErr := time.Parse("2006-01-02", fromDate)
+		to, toErr := time.Parse("2006-01-02", toDate)
+		if fromErr != nil || toErr != nil || from.Format("2006-01-02") != fromDate || to.Format("2006-01-02") != toDate || to.Before(from) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from_date and to_date must be valid dates with from_date on or before to_date"))
+		}
+	}
 	var draft internal.Draft
 	if raw != "" {
 		if err := json.Unmarshal([]byte(raw), &draft); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
+	}
+	if fromDate != "" {
+		occurrences := draft.Occurrences[:0]
+		for _, occurrence := range draft.Occurrences {
+			if occurrence.Date >= fromDate && occurrence.Date <= toDate {
+				occurrences = append(occurrences, occurrence)
+			}
+		}
+		draft.Occurrences = occurrences
 	}
 	recipes, err := shopping.LoadSelectedRecipes(ctx, h.recipes, req.Msg.WorkspaceId, draft)
 	if err != nil {
@@ -869,15 +902,79 @@ func (h *connectHandler) validateDraftInputs(ctx context.Context, workspaceID, r
 		}
 	}
 	for _, occurrence := range draft.Occurrences {
-		if occurrence.RecipeID == "" || occurrence.RecipeRevision == 0 {
-			continue // legacy drafts without a pinned occurrence revision remain readable
+		if occurrence.RecipeID == "" {
+			continue
 		}
 		current, ok := actual[occurrence.RecipeID]
-		if !ok || current != occurrence.RecipeRevision {
+		if !ok {
+			return fmt.Errorf("recipe occurrence input changed: %s expected revision %d, actual unavailable", occurrence.RecipeID, occurrence.RecipeRevision)
+		}
+		if occurrence.RecipeRevision != 0 && current != occurrence.RecipeRevision {
 			return fmt.Errorf("recipe occurrence input changed: %s expected revision %d, actual %d", occurrence.RecipeID, occurrence.RecipeRevision, current)
 		}
 	}
+	for _, unresolved := range draft.Unresolved {
+		for _, candidateID := range unresolved.CandidateIDs {
+			if _, ok := actual[candidateID]; !ok {
+				return fmt.Errorf("unresolved candidate recipe input changed: %s", candidateID)
+			}
+		}
+	}
 	return nil
+}
+
+func (h *connectHandler) validatePlanWorkspaceReferences(ctx context.Context, workspaceID, raw string) error {
+	var draft internal.Draft
+	if err := json.Unmarshal([]byte(raw), &draft); err != nil {
+		return err
+	}
+	for _, occurrence := range draft.Occurrences {
+		if occurrence.RecipeID == "" {
+			continue
+		}
+		var err error
+		if occurrence.RecipeRevision > 0 {
+			_, err = h.recipes.GetRevision(ctx, occurrence.RecipeID, workspaceID, occurrence.RecipeRevision)
+		} else {
+			_, err = h.recipes.Get(ctx, occurrence.RecipeID, workspaceID)
+		}
+		if err != nil {
+			return planWorkspaceRecipeReferenceError(err)
+		}
+	}
+	for _, unresolved := range draft.Unresolved {
+		for _, candidateID := range unresolved.CandidateIDs {
+			if _, err := h.recipes.Get(ctx, candidateID, workspaceID); err != nil {
+				return planWorkspaceRecipeReferenceError(err)
+			}
+		}
+	}
+	for _, reference := range draft.InputReferences {
+		parts := strings.Split(reference, ":")
+		if len(parts) != 3 || parts[0] != "recipe" {
+			continue
+		}
+		revision, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil || revision < 1 {
+			continue
+		}
+		if _, err := h.recipes.GetRevision(ctx, parts[1], workspaceID, revision); err != nil {
+			return planWorkspaceRecipeReferenceError(err)
+		}
+	}
+	return nil
+}
+
+func planWorkspaceRecipeReferenceError(err error) error {
+	var notFound recipe.ErrNotFound
+	if errors.As(err, &notFound) {
+		return errPlanRecipeReferenceUnavailable
+	}
+	var forbidden recipe.ErrForbidden
+	if errors.As(err, &forbidden) {
+		return errPlanRecipeReferenceUnavailable
+	}
+	return err
 }
 
 func appendPlanInputReference(draft *internal.Draft, reference string) {

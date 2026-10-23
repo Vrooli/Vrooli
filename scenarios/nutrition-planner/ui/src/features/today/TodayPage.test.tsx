@@ -29,6 +29,24 @@ import { TodayPage } from "./TodayPage";
 function CurrentPath() { return <output data-testid="current-path">{useLocation().pathname}</output>; }
 const renderToday = () => renderWithProviders(<><TodayPage /><CurrentPath /></>, { routerEntries: ["/today"] });
 describe("TodayPage", () => { beforeEach(() => { vi.clearAllMocks(); listCatalogRevisions.mockResolvedValue([]); listSupplementSchedules.mockResolvedValue([]); getPlan.mockImplementation(async (input) => ({ draft: await generatePlan(input), hasPlan: true })); }); it("shows a persisted empty state without generating during mount", async () => { getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); renderToday(); await waitFor(() => expect(screen.getByRole("button", { name: "Draft today’s meals" })).toBeInTheDocument()); expect(getPlan).toHaveBeenCalled(); expect(generatePlan).not.toHaveBeenCalled(); expect(screen.queryByText("$0.00")).not.toBeInTheDocument(); }); it("requests full-day slots only after the user starts a draft", async () => { getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); generatePlan.mockResolvedValue({ occurrences: [], unresolved: [] }); renderToday(); await userEvent.click(await screen.findByRole("button", { name: "Draft today’s meals" })); await waitFor(() => expect(generatePlan).toHaveBeenCalledTimes(1)); const request = generatePlan.mock.calls[0]?.[0] as { mealSlots: { slotName: string }[] }; expect(request.mealSlots.map((slot) => slot.slotName)).toEqual(["breakfast", "lunch", "dinner", "snack"]); }); it("keeps a persisted open slot user-controlled", async () => { generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "snack", recipeName: "", locked: false, reason: "Open slot remains user-controlled" }], unresolved: [] }); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Open slot" })).toBeInTheDocument()); expect(screen.getByText(/user-controlled/)).toBeInTheDocument(); }); it("shows persisted meals without fabricated metrics", async () => { generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); expect(screen.getAllByText(/Unknown until entered/)).toHaveLength(4); }); });
+it("keeps Today’s meal, whole-day overview, week, then grocery action in visual reading order", async () => {
+  const date = new Date().toISOString().slice(0, 10);
+  getPlan.mockResolvedValue({ draft: { occurrences: [{ date, slotName: "dinner", recipeId: "dinner", recipeName: "Dinner", locked: false, reason: "Saved" }], unresolved: [], currentRevision: 2n }, hasPlan: true });
+  const { container } = renderToday();
+  await screen.findByRole("heading", { name: "Dinner" });
+  const sections = [...container.querySelectorAll(".today-hero, .today-overview, .today-week-section, .today-shopping-footer")];
+  expect(sections.map((section) => section.classList[0])).toEqual(["today-hero", "today-overview", "today-week-section", "today-shopping-footer"]);
+});
+it("places the truthful empty-plan action before week context", async () => {
+  getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false });
+  const { container } = renderToday();
+  await screen.findByRole("button", { name: "Draft today’s meals" });
+  const empty = container.querySelector(".today-empty-state");
+  const week = container.querySelector(".today-week-section");
+  expect(empty).toBeInTheDocument();
+  expect(week).toBeInTheDocument();
+  expect(empty!.compareDocumentPosition(week!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
 it("uses the persisted week snapshot for the seven-day strip and links each occurrence to its date", async () => {
   const today = new Date();
   const dateOf = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;

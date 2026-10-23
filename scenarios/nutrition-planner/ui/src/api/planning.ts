@@ -44,8 +44,8 @@ export async function previewSwap(input: { workspaceId: string; expectedRevision
 
 export type ShoppingLine = { key: string; label: string; need: string; stock: string; missing: string; packageCount: string; price: string; portionCost?: string; checkoutTotal?: string; actualSpend?: string; sourceRecipeIds: string[]; checked: boolean; haveThis: boolean; actualQuantity: string; actualUnit: string; actualPrice: string; purchaseOmitted: boolean };
 
-export async function getShoppingPreview(input: { workspaceId: string; expectedRevision: bigint }): Promise<{ revision: bigint; lines: ShoppingLine[] }> {
-  const response = await client.getShoppingPreview({ workspaceId: input.workspaceId, expectedRevision: input.expectedRevision });
+export async function getShoppingPreview(input: { workspaceId: string; expectedRevision: bigint; fromDate?: string; toDate?: string }): Promise<{ revision: bigint; lines: ShoppingLine[] }> {
+  const response = await client.getShoppingPreview({ workspaceId: input.workspaceId, expectedRevision: input.expectedRevision, fromDate: input.fromDate ?? "", toDate: input.toDate ?? "" });
   return { revision: response.revision, lines: response.lines.map((line) => ({ key: line.key, label: line.label, need: line.need, stock: line.stock, missing: line.missing, packageCount: line.packageCount, price: line.price, portionCost: line.portionCost || "unknown", checkoutTotal: line.checkoutTotal || "unknown", actualSpend: line.actualSpend || "unknown", sourceRecipeIds: line.sourceRecipeIds, checked: line.checked, haveThis: line.haveThis, actualQuantity: line.actualQuantity, actualUnit: line.actualUnit, actualPrice: line.actualPrice, purchaseOmitted: line.purchaseOmitted })) };
 }
 

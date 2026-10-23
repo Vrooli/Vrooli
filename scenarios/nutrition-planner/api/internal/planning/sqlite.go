@@ -22,6 +22,7 @@ type SQLExecutor interface {
 
 type Repository interface {
 	Apply(context.Context, string, int64, string) (int64, error)
+	AppliedRevision(context.Context, string, int64, string) (int64, bool, error)
 	Get(context.Context, string) (int64, string, error)
 }
 
@@ -161,6 +162,34 @@ func (r *sqliteRepository) Apply(ctx context.Context, id string, expected int64,
 		return 0, err
 	}
 	return next, nil
+}
+
+// AppliedRevision reports the committed revision for an exact prior request.
+// It deliberately does not infer a retry from the current plan revision: the
+// receipt must match the workspace, expected revision, and canonical payload.
+func (r *sqliteRepository) AppliedRevision(ctx context.Context, id string, expected int64, raw string) (int64, bool, error) {
+	var draft Draft
+	if err := json.Unmarshal([]byte(raw), &draft); err != nil {
+		// Receipt lookup is an optimization for already-validated requests, not
+		// request validation. Let the handler preserve its normal stale/argument
+		// error ordering for malformed drafts.
+		return 0, false, nil
+	}
+	canonicalizeDraft(&draft)
+	canonical, err := json.Marshal(draft)
+	if err != nil {
+		return 0, false, err
+	}
+	payloadHash := fmt.Sprintf("%x", sha256.Sum256(canonical))
+	var revision int64
+	err = r.db.QueryRowContext(ctx, `SELECT applied_revision FROM plan_apply_receipts WHERE workspace_id=? AND expected_revision=? AND payload_hash=?`, id, expected, payloadHash).Scan(&revision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return revision, true, nil
 }
 
 func canonicalizeDraft(draft *Draft) {

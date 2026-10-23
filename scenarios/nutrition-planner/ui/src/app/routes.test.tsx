@@ -3,16 +3,41 @@
  * document. Page-internal behaviour is exercised in per-page tests; this
  * file's job is to assert the router config. Add one case per route you add.
  */
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, fireEvent } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { TestAppRouter } from "./routes";
+import { AppRouter, TestAppRouter } from "./routes";
 
 describe("AppRouter", () => {
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("opens and navigates Nooch under the injected Portal gateway path", async () => {
+    const base = "/apps/nutrition-planner/proxy";
+    vi.stubGlobal("__VROOLI_PROXY_INFO__", {
+      generatedAt: Date.now(), hosts: ["localhost"],
+      primary: { path: base }, ports: [],
+    });
+    window.history.replaceState({}, "", base + "/");
+    renderWithProviders(<AppRouter />, { withoutRouter: true });
+    expect(await screen.findByTestId(selectors.pages.today)).toBeInTheDocument();
+    const meals = screen.getByTestId(selectors.layout.navLink({ key: "meals" }));
+    expect(meals).toHaveAttribute("href", base + "/meals");
+    fireEvent.click(meals);
+    expect(await screen.findByRole("heading", { name: "Your meals" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe(base + "/meals");
+  });
+
+  it("keeps the production direct route working without proxy metadata", async () => {
+    window.history.replaceState({}, "", "/");
+    renderWithProviders(<AppRouter />, { withoutRouter: true });
+    expect(await screen.findByTestId(selectors.pages.today)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "meals" }))).toHaveAttribute("href", "/meals");
   });
 
   it("renders Today as the normal root entry", () => {

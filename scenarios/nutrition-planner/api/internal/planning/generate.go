@@ -6,7 +6,14 @@ import (
 )
 
 func Generate(in GenerateInput) Draft {
-	result := Draft{InputReferences: append([]string(nil), in.InputReferences...), Seed: in.Seed, RunID: fmt.Sprintf("seed-%d", in.Seed), ObjectiveVersion: ObjectiveVersion}
+	result := Draft{
+		Occurrences:      make([]Occurrence, 0, len(in.Slots)),
+		Unresolved:       make([]Unresolved, 0),
+		InputReferences:  append([]string{}, in.InputReferences...),
+		Seed:             in.Seed,
+		RunID:            fmt.Sprintf("seed-%d", in.Seed),
+		ObjectiveVersion: ObjectiveVersion,
+	}
 	eligible := make([]Candidate, 0, len(in.Candidates))
 	byID := map[string]Candidate{}
 	for _, candidate := range in.Candidates {
@@ -36,7 +43,12 @@ func Generate(in GenerateInput) Draft {
 		if slot.Locked {
 			candidate, ok := byID[slot.RecipeID]
 			if !ok || !candidate.Eligible {
-				result.Unresolved = append(result.Unresolved, Unresolved{Date: slot.Date, Code: "locked_recipe_ineligible", Message: "locked occurrence no longer satisfies active rules", CandidateIDs: []string{slot.RecipeID}})
+				name := ""
+				if ok {
+					name = candidate.Name
+				}
+				result.Occurrences = append(result.Occurrences, Occurrence{Date: slot.Date, SlotName: slot.SlotName, Mode: slot.Mode, Quantity: slot.Quantity, RecipeID: slot.RecipeID, RecipeName: name, Reason: "Preserved locked occurrence; eligibility needs review", Locked: true})
+				result.Unresolved = append(result.Unresolved, Unresolved{Date: slot.Date, Code: "locked_recipe_ineligible", Message: "locked occurrence is retained, but current rules or recipe evidence need review before applying", CandidateIDs: []string{slot.RecipeID}})
 				continue
 			}
 			result.Occurrences = append(result.Occurrences, Occurrence{Date: slot.Date, SlotName: slot.SlotName, Mode: slot.Mode, Quantity: slot.Quantity, RecipeID: candidate.ID, RecipeName: candidate.Name, Reason: "Preserved locked occurrence", Locked: true})

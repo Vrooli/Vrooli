@@ -5,7 +5,7 @@ import { consumeInventoryBatchPortion, correctInventoryBatchYield, listInventory
 import { listRecipes } from "../../api/recipes";
 import { exportGroceriesCSV } from "../../api/portability";
 import { getProfile } from "../../api/profile";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Code, ConnectError } from "@connectrpc/connect";
 
 type PurchaseLineRequest = Readonly<{ lineKey: string; itemId: string; amount: string; unit: string; price: string; omitted: boolean }>;
@@ -36,6 +36,10 @@ function isCorrectablePurchaseValidation(err: unknown): boolean {
 }
 
 export function GroceriesPage() {
+  const [searchParams] = useSearchParams();
+  const fromDate = searchParams.get("fromDate") ?? undefined;
+  const toDate = searchParams.get("toDate") ?? undefined;
+  const weekScoped = Boolean(fromDate && toDate);
   const [lines, setLines] = useState<ShoppingLine[]>([]);
   const [workspaceId, setWorkspaceId] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -73,7 +77,7 @@ export function GroceriesPage() {
       if (mounted) setWorkspaceId(workspace.id);
       const savedPendingPurchase = readPendingPurchase(workspace.id);
       if (mounted && savedPendingPurchase) { setPendingPurchase(savedPendingPurchase); setPendingPurchaseStored(true); setPurchasePreviewOpen(true); setShoppingMode("review"); try { localStorage.setItem("nutrition-planner.groceries.mode", "review"); } catch { /* Recovery remains available without mode storage. */ } }
-      const shoppingLoad = getShoppingPreview({ workspaceId: workspace.id, expectedRevision: -1n }).then((data) => ({ data })).catch((error: unknown) => ({ error }));
+      const shoppingLoad = getShoppingPreview({ workspaceId: workspace.id, expectedRevision: -1n, fromDate, toDate }).then((data) => ({ data })).catch((error: unknown) => ({ error }));
       const [shopping, inventory, recipeList, savedBatches, savedProfile] = await Promise.all([
         shoppingLoad,
         listInventoryEvents(workspace.id).catch(() => []), listRecipes(workspace.id).catch(() => []),
@@ -90,7 +94,7 @@ export function GroceriesPage() {
       }
     }).catch((err: unknown) => { if (mounted) { setError(err instanceof Error ? err.message : "Unable to load groceries."); setState("error"); } });
     return () => { mounted = false; };
-  }, []);
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     if (!pendingPickupFocus) return;
@@ -135,7 +139,7 @@ export function GroceriesPage() {
     try {
       await confirmShoppingPurchases({ workspaceId: request.workspaceId, reviewId: request.reviewId, lines: request.lines.map((line) => ({ ...line })) });
       commitConfirmed = true;
-      const [preview, nextEvents] = await Promise.all([getShoppingPreview({ workspaceId, expectedRevision: planRevision }), listInventoryEvents(workspaceId)]);
+      const [preview, nextEvents] = await Promise.all([getShoppingPreview({ workspaceId, expectedRevision: planRevision, fromDate, toDate }), listInventoryEvents(workspaceId)]);
       setLines(preview.lines); setEvents(nextEvents); setPurchaseEdits({}); setPendingPurchase(undefined); setError("");
       try { sessionStorage.removeItem(pendingPurchaseKey(workspaceId)); } catch { /* The in-memory request is cleared after confirmed refresh. */ }
       setPendingPurchaseStored(false);
@@ -198,7 +202,7 @@ export function GroceriesPage() {
   const purchaseFieldsLocked = tripConfirmed || Boolean(pendingPurchase) || batchAction === "working";
 
   return <section aria-labelledby="groceries-heading" className="groceries-page flex flex-col gap-6">
-    <header className="groceries-heading"><div><p>For your selected meals</p><h1 id="groceries-heading">Your groceries</h1><span>Plan-derived needs · checked items are not purchases</span></div><Link to="/kitchen">Your kitchen <span aria-hidden="true">›</span></Link></header>
+    <header className="groceries-heading"><div><p>{weekScoped ? `For the week ${fromDate} to ${toDate}` : "For your selected meals"}</p><h1 id="groceries-heading">Your groceries</h1><span>Plan-derived needs · checked items are not purchases{weekScoped ? " · week scoped" : " · whole plan"}</span></div><Link to="/kitchen">Your kitchen <span aria-hidden="true">›</span></Link></header>
     {state === "loading" && <p role="status" className="rounded border bg-white p-5 text-slate-600">Loading Kitchen…</p>}
     {(state === "error" || error) && <p role="alert" className="rounded border border-red-200 bg-red-50 p-5 text-red-800">{error || "Unable to load the Kitchen."}</p>}
     {state === "ready" && <article className="groceries-ledger-card"><h2 className="font-semibold">Prepared Kitchen stock</h2>{batches.length ? <ul aria-label="Prepared Kitchen batches" className="mt-3 divide-y">{batches.map((item) => <li key={item.id} className="py-3"><p className="font-medium">{recipes.find((recipe) => recipe.id === item.recipeId)?.name || item.recipeId} · revision {item.recipeRevision.toString()}</p><p className="text-sm text-slate-600">Measured yield {item.yieldAmount} {item.unit} · {item.availableAmount} {item.unit} available</p><div className="mt-2 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Correct measured yield<input aria-label={`Correct yield for ${item.id}`} className="min-h-11 rounded border px-3" inputMode="decimal" value={yieldEdits[item.id] ?? item.yieldAmount} onChange={(event) => setYieldEdits((current) => ({ ...current, [item.id]: event.target.value }))} /></label><button type="button" className="min-h-11 rounded border px-3" disabled={batchAction === "working" || (yieldEdits[item.id] ?? item.yieldAmount) === item.yieldAmount} onClick={() => void correctYield(item)}>{batchAction === "working" ? "Saving…" : "Save yield correction"}</button><label className="grid gap-1 text-sm">Portion amount<input aria-label={`Portion amount for ${item.id}`} className="min-h-11 rounded border px-3" inputMode="decimal" value={portionEdits[item.id] ?? "1"} onChange={(event) => setPortionEdits((current) => ({ ...current, [item.id]: event.target.value }))} /></label><button type="button" className="min-h-11 rounded border px-3" disabled={batchAction === "working"} onClick={() => void changeSavedBatch(item,"consume")}>Consume portion from {item.id}</button><button type="button" className="min-h-11 rounded border px-3" disabled={batchAction === "working"} onClick={() => void changeSavedBatch(item,"undo")}>Undo portion for {item.id}</button></div><p className="mt-1 text-xs text-slate-500">Corrections preserve portions already consumed. Portion actions change prepared stock; recorded nutrition intake stays separate.</p></li>)}</ul> : <p className="mt-2 text-slate-600">No prepared batches yet. Finishing a cooking session does not add stock by itself.</p>}</article>}

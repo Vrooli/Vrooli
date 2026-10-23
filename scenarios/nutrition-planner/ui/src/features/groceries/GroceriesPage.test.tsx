@@ -49,6 +49,13 @@ describe("GroceriesPage", () => {
     expect(localStorage.getItem("nutrition-planner.groceries.mode")).toBe("review");
     expect(screen.getByText(/does not record payment, inventory, or eating/i)).toBeInTheDocument();
   });
+  it("retains the URL week scope on reload and requests groceries for that exact range", async () => {
+    getShoppingPreview.mockResolvedValue({ revision: 5n, lines: [{ key: "ingredient:rice", label: "rice", need: "100 g", stock: "unknown", missing: "100 g", packageCount: "unknown", price: "unknown", sourceRecipeIds: ["target-recipe"], checked: false, haveThis: false }] });
+    renderWithProviders(<GroceriesPage />, { routerEntries: ["/groceries?fromDate=2026-10-27&toDate=2026-11-02"] });
+    expect(await screen.findByText("For the week 2026-10-27 to 2026-11-02")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "rice" })).toBeInTheDocument();
+    expect(getShoppingPreview).toHaveBeenCalledWith({ workspaceId: "w1", expectedRevision: -1n, fromDate: "2026-10-27", toDate: "2026-11-02" });
+  });
   it("does not treat the first known line amount as a basket estimate", async () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [
       { key: "ingredient:rice", label: "rice", need: "1 bag", stock: "unknown", missing: "1 bag", packageCount: "1", price: "$4.00", checkoutTotal: "$4.00", sourceRecipeIds: [], checked: false, haveThis: false },

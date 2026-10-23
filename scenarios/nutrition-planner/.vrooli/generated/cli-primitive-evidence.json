@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "nutrition-planner",
   "generator": "v1.0.0",
-  "manifest_hash": "39999df3011908f425a37b7ab7f9e3a05edd8dd0890dd9dc61f18c74bfa829c7",
+  "manifest_hash": "0a087b8a6b974c3a4b4ab048e74f0bcd46fcf6e72e223715f1cd3e86fc78c91f",
   "commands": [
     {
       "path": "recipe create",

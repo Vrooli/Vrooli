@@ -342,28 +342,6 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
 .today-evidence-metrics dt { color:var(--color-muted-foreground); font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
 .today-evidence-metrics dd { margin:5px 0 0; color:var(--color-foreground); font-size:13px; }
 
-@media (max-width: 767px) {
-  .app-page-frame:has(.today-page) { width:auto; }
-  .today-page { gap:18px; }
-  .today-page-heading h1 { font-size:35px; }
-  .today-hero { grid-template-columns:1fr; grid-template-areas:"scene" "copy"; border-radius:12px; }
-  .today-hero-copy { grid-area:copy; padding:18px; }
-  .today-hero-copy h2 { font-size:37px; }
-  .today-hero-scene { grid-area:scene; min-height:clamp(160px,27vh,235px); }
-  .today-hero-scene svg { width:38px; height:38px; }
-  .today-hero-actions { margin-top:17px; }
-  .today-primary-action,.today-secondary-action { min-height:44px; padding:0 13px; font-size:13px; }
-  .today-week-strip { display:flex; overflow-x:auto; gap:7px; padding-bottom:5px; scroll-snap-type:x mandatory; }
-  .today-week-strip li { flex:none; width:94px; scroll-snap-align:start; }
-  .today-week-strip a { min-height:126px; }
-  .today-week-photo { min-height:48px; }
-  .today-week-strip strong { font-size:11px; }
-  .today-slot-row { grid-template-columns:70px minmax(0,1fr); gap:8px; }
-  .today-slot-row button { grid-column:2; justify-self:start; }
-  .today-slot-row h3 { font-size:18px; }
-  .today-evidence-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
-}
-
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: var(--border-focus) solid var(--color-focus);
   outline-offset: 2px;
@@ -469,20 +447,27 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
   .app-page-frame:has(.today-page) { width:auto; padding:18px 0 24px; }
   .today-page { gap:12px; }
   .today-page-heading { padding:0 18px; }
-  .today-hero { display:flex; flex-direction:column-reverse; gap:0; min-height:0; }
-  .today-hero-scene { min-height:0; aspect-ratio:1.35; border-radius:0; }
-  .today-hero-scene svg { width:34px; height:34px; }
-  .today-hero-copy { padding:20px 18px 18px; }
+  .today-hero { display:flex; flex-direction:column-reverse; gap:0; min-height:0; margin-inline:12px; overflow:hidden; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); }
+  .today-hero-scene { min-height:0; max-height:220px; aspect-ratio:1.7; border:0; border-bottom:1px solid var(--color-border); border-radius:0; }
+  .today-hero-scene svg { width:30px; height:30px; }
+  .today-hero-scene > span { font-size:12px; }
+  .today-hero-copy { padding:17px 16px 16px; }
   .today-hero-copy h2 { max-width:20ch; font-size:clamp(34px,9vw,44px); }
   .today-hero-copy > p:not(.today-hero-kicker) { margin-top:8px; font-size:14px; }
-  .today-hero-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; margin-top:16px; }
+  .today-hero-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; margin-top:14px; }
   .today-hero-actions .today-primary-action { grid-column:1 / -1; }
+  .today-primary-action,.today-secondary-action { min-height:44px; padding:0 10px; font-size:13px; }
   .today-week-section,.today-overview,.today-supplements { margin-inline:12px; padding:16px; border-radius:12px; }
-  .today-week-strip { gap:5px; }
-  .today-week-strip li { min-width:0; }
+  .today-week-strip { display:flex; overflow-x:auto; gap:5px; padding-bottom:5px; scroll-snap-type:x mandatory; }
+  .today-week-strip li { flex:none; width:94px; min-width:0; scroll-snap-align:start; }
+  .today-week-strip a { min-height:126px; }
   .today-week-strip a { padding:5px; }
   .today-week-day,.today-week-strip strong { font-size:10px; }
   .today-week-photo { min-height:48px; }
+  .today-slot-row { grid-template-columns:70px minmax(0,1fr); gap:8px; }
+  .today-slot-row button { grid-column:2; justify-self:start; }
+  .today-slot-row h3 { font-size:18px; }
+  .today-evidence-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .today-supplements { margin-bottom:6px; }
   .kitchen-page { gap:16px; }
   .kitchen-heading { align-items:start; padding:12px 0 18px; }
@@ -735,10 +720,6 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
   .groceries-modebar button { flex:1; }
   .groceries-modebar > span { margin-left:5px; font-size:10px; }
 }
-.today-hero { order:1; }
-.today-overview { order:2; }
-.today-week-section { order:3; }
-.today-supplements { order:4; }
 .today-shopping-footer { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:18px 22px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); }
 .today-shopping-footer p { margin:0; font:500 22px/1.15 var(--font-display); }
 .today-shopping-footer div > span { display:block; margin-top:4px; color:var(--color-muted-foreground); font-size:13px; }
@@ -747,7 +728,6 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
   .today-shopping-footer { margin-inline:12px; padding:16px; }
   .today-shopping-footer a { flex:none; font-size:14px; }
 }
-.today-empty-state { order:1; }
 .meals-page .text-slate-900,.meals-page .text-slate-800,.meals-page .text-slate-700 { color:var(--color-foreground); }
 .meals-page .text-slate-600,.meals-page .text-slate-500 { color:var(--color-muted-foreground); }
 .meals-page .bg-white,.meals-page .bg-slate-50 { background:var(--color-surface); }

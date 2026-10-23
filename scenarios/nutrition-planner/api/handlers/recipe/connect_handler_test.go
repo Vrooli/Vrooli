@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -104,4 +105,67 @@ func TestRecipeConnectHandlerPreservesStepEquipmentAndSettingsByRevision(t *test
 		t.Fatal(err)
 	}
 	assertMethodFields("revision 2 read", readV2.Msg.Recipe, []string{"cast iron pan"}, []string{"200 C", "30 minutes"}, []string{"cast_iron_pan"})
+}
+
+func TestRecipeConnectHandlerRejectsForeignReadsAndWrites(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{workspace.Schema(), internal.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clock := schedule.System()
+	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
+	local, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Local", OwnerSubject: workspace.LocalOwnerSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Foreign", OwnerSubject: workspace.LocalOwnerSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := internal.NewSQLiteRepository(db, clock)
+	h := NewConnectHandler(internal.NewService(repo), workspaces, nil)
+	created, err := h.CreateRecipe(ctx, connect.NewRequest(&v1.CreateRecipeRequest{WorkspaceId: foreign.ID, Name: "FOREIGN SECRET RECIPE"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignID := created.Msg.Recipe.Id
+	beforeLocal, err := repo.List(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeForeign, err := repo.List(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response, err := h.GetRecipe(ctx, connect.NewRequest(&v1.GetRecipeRequest{WorkspaceId: local.ID, Id: foreignID})); err == nil || response != nil || strings.Contains(err.Error(), "FOREIGN SECRET RECIPE") {
+		t.Fatalf("foreign recipe read response=%v err=%v, want content-free rejection", response, err)
+	}
+	if response, err := h.GetRecipeRevision(ctx, connect.NewRequest(&v1.GetRecipeRevisionRequest{WorkspaceId: local.ID, Id: foreignID, Revision: 1})); err == nil || response != nil || strings.Contains(err.Error(), "FOREIGN SECRET RECIPE") {
+		t.Fatalf("foreign recipe revision read response=%v err=%v, want content-free rejection", response, err)
+	}
+	if response, err := h.UpdateRecipe(ctx, connect.NewRequest(&v1.UpdateRecipeRequest{WorkspaceId: local.ID, Id: foreignID, ExpectedRevision: 1, Name: "Attempted overwrite"})); err == nil || response != nil || strings.Contains(err.Error(), "FOREIGN SECRET RECIPE") {
+		t.Fatalf("foreign recipe write response=%v err=%v, want content-free rejection", response, err)
+	}
+	afterLocal, err := repo.List(ctx, local.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterForeign, err := repo.List(ctx, foreign.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(beforeLocal, afterLocal) || !reflect.DeepEqual(beforeForeign, afterForeign) {
+		t.Fatalf("foreign recipe request mutated rows: local before=%+v after=%+v; foreign before=%+v after=%+v", beforeLocal, afterLocal, beforeForeign, afterForeign)
+	}
+	if response, err := h.GetRecipe(ctx, connect.NewRequest(&v1.GetRecipeRequest{WorkspaceId: foreign.ID, Id: foreignID})); err != nil || response.Msg.Recipe.Name != "FOREIGN SECRET RECIPE" {
+		t.Fatalf("ownerless same-workspace recipe read response=%v err=%v", response, err)
+	}
 }

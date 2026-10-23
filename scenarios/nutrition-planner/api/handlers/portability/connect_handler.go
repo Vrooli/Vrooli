@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -32,6 +33,8 @@ type connectHandler struct {
 	restorer    internalPortability.Restorer
 	logger      *log.Logger
 }
+
+var errWorkspacePlanRecipeReferenceUnavailable = errors.New("workspace plan references an unavailable recipe")
 
 func NewConnectHandler(recipes internalRecipe.Service, workspaces internalWorkspace.Service, plans internalPlanning.Repository, shoppingRepo internalShopping.Repository, logger *log.Logger) *connectHandler {
 	return NewConnectHandlerWithRestorer(recipes, workspaces, plans, shoppingRepo, nil, logger)
@@ -158,6 +161,12 @@ func (h *connectHandler) ExportWorkspace(ctx context.Context, req *connect.Reque
 	}
 	planRevision, planJSON, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
 	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := validateWorkspacePlanReferences(ctx, h.recipes, req.Msg.WorkspaceId, planJSON); err != nil {
+		if errors.Is(err, errWorkspacePlanRecipeReferenceUnavailable) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace plan contains unavailable recipe references"))
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	shoppingState := internalShopping.PersistedState{Checks: map[string]bool{}, HaveThis: map[string]bool{}, Reviews: []internalShopping.PersistedReview{}}
@@ -450,4 +459,59 @@ func recipeHistory(ctx context.Context, service internalRecipe.Service, workspac
 		}
 	}
 	return history, nil
+}
+
+func validateWorkspacePlanReferences(ctx context.Context, service internalRecipe.Service, workspaceID, raw string) error {
+	if raw == "" {
+		return nil
+	}
+	var draft internalPlanning.Draft
+	if err := json.Unmarshal([]byte(raw), &draft); err != nil {
+		return err
+	}
+	for _, occurrence := range draft.Occurrences {
+		if occurrence.RecipeID == "" {
+			continue
+		}
+		if occurrence.RecipeRevision > 0 {
+			if _, err := service.GetRevision(ctx, occurrence.RecipeID, workspaceID, occurrence.RecipeRevision); err != nil {
+				return workspacePlanRecipeReferenceError(err)
+			}
+		} else if _, err := service.Get(ctx, occurrence.RecipeID, workspaceID); err != nil {
+			return workspacePlanRecipeReferenceError(err)
+		}
+	}
+	for _, unresolved := range draft.Unresolved {
+		for _, candidateID := range unresolved.CandidateIDs {
+			if _, err := service.Get(ctx, candidateID, workspaceID); err != nil {
+				return workspacePlanRecipeReferenceError(err)
+			}
+		}
+	}
+	for _, reference := range draft.InputReferences {
+		parts := strings.Split(reference, ":")
+		if len(parts) != 3 || parts[0] != "recipe" {
+			continue
+		}
+		revision, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil || revision < 1 {
+			continue
+		}
+		if _, err := service.GetRevision(ctx, parts[1], workspaceID, revision); err != nil {
+			return workspacePlanRecipeReferenceError(err)
+		}
+	}
+	return nil
+}
+
+func workspacePlanRecipeReferenceError(err error) error {
+	var notFound internalRecipe.ErrNotFound
+	if errors.As(err, &notFound) {
+		return errWorkspacePlanRecipeReferenceUnavailable
+	}
+	var forbidden internalRecipe.ErrForbidden
+	if errors.As(err, &forbidden) {
+		return errWorkspacePlanRecipeReferenceUnavailable
+	}
+	return err
 }

@@ -47,7 +47,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
-
 ### 2026-09-18 — PRD was authored directly, not through the business-health wizard
 
 > **Status 2026-09-22:** still accurate; direct authoring was repeated for the v2.0 redesign (D-025).
@@ -178,6 +177,9 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** D-037; [`REDESIGN_LEDGER.md`](REDESIGN_LEDGER.md) F-015.
 
+### 2026-10-22 - Applied public icons are still template placeholders
+
+Operator observed a gray Nooch card on TV. Applied icon-192.png is 591 bytes, SHA256 8a251d975c3484cfc7d6eebb35b2e28360f6f4cdcf18502d2f642b73aad7b602; logo.svg explicitly says Placeholder logo. Running UI serves the same PNG. No approved Nooch mark found in Brand Manager; AppShell uses text wordmark. Portal suppresses explicit template artwork and uses a wordmark card. Owner: nutrition-planner branding through Brand Manager. Apply an approved mark through that owner. The operator chose the existing Nooch wordmark for now in the active conversation. This is a known-owner branding gap, not a native decoding fault.
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -1,3 +1,4 @@
+import { getProxyInfo } from "@vrooli/api-base";
 import {
   createBrowserRouter,
   createMemoryRouter,
@@ -65,7 +66,12 @@ const routerProviderFuture = { v7_startTransition: true };
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes, { future: dataRouterFuture });
+  const router = createBrowserRouter(routes, {
+    future: dataRouterFuture,
+    // The same routes serve direct URLs and a host gateway. Asset base tags
+    // alone do not give React Router the application mount path.
+    basename: getProxyInfo()?.primary?.path || "/",
+  });
   return <RouterProvider router={router} future={routerProviderFuture} />;
 }
 

@@ -60,6 +60,27 @@ describe("MealsPage", () => {
   });
   it("searches saved meals across names, notes, and source URLs", async () => { const user = userEvent.setup(); listRecipes.mockResolvedValue([create(RecipeSchema, { id: "r1", name: "Lentil salad", notes: "Fresh mint", revision: 1n }), create(RecipeSchema, { id: "r2", name: "Bean soup", notes: "Smoky paprika", sourceUrl: "https://meals.example/soup", revision: 1n })]); renderMeals(); await screen.findAllByRole("link", { name: /Open recipe/ }); const search = screen.getByRole("searchbox"); await user.type(search, "Lentil"); expect(screen.getByRole("heading", { name: "Lentil salad" })).toBeInTheDocument(); expect(screen.queryByRole("heading", { name: "Bean soup" })).not.toBeInTheDocument(); await user.clear(search); await user.type(search, "MINT"); expect(screen.getByRole("heading", { name: "Lentil salad" })).toBeInTheDocument(); await user.clear(search); await user.type(search, "meals.example"); expect(screen.getByRole("heading", { name: "Bean soup" })).toBeInTheDocument(); await user.clear(search); await user.type(search, "nothing here"); expect(screen.getByRole("status")).toHaveTextContent("No saved meals match"); });
   it("retains the draft when the save fails", async () => { const user = userEvent.setup(); createRecipe.mockRejectedValue(new Error("offline")); renderMeals(); await user.type(screen.getByLabelText("Meal name"), "Keep me"); await user.click(screen.getByRole("button", { name: "Save draft" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("offline")); expect(screen.getByDisplayValue("Keep me")).toBeInTheDocument(); });
+  it("reviews and saves routine meal drafts without changing the pasted source or inventing amounts", async () => {
+    const user = userEvent.setup();
+    const source = "Breakfast (daily): smoothie\nLunch (weekdays): tofu meal\nSupplement: product and dose not recorded";
+    const breakfast = create(RecipeSchema, { id: "r-breakfast", name: "My smoothie", revision: 1n, status: "draft" });
+    const lunch = create(RecipeSchema, { id: "r-lunch", name: "tofu meal", revision: 1n, status: "draft" });
+    createRecipe.mockResolvedValueOnce(breakfast).mockResolvedValueOnce(lunch);
+    listRecipes.mockResolvedValueOnce([]).mockResolvedValueOnce([breakfast, lunch]);
+    renderMeals();
+    await user.type(screen.getByLabelText("Your rough routine"), source);
+    await user.click(screen.getByRole("button", { name: "Review routine" }));
+    expect(screen.getByTestId("routine-source-preserved").textContent).toBe(source);
+    expect(screen.getByText(/Foods explicitly mentioned: smoothie/)).toBeInTheDocument();
+    expect(screen.getByText(/product and dose unknown/)).toBeInTheDocument();
+    expect(screen.getAllByText(/quantity and basis/).length).toBeGreaterThanOrEqual(2);
+    await user.clear(screen.getByLabelText("Breakfast · daily"));
+    await user.type(screen.getByLabelText("Breakfast · daily"), "My smoothie");
+    await user.click(screen.getByRole("button", { name: "Save reviewed meal drafts" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: "My smoothie · revision 1" })).toBeInTheDocument());
+    expect(createRecipe).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: "My smoothie", originalText: source, notes: source }));
+    expect(createRecipe).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: "tofu meal", originalText: source, notes: source }));
+  });
 });
 
 describe("Meals collection organization", () => {

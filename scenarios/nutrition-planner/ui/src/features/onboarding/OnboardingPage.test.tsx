@@ -26,6 +26,28 @@ describe("OnboardingPage", () => {
     expect(screen.getByLabelText("vegan")).toBeChecked();
   });
 
+  it("offers selectable meal slots and persists them with the onboarding draft", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<OnboardingPage />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Make your plan fit your life" })).toBeInTheDocument());
+    for (let index = 0; index < 3; index += 1) await user.click(screen.getByRole("button", { name: "Save and next" }));
+    expect(screen.getByLabelText("breakfast")).not.toBeChecked();
+    await user.click(screen.getByLabelText("breakfast"));
+    await user.click(screen.getByLabelText("lunch"));
+    await user.click(screen.getByRole("button", { name: "Apply profile" }));
+    await waitFor(() => expect(applyProfile).toHaveBeenCalled());
+    const savedDraft = JSON.parse(saveProfileDraft.mock.calls.at(-1)?.[1] as string) as { mealSlots: string[] };
+    expect(savedDraft.mealSlots).toEqual(["breakfast", "lunch"]);
+  });
+
+  it("reads selected meal slots back from the persisted onboarding draft", async () => {
+    getProfile.mockResolvedValue({ draftJson: JSON.stringify({ step: 3, mealSlots: ["breakfast", "dinner"] }) });
+    renderWithProviders(<OnboardingPage />);
+    expect(await screen.findByLabelText("breakfast")).toBeChecked();
+    expect(screen.getByLabelText("lunch")).not.toBeChecked();
+    expect(screen.getByLabelText("dinner")).toBeChecked();
+  });
+
   it("allows zero appliances and applies the final profile", async () => {
     const user = userEvent.setup();
     renderWithProviders(<OnboardingPage />);
