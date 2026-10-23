@@ -1,0 +1,14 @@
+[
+  {
+    "path": "scenarios/notification-hub/api/main.go",
+    "observed_at": "2026-10-20T16:37:01Z",
+    "bytes": 18723,
+    "sha256": "76b35be776edc454fa68586ab5711f5daf0daa82396d399da36ae5d2fd71d564"
+  },
+  {
+    "path": "scenarios/notification-hub/api/main_test.go",
+    "observed_at": "2026-10-20T16:37:01Z",
+    "bytes": 4686,
+    "sha256": "d1842fbfbfe3c4b472f2eb40751af514b5e74a749a2540405b9fa63985799a76"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "captured_at": "2026-10-20T20:25:00Z",
+  "files": [
+    {
+      "path": "bas/cases/e4/delivery-detail.json",
+      "sha256": "dd6b5cee27229beb5a02bdfbfe322c607cfaf1ee979cfd88047c5086c8fe0dc6",
+      "bytes": 12453,
+      "snapshot": "original/bytes/bas/cases/e4/delivery-detail.json"
+    },
+    {
+      "path": "bas/cases/e4/history-bounded.json",
+      "sha256": "03c789f0c2e8bf7bc09ba596884cd974b25c1c6b964c0fcf8e3f07842b0f6529",
+      "bytes": 4686,
+      "snapshot": "original/bytes/bas/cases/e4/history-bounded.json"
+    },
+    {
+      "path": "bas/registry.json",
+      "sha256": "ec7ff0e1537c8dd2e84447c288d8faca95237283702cccb34a66bd26f799baa4",
+      "bytes": 1820,
+      "snapshot": "original/bytes/bas/registry.json"
+    }
+  ]
+}

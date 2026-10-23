@@ -1,0 +1,5 @@
+
+## Completed E4 follow-through moved from QUEUE on 2026-10-20 (seq21 resume-budget trim)
+
+1. [done] E4 independent review: task `ddefefe5-f73e-4395-a087-8794eb818076`, run `0a031efd-492a-4294-a5e9-4d711f13844e`. The G5 review gate passes for the exact source delta: no material defect found. Low optional follow-up is direct 404/410 `GoneError` assertions. E4 remains unaccepted while G3 fails and G4 is unverified.
+2. [done] E4 successor `049e7d81-2a54-43fb-b4f2-5a38cf55c522` returned COMPLETE at 2026-10-20T20:31:07Z with a blocked child-goal verdict; this is not E4 acceptance. G1/G2/G3 are met on retained receipts (latest unit 20261020-202714-5b62c7eb; workflow 7/7, exact fresh lease `61eb2ff3-a785-4509-af10-a6436547373a`, 163 test-pool requests, zero primary/root writes). G4 has 12/16 captures; four selected NH13.4/NH13.6 states require the precise Hub-local test-pool fixture/read-failure seam now authorized in the E4 epoch. G5 review of this successor is pending; earlier G5 covered only the first-worker delta. The original task `9fc0133d-15bd-44ee-ac47-4c4f8b44e49f` is terminal; no duplicate or replacement of a live task.

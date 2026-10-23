@@ -23,11 +23,11 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "notification-hub",
-          "scenario_path": "/",
+            "scenario_path": "/updates",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Open Dashboard" }
+        "metadata": { "label": "Open Updates" }
       }
     },
     {

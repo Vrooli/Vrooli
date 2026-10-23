@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type verifierFunc func(context.Context, string) (owneridentity.Identity, error)
@@ -46,5 +48,32 @@ func TestSubjectAcceptsTheOwnerCookieWhenNoBearerIsSent(t *testing.T) {
 	headers.Set("Authorization", "Bearer bearer-token")
 	if got := Token(headers); got != "bearer-token" {
 		t.Fatalf("bearer token = %q, want the bearer to win", got)
+	}
+}
+
+func TestProducerIdentityDoesNotGrantOwnerAuthority(t *testing.T) {
+	verifier := verifierFunc(func(context.Context, string) (owneridentity.Identity, error) {
+		return owneridentity.Identity{Subject: "verified-human"}, nil
+	})
+	headers := http.Header{}
+	headers.Set(cliutil.HeaderAgentIdentityToken, "presented-run-token")
+	headers.Set("Authorization", "Bearer verified-human-token")
+	if _, err := ProducerSubject(context.Background(), headers, verifier, "recipient"); err == nil {
+		t.Fatal("unverified run header must not fall back to a valid human credential")
+	}
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified,
+		RunID: "verified-run", Scopes: []string{"notification-hub:write"},
+	})
+	headers.Del("Authorization")
+	if _, err := Subject(ctx, headers, verifier); err == nil {
+		t.Fatal("a producer run must not authorize owner-only decisions")
+	}
+	if _, err := ProducerSubject(ctx, headers, verifier, ""); err == nil {
+		t.Fatal("a producer cannot choose a recipient when none is configured")
+	}
+	refused := context.WithValue(ctx, ownerContextKey{}, ownerContext{refused: true})
+	if _, err := ProducerSubject(refused, headers, verifier, "recipient"); err == nil {
+		t.Fatal("a refused owner credential cannot be rescued by producer identity")
 	}
 }

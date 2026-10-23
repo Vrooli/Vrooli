@@ -1,0 +1,258 @@
+{
+  "metadata": {
+    "name": "e4-asks-read-failure-dark",
+    "description": "Captures NH13.6 from a disposable routed test-pool fixture in dark theme.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "asks-read-failure-dark"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844,
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "open-settings-for-theme",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?vrooli_test_mode=1&e4_fixture=asks-read-failure",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Settings to apply the named theme"
+        }
+      }
+    },
+    {
+      "id": "set-dark",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=dark)"
+        },
+        "metadata": {
+          "label": "Choose dark with the registered Settings theme control"
+        }
+      }
+    },
+    {
+      "id": "reload-clean-query-cache",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=asks-read-failure",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Updates with the chosen theme and a fresh client query cache"
+        }
+      }
+    },
+    {
+      "id": "focus-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_FOCUS",
+        "focus": {
+          "selector": "@selector/layout.navTab(key=asks)",
+          "scroll": true
+        },
+        "metadata": {
+          "label": "Focus Needs you with the keyboard"
+        }
+      }
+    },
+    {
+      "id": "activate-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Open Needs you with Enter"
+        }
+      }
+    },
+    {
+      "id": "reload-selected-asks-page",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "window.location.reload(); true"
+        },
+        "metadata": {
+          "label": "Reload the selected Needs you page to force its actual list read"
+        }
+      }
+    },
+    {
+      "id": "wait-for-read-error",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.asks",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the routed failed list read to render the selected page"
+        }
+      }
+    },
+    {
+      "id": "responsive-phone-check",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const width=window.innerWidth,height=window.innerHeight,scrollWidth=document.documentElement.scrollWidth;if(width!==390||height!==844||scrollWidth>width)throw new Error(`unexpected mobile layout ${width}x${height}, scrollWidth=${scrollWidth}`);return {width,height,scrollWidth}})()"
+        },
+        "metadata": {
+          "label": "Confirm the 390x844 phone layout has no horizontal overflow"
+        }
+      }
+    },
+    {
+      "id": "wait-for-failure-copy",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const deadline=Date.now()+15000;while(!document.body.innerText.includes('Requests couldn’t be loaded.')){if(Date.now()>=deadline)throw new Error('NH13.6 failure copy did not render');await new Promise(resolve=>setTimeout(resolve,100));}return {failureCopyVisible:true}})()"
+        },
+        "metadata": {
+          "label": "Wait for the authoritative read failure copy before checking or capturing it"
+        }
+      }
+    },
+    {
+      "id": "assert-selected-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.asks",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Requests couldn’t be loaded."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "NH13.6 selected state is visible"
+        },
+        "metadata": {
+          "label": "NH13.6 selected state is visible in dark theme"
+        }
+      }
+    },
+    {
+      "id": "verify-phone-theme-and-dpr",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const width=window.innerWidth,height=window.innerHeight,dpr=window.devicePixelRatio,theme=document.documentElement.dataset.theme,resolved=document.documentElement.dataset.resolvedTheme;if(width!==390||height!==844||dpr!==2||theme!=='dark'||resolved!=='dark')throw new Error(`unexpected selected capture: ${width}x${height} DPR ${dpr} theme ${theme}/${resolved}`);return {width,height,dpr,theme,resolved}})()"
+        },
+        "metadata": {
+          "label": "Verify 390x844 DPR 2 dark selected capture"
+        }
+      }
+    },
+    {
+      "id": "capture-selected-state",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture selected asks-read-failure-dark state in dark theme"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-settings-for-theme",
+      "target": "set-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "set-dark",
+      "target": "reload-clean-query-cache",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "reload-clean-query-cache",
+      "target": "focus-asks-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "activate-asks-tab",
+      "target": "reload-selected-asks-page",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "reload-selected-asks-page",
+      "target": "wait-for-read-error",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "responsive-phone-check",
+      "target": "assert-selected-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "responsive",
+      "source": "wait-for-read-error",
+      "target": "wait-for-failure-copy",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "failure-copy-ready",
+      "source": "wait-for-failure-copy",
+      "target": "responsive-phone-check",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "keyboard-activation",
+      "source": "focus-asks-tab",
+      "target": "activate-asks-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "verify-theme-and-dpr",
+      "source": "assert-selected-state",
+      "target": "verify-phone-theme-and-dpr",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "capture-selected-state-edge",
+      "source": "verify-phone-theme-and-dpr",
+      "target": "capture-selected-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

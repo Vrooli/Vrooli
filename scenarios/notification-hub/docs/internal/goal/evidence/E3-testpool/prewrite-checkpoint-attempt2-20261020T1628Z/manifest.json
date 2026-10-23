@@ -1,0 +1,8 @@
+[
+  {
+    "path": "scenarios/notification-hub/bas/cases/e3/disposable-recipient-isolated.json",
+    "observed_at": "2026-10-20T16:28:32.371009+00:00",
+    "bytes": 2070,
+    "sha256": "9b3820615bc99ed8ae75e177ba22486f1b3a1f2870b72b59f610f30413d9fed0"
+  }
+]

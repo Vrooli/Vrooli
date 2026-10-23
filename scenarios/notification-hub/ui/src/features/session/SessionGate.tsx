@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Button } from "@vrooli/react-component-library/Button/2";
@@ -21,15 +21,23 @@ export function useSession() {
     queryKey: sessionQueryKey,
     queryFn: () => identityClient.getSession({}),
     staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 }
 
-/** Renders children for a signed-in owner and the sign-in form otherwise. */
-export function SessionGate({ children }: { children: ReactNode }) {
-  const session = useSession();
-  if (session.isPending) return null;
-  if (!session.data?.signedIn) return <SignInForm />;
-  return <>{children}</>;
+/** Hide cached recipient content immediately when any protected API call expires. */
+export function useSessionExpiryBoundary() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const expire = () => queryClient.setQueryData(sessionQueryKey, {
+      signedIn: false,
+      subject: "",
+      email: "",
+    });
+    window.addEventListener("notification-hub:session-expired", expire);
+    return () => window.removeEventListener("notification-hub:session-expired", expire);
+  }, [queryClient]);
 }
 
 export function SignInForm() {

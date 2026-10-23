@@ -1,0 +1,21 @@
+{
+  "captured_at_utc": "2026-10-20T20:09:59.497225+00:00",
+  "reason": "Exact prewrite snapshot before setting the E4 second-pane scroll offset for the state guide.",
+  "files": [
+    {
+      "path": "bas/cases/e4/delivery-detail.json",
+      "sha256": "a35ecb50a1e61038b9aa12fba92f0a155cf9cfc94826a5a1ad38b902a19d9aed",
+      "size_bytes": 12460
+    },
+    {
+      "path": "bas/cases/e4/delivery-dark.json",
+      "sha256": "5fc25eaa823e015d463c77c50b5768bd9d35be284a3e23a39757aada01745431",
+      "size_bytes": 12625
+    },
+    {
+      "path": "bas/registry.json",
+      "sha256": "33393b83a49db249fb13ef55826c165bfc9f81004ef15745d89d556cdb39ce60",
+      "size_bytes": 1820
+    }
+  ]
+}

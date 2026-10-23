@@ -1,0 +1,495 @@
+{
+  "metadata": {
+    "name": "e4-delivery-dark-states",
+    "description": "Captures canonical Delivery states, receipt distinction, and unknown/no-receipt detail in dark theme from the leased disposable pool.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "delivery-dark-states"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-updates",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Settings to apply the dark theme"
+        }
+      }
+    },
+    {
+      "id": "set-dark",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=dark)"
+        },
+        "metadata": {
+          "label": "Choose dark with the registered Settings theme control"
+        }
+      }
+    },
+    {
+      "id": "return-to-updates-after-theme",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Return to routed Updates before testing Delivery"
+        }
+      }
+    },
+    {
+      "id": "open-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=delivery)"
+        },
+        "metadata": {
+          "label": "Open Delivery in mobile navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-delivery-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 delivery receipt fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Disposable Delivery records are present"
+        },
+        "metadata": {
+          "label": "Disposable Delivery records are present"
+        }
+      }
+    },
+    {
+      "id": "assert-state-pending",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Pending"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Pending"
+        },
+        "metadata": {
+          "label": "Dark theme shows Pending"
+        }
+      }
+    },
+    {
+      "id": "assert-state-held",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Held"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Held"
+        },
+        "metadata": {
+          "label": "Dark theme shows Held"
+        }
+      }
+    },
+    {
+      "id": "assert-state-routed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Routed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Routed"
+        },
+        "metadata": {
+          "label": "Dark theme shows Routed"
+        }
+      }
+    },
+    {
+      "id": "assert-state-delivered",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Delivered"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Delivered"
+        },
+        "metadata": {
+          "label": "Dark theme shows Delivered"
+        }
+      }
+    },
+    {
+      "id": "assert-state-failed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Failed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Failed"
+        },
+        "metadata": {
+          "label": "Dark theme shows Failed"
+        }
+      }
+    },
+    {
+      "id": "assert-state-unroutable",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Unroutable"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Unroutable"
+        },
+        "metadata": {
+          "label": "Dark theme shows Unroutable"
+        }
+      }
+    },
+    {
+      "id": "assert-state-suppressed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Suppressed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark theme shows Suppressed"
+        },
+        "metadata": {
+          "label": "Dark theme shows Suppressed"
+        }
+      }
+    },
+    {
+      "id": "scroll-delivery-states-bottom",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "scroll": {
+          "behavior": "SCROLL_BEHAVIOR_AUTO",
+          "selector": "@selector/layout.main",
+          "y": 40
+        },
+        "metadata": {
+          "label": "Capture the lower state guide viewport"
+        }
+      }
+    },
+    {
+      "id": "assert-lower-states",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Suppressed"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Expected the lower transport states to remain visible after scrolling"
+        },
+        "metadata": {
+          "label": "Lower delivery state meanings remain reachable"
+        }
+      }
+    },
+    {
+      "id": "open-receipt-detail",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-delivered)"
+        },
+        "metadata": {
+          "label": "Open delivered detail"
+        }
+      }
+    },
+    {
+      "id": "assert-receipt",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Adapter accepted"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark detail retains adapter receipt wording"
+        },
+        "metadata": {
+          "label": "Dark detail retains adapter receipt wording"
+        }
+      }
+    },
+    {
+      "id": "return-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=delivery)"
+        },
+        "metadata": {
+          "label": "Return to Delivery list"
+        }
+      }
+    },
+    {
+      "id": "open-no-receipt",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-held)"
+        },
+        "metadata": {
+          "label": "Open state with no receipt"
+        }
+      }
+    },
+    {
+      "id": "assert-no-receipt",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "No adapter receipt was returned. Reach remains unknown."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Missing receipt does not imply delivery"
+        },
+        "metadata": {
+          "label": "Missing receipt does not imply delivery"
+        }
+      }
+    },
+    {
+      "id": "return-delivery-unknown",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=delivery)"
+        },
+        "metadata": {
+          "label": "Return to Delivery list for unknown state"
+        }
+      }
+    },
+    {
+      "id": "open-unknown",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-unknown)"
+        },
+        "metadata": {
+          "label": "Open future state detail"
+        }
+      }
+    },
+    {
+      "id": "assert-unknown",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Unknown status"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Unknown future delivery state remains explicit"
+        },
+        "metadata": {
+          "label": "Unknown future delivery state remains explicit"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-updates",
+      "target": "set-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2-theme-route",
+      "source": "set-dark",
+      "target": "return-to-updates-after-theme",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "return-to-updates-after-theme",
+      "target": "open-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-delivery",
+      "target": "assert-delivery-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-delivery-list",
+      "target": "assert-state-pending",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-state-pending",
+      "target": "assert-state-held",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-state-held",
+      "target": "assert-state-routed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-state-routed",
+      "target": "assert-state-delivered",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "assert-state-delivered",
+      "target": "assert-state-failed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "assert-state-failed",
+      "target": "assert-state-unroutable",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "assert-state-unroutable",
+      "target": "assert-state-suppressed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "assert-state-suppressed",
+      "target": "scroll-delivery-states-bottom",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "scroll-delivery-states-bottom",
+      "target": "assert-lower-states",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "assert-lower-states",
+      "target": "open-receipt-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "open-receipt-detail",
+      "target": "assert-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "assert-receipt",
+      "target": "return-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "return-delivery",
+      "target": "open-no-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "open-no-receipt",
+      "target": "assert-no-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e18",
+      "source": "assert-no-receipt",
+      "target": "return-delivery-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e19",
+      "source": "return-delivery-unknown",
+      "target": "open-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e20",
+      "source": "open-unknown",
+      "target": "assert-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

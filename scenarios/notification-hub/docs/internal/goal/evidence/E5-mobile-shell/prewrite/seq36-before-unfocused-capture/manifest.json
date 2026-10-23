@@ -1,0 +1,17 @@
+[
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/served-seq36-final/NH16.1-light-390x844.png",
+    "observed_at": "2026-10-21T01:21:32.031402+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/served-seq36-final/NH16.1-dark-390x844.png",
+    "observed_at": "2026-10-21T01:21:32.031532+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/served-seq36-final/summary.json",
+    "observed_at": "2026-10-21T01:21:32.031643+00:00",
+    "absent": true
+  }
+]

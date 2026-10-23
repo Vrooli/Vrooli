@@ -28,6 +28,7 @@
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 import { LOCALE_CODES, type Locale } from "./locales";
+import { readLocalPreference, writeLocalPreference } from "../theme/ThemeProvider";
 import ar from "./locales/ar.json";
 import en from "./locales/en.json";
 import ja from "./locales/ja.json";
@@ -57,9 +58,9 @@ const STORAGE_KEY = "vrooli.locale";
 const isSupported = (lng: string | null | undefined): lng is Locale =>
   Boolean(lng && (SUPPORTED_LOCALES as readonly string[]).includes(lng));
 
-const detectInitialLocale = (): Locale => {
+export const detectInitialLocale = (): Locale => {
   if (typeof window === "undefined") return "en";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = readLocalPreference("locale", STORAGE_KEY);
   if (isSupported(stored)) return stored;
   const primary = window.navigator.language.split("-")[0]?.toLowerCase();
   return isSupported(primary) ? primary : "en";
@@ -87,7 +88,7 @@ void i18n.use(initReactI18next).init({
 
 i18n.on("languageChanged", (lng) => {
   if (typeof window !== "undefined" && isSupported(lng)) {
-    window.localStorage.setItem(STORAGE_KEY, lng);
+    writeLocalPreference("locale", STORAGE_KEY, lng);
   }
   applyDocumentLocale(lng);
 });

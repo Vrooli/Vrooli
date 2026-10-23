@@ -37,14 +37,17 @@
     "serviceLabel": "Service:",
     "statusLabel": "Status:",
     "timestampLabel": "Timestamp:",
-    "title": "API Health"
+    "title": "API Health",
+    "description": "Status for Notification Hub and its API dependencies. This is not a device or delivery-readiness report."
   },
   "layout": {
     "bottomNavLabel": "Mobile navigation",
     "nav": {
-      "dashboard": "Dashboard",
+      "dashboard": "Updates",
       "settings": "Settings",
-      "asks": "Decisions"
+      "asks": "Needs you",
+      "history": "History",
+      "delivery": "Delivery"
     },
     "sidebarLabel": "Primary navigation"
   },
@@ -60,21 +63,115 @@
       "skip-to-content": "Skip to content"
     }
   },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_one": "1 notification",
-    "summary_zero": "No notifications"
-  },
   "pages": {
     "dashboard": {
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "description": "Information sent to the configured recipient, with delivery facts shown as transport evidence.",
       "statPlaceholderLabel": "Stat",
-      "title": "Dashboard"
+      "title": "Updates",
+      "feedHeading": "Recent updates",
+      "loadedScope": "Showing up to {{limit}} notifications returned for the configured recipient.",
+      "emptyReturned": "No notifications were returned in this request’s scope. This does not indicate producer health.",
+      "loadError": "Updates could not be loaded.",
+      "stale": "Showing previously loaded updates; refresh failed.",
+      "askLinksUnavailable": "Decision links could not be checked, so no decision actions are shown.",
+      "untitled": "Notification",
+      "source": "Source:",
+      "unknownSource": "Unknown source",
+      "created": "Created:",
+      "timeUnavailable": "Time unavailable",
+      "urgency": "Urgency:",
+      "sensitivity": "Sensitivity:",
+      "deliveryDetails": "Delivery details",
+      "openDecision": "Open decision"
     },
     "settings": {
       "localeHeading": "Language",
       "themeHeading": "Appearance",
       "title": "Settings"
+    },
+    "history": {
+      "title": "History",
+      "empty": "No answered, defaulted, or expired decisions appear in the loaded results.",
+      "loadError": "History could not be loaded.",
+      "filteredEmpty": "No decisions match this filter.",
+      "all": "All",
+      "answered": "Answered",
+      "defaulted": "Defaulted",
+      "expired": "Expired",
+      "loadedScope": "History shows up to {{count}} returned decisions. Filters apply only to these loaded results, and older decisions may be omitted.",
+      "lateAnswerAvailable": "This reversible default can still accept one late answer.",
+      "expiredNoReopen": "This request expired and cannot be reopened. The requester must create a new request for another decision.",
+      "source": "Source:",
+      "unknownSource": "Unknown source",
+      "outcomeTime": "Outcome time:",
+      "timeUnavailable": "Outcome time unavailable",
+      "showing": "Showing up to {{count}} recent decisions."
+    },
+    "delivery": {
+      "title": "Delivery",
+      "description": "Current notification state and available adapter receipts are shown separately. These reads do not provide complete attempt history, device health, or proof of human reading.",
+      "loadedScope": "Showing up to {{limit}} recent notifications returned by the delivery read.",
+      "emptyReturned": "No notifications were returned within this request’s scope.",
+      "loadError": "Delivery records could not be loaded.",
+      "stale": "Showing previously loaded records; refresh failed.",
+      "recordsHeading": "Recent notification delivery",
+      "openDetails": "Delivery details",
+      "detailTitle": "Delivery details",
+      "detailLoadError": "This delivery record could not be loaded.",
+      "notFound": "This delivery record was not returned.",
+      "back": "Back to Delivery",
+      "reason": "Current reason",
+      "notificationId": "Notification ID",
+      "source": "Source",
+      "created": "Created",
+      "updated": "Updated",
+      "timeUnavailable": "Time unavailable",
+      "unknownValue": "Not provided",
+      "receiptsTitle": "Adapter receipts",
+      "receiptsExplanation": "A returned receipt records adapter acceptance. It does not establish device arrival or human reading.",
+      "noReceiptTitle": "No delivery receipt yet",
+      "noReceiptSummary": "No adapter receipt was returned for this notification.",
+      "noReceipt": "No adapter receipt was returned. Reach remains unknown.",
+      "reachUnknownTitle": "Reach is unknown",
+      "noReceiptCaveat": "A missing receipt does not tell you whether the notification was read, the device was offline, or a separate request was answered.",
+      "requestState": "Request state",
+      "requestStateSeparate": "Ask and history status are separate from delivery receipt evidence.",
+      "transportState": "Transport state",
+      "unknownStatusTitle": "Delivery status unavailable",
+      "unknownStatusHeading": "The returned state isn’t recognized",
+      "unknownStatusExplanation": "No delivery success is assumed from this status value.",
+      "lastChecked": "Last checked",
+      "reportIssue": "Include this notification ID when reporting the issue.",
+      "refreshStatus": "Refresh status",
+      "channel": "Channel",
+      "machine": "Machine",
+      "adapterAcceptedAt": "Adapter accepted at",
+      "attemptsTitle": "Delivery attempts",
+      "attemptsUnavailable": "Attempt history is not available from the current read contract. No attempt rows are inferred from current status or receipts.",
+      "currentStateOnly": "Current notification state is a snapshot, not a state-transition timeline.",
+      "states": {
+        "pending": "Pending",
+        "held": "Held",
+        "routed": "Routed",
+        "delivered": "Delivered",
+        "failed": "Failed",
+        "unroutable": "Unroutable",
+        "suppressed": "Suppressed",
+        "unknown": "Unknown status"
+      },
+      "meanings": {
+        "pending": "Accepted for processing.",
+        "held": "Waiting on a routing policy.",
+        "routed": "A channel was selected.",
+        "delivered": "At least one adapter accepted the payload.",
+        "failed": "Delivery did not succeed under its retry policy.",
+        "unroutable": "No eligible target was available.",
+        "suppressed": "Not sent under a suppression rule.",
+        "unknown": "The current status value is not recognized."
+      },
+      "stateGuideEyebrow": "Delivery evidence",
+      "stateGuideTitle": "Delivery states",
+      "stateGuideDescription": "These describe transport, not whether someone read or answered a request."
     }
   },
   "theme": {
@@ -89,7 +186,28 @@
     "list": {
       "title": "Decisions",
       "empty": "No decisions are waiting for you.",
-      "loadError": "Decisions could not be loaded."
+      "loadError": "Requests couldn’t be loaded.",
+      "emptyFiltered": "No decisions match this filter.",
+      "filterAll": "Filter decisions",
+      "filterUrgent": "Needs an answer",
+      "historyLink": "View history",
+      "stale": "Showing previously loaded results; refresh failed.",
+      "refresh": "Refresh",
+      "needsYou": "Needs you",
+      "emptyTitle": "Nothing needs an answer",
+      "emptyChecked": "No open requests were returned in this checked view.",
+      "checked": "Checked",
+      "checkedNow": "Just now",
+      "scope": "Scope",
+      "latestCap": "Latest {{count}} maximum",
+      "olderMayExist": "Older requests may exist outside this bounded view.",
+      "latestLoaded": "Showing the latest {{count}} loaded decisions at most.",
+      "connectionError": "A connection problem prevented the current list from loading.",
+      "notCleared": "Your requests haven’t been cleared",
+      "retryRead": "Try again to read the latest state.",
+      "retry": "Try again",
+      "openSettings": "Open settings",
+      "checking": "Checking the latest request list…"
     },
     "detail": {
       "loading": "Loading decision…",
@@ -107,8 +225,24 @@
       "more": "More detail",
       "bigPicture": "Why this matters",
       "technicalDetails": "Technical details",
-      "back": "All decisions"
+      "back": "All decisions",
+      "choose": "Choose an answer",
+      "submit": "Submit answer",
+      "checking": "Checking status…",
+      "checkStatus": "Check answer status",
+      "uncertain": "We could not confirm whether this answer was recorded. Your attempted answer is preserved. Check status; do not submit it again.",
+      "stillOpen": "The request still appears open, but the earlier answer may still finish. Keep checking status; do not submit again.",
+      "recorded": "Answer recorded: {{option}}",
+      "conflict": "A different result is recorded: {{option}}. Your attempted answer was {{attempted}}.",
+      "readbackFailed": "The request status could not be checked. Your attempted answer is still preserved. Try checking status again; do not resubmit.",
+      "answerError": "The answer could not be confirmed. Your attempted answer is preserved. Check status before taking any further action.",
+      "expiredSession": "Your session expired. Sign in again to continue; this request’s draft remains in memory."
     }
+  },
+  "preferenceStorage": {
+    "title": "Preference applied here",
+    "body": "This browser couldn’t save the choice. It is active now but may reset when you return.",
+    "noAccountChange": "No account preference was changed."
   },
   "session": {
     "title": "Sign in",

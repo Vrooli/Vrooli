@@ -1,0 +1,14 @@
+[
+  {
+    "path": "scenarios/notification-hub/bas/cases/e3/disposable-recipient-isolated.json",
+    "observed_at": "2026-10-20T16:40:01Z",
+    "bytes": 2090,
+    "sha256": "081691c5fd9d35b64bdc98b5c46a9f2c169f73432cb6e5217ddae3ec88f9b185"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/registry.json",
+    "observed_at": "2026-10-20T16:40:01Z",
+    "bytes": 913,
+    "sha256": "77220e92ff22ca0cd175897aa00dbba90e12a8056ff2b2c33d9a9a61c5e93183e"
+  }
+]

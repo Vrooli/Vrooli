@@ -22,7 +22,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -219,17 +218,15 @@ func (s *Sender) SendMessage(ctx context.Context, subscription Subscription, mes
 	req.Header.Set("TTL", fmt.Sprintf("%d", ttl))
 	resp, err := s.Client.Do(req)
 	if err != nil {
-		return "", err
+		// Transport errors can include the subscription endpoint. Keep the
+		// persisted delivery reason useful without retaining provider URLs.
+		return "", errors.New("push provider request failed")
 	}
 	defer resp.Body.Close()
-	detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
 		return "", GoneError{}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		if reason := strings.TrimSpace(string(detail)); reason != "" {
-			return "", fmt.Errorf("push provider returned status %d: %s", resp.StatusCode, reason)
-		}
 		return "", fmt.Errorf("push provider returned status %d", resp.StatusCode)
 	}
 	provider := resp.Header.Get("Location")

@@ -1,5 +1,7 @@
 import {
-  Home,
+  Archive,
+  Bell,
+  ChartNoAxesCombined,
   Inbox,
   Settings,
 } from "lucide-react";
@@ -16,6 +18,8 @@ export interface NavItem {
   key:
     | "dashboard"
     | "asks"
+    | "history"
+    | "delivery"
     | "settings";
   /** Router path. */
   path: string;
@@ -26,8 +30,10 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
+  { key: "dashboard", path: "/updates", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "asks", path: "/asks", labelKey: strings.layout.nav.asks },
+  { key: "history", path: "/history", labelKey: strings.layout.nav.history },
+  { key: "delivery", path: "/delivery", labelKey: strings.layout.nav.delivery },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];
 
@@ -37,8 +43,12 @@ export function iconForItem(item: NavItem) {
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":
-      return <Home aria-hidden className={iconClass} />;
+      return <Bell aria-hidden className={iconClass} />;
     case "asks":
       return <Inbox aria-hidden className={iconClass} />;
+    case "history":
+      return <Archive aria-hidden className={iconClass} />;
+    case "delivery":
+      return <ChartNoAxesCombined aria-hidden className={iconClass} />;
   }
 }

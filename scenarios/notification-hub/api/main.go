@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"notification-hub/internal/capabilities"
@@ -136,6 +139,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return err
+		}
+		return seedTestRecipient(ctx, pool)
+	})
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
@@ -279,7 +288,7 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler := apihttp.TestModeMiddleware(requireRoutedTestLease(db, rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
@@ -287,6 +296,186 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// requireRoutedTestLease prevents a test-mode request from reaching a handler
+// unless it can be pinned to the currently installed lease. RoutedDB normally
+// preserves production behavior by falling back to Primary when no test pool
+// exists; browser test-mode requests must instead fail closed. Pinning closes
+// the race between checking the lease and the handler's first database call.
+func requireRoutedTestLease(db *database.RoutedDB, next http.Handler) http.Handler {
+	type pendingFixture struct {
+		name       string
+		selectedAt time.Time
+	}
+	var pendingMu sync.Mutex
+	pendingByLease := make(map[string]pendingFixture)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !database.IsTestMode(r.Context()) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		leaseID := db.ActiveLeaseID()
+		if leaseID == "" {
+			http.Error(w, "routed test lease is not active", http.StatusServiceUnavailable)
+			return
+		}
+		ctx, err := db.PinTestPool(r.Context(), leaseID)
+		if err != nil {
+			http.Error(w, "routed test lease is not active", http.StatusServiceUnavailable)
+			return
+		}
+		// E4 visual cases may select a disposable-pool fixture after the lease
+		// has been pinned. These mutations cannot run on ordinary requests or
+		// fall through to primary storage.
+		fixture := ""
+		if r.URL.Path == "/vrooli.notification_hub.v1.conversations.ConversationsService/ListAsks" {
+			fixture = r.Header.Get("X-Notification-Hub-E4-Fixture")
+			refererPath := ""
+			refererFixture := ""
+			if referer, parseErr := url.Parse(r.Referer()); parseErr == nil {
+				refererPath = referer.Path
+				refererFixture = referer.Query().Get("e4_fixture")
+				if fixture == "" {
+					fixture = refererFixture
+				}
+			}
+			slog.Info("E4 test-mode ListAsks selector inspected", "lease_id", leaseID, "referer_path", refererPath, "referer_fixture", refererFixture, "header_fixture", r.Header.Get("X-Notification-Hub-E4-Fixture"))
+			pendingMu.Lock()
+			now := time.Now()
+			for lease, pending := range pendingByLease {
+				if now.Sub(pending.selectedAt) > time.Minute {
+					delete(pendingByLease, lease)
+				}
+			}
+			if fixture != "" && refererPath != "/asks" {
+				pendingByLease[leaseID] = pendingFixture{name: fixture, selectedAt: now}
+				fixture = ""
+			} else {
+				if fixture == "" {
+					fixture = pendingByLease[leaseID].name
+				}
+			}
+			pendingMu.Unlock()
+		}
+		if fixture != "" {
+			slog.Info("E4 routed fixture selected", "fixture", fixture, "lease_id", leaseID, "path", r.URL.Path)
+		}
+		restoreFixture, err := applyE4TestFixture(ctx, db, fixture)
+		if err != nil {
+			http.Error(w, "test fixture setup failed", http.StatusInternalServerError)
+			return
+		}
+		defer restoreFixture()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func applyE4TestFixture(ctx context.Context, db *database.RoutedDB, fixture string) (func(), error) {
+	switch fixture {
+	case "":
+		return func() {}, nil
+	case "empty-open-asks":
+		result, err := db.ExecContext(ctx, `DELETE FROM asks WHERE id = ? AND state IN ('pending', 'escalated')`, hub.TestAskID)
+		if err != nil {
+			return nil, err
+		}
+		deleted, err := result.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		slog.Info("E4 empty ask fixture applied", "removed_open_asks", deleted)
+		return func() {
+			const stamp = "2026-01-01T00:00:00Z"
+			_, _ = db.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, created_at, updated_at, options_json) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, hub.TestAskID, hub.TestNotificationID, "Choose a test-only option", `["continue","stop"]`, "2099-01-01T00:00:00Z", stamp, stamp, `["continue","stop"]`)
+		}, nil
+	case "asks-read-failure":
+		// Hiding the leased table for this ListAsks request makes the real
+		// database query fail; no response is fabricated and other E4 cases
+		// regain the ordinary disposable table when this request returns.
+		_, err := db.ExecContext(ctx, `ALTER TABLE asks RENAME TO asks_e4_fixture_backup`)
+		if err != nil {
+			return nil, err
+		}
+		return func() {
+			_, _ = db.ExecContext(ctx, `ALTER TABLE asks_e4_fixture_backup RENAME TO asks`)
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported E4 test fixture %q", fixture)
+	}
+}
+
+// seedTestRecipient creates a deterministic, unanswered fixture only in the
+// disposable routed pool. It never runs against the primary database.
+func seedTestRecipient(ctx context.Context, pool *sql.DB) error {
+	const stamp = "2026-01-01T00:00:00Z"
+	if _, err := pool.ExecContext(ctx, `INSERT INTO recipients (id, subject, trust_posture, created_at, updated_at) VALUES (?, ?, 'personal', ?, ?)`, hub.TestRecipientID, hub.TestRecipientSubject, stamp, stamp); err != nil {
+		return fmt.Errorf("seed test recipient: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, 'normal', 'public', ?, ?, ?)`, hub.TestNotificationID, hub.TestRecipientSubject, "Test fixture", "Disposable unanswered decision request", hub.TestNotificationID, stamp, stamp); err != nil {
+		return fmt.Errorf("seed test notification: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'pending', 'test fixture accepted', ?)`, hub.TestNotificationID, stamp); err != nil {
+		return fmt.Errorf("seed test notification state: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, created_at, updated_at, options_json) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, hub.TestAskID, hub.TestNotificationID, "Choose a test-only option", `["continue","stop"]`, "2099-01-01T00:00:00Z", stamp, stamp, `["continue","stop"]`); err != nil {
+		return fmt.Errorf("seed test ask: %w", err)
+	}
+	if err := seedTestDeliveryAndHistory(ctx, pool, stamp); err != nil {
+		return err
+	}
+	return nil
+}
+
+// seedTestDeliveryAndHistory creates deterministic rows only inside Test Genie’s
+// disposable routed pool. The notification events describe current state;
+// receipts separately describe adapter acceptance.
+func seedTestDeliveryAndHistory(ctx context.Context, pool *sql.DB, stamp string) error {
+	const recipient = hub.TestRecipientSubject
+	const deliveredID = "e4-test-delivered"
+	states := []struct{ id, state string }{
+		{deliveredID, "delivered"},
+		{"e4-test-pending", "pending"},
+		{"e4-test-held", "held"},
+		{"e4-test-routed", "routed"},
+		{"e4-test-failed", "failed"},
+		{"e4-test-unroutable", "unroutable"},
+		{"e4-test-suppressed", "suppressed"},
+		{"e4-test-unknown", "future-state"},
+	}
+	for index, fixture := range states {
+		created := fmt.Sprintf("2026-01-%02dT00:00:00Z", 10-index)
+		title := "E4 state fixture: " + fixture.state
+		if fixture.id == deliveredID {
+			title = "E4 delivery receipt fixture"
+		}
+		if _, err := pool.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, 'normal', 'public', ?, ?, ?)`, fixture.id, recipient, title, "Disposable E4 delivery state", fixture.id, created, created); err != nil {
+			return fmt.Errorf("seed E4 delivery notification %s: %w", fixture.id, err)
+		}
+		if _, err := pool.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, ?, ?, ?)`, fixture.id, fixture.state, "E4 disposable fixture", created); err != nil {
+			return fmt.Errorf("seed E4 delivery state %s: %w", fixture.id, err)
+		}
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO receipts (id, notification_id, channel, machine_id, provider_id, delivered_at) VALUES (?, ?, 'webpush', 'e4-test-machine', 'e4-test-provider', ?)`, "e4-test-receipt", deliveredID, stamp); err != nil {
+		return fmt.Errorf("seed E4 delivery receipt: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, created_at) VALUES (?, 'webpush', 'e4-test-machine', 1, 'accepted', 'test adapter accepted', ?)`, deliveredID, stamp); err != nil {
+		return fmt.Errorf("seed E4 delivery attempt: %w", err)
+	}
+	const historyID = "e4-test-history"
+	if _, err := pool.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, 'normal', 'public', ?, ?, ?)`, historyID, recipient, "E4 answered history fixture", "Disposable closed ask", historyID, stamp, stamp); err != nil {
+		return fmt.Errorf("seed E4 history notification: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'answered', 'test fixture outcome', ?)`, historyID, stamp); err != nil {
+		return fmt.Errorf("seed E4 history notification state: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, created_at, updated_at, options_json, source, resolved_at) VALUES (?, ?, 'E4 history answer fixture', '[\"continue\",\"stop\"]', ?, 'answered', ?, ?, '[\"continue\",\"stop\"]', 'notification-hub-e4-test', ?)`, "e4-test-answered-ask", historyID, stamp, stamp, stamp, stamp); err != nil {
+		return fmt.Errorf("seed E4 answered history ask: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at) VALUES (?, ?, 'continue', ?, ?)`, "e4-test-answer", "e4-test-answered-ask", recipient, stamp); err != nil {
+		return fmt.Errorf("seed E4 history answer: %w", err)
+	}
+	return nil
 }
 
 // configureAskDefaultFloor reads the minimum time between the first

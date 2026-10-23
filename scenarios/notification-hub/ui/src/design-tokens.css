@@ -127,6 +127,7 @@
   --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
   --color-border-strong: #64748b;
   --color-field: var(--color-surface);
+  --color-primary-strong: var(--color-primary);
   --color-surface-sunken: #0b1220;
   --container-content: 72rem;
   --container-wide: 96rem;

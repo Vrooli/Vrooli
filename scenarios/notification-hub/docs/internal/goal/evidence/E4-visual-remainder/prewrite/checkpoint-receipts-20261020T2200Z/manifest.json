@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-10-20T21:14:32.273064+00:00",
+  "files": [
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/unit-test-genie-run.json",
+      "exists": false
+    },
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/unit-test-genie-artifacts.json",
+      "exists": false
+    },
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/visual-comparison.json",
+      "exists": false
+    },
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/handoff-summary.json",
+      "exists": false
+    }
+  ]
+}

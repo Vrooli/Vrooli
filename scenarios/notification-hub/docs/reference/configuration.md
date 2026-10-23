@@ -4,8 +4,8 @@ How this scenario is configured — env vars consumed by the binaries,
 the `.vrooli/service.json` manifest, and the per-user CLI config file.
 
 The lifecycle (`vrooli scenario start`, `make start`) sets every
-required variable automatically. You only need this reference when
-running a binary by hand or when a scenario adds a new variable.
+required variable automatically. Use this reference to inspect deployment
+configuration or when a scenario adds a variable.
 
 ## Environment variables
 
@@ -29,12 +29,18 @@ ports as outbound source ports. See the project-level port allocation reference
 | Variable | Default | Purpose |
 |---|---|---|
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
-| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `VROOLI_EVENTS_WEBHOOK_SECRET` | credential authority `vrooli/vrooli-events` field `agent-manager-webhook-secret` | Override for the secret that verifies signed vrooli-events deliveries. Leave unset: the API resolves the stored credential exactly as the publisher does. |
-| `VROOLI_NOTIFICATION_RECIPIENT` | `notifications.recipient` in operator state | Owner subject that receives event-driven notifications and asks. |
+| `VROOLI_NOTIFICATION_RECIPIENT` | `notifications.recipient` in operator state | Owner subject that receives producer notifications and asks. |
 | `VROOLI_AUTH_COOKIE_SECURE` | `true` behind HTTPS (`X-Forwarded-Proto: https`) | Forces the `Secure` flag on the owner session cookies on or off. Leave unset. |
 | `VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR` | `12h` | Minimum time between an ask's first delivered receipt and applying its default (Go duration). Lower it only for fixtures such as the delivery canary. |
+
+Direct `notifications send` and `relay` accept verified owner credentials or an
+Agent Manager run identity with `notification-hub:write` scope (including canonical
+wildcard coverage). Agent ingress uses the configured recipient; it does not grant
+owner authority for answers or preferences. Channel readiness does not prove sender
+authorization or delivery. Verified run attribution remains request provenance;
+per-notification actor persistence is not guaranteed by this contract.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

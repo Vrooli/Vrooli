@@ -1,0 +1,147 @@
+[
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/epochs/E1-return-journey.md",
+    "observed_at": "2026-10-20T17:37:43.338326+00:00",
+    "bytes": 7273,
+    "sha256": "2ecd5887afe2ecc90ee8c948989272316f5cfe8808995996dd0e5fe685de623a"
+  },
+  {
+    "path": "scenarios/notification-hub/api/handlers/conversations/module.go",
+    "observed_at": "2026-10-20T17:37:43.338983+00:00",
+    "bytes": 9242,
+    "sha256": "149d4719210477f3951c0d2f74084cd2f137becb725a6c115c216a5cf27226be"
+  },
+  {
+    "path": "scenarios/notification-hub/api/internal/identity/identity.go",
+    "observed_at": "2026-10-20T17:37:43.339969+00:00",
+    "bytes": 3202,
+    "sha256": "76e542fccc49cf4fe1031b062c1e2ce5c996be78a99c365582384da85258c116"
+  },
+  {
+    "path": "scenarios/notification-hub/api/internal/identity/access.go",
+    "observed_at": "2026-10-20T17:37:43.340430+00:00",
+    "bytes": 10718,
+    "sha256": "e14f89bf079ec6fd437e33a34571b4e255adb17158de293bba85404813a82b2b"
+  },
+  {
+    "path": "scenarios/notification-hub/api/main.go",
+    "observed_at": "2026-10-20T17:37:43.340953+00:00",
+    "bytes": 18998,
+    "sha256": "c4070cada16d1d9a5f51abde62ed49979604f9940828f4729fb00568c3744efe"
+  },
+  {
+    "path": "scenarios/notification-hub/api/internal/hub/asks.go",
+    "observed_at": "2026-10-20T17:37:43.341339+00:00",
+    "bytes": 33916,
+    "sha256": "7b2ce13da20b7acf73dbe9c3f1fb81390e3af00f6b2204260f8ad42021237d2b"
+  },
+  {
+    "path": "scenarios/notification-hub/api/internal/hub/asks_test.go",
+    "observed_at": "2026-10-20T17:37:43.341720+00:00",
+    "bytes": 26156,
+    "sha256": "2355a865369f443f395109d3cc33fa93a9bb20a8f507add3315b4a78062e6d5d"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/registry.json",
+    "observed_at": "2026-10-20T17:37:43.342128+00:00",
+    "bytes": 913,
+    "sha256": "a5e3242dce7e82ff0e4f0c0dd18997343b400ba695c55a1ff8c4da43d400941a"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e3/disposable-recipient-isolated.json",
+    "observed_at": "2026-10-20T17:37:43.342464+00:00",
+    "bytes": 2105,
+    "sha256": "4ecc5327d595bade7e177a2ea72d7b86b47460602289bac8dba2a0749fb5cb51"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/api/notifications.ts",
+    "observed_at": "2026-10-20T17:37:43.342813+00:00",
+    "bytes": 3064,
+    "sha256": "b3b09152ba6d7cb083e576ab62d71b1ce3ec9b317d3544afe07c80565616173b"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AsksPage.tsx",
+    "observed_at": "2026-10-20T17:37:43.343353+00:00",
+    "bytes": 5285,
+    "sha256": "49f7a9c2f03c10f4cb3c8f03b47125675a6bd59aad92ff5adb9340b009d220ba"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AsksPage.test.tsx",
+    "observed_at": "2026-10-20T17:37:43.343766+00:00",
+    "bytes": 4827,
+    "sha256": "6e567d3b94500e35e643a39a2e7e8cac55798b261f764671eae4cc5ff5df628f"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AskPage.tsx",
+    "observed_at": "2026-10-20T17:37:43.344097+00:00",
+    "bytes": 12350,
+    "sha256": "bba6f0aba2f43ca5aa9b195e1ee858b084d330461a471de76cc52f903c70b871"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AskPage.test.tsx",
+    "observed_at": "2026-10-20T17:37:43.344595+00:00",
+    "bytes": 16055,
+    "sha256": "f71685e0db9e42ae895f7b15b2d8f62932975226235806fd2ae092ba7debffe7"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/askDrafts.ts",
+    "observed_at": "2026-10-20T17:37:43.344937+00:00",
+    "bytes": 644,
+    "sha256": "720256c11a718ff472bd39155aa490b1a1b0a2710c37834c662e26b4a949a7de"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/app/routes.tsx",
+    "observed_at": "2026-10-20T17:37:43.345261+00:00",
+    "bytes": 2528,
+    "sha256": "c5d7474c991390f55490756a4a353ecb166ebb99b1bfbd8af3974a315b05c576"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/app/routes.test.tsx",
+    "observed_at": "2026-10-20T17:37:43.345612+00:00",
+    "bytes": 2958,
+    "sha256": "6ef4e5d46e755f1b9470402b5a39682fa6f461be66702998358e211db4b4ef28"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/layout/AppShell.tsx",
+    "observed_at": "2026-10-20T17:37:43.345966+00:00",
+    "bytes": 1877,
+    "sha256": "d6125f65c16c767c5aebc974d053849db64497fccab3a8667e998b1067e8b84f"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T17:37:43.346311+00:00",
+    "bytes": 8414,
+    "sha256": "f6990706d8ebf492d800aca8e45915fc87133edc840c2648add3c95b0a2c6923"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T17:37:43.346750+00:00",
+    "bytes": 8917,
+    "sha256": "846c210757a5a253e983776eb201f81eb4937540a77f179fb42c51c3abbbf803"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/source-build-census.json",
+    "observed_at": "2026-10-20T17:37:43.347109+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/auth-lease-route.json",
+    "observed_at": "2026-10-20T17:37:43.347372+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/ui-health.json",
+    "observed_at": "2026-10-20T17:37:43.347657+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/inventory.json",
+    "observed_at": "2026-10-20T17:37:43.347970+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/handoff.md",
+    "observed_at": "2026-10-20T17:37:43.348242+00:00",
+    "absent": true
+  }
+]

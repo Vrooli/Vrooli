@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 import { renderWithProviders } from "../../test-utils";
 import { setLocale } from "../../i18n";
 import { selectors } from "../../consts/selectors";
 import { conversationsClient, identityClient } from "../../api/notifications";
-import { AskPage } from "./AskPage";
-import { orderedOptions, remainingUntil } from "./askView";
+import { orderedOptions, remainingUntil, safeContextUrl } from "./askView";
+import { clearAskDrafts, readAskDraft } from "./askDrafts";
+import { TestAppRouter } from "../../app/routes";
 
 vi.mock("../../api/notifications", () => ({
   identityClient: {
@@ -48,12 +49,7 @@ function pendingAsk() {
 }
 
 function renderAsk() {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/asks/:askId" element={<AskPage />} />
-    </Routes>,
-    { initialEntries: ["/asks/ask-1"] },
-  );
+  return renderWithProviders(<TestAppRouter initialEntries={["/asks/ask-1"]} />, { withoutRouter: true });
 }
 
 describe("AskPage", () => {
@@ -67,19 +63,50 @@ describe("AskPage", () => {
       email: "owner@example.test",
     } as never);
   });
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+    clearAskDrafts();
+  });
 
-  it("shows ask details without login while keeping answer controls gated", async () => {
+  it("allows recipient-scoped ask reads without login but requires a session to answer", async () => {
     vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: false } as never);
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: pendingAsk(),
     } as never);
     renderAsk();
 
-    expect(await screen.findByText("Close the BAS goal or re-aim at quality?")).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.asks.question)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
     expect(conversationsClient.getAsk).toHaveBeenCalledWith({ askId: "ask-1" });
     expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
-    expect(screen.getByTestId(selectors.session.form)).toBeInTheDocument();
+  });
+
+  it("does not retry a recipient-scoped NotFound response or disclose whether the ask exists", async () => {
+    vi.mocked(conversationsClient.getAsk).mockRejectedValue(
+      new ConnectError("not found", Code.NotFound),
+    );
+    renderAsk();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This decision was not found, or it is not addressed to you.",
+    );
+    expect(conversationsClient.getAsk).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps ask details readable and hides answer controls immediately when the session expires", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    renderAsk();
+    const options = await screen.findAllByTestId(selectors.asks.option);
+    await user.click(options[1]!);
+    await user.type(screen.getByTestId(selectors.asks.note), "keep this draft");
+
+    window.dispatchEvent(new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.asks.question)).toBeInTheDocument();
+    expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
+    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this draft" });
   });
 
   it("shows the recommended option first and the default with its countdown", async () => {
@@ -92,7 +119,8 @@ describe("AskPage", () => {
     expect(
       options.map((option) => option.getAttribute("data-option-key")),
     ).toEqual(["re-aim", "close"]);
-    expect(within(options[0]!).getByText(/Recommended/)).toBeInTheDocument();
+    expect(options.every((option) => !(option as HTMLInputElement).checked)).toBe(true);
+    expect(within(options[0]!.parentElement!).getByText(/Recommended/)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.asks.defaultNotice)).toHaveTextContent(
       "Re-aim at quality applies in 3 h",
     );
@@ -115,6 +143,28 @@ describe("AskPage", () => {
     expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: /answer/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/note/i)).not.toBeInTheDocument();
+  });
+
+  it("shows an expired decision as read-only", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: { ...pendingAsk(), state: "expired" },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByText("This decision expired without an answer.")).toBeInTheDocument();
+    expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the server deadline wording when a default is eligible only after the minimum delay", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: { ...pendingAsk(), defaultEligibleAt: "2026-10-19T10:00:00Z" },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByTestId(selectors.asks.defaultNotice)).toHaveTextContent(
+      "If you do not answer, Re-aim at quality applies after the deadline, at least 12 hours after this reached you.",
+    );
   });
 
   it("shows the purpose and technical context as separate disclosures", async () => {
@@ -165,6 +215,8 @@ describe("AskPage", () => {
       (option) => option.getAttribute("data-option-key") === "close",
     );
     await user.click(close!);
+    expect(conversationsClient.answer).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
     await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledTimes(1));
     expect(conversationsClient.answer).toHaveBeenCalledWith({
       askId: "ask-1",
@@ -173,10 +225,11 @@ describe("AskPage", () => {
     });
   });
 
-  it("sends exactly one answer, with the note, for one tap", async () => {
-    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
-      ask: pendingAsk(),
-    } as never);
+  it("requires a deliberate selection and submit, then confirms the answer from authoritative readback", async () => {
+    let finishReadback!: (response: unknown) => void;
+    vi.mocked(conversationsClient.getAsk)
+      .mockResolvedValueOnce({ ask: pendingAsk() } as never)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishReadback = resolve; }) as never);
     vi.mocked(conversationsClient.answer).mockResolvedValue({} as never);
     renderAsk();
 
@@ -187,34 +240,107 @@ describe("AskPage", () => {
     );
     const [, close] = await screen.findAllByTestId(selectors.asks.option);
     await userEvent.click(close!);
+    expect(conversationsClient.answer).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     await waitFor(() =>
       expect(conversationsClient.answer).toHaveBeenCalledTimes(1),
     );
+    await waitFor(() => expect(conversationsClient.getAsk).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Answer recorded: Close the goal")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Checking status…")).toHaveLength(2);
     expect(conversationsClient.answer).toHaveBeenCalledWith({
       askId: "ask-1",
       answer: "close",
       note: "keep macOS last",
     });
+    finishReadback({
+      ask: {
+        ...pendingAsk(),
+        state: "answered",
+        answer: "close",
+        answerLabel: "Close the goal",
+        note: "keep macOS last",
+      },
+    });
+    expect(await screen.findByText("Answer recorded: Close the goal")).toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the ask without login while keeping answer controls gated", async () => {
-    vi.mocked(identityClient.getSession).mockResolvedValue({
-      signedIn: false,
-      subject: "",
-      email: "",
-    } as never);
+  it("preserves the immutable attempted answer and never replays after an uncertain response", async () => {
+    const user = userEvent.setup();
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: pendingAsk(),
     } as never);
+    vi.mocked(conversationsClient.answer).mockRejectedValueOnce(new Error("connection lost"));
     renderAsk();
 
-    expect(await screen.findByTestId(selectors.asks.question)).toHaveTextContent(
-      "Close the BAS goal or re-aim at quality?",
-    );
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    const note = screen.getByTestId(selectors.asks.note);
+    await user.type(note, "keep this attempt");
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
+    expect(note).toHaveValue("keep this attempt");
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Check answer status" }));
+    expect(await screen.findByText(/earlier answer may still finish/)).toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+    expect(conversationsClient.getAsk).toHaveBeenCalledTimes(2);
+  });
+
+  it("confirms an uncertain answer from recipient readback without replaying the mutation", async () => {
+    const user = userEvent.setup();
+    const answered = {
+      ...pendingAsk(),
+      state: "answered",
+      answer: "close",
+      note: "keep this attempt",
+      answerLabel: "Close the goal",
+    };
+    vi.mocked(conversationsClient.getAsk)
+      .mockResolvedValueOnce({ ask: pendingAsk() } as never)
+      .mockResolvedValueOnce({ ask: answered } as never);
+    vi.mocked(conversationsClient.answer).mockRejectedValueOnce(new Error("connection lost"));
+    renderAsk();
+
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    await user.type(screen.getByTestId(selectors.asks.note), "keep this attempt");
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Check answer status" }));
+    expect(await screen.findByText("Answer recorded: Close the goal")).toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+    expect(conversationsClient.getAsk).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps status readback available after session expiry without restoring answer controls", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    vi.mocked(conversationsClient.answer).mockRejectedValueOnce(new Error("connection lost"));
+    renderAsk();
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
+
+    window.dispatchEvent(new Event("notification-hub:session-expired"));
     expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
-    expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
-    expect(conversationsClient.answer).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Check answer status" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Check answer status" }));
+    expect(await screen.findByText(/earlier answer may still finish/)).toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
   });
 
   it("shows an answered decision without answer buttons", async () => {
@@ -232,6 +358,24 @@ describe("AskPage", () => {
       "Answered: Close the goal",
     );
     expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
+  });
+
+  it("allows one deliberate later human answer after a default is applied", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: { ...pendingAsk(), state: "defaulted", answer: "re-aim", defaultAnswer: "re-aim", answerLabel: "Re-aim at quality" },
+    } as never);
+    vi.mocked(conversationsClient.answer).mockResolvedValue({ answer: "close" } as never);
+    renderAsk();
+
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    expect(conversationsClient.answer).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledTimes(1));
+    expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "close", note: "" });
   });
 });
 
@@ -255,5 +399,16 @@ describe("askView", () => {
         Date.parse("2026-10-07T10:00:00Z"),
       ),
     ).toBeNull();
+  });
+
+  it("offers only relative, HTTP, or HTTPS context links", () => {
+    expect(safeContextUrl("/docs/decision")).toBe(
+      new URL("/docs/decision", window.location.origin).href,
+    );
+    expect(safeContextUrl("https://help.example.test/decision")).toBe(
+      "https://help.example.test/decision",
+    );
+    expect(safeContextUrl("javascript:alert(1)")).toBeNull();
+    expect(safeContextUrl("data:text/html,unsafe")).toBeNull();
   });
 });

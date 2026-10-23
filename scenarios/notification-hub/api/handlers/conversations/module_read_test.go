@@ -19,7 +19,7 @@ import (
 	"notification-hub/internal/modules"
 )
 
-func TestConfiguredRecipientCanReadAsksWithoutIdentity(t *testing.T) {
+func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
 	ctx := context.Background()
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
@@ -37,25 +37,34 @@ func TestConfiguredRecipientCanReadAsksWithoutIdentity(t *testing.T) {
 	defer server.Close()
 	client := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL)
 
-	list, err := client.ListAsks(ctx, connect.NewRequest(&v1.ListAsksRequest{OpenOnly: true, Limit: 50}))
-	require.NoError(t, err, "ordinary ask reads must not require an owner login")
+	listRequest := connect.NewRequest(&v1.ListAsksRequest{OpenOnly: true, Limit: 50})
+	list, err := client.ListAsks(ctx, listRequest)
+	require.NoError(t, err)
 	require.Len(t, list.Msg.GetAsks(), 1)
 	require.Equal(t, aliceAsk, list.Msg.GetAsks()[0].GetId())
 
-	got, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: aliceAsk}))
+	getRequest := connect.NewRequest(&v1.GetAskRequest{AskId: aliceAsk})
+	got, err := client.GetAsk(ctx, getRequest)
 	require.NoError(t, err)
 	require.Equal(t, "Alice question", got.Msg.GetAsk().GetQuestion())
-	_, err = client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: bobAsk}))
+	foreignRequest := connect.NewRequest(&v1.GetAskRequest{AskId: bobAsk})
+	_, err = client.GetAsk(ctx, foreignRequest)
 	var connectErr *connect.Error
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeNotFound, connectErr.Code())
 
-	service.SetDefaultRecipient("")
-	emptyList, err := client.ListAsks(ctx, connect.NewRequest(&v1.ListAsksRequest{OpenOnly: true, Limit: 50}))
-	require.NoError(t, err)
-	require.Empty(t, emptyList.Msg.GetAsks(), "unset recipient configuration must not turn into an unscoped ask query")
-
 	_, err = client.Answer(ctx, connect.NewRequest(&v1.AnswerRequest{AskId: aliceAsk, Answer: "yes"}))
 	require.ErrorAs(t, err, &connectErr, "the answer mutation must keep its human identity requirement")
 	require.Equal(t, connect.CodeUnauthenticated, connectErr.Code())
+	require.Equal(t, "verified owner identity is required", connectErr.Message())
+	stillPending, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: aliceAsk}))
+	require.NoError(t, err)
+	require.Equal(t, "pending", stillPending.Msg.GetAsk().GetState())
+	require.Empty(t, stillPending.Msg.GetAsk().GetAnswer())
+
+	service.SetDefaultRecipient("")
+	emptyList := connect.NewRequest(&v1.ListAsksRequest{OpenOnly: true, Limit: 50})
+	_, err = client.ListAsks(ctx, emptyList)
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, connect.CodeNotFound, connectErr.Code())
 }

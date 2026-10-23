@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/provenance"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
@@ -37,9 +38,9 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 }
 
 func (h *handler) Send(ctx context.Context, req *connect.Request[v1.SendRequest]) (*connect.Response[v1.SendResponse], error) {
-	subject, err := identity.Subject(ctx, req.Header(), h.verifier)
+	subject, err := h.producer(ctx, req.Header())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
+		return nil, err
 	}
 	if req.Msg.GetSensitivityLabel() == "" || req.Msg.GetIdempotencyKey() == "" || req.Msg.GetBody() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("body, sensitivity_label, and idempotency_key are required"))
@@ -73,9 +74,9 @@ type relayPayload struct {
 // content. The remote node authenticates the request and resolves its local
 // recipient projection before accepting the durable notification.
 func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayRequest]) (*connect.Response[v1.RelayResponse], error) {
-	subject, err := identity.Subject(ctx, req.Header(), h.verifier)
+	subject, err := h.producer(ctx, req.Header())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
+		return nil, err
 	}
 	raw, err := base64.RawStdEncoding.DecodeString(req.Msg.GetPayloadBase64())
 	if err != nil {
@@ -90,6 +91,18 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&v1.RelayResponse{Notification: ToProto(n)}), nil
+}
+
+func (h *handler) producer(ctx context.Context, headers http.Header) (string, error) {
+	subject, err := identity.ProducerSubject(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
+	if err == nil {
+		return subject, nil
+	}
+	var denied provenance.ScopeDeniedError
+	if errors.As(err, &denied) {
+		return "", connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or scoped producer identity is required"))
 }
 
 func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {

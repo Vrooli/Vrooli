@@ -1,0 +1,32 @@
+[
+  {
+    "path": "scenarios/notification-hub/ui/src/layout/AppShell.a11y.test.tsx",
+    "observed_at": "2026-10-20T22:36:58.902960+00:00",
+    "bytes": 1778,
+    "sha256": "1c24e3140d86f88f62c27bdf57b2aee329b61a3707060de1b2dbd4b575e0e3ab"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/asks-empty-dark.json",
+    "observed_at": "2026-10-20T22:36:58.903325+00:00",
+    "bytes": 5023,
+    "sha256": "0366efa7069254ab95095525feb0d91ba5802c0b9bd2444fc68724c588c4729a"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/asks-empty-light.json",
+    "observed_at": "2026-10-20T22:36:58.903542+00:00",
+    "bytes": 5031,
+    "sha256": "144b6bfcbe494cb88d3ce562e9df2b340a981ca4b31d4eff19ae7839066960fb"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/asks-read-failure-dark.json",
+    "observed_at": "2026-10-20T22:36:58.903704+00:00",
+    "bytes": 5555,
+    "sha256": "1c625ddeaa27fdb2cf14cbaef2a2c44aeeaa4d8ce5b499dedd8230fe6f0e0f69"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/asks-read-failure-light.json",
+    "observed_at": "2026-10-20T22:36:58.903864+00:00",
+    "bytes": 5563,
+    "sha256": "b07b1d9639116ed038bde1f01aacbd4ad0aacccd0315d4fc6fa09d10790f75a3"
+  }
+]

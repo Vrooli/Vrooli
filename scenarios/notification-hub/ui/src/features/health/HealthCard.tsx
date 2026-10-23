@@ -29,7 +29,7 @@ export function HealthCard() {
       refreshing={isFetching && !isLoading}
       onRefresh={handleRefresh}
       title={t(strings.health.title)}
-      description={t(strings.pages.dashboard.description)}
+      description={t(strings.health.description)}
       serviceLabel={t(strings.health.serviceLabel)}
       timestampLabel={t(strings.health.timestampLabel)}
       loadingLabel={t(strings.health.loading)}
@@ -38,11 +38,6 @@ export function HealthCard() {
       formatTimestamp={(timestamp) => formatDate(new Date(timestamp), { dateStyle: "medium", timeStyle: "short" })}
       refreshCount={refreshCount}
       refreshCountLabel={t(strings.health.refreshCount, { count: refreshCount })}
-      footer={
-        <p data-testid={selectors.notifications.summary}>
-          {t(strings.notifications.summary, { count: refreshCount })}
-        </p>
-      }
       testIds={selectors.health}
     />
   );

@@ -1,0 +1,30 @@
+{
+  "created_at": "2026-10-20T21:11:51.422679+00:00",
+  "files": [
+    {
+      "path": "bas/cases/e4/asks-empty-dark.json",
+      "sha256": "bf838de41d9d870cdf3f115ca17f8f017737c2df5ad8bd60356f1d7f2a08c7ea",
+      "bytes": 3834
+    },
+    {
+      "path": "bas/cases/e4/asks-empty-light.json",
+      "sha256": "b529ea21f39567d5daa822382b9ba2ebfeae4060d87309d174e478d78c377f86",
+      "bytes": 3842
+    },
+    {
+      "path": "bas/cases/e4/asks-read-failure-dark.json",
+      "sha256": "dd1209ed0250ddece78fe84f7fb472795ec9d58f2799e2b412d52edb84f06e33",
+      "bytes": 4366
+    },
+    {
+      "path": "bas/cases/e4/asks-read-failure-light.json",
+      "sha256": "149b415e02603e8ff28f43dc7c1cf12cdca7af4e9a9d594cf3ac6fc5962f272f",
+      "bytes": 4374
+    },
+    {
+      "path": "bas/registry.json",
+      "sha256": "4e8ab2d4b9aa2b02eeb4f71300c7b6a7d26415ca8f7a517f7e4d706c393814d5",
+      "bytes": 2670
+    }
+  ]
+}

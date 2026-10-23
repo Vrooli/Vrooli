@@ -1,0 +1,42 @@
+{
+  "captured_at": "2026-10-20T21:55:05.484169+00:00",
+  "source": "immediately before making skip activation focus its linked main landmark",
+  "files": [
+    {
+      "path": "ui/src/layout/AppShell.tsx",
+      "exists": true,
+      "sha256": "125be9c3e01461e8188a0d6a797d79b653a7ad1d6a03668a691026727ed5028b",
+      "size": 2381
+    },
+    {
+      "path": "ui/src/layout/AppShell.test.tsx",
+      "exists": true,
+      "sha256": "1384ee403038f3abe5a64f667019d5cb33bdccbfd1d622e5d142ffad772c4055",
+      "size": 6043
+    },
+    {
+      "path": "ui/src/layout/AppShell.a11y.test.tsx",
+      "exists": true,
+      "sha256": "1c24e3140d86f88f62c27bdf57b2aee329b61a3707060de1b2dbd4b575e0e3ab",
+      "size": 1778
+    },
+    {
+      "path": "ui/src/styles.css",
+      "exists": true,
+      "sha256": "f36431dbf564f12154c3a9288b56748c3850757d13086d753bb75d33a80b067a",
+      "size": 2037
+    },
+    {
+      "path": "ui/src/features/asks/HistoryPage.tsx",
+      "exists": true,
+      "sha256": "1a1947aa02292555ff29c91cbf0c32e0889cfc0c6126e76afcc700621d4ff05e",
+      "size": 8694
+    },
+    {
+      "path": "ui/src/features/asks/HistoryPage.test.tsx",
+      "exists": true,
+      "sha256": "33c475d33969f09268c12c580d6e5821c0fa1e358cb115a0a06c460ce26344d5",
+      "size": 6636
+    }
+  ]
+}

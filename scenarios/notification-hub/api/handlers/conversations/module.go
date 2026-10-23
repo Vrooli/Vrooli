@@ -137,6 +137,9 @@ func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]
 
 func (h *handler) GetAsk(ctx context.Context, req *connect.Request[v1.GetAskRequest]) (*connect.Response[v1.GetAskResponse], error) {
 	recipient := h.service.ResolveRecipient(ctx)
+	if recipient == "" {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("ask not found"))
+	}
 	ask, err := h.service.GetAskForRecipient(ctx, req.Msg.GetAskId(), recipient)
 	if err != nil {
 		return nil, connectError(err)
@@ -147,7 +150,7 @@ func (h *handler) GetAsk(ctx context.Context, req *connect.Request[v1.GetAskRequ
 func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsksRequest]) (*connect.Response[v1.ListAsksResponse], error) {
 	recipient := h.service.ResolveRecipient(ctx)
 	if recipient == "" {
-		return connect.NewResponse(&v1.ListAsksResponse{Asks: []*v1.Ask{}}), nil
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("recipient not found"))
 	}
 	asks, err := h.service.ListAsks(ctx, recipient, req.Msg.GetOpenOnly(), int(req.Msg.GetLimit()))
 	if err != nil {

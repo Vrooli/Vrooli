@@ -3,6 +3,8 @@ import { screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 import { NotificationState } from "@vrooli/proto-types/notification-hub/v1/shared/types_pb";
+import { selectors } from "../consts/selectors";
+import { setLocale } from "../i18n";
 import { DashboardPage } from "./DashboardPage";
 
 vi.mock("../features/health/HealthCard", () => ({
@@ -10,34 +12,40 @@ vi.mock("../features/health/HealthCard", () => ({
 }));
 
 vi.mock("../api/notifications", () => ({
-  deliveryClient: {
-    getTimeline: vi.fn(),
-  },
+  deliveryClient: { getTimeline: vi.fn() },
+  conversationsClient: { listAsks: vi.fn() },
 }));
 
-import { deliveryClient } from "../api/notifications";
+import { conversationsClient, deliveryClient } from "../api/notifications";
 
 const getTimeline = vi.mocked(deliveryClient.getTimeline);
+const listAsks = vi.mocked(conversationsClient.listAsks);
 
-describe("DashboardPage delivery surfaces", () => {
+describe("Updates page", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("shows empty states when there are no notifications", async () => {
+  it("scopes an empty state to the returned list and keeps API health separate", async () => {
+    await setLocale("en");
     getTimeline.mockResolvedValue({ notifications: [] } as never);
+    listAsks.mockResolvedValue({ asks: [] } as never);
 
     renderWithProviders(<DashboardPage />);
 
-    expect(await screen.findByText("No notifications yet. Register this device, then send one from the CLI.")).toBeInTheDocument();
-    expect(screen.getByText("--")).toBeInTheDocument();
+    const page = await screen.findByTestId(selectors.pages.dashboard);
+    expect(page).toHaveTextContent(/No notifications were returned in this request’s scope/);
+    expect(page).toHaveTextContent(/This does not indicate producer health/);
+    expect(screen.getByTestId("health-card")).toBeInTheDocument();
+    expect(listAsks).toHaveBeenCalledWith({ openOnly: false, limit: 50 });
   });
 
-  it("summarizes delivered notifications and renders the timeline", async () => {
+  it("shows informational content and the seven native states without read or acknowledgement controls", async () => {
+    await setLocale("en");
     getTimeline.mockResolvedValue({
       notifications: [
-        { id: "delivered", title: "Welcome", body: "Hello", contextUrl: "https://agent-manager.example/runs/run-42", state: NotificationState.DELIVERED },
-        { id: "pending", title: "Pending item", body: "Later", contextUrl: "javascript:alert(1)", state: NotificationState.PENDING },
+        { id: "delivered", title: "Welcome", body: "Hello", requestedBy: "agent-manager", createdAt: "2026-10-20T14:00:00Z", urgency: "normal", sensitivityLabel: "public", reason: "accepted by adapter", state: NotificationState.DELIVERED },
+        { id: "pending", title: "Pending item", body: "Later", state: NotificationState.PENDING },
         { id: "held", title: "Held item", body: "Waiting", state: NotificationState.HELD },
         { id: "routed", title: "Routed item", body: "Ready", state: NotificationState.ROUTED },
         { id: "failed", title: "Failed item", body: "Error", state: NotificationState.FAILED },
@@ -47,32 +55,60 @@ describe("DashboardPage delivery surfaces", () => {
         { id: "unknown", title: "Unknown item", body: "Future value", state: 99 as NotificationState },
       ],
     } as never);
+    listAsks.mockResolvedValue({
+      asks: [{ id: "ask-1", notificationId: "delivered", state: "pending" }],
+    } as never);
 
     renderWithProviders(<DashboardPage />);
 
-    expect(await screen.findByText("1/9")).toBeInTheDocument();
-    expect(screen.getByText("delivered")).toBeInTheDocument();
-    expect(screen.getByText("Welcome")).toBeInTheDocument();
-    expect(screen.getByText("pending")).toBeInTheDocument();
-    expect(screen.getByText("held")).toBeInTheDocument();
-    expect(screen.getByText("routed")).toBeInTheDocument();
-    expect(screen.getByText("failed")).toBeInTheDocument();
-    expect(screen.getByText("unroutable")).toBeInTheDocument();
-    expect(screen.getByText("suppressed")).toBeInTheDocument();
-    expect(screen.getAllByText("unknown")).toHaveLength(2);
-    expect(screen.getByText("No context")).toBeInTheDocument();
-    const contextLink = screen.getByRole("link", { name: /Welcome/ });
-    expect(contextLink).toHaveAttribute("href", "https://agent-manager.example/runs/run-42");
-    expect(screen.queryByRole("link", { name: /Pending item/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /No context/ })).not.toBeInTheDocument();
+    const page = await screen.findByTestId(selectors.pages.dashboard);
+    for (const value of ["Welcome", "Hello", "agent-manager", "Pending", "Held", "Routed", "Delivered", "Failed", "Unroutable", "Suppressed", "Unknown status", "At least one adapter accepted the payload."]) {
+      expect(page).toHaveTextContent(value);
+    }
+    expect(page).toHaveTextContent(/Unknown status.*Unknown status/s);
+    expect(screen.getByRole("link", { name: "Open decision" })).toHaveAttribute("href", "/asks/ask-1");
+    expect(screen.getAllByRole("link", { name: "Delivery details" })).toHaveLength(9);
+    expect(screen.queryByRole("link", { name: /Open decision/ })).toHaveAttribute("href", "/asks/ask-1");
+    expect(screen.queryByRole("button", { name: /read|acknowledge/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/timeline/i)).not.toBeInTheDocument();
   });
 
-  it("reports unavailable delivery queries", async () => {
-    getTimeline.mockRejectedValue(new Error("offline"));
+  it("does not invent an Open decision link when no returned ask matches the notification", async () => {
+    await setLocale("en");
+    getTimeline.mockResolvedValue({
+      notifications: [{ id: "notification-1", title: "Informational update", body: "Details", state: NotificationState.PENDING }],
+    } as never);
+    listAsks.mockResolvedValue({ asks: [{ id: "unrelated", notificationId: "different-notification", state: "pending" }] } as never);
 
     renderWithProviders(<DashboardPage />);
 
-    expect(await screen.findByText("Delivery summary unavailable.")).toBeInTheDocument();
-    expect(screen.getByText("Timeline unavailable — check the configured recipient and scenario health.")).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.dashboard)).toHaveTextContent("Informational update");
+    expect(screen.queryByRole("link", { name: "Open decision" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Delivery details" })).toHaveAttribute("href", "/delivery/notification-1");
+  });
+
+  it("keeps updates visible when linked-ask lookup fails and does not offer an unverified decision link", async () => {
+    await setLocale("en");
+    getTimeline.mockResolvedValue({
+      notifications: [{ id: "notification-1", title: "Informational update", body: "Details", state: NotificationState.PENDING }],
+    } as never);
+    listAsks.mockRejectedValue(new Error("offline"));
+
+    renderWithProviders(<DashboardPage />);
+
+    const page = await screen.findByTestId(selectors.pages.dashboard);
+    expect(page).toHaveTextContent("Informational update");
+    expect(page).toHaveTextContent("Decision links could not be checked, so no decision actions are shown.");
+    expect(screen.queryByRole("link", { name: "Open decision" })).not.toBeInTheDocument();
+  });
+
+  it("reports an unavailable feed without naming producer health", async () => {
+    await setLocale("en");
+    getTimeline.mockRejectedValue(new Error("offline"));
+    listAsks.mockResolvedValue({ asks: [] } as never);
+
+    renderWithProviders(<DashboardPage />);
+
+    expect(await screen.findByTestId(selectors.pages.dashboard)).toHaveTextContent("Updates could not be loaded.");
   });
 });

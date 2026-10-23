@@ -1,107 +1,124 @@
+import { useMemo } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import { conversationsClient, deliveryClient } from "../api/notifications";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
-import { useQuery } from "@tanstack/react-query";
-import { deliveryClient } from "../api/notifications";
-import { safeContextUrl } from "../features/asks/askView";
-import { NotificationState } from "@vrooli/proto-types/notification-hub/v1/shared/types_pb";
+import { HealthCard } from "../features/health/HealthCard";
+import { deliveryStateKey, formatDeliveryTime } from "../features/delivery/deliveryView";
+import { preserveRoutedTestMode } from "../features/routedTestMode";
 
-/**
- * Dashboard / home page. Composes the health card plus stat placeholders.
- * Replace the cards with real surfaces when the scenario grows them.
- */
+const UPDATE_LIMIT = 20;
+const ASK_LOOKUP_LIMIT = 50;
+
+/** Updates is an informational feed; viewing it never changes notification state. */
 export function DashboardPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const updates = useQuery({
+    queryKey: ["updates"],
+    queryFn: () => deliveryClient.getTimeline({ limit: UPDATE_LIMIT }),
+    refetchInterval: 60_000,
+  });
+  const asks = useQuery({
+    queryKey: ["updates", "linked-asks"],
+    queryFn: () => conversationsClient.listAsks({ openOnly: false, limit: ASK_LOOKUP_LIMIT }),
+    refetchInterval: 60_000,
+  });
+  const askByNotification = useMemo(() => {
+    const byNotification = new Map<string, string>();
+    for (const ask of asks.data?.asks ?? []) {
+      if (ask.notificationId && !byNotification.has(ask.notificationId)) {
+        byNotification.set(ask.notificationId, ask.id);
+      }
+    }
+    return byNotification;
+  }, [asks.data]);
+  const notifications = updates.data?.notifications ?? [];
 
   return (
     <section
       data-testid={selectors.pages.dashboard}
-      aria-labelledby="dashboard-heading"
+      aria-labelledby="updates-heading"
       className="flex flex-col gap-4"
     >
-      <h2 id="dashboard-heading" className="text-2xl font-semibold">
+      <h2 id="updates-heading" className="text-2xl font-semibold">
         {t(strings.pages.dashboard.title)}
       </h2>
-      <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <p className="max-w-prose text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
+      <section aria-label={t(strings.pages.dashboard.feedHeading)} className="flex flex-col gap-3">
+        <p className="text-sm text-app-muted-foreground">{t(strings.pages.dashboard.loadedScope, { limit: UPDATE_LIMIT })}</p>
+        {updates.isPending && <p role="status">{t(strings.asks.detail.loading)}</p>}
+        {updates.isError && <p role="alert">{t(strings.pages.dashboard.loadError)}</p>}
+        {updates.isError && updates.data && <p role="status">{t(strings.pages.dashboard.stale)}</p>}
+        {asks.isError && <p role="status">{t(strings.pages.dashboard.askLinksUnavailable)}</p>}
+        {!updates.isPending && !updates.isError && notifications.length === 0 && (
+          <p className="text-app-muted-foreground">{t(strings.pages.dashboard.emptyReturned)}</p>
+        )}
+        {notifications.length > 0 && (
+          <ul aria-label={t(strings.pages.dashboard.feedHeading)} className="flex flex-col gap-3">
+            {notifications.map((item) => {
+              const state = deliveryStateKey(item.state);
+              const askId = askByNotification.get(item.id);
+              const time = formatDeliveryTime(item.createdAt);
+              return (
+                <li key={item.id} className="rounded-panel border border-app-border p-4">
+                  <article className="flex flex-col gap-2">
+                    <h3 className="break-words text-base font-medium">
+                      {item.title || t(strings.pages.dashboard.untitled)}
+                    </h3>
+                    {item.body && <p className="whitespace-pre-wrap break-words">{item.body}</p>}
+                    <dl className="grid gap-x-4 gap-y-1 text-sm text-app-muted-foreground sm:grid-cols-2">
+                      <div>
+                        <dt className="inline font-medium">{t(strings.pages.dashboard.source)} </dt>
+                        <dd className="inline break-words">{item.requestedBy || t(strings.pages.dashboard.unknownSource)}</dd>
+                      </div>
+                      <div>
+                        <dt className="inline font-medium">{t(strings.pages.dashboard.created)} </dt>
+                        <dd className="inline">
+                          {time ? <time dateTime={item.createdAt}>{time}</time> : t(strings.pages.dashboard.timeUnavailable)}
+                        </dd>
+                      </div>
+                      {item.urgency && (
+                        <div><dt className="inline font-medium">{t(strings.pages.dashboard.urgency)} </dt><dd className="inline">{item.urgency}</dd></div>
+                      )}
+                      {item.sensitivityLabel && (
+                        <div><dt className="inline font-medium">{t(strings.pages.dashboard.sensitivity)} </dt><dd className="inline">{item.sensitivityLabel}</dd></div>
+                      )}
+                    </dl>
+                    <p className="text-sm">
+                      <span className="font-medium">{t(strings.pages.delivery.states[state])}</span>
+                      <span className="text-app-muted-foreground"> — {t(strings.pages.delivery.meanings[state])}</span>
+                      {item.reason && <span className="text-app-muted-foreground"> — {item.reason}</span>}
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                      <Link
+                        to={preserveRoutedTestMode(`/delivery/${encodeURIComponent(item.id)}`, location.search)}
+                        className="rounded-sm underline focus-visible:outline focus-visible:outline-2"
+                      >
+                        {t(strings.pages.dashboard.deliveryDetails)}
+                      </Link>
+                      {askId && (
+                        <Link
+                          to={preserveRoutedTestMode(`/asks/${encodeURIComponent(askId)}`, location.search)}
+                          className="rounded-sm underline focus-visible:outline focus-visible:outline-2"
+                        >
+                          {t(strings.pages.dashboard.openDecision)}
+                        </Link>
+                      )}
+                    </div>
+                  </article>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+      <section aria-label={t(strings.health.title)} className="border-t border-app-border pt-4">
         <HealthCard />
-        <TimelineCard />
-        <DeliverySummaryCard />
-      </div>
+      </section>
     </section>
-  );
-}
-
-function notificationStateLabel(state: NotificationState): string {
-  switch (state) {
-    case NotificationState.PENDING: return "pending";
-    case NotificationState.HELD: return "held";
-    case NotificationState.ROUTED: return "routed";
-    case NotificationState.DELIVERED: return "delivered";
-    case NotificationState.FAILED: return "failed";
-    case NotificationState.UNROUTABLE: return "unroutable";
-    case NotificationState.SUPPRESSED: return "suppressed";
-    default: return "unknown";
-  }
-}
-
-function DeliverySummaryCard() {
-  const analytics = useQuery({
-    queryKey: ["notification-summary"],
-    queryFn: () => deliveryClient.getTimeline({ limit: 100 }),
-    refetchInterval: 15000,
-  });
-  const notifications = analytics.data?.notifications ?? [];
-  const delivered = notifications.filter((item) => item.state === NotificationState.DELIVERED).length;
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-sm uppercase text-app-muted-foreground">Delivery analytics</CardTitle></CardHeader>
-      <CardContent>
-        {analytics.isError ? <p className="text-sm text-red-400">Delivery summary unavailable.</p> : <>
-          <p className="text-2xl font-semibold">{notifications.length === 0 ? "--" : `${delivered}/${notifications.length}`}</p>
-          <p className="text-sm text-app-muted-foreground">notifications delivered in the current view</p>
-        </>}
-      </CardContent>
-    </Card>
-  );
-}
-
-function TimelineCard() {
-  const { t } = useTranslation();
-  const timeline = useQuery({
-    queryKey: ["notification-timeline"],
-    queryFn: () => deliveryClient.getTimeline({ limit: 20 }),
-    refetchInterval: 5000,
-  });
-  const notifications = timeline.data?.notifications ?? [];
-  return (
-    <Card className="lg:col-span-2">
-      <CardHeader><CardTitle className="text-sm uppercase text-app-muted-foreground">Delivery timeline</CardTitle></CardHeader>
-      <CardContent>
-        {timeline.isError && <p className="text-sm text-red-400">Timeline unavailable — check the configured recipient and scenario health.</p>}
-        {!timeline.isError && notifications.length === 0 && <p className="text-sm text-app-muted-foreground">No notifications yet. Register this device, then send one from the CLI.</p>}
-        <ul className="space-y-2" aria-label="Notification delivery timeline">
-          {notifications.map((item) => {
-            const title = item.title || item.body;
-            const context = item.contextUrl ? safeContextUrl(item.contextUrl) : null;
-            return (
-              <li key={item.id} className="flex items-center justify-between rounded border border-app-border px-3 py-2 text-sm">
-                <span className="truncate">{title}</span>
-                <span className="ml-3 flex shrink-0 items-center gap-3 text-app-muted-foreground">
-                  {context && (
-                    <a href={context} className="underline" rel="noreferrer" aria-label={`${title} — ${t(strings.asks.detail.more)}`}>
-                      {t(strings.asks.detail.more)}
-                    </a>
-                  )}
-                  <span>{notificationStateLabel(item.state)}</span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </CardContent>
-    </Card>
   );
 }

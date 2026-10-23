@@ -1,0 +1,13 @@
+[
+  {
+    "path": "scenarios/notification-hub/bas/cases/e1/disposable-recipient-lease-proof.json",
+    "observed_at": "2026-10-20T15:41:23.334688+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/bas/registry.json",
+    "observed_at": "2026-10-20T15:41:23.334769+00:00",
+    "bytes": 686,
+    "sha256": "c61078e326fac9c19d748bf7d6079b1abae8bd022868f660413171d41f74057c"
+  }
+]

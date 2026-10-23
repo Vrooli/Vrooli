@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // OwnerCookieName is the same-origin browser session cookie. It is HttpOnly,
@@ -16,6 +18,30 @@ const OwnerCookieName = "notification_hub_owner_token"
 
 type Verifier interface {
 	Validate(context.Context, string) (owneridentity.Identity, error)
+}
+
+// ProducerSubject accepts a scoped, server-verified run for notification ingress.
+// It never makes that run an owner or authorizes recipient decisions.
+func ProducerSubject(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (string, error) {
+	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
+		return "", owneridentity.ErrUnauthenticated
+	}
+	agent := provenance.FromContext(ctx)
+	if headers.Get(cliutil.HeaderAgentIdentityToken) != "" || agent.IsAgent() {
+		if !agent.IsVerifiedAgent() {
+			return "", owneridentity.ErrUnauthenticated
+		}
+		if err := agent.RequireScope("notification-hub:write"); err != nil {
+			return "", err
+		}
+		// requested_by is the hub's recipient partition, not the acting run.
+		// Keep verified run attribution in canonical request provenance.
+		if strings.TrimSpace(recipient) == "" {
+			return "", owneridentity.ErrUnauthenticated
+		}
+		return recipient, nil
+	}
+	return Subject(ctx, headers, verifier)
 }
 
 // Subject verifies the owner: a Cloudflare Access login first, then the

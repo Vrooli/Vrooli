@@ -24,11 +24,9 @@ const literalSelectors = {
     refreshButton: "health-refresh-button",
     refreshCount: "health-refresh-count",
   },
-  notifications: {
-    summary: "notifications-summary",
-  },
   layout: {
     shell: "layout-shell",
+    main: "layout-shell-main",
   },
   theme: {
     switcher: "theme-switcher",
@@ -39,6 +37,9 @@ const literalSelectors = {
     settings: "page-settings",
     asks: "page-asks",
     ask: "page-ask",
+    history: "page-history",
+    delivery: "page-delivery",
+    deliveryDetail: "page-delivery-detail",
   },
   asks: {
     list: "asks-list",
@@ -76,12 +77,44 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "asks",
+            "history",
+            "delivery",
+            "settings",
+          ] as const,
+        },
+      },
+    }),
+    navTab: defineDynamicSelector({
+      description: "Mobile navigation tab by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}-tab",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "dashboard",
+            "asks",
+            "history",
+            "delivery",
             "settings",
           ] as const,
         },
       },
     }),
 
+  },
+  delivery: {
+    recordDetailsLink: defineDynamicSelector({
+      description: "Delivery detail link for one notification record ID",
+      testIdPattern: "delivery-record-${id}-details",
+      params: { id: { type: "string" } },
+    }),
+  },
+  history: {
+    filterLink: defineDynamicSelector({
+      description: "History filter link by terminal outcome state",
+      testIdPattern: "history-filter-${state}",
+      params: { state: { type: "enum", values: ["all", "answered", "defaulted", "expired"] as const } },
+    }),
   },
   settingsPage: {
     themeOption: defineDynamicSelector({

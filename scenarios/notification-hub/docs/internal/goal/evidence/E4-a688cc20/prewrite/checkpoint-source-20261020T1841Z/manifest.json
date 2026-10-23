@@ -1,0 +1,139 @@
+[
+  {
+    "path": "scenarios/notification-hub/ui/src/features/delivery/deliveryView.ts",
+    "observed_at": "2026-10-20T18:37:47.348630+00:00",
+    "bytes": 1104,
+    "sha256": "e9f136a71973a6841149d8c3a8da3a1ad7ed4e1478c20c5d821e1ea9bcc56970"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/delivery/deliveryView.test.ts",
+    "observed_at": "2026-10-20T18:37:47.349060+00:00",
+    "bytes": 1234,
+    "sha256": "395ccdafe2c076d011a69e33e108ce3984fc27658cea18dcc701953dabc2cddb"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/HistoryPage.tsx",
+    "observed_at": "2026-10-20T18:37:47.349291+00:00",
+    "bytes": 5621,
+    "sha256": "9676fddbb06ed84eb1d9176fd3724d03d550a5eeb8c6466d7215ef70bd230e95"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/HistoryPage.test.tsx",
+    "observed_at": "2026-10-20T18:37:47.349524+00:00",
+    "bytes": 4671,
+    "sha256": "77c5d6d9b5d5f6bd199ae2043ef438ead9d17339ad457d36fa3fb765d13b1c5e"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DashboardPage.tsx",
+    "observed_at": "2026-10-20T18:37:47.349733+00:00",
+    "bytes": 6376,
+    "sha256": "24e362528051ca0039563ccbe4ecbc619e2c032a90bd4d92abd962ccb97cd320"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DashboardPage.test.tsx",
+    "observed_at": "2026-10-20T18:37:47.349954+00:00",
+    "bytes": 5921,
+    "sha256": "498206aabdc2a758bf3817e50386ff51ba829220cfd9fd8c59194d348abbe7dd"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryPage.tsx",
+    "observed_at": "2026-10-20T18:37:47.350150+00:00",
+    "bytes": 3502,
+    "sha256": "b2d584ae7dd2d3993f0c6c427d178dd2aebd5144aaf3b1c257fab7d1118c62e8"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryPage.test.tsx",
+    "observed_at": "2026-10-20T18:37:47.350400+00:00",
+    "bytes": 4946,
+    "sha256": "c51a440d446a805eb854b9ebcd06205b3bee83b13e9be1de3f27463e6ea2979c"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryDetailPage.tsx",
+    "observed_at": "2026-10-20T18:37:47.350607+00:00",
+    "bytes": 6191,
+    "sha256": "b609391916f803b4665d042428a6af68221ed8c705313bc0bacc069e68f2eb61"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryDetailPage.test.tsx",
+    "observed_at": "2026-10-20T18:37:47.350814+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/app/routes.tsx",
+    "observed_at": "2026-10-20T18:37:47.350953+00:00",
+    "bytes": 2528,
+    "sha256": "c5d7474c991390f55490756a4a353ecb166ebb99b1bfbd8af3974a315b05c576"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/app/routes.test.tsx",
+    "observed_at": "2026-10-20T18:37:47.351173+00:00",
+    "bytes": 2958,
+    "sha256": "6ef4e5d46e755f1b9470402b5a39682fa6f461be66702998358e211db4b4ef28"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T18:37:47.351394+00:00",
+    "bytes": 8917,
+    "sha256": "846c210757a5a253e983776eb201f81eb4937540a77f179fb42c51c3abbbf803"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.ts",
+    "observed_at": "2026-10-20T18:37:47.351784+00:00",
+    "bytes": 3168,
+    "sha256": "c5192250ade90d8258028c81d3115c7978d623e484ecbabd591b202ea1ff7cd4"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T18:37:47.352177+00:00",
+    "bytes": 8414,
+    "sha256": "f6990706d8ebf492d800aca8e45915fc87133edc840c2648add3c95b0a2c6923"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/en.json",
+    "observed_at": "2026-10-20T18:37:47.352418+00:00",
+    "bytes": 10580,
+    "sha256": "48179a945b1740ff3a73876bb227cd5222b5b02e464ca05e39f18d2ba5a7c223"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/ar.json",
+    "observed_at": "2026-10-20T18:37:47.352737+00:00",
+    "bytes": 13654,
+    "sha256": "e96e9a507bfe706be79fb15cd3b4679295728caf0121944133fe2718a5eb2559"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/ja.json",
+    "observed_at": "2026-10-20T18:37:47.353148+00:00",
+    "bytes": 12602,
+    "sha256": "fb99bf2a1b854217619ef840f36005334b43e7221d5cd484b2b9cd412633950e"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/askView.ts",
+    "observed_at": "2026-10-20T18:37:47.353386+00:00",
+    "bytes": 1400,
+    "sha256": "699e462fc3fc66090ef458ca08acad7238001528c94a0fc9c93eddbd1241f3d1"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AskPage.test.tsx",
+    "observed_at": "2026-10-20T18:37:47.353673+00:00",
+    "bytes": 16055,
+    "sha256": "f71685e0db9e42ae895f7b15b2d8f62932975226235806fd2ae092ba7debffe7"
+  },
+  {
+    "path": "scenarios/notification-hub/api/internal/push/webpush.go",
+    "observed_at": "2026-10-20T18:37:47.353907+00:00",
+    "bytes": 12898,
+    "sha256": "6e3c189720934e0fb49d49c261549d11c64572cdc5693cfe97408c7151a7a5f4"
+  },
+  {
+    "path": "scenarios/notification-hub/api/internal/push/webpush_test.go",
+    "observed_at": "2026-10-20T18:37:47.354194+00:00",
+    "bytes": 7239,
+    "sha256": "ce73e67280a9272d33a6c700d28078b0fe0f0e932e153215b23b87dd82a2a490"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/epochs/E4-e2-delivery-proof.md",
+    "observed_at": "2026-10-20T18:37:47.354549+00:00",
+    "bytes": 9239,
+    "sha256": "00a394fbd1c4d25425fbf5e93f31e90de5a6aa2836eb5afb57b14c767a203b86"
+  }
+]

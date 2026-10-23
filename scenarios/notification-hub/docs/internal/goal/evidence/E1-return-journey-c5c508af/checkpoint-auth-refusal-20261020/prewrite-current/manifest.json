@@ -1,0 +1,37 @@
+[
+  {
+    "path": "scenarios/notification-hub/api/handlers/conversations/module_read_test.go",
+    "observed_at": "2026-10-20T17:46:56.373339+00:00",
+    "bytes": 2735,
+    "sha256": "a9d8aff448f4ddb80efe0a6a8ff3b5424d62bd12a44750af31b0aece6adcd696"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/epochs/E1-return-journey.md",
+    "observed_at": "2026-10-20T17:46:56.373912+00:00",
+    "bytes": 9619,
+    "sha256": "41777b221db8443be5c28af08d9d83c11bca61f5aed3cad866889d70c6d71867"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/auth-lease-route.json",
+    "observed_at": "2026-10-20T17:46:56.374227+00:00",
+    "bytes": 2884,
+    "sha256": "a9e3f8f772200866319ac5616704cc99150741fd4dc221064a6354436815c0a5"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/auth-refusal-check.json",
+    "observed_at": "2026-10-20T17:46:56.374582+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/handoff.md",
+    "observed_at": "2026-10-20T17:46:56.374726+00:00",
+    "bytes": 6444,
+    "sha256": "f787ddcd31efc9b73930d2dce9b7d228e84df4a1f5a54e11464502172355a686"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-return-journey-c5c508af/inventory.json",
+    "observed_at": "2026-10-20T17:46:56.375031+00:00",
+    "bytes": 22311,
+    "sha256": "ac9aae0d736e7c3829204902eb95d8087941cc121692daea2b073949c04d84eb"
+  }
+]

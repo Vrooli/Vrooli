@@ -10,6 +10,9 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { AskPage } from "../features/asks/AskPage";
 import { AsksPage } from "../features/asks/AsksPage";
+import { HistoryPage } from "../features/asks/HistoryPage";
+import { DeliveryPage } from "../pages/DeliveryPage";
+import { DeliveryDetailPage } from "../pages/DeliveryDetailPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -22,9 +25,13 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <AsksPage /> },
+      { path: "updates", element: <DashboardPage /> },
       { path: "asks", element: <AsksPage /> },
       { path: "asks/:askId", element: <AskPage /> },
+      { path: "history", element: <HistoryPage /> },
+      { path: "delivery", element: <DeliveryPage /> },
+      { path: "delivery/:notificationId", element: <DeliveryDetailPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

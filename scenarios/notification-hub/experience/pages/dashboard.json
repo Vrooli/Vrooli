@@ -5,7 +5,7 @@
   "page": {
     "id": "dashboard",
     "title": "Dashboard",
-    "routes": ["/"],
+    "routes": ["/updates"],
     "purpose": "Give the operator the first useful view of Notification Hub and make the primary next action clear.",
     "prd_refs": ["OT-P0-001"]
   },

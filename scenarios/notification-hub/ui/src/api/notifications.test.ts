@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { recipientsClient, registerBrowserPushSubscription } from "./notifications";
+import { identityClient, recipientsClient, registerBrowserPushSubscription } from "./notifications";
 
 describe("browser push registration", () => {
   const register = vi.spyOn(recipientsClient, "registerPushSubscription");
@@ -56,5 +56,40 @@ describe("browser push registration", () => {
       "browser returned an incomplete push subscription",
     );
     expect(register).not.toHaveBeenCalled();
+  });
+
+  it("announces an expired owner session on a protected API 401", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 401 }));
+    const expired = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    window.addEventListener("notification-hub:session-expired", expired);
+    try {
+      await expect(identityClient.getSession({})).rejects.toBeDefined();
+      expect(expired).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ credentials: "same-origin" }));
+    } finally {
+      window.removeEventListener("notification-hub:session-expired", expired);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("forwards routed test mode through the actual Connect client only when explicitly requested", async () => {
+    window.history.replaceState({}, "", "/?vrooli_test_mode=1");
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 401 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(identityClient.getSession({})).rejects.toBeDefined();
+      const [, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+      expect(new Headers(init.headers).get("X-Vrooli-Test-Mode")).toBe("1");
+
+      window.history.replaceState({}, "", "/");
+      fetchMock.mockClear();
+      await expect(identityClient.getSession({})).rejects.toBeDefined();
+      const [, ordinaryInit] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+      expect(new Headers(ordinaryInit.headers).has("X-Vrooli-Test-Mode")).toBe(false);
+    } finally {
+      window.history.replaceState({}, "", "/");
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -7,6 +7,9 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+// Keep the production entry's module graph connected to the route table and
+// AppShell so ownership checks can follow the served browser entry.
+import App from "./App";
 import { initPendingNavigation } from "./features/pendingNav";
 import "./styles.css";
 
@@ -43,11 +46,9 @@ const appRoot = rootEl;
 const queryClient = new QueryClient();
 
 async function bootstrap() {
-  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
-    import("./App"),
+  const [{ ErrorBoundary }, { onProfilerRender }] = await Promise.all([
     import("./components/ErrorBoundary"),
     import("./lib/profiler"),
-    import("./i18n"),
   ]);
 
   ReactDOM.createRoot(appRoot).render(

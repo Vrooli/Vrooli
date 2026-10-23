@@ -37,3 +37,21 @@
 
 # Build-freshness stamps
 /.build-fingerprint.json
+
+# Preserve authored goal/evidence summaries and compact manifests. Raw reports,
+# coverage, screenshots, source snapshots, and duplicate patch copies remain
+# local; GCT path snapshots are bounded, metadata-only by default, and leased.
+/docs/internal/goal/evidence/**
+!/docs/internal/goal/evidence/**/
+!/docs/internal/goal/evidence/**/*.md
+!/docs/internal/goal/evidence/**/manifest.json
+!/docs/internal/goal/evidence/**/source-map.json
+!/docs/internal/goal/evidence/**/SHA256SUMS*
+!/docs/internal/goal/evidence/**/*sha256sum*.txt
+!/docs/internal/goal/evidence/**/*.sha256
+
+# Keep source copies and generated execution reports local after the authored
+# Markdown exception above; child ignore rules override repository rules.
+/docs/internal/goal/evidence/**/bytes/
+/docs/internal/goal/evidence/**/preimage/
+/docs/internal/goal/evidence/**/execution-summary.md

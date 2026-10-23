@@ -1,0 +1,14 @@
+[
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/history-bounded.json",
+    "observed_at": "2026-10-21T01:14:13.964187+00:00",
+    "bytes": 21186,
+    "sha256": "047c8a1b793ad4ed20966fddda2112c3442e57b22303d78e70ecd8563194fd4d"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/history-dark.json",
+    "observed_at": "2026-10-21T01:14:13.964339+00:00",
+    "bytes": 19948,
+    "sha256": "9cfac2d4fd635464b67906df9bb7d2bc2d4b4e021bee5c8a9d83f448b7eda5bb"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AsksPage.tsx",
+    "observed_at": "2026-10-20T22:09:20.244925+00:00",
+    "bytes": 5285,
+    "sha256": "49f7a9c2f03c10f4cb3c8f03b47125675a6bd59aad92ff5adb9340b009d220ba"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AsksPage.test.tsx",
+    "observed_at": "2026-10-20T22:09:20.245780+00:00",
+    "bytes": 4827,
+    "sha256": "6e567d3b94500e35e643a39a2e7e8cac55798b261f764671eae4cc5ff5df628f"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/en.json",
+    "observed_at": "2026-10-20T22:09:20.245983+00:00",
+    "bytes": 10780,
+    "sha256": "4fb6f2bbc00e67663cb0430920404516cb2ff0a741c5a4e2f92c117e9ec5a716"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/ja.json",
+    "observed_at": "2026-10-20T22:09:20.246233+00:00",
+    "bytes": 12850,
+    "sha256": "24a11e5db5789a3d51182ca66eda72549471905e64668b6dc0f1701dbbf96953"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/ar.json",
+    "observed_at": "2026-10-20T22:09:20.246436+00:00",
+    "bytes": 13923,
+    "sha256": "b44c92bf8b201133571f1eba63577bd29c49a48925e984bf1c093162471b8cbb"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T22:09:20.246620+00:00",
+    "bytes": 9104,
+    "sha256": "a4d785989c2f2cc7f439722fd47304d5e76c61524da7c1d25aed746f8237e811"
+  }
+]

@@ -6,6 +6,13 @@ import { IdentityService } from "@vrooli/proto-types/notification-hub/v1/identit
 import { NotificationsService } from "@vrooli/proto-types/notification-hub/v1/notifications/notifications_pb";
 import { RecipientsService } from "@vrooli/proto-types/notification-hub/v1/recipients/recipients_pb";
 
+const TEST_MODE_QUERY = "vrooli_test_mode";
+const TEST_MODE_HEADER = "X-Vrooli-Test-Mode";
+
+function isRoutedTestMode(): boolean {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get(TEST_MODE_QUERY) === "1";
+}
+
 /**
  * The owner session is an HttpOnly same-origin cookie set by the hub's
  * IdentityService; the browser sends it on every same-origin call and page
@@ -13,9 +20,16 @@ import { RecipientsService } from "@vrooli/proto-types/notification-hub/v1/recip
  * into a response body.
  */
 const sessionFetch: typeof fetch = (input, init) => {
-  const headers = new Headers(init?.headers);
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(init?.headers).forEach((value, name) => headers.set(name, value));
   headers.set("X-Vrooli-Browser-Session", "1");
-  return fetch(input, { ...init, headers, credentials: "same-origin" });
+  if (isRoutedTestMode()) headers.set(TEST_MODE_HEADER, "1");
+  return fetch(input, { ...init, headers, credentials: "same-origin" }).then((response) => {
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("notification-hub:session-expired"));
+    }
+    return response;
+  });
 };
 
 const transport = createScenarioConnectTransport({ fetch: sessionFetch });

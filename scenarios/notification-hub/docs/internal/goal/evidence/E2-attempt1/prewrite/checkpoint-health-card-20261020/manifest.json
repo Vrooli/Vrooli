@@ -1,0 +1,132 @@
+[
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E2-attempt1/build-identity.json",
+    "observed_at": "2026-10-20T15:58:53.757873+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E2-attempt1/source-comparison.json",
+    "observed_at": "2026-10-20T15:58:53.758047+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E2-attempt1/test-receipt.json",
+    "observed_at": "2026-10-20T15:58:53.758206+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/app/routes.test.tsx",
+    "observed_at": "2026-10-20T15:58:53.758341+00:00",
+    "bytes": 2629,
+    "sha256": "bb4aa8e0c18e7cf0f87dcef224bc32fd80a834d1ce5ae731a03070ae717a3866"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/app/routes.tsx",
+    "observed_at": "2026-10-20T15:58:53.760626+00:00",
+    "bytes": 2385,
+    "sha256": "2ace34e5f41d9cdf692e31b9ca410dfb8ee5db9ce73c4e316d5120a0afffad52"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T15:58:53.761139+00:00",
+    "bytes": 8417,
+    "sha256": "aa032adef8317f470def9e2004192caa9271205441f95f8bd4acc0650216496a"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.ts",
+    "observed_at": "2026-10-20T15:58:53.761399+00:00",
+    "bytes": 3186,
+    "sha256": "4e6a9a1919356e1b3dea66dc62773c0614ae34cb0ed6bfa577176d97807ae42d"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T15:58:53.763363+00:00",
+    "bytes": 5814,
+    "sha256": "c530f779a3e7e47beec683e5be9e4b3565d75495f996b2a4a4351fedfecc6c3a"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/HistoryPage.test.tsx",
+    "observed_at": "2026-10-20T15:58:53.764129+00:00",
+    "bytes": 2172,
+    "sha256": "5c7266e98d19a221c807958a141881fb37f2ecdd82d42eef8009ac730b7bc633"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/HistoryPage.tsx",
+    "observed_at": "2026-10-20T15:58:53.764760+00:00",
+    "bytes": 4135,
+    "sha256": "8134f147a5245745653453ce1f5dc173531ca550d2ba64cdcb69e02d7d441f20"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/delivery/deliveryView.test.ts",
+    "observed_at": "2026-10-20T15:58:53.765520+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/delivery/deliveryView.ts",
+    "observed_at": "2026-10-20T15:58:53.765807+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/health/HealthCard.tsx",
+    "observed_at": "2026-10-20T15:58:53.766054+00:00",
+    "bytes": 1885,
+    "sha256": "7ad14a870aa16ce8ed00f9d8680bb7f4f07a01017f545831abfa9e5692fc0037"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/ar.json",
+    "observed_at": "2026-10-20T15:58:53.766350+00:00",
+    "bytes": 8829,
+    "sha256": "d2c905cb0d0e185c861daf82eb112c4eb0a949363cef14939209d52584f81d25"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/en.json",
+    "observed_at": "2026-10-20T15:58:53.768673+00:00",
+    "bytes": 6990,
+    "sha256": "98b2984cbf3b86165aaabef9331b2bba982a0bdfac37ba7cd43cdedf848be6fb"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/i18n/locales/ja.json",
+    "observed_at": "2026-10-20T15:58:53.768904+00:00",
+    "bytes": 8122,
+    "sha256": "6bb2c19cdc59615a9725803a165d7a58a147612e18365a30fcb17f42fcb7a430"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/layout/navItems.tsx",
+    "observed_at": "2026-10-20T15:58:53.769972+00:00",
+    "bytes": 1797,
+    "sha256": "e6e8e500d6fe071225e64dcec69f403776440a8edfafc6d82a4911dc98de05e9"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DashboardPage.test.tsx",
+    "observed_at": "2026-10-20T15:58:53.770209+00:00",
+    "bytes": 3872,
+    "sha256": "5dd8a296fd6e8c953c2cf3b2610f68ee9ee0498f504ab171a0014204098b4b84"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DashboardPage.tsx",
+    "observed_at": "2026-10-20T15:58:53.770603+00:00",
+    "bytes": 3606,
+    "sha256": "51df22aa7b682917a59e78714f089407d9b7520f662956012f6fbeab7522b73c"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryDetailPage.test.tsx",
+    "observed_at": "2026-10-20T15:58:53.770818+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryDetailPage.tsx",
+    "observed_at": "2026-10-20T15:58:53.770976+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryPage.test.tsx",
+    "observed_at": "2026-10-20T15:58:53.771128+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/pages/DeliveryPage.tsx",
+    "observed_at": "2026-10-20T15:58:53.771283+00:00",
+    "bytes": 591,
+    "sha256": "7bea7a986dba00564840b184fef3f7ae55d17e90cbcb1c655d0bc178eff765eb"
+  }
+]

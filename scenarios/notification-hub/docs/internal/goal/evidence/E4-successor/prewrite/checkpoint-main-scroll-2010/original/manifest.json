@@ -1,0 +1,36 @@
+{
+  "captured_at_utc": "2026-10-20T20:08:33.659228+00:00",
+  "reason": "Exact prewrite snapshot before registering the AppShell main scroll target for E4 viewport captures.",
+  "files": [
+    {
+      "path": "ui/src/consts/selectors.ts",
+      "sha256": "0aec5a08971fe7154d77b577ecf7804b6a5369e70fe0a4aac7570573f464a711",
+      "size_bytes": 4092
+    },
+    {
+      "path": "ui/src/consts/selectors.manifest.json",
+      "sha256": "4e144f069e6fdc08f84f6294ea367c8a1409bd61082031f6d965fe7502cd1239",
+      "size_bytes": 9679
+    },
+    {
+      "path": "ui/src/layout/AppShell.test.tsx",
+      "sha256": "0a6ea9b7cf5ddebfe3c6284ef9366648b3821efd6d5ebc39c7dcf88d3a02a0a3",
+      "size_bytes": 4989
+    },
+    {
+      "path": "bas/cases/e4/delivery-detail.json",
+      "sha256": "5844a9501dff3a5f7b2014ea734e94332b6fafb4417905f61deb119e572aeb64",
+      "size_bytes": 12413
+    },
+    {
+      "path": "bas/cases/e4/delivery-dark.json",
+      "sha256": "f3ecc9305ff5d2ae066813f85f64dc030f6199284680bdea5546bc36c5003a84",
+      "size_bytes": 12578
+    },
+    {
+      "path": "bas/registry.json",
+      "sha256": "3927d4ed7ba1ccb50f5185e8b626e9f7f59b0e613e03893b344bd65002986638",
+      "size_bytes": 1820
+    }
+  ]
+}

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   source_scenario TEXT NOT NULL DEFAULT '',
   category TEXT NOT NULL DEFAULT '',
   context_url TEXT NOT NULL DEFAULT '',
+  scope_key TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE(requested_by, idempotency_key)

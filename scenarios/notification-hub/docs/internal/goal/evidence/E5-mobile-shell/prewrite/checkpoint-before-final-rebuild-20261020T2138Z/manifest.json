@@ -1,0 +1,98 @@
+[
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T21:38:05.625094+00:00",
+    "bytes": 9800,
+    "sha256": "cbf9857e2cbe6373e7850b4fe0964778ee5f4e03d8d2657d8e62b50ff96a38c1"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.ts",
+    "observed_at": "2026-10-20T21:38:05.625453+00:00",
+    "bytes": 4123,
+    "sha256": "7cd3f13e1e9aa5084eae709fdf682850d8922269d8f6abb8a5caccfaa146ad56"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T21:38:05.625676+00:00",
+    "bytes": 9104,
+    "sha256": "a4d785989c2f2cc7f439722fd47304d5e76c61524da7c1d25aed746f8237e811"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/apple-icon-180.png",
+    "observed_at": "2026-10-20T21:38:05.625873+00:00",
+    "bytes": 2121,
+    "sha256": "80c4d8d2859afab47cd0a5b85f67d02d9fe0247e521cb980a9e462604d006e24"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/assets/ErrorBoundary-DKAZ7eZy.js",
+    "observed_at": "2026-10-20T21:38:05.626241+00:00",
+    "bytes": 1360,
+    "sha256": "17fbdf751979357c35e998f7fe8e9eed48b350b0462474dc7e656836983e1525"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/assets/index-B82zpc9c.css",
+    "observed_at": "2026-10-20T21:38:05.626474+00:00",
+    "bytes": 26824,
+    "sha256": "f6dca1daf4d62d3043fc8143ea67a154930957653d13e86bb7d707a8b6dfe18c"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/assets/index-D7QCaN_B.js",
+    "observed_at": "2026-10-20T21:38:05.626691+00:00",
+    "bytes": 760509,
+    "sha256": "0f700e912317a9a3fe43c548cc808c18288131c0eae3902f2a5e26f5f8e719bd"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/assets/profiler-D7qAmvGi.js",
+    "observed_at": "2026-10-20T21:38:05.631557+00:00",
+    "bytes": 140,
+    "sha256": "33baa3621d194b8f2980291fad50920a1b23ba16ace7d31cccde775f4b3151e2"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/favicon-196.png",
+    "observed_at": "2026-10-20T21:38:05.631850+00:00",
+    "bytes": 2198,
+    "sha256": "d6fc31f168b5e32c1e7117faa208dc451e82a21d3b6fe2f30c45a47bffe8cb2a"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/index.html",
+    "observed_at": "2026-10-20T21:38:05.632048+00:00",
+    "bytes": 1855,
+    "sha256": "d87c19f0f9dda86b87961efb5dfe3e0355d5cb3363a75c6f3f93bf3224609120"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/index.html.freshness.json",
+    "observed_at": "2026-10-20T21:38:05.632240+00:00",
+    "bytes": 102823,
+    "sha256": "8d195317af5dc9182a4a182004ebd435f2b891cb45729fd9230050b406b50d57"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/logo.svg",
+    "observed_at": "2026-10-20T21:38:05.632733+00:00",
+    "bytes": 561,
+    "sha256": "ef1920109445c00b79255bfa66214490bd64d5c0ef1706d08087465e0d2ea7eb"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/manifest-icon-192.maskable.png",
+    "observed_at": "2026-10-20T21:38:05.633084+00:00",
+    "bytes": 2218,
+    "sha256": "3ab1dfe4d938bc2a2c1f3d2b300828ed97c65d1a113128866b743b97aff2f654"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/manifest-icon-512.maskable.png",
+    "observed_at": "2026-10-20T21:38:05.633356+00:00",
+    "bytes": 5854,
+    "sha256": "7e41bbd6f20456270710e878b88cedae4175465dd28adad0905dc2d8c5f24796"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/site.webmanifest",
+    "observed_at": "2026-10-20T21:38:05.633656+00:00",
+    "bytes": 674,
+    "sha256": "bd5d395537dcf7c2f4dbb7c04fe14b0770738e2ac23c5f8b1777011aa24e2806"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/dist/sw.js",
+    "observed_at": "2026-10-20T21:38:05.633851+00:00",
+    "bytes": 6186,
+    "sha256": "08e4b94dc43f4b7e93b9a504e0c24d2892f0e419fdce1bd18276018a373bd807"
+  }
+]

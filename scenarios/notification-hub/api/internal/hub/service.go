@@ -21,6 +21,11 @@ import (
 )
 
 const (
+	TestRecipientID      = "recipient-e1-disposable"
+	TestRecipientSubject = "e1-fixture@notification-hub.invalid"
+	TestNotificationID   = "notification-e1-disposable"
+	TestAskID            = "ask-e1-disposable"
+
 	MaxAttempts       = 3
 	DefaultDedupeWind = 5 * time.Minute
 	// EventSaturationLimit bounds repeated notifications for one fingerprint
@@ -426,6 +431,9 @@ func (s *Service) SetOwnerFallback(subject string) {
 // unroutable with RecipientSettingHint so the fix is named, never silently
 // drop it.
 func (s *Service) ResolveRecipient(ctx context.Context) string {
+	if database.IsTestMode(ctx) && s.db != nil && s.db.HasTestPool() {
+		return TestRecipientSubject
+	}
 	s.mu.RLock()
 	override := s.defaultRecipient
 	resolve := s.recipientResolver

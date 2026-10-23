@@ -1,0 +1,110 @@
+[
+  {
+    "path": "ui/dist/apple-icon-180.png",
+    "observed_at": "2026-10-20T15:41:49.881300+00:00",
+    "bytes": 2121,
+    "sha256": "80c4d8d2859afab47cd0a5b85f67d02d9fe0247e521cb980a9e462604d006e24"
+  },
+  {
+    "path": "ui/dist/assets/App-secBAD0K.js",
+    "observed_at": "2026-10-20T15:41:49.882558+00:00",
+    "bytes": 373328,
+    "sha256": "2c74642ad097a791eae202f36efaaa46267d10495bdc662687cab121badc4300"
+  },
+  {
+    "path": "ui/dist/assets/Button-B4IBeLZA.js",
+    "observed_at": "2026-10-20T15:41:49.884484+00:00",
+    "bytes": 41817,
+    "sha256": "9ed932bf9d1528e06a270d2a2416e9705e44789811e86c2c6cefc9088711e60b"
+  },
+  {
+    "path": "ui/dist/assets/ErrorBoundary-DaEPFl_8.js",
+    "observed_at": "2026-10-20T15:41:49.885944+00:00",
+    "bytes": 1394,
+    "sha256": "c9841af7d4d544e467888930a8953493b17699b37f14c71372d50f8d58ee9830"
+  },
+  {
+    "path": "ui/dist/assets/index-BnqvBj6X.css",
+    "observed_at": "2026-10-20T15:41:49.886196+00:00",
+    "bytes": 25957,
+    "sha256": "04ee6cb885b02db6e07d48a00b211004dec0bff0843bcc4650dffa057c8d7819"
+  },
+  {
+    "path": "ui/dist/assets/index-eoha1g6R.js",
+    "observed_at": "2026-10-20T15:41:49.886676+00:00",
+    "bytes": 319797,
+    "sha256": "01c4b84b5318851e99979a0d5fcf9c048e8e3ec85bc2916524d2303a79700d54"
+  },
+  {
+    "path": "ui/dist/assets/profiler-D7qAmvGi.js",
+    "observed_at": "2026-10-20T15:41:49.888091+00:00",
+    "bytes": 140,
+    "sha256": "33baa3621d194b8f2980291fad50920a1b23ba16ace7d31cccde775f4b3151e2"
+  },
+  {
+    "path": "ui/dist/favicon-196.png",
+    "observed_at": "2026-10-20T15:41:49.888319+00:00",
+    "bytes": 2198,
+    "sha256": "d6fc31f168b5e32c1e7117faa208dc451e82a21d3b6fe2f30c45a47bffe8cb2a"
+  },
+  {
+    "path": "ui/dist/index.html",
+    "observed_at": "2026-10-20T15:41:49.888561+00:00",
+    "bytes": 1855,
+    "sha256": "a2b7f6ae2ebfce6913716e912f8b1f0ad4818bb2b5fdcd0cd887fa49270abb73"
+  },
+  {
+    "path": "ui/dist/logo.svg",
+    "observed_at": "2026-10-20T15:41:49.888895+00:00",
+    "bytes": 561,
+    "sha256": "ef1920109445c00b79255bfa66214490bd64d5c0ef1706d08087465e0d2ea7eb"
+  },
+  {
+    "path": "ui/dist/manifest-icon-192.maskable.png",
+    "observed_at": "2026-10-20T15:41:49.889614+00:00",
+    "bytes": 2218,
+    "sha256": "3ab1dfe4d938bc2a2c1f3d2b300828ed97c65d1a113128866b743b97aff2f654"
+  },
+  {
+    "path": "ui/dist/manifest-icon-512.maskable.png",
+    "observed_at": "2026-10-20T15:41:49.891102+00:00",
+    "bytes": 5854,
+    "sha256": "7e41bbd6f20456270710e878b88cedae4175465dd28adad0905dc2d8c5f24796"
+  },
+  {
+    "path": "ui/dist/site.webmanifest",
+    "observed_at": "2026-10-20T15:41:49.891677+00:00",
+    "bytes": 674,
+    "sha256": "bd5d395537dcf7c2f4dbb7c04fe14b0770738e2ac23c5f8b1777011aa24e2806"
+  },
+  {
+    "path": "ui/dist/sw.js",
+    "observed_at": "2026-10-20T15:41:49.892464+00:00",
+    "bytes": 6186,
+    "sha256": "08e4b94dc43f4b7e93b9a504e0c24d2892f0e419fdce1bd18276018a373bd807"
+  },
+  {
+    "path": "api/notification-hub-api",
+    "observed_at": "2026-10-20T15:41:49.892671+00:00",
+    "bytes": 41276551,
+    "sha256": "d9dc1b99179bf2ac74186ff39869088c025d21147c4b1be69868ce26ad911918"
+  },
+  {
+    "path": "api/notification-hub-api.freshness.json",
+    "observed_at": "2026-10-20T15:41:50.021368+00:00",
+    "bytes": 187626,
+    "sha256": "25c36de7eb464a9bd7d2061b8ce4c5e1a925fafafaaf6cf01cff582a51f283d8"
+  },
+  {
+    "path": "ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T15:41:50.024970+00:00",
+    "bytes": 8417,
+    "sha256": "aa032adef8317f470def9e2004192caa9271205441f95f8bd4acc0650216496a"
+  },
+  {
+    "path": "ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T15:41:50.025226+00:00",
+    "bytes": 5814,
+    "sha256": "c530f779a3e7e47beec683e5be9e4b3565d75495f996b2a4a4351fedfecc6c3a"
+  }
+]

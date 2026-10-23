@@ -6,6 +6,8 @@ import { renderWithProviders } from "../test-utils";
 import { SettingsPage } from "./SettingsPage";
 import { fetchNotificationCatalog, updateNotificationPreference, type NotificationPreference } from "../api/preferences";
 import { identityClient, recipientsClient } from "../api/notifications";
+import { detectInitialLocale, getCurrentLocale, setLocale } from "../i18n";
+import { readLocalPreference } from "../theme/ThemeProvider";
 
 /** The PreferenceRow container holding the label, enable checkbox, and urgency select. */
 function preferenceRowFor(label: RegExp): HTMLElement {
@@ -77,6 +79,9 @@ const catalogWithOneSource = {
 
 describe("SettingsPage notification preferences", () => {
   beforeEach(() => {
+    window.localStorage.clear();
+    readLocalPreference("theme", "vrooli.theme");
+    readLocalPreference("locale", "vrooli.locale");
     vi.mocked(identityClient.getSession).mockResolvedValue({
       signedIn: true,
       subject: "owner-1",
@@ -86,7 +91,69 @@ describe("SettingsPage notification preferences", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+  });
+
+  it("falls back safely when the initial locale storage read is denied", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+
+    expect(detectInitialLocale()).toBe("en");
+    expect(readLocalPreference("locale", "vrooli.locale")).toBeNull();
+  });
+
+  it("applies theme and every supported locale in the current page when browser writes fail", async () => {
+    await setLocale("en");
+    const deniedWrite = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+    fetchCatalog.mockResolvedValue({ sources: [], preferences: [] });
+
+    renderWithProviders(<SettingsPage />);
+    await userEvent.click(screen.getByRole("radio", { name: "Dark" }));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    const warning = (await screen.findByText("Preference applied here")).closest("[role=status]")!;
+    expect(warning).toHaveTextContent("Preference applied here");
+    expect(warning).toHaveTextContent("This browser couldn’t save the choice.");
+    expect(warning).toHaveTextContent("No account preference was changed.");
+
+    await userEvent.click(screen.getByRole("radio", { name: "日本語" }));
+    await waitFor(() => expect(document.documentElement.lang).toBe("ja"));
+    expect(document.documentElement.dir).toBe("ltr");
+    expect(getCurrentLocale()).toBe("ja");
+    expect(screen.getByText("このページに設定を適用しました")).toBeInTheDocument();
+    expect(deniedWrite).toHaveBeenCalledWith("vrooli.locale", "ja");
+
+    await userEvent.click(screen.getByRole("radio", { name: "العربية" }));
+    await waitFor(() => expect(document.documentElement.lang).toBe("ar"));
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(getCurrentLocale()).toBe("ar");
+    expect(deniedWrite).toHaveBeenCalledWith("vrooli.locale", "ar");
+    expect(screen.getByText("طُبّق التفضيل هنا").closest("[role=status]")).toHaveTextContent("تعذّر على هذا المتصفح حفظ اختيارك");
+  });
+
+  it("persists a locale after storage recovers and clears the shared warning", async () => {
+    await setLocale("en");
+    const nativeSetItem = Storage.prototype.setItem;
+    let denyWrites = true;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key: string, value: string) {
+      if (denyWrites) throw new DOMException("blocked", "SecurityError");
+      return nativeSetItem.call(this, key, value);
+    });
+    fetchCatalog.mockResolvedValue({ sources: [], preferences: [] });
+
+    renderWithProviders(<SettingsPage />);
+    await userEvent.click(screen.getByRole("radio", { name: "日本語" }));
+    await waitFor(() => expect(document.documentElement.lang).toBe("ja"));
+    expect(screen.getByText("このページに設定を適用しました")).toBeInTheDocument();
+
+    denyWrites = false;
+    await userEvent.click(screen.getByRole("radio", { name: "العربية" }));
+    await waitFor(() => expect(document.documentElement.lang).toBe("ar"));
+    expect(window.localStorage.getItem("vrooli.locale")).toBe("ar");
+    expect(screen.queryByText("طُبّق التفضيل هنا")).not.toBeInTheDocument();
   });
 
   it("lists each catalog source behind a branded header and its categories with urgency controls", async () => {

@@ -1,0 +1,61 @@
+[
+  {
+    "path": "scenarios/notification-hub/api/main.go",
+    "observed_at": "2026-10-20T15:38:49.431848+00:00",
+    "bytes": 16072,
+    "sha256": "e163e170a9e8cedace0f73edf0d480b8b1030a3dc33817dcc9093bcea081b711"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/session/SessionGate.test.tsx",
+    "observed_at": "2026-10-20T15:38:49.433012+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/session/SessionGate.tsx",
+    "observed_at": "2026-10-20T15:38:49.433228+00:00",
+    "bytes": 4857,
+    "sha256": "04a266cb193b89d3c8e181d2e8f802ecf385d73ee821ab0484b3b6985795c5cc"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AsksPage.test.tsx",
+    "observed_at": "2026-10-20T15:38:49.433654+00:00",
+    "bytes": 3890,
+    "sha256": "8ec33d8f790c1630b237775180028c15ab008991d77a523debbc2756e519fb9b"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AsksPage.tsx",
+    "observed_at": "2026-10-20T15:38:49.433957+00:00",
+    "bytes": 5285,
+    "sha256": "49f7a9c2f03c10f4cb3c8f03b47125675a6bd59aad92ff5adb9340b009d220ba"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/features/asks/AskPage.tsx",
+    "observed_at": "2026-10-20T15:38:49.434226+00:00",
+    "bytes": 12301,
+    "sha256": "2a96a47cf5d5b09acfd9943740a65e04643700e009d54ada66b045b3c55d8ac6"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/coverage/coverage-final.json",
+    "observed_at": "2026-10-20T15:38:49.434664+00:00",
+    "bytes": 305968,
+    "sha256": "fa5c06395919633419b4ccc95353d9a8fcd555989d69bc95ae0cdafeeb6a1841"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/coverage/coverage-summary.json",
+    "observed_at": "2026-10-20T15:38:49.436794+00:00",
+    "bytes": 13551,
+    "sha256": "04648bf12f2a8d08581bb680c3e227eadb260764e80fc1eed2ddd94f019bfd72"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E1-attempt1/allowed-source-comparison.json",
+    "observed_at": "2026-10-20T15:38:49.437264+00:00",
+    "bytes": 28947,
+    "sha256": "8824de39a58df9c2174ae65753115313a3a55bad5bcd72c522ac0e2f755b15b2"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/epochs/E1-answer-navigation.md",
+    "observed_at": "2026-10-20T15:38:49.437736+00:00",
+    "bytes": 31576,
+    "sha256": "965356bd5f4a2923d67bd81f38c7dbd037a0a8b5ae6899f3f0d181487c67f3b5"
+  }
+]

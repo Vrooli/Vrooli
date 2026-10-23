@@ -1,0 +1,16 @@
+{
+  "captured_at_utc": "2026-10-20T20:09:48.127575+00:00",
+  "reason": "Exact prewrite snapshot before compacting the Delivery state guide to fit the selected phone composition.",
+  "files": [
+    {
+      "path": "ui/src/pages/DeliveryPage.tsx",
+      "sha256": "0679e0ac3063403b780e14b4506d27312f63de0684bea09f13e37ca683ef24f5",
+      "size_bytes": 4332
+    },
+    {
+      "path": "ui/src/pages/DeliveryPage.test.tsx",
+      "sha256": "93a37667daa0b4e8b23afa17bf043d7193e1f9169bc7979bc2af8871ab3e20d8",
+      "size_bytes": 5409
+    }
+  ]
+}

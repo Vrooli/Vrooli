@@ -1,0 +1,22 @@
+{
+  "created_at": "2026-10-20T21:13:22.402991+00:00",
+  "files": [
+    {
+      "path": "docs/internal/goal/epochs/E4-e2-delivery-proof.md",
+      "sha256": "92f9da6620eeb154687b2ef6c054e37a806664ff5fa9cb3ac0b73c900460e940",
+      "bytes": 38806
+    },
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/visual-comparison.json",
+      "exists": false
+    },
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/handoff-summary.json",
+      "exists": false
+    },
+    {
+      "path": "docs/internal/goal/evidence/E4-visual-remainder/scenario-status.json",
+      "exists": false
+    }
+  ]
+}

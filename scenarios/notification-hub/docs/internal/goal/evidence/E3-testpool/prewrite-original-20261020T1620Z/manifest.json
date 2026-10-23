@@ -1,0 +1,25 @@
+[
+  {
+    "path": "scenarios/notification-hub/api/main.go",
+    "observed_at": "2026-10-20T16:20:27.903635+00:00",
+    "bytes": 17703,
+    "sha256": "3cfef8fa12fe9ded4b3522101146b77681108860bbc65281106fd8c84d041756"
+  },
+  {
+    "path": "scenarios/notification-hub/api/main_test.go",
+    "observed_at": "2026-10-20T16:20:27.907652+00:00",
+    "bytes": 2704,
+    "sha256": "57c9dcc5fef0c33cd5cda18dfa3bdd1be6c06fa2f569cd998950ab3835f15bb2"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/registry.json",
+    "observed_at": "2026-10-20T16:20:27.908210+00:00",
+    "bytes": 686,
+    "sha256": "0ebcfb9947fbcae9d3babdc21d78ee2ab783cd918db8e22509aa664742b1de43"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e3/disposable-recipient-isolated.json",
+    "observed_at": "2026-10-20T16:20:27.908658+00:00",
+    "absent": true
+  }
+]

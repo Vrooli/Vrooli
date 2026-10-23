@@ -1,0 +1,17 @@
+{
+  "captured_at": "2026-10-20T20:20:00Z",
+  "files": [
+    {
+      "path": "ui/coverage/coverage-final.json",
+      "sha256": "209e19bb18933d39a284b912f98b0782c40a5f3551e8c67e4d99e5384c51b437",
+      "bytes": 342183,
+      "snapshot": "original/bytes/ui/coverage/coverage-final.json"
+    },
+    {
+      "path": "ui/coverage/coverage-summary.json",
+      "sha256": "aff5826915ce37374fe26943389e3d2af4549ea30dd3a7f10edb3b8063fde8b5",
+      "bytes": 14209,
+      "snapshot": "original/bytes/ui/coverage/coverage-summary.json"
+    }
+  ]
+}

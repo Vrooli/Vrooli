@@ -1,0 +1,41 @@
+[
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/history-bounded.json",
+    "observed_at": "2026-10-21T01:10:13.708978+00:00",
+    "bytes": 6431,
+    "sha256": "28509bbc160b2c53682aea834e9c094b5083d36a03d4677ced821e3b880d54b0"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/history-dark.json",
+    "observed_at": "2026-10-21T01:10:13.709329+00:00",
+    "bytes": 5192,
+    "sha256": "0b6a3206163cc58d8c9f83181fcffa7e85a770d1d660cd4164403f1cd9453291"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/handoff.md",
+    "observed_at": "2026-10-21T01:10:13.709574+00:00",
+    "bytes": 20898,
+    "sha256": "067516e77e70f55558678a811f27189fc1e4a6435e5bcbbd5c4ff3bb6ad96e36"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/epochs/E5-mobile-shell-and-nh16-1.md",
+    "observed_at": "2026-10-21T01:10:13.709900+00:00",
+    "bytes": 23727,
+    "sha256": "64e5e084a4bb92469421e96b5afc821af81ef67427c883868a9cd2185279b566"
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/served-seq35/NH16.1-light-390x844.png",
+    "observed_at": "2026-10-21T01:10:13.710156+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/served-seq35/NH16.1-dark-390x844.png",
+    "observed_at": "2026-10-21T01:10:13.710304+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/notification-hub/docs/internal/goal/evidence/E5-mobile-shell/served-seq35/summary.json",
+    "observed_at": "2026-10-21T01:10:13.710454+00:00",
+    "absent": true
+  }
+]

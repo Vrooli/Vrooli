@@ -1,0 +1,38 @@
+[
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.ts",
+    "observed_at": "2026-10-20T19:47:20.639330+00:00",
+    "bytes": 3168,
+    "sha256": "c5192250ade90d8258028c81d3115c7978d623e484ecbabd591b202ea1ff7cd4"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T19:47:20.639451+00:00",
+    "bytes": 8414,
+    "sha256": "f6990706d8ebf492d800aca8e45915fc87133edc840c2648add3c95b0a2c6923"
+  },
+  {
+    "path": "scenarios/notification-hub/ui/src/layout/AppShell.test.tsx",
+    "observed_at": "2026-10-20T19:47:20.639534+00:00",
+    "bytes": 4999,
+    "sha256": "840f2b833d1e9e296816fcd01ddf69f049b946457623e1707438c2624a468c3c"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/delivery-detail.json",
+    "observed_at": "2026-10-20T19:47:20.639656+00:00",
+    "bytes": 2598,
+    "sha256": "e3de06d588e9cda8a1cbd7f331455d266bdc3800899ef51ca2033f913f81348b"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/cases/e4/history-bounded.json",
+    "observed_at": "2026-10-20T19:47:20.639715+00:00",
+    "bytes": 2233,
+    "sha256": "f3027c12dbd860d7a8fe243f1861bd5dbb11e08c6e8aacce3765747e22726025"
+  },
+  {
+    "path": "scenarios/notification-hub/bas/registry.json",
+    "observed_at": "2026-10-20T19:47:20.639769+00:00",
+    "bytes": 1307,
+    "sha256": "47e2e9f4e0d24d07590c8273b6e86493dbf9d00b488883a5faa25982248fb22e"
+  }
+]

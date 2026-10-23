@@ -3,11 +3,15 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type recordingChannelDelivery struct {
@@ -86,4 +90,22 @@ func TestRecipientResolvesFromOperatorStateBeforeSourceFallback(t *testing.T) {
 	service.SetDefaultRecipient("override")
 	require.Equal(t, "override", service.ResolveRecipient(context.Background()))
 	require.Contains(t, RecipientSettingHint, "notifications.recipient")
+}
+
+func TestTestModeRecipientRequiresAnInstalledLease(t *testing.T) {
+	ctx := database.WithTestMode(context.Background())
+	primaryPath := filepath.Join(t.TempDir(), "primary.db")
+	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: primaryPath})
+	require.NoError(t, err)
+	defer db.Close()
+	service := New(db, schedule.System(), log.Default())
+	service.SetOwnerFallback(OperatorSubject)
+	require.Equal(t, OperatorSubject, service.ResolveRecipient(ctx), "test-mode header without a lease must not select the fixture")
+
+	testPath := filepath.Join(t.TempDir(), "leased.db")
+	require.NoError(t, db.InstallTestPool(context.Background(), testPath, "fixture-lease", 0))
+	require.Equal(t, TestRecipientSubject, service.ResolveRecipient(ctx))
+	require.Equal(t, OperatorSubject, service.ResolveRecipient(context.Background()), "ordinary requests keep the configured owner recipient")
+	stats := db.LeaseStats()
+	require.Zero(t, stats.PrimaryDuringTestModeRequests)
 }

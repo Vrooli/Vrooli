@@ -51,6 +51,39 @@ func TestSender_EncryptsPayloadAndUsesWebPushHeaders(t *testing.T) {
 	require.Equal(t, "provider-receipt", provider)
 }
 
+func TestSenderErrorsDoNotRetainProviderEndpointOrResponseDetails(t *testing.T) {
+	clientKey, err := ecdh.P256().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	auth := make([]byte, 16)
+	_, err = rand.Read(auth)
+	require.NoError(t, err)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	publicKey := elliptic.Marshal(elliptic.P256(), privateKey.PublicKey.X, privateKey.PublicKey.Y)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte("https://provider.example/push?token=secret credential=private"))
+	}))
+	endpoint := server.URL + "/subscription/private-token"
+	subscription := Subscription{
+		Endpoint: endpoint,
+		P256DH:   base64.RawURLEncoding.EncodeToString(clientKey.PublicKey().Bytes()),
+		Auth:     base64.RawURLEncoding.EncodeToString(auth),
+		Origin:   "https://hub.example.test",
+	}
+	sender := &Sender{Client: server.Client(), PrivateKey: privateKey, PublicKey: publicKey}
+
+	_, err = sender.Send(context.Background(), subscription, "title", "body")
+	require.EqualError(t, err, "push provider returned status 502")
+	require.NotContains(t, err.Error(), "provider.example")
+	require.NotContains(t, err.Error(), "secret")
+
+	server.Close()
+	_, err = sender.Send(context.Background(), subscription, "title", "body")
+	require.EqualError(t, err, "push provider request failed")
+	require.NotContains(t, err.Error(), endpoint)
+}
+
 func TestEncryptRespectsWebPushBodyLimitAndDecryptsAtMaximum(t *testing.T) {
 	clientKey, err := ecdh.P256().GenerateKey(rand.Reader)
 	require.NoError(t, err)
