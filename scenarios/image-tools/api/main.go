@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -37,9 +38,11 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	_ "modernc.org/sqlite"
 
 	adaptersH "image-tools/handlers/adapters"
@@ -51,6 +54,7 @@ import (
 	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
+	preparationH "image-tools/handlers/preparation"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
 
@@ -178,6 +182,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+	configureTestPoolSchemas(db)
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
@@ -241,7 +246,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve image-tools storage namespace: %v", err)
 	}
-	blobStore, err := internalstorage.New(blobNamespace)
+	primaryFileRoots, err := internalstorage.ResolvePaths(blobNamespace)
+	if err != nil {
+		log.Fatalf("file storage roots init failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+	blobStore, err := internalstorage.NewWithRoutedRoots(primaryFileRoots, fileRoots)
 	if err != nil {
 		log.Fatalf("blob storage init failed: %v", err)
 	}
@@ -254,12 +264,13 @@ func main() {
 	modelsRoot := filepath.Dir(blobStore.Root())
 
 	// Materialize the embedded Python sidecar (image_tools_sidecar) under the
-	// data dir and put it on PYTHONPATH, so the onnxruntime backend's
+	// cache dir and put it on PYTHONPATH, so the onnxruntime backend's
 	// `python3 -m image_tools_sidecar.<op>` invocations resolve regardless of the
 	// process working directory. The runtime packages it imports (onnxruntime,
 	// Pillow, numpy) are host provisioning — see docs/reference/backends.md.
+	runtimeRoot := primaryFileRoots.CacheDir
 	var sidecarPath string
-	if p, scErr := sidecar.EnsureOnPath(filepath.Join(modelsRoot, "sidecar")); scErr != nil {
+	if p, scErr := sidecar.EnsureOnPath(filepath.Join(runtimeRoot, "sidecar")); scErr != nil {
 		log.Printf("WARNING: sidecar materialize failed (%v); onnxruntime AI ops will be unavailable", scErr)
 	} else {
 		sidecarPath = p
@@ -283,10 +294,10 @@ func main() {
 	//     the isolation. Boot never blocks or crashes; non-Python backends are
 	//     unaffected.
 	var pythonInterpreter string
-	venvDir := filepath.Join(modelsRoot, "pyenv")
+	venvDir := filepath.Join(runtimeRoot, "pyenv")
 	if _, uvErr := exec.LookPath("uv"); uvErr != nil {
 		log.Printf("WARNING: uv not found on PATH; the isolated Python venv cannot be built, so Python AI backends stay UNAVAILABLE (never run against the host python3). Run `vrooli host install uv` and restart to enable them.")
-	} else if lockPath, lpErr := pydeps.Materialize(modelsRoot); lpErr != nil {
+	} else if lockPath, lpErr := pydeps.Materialize(runtimeRoot); lpErr != nil {
 		log.Printf("WARNING: materialize python lock failed (%v); Python AI backends stay unavailable until it succeeds (no host-python3 fallback)", lpErr)
 	} else {
 		pythonInterpreter = pyenv.InterpreterPath(venvDir)
@@ -322,6 +333,15 @@ func main() {
 			PythonPath: sidecarPath,
 			LockHash:   pydeps.LockHash(),
 		},
+		Build: &internalmodels.BuildConfig{
+			Python:        pythonInterpreter,
+			PythonPath:    sidecarPath,
+			ReferenceONNX: filepath.Join(modelsRoot, "models", "big-lama", "lama_fp32.onnx"),
+			Operations:    internalmodels.NewPlatformBuildOperationOwner(),
+			Capacity: func(ctx context.Context) (internalmodels.BuildCapacityBroker, error) {
+				return sharedcapacity.NewBroker(ctx, "")
+			},
+		},
 	}
 	modelInstalled := func(id string) bool {
 		return installer.Installed(context.Background(), id)
@@ -334,7 +354,7 @@ func main() {
 		if err := json.Unmarshal(job.Payload, &p); err != nil {
 			return internaljobs.Result{}, fmt.Errorf("decode install payload: %w", err)
 		}
-		rec, err := installer.Install(jobCtx, p.ModelID, emit)
+		rec, err := installer.InstallForJob(jobCtx, p.ModelID, job.ID, emit)
 		if err != nil {
 			return internaljobs.Result{}, err
 		}
@@ -395,6 +415,8 @@ func main() {
 		}
 		return internaljobs.Result{Ref: rec.Path}, nil
 	})
+
+	opsH.RegisterParallaxRunner(dispatcher, blobStore)
 
 	// On-demand host-tool backend provisioning. The durable job shells
 	// `vrooli host install <tool> --json` (the same compose-don't-reinvent path
@@ -475,6 +497,7 @@ func main() {
 		AdaptersRoot:     modelsRoot,
 		AutoScan:         analysisService.ScanNSFW,
 		Capacity:         &internalai.CLICapacityBroker{},
+		Memory:           internalai.AcquireLocalRAM,
 		Logger:           log.Default(),
 	})
 	if err != nil {
@@ -523,6 +546,7 @@ func main() {
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),
+		preparationH.Module(db, blobStore),
 		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
 			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
 		}, backendEnsurer, modelsH.AdapterSeams{
@@ -537,9 +561,9 @@ func main() {
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
-	// runtime test DB pool without restarting this scenario.
+	// runtime test DB pool and file roots without restarting this scenario.
 	rootMux := http.NewServeMux()
-	devrouting.Register(rootMux, db)
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
 	// No /measures substrate is mounted yet: image operations declare their
 	// op-latency / throughput / queue-wait measures as they land (Phase 2+),
@@ -561,9 +585,20 @@ func main() {
 			// closing the database.
 			jobManager.Close()
 			cancelJobs()
+			if err := backendReg.Close(); err != nil {
+				log.Printf("backend cleanup: %v", err)
+			}
 			return db.Close()
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// configureTestPoolSchemas applies the same domain-owned schema providers to
+// each leased database before routed requests can reach it.
+func configureTestPoolSchemas(db *database.RoutedDB) {
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.EnsureSchemas(ctx, pool, modules.AllSchemas()...)
+	})
 }

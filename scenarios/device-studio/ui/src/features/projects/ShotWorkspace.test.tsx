@@ -344,7 +344,7 @@ describe("ShotWorkspace", () => {
     });
     const oldSnapshot = create(ShotSnapshotSchema, {
       motionMode: MotionMode.CROP_PUSH, videoTiming: timing(48n, 24),
-      cameraMotion: create(PhotographicCameraMotionSchema, { profileId: "screen-entry-projective-contain-v1", profileVersion: 1, durationOutputFrames: 12, matteRgb: { red: 18, green: 52, blue: 86 } }),
+      cameraMotion: create(PhotographicCameraMotionSchema, { profileId: "screen-entry-projective-contain-v1", profileVersion: 1, durationOutputFrames: 12, matteRgb: { red: 18, green: 52, blue: 86 }, targetRect: {x:4000,y:1000,width:5500,height:8000} }),
     });
     const currentSnapshot = create(ShotSnapshotSchema, {
       motionMode: MotionMode.CROP_PUSH, videoTiming: timing(400n, 30),
@@ -368,6 +368,8 @@ describe("ShotWorkspace", () => {
     expect(screen.queryByText(i18n.t(strings.shot.cameraClipTooLong))).not.toBeInTheDocument();
     expect(screen.getByLabelText(i18n.t(strings.shot.cameraDurationFrames))).toHaveValue(12);
     expect(screen.getByLabelText(i18n.t(strings.shot.cameraMatte))).toHaveValue("#123456");
+    expect(screen.getByLabelText(i18n.t(strings.shot.cameraTargetX))).toHaveValue(40);
+    expect(screen.getByLabelText(i18n.t(strings.shot.cameraTargetX))).toBeDisabled();
   });
 
   it("lets a user retry a failed historical revision read or return to the current edit", async () => {
@@ -602,10 +604,39 @@ describe("ShotWorkspace", () => {
     await waitFor(() => expect(shotsClient.saveShot).toHaveBeenCalledTimes(2));
     const saved = vi.mocked(shotsClient.saveShot).mock.calls[1]?.[0].snapshot;
     expect(saved?.motionMode).toBe(MotionMode.CROP_PUSH);
-    expect(saved?.cameraMotion).toEqual(create(PhotographicCameraMotionSchema, { profileId: "screen-entry-projective-contain-v1", profileVersion: 1, durationOutputFrames: 12, matteRgb: { red: 18, green: 52, blue: 86 } }));
+    expect(saved?.cameraMotion).toEqual(create(PhotographicCameraMotionSchema, { profileId: "screen-entry-stationary-scene-v1", profileVersion: 1, durationOutputFrames: 12, matteRgb: { red: 18, green: 52, blue: 86 } }));
     expect(saved?.videoTiming?.trimStartPts).toBe(0n);
     expect(saved?.videoTiming?.trimEndPts).toBe(48n);
     expect(saved?.videoTiming?.sampleBinding).toBeUndefined();
+    await user.click(screen.getByLabelText(i18n.t(strings.shot.cameraTargetEnabled)));
+    const targetX = screen.getByLabelText(i18n.t(strings.shot.cameraTargetX));
+    await user.clear(targetX); await user.type(targetX, "40");
+    expect(screen.getByRole("button", { name: i18n.t(strings.shot.save) })).toBeDisabled();
+    const targetWidth = screen.getByLabelText(i18n.t(strings.shot.cameraTargetWidth));
+    await user.clear(targetWidth); await user.type(targetWidth, "55");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.shot.save) }));
+    await waitFor(() => expect(shotsClient.saveShot).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(shotsClient.saveShot).mock.calls[2]?.[0].snapshot?.cameraMotion?.targetRect).toMatchObject({x:4000,y:0,width:5500,height:10000});
+    expect(screen.getByLabelText(i18n.t(strings.shot.cameraTargetX))).toHaveValue(40);
+    expect(screen.getByLabelText(i18n.t(strings.shot.cameraTargetWidth))).toHaveValue(55);
+    await user.click(screen.getByLabelText(i18n.t(strings.shot.cameraTargetEnabled)));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.shot.save) }));
+    await waitFor(() => expect(shotsClient.saveShot).toHaveBeenCalledTimes(4));
+    expect(vi.mocked(shotsClient.saveShot).mock.calls[3]?.[0].snapshot?.cameraMotion?.targetRect).toBeUndefined();
+    await user.click(screen.getByLabelText(i18n.t(strings.shot.cameraSceneEnabled)));
+    const sceneX=screen.getByLabelText(i18n.t(strings.shot.cameraSceneX));
+    await user.clear(sceneX); await user.type(sceneX,"35");
+    expect(screen.getByRole("button",{name:i18n.t(strings.shot.save)})).toBeDisabled();
+    const sceneWidth=screen.getByLabelText(i18n.t(strings.shot.cameraSceneWidth));
+    await user.clear(sceneWidth); await user.type(sceneWidth,"60");
+    await user.click(screen.getByRole("button",{name:i18n.t(strings.shot.save)}));
+    await waitFor(()=>expect(shotsClient.saveShot).toHaveBeenCalledTimes(5));
+    expect(vi.mocked(shotsClient.saveShot).mock.calls[4]?.[0].snapshot?.cameraMotion?.sceneRect).toMatchObject({x:3500,y:0,width:6000,height:10000});
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.shot.cameraProfile)),"screen-entry-projective-contain-v1");
+    await user.click(screen.getByRole("button",{name:i18n.t(strings.shot.save)}));
+    await waitFor(()=>expect(shotsClient.saveShot).toHaveBeenCalledTimes(6));
+    expect(vi.mocked(shotsClient.saveShot).mock.calls[5]?.[0].snapshot?.cameraMotion?.sceneRect).toBeUndefined();
+
   });
 
   it("omits camera configuration when a shot is fixed", async () => {

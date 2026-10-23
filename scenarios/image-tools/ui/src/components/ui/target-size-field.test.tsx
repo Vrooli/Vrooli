@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 
 import { TargetSizeField } from "./target-size-field";

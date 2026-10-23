@@ -90,6 +90,14 @@ type (
 	}
 )
 
+// Valid reports whether a normalized rectangle has a positive size and lies
+// wholly within the basis-10000 surface. Bound components before adding them.
+func (r BasisRect) Valid() bool {
+	return r.X >= 0 && r.Y >= 0 && r.X <= BrowserRectBasis && r.Y <= BrowserRectBasis &&
+		r.Width > 0 && r.Height > 0 && r.Width <= BrowserRectBasis && r.Height <= BrowserRectBasis &&
+		r.X+r.Width <= BrowserRectBasis && r.Y+r.Height <= BrowserRectBasis
+}
+
 type Transform struct {
 	Scale      float64
 	TranslateX float64

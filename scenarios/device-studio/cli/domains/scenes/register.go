@@ -8,7 +8,11 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/scenes"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/scenes/scenes_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"io"
+	"os"
+	"strings"
 )
 
 const GroupName = "scenes"
@@ -17,6 +21,33 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	hc, base := cliapp.NewConnectHTTPClient(core)
 	c := api.NewScenesServiceClient(hc, base)
 	return componentrevisions.Register(core, manifest, componentrevisions.Spec{Group: GroupName, Service: "ScenesService", CandidateName: "Scene", SaveMethod: "SaveSceneCandidate", GetMethod: "GetSceneRevision", HeadMethod: "GetSceneHead", RevisionsMethod: "ListSceneRevisions", CandidatesMethod: "ListSceneCandidates", Candidate: func() proto.Message { return &v1.SceneCandidate{} },
+		AdditionalHandlers: map[string]cliapp.PrimitiveHandler{"ScenesService.ImportPreparedPhotograph": cliapp.Action(preparedPhotoAction(c), preparedPhotoReport), "geometry-qa": cliapp.Action(geometryQAAction(core), geometryQAReport), "ScenesService.FitKnownCameraPose": cliapp.ProtoList(func(ctx cliapp.OperationContext) (*v1.FitKnownCameraPoseResponse, error) {
+			path := strings.TrimSpace(ctx.Flag("request"))
+			if path == "" {
+				return nil, fmt.Errorf("--request is required (typed FitKnownCameraPoseRequest proto-JSON file or - for stdin)")
+			}
+			var data []byte
+			var err error
+			if path == "-" {
+				data, err = io.ReadAll(os.Stdin)
+			} else {
+				data, err = os.ReadFile(path)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read fit request: %w", err)
+			}
+			request := &v1.FitKnownCameraPoseRequest{}
+			if err = (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, request); err != nil {
+				return nil, fmt.Errorf("parse typed fit request: %w", err)
+			}
+			r, err := c.FitKnownCameraPose(context.Background(), connect.NewRequest(request))
+			if err != nil {
+				return nil, componentrevisions.APIError("fit known-camera pose", GroupName, err)
+			}
+			return r.Msg, nil
+		}, func(_ cliapp.OperationContext, r *v1.FitKnownCameraPoseResponse) cliapp.ListReport {
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pose fit RMS %.3fpx, maximum %.3fpx (%d landmarks).", r.RmsPixels, r.MaxPixels, len(r.Residuals))}, ResultsHeading: "Fitted transform", Results: []string{fmt.Sprintf("hinge %s held at %.6frad; overlay_svg and per-point residuals are included in JSON.", r.HingeJointId, r.HingeAngleRadians)}}
+		})},
 		Save: func(ctx context.Context, m proto.Message, n uint32) (proto.Message, error) {
 			r, e := c.SaveSceneCandidate(ctx, connect.NewRequest(&v1.SaveSceneCandidateRequest{Candidate: m.(*v1.SceneCandidate), ExpectedHead: n}))
 			if e != nil {

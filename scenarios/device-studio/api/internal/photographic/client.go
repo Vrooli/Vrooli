@@ -3,6 +3,7 @@ package photographic
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"image/png"
@@ -19,6 +20,8 @@ import (
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
+	preparationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/preparation"
+	preparationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/preparation/preparation_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -237,4 +240,61 @@ func (c *Client) PNG(ctx context.Context, ref string, wantWidth, wantHeight int)
 		return nil, fmt.Errorf("generated PNG dimensions do not match the requested output")
 	}
 	return data, nil
+}
+
+// PreparedPhotograph loads the immutable child from the Image Tools owner and
+// verifies both the owner record and content-addressed ZIP before returning it.
+// Callers never provide storage paths or bundle bytes.
+func (c *Client) PreparedPhotograph(ctx context.Context, id string) ([]byte, error) {
+	if len(id) != 64 {
+		return nil, fmt.Errorf("photograph id must be a SHA-256 digest")
+	}
+	if _, err := hex.DecodeString(id); err != nil || strings.ToLower(id) != id {
+		return nil, fmt.Errorf("photograph id must be a lowercase SHA-256 digest")
+	}
+	base, err := c.base(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := preparationconnect.NewPreparationServiceClient(c.http, base)
+	response, err := client.GetPhotograph(ctx, connect.NewRequest(&preparationv1.GetPhotographRequest{Id: id}))
+	if err != nil {
+		return nil, fmt.Errorf("read Image Tools preparation owner record: %w", err)
+	}
+	stored := response.Msg.GetPhotograph()
+	if stored == nil || stored.GetId() != id || stored.GetBundleRef() != "scene-preparations/"+id+".zip" || stored.GetManifest() == nil || stored.GetCreatedAtUnixMs() <= 0 {
+		return nil, fmt.Errorf("Image Tools returned an invalid immutable preparation record")
+	}
+	review := stored.GetManifest().GetReview()
+	if review == nil || (review.GetDecision() == "pending" && review.GetReviewedAtUnixMs() != 0) || (review.GetDecision() != "pending" && review.GetReviewedAtUnixMs() != stored.GetCreatedAtUnixMs()) {
+		return nil, fmt.Errorf("Image Tools preparation review timestamp does not match its immutable child state")
+	}
+	ref := stored.GetBundleRef()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/blobs/"+ref, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, OwnerHTTPError{Status: resp.StatusCode}
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, (256<<20)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 || len(raw) > 256<<20 || digest(raw) != id {
+		return nil, fmt.Errorf("Image Tools preparation bytes do not match the immutable content id")
+	}
+	opened, err := openBundle(raw)
+	if err != nil {
+		return nil, fmt.Errorf("validate Image Tools preparation bytes: %w", err)
+	}
+	if opened.sha != id || !proto.Equal(opened.manifest, stored.GetManifest()) {
+		return nil, fmt.Errorf("Image Tools bundle content and owner manifest disagree")
+	}
+	return raw, nil
 }

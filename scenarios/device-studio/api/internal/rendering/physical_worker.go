@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -25,10 +26,12 @@ import (
 )
 
 const (
-	physicalProfileName   = "blender-profile.json"
-	physicalAdapterMax    = 1 << 20
-	physicalCommandOutMax = 64 << 10
-	physicalCommandErrMax = 16 << 10
+	physicalProfileName    = "blender-profile.json"
+	physicalBlenderLogName = "physical-blender-diagnostics.json"
+	physicalAdapterMax     = 1 << 20
+	physicalCommandOutMax  = 64 << 10
+	physicalCommandErrMax  = 16 << 10
+	physicalGPUClaimBytes  = 3 << 30
 )
 
 //go:embed physical_blender.py
@@ -150,7 +153,7 @@ func RunPhysicalManifest(ctx context.Context, manifestPath string) (retErr error
 			return runErr
 		}
 		motion = &result
-	} else if err := runPhysicalBlender(ctx, workspace, profile.GetBlender().GetPath(), manifest.Profile.WallTimeSeconds); err != nil {
+	} else if err := runPhysicalBlender(ctx, root, workspace, profile.GetBlender().GetPath(), manifest); err != nil {
 		return err
 	}
 	if err := verifyPhysicalToolUnchanged(ctx, profile, profile.GetBlender().GetPath()); err != nil {
@@ -291,36 +294,148 @@ func stagePhysicalAssets(ctx context.Context, root *os.Root, manifest PhysicalRe
 	return nil
 }
 
-func runPhysicalBlender(parent context.Context, workspace, blender string, wallTimeSeconds uint32) error {
+type physicalBlenderDiagnostics struct {
+	Version             int    `json:"version"`
+	Executable          string `json:"executable"`
+	Backend             string `json:"backend"`
+	Engine              string `json:"engine"`
+	Width               uint32 `json:"width"`
+	Height              uint32 `json:"height"`
+	Samples             uint32 `json:"samples"`
+	Threads             uint32 `json:"threads"`
+	WallTimeLimit       uint32 `json:"wall_time_limit_seconds"`
+	ElapsedMillis       int64  `json:"elapsed_millis"`
+	GPUUUID             string `json:"gpu_uuid,omitempty"`
+	GPUName             string `json:"gpu_name,omitempty"`
+	GPUIndex            int    `json:"gpu_index,omitempty"`
+	GPUClaimID          string `json:"gpu_claim_id,omitempty"`
+	GPUClaimBytes       int64  `json:"gpu_claim_bytes,omitempty"`
+	GPUBackendSelected  string `json:"gpu_backend_selected,omitempty"`
+	GPURenderCompleted  bool   `json:"gpu_render_completed,omitempty"`
+	GPUPeakProcessBytes uint64 `json:"gpu_peak_process_bytes,omitempty"`
+	GPUSamples          uint32 `json:"gpu_usage_samples,omitempty"`
+	GPUUsageProbeError  string `json:"gpu_usage_probe_error,omitempty"`
+	GPUReleaseErr       string `json:"gpu_release_error,omitempty"`
+	ExitError           string `json:"exit_error,omitempty"`
+	StdoutTail          string `json:"stdout_tail,omitempty"`
+	StderrTail          string `json:"stderr_tail,omitempty"`
+}
+
+func runPhysicalBlender(parent context.Context, root *os.Root, workspace, blender string, manifest PhysicalRenderManifest) error {
+	wallTimeSeconds := manifest.Profile.WallTimeSeconds
 	if wallTimeSeconds == 0 || wallTimeSeconds > PhysicalStillCPUWallTimeSeconds {
 		return errors.New("physical still wall-time limit is outside the closed profile")
 	}
-	if !filepath.IsAbs(blender) || filepath.Clean(blender) != blender {
-		return errors.New("managed Blender path is not absolute and clean")
-	}
-	info, err := os.Lstat(blender)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() <= 0 {
-		return errors.New("managed Blender executable is not a regular file")
-	}
-	binary, err := readRegularPath(blender, 512<<20)
-	if err != nil || digest(binary) != PhysicalBlenderBinarySHA {
-		return errors.New("managed Blender executable digest differs from profile")
-	}
 	ctx, cancel := context.WithTimeout(parent, time.Duration(wallTimeSeconds)*time.Second)
 	defer cancel()
-	if err := ensurePhysicalBlenderDirectories(workspace); err != nil {
-		return err
-	}
-	cmd := exec.CommandContext(ctx, blender, physicalBlenderArgs(workspace)...)
-	cmd.Dir = workspace
-	cmd.Env = physicalBlenderEnvironment(workspace)
 	var stdout, stderr physicalBlenderLogBuffer
 	stdout.limit, stderr.limit = physicalCommandOutMax, physicalCommandErrMax
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		return physicalBlenderFailure(err, ctx.Err(), stderr.data.String())
+	process, err := startPhysicalBlenderProcess(ctx, root, workspace, blender, manifest, nil, &stdout, &stderr)
+	if err != nil {
+		return err
 	}
-	return nil
+	return process.wait()
+}
+
+type gpuProcessUsage struct {
+	PeakBytes uint64
+	Samples   uint32
+	Error     string
+}
+
+func sampleGPUProcessUsage(ctx context.Context, pid int, uuid string, stop <-chan struct{}) gpuProcessUsage {
+	path := os.Getenv("DEVICE_STUDIO_NVIDIA_SMI")
+	if path == "" {
+		return gpuProcessUsage{Error: "physical worker did not receive the resolved nvidia-smi telemetry executable"}
+	}
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return gpuProcessUsage{Error: "resolved nvidia-smi telemetry path is not absolute and clean"}
+	}
+	if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+		return gpuProcessUsage{Error: "resolved nvidia-smi telemetry executable is unavailable"}
+	}
+	var result gpuProcessUsage
+	read := func() {
+		probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		output, err := exec.CommandContext(probeCtx, path, "--query-compute-apps=pid,gpu_uuid,used_memory", "--format=csv,noheader,nounits").Output()
+		if err != nil {
+			if result.Error == "" {
+				result.Error = err.Error()
+			}
+			return
+		}
+		value, ok := gpuProcessMemoryBytes(string(output), pid, uuid)
+		if !ok {
+			return
+		}
+		result.Samples++
+		if value > result.PeakBytes {
+			result.PeakBytes = value
+		}
+	}
+	read()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return result
+		case <-ctx.Done():
+			return result
+		case <-ticker.C:
+			read()
+		}
+	}
+}
+
+func gpuProcessMemoryBytes(csv string, pid int, uuid string) (uint64, bool) {
+	for _, line := range strings.Split(csv, "\n") {
+		fields := strings.Split(line, ",")
+		if len(fields) != 3 || strings.TrimSpace(fields[1]) != uuid {
+			continue
+		}
+		observedPID, err := strconv.Atoi(strings.TrimSpace(fields[0]))
+		if err != nil || observedPID != pid {
+			continue
+		}
+		memoryText := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(fields[2]), " MiB"))
+		memoryMiB, err := strconv.ParseUint(memoryText, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return memoryMiB * (1 << 20), true
+	}
+	return 0, false
+}
+
+type physicalGPUDiagnostics struct {
+	Backend         string   `json:"backend"`
+	UUID            string   `json:"uuid"`
+	SelectedDevice  string   `json:"selected_device"`
+	VisibleDevices  []string `json:"visible_devices"`
+	CyclesDevice    string   `json:"cycles_device"`
+	RenderCompleted bool     `json:"render_completed"`
+}
+
+func readPhysicalGPUDiagnostics(root *os.Root) (physicalGPUDiagnostics, error) {
+	file, err := root.Open("physical-gpu-diagnostics.json")
+	if err != nil {
+		return physicalGPUDiagnostics{}, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, 16<<10))
+	if err != nil {
+		return physicalGPUDiagnostics{}, err
+	}
+	if len(data) == 0 || len(data) >= 16<<10 {
+		return physicalGPUDiagnostics{}, errors.New("GPU diagnostics are empty or exceed their bound")
+	}
+	var result physicalGPUDiagnostics
+	if err := json.Unmarshal(data, &result); err != nil {
+		return physicalGPUDiagnostics{}, err
+	}
+	return result, nil
 }
 
 func physicalBlenderArgs(workspace string) []string {

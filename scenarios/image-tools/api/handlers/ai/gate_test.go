@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/blobstore"
+	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
 )
 
 // newGatedServer builds the AI submit edge wired with a Responsible-Use gate for
@@ -45,6 +46,8 @@ func newGatedServer(t *testing.T, tier safety.Tier) (*mux.Router, *fakeSubmitter
 	sub := &fakeSubmitter{}
 	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard(), Gate: safety.NewGate(tier, nil)}
 	r := mux.NewRouter()
+	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, deps))
+	r.PathPrefix(path).Handler(handler)
 	r.HandleFunc("/api/v1/ai/{operation}", deps.submitHandler).Methods(http.MethodPost)
 	return r, sub
 }

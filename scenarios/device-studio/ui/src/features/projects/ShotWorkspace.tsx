@@ -12,6 +12,7 @@ import {
   PlateQuadSchema,
   PresentationAppearance,
   PresentationRGBSchema,
+  PresentationRectSchema,
   PresentationKind,
   ShotIssueCode,
   ShotSnapshotSchema,
@@ -49,8 +50,19 @@ type ShotDraft = ScreenPresentationDraft & {
   depictionLabel: string;
   coordinateConvention: CoordinateConvention;
   motionMode: MotionMode;
+  cameraProfile: string;
+  cameraSceneEnabled: boolean;
+  cameraSceneX: string;
+  cameraSceneY: string;
+  cameraSceneWidth: string;
+  cameraSceneHeight: string;
   cameraDurationOutputFrames: string;
   cameraMatteColor: string;
+  cameraTargetEnabled: boolean;
+  cameraTargetX: string;
+  cameraTargetY: string;
+  cameraTargetWidth: string;
+  cameraTargetHeight: string;
   sourceMediaId: string;
   videoTiming?: VideoTiming;
   readabilityProof?: ReadabilityProof;
@@ -72,7 +84,9 @@ const emptyDraft = (name = "") : ShotDraft => ({
   name, plateMediaId: "", activeMaskMediaId: "", hardwareMaskMediaId: "",
   displayWidthPixels: "", displayHeightPixels: "", topLeft: emptyPoint(), topRight: emptyPoint(), bottomRight: emptyPoint(), bottomLeft: emptyPoint(),
   depictionLabel: "", coordinateConvention: CoordinateConvention.PLATE_RASTER_EDGE_PIXELS_V1, motionMode: MotionMode.FIXED,
+  cameraProfile: "screen-entry-stationary-scene-v1", cameraSceneEnabled: false, cameraSceneX: "0", cameraSceneY: "0", cameraSceneWidth: "100", cameraSceneHeight: "100",
   cameraDurationOutputFrames: "24", cameraMatteColor: "#000000",
+  cameraTargetEnabled: false, cameraTargetX: "0", cameraTargetY: "0", cameraTargetWidth: "100", cameraTargetHeight: "100",
   ...emptyScreenPresentationDraft(), sourceMediaId: "",
 });
 
@@ -106,6 +120,18 @@ function cameraDurationSeconds(frames: bigint, timing?: VideoTiming): string {
   return `${hundredths / 100n}.${(hundredths % 100n).toString().padStart(2, "0")}`;
 }
 
+function cameraRectInvalid(draft: ShotDraft, which: "Target" | "Scene"): boolean {
+  if (draft.motionMode !== MotionMode.CROP_PUSH || !draft[`camera${which}Enabled`]) return false;
+  const values = [draft[`camera${which}X`], draft[`camera${which}Y`], draft[`camera${which}Width`], draft[`camera${which}Height`]];
+  const [x, y, width, height] = values.map(Number) as [number, number, number, number];
+  const invalidPercent = values.some((value) => {
+    const percent = Number(value);
+    return value.trim() === "" || !Number.isFinite(percent) || percent < 0 || percent > 100
+      || Math.abs(percent * 100 - Math.round(percent * 100)) > 1e-6;
+  });
+  return invalidPercent || width <= 0 || height <= 0 || x + width > 100 || y + height > 100;
+}
+
 function snapshotFromDraft(draft: ShotDraft) {
   const point = (value: PointDraft) => value.x !== "" && value.y !== "" ? { x: Number(value.x), y: Number(value.y) } : undefined;
   const quadPoints = {
@@ -118,8 +144,16 @@ function snapshotFromDraft(draft: ShotDraft) {
   return create(ShotSnapshotSchema, {
     motionMode: draft.motionMode,
     cameraMotion: draft.motionMode === MotionMode.CROP_PUSH ? create(PhotographicCameraMotionSchema, {
-      profileId: "screen-entry-projective-contain-v1", profileVersion: 1,
+      profileId: draft.cameraProfile, profileVersion: 1,
+      sceneRect: draft.cameraProfile === "screen-entry-stationary-scene-v1" && draft.cameraSceneEnabled ? create(PresentationRectSchema, {
+        x: Math.round(Number(draft.cameraSceneX)*100), y: Math.round(Number(draft.cameraSceneY)*100),
+        width: Math.round(Number(draft.cameraSceneWidth)*100), height: Math.round(Number(draft.cameraSceneHeight)*100),
+      }) : undefined,
       durationOutputFrames: Number(draft.cameraDurationOutputFrames),
+      targetRect: draft.cameraTargetEnabled ? create(PresentationRectSchema, {
+        x: Math.round(Number(draft.cameraTargetX) * 100), y: Math.round(Number(draft.cameraTargetY) * 100),
+        width: Math.round(Number(draft.cameraTargetWidth) * 100), height: Math.round(Number(draft.cameraTargetHeight) * 100),
+      }) : undefined,
       matteRgb: colorFromDraft(draft.cameraMatteColor) ?? create(PresentationRGBSchema, { red: 0, green: 0, blue: 0 }),
     }) : undefined,
     scene: create(PhotographicSceneSchema, {
@@ -164,8 +198,19 @@ function draftFromRevision(name: string, revision: ShotRevision): ShotDraft {
     topRight: point(scene?.plateQuad?.topRight), bottomRight: point(scene?.plateQuad?.bottomRight), bottomLeft: point(scene?.plateQuad?.bottomLeft),
     depictionLabel: scene?.depictionLabel ?? "", coordinateConvention: scene?.coordinateConvention ?? CoordinateConvention.UNSPECIFIED,
     motionMode: revision.snapshot?.motionMode ?? MotionMode.FIXED,
+    cameraProfile: revision.snapshot?.cameraMotion?.profileId || "screen-entry-stationary-scene-v1",
+    cameraSceneEnabled: Boolean(revision.snapshot?.cameraMotion?.sceneRect),
+    cameraSceneX: String((revision.snapshot?.cameraMotion?.sceneRect?.x ?? 0)/100),
+    cameraSceneY: String((revision.snapshot?.cameraMotion?.sceneRect?.y ?? 0)/100),
+    cameraSceneWidth: String((revision.snapshot?.cameraMotion?.sceneRect?.width ?? 10000)/100),
+    cameraSceneHeight: String((revision.snapshot?.cameraMotion?.sceneRect?.height ?? 10000)/100),
     cameraDurationOutputFrames: revision.snapshot?.cameraMotion ? String(revision.snapshot.cameraMotion.durationOutputFrames) : "24",
     cameraMatteColor: colorToDraft(revision.snapshot?.cameraMotion?.matteRgb) || "#000000",
+    cameraTargetEnabled: Boolean(revision.snapshot?.cameraMotion?.targetRect),
+    cameraTargetX: String((revision.snapshot?.cameraMotion?.targetRect?.x ?? 0) / 100),
+    cameraTargetY: String((revision.snapshot?.cameraMotion?.targetRect?.y ?? 0) / 100),
+    cameraTargetWidth: String((revision.snapshot?.cameraMotion?.targetRect?.width ?? 10000) / 100),
+    cameraTargetHeight: String((revision.snapshot?.cameraMotion?.targetRect?.height ?? 10000) / 100),
     sourceMediaId: presentation?.sourceMediaId ?? "", ...screenPresentationDraftFromProto(presentation),
     videoTiming: revision.snapshot?.videoTiming,
     readabilityProof: revision.snapshot?.readabilityProof,
@@ -446,7 +491,7 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     ? t(strings.shot.cameraDurationSummary, { frames: displayCameraFrames.toString(), seconds: cameraDurationSeconds(BigInt(displayCameraFrames), displayDraft.videoTiming), rate: displayDraft.videoTiming?.outputRateNum.toString() ?? "—" })
     : "";
   const presentationInvalid = screenPresentationDraftInvalid(draft);
-  const numericInvalid = integerValues.some((value) => !Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 4_294_967_295) || Number(draft.batteryPercent || 0) > 100 || rectPartial || rectOutOfBounds || rectNumeric.some((value) => value > 10000) || colorInvalid || partialPoint || coordinateOutOfRange || cameraDurationInvalid;
+  const numericInvalid = integerValues.some((value) => !Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 4_294_967_295) || Number(draft.batteryPercent || 0) > 100 || rectPartial || rectOutOfBounds || rectNumeric.some((value) => value > 10000) || colorInvalid || partialPoint || coordinateOutOfRange || cameraDurationInvalid || cameraRectInvalid(draft, "Target") || (draft.cameraProfile === "screen-entry-stationary-scene-v1" && cameraRectInvalid(draft, "Scene"));
   const selectedMediaPending = Boolean((displayDraft.plateMediaId && !plate && plateMetadata.isLoading) || (displayDraft.sourceMediaId && !screenSource && sourceMetadata.isLoading));
   const availableMedia = [...media.filter((item) => isPreviewableImage(item)), ...(plate && !media.some((item) => item.id === plate.id) ? [plate] : [])];
   const screenMediaOptions = [...media.filter((item) => isPreviewableImage(item) || isReadyInspectedVideo(item)), ...(screenSource && !media.some((item) => item.id === screenSource.id) ? [screenSource] : [])];
@@ -523,6 +568,13 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
             {displayDraft.motionMode === MotionMode.FIXED && <p className="shot-help">{t(strings.shot.fixedModeHelp)}</p>}
             {displayDraft.motionMode === MotionMode.CROP_PUSH && <>
               <p className="shot-help">{t(strings.shot.screenEntryContainHelp)}</p>
+              <label className="shot-field"><span>{t(strings.shot.cameraProfile)}</span><select value={displayDraft.cameraProfile} disabled={historical} onChange={(event) => change("cameraProfile", event.target.value)}><option value="screen-entry-stationary-scene-v1">{t(strings.shot.cameraStationary)}</option><option value="screen-entry-projective-contain-v1">{t(strings.shot.cameraProjective)}</option></select></label>
+              <p className="shot-help">{t(strings.shot.cameraProfileHelp)}</p>
+              {displayDraft.cameraProfile === "screen-entry-stationary-scene-v1" && <>
+                <label className="shot-field"><span><input type="checkbox" checked={displayDraft.cameraSceneEnabled} disabled={historical} onChange={(event) => change("cameraSceneEnabled", event.target.checked)} /> {t(strings.shot.cameraSceneEnabled)}</span></label>
+                {displayDraft.cameraSceneEnabled && <div className="shot-fields shot-fields--pair">{(["cameraSceneX", "cameraSceneY", "cameraSceneWidth", "cameraSceneHeight"] as const).map((key) => <label className="shot-field" key={key}><span>{t(strings.shot[key])}</span><input type="number" min={key === "cameraSceneWidth" || key === "cameraSceneHeight" ? 0.01 : 0} max={100} step={0.01} value={displayDraft[key]} disabled={historical} onChange={(event) => change(key, event.target.value)} /></label>)}</div>}
+                {cameraRectInvalid(displayDraft, "Scene") && <p role="alert">{t(strings.shot.cameraTargetInvalid)}</p>}
+              </>}
               {!displayDraft.videoTiming && <p role="alert">{t(strings.shot.cameraTimingRequired)}</p>}
               {displayCameraClipInvalid && <p role="alert">{t(strings.shot.cameraClipTooLong)}</p>}
               <label className="shot-field"><span>{t(strings.shot.cameraDurationFrames)}</span><input type="number" min={2} max={displayClipFrames === undefined || displayCameraLimitFrames === undefined ? 360 : Number(displayClipFrames > displayCameraLimitFrames ? displayCameraLimitFrames : displayClipFrames)} step={1} value={displayDraft.cameraDurationOutputFrames} disabled={historical} onChange={(event) => change("cameraDurationOutputFrames", event.target.value)} /></label>
@@ -530,6 +582,12 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
               {displayCameraDurationInvalid && displayDraft.videoTiming && <p role="alert">{t(strings.shot.cameraDurationInvalid)}</p>}
               {colorField(t(strings.shot.cameraMatte), displayDraft.cameraMatteColor, (value) => change("cameraMatteColor", value))}
               {displayCameraMatteInvalid && <p role="alert">{t(strings.shot.cameraMatteInvalid)}</p>}
+              <label className="shot-field"><span><input type="checkbox" checked={displayDraft.cameraTargetEnabled} disabled={historical} onChange={(event) => change("cameraTargetEnabled", event.target.checked)} /> {t(strings.shot.cameraTargetEnabled)}</span></label>
+              <p className="shot-help">{t(strings.shot.cameraTargetHelp)}</p>
+              {displayDraft.cameraTargetEnabled && <div className="shot-fields shot-fields--pair">
+                {(["cameraTargetX", "cameraTargetY", "cameraTargetWidth", "cameraTargetHeight"] as const).map((key) => <label className="shot-field" key={key}><span>{t(strings.shot[key])}</span><input type="number" min={key === "cameraTargetWidth" || key === "cameraTargetHeight" ? 0.01 : 0} max={100} step={0.01} value={displayDraft[key]} disabled={historical} onChange={(event) => change(key, event.target.value)} /></label>)}
+              </div>}
+              {cameraRectInvalid(displayDraft, "Target") && <p role="alert">{t(strings.shot.cameraTargetInvalid)}</p>}
             </>}
           </div>
           <details><summary>{t(strings.shot.masksAndGeometry)}</summary><div className="shot-fields">

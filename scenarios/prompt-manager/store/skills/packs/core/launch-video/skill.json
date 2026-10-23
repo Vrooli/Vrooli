@@ -17,15 +17,19 @@
     "commands": [
       "prompt-manager skill read",
       "brand-manager",
-      "vrooli scenario port"
+      "vrooli scenario port",
+      "program-runtime library run",
+      "device-studio renders export"
     ],
     "scenarios": [
       "prompt-manager",
       "landing-page-business-suite",
-      "brand-manager"
+      "brand-manager",
+      "device-studio",
+      "program-runtime"
     ]
   },
-  "revision": 36,
+  "revision": 46,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +37,5 @@
     "video",
     "launch"
   ],
-  "updatedAt": "2026-10-21T00:00:00Z"
+  "updatedAt": "2026-10-22T00:00:00Z"
 }

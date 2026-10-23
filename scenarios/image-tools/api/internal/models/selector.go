@@ -43,6 +43,9 @@ type SelectRequest struct {
 	// means nothing to a local model, so running locally would silently drop the
 	// caller's intent. It has no effect unless AllowBYOK is also true.
 	PreferRemote bool
+	// CapacityManagedGPU defers transient free-memory admission to the host
+	// broker. Total hardware capacity must still fit; this never grants GPU use.
+	CapacityManagedGPU bool
 }
 
 // Selection is the selector's verdict for one operation.
@@ -75,6 +78,14 @@ type HardwareFit struct {
 // viable — selection falls back to a CPU-capable tier rather than risk an OOM on
 // an unmeasured or currently busy device.
 func Fit(m Model, h capabilities.Host) HardwareFit {
+	return fitGPU(m, h, false)
+}
+
+func (req SelectRequest) fit(m Model) HardwareFit {
+	return fitGPU(m, req.Host, req.CapacityManagedGPU)
+}
+
+func fitGPU(m Model, h capabilities.Host, capacityManaged bool) HardwareFit {
 	needBytes := uint64(m.Hardware.MinVRAMGB) * bytesPerGB
 	var gpuViable bool
 	var bestKnownFreeVRAM uint64
@@ -83,6 +94,9 @@ func Fit(m Model, h capabilities.Host) HardwareFit {
 		free, known := g.VRAMFreeBytes()
 		if !known {
 			continue
+		}
+		if capacityManaged {
+			free = g.VRAMBytes
 		}
 		anyKnownGPU = true
 		if free > bestKnownFreeVRAM {
@@ -205,7 +219,7 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 			continue
 		}
 		enabledCount++
-		fit := Fit(m, req.Host)
+		fit := req.fit(m)
 		if fit.Runnable {
 			runnable = append(runnable, m)
 		} else if fit.VRAMShortfallGB > worstShortfall {
@@ -229,7 +243,7 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 		// A remote model uses no local GPU, so a local VRAM shortfall is not a
 		// caution about it.
 		if !sel.GPUViable && m.Backend != BackendOpenRouter {
-			shortfall := Fit(m, req.Host).VRAMShortfallGB
+			shortfall := req.fit(m).VRAMShortfallGB
 			if worstShortfall > shortfall {
 				shortfall = worstShortfall
 			}
@@ -248,7 +262,7 @@ func (r *Registry) rankCandidates(runnable []Model, req SelectRequest) []Model {
 	}
 	items := make([]scored, len(runnable))
 	for i, m := range runnable {
-		items[i] = scored{m: m, gpuViable: Fit(m, req.Host).GPUViable}
+		items[i] = scored{m: m, gpuViable: req.fit(m).GPUViable}
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
@@ -312,7 +326,7 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 	if !r.enabled(m, isEnabled) {
 		return Selection{}, fmt.Errorf("%w: model %q is disabled", ErrOverrideInvalid, req.OverrideID)
 	}
-	fit := Fit(m, req.Host)
+	fit := req.fit(m)
 	if !fit.Runnable {
 		if fit.VRAMShortfallGB > 0 {
 			return Selection{}, fmt.Errorf("%w: model %q needs ~%d GB more VRAM and is not CPU-capable", ErrOverrideInvalid, req.OverrideID, fit.VRAMShortfallGB)
@@ -328,7 +342,7 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 }
 
 func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {
-	fit := Fit(m, req.Host)
+	fit := req.fit(m)
 	sel := Selection{Model: m, GPUViable: fit.GPUViable}
 
 	switch {
@@ -338,6 +352,10 @@ func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {
 		sel.Reason = fmt.Sprintf("model %q runs remotely via %s", m.ID, m.Backend)
 	case fit.GPUViable:
 		sel.Reason = fmt.Sprintf("model %q runs on GPU (needs >=%d GB VRAM)", m.ID, m.Hardware.MinVRAMGB)
+		if req.CapacityManagedGPU {
+			sel.Reason = fmt.Sprintf("model %q fits GPU hardware; capacity admission is pending", m.ID)
+			sel.Warnings = append(sel.Warnings, "GPU execution requires host capacity admission at job start; contention may select CPU")
+		}
 	case m.Hardware.CPUCapable:
 		sel.Reason = fmt.Sprintf("model %q runs on CPU", m.ID)
 		warn := fmt.Sprintf("running %q on CPU — expect slower results", m.ID)

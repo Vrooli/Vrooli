@@ -31,6 +31,7 @@ import (
 	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
+	preparationH "image-tools/handlers/preparation"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
 	internalcleanup "image-tools/internal/cleanup"
@@ -45,6 +46,7 @@ import (
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	opsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops"
+	preparationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/preparation"
 	safetyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/safety"
 	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 )
@@ -65,6 +67,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, looksH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
 	out = append(out, opsH.Endpoints...)
+	out = append(out, preparationH.Endpoints...)
 	out = append(out, safetyH.Endpoints...)
 	out = append(out, selectionH.Endpoints...)
 	return out
@@ -101,6 +104,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "looks", File: looksv1.File_image_tools_v1_looks_looks_proto},
 		{Module: "models", File: modelsv1.File_image_tools_v1_models_models_proto},
 		{Module: "ops", File: opsv1.File_image_tools_v1_ops_ops_proto},
+		{Module: "preparation", File: preparationv1.File_image_tools_v1_preparation_preparation_proto},
 		{Module: "safety", File: safetyv1.File_image_tools_v1_safety_safety_proto},
 		{Module: "selection", File: selectionv1.File_image_tools_v1_selection_selection_proto},
 	}
@@ -125,6 +129,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(internalmeasures.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
 		apidb.SchemaProviderFunc(opsH.Schema),
+		apidb.SchemaProviderFunc(preparationH.Schema),
 		apidb.SchemaProviderFunc(safetyH.Schema),
 	}
 }

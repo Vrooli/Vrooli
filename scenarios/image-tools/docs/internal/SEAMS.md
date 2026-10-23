@@ -199,6 +199,14 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
 | **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
+Image Tools resolves the scenario's primary blob directory at startup, but the
+filesystem root is selected for each operation from the request context. A
+request carrying test mode must use `filerouting.RoutedRoots.PickRequired` and
+fail closed when its lease is absent; successful writes call `RecordWrite`.
+Queued AI jobs persist that routing intent with the job so worker execution and
+job-record updates stay inside the same lease after the request returns. Model
+weights, installed adapters, and sidecar files remain on the primary data root.
+
 ### capabilities.Probe (host hardware facts)
 
 | | |

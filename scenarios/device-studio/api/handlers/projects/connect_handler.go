@@ -233,7 +233,7 @@ func (h *handler) EnsureSourceMediaInspection(ctx context.Context, req *connect.
 	}
 	job, _, err := h.deps.Inspection.EnsureSourceInspection(ctx, req.Msg.ProjectId, req.Msg.MediaId)
 	if err != nil {
-		return nil, inspectionConnectError(err)
+		return nil, h.inspectionConnectError("ensure", req.Msg.ProjectId, req.Msg.MediaId, err)
 	}
 	if err := h.activateInspectionRoute(ctx, job); err != nil {
 		return nil, err
@@ -259,7 +259,7 @@ func (h *handler) RetrySourceMediaInspection(ctx context.Context, req *connect.R
 	}
 	job, err := h.deps.Inspection.RetrySourceInspection(ctx, req.Msg.ProjectId, req.Msg.MediaId, req.Msg.ExpectedJobVersion)
 	if err != nil {
-		return nil, inspectionConnectError(err)
+		return nil, h.inspectionConnectError("retry", req.Msg.ProjectId, req.Msg.MediaId, err)
 	}
 	if err := h.activateInspectionRoute(ctx, job); err != nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (h *handler) CancelSourceMediaInspection(ctx context.Context, req *connect.
 	}
 	job, err := h.deps.Inspection.CancelSourceInspection(ctx, req.Msg.ProjectId, req.Msg.MediaId, req.Msg.ExpectedJobVersion)
 	if err != nil {
-		return nil, inspectionConnectError(err)
+		return nil, h.inspectionConnectError("cancel", req.Msg.ProjectId, req.Msg.MediaId, err)
 	}
 	if err := h.activateInspectionRoute(ctx, job); err != nil {
 		return nil, err
@@ -348,8 +348,15 @@ func inspectionConnectError(err error) error {
 	case errors.Is(err, jobs.ErrInvalid), errors.Is(err, renderjobsDomain.ErrNotEligible):
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("source media is not eligible for inspection"))
 	default:
-		return connect.NewError(connect.CodeInternal, errors.New("source media inspection failed"))
+		return connect.NewError(connect.CodeInternal, errors.New("source media inspection failed; check the Device Studio API log and retry once the cause is resolved"))
 	}
+}
+
+func (h *handler) inspectionConnectError(operation, projectID, mediaID string, err error) error {
+	if !errors.Is(err, jobs.ErrNotFound) && !errors.Is(err, jobs.ErrConcurrentTransition) && !errors.Is(err, jobs.ErrInvalidTransition) && !errors.Is(err, jobs.ErrIdempotencyConflict) && !errors.Is(err, domain.ErrInspectionConflict) && !errors.Is(err, jobs.ErrInvalid) && !errors.Is(err, renderjobsDomain.ErrNotEligible) {
+		h.deps.Logger.Printf("source media inspection %s failed project=%q media=%q: %v", operation, projectID, mediaID, err)
+	}
+	return inspectionConnectError(err)
 }
 
 func pinProjectRoute(ctx context.Context, db *database.RoutedDB, roots *filerouting.RoutedRoots) (context.Context, error) {

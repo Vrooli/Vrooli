@@ -88,6 +88,8 @@ var table = []Operation{
 	// analysis
 	{Name: "segment", Category: CategoryAnalysis, Summary: "Segment objects/regions in an image", RequiresImage: true},
 	{Name: "depth_map", Category: CategoryEnhancement, Summary: "Estimate a per-pixel depth map from a single image", RequiresImage: true},
+	{Name: "scene_geometry", Category: CategoryEnhancement, Summary: "Estimate a camera-calibrated floating-point scene geometry bundle", RequiresImage: true},
+	{Name: "image_to_object", Category: CategoryEnhancement, Summary: "Reconstruct a textured 3D prop mesh from one image and optional foreground mask", RequiresImage: true},
 	{Name: "normal_map", Category: CategoryEnhancement, Summary: "Convert image luminance/depth into a tangent-space normal map", RequiresImage: true},
 	{Name: "ocr", Category: CategoryAnalysis, Summary: "Extract text from an image (OCR)", RequiresImage: true},
 	{Name: "nsfw_classify", Category: CategoryAnalysis, Summary: "Classify an image for NSFW / unsafe content", RequiresImage: true},

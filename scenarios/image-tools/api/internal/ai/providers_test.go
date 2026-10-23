@@ -28,6 +28,55 @@ func (f *fakeWarmRunner) Run(context.Context, string, []string) error {
 
 func (f *fakeWarmRunner) Close() error { return nil }
 
+func TestExecProvider_DiffusersReceivesCapacityDeviceDecision(t *testing.T) {
+	for _, gpu := range []bool{false, true} {
+		device := "cpu"
+		if gpu {
+			device = "cuda"
+		}
+		p := &execProvider{
+			name: "diffusers", program: "python3", pythonInterpreter: "/private/python",
+			techniques: technique.Single("edit_instruct", func(backends.Request, string) ([]string, error) {
+				return []string{"-m", "image_tools_sidecar.edit_instruct"}, nil
+			}),
+			run: func(ctx context.Context, program string, args []string) error {
+				if got := strings.Join(args, " "); !strings.HasSuffix(got, "--device "+device) {
+					t.Fatalf("device decision lost: %s", got)
+				}
+				return nil
+			},
+		}
+		if _, err := p.Execute(context.Background(), backends.Request{Operation: "edit_instruct", GPU: gpu, Output: storage.OutputTarget{LocalPath: "/out.png"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestGPUDeviceBindingIsPerProcess(t *testing.T) {
+	t.Setenv("CUDA_VISIBLE_DEVICES", "GPU-operator-default")
+	ctx := context.WithValue(context.Background(), gpuDeviceContextKey{}, "GPU-reserved")
+	cmd := inferenceCommand(ctx, "/bin/true")
+	visible := []string{}
+	for _, value := range cmd.Env {
+		if strings.HasPrefix(value, "CUDA_VISIBLE_DEVICES=") {
+			visible = append(visible, value)
+		}
+	}
+	if len(visible) != 1 || visible[0] != "CUDA_VISIBLE_DEVICES=GPU-reserved" {
+		t.Fatalf("subprocess lost or duplicated its binding: %v", visible)
+	}
+	if os.Getenv("CUDA_VISIBLE_DEVICES") != "GPU-operator-default" || inferenceCommand(context.Background(), "/bin/true").Env != nil {
+		t.Fatal("per-request binding changed the serving process or unrelated requests")
+	}
+}
+
+func TestTripoSRProviderSupportsReservedGPUUUID(t *testing.T) {
+	provider := &execProvider{name: "triposr"}
+	if !provider.SupportsGPUUUID() {
+		t.Fatal("TripoSR uses torch CUDA and must honor the broker-reserved CUDA_VISIBLE_DEVICES UUID")
+	}
+}
+
 // TestRegisterProviders_SatisfiesBootInvariant proves the real provider set
 // covers every Phase-3 AI op with a standalone (non-ComfyUI) backend, so the
 // boot-time backends.Validate invariant holds.
@@ -343,7 +392,7 @@ func TestExecProvider_UsesWarmRunnerBeforeOneShot(t *testing.T) {
 	}
 }
 
-func TestExecProvider_FallsBackWhenWarmRunnerFails(t *testing.T) {
+func TestExecProvider_DoesNotReplayFailedWarmInference(t *testing.T) {
 	warm := &fakeWarmRunner{err: errors.New("worker exited")}
 	var oneShotCalls int
 	p := &execProvider{
@@ -364,15 +413,12 @@ func TestExecProvider_FallsBackWhenWarmRunnerFails(t *testing.T) {
 		InputKeys: []string{"/in.png"},
 		Output:    storage.OutputTarget{LocalPath: "/out.png"},
 	}
-	res, err := p.Execute(context.Background(), req)
-	if err != nil {
-		t.Fatalf("execute: %v", err)
+	_, err := p.Execute(context.Background(), req)
+	if err == nil || !strings.Contains(err.Error(), "worker exited") {
+		t.Fatalf("expected original inference failure, got %v", err)
 	}
-	if warm.calls != 1 || oneShotCalls != 1 {
+	if warm.calls != 1 || oneShotCalls != 0 {
 		t.Fatalf("warm calls=%d one-shot calls=%d", warm.calls, oneShotCalls)
-	}
-	if res.Meta["runner"] == "warm" {
-		t.Fatalf("fallback result should not claim warm runner: %+v", res.Meta)
 	}
 }
 
@@ -565,5 +611,47 @@ func TestExecProvider_PrefersGPUAlias(t *testing.T) {
 				t.Errorf("programName() = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestTorchCUDAProbeRejectsCPUOnlyAndBrokenRuntimes(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		want       bool
+	}{
+		{"cuda", "#!/bin/sh\nprintf 'cuda-ready\\n'\n", true},
+		{"cpu", "#!/bin/sh\nprintf 'cpu-only\\n'\n", false},
+		{"failed", "#!/bin/sh\nprintf 'cuda-ready\\n'\nexit 1\n", false},
+		{"unrecognized", "#!/bin/sh\nprintf 'unexpected\\n'\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			python := filepath.Join(t.TempDir(), "python")
+			if err := os.WriteFile(python, []byte(tc.body), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if got := probeTorchCUDA(context.Background(), python); got != tc.want {
+				t.Fatalf("GPU capability=%v want %v", got, tc.want)
+			}
+		})
+	}
+	if probeTorchCUDA(context.Background(), "") {
+		t.Fatal("missing runtime advertised CUDA")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if probeTorchCUDA(ctx, "/bin/sh") {
+		t.Fatal("cancelled probe advertised CUDA")
+	}
+}
+
+func TestPythonGPUCapabilityRecoversAfterEnvironmentConverges(t *testing.T) {
+	ready := false
+	p := execProvider{program: pythonProgram, pythonInterpreter: "/private/pyenv/bin/python", gpuCapable: true, gpuProbe: func(context.Context, string) bool { return ready }}
+	if p.GPUCapable() {
+		t.Fatal("unprovisioned Torch runtime advertised CUDA")
+	}
+	ready = true
+	if !p.GPUCapable() {
+		t.Fatal("asynchronous environment convergence remained pinned to CPU until restart")
 	}
 }

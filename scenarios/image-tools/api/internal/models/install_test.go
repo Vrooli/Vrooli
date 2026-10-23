@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -134,6 +135,56 @@ func TestInstallStoreListAndDelete(t *testing.T) {
 	}
 	if _, ok, err := st.Get(ctx, "a"); err != nil || ok {
 		t.Fatalf("deleted install still present: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestInstalledBuildCandidateFetchesMissingPinnedInputBeforeBuild(t *testing.T) {
+	f := newInstallFixture(t)
+	ctx := context.Background()
+	model, ok := f.in.Reg.ByID("big-lama-1024-export")
+	if !ok {
+		t.Fatal("missing LaMa export candidate")
+	}
+	sourcePayload := bytes.Repeat([]byte("pinned source\n"), 128)
+	checkpointPayload := append([]byte{0x10, 0, 0, 0, 0, 0, 0, 0, '{'}, bytes.Repeat([]byte{' '}, 2048)...)
+	sourceHash := sha256Hex(sourcePayload)
+	checkpointHash := sha256Hex(checkpointPayload)
+	model.Source.Assets[0].SHA256 = sourceHash
+	model.Source.Assets[0].MinBytes = 1
+	model.Source.Assets[1].SHA256 = checkpointHash
+	model.Source.Assets[1].MinBytes = 1
+	model.BuildProfile.SourceSHA256 = sourceHash
+	model.BuildProfile.CheckpointSHA256 = checkpointHash
+	f.in.Reg.byID[model.ID] = model
+
+	dir := f.in.modelDir(model.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, model.BuildProfile.SourceAsset), sourcePayload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.in.State.Set(ctx, InstallRecord{ID: model.ID, Installed: true, Path: dir, Checksum: sourceHash}); err != nil {
+		t.Fatal(err)
+	}
+	f.in.Download = downloaderFunc(func(_ context.Context, rawURL, dest string, _ func(int64, int64)) error {
+		f.downloads++
+		payload := sourcePayload
+		if strings.Contains(rawURL, "big-lama.safetensors") {
+			payload = checkpointPayload
+		}
+		return os.WriteFile(dest, payload, 0o644)
+	})
+
+	_, err := f.in.Install(ctx, model.ID, nil)
+	if err == nil || !strings.Contains(err.Error(), "native RAM capacity broker") {
+		t.Fatalf("install should fetch the missing pinned asset before reaching the unavailable build seam, got %v", err)
+	}
+	if f.downloads != 2 {
+		t.Fatalf("incomplete installed candidate should reconcile both pinned assets, downloads=%d", f.downloads)
+	}
+	if _, err := os.Stat(filepath.Join(dir, model.BuildProfile.CheckpointAsset)); err != nil {
+		t.Fatalf("missing safetensors input was not fetched: %v", err)
 	}
 }
 

@@ -4,6 +4,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { type SuggestedEdit } from "../../api/selection";
+import { ObjectMaskEditor } from "./ObjectMaskEditor";
 import { useSmartSelect, type SmartSelectClient } from "./useSmartSelect";
 
 export interface SmartSelectViewProps {
@@ -34,6 +35,7 @@ export function SmartSelectView({ client }: SmartSelectViewProps = {}) {
   const [px, setPx] = useState("50");
   const [py, setPy] = useState("50");
   const headingId = useId();
+  const [modelMode, setModelMode] = useState(false);
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,6 +77,20 @@ export function SmartSelectView({ client }: SmartSelectViewProps = {}) {
         <p className="text-app-muted-foreground">{t(strings.select.description)}</p>
       </div>
 
+      <input
+        ref={fileInputRef}
+        data-testid={selectors.select.fileInput}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label={t(strings.select.chooseImage)}
+        onChange={onFile}
+      />
+      {s.image ? <div className="flex flex-wrap gap-2" role="group" aria-label={t(strings.select.objectMask.tool)}>
+        <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-control border border-app-border px-3 py-2">{t(strings.select.chooseImage)}</button>
+        <button type="button" aria-pressed={!modelMode} onClick={()=>setModelMode(false)} className="rounded-control border border-app-border px-3 py-2">{t(strings.select.objectMask.colorTool)}</button>
+        <button type="button" aria-pressed={modelMode} onClick={()=>setModelMode(true)} className="rounded-control border border-app-border px-3 py-2">{t(strings.select.objectMask.title)}</button>
+      </div> : null}
       {!s.image ? (
         <div
           data-testid={selectors.select.dropzone}
@@ -87,17 +103,9 @@ export function SmartSelectView({ client }: SmartSelectViewProps = {}) {
           >
             {t(strings.select.chooseImage)}
           </button>
-          <input
-            ref={fileInputRef}
-            data-testid={selectors.select.fileInput}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            aria-label={t(strings.select.chooseImage)}
-            onChange={onFile}
-          />
+
         </div>
-      ) : (
+      ) : modelMode && s.imageUrl ? <ObjectMaskEditor key={s.imageUrl} image={s.image} imageUrl={s.imageUrl}/> : (
         <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
           {/* Work surface: image + mask overlay + the pointer + fallback controls. */}
           <div className="flex flex-col gap-3">

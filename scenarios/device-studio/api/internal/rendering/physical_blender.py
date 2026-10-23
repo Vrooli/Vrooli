@@ -1,5 +1,6 @@
 """Fixed Device Studio physical still adapter; all decisions arrive in one validated manifest."""
 import json
+import hashlib
 import math
 import os
 import struct
@@ -16,6 +17,18 @@ from mathutils import Matrix, Quaternion, Vector
 
 def fail(message):
     raise RuntimeError(message)
+
+
+def persist_gpu_diagnostics(root, runtime):
+    """Persist selection proof before rendering, then atomically update completion."""
+    destination = os.path.join(root, "physical-gpu-diagnostics.json")
+    temporary = destination + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as diagnostic_file:
+        json.dump(runtime, diagnostic_file, sort_keys=True, separators=(",", ":"))
+        diagnostic_file.write("\n")
+        diagnostic_file.flush()
+        os.fsync(diagnostic_file.fileno())
+    os.replace(temporary, destination)
 
 
 def initialize_empty_scene():
@@ -41,23 +54,40 @@ def read_manifest(path):
         and output.get("height") == 540 and output.get("output_name") == "physical-preview.png"
         and profile.get("samples") == 64 and profile.get("wall_time_seconds") == 30
     )
+    valid_diagnostic = (
+        manifest.get("version") == 3 and output.get("kind") == "still_png"
+        and output.get("profile_id") == "device-studio-physical-diagnostic-960x540-v1"
+        and output.get("profile_version") == 1 and output.get("width") == 960
+        and output.get("height") == 540 and output.get("output_name") == "physical-diagnostic.png"
+        and profile.get("samples") == 4 and profile.get("wall_time_seconds") == 30
+    )
     valid_motion = manifest.get("version") == 2 and manifest.get("output", {}).get("kind") == "motion_mp4"
     valid_recording = (
         manifest.get("version") == 4 and manifest.get("output", {}).get("kind") == "motion_mp4"
         and manifest.get("output", {}).get("profile_id") == "device-studio-physical-recording-1080p-v1"
         and manifest.get("screen", {}).get("recording") is not None
     )
+    valid_diagnostic_recording = (
+        manifest.get("version") == 4 and output.get("kind") == "motion_mp4"
+        and output.get("profile_id") == "device-studio-physical-recording-diagnostic-1080p-v1"
+        and output.get("profile_version") == 1 and output.get("width") == 1920
+        and output.get("height") == 1080 and output.get("frame_count", 0) <= 48
+        and output.get("motion_profile") == "device-studio-physical-recording-diagnostic-motion-v1"
+        and manifest.get("screen", {}).get("recording") is not None
+        and profile.get("samples") == 4 and profile.get("wall_time_seconds") == 600
+    )
     output = manifest.get("output", {})
     articulated = (
         manifest.get("version") == 5
         and output.get("articulation_profile") == "device-studio-single-revolute-hinge-v1"
         and ((output.get("kind") == "still_png" and output.get("profile_id") in (
-            "device-studio-physical-still-2560-v1", "device-studio-physical-preview-960x540-v1"))
+            "device-studio-physical-still-2560-v1", "device-studio-physical-preview-960x540-v1",
+            "device-studio-physical-diagnostic-960x540-v1"))
             or (output.get("kind") == "motion_mp4" and output.get("profile_id") in (
                 "device-studio-physical-motion-1080p-v1", "device-studio-physical-motion-1080p-v2",
                 "device-studio-physical-recording-1080p-v1")))
     )
-    if not (valid_still or valid_preview or valid_motion or valid_recording or articulated):
+    if not (valid_still or valid_preview or valid_diagnostic or valid_motion or valid_recording or valid_diagnostic_recording or articulated):
         fail("unsupported physical render manifest")
     return os.path.dirname(path), manifest
 
@@ -702,6 +732,366 @@ def apply_motion_sample(device_root, camera_object, camera_spec, placement, devi
     bpy.context.view_layer.update()
 
 
+def validate_photographic_camera_envelope(scene_candidate, camera_spec, samples):
+    """Reject camera motion that exceeds the reviewed photo reconstruction envelope."""
+    photograph = scene_candidate.get("photographic_background")
+    if not photograph:
+        return
+    max_translation = float(photograph.get("camera_envelope_max_translation_m", 0.0))
+    max_rotation = float(photograph.get("camera_envelope_max_rotation_degrees", 0.0))
+    reviewed = photograph.get("overscan_reviewed") is True
+    if not math.isfinite(max_translation) or not math.isfinite(max_rotation) or max_translation < 0 or max_rotation < 0:
+        fail("photographic camera envelope is invalid")
+    if not reviewed and (max_translation > 0 or max_rotation > 0):
+        fail("photographic camera motion requires reviewed overscan")
+    for sample in samples:
+        motion = sample.get("camera_transforms", {}).get(camera_spec["id"])
+        if motion is None:
+            continue
+        translation = motion.get("translation_m", {})
+        rotation = motion.get("rotation_xyzw", {})
+        values = [float(translation.get(axis, 0.0)) for axis in ("x", "y", "z")]
+        quaternion = [float(rotation.get(axis, 0.0)) for axis in ("x", "y", "z", "w")]
+        if not all(math.isfinite(value) for value in values + quaternion):
+            fail("photographic camera motion contains non-finite values")
+        distance = math.sqrt(sum(value * value for value in values))
+        qnorm = math.sqrt(sum(value * value for value in quaternion))
+        if abs(qnorm - 1.0) > 1e-5:
+            fail("photographic camera motion quaternion is not normalized")
+        angle = math.degrees(2.0 * math.acos(min(1.0, abs(quaternion[3]))))
+        if distance > max_translation + 1e-9 or angle > max_rotation + 1e-7:
+            fail("sampled camera motion exceeds the reviewed photographic envelope")
+
+
+def validate_photographic_render_mode(scene_candidate, camera_spec, samples):
+    """Return the explicit photo composite mode and enforce its camera contract."""
+    photograph = scene_candidate.get("photographic_background") or {}
+    mode = photograph.get("render_mode", "")
+    if mode not in ("", "SOURCE_CAMERA_PLATE_V1", "DEPTH_REPROJECTED_GEOMETRY_V1"):
+        fail("photographic render mode is unsupported")
+    if mode == "SOURCE_CAMERA_PLATE_V1":
+        camera_id = camera_spec["id"]
+        for sample in samples:
+            transforms = sample.get("camera_transforms", {})
+            transform = transforms.get(camera_id)
+            if transform is None:
+                continue
+            translation = transform.get("translation_m", {})
+            rotation = transform.get("rotation_xyzw", {})
+            moved = any(abs(float(translation.get(axis, 0.0))) > 1e-9 for axis in ("x", "y", "z"))
+            rotated = (abs(float(rotation.get("x", 0.0))) > 1e-9 or
+                       abs(float(rotation.get("y", 0.0))) > 1e-9 or
+                       abs(float(rotation.get("z", 0.0))) > 1e-9 or
+                       abs(float(rotation.get("w", 1.0)) - 1.0) > 1e-9)
+            if moved or rotated:
+                fail("source-camera plate mode rejects camera motion")
+    return mode
+
+
+def source_camera_plate_path(root, manifest, scene_candidate):
+    """Resolve the clean-plate only from its immutable staged scene texture."""
+    photograph = scene_candidate.get("photographic_background") or {}
+    textures = [item for item in scene_candidate.get("artifacts", [])
+                if item.get("ref", {}).get("role") == "texture_image"]
+    if len(textures) != 1:
+        fail("source-camera plate mode requires exactly one staged scene texture")
+    artifact = textures[0]
+    reference = artifact.get("ref", {})
+    route = photograph.get("route", "")
+    if route == "PHOTOGRAPH_ROUTE_EMPTY_SCENE":
+        if reference.get("sha256") != photograph.get("source_raster_sha256"):
+            fail("source-camera plate differs from the reviewed source raster")
+    elif route == "PHOTOGRAPH_ROUTE_DEVICE_REMOVAL":
+        if not photograph.get("repair_provenance_sha256"):
+            fail("device-removal source-camera plate lacks reviewed repair provenance")
+    else:
+        fail("source-camera plate route is unsupported")
+    binding = next((item for item in manifest.get("assets", [])
+                    if item.get("binding_id") == artifact.get("id") and item.get("role") == "scene_texture"), None)
+    if binding is None or not binding.get("name"):
+        fail("source-camera plate has no immutable staged scene texture binding")
+    path = os.path.join(root, binding["name"])
+    try:
+        expected_size = int(reference.get("size_bytes", 0))
+    except (TypeError, ValueError):
+        expected_size = 0
+    if not os.path.isfile(path) or expected_size <= 0 or os.path.getsize(path) != expected_size:
+        fail("staged source-camera plate is missing or has an unexpected size")
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != reference.get("sha256"):
+        fail("staged source-camera plate differs from its immutable digest")
+    return path
+
+
+def validate_source_plate_aspect(source_width, source_height, output_width, output_height, tolerance=0.002):
+    """Reject source-camera composites that would stretch the immutable plate."""
+    dimensions = (source_width, source_height, output_width, output_height)
+    if any(not isinstance(value, int) or value <= 0 for value in dimensions):
+        fail("source-camera plate and output dimensions must be positive integers")
+    if not math.isfinite(tolerance) or tolerance < 0:
+        fail("source-camera aspect tolerance is invalid")
+    source_aspect = source_width / source_height
+    output_aspect = output_width / output_height
+    if abs(source_aspect / output_aspect - 1.0) > tolerance:
+        fail("source-camera plate aspect ratio differs from output; crop and re-review the source first")
+
+
+def triangle_within_support_plane(points, normal, plane_point, tolerance):
+    if len(points) != 3 or not math.isfinite(tolerance) or tolerance <= 0:
+        return False
+    return all(
+        abs(sum(float(normal[axis]) * (float(point[axis]) - float(plane_point[axis])) for axis in range(3))) <= tolerance
+        for point in points
+    )
+
+
+def support_plane_quad(normal, plane_point, device_points, margin):
+    """Build a bounded, planar catcher around projected device bounds."""
+    if len(normal) != 3 or len(plane_point) != 3 or len(device_points) < 4:
+        raise ValueError("support plane or device bounds are incomplete")
+    if not math.isfinite(margin) or margin < 0:
+        raise ValueError("support catcher margin is invalid")
+    n = tuple(float(value) for value in normal)
+    plen = math.sqrt(sum(value * value for value in n))
+    if not math.isfinite(plen) or abs(plen - 1.0) > 1e-4:
+        raise ValueError("support plane normal is not normalized")
+    p0 = tuple(float(value) for value in plane_point)
+    axis = (1.0, 0.0, 0.0) if abs(n[0]) < 0.9 else (0.0, 0.0, 1.0)
+    projection = sum(axis[i] * n[i] for i in range(3))
+    u_axis = tuple(axis[i] - projection * n[i] for i in range(3))
+    u_length = math.sqrt(sum(value * value for value in u_axis))
+    u_axis = tuple(value / u_length for value in u_axis)
+    v_axis = (
+        n[1] * u_axis[2] - n[2] * u_axis[1],
+        n[2] * u_axis[0] - n[0] * u_axis[2],
+        n[0] * u_axis[1] - n[1] * u_axis[0],
+    )
+    projected = []
+    signed_distances = []
+    for point in device_points:
+        delta = tuple(float(point[i]) - p0[i] for i in range(3))
+        signed = sum(n[i] * delta[i] for i in range(3))
+        signed_distances.append(signed)
+        on_plane = tuple(float(point[i]) - signed * n[i] for i in range(3))
+        relative = tuple(on_plane[i] - p0[i] for i in range(3))
+        projected.append((sum(relative[i] * u_axis[i] for i in range(3)),
+                          sum(relative[i] * v_axis[i] for i in range(3))))
+    footprint = (
+        min(value[0] for value in projected), min(value[1] for value in projected),
+        max(value[0] for value in projected), max(value[1] for value in projected),
+    )
+    u_min, v_min, u_max, v_max = footprint
+    u_min -= margin
+    v_min -= margin
+    u_max += margin
+    v_max += margin
+    corners = []
+    for u, v in ((u_min, v_min), (u_max, v_min), (u_max, v_max), (u_min, v_max)):
+        corners.append(tuple(p0[i] + u * u_axis[i] + v * v_axis[i] for i in range(3)))
+    return {
+        "corners": tuple(corners),
+        "basis_u": u_axis,
+        "basis_v": v_axis,
+        "footprint": footprint,
+        "signed_distance_min": min(signed_distances),
+        "signed_distance_max": max(signed_distances),
+    }
+
+
+def rotate_by_quaternion(q, vector):
+    x, y, z = float(q["x"]), float(q["y"]), float(q["z"])
+    w = float(q["w"])
+    vx, vy, vz = (float(value) for value in vector)
+    return (
+        (1 - 2 * (y*y + z*z))*vx + 2 * (x*y - z*w)*vy + 2 * (x*z + y*w)*vz,
+        2 * (x*y + z*w)*vx + (1 - 2 * (x*x + z*z))*vy + 2 * (y*z - x*w)*vz,
+        2 * (x*z - y*w)*vx + 2 * (y*z + x*w)*vy + (1 - 2 * (x*x + y*y))*vz,
+    )
+
+
+def opencv_plane_to_world(plane_normal_opencv, offset, camera_frame):
+    # OpenCV +x right,+y down,+z forward to canonical +x right,+y up,+z
+    # front, then through the immutable source camera frame.
+    local_normal = (float(plane_normal_opencv[0]), -float(plane_normal_opencv[1]), -float(plane_normal_opencv[2]))
+    local_point = tuple(-float(offset) * value for value in local_normal)
+    q = camera_frame["rotation_xyzw"]
+    t = camera_frame["translation_m"]
+    normal_world = rotate_by_quaternion(q, local_normal)
+    point_rotated = rotate_by_quaternion(q, local_point)
+    point_world = tuple(point_rotated[i] + float(t[axis]) for i, axis in enumerate(("x", "y", "z")))
+    return normal_world, point_world
+
+
+def make_support_shadow_catchers(scene, scene_objects, device_objects, photograph, camera_frame):
+    normal = photograph.get("support_plane_normal_opencv")
+    offset = float(photograph.get("support_plane_offset_estimate_m", float("nan")))
+    residual95 = float(photograph.get("support_plane_residual_p95_estimate_m", float("nan")))
+    if not isinstance(normal, list) or len(normal) != 3 or not all(math.isfinite(float(value)) for value in normal):
+        fail("photographic support-plane normal is invalid")
+    if not math.isfinite(offset) or not math.isfinite(residual95) or residual95 < 0:
+        fail("photographic support-plane offset or residual is invalid")
+    n, point = opencv_plane_to_world(normal, offset, camera_frame)
+    nlen = math.sqrt(sum(value * value for value in n))
+    if abs(nlen - 1.0) > 1e-4:
+        fail("photographic support-plane normal is not normalized")
+    tolerance = min(0.03, max(0.008, residual95 * 3.0))
+    blender_to_canonical = canonical_to_blender().inverted()
+    device_points = []
+    for device in device_objects:
+        if device.type != "MESH" or device.data is None:
+            continue
+        for corner in device.bound_box:
+            world = device.matrix_world @ Vector(corner)
+            canonical = blender_to_canonical @ world
+            device_points.append(tuple(float(value) for value in canonical))
+    if not device_points:
+        fail("photographic support catcher has no device geometry bounds")
+    signed_distances = [sum(n[i] * (p[i] - point[i]) for i in range(3)) for p in device_points]
+    if min(signed_distances) > tolerance or max(signed_distances) < -tolerance:
+        fail("device bounds do not intersect the reviewed photographic support plane")
+    footprint_margin = 0.18
+    try:
+        quad = support_plane_quad(n, point, device_points, footprint_margin)
+    except ValueError as exc:
+        fail(str(exc))
+
+    # Confirm that the reconstructed source actually contains observed mesh
+    # vertices near the device footprint on this plane before using a planar
+    # catcher. The high-resolution background mesh remains the beauty pass.
+    footprint_u_min, footprint_v_min, footprint_u_max, footprint_v_max = quad["footprint"]
+    observed = []
+    for source in scene_objects:
+        if source.type != "MESH" or source.data is None:
+            continue
+        for vertex in source.data.vertices:
+            world = source.matrix_world @ vertex.co
+            canonical = blender_to_canonical @ world
+            relative = tuple(float(canonical[i]) - point[i] for i in range(3))
+            distance = sum(n[i] * relative[i] for i in range(3))
+            if abs(distance) > tolerance:
+                continue
+            on_plane = tuple(float(canonical[i]) - distance * n[i] for i in range(3))
+            relative = tuple(on_plane[i] - point[i] for i in range(3))
+            u = sum(relative[i] * quad["basis_u"][i] for i in range(3))
+            v = sum(relative[i] * quad["basis_v"][i] for i in range(3))
+            if (footprint_u_min - 0.03 <= u <= footprint_u_max + 0.03
+                    and footprint_v_min - 0.03 <= v <= footprint_v_max + 0.03):
+                observed.append((u, v))
+    if len(observed) < 3:
+        fail("reconstructed scene has no observed support vertices near the device footprint")
+    if (max(value[0] for value in observed) - min(value[0] for value in observed) < 0.02
+            or max(value[1] for value in observed) - min(value[1] for value in observed) < 0.02):
+        fail("observed support vertices do not span the device footprint")
+
+    mesh = bpy.data.meshes.new("photographic-shadow-catcher-mesh")
+    mesh.from_pydata(quad["corners"], [], [(0, 1, 2), (0, 2, 3)])
+    mesh.update()
+    catcher = bpy.data.objects.new("photographic-support-shadow-catcher", mesh)
+    scene.collection.objects.link(catcher)
+    catcher.matrix_world = canonical_to_blender()
+    catcher.is_shadow_catcher = True
+    print(
+        "PHOTOGRAPHIC_SUPPORT_CATCHER triangles=2 footprint_margin_m=%.3f "
+        "plane_tolerance_m=%.6f observed_support_vertices=%d device_signed_distance_m=[%.6f,%.6f]"
+        % (footprint_margin, tolerance, len(observed), min(signed_distances), max(signed_distances)),
+        flush=True,
+    )
+    return [catcher]
+
+
+def build_photographic_compositor(scene, background_path):
+    """Build the pinned Blender 5 standalone compositor graph for the baked plate."""
+    compositor_tree = bpy.data.node_groups.new("photographic-device-composite", "CompositorNodeTree")
+    scene.compositing_node_group = compositor_tree
+    compositor_tree.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    nodes = compositor_tree.nodes
+    nodes.clear()
+    plate = bpy.data.images.load(background_path, check_existing=False)
+    plate.colorspace_settings.name = "sRGB"
+    validate_source_plate_aspect(
+        int(plate.size[0]), int(plate.size[1]),
+        int(scene.render.resolution_x), int(scene.render.resolution_y),
+    )
+    plate.scale(scene.render.resolution_x, scene.render.resolution_y)
+    plate_node = nodes.new("CompositorNodeImage")
+    plate_node.image = plate
+    rendered = nodes.new("CompositorNodeRLayers")
+    alpha_over = nodes.new("CompositorNodeAlphaOver")
+    alpha_over.inputs["Factor"].default_value = 1.0
+    nodes_output = nodes.new("NodeGroupOutput")
+    compositor_tree.links.new(plate_node.outputs["Image"], alpha_over.inputs["Background"])
+    compositor_tree.links.new(rendered.outputs["Image"], alpha_over.inputs["Foreground"])
+    compositor_tree.links.new(alpha_over.outputs["Image"], nodes_output.inputs["Image"])
+    return compositor_tree, plate
+
+
+def render_photographic_composite(scene, root, scene_objects, device_objects, photograph, camera_frame, output_path, source_plate_path=None):
+    """Render baked plate, then transparent device/shadow-catcher layer over it."""
+    if not scene_objects or not device_objects:
+        fail("photographic composite requires staged background and device geometry")
+    background_path = source_plate_path or os.path.join(root, "photographic-background-pass.png")
+    if source_plate_path is None and os.path.exists(background_path):
+        os.remove(background_path)
+    compositor_was_enabled = scene.render.use_compositing
+    previous_compositor = scene.compositing_node_group
+    compositor_tree = None
+    scene.render.use_compositing = False
+    scene.render.film_transparent = False
+    scene.render.filepath = background_path
+    device_visibility = [(obj, obj.hide_render) for obj in device_objects]
+    catchers = []
+    scene_visibility = [(obj, obj.hide_render) for obj in scene_objects]
+    try:
+        for obj, _ in device_visibility:
+            if obj.type == "MESH":
+                obj.hide_render = True
+        if source_plate_path is None:
+            bpy.ops.render.render(write_still=True)
+            if not os.path.isfile(background_path) or os.path.getsize(background_path) <= 0:
+                fail("photographic background pass produced no bounded image")
+        for obj, hidden in device_visibility:
+            obj.hide_render = hidden
+        # The geometry beauty pass used to force dependency-graph evaluation
+        # before the device bounds were tested. Source-camera plate mode skips
+        # that pass, so refresh transforms explicitly before placing the catcher.
+        bpy.context.view_layer.update()
+        catchers = make_support_shadow_catchers(scene, scene_objects, device_objects, photograph, camera_frame)
+        for obj, _ in scene_visibility:
+            if obj.type == "MESH":
+                obj.hide_render = True
+        scene.render.film_transparent = True
+        # Blender 5 stores compositor graphs as independent node groups;
+        # Scene.use_nodes and Scene.node_tree are obsolete/removed APIs.
+        compositor_tree, plate = build_photographic_compositor(scene, background_path)
+        scene.render.use_compositing = True
+        scene.render.filepath = output_path
+        bpy.ops.render.render(write_still=True)
+        bpy.data.images.remove(plate)
+        if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
+            fail("photographic device and contact-shadow composite produced no image")
+    finally:
+        for obj, hidden in device_visibility:
+            obj.hide_render = hidden
+        for obj, hidden in scene_visibility:
+            obj.hide_render = hidden
+        for catcher in catchers:
+            mesh = catcher.data
+            bpy.data.objects.remove(catcher, do_unlink=True)
+            if mesh is not None and mesh.users == 0:
+                bpy.data.meshes.remove(mesh)
+        scene.render.film_transparent = False
+        scene.render.use_compositing = compositor_was_enabled
+        scene.compositing_node_group = previous_compositor
+        scene.render.filepath = output_path
+        if compositor_tree is not None:
+            bpy.data.node_groups.remove(compositor_tree, do_unlink=True)
+        if source_plate_path is None and os.path.exists(background_path):
+            os.remove(background_path)
+
+
 def write_frame_record(ordinal, data):
     fd = 3
     header = struct.pack(">IQ", ordinal, len(data))
@@ -802,25 +1192,44 @@ def main():
     camera_spec = next((item for item in scene_candidate["camera_frames"] if item["id"] == camera_id), None)
     if camera_spec is None:
         fail("selected camera is missing from scene candidate")
+    validate_photographic_camera_envelope(scene_candidate, camera_spec, manifest["output"]["samples"])
+    photo_render_mode = validate_photographic_render_mode(scene_candidate, camera_spec, manifest["output"]["samples"])
+    photo_plate_path = source_camera_plate_path(root, manifest, scene_candidate) if photo_render_mode == "SOURCE_CAMERA_PLATE_V1" else None
     camera_motion = manifest["output"]["samples"][0].get("camera_transforms", {}).get(camera_id)
     camera_object = setup_camera(scene, camera_spec, device_root, scene_candidate, scene_objects, camera_motion)
     configure_scene(scene, manifest, root)
     backend = manifest["profile"]["backend"]
+    gpu_runtime = None
     if backend == "CPU":
         scene.cycles.device = "CPU"
     else:
         addon = bpy.context.preferences.addons.get("cycles")
         if addon is None:
             fail("Cycles backend preferences are unavailable")
+        requested_uuid = os.environ.get("DEVICE_STUDIO_GPU_UUID", "").strip()
+        if not requested_uuid:
+            fail("GPU render requires a pinned physical GPU UUID")
+        visible_uuids = [x.strip() for x in os.environ.get("CUDA_VISIBLE_DEVICES", "").split(",") if x.strip()]
+        if visible_uuids != [requested_uuid]:
+            fail("GPU visibility does not match the pinned physical UUID")
         prefs = addon.preferences
         prefs.compute_device_type = backend
         prefs.get_devices()
         usable = [item for item in prefs.devices if item.type == backend]
-        if not usable:
-            fail("pinned Cycles backend has no usable device")
+        if len(usable) != 1:
+            fail("pinned Cycles backend must expose exactly one usable device")
         for item in prefs.devices:
-            item.use = item.type == backend
+            item.use = item in usable
         scene.cycles.device = "GPU"
+        gpu_runtime = {
+            "backend": backend,
+            "uuid": requested_uuid,
+            "selected_device": usable[0].name,
+            "visible_devices": [item.name for item in prefs.devices if item.use],
+            "cycles_device": scene.cycles.device,
+            "render_completed": False,
+        }
+        persist_gpu_diagnostics(root, gpu_runtime)
     if manifest["output"]["kind"] == "motion_mp4":
         scratch_path = os.path.join(root, "physical-motion-frame.png")
         scene.render.filepath = scratch_path
@@ -832,7 +1241,10 @@ def main():
                 write_recording_screen_frame(root, packet)
                 screen_image.reload()
             apply_motion_sample(device_root, camera_object, camera_spec, manifest["placement"], device_candidate, sample, hinge)
-            bpy.ops.render.render(write_still=True)
+            if scene_candidate.get("photographic_background"):
+                render_photographic_composite(scene, root, scene_objects_list, device_objects_list, scene_candidate["photographic_background"], camera_spec["frame"], scratch_path, photo_plate_path)
+            else:
+                bpy.ops.render.render(write_still=True)
             if not os.path.isfile(scratch_path) or os.path.getsize(scratch_path) <= 0:
                 fail("Blender did not produce the bounded motion frame scratch image")
             with open(scratch_path, "rb") as frame_file:
@@ -844,9 +1256,15 @@ def main():
     else:
         if articulated:
             apply_motion_sample(device_root, camera_object, camera_spec, manifest["placement"], device_candidate, manifest["output"]["samples"][0], hinge)
-        bpy.ops.render.render(write_still=True)
+        if scene_candidate.get("photographic_background"):
+            render_photographic_composite(scene, root, scene_objects_list, device_objects_list, scene_candidate["photographic_background"], camera_spec["frame"], output_path, photo_plate_path)
+        else:
+            bpy.ops.render.render(write_still=True)
         if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
             fail("Blender did not produce the fixed still output")
+    if gpu_runtime is not None:
+        gpu_runtime["render_completed"] = True
+        persist_gpu_diagnostics(root, gpu_runtime)
 
 
 if __name__ == "__main__":

@@ -40,7 +40,13 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 	}
 
 	installableEnabledByOp := make(map[string]int, len(r.vocab))
+	disabledDeclaredByOp := make(map[string]int, len(r.vocab))
 	for _, m := range r.models {
+		if !m.Enabled {
+			for _, op := range m.Operations {
+				disabledDeclaredByOp[op]++
+			}
+		}
 		if b, blocked := r.blockByID[m.ID]; blocked {
 			add(CatalogFinding{
 				Code:    "seed_blocklist_overlap",
@@ -75,10 +81,15 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 
 	for _, op := range r.vocabOrder {
 		if installableEnabledByOp[op] == 0 {
+			severity, message := FindingError, "operation has no enabled model with resolvable install assets"
+			if disabledDeclaredByOp[op] > 0 {
+				severity, message = FindingWarning, "operation is intentionally unavailable: only disabled experimental models declare it"
+			}
 			add(CatalogFinding{
+				Severity:  severity,
 				Code:      "operation_without_installable_enabled_model",
 				Operation: op,
-				Message:   "operation has no enabled model with resolvable install assets",
+				Message:   message,
 			})
 		}
 	}

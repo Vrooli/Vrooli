@@ -3,6 +3,8 @@ package fetch
 import (
 	"errors"
 	"fmt"
+	"os"
+	"unicode/utf8"
 
 	"github.com/vrooli/binaryfetch"
 )
@@ -43,6 +45,9 @@ const (
 	ArtifactNCNNBin   ArtifactKind = "ncnn-bin"
 	// ArtifactBinary is a standalone executable artifact.
 	ArtifactBinary ArtifactKind = "binary"
+	// ArtifactConfig is a pinned small text config (for example a YAML model
+	// architecture file), not a weight blob. It has a separate 128-byte floor.
+	ArtifactConfig ArtifactKind = "config"
 )
 
 // Asset is one downloadable artifact a catalog entry needs on disk. An entry may
@@ -83,6 +88,9 @@ var ErrArtifactNotWeight = errors.New("fetch: downloaded artifact is not a model
 // The asset's SHA256 (when published) is verified separately by the installer
 // (it needs the full-file hash it pins anyway), not here.
 func ValidateArtifact(path string, a Asset) error {
+	if a.Kind == ArtifactConfig {
+		return validateConfigArtifact(path, a)
+	}
 	if err := binaryfetch.ValidateNotHTMLAndSized(path, a.Filename, a.MinBytes); err != nil {
 		return err
 	}
@@ -93,6 +101,38 @@ func ValidateArtifact(path string, a Asset) error {
 	}
 	if err := checkKindMagic(a.Kind, head); err != nil {
 		return fmt.Errorf("%w: %q (%v)", ErrArtifactNotWeight, a.Filename, err)
+	}
+	return nil
+}
+
+func validateConfigArtifact(path string, a Asset) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("fetch: stat config: %w", err)
+	}
+	minimum := a.MinBytes
+	if minimum < 128 {
+		minimum = 128
+	}
+	if info.Size() < minimum {
+		return fmt.Errorf("binaryfetch: downloaded config is smaller than expected: %q is %d bytes, need >= %d", a.Filename, info.Size(), minimum)
+	}
+	head, err := binaryfetch.ReadHead(path, binaryfetch.SniffLen)
+	if err != nil {
+		return fmt.Errorf("fetch: read config head: %w", err)
+	}
+	if _, html := binaryfetch.IsHTML(head); html {
+		return fmt.Errorf("%w: %q is HTML, expected text config", ErrArtifactNotWeight, a.Filename)
+	}
+	if !utf8.Valid(head) {
+		return fmt.Errorf("%w: %q is not UTF-8 text", ErrArtifactNotWeight, a.Filename)
+	}
+	trimmed := head
+	for len(trimmed) > 0 && (trimmed[0] == ' ' || trimmed[0] == '\n' || trimmed[0] == '\r' || trimmed[0] == '\t') {
+		trimmed = trimmed[1:]
+	}
+	if len(trimmed) == 0 || trimmed[0] == '<' || trimmed[0] == '{' {
+		return fmt.Errorf("%w: %q is not the expected YAML config text", ErrArtifactNotWeight, a.Filename)
 	}
 	return nil
 }

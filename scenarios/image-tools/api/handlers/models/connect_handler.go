@@ -116,6 +116,16 @@ func (h *connectHandler) installStates(ctx context.Context) (map[string]internal
 		return nil, err
 	}
 	for _, r := range recs {
+		// Build-profile candidates persist downloaded source assets even when a
+		// derived runtime artifact is absent or failed. Public install state means
+		// the selected model artifact is ready; keep the durable asset record in
+		// InstallStore while projecting build candidates as uninstalled until the
+		// validated output and provenance are ready.
+		if h.deps.Installer.Reg != nil {
+			if model, ok := h.deps.Installer.Reg.ByID(r.ID); ok && model.BuildProfile != nil {
+				r.Installed = h.deps.Installer.BuildReady(ctx, r.ID)
+			}
+		}
 		out[r.ID] = r
 	}
 	return out, nil
@@ -317,7 +327,7 @@ func (h *connectHandler) InstallModel(ctx context.Context, req *connect.Request[
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
 	}
 
-	if h.deps.Installer.Installed(ctx, id) {
+	if h.deps.Installer.Installed(ctx, id) && (m.BuildProfile == nil || h.deps.Installer.BuildReady(ctx, id)) {
 		return connect.NewResponse(&modelsv1.InstallModelResponse{
 			AlreadyInstalled: true,
 			SizeMbApprox:     int32(m.SizeMBApprox),

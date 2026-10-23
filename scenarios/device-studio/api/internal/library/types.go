@@ -79,6 +79,7 @@ type ReviewBinding struct {
 	ReviewerID     string    `json:"reviewer_id"`
 	ReviewedAt     time.Time `json:"reviewed_at"`
 	Decision       string    `json:"decision"`
+	Rationale      string    `json:"rationale,omitempty"`
 	ManifestSHA256 string    `json:"manifest_sha256"`
 	AllowedUses    []Use     `json:"allowed_uses"`
 }
@@ -278,6 +279,9 @@ func canonicalReview(in ReviewBinding, manifestSHA string) (ReviewBinding, []byt
 	}
 	if review.ManifestSHA256 != manifestSHA {
 		return ReviewBinding{}, nil, "", errors.New("review does not bind the canonical manifest digest")
+	}
+	if len(review.Rationale) > 2048 || strings.ContainsAny(review.Rationale, "\x00\r") {
+		return ReviewBinding{}, nil, "", errors.New("review rationale is invalid or exceeds its bound")
 	}
 	review.ReviewedAt = review.ReviewedAt.UTC()
 	if len(review.AllowedUses) == 0 {

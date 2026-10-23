@@ -219,3 +219,14 @@ describe("api/ai.fetchAIResult", () => {
     await expect(fetchAIResult("out/missing.png")).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+it("submits typed mask prompts with a durable operation identity", async () => {
+ vi.stubGlobal("fetch",vi.fn().mockResolvedValue(makeResponse({json:{jobId:"mask-job",modelId:"sam-2.1-tiny",tier:"local-cpu"}})));
+ try {
+  await submitAI("segment",{segmentation:{points:[{x:.5,y:.4},{x:.1,y:.2,negative:true}]}},{image:PNG,operationId:"d1f3ca53-451f-4c42-a8cd-01ae479346bb"});
+  const init=vi.mocked(fetch).mock.calls[0]?.[1];
+  expect(init?.headers).toEqual({"Idempotency-Key":"d1f3ca53-451f-4c42-a8cd-01ae479346bb"});
+  const params=JSON.parse(String((init?.body as FormData).get("params")));
+  expect(params.segmentation.points[1]).toEqual({x:.1,y:.2,negative:true});
+ } finally {vi.unstubAllGlobals();}
+});

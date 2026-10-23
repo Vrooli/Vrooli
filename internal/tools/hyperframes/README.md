@@ -65,6 +65,28 @@ destination. Failure and cancellation leave the prior destination intact and
 stop only the operation-owned process scope. A technical receipt does not
 establish aesthetic quality or listening.
 
+## Capacity admission
+
+Each invocation acquires its requested RAM ceiling and 2000 CPU millicores through
+`packages/capacity.NewBroker` before snapshotting or starting renderer processes.
+This uses the existing serialized ledger, fresh memory PSI and CPU pressure rules.
+It does not reclaim other workloads or change policy. Queue, deny, sensing failure,
+and a lease that cannot renew stop the invocation. Retry after capacity becomes
+available; do not force a render through a refusal.
+
+The lease covers snapshot, check, render, decode, probe and owned-process cleanup.
+Renewal failure cancels that work. Cleanup uses a separate five-second release
+budget after the process owner returns. Unverified process cleanup retains the
+claim until its existing expiry and reports recovery required. CPU reservation is
+an admission estimate, not a two-core execution quota; the existing scope profile
+still controls process limits and priority.
+
+The command result includes `capacity_admission` with owner, budget, verdict and
+release state. Retain that result beside the immutable render bundle. On exact
+reuse, the bundle remains the original render receipt, while admission describes
+the new invocation. A release failure is an invocation failure even if a verified
+bundle was already published; reconcile that bundle before resubmitting.
+
 ## Debt retired
 
 Fresh production uses this owner instead of the historical effort launcher
@@ -190,3 +212,18 @@ and network isolation remain unqualified.
 Evidence: `~/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/qa/hyperframes112-native-qualification.json`
 and its exact request/result/log references. Prior0.8.44 receipts and immutable
 installation are preserved; new closure identities prevent accidental reuse.
+
+## Capacity integration observation (2026-10-20)
+
+Fresh 0.8.112 software renders produced two five-second 640x360 plate inserts
+through this owner with 4 GiB RAM/2000-millicore leases, verified scope cleanup
+and released the leases. Two initial attempts were refused before startup by the
+public broker (600 millicores available). Following fresh grants and a recorded
+protocol amendment, a 16-second deadline interrupted active capture at frame
+137/1440, retained diagnostics only, verified scope cleanup and released the
+lease. The following metal-plate recovery render succeeded in 14.4 seconds.
+These results qualify this narrow no-audio plate composition and timeout path;
+they do not qualify arbitrary media extraction or local video models. The focused
+race-enabled owner tests cover cancellation, lease renewal loss, release failure,
+unknown cleanup and completion during an in-flight heartbeat. Evidence is retained
+in the 2026-10-20 local-experimentation work record.

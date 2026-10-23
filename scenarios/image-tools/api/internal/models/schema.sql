@@ -29,6 +29,21 @@ CREATE TABLE IF NOT EXISTS model_install (
   installed_at TEXT NOT NULL DEFAULT ''
 );
 
+-- Build-operation intent is persisted before dispatch so an exporter service
+-- remains attributable and recoverable across API restarts. It stores the
+-- operation identity, never its environment, which can contain credentials.
+CREATE TABLE IF NOT EXISTS model_build_operation (
+  job_id        TEXT PRIMARY KEY,
+  model_id      TEXT NOT NULL,
+  intent_json   TEXT NOT NULL,
+  state         TEXT NOT NULL,
+  result        TEXT NOT NULL DEFAULT '',
+  exit_status   INTEGER NOT NULL DEFAULT 0,
+  updated_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS model_build_operation_model_state
+  ON model_build_operation(model_id, state);
+
 -- Custom / fine-tuned local model entries (IMG-P0-007). The seed catalog
 -- (registry.seed.json) is the read-only baseline; operators register their own
 -- local models here as a full JSON-serialized models.Model, merged on top of the

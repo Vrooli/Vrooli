@@ -1,5 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { PreparedPhotographs } from "../features/library/PreparedPhotographs";
 import { LibraryView } from "../features/library/LibraryView";
 import { LooksView } from "../features/looks/LooksView";
 import { useTranslation } from "../i18n";
@@ -21,6 +22,7 @@ export function LibraryPage() {
         </h2>
         <LibraryView />
       </div>
+      <PreparedPhotographs />
       <div className="flex flex-col gap-4">
         <h2 id="looks-heading" className="text-2xl font-semibold">
           {t(strings.looks.title)}

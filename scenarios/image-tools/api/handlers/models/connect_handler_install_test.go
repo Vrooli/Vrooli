@@ -179,6 +179,62 @@ func TestInstallModelAlreadyInstalledSkipsJob(t *testing.T) {
 	}
 }
 
+func TestInstallModelSchedulesMissingBuildForInstalledAssets(t *testing.T) {
+	h, installer, sub := newInstallHandler(t)
+	const modelID = "big-lama-1024-export"
+	modelDir := filepath.Join(installer.Root, "models", modelID)
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := installer.State.Set(context.Background(), internalmodels.InstallRecord{
+		ID: modelID, Installed: true, Path: modelDir, Checksum: "pinned-assets",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if resp.Msg.AlreadyInstalled {
+		t.Fatal("source assets without a compiled build must not report already installed")
+	}
+	if resp.Msg.JobId == "" || sub.submitted != 1 || sub.last.Operation != internalmodels.InstallJobOperation {
+		t.Fatalf("missing build should be delegated to one durable install job: response=%+v submitted=%d operation=%q", resp.Msg, sub.submitted, sub.last.Operation)
+	}
+
+	// The downloaded source record stays durable, but public catalog/install
+	// surfaces must not call it a runnable model until the derived artifact exists.
+	stored, ok, err := installer.State.Get(context.Background(), modelID)
+	if err != nil || !ok || !stored.Installed {
+		t.Fatalf("source asset record should remain durable and installed: record=%+v ok=%v err=%v", stored, ok, err)
+	}
+	got, err := h.GetModel(context.Background(), connect.NewRequest(&modelsv1.GetModelRequest{Id: modelID}))
+	if err != nil {
+		t.Fatalf("GetModel: %v", err)
+	}
+	if got.Msg.GetModel().GetInstall().GetInstalled() {
+		t.Fatal("GetModel must not report source-only build assets as an installed runtime artifact")
+	}
+	listed, err := h.ListModels(context.Background(), connect.NewRequest(&modelsv1.ListModelsRequest{}))
+	if err != nil {
+		t.Fatalf("ListModels: %v", err)
+	}
+	for _, model := range listed.Msg.GetModels() {
+		if model.GetId() == modelID && model.GetInstall().GetInstalled() {
+			t.Fatal("ListModels must not report source-only build assets as installed")
+		}
+	}
+	picker, err := h.ListOperationModels(context.Background(), connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: "object_removal"}))
+	if err != nil {
+		t.Fatalf("ListOperationModels: %v", err)
+	}
+	candidate := findCandidate(picker.Msg, modelID)
+	if candidate == nil || candidate.GetModel().GetInstall().GetInstalled() || candidate.GetReadyState() == "ready" {
+		t.Fatalf("picker must not present a source-only build candidate as installed or ready: candidate=%+v", candidate)
+	}
+}
+
 func TestInstallModelUnknownNotFound(t *testing.T) {
 	h, _, _ := newInstallHandler(t)
 	_, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: "nope"}))

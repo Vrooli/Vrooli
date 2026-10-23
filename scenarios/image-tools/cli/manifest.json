@@ -833,6 +833,47 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "submit-stored",
+          "description": "Admit one durable AI operation using owned blob references",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "AI operation name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "input-ref",
+              "description": "Owned source image blob reference"
+            },
+            {
+              "name": "mask-ref",
+              "description": "Owned mask blob reference"
+            },
+            {
+              "name": "operation-id",
+              "description": "Required stable caller UUID"
+            },
+            {
+              "name": "params",
+              "description": "AIParams JSON"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "SubmitStoredAI"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -1189,6 +1230,154 @@
           }
         }
       ]
+    },
+    {
+      "name": "preparation",
+      "description": "Retain and review immutable photographic scene preparations",
+      "commands": [
+        {
+          "name": "assess-repair",
+          "description": "Measure actual retained mask/context before dispatching repair inference; advisory only",
+          "positionals": [
+            {
+              "name": "mask_ref",
+              "required": true,
+              "description": "Owned binary removal-mask reference"
+            }
+          ],
+          "flags": [
+            {
+              "name": "crop-to-mask",
+              "description": "Measure proposed mask crop",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "context-pixels",
+              "description": "Proposed surrounding context pixels (0..512)",
+              "local_only": true
+            },
+            {
+              "name": "max-edge-px",
+              "description": "Proposed inference edge (512 or1024; zero is unknown)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreparationService",
+            "method": "AssessRepair"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Assemble a pending photographic preparation from exact owned artifact references",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreparationService",
+            "method": "CreatePhotograph"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "file",
+              "description": "Typed JSON request file (bounded to 256 KiB); include a stable operation_id UUID and reuse it on retry",
+              "local_only": true
+            },
+            {
+              "name": "request",
+              "description": "Typed JSON request, mutually exclusive with --file; intended for governed programs",
+              "local_only": true
+            }
+          ]
+        },
+        {
+          "name": "get",
+          "description": "Get a retained immutable photographic preparation",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreparationService",
+            "method": "GetPhotograph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Immutable preparation SHA256"
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "description": "List retained photographic preparations",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreparationService",
+            "method": "ListPhotographs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum records (1..100; default 30)"
+            }
+          ]
+        },
+        {
+          "name": "review",
+          "description": "Create a child revision retaining an explicit visual review; include and reuse a stable operation_id UUID for safe retries",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreparationService",
+            "method": "ReviewPhotograph"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "file",
+              "description": "Typed JSON request file (bounded to 256 KiB)",
+              "local_only": true
+            },
+            {
+              "name": "request",
+              "description": "Typed JSON request, mutually exclusive with --file; intended for governed programs",
+              "local_only": true
+            }
+          ]
+        }
+      ]
     }
   ],
   "omitted": [
@@ -1196,11 +1385,6 @@
       "service": "JobsService",
       "method": "WatchJob",
       "reason": "Server-streaming progress RPC. Exposed via the hand-appended `jobs watch` command (register.go) because cli-manifest/v1 bindings model unary connect-rpc calls only."
-    },
-    {
-      "service": "AIService",
-      "method": "Submit",
-      "reason": "AI op submission rides the REST multipart edge (POST /api/v1/ai/{operation}); image/mask bytes can't ride a Connect call, so the per-op submit commands (generate, img2img, \u2026) are hand-appended in cli/domains/ai/register.go."
     },
     {
       "service": "AnalysisService",

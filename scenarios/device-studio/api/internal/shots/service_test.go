@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"device-studio/internal/presentations"
 	"device-studio/internal/projects"
 	"device-studio/internal/rendering"
 	"device-studio/internal/shots"
@@ -306,6 +307,9 @@ func TestManualAndBrowserVideoRevisionsDoNotRequireSampleBinding(t *testing.T) {
 			shot, revision, err := s.Create(context.Background(), projectID, "Video preview", snapshot)
 			require.NoError(t, err)
 			require.True(t, revision.RenderEligible, "%+v", revision.Issues)
+			require.Equal(t, presentations.SemanticVersionV2, revision.PresentationVersion, "video app rasters must use the worker-supported saved presentation version")
+			_, configErr := presentations.ConfigFromSavedVersion(image.Pt(120, 120), revision.Snapshot.GetPresentation(), revision.PresentationVersion)
+			require.NoError(t, configErr, "an eligible plain video revision must build the worker presentation")
 			require.Nil(t, revision.Snapshot.GetVideoTiming().GetSampleBinding())
 			compiled, err := s.Compile(context.Background(), shot.ID, revision.Revision)
 			require.NoError(t, err)
@@ -342,12 +346,17 @@ func TestPhotographicCameraMotionValidationAndRecipePinning(t *testing.T) {
 
 	changed := proto.Clone(first.Snapshot).(*shotsv1.ShotSnapshot)
 	changed.CameraMotion.MatteRgb.Red = 12
+	changed.CameraMotion.TargetRect = &shotsv1.PresentationRect{X: 4000, Y: 1000, Width: 5500, Height: 8000}
 	changedBaseRecipe, err := shots.VideoBaseRecipeSHA(changed)
 	require.NoError(t, err)
 	require.NotEqual(t, baseRecipe, changedBaseRecipe, "camera config changes invalidate the accepted sample base recipe")
 	_, second, err := s.Save(context.Background(), shot.ID, first.Revision, shot.Name, changed)
 	require.NoError(t, err)
 	require.NotEqual(t, first.RecipeSHA256, second.RecipeSHA256, "camera matte is part of the immutable recipe")
+	require.Equal(t, uint32(4000), second.Snapshot.GetCameraMotion().GetTargetRect().GetX())
+	old, err := s.GetRevision(context.Background(), shot.ID, first.Revision)
+	require.NoError(t, err)
+	require.Nil(t, old.Snapshot.GetCameraMotion().GetTargetRect())
 
 	invalid := []struct {
 		name   string
@@ -355,6 +364,13 @@ func TestPhotographicCameraMotionValidationAndRecipePinning(t *testing.T) {
 	}{
 		{"fixed forbids camera", func(s *shotsv1.ShotSnapshot) { s.MotionMode = shotsv1.MotionMode_MOTION_MODE_FIXED }},
 		{"crop push requires camera", func(s *shotsv1.ShotSnapshot) { s.CameraMotion = nil }},
+		{"target empty", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.TargetRect = &shotsv1.PresentationRect{} }},
+		{"target overflow", func(s *shotsv1.ShotSnapshot) {
+			s.CameraMotion.TargetRect = &shotsv1.PresentationRect{X: 4000, Width: 7000, Height: 10000}
+		}},
+		{"target uint max", func(s *shotsv1.ShotSnapshot) {
+			s.CameraMotion.TargetRect = &shotsv1.PresentationRect{X: 4294967295, Width: 1, Height: 10000}
+		}},
 		{"matte required", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.MatteRgb = nil }},
 		{"matte range", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.MatteRgb.Red = 256 }},
 		{"profile version", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.ProfileVersion = 2 }},

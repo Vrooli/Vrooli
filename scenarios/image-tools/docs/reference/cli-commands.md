@@ -587,3 +587,15 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+
+### Prepared-layer parallax
+
+`ops composite` and `ops parallax` accept `--params-file` (typed OpParams JSON)
+and repeated `--plate` paths matching the declared layer order. Parallax also
+requires a stable `--operation-id`. It submits once to the existing job owner,
+prints the job identity, waits once and verifies/downloads a lossless PNG-sequence
+ZIP to `--out`. Retry the same operation id after an uncertain outcome; different
+inputs are rejected. `jobs get`, `jobs wait`, `jobs cancel` and `jobs download`
+operate on that same durable job. See [Layered photography](layered-photography.md)
+for preparation, camera limits, missing-coverage checks and scope.

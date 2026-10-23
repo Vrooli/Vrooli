@@ -259,6 +259,12 @@ func (c *Coordinator) makeVideoClosure(ctx context.Context, route routePin, req 
 			DurationOutputFrames: camera.GetDurationOutputFrames(),
 			MatteRGB:             &presentations.RGB{R: uint8(matte.GetRed()), G: uint8(matte.GetGreen()), B: uint8(matte.GetBlue())},
 		}
+		if r := camera.GetTargetRect(); r != nil {
+			manifest.Camera.TargetRect = &presentations.BasisRect{X: int(r.GetX()), Y: int(r.GetY()), Width: int(r.GetWidth()), Height: int(r.GetHeight())}
+		}
+		if r := camera.GetSceneRect(); r != nil {
+			manifest.Camera.SceneRect = &presentations.BasisRect{X: int(r.GetX()), Y: int(r.GetY()), Width: int(r.GetWidth()), Height: int(r.GetHeight())}
+		}
 		manifest.Scene.PlateWidth = int(rev.Plate.GetWidthPixels())
 		manifest.Scene.PlateHeight = int(rev.Plate.GetHeightPixels())
 	}
@@ -618,7 +624,7 @@ func (c *Coordinator) OpenVideoOutput(ctx context.Context, projectID, jobID stri
 	if err := verifyJobRoute(job, route); err != nil {
 		return jobs.Job{}, jobs.OutputRef{}, nil, err
 	}
-	physicalMotion := job.Input.SubjectKind == jobs.SubjectPhysicalRender && (job.Input.OutputProfile == OutputProfilePhysicalMotionMP4 || job.Input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || job.Input.OutputProfile == OutputProfilePhysicalRecordingMP4)
+	physicalMotion := job.Input.SubjectKind == jobs.SubjectPhysicalRender && (job.Input.OutputProfile == OutputProfilePhysicalMotionMP4 || job.Input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || job.Input.OutputProfile == OutputProfilePhysicalRecordingMP4 || job.Input.OutputProfile == OutputProfilePhysicalDiagnosticMotionMP4)
 	if job.Input.ProjectID != projectID || job.Input.SubjectKind != jobs.SubjectVideoRender && !physicalMotion {
 		return jobs.Job{}, jobs.OutputRef{}, nil, jobs.ErrNotFound
 	}

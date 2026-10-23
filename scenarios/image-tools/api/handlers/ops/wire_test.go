@@ -181,3 +181,18 @@ func TestTheScrimRegionReachesTheEngine(t *testing.T) {
 		t.Fatalf("scrim region reached the engine as %gx%g, want 0.42x0.3", p.RegionWidth, p.RegionHeight)
 	}
 }
+
+func TestParallaxWireRetainsLayerDepthAndCameraPath(t *testing.T) {
+	raw := []byte(`{"parallax":{"scene":{"width":80,"height":60,"plates":[{"name":"device","opacity":1,"distance":2}]},"startCamera":{"requireOpaque":true},"endCamera":{"x":0.02,"requireOpaque":true},"frames":3,"framesPerSecond":30}}`)
+	pb := &opsv1.OpParams{}
+	if err := protojson.Unmarshal(raw, pb); err != nil {
+		t.Fatal(err)
+	}
+	p, err := translateParams("parallax", pb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Parallax == nil || p.Parallax.Frames != 3 || p.Parallax.End.X != .02 || len(p.Plates) != 1 || p.Plates[0].Distance == nil || *p.Plates[0].Distance != 2 {
+		t.Fatal("typed parallax facts lost")
+	}
+}

@@ -149,7 +149,7 @@ func verifyPhysicalSemanticProbe(dir string, manifest physicalSemanticProbeManif
 	if err != nil || len(fixture) != manifest.HingeGLBSize || blenderDigest(fixture) != manifest.HingeGLBSHA || manifest.HingeGLBSHA != physicalHingeProbeGLBSHA256 {
 		return errors.New("staged importer-backed hinge GLB differs from the exact embedded fixture")
 	}
-	want := []string{"empty-factory-scene", "actual-parented-device-landmark", "absolute-hinge-pose-and-child-screen-landmark", "imported-glb-hinge-basis-and-child-landmark", "affine-uv-node-construction", "red-channel-roughness-and-bump", "normal-bump-chain", "grade-order", "mask-cutoff", "pinned-color-management", "canonical-constant-world", "logical-uv0-to-blender-uvmap", "pinned-cycles-look"}
+	want := []string{"empty-factory-scene", "actual-parented-device-landmark", "absolute-hinge-pose-and-child-screen-landmark", "imported-glb-hinge-basis-and-child-landmark", "affine-uv-node-construction", "red-channel-roughness-and-bump", "normal-bump-chain", "grade-order", "mask-cutoff", "pinned-color-management", "canonical-constant-world", "blender-5-photographic-compositor-node-group", "logical-uv0-to-blender-uvmap", "pinned-cycles-look"}
 	if receipt.Version != 1 || receipt.AdapterSHA256 != manifest.AdapterSHA256 || receipt.Status != "verified" || !equalStrings(receipt.Checks, want) {
 		return errors.New("semantic probe receipt does not prove the pinned adapter checks")
 	}

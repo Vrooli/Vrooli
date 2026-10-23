@@ -5,7 +5,8 @@
  * interactive, so the canvas keeps its pan/zoom/focus.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 
 import { selectors } from "../../consts/selectors";
 import { DetectionOverlay, type DetectionBox } from "./DetectionOverlay";

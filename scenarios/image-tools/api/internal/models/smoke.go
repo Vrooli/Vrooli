@@ -46,11 +46,22 @@ const SmokeModule = "image_tools_sidecar.smoke"
 // (host-tool availability), not by a Python probe.
 func probeArgsFor(m Model, dir string, deep bool) (kind string, args []string, ok bool) {
 	if m.Backend == "diffusers" {
-		args = []string{"--kind", "diffusers", "--model-dir", dir, "--family", m.Runtime.Family}
+		kind = "diffusers"
+		if strings.TrimSpace(m.Runtime.Family) != "" {
+			args = []string{"--kind", "diffusers", "--model-dir", dir, "--family", m.Runtime.Family}
+		} else if m.Architecture != "" && (m.ServesOperation("inpaint") || m.ServesOperation("outpaint")) {
+			kind = "diffusers-inpaint"
+			args = []string{"--kind", "diffusers-inpaint", "--model-dir", dir, "--architecture", string(m.Architecture)}
+			if variant := strings.TrimSpace(m.Runtime.Variant); variant != "" {
+				args = append(args, "--variant", variant)
+			}
+		} else {
+			return "", nil, false
+		}
 		if deep {
 			args = append(args, "--deep")
 		}
-		return "diffusers", args, true
+		return kind, args, true
 	}
 	if hasONNXWeight(dir) {
 		args = []string{"--kind", "onnx", "--model-dir", dir}

@@ -1,5 +1,5 @@
 import { createClient } from "@connectrpc/connect";
-import { create, fromJson, toJsonString } from "@bufbuild/protobuf";
+import { create, fromJson, toJsonString, type MessageInitShape } from "@bufbuild/protobuf";
 import {
   AIService,
   AIParamsSchema,
@@ -32,27 +32,11 @@ export const listAIOperations = (): Promise<ListAIOperationsResponse> =>
   aiClient.listAIOperations({});
 
 /**
- * The AIParams fields the UI sets; everything else takes the server default.
+ * Use the generated request shape directly so new model/geometry prompts cannot
+ * drift from the serialized contract. Unset fields take the server default.
  * `seed` is an int64 (protojson string on the wire); the rest map 1:1.
  */
-export type AIParamsInput = Partial<{
-  prompt: string;
-  negativePrompt: string;
-  seed: bigint;
-  width: number;
-  height: number;
-  steps: number;
-  cfgScale: number;
-  variations: number;
-  strength: number;
-  scale: number;
-  realism: number;
-  faceAware: boolean;
-  modelOverride: string;
-  allowByok: boolean;
-  autoScanNsfw: boolean;
-  consentAffirmed: boolean;
-}>;
+export type AIParamsInput = MessageInitShape<typeof AIParamsSchema>;
 
 /** Parsed `SubmitAIResponse`: the job to watch plus the resolved plan. */
 export interface SubmitAIResult {
@@ -73,7 +57,7 @@ export interface SubmitAIResult {
 export async function submitAI(
   operation: string,
   params: AIParamsInput,
-  opts: { image?: File; mask?: File } = {},
+  opts: { image?: File; mask?: File; operationId?: string; signal?: AbortSignal } = {},
 ): Promise<SubmitAIResult> {
   const formData = new FormData();
   if (opts.image) {
@@ -84,7 +68,10 @@ export async function submitAI(
   }
   formData.append("params", toJsonString(AIParamsSchema, create(AIParamsSchema, params)));
 
-  const res = await uploadFile(`/ai/${operation}`, formData);
+  const res = await uploadFile(`/ai/${operation}`, formData, {
+    headers: opts.operationId ? { "Idempotency-Key": opts.operationId } : undefined,
+    signal: opts.signal,
+  });
   if (!res.ok) {
     throw await decodeApiError(res);
   }

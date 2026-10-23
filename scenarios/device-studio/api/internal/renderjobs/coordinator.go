@@ -38,37 +38,39 @@ const (
 	OutputProfilePNG = "png-native-v1"
 	// OutputProfileMP4 is the caller-selected media format. Physical motion
 	// jobs store a more specific immutable profile chosen by the shot revision.
-	OutputProfileMP4                              = "mp4-h264-sdr-v1"
-	OutputProfilePhysicalMotionMP4                = "physical-motion-mp4-h264-sdr-v1"
-	OutputProfilePhysicalMotionMP4V2              = "physical-motion-mp4-h264-sdr-v2"
-	OutputProfilePhysicalRecordingMP4             = "physical-recording-mp4-h264-sdr-v1"
-	OutputProfilePhysicalPreviewPNG               = "physical-preview-png-v1"
-	RendererVersion                               = "go-still-homography-v1"
-	workerBlobPrefix                              = "renderjobs/workers/"
-	intentBlobPrefix                              = "renderjobs/intents/"
-	closureBlobPrefix                             = "renderjobs/closures/"
-	inputBlobPrefix                               = "renderjobs/inputs/"
-	operationEvidenceBlobPrefix                   = "renderjobs/operation-evidence/"
-	outputBlobPrefix                              = "renderjobs/outputs/"
-	receiptBlobPrefix                             = "renderjobs/receipts/"
-	quiescenceBlobPrefix                          = "renderjobs/quiescence/"
-	workspaceRelativeRoot                         = "device-studio/renderjobs"
-	workerFileName                                = "worker"
-	manifestMode                      os.FileMode = 0o600
-	workerMode                        os.FileMode = 0o700
-	maxWorkerBytes                                = 256 << 20
-	maxManifestBytes                              = 64 << 10
-	maxReceiptBytes                               = 64 << 10
-	maxOutputBytes                                = 160 << 20
-	maxOutputPixels                               = 16_000_000
-	maxWorkerInputBytes               int64       = 64 << 20
-	maxInspectionInputBytes           int64       = 512 << 20
-	maxInspectionSidecarBytes         int64       = 64 << 10
-	maxPhysicalManifestBytes          int64       = 4 << 20
-	maxPhysicalClosureBytes           int64       = 5 << 20
-	stageTimeout                                  = 30 * time.Second
-	ownerCallTimeout                              = 15 * time.Second
-	operationWallTime                             = 10 * time.Minute
+	OutputProfileMP4                                     = "mp4-h264-sdr-v1"
+	OutputProfilePhysicalMotionMP4                       = "physical-motion-mp4-h264-sdr-v1"
+	OutputProfilePhysicalMotionMP4V2                     = "physical-motion-mp4-h264-sdr-v2"
+	OutputProfilePhysicalRecordingMP4                    = "physical-recording-mp4-h264-sdr-v1"
+	OutputProfilePhysicalPreviewPNG                      = "physical-preview-png-v1"
+	OutputProfilePhysicalDiagnosticPNG                   = "physical-diagnostic-png-v1"
+	OutputProfilePhysicalDiagnosticMotionMP4             = "physical-diagnostic-motion-mp4-v1"
+	RendererVersion                                      = "go-still-homography-v1"
+	workerBlobPrefix                                     = "renderjobs/workers/"
+	intentBlobPrefix                                     = "renderjobs/intents/"
+	closureBlobPrefix                                    = "renderjobs/closures/"
+	inputBlobPrefix                                      = "renderjobs/inputs/"
+	operationEvidenceBlobPrefix                          = "renderjobs/operation-evidence/"
+	outputBlobPrefix                                     = "renderjobs/outputs/"
+	receiptBlobPrefix                                    = "renderjobs/receipts/"
+	quiescenceBlobPrefix                                 = "renderjobs/quiescence/"
+	workspaceRelativeRoot                                = "device-studio/renderjobs"
+	workerFileName                                       = "worker"
+	manifestMode                             os.FileMode = 0o600
+	workerMode                               os.FileMode = 0o700
+	maxWorkerBytes                                       = 256 << 20
+	maxManifestBytes                                     = 64 << 10
+	maxReceiptBytes                                      = 64 << 10
+	maxOutputBytes                                       = 160 << 20
+	maxOutputPixels                                      = 16_000_000
+	maxWorkerInputBytes                      int64       = 64 << 20
+	maxInspectionInputBytes                  int64       = 512 << 20
+	maxInspectionSidecarBytes                int64       = 64 << 10
+	maxPhysicalManifestBytes                 int64       = 4 << 20
+	maxPhysicalClosureBytes                  int64       = 5 << 20
+	stageTimeout                                         = 30 * time.Second
+	ownerCallTimeout                                     = 15 * time.Second
+	operationWallTime                                    = 10 * time.Minute
 )
 
 var (
@@ -367,7 +369,7 @@ func idempotentOutputProfileMatches(input jobs.Input, requested string) bool {
 		return true
 	}
 	return requested == OutputProfileMP4 && input.SubjectKind == jobs.SubjectPhysicalRender &&
-		(input.OutputProfile == OutputProfilePhysicalMotionMP4 || input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || input.OutputProfile == OutputProfilePhysicalRecordingMP4)
+		(input.OutputProfile == OutputProfilePhysicalMotionMP4 || input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || input.OutputProfile == OutputProfilePhysicalRecordingMP4 || input.OutputProfile == OutputProfilePhysicalDiagnosticMotionMP4)
 }
 
 // Advance performs one caller-requested progress step. A queued job stages and
@@ -515,10 +517,13 @@ func (c *Coordinator) OpenOutput(ctx context.Context, projectID, jobID string) (
 }
 
 func physicalOutputKind(profile string) string {
+	if profile == OutputProfilePhysicalDiagnosticPNG {
+		return "physical_diagnostic_png"
+	}
 	if profile == OutputProfilePhysicalPreviewPNG {
 		return "physical_preview_png"
 	}
-	if profile == OutputProfilePhysicalMotionMP4 || profile == OutputProfilePhysicalMotionMP4V2 || profile == OutputProfilePhysicalRecordingMP4 {
+	if profile == OutputProfilePhysicalMotionMP4 || profile == OutputProfilePhysicalMotionMP4V2 || profile == OutputProfilePhysicalRecordingMP4 || profile == OutputProfilePhysicalDiagnosticMotionMP4 {
 		return "physical_motion_mp4"
 	}
 	return "physical_still_png"

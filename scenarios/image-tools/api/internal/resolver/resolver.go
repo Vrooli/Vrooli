@@ -79,10 +79,11 @@ type Resolution struct {
 // testable). IsEnabled overlays runtime enable/disable state; nil uses the seed
 // defaults.
 type Request struct {
-	Operation     string
-	ModelOverride string
-	Host          capabilities.Host
-	AllowBYOK     bool
+	Operation          string
+	ModelOverride      string
+	Host               capabilities.Host
+	AllowBYOK          bool
+	CapacityManagedGPU bool
 	// FallbackPolicy resolves the tier ladder: local_only forbids a remote tier,
 	// cloud_allowed permits it, any prefers local and allows cloud as fallback.
 	// Empty leaves AllowBYOK as the caller set it.
@@ -137,12 +138,13 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		allowBYOK = true
 	}
 	candidates, err := r.registry.SelectCandidates(models.SelectRequest{
-		Operation:     req.Operation,
-		Host:          req.Host,
-		OverrideID:    req.ModelOverride,
-		QualityPolicy: req.QualityPolicy,
-		AllowBYOK:     allowBYOK,
-		PreferRemote:  req.PreferRemote,
+		Operation:          req.Operation,
+		Host:               req.Host,
+		OverrideID:         req.ModelOverride,
+		QualityPolicy:      req.QualityPolicy,
+		AllowBYOK:          allowBYOK,
+		PreferRemote:       req.PreferRemote,
+		CapacityManagedGPU: req.CapacityManagedGPU,
 	}, req.IsEnabled)
 	if err != nil {
 		return Resolution{}, err
@@ -176,7 +178,13 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 			skipped = append(skipped, fmt.Sprintf("model %q unavailable: %v", sel.Model.ID, berr))
 			continue
 		}
+		if bsel.Tier == backends.TierLocalCPU && !sel.Model.Hardware.CPUCapable {
+			lastBackendErr = fmt.Errorf("%w: model %q has no CPU execution path on backend %q", backends.ErrNoneAvailable, sel.Model.ID, bsel.Provider.Name())
+			skipped = append(skipped, lastBackendErr.Error())
+			continue
+		}
 		res.Tier = bsel.Tier.String()
+		res.GPUViable = bsel.Tier == backends.TierLocalGPU
 		res.Warnings = append(res.Warnings, bsel.Warnings...)
 		res.Warnings = append(res.Warnings, skipped...)
 		return res, nil

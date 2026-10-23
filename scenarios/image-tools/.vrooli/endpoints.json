@@ -400,6 +400,42 @@
       ]
     },
     {
+      "id": "ai_submit_stored",
+      "path": "/vrooli.image_tools.v1.ai.AIService/SubmitStoredAI",
+      "method": "POST",
+      "summary": "Admit one retry-safe AI job from owned source and mask blobs",
+      "description": "Uses the same responsible-use gate, typed validation, model selection and durable job queue as multipart; a stable UUID operation_id is required.",
+      "category": "ai"
+    },
+    {
+      "id": "ai_operation_readback",
+      "path": "/api/v1/ai/operations/{operation_id}",
+      "method": "GET",
+      "summary": "Read a durable AI submission by its idempotency key",
+      "description": "Returns the owner job created for a caller UUID idempotency key; it never submits or resumes work.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "progress": "integer",
+          "result_ref": "string",
+          "state": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The operation key has not been accepted"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Browser admission recovery reads operation status without resubmitting inference; response is the existing native durable job readback."
+      }
+    },
+    {
       "id": "ai_list_operations",
       "path": "/vrooli.image_tools.v1.ai.AIService/ListAIOperations",
       "method": "POST",
@@ -1918,6 +1954,46 @@
           }
         }
       }
+    },
+    {
+      "id": "preparation_assess_repair",
+      "path": "/vrooli.image_tools.v1.preparation.PreparationService/AssessRepair",
+      "method": "POST",
+      "summary": "Measure removal-mask context before repair inference",
+      "description": "",
+      "category": "preparation"
+    },
+    {
+      "id": "preparation_create",
+      "path": "/vrooli.image_tools.v1.preparation.PreparationService/CreatePhotograph",
+      "method": "POST",
+      "summary": "Assemble an immutable photograph preparation",
+      "description": "",
+      "category": "preparation"
+    },
+    {
+      "id": "preparation_get",
+      "path": "/vrooli.image_tools.v1.preparation.PreparationService/GetPhotograph",
+      "method": "POST",
+      "summary": "Inspect a retained photograph preparation",
+      "description": "",
+      "category": "preparation"
+    },
+    {
+      "id": "preparation_list",
+      "path": "/vrooli.image_tools.v1.preparation.PreparationService/ListPhotographs",
+      "method": "POST",
+      "summary": "List retained photograph preparations",
+      "description": "",
+      "category": "preparation"
+    },
+    {
+      "id": "preparation_review",
+      "path": "/vrooli.image_tools.v1.preparation.PreparationService/ReviewPhotograph",
+      "method": "POST",
+      "summary": "Retain a visual review as a new immutable revision",
+      "description": "",
+      "category": "preparation"
     },
     {
       "id": "safety_get_policy",

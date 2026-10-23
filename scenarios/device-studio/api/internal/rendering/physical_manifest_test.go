@@ -124,7 +124,9 @@ func TestPhysicalStillProfilePins256SamplesAndMotionStays128(t *testing.T) {
 func TestPhysicalPreviewProfileIsClosedAndReusesOnlyThePinnedPose(t *testing.T) {
 	manifest := validPhysicalManifest(t)
 	sample := manifest.Output.Samples[0]
-	sample.OutputTime = composition.Rational{}
+	// A scheduled motion sample uses 0/1 for its first frame. The preview
+	// still must normalize that to the still profile's canonical no-time value.
+	sample.OutputTime = composition.Rational{Num: 0, Den: 1}
 	manifest.Version = PhysicalPreviewManifestVersion
 	manifest.Output = NewPhysicalPreviewOutputPlan(sample, manifest.Output.Timebase)
 	manifest.Profile.Samples = PhysicalPreviewSamples
@@ -132,6 +134,9 @@ func TestPhysicalPreviewProfileIsClosedAndReusesOnlyThePinnedPose(t *testing.T) 
 	manifest.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(manifest.Profile)
 	if manifest.Output.Samples[0].RequestedMotionTick != sample.RequestedMotionTick || manifest.Output.Samples[0].SampledMotionTick != sample.SampledMotionTick {
 		t.Fatal("preview constructor changed the exact saved pose sample")
+	}
+	if manifest.Output.Samples[0].OutputOrdinal != 0 || manifest.Output.Samples[0].OutputTime != (composition.Rational{}) {
+		t.Fatalf("preview constructor did not normalize still output coordinates: %+v", manifest.Output.Samples[0])
 	}
 	if err := ValidatePhysicalRenderManifest(manifest); err != nil {
 		t.Fatalf("closed physical preview profile rejected: %v", err)
@@ -159,6 +164,28 @@ func TestPhysicalPreviewProfileIsClosedAndReusesOnlyThePinnedPose(t *testing.T) 
 				t.Fatal("invalid preview profile mutation was accepted")
 			}
 		})
+	}
+}
+
+func TestPhysicalDiagnosticProfileIsDistinctLowSampleAndNotPreviewQuality(t *testing.T) {
+	manifest := validPhysicalManifest(t)
+	sample := manifest.Output.Samples[0]
+	sample.OutputTime = composition.Rational{Num: 0, Den: 1}
+	manifest.Version = PhysicalPreviewManifestVersion
+	manifest.Output = NewPhysicalDiagnosticOutputPlan(sample, manifest.Output.Timebase)
+	manifest.Profile.Samples = PhysicalDiagnosticSamples
+	manifest.Profile.WallTimeSeconds = PhysicalDiagnosticWallTimeSeconds
+	manifest.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(manifest.Profile)
+	if manifest.Output.ProfileID == PhysicalPreviewProfile || manifest.Profile.Samples == PhysicalPreviewSamples {
+		t.Fatal("diagnostic output reused the delivery preview profile")
+	}
+	if err := ValidatePhysicalRenderManifest(manifest); err != nil {
+		t.Fatalf("closed diagnostic profile rejected: %v", err)
+	}
+	manifest.Profile.Samples = PhysicalPreviewSamples
+	manifest.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(manifest.Profile)
+	if err := ValidatePhysicalRenderManifest(manifest); err == nil {
+		t.Fatal("diagnostic output silently accepted delivery-preview sample count")
 	}
 }
 

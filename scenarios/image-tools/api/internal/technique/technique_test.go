@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"image-tools/internal/adapters"
@@ -184,6 +185,15 @@ func TestArgBuilders(t *testing.T) {
 			want: []string{"-m", "image_tools_sidecar.depth", "--image", "/in.png", "--out", "/out.png"},
 		},
 		{
+			name: "MoGe scene geometry sidecar dispatches pinned model artifact",
+			args: mustArgs(t, OnnxSidecar, func() backends.Request {
+				r := req("scene_geometry", []string{"/in.png"}, map[string]string{"support_roi": `{"x":0,"y":0.8,"width":1,"height":0.2}`})
+				r.Model.Source.Assets = []models.Asset{{Filename: "model.onnx", Kind: models.ArtifactONNX}}
+				return r
+			}()),
+			want: []string{"-m", "image_tools_sidecar.geometry", "--model", "/models/m1/model.onnx", "--image", "/in.png", "--out", "/out.png", "--model-id", "m1", "--support-roi", `{"x":0,"y":0.8,"width":1,"height":0.2}`},
+		},
+		{
 			name: "onnx deblur sidecar dispatch",
 			args: mustArgs(t, OnnxSidecar, req("deblur", []string{"/in.png"}, nil)),
 			want: []string{"-m", "image_tools_sidecar.deblur", "--image", "/in.png", "--out", "/out.png"},
@@ -227,6 +237,11 @@ func TestArgBuilders(t *testing.T) {
 			name: "python-sidecar old photo restore dispatch",
 			args: mustArgs(t, PythonSidecar, req("old_photo_restore", []string{"/in.png"}, nil)),
 			want: []string{"-m", "image_tools_sidecar.restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
+		},
+		{
+			name: "sam2 transformers segment dispatches normalized prompt on cpu",
+			args: mustArgs(t, SAM2Sidecar, req("segment", []string{"/in.png"}, map[string]string{"segmentation": `{"points":[{"x":0.4,"y":0.7}]}`})),
+			want: []string{"-m", "image_tools_sidecar.sam2", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png", "--device", "cpu", "--prompts", `{"points":[{"x":0.4,"y":0.7}]}`},
 		},
 		{
 			name: "onnx rejects unknown op",
@@ -281,6 +296,19 @@ func TestNewSetRejectsDuplicateOp(t *testing.T) {
 		Technique{Name: "a", Op: "inpaint", Build: DiffusersInpaint},
 		Technique{Name: "b", Op: "inpaint", Build: DiffusersInpaint},
 	)
+}
+
+func TestStableDiffusionCppCPUFallbackPinsComputeAndWeights(t *testing.T) {
+	args, err := StableDiffusionCpp(backends.Request{Operation: "text_to_image", GPU: false}, "/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(args, " ")
+	for _, want := range []string{"--backend cpu", "--params-backend cpu"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("CPU fallback missing %q: %v", want, args)
+		}
+	}
 }
 
 func mustArgs(t *testing.T, b ArgBuilder, req backends.Request) []string {
@@ -469,5 +497,67 @@ func TestDiffusersBuildersEmitLoRA(t *testing.T) {
 	}
 	if !slices.Contains(inp, "--lora") {
 		t.Fatalf("inpaint missing --lora: %v", inp)
+	}
+}
+
+func TestDiffusersInpaintPinsRepoRevisionAndWeightVariant(t *testing.T) {
+	r := backends.Request{
+		Operation: "inpaint",
+		Model: models.Model{
+			ID: "sdxl-inpainting-0.1", Architecture: "sdxl",
+			Runtime: models.Runtime{Variant: "fp16"},
+			Source:  models.Source{Repo: models.RepoSource{RepoID: "diffusers/stable-diffusion-xl-1.0-inpainting-0.1", Revision: "115134f363124c53c7d878647567d04daf26e41e"}},
+		},
+		InputKeys: []string{"/source.png", "/mask.png"},
+		Output:    storage.OutputTarget{LocalPath: "/out.png"},
+		Params: map[string]string{
+			"prompt": "empty stone table", "inpaint_crop_to_mask": "true",
+			"inpaint_context_pixels": "96", "inpaint_max_edge_px": "1024",
+			"inpaint_neutralize_masked_pixels": "true",
+		},
+	}
+	args, err := DiffusersInpaint(r, "/models/sdxl-inpainting-0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(args, " ")
+	for _, want := range []string{
+		"--variant fp16", "--model-revision 115134f363124c53c7d878647567d04daf26e41e",
+		"--crop-to-mask", "--crop-context-pixels 96", "--crop-max-edge-px 1024",
+		"--neutralize-masked-pixels",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("repo inpaint args %q missing %q", got, want)
+		}
+	}
+}
+
+func TestOnnxRepairRequiresAndRetainsRemovalMask(t *testing.T) {
+	r := backends.Request{Operation: "object_removal", InputKeys: []string{"/source.png", "/mask.png"}, Output: storage.OutputTarget{LocalPath: "/repaired.png"}}
+	args, err := OnnxSidecar(r, "/models/big-lama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(args, " ")
+	if !strings.Contains(got, "-m image_tools_sidecar.lama") || !strings.Contains(got, "--mask /mask.png") {
+		t.Fatalf("repair lost mask or ONNX adapter: %s", got)
+	}
+	r.InputKeys = r.InputKeys[:1]
+	if _, err := OnnxSidecar(r, "/models/big-lama"); err == nil {
+		t.Fatal("repair accepted missing mask")
+	}
+}
+
+func TestOnnxModelPathUsesValidatedBuildProfileOutput(t *testing.T) {
+	req := backends.Request{Model: models.Model{
+		ID:           "big-lama-1024-export",
+		BuildProfile: &models.BuildProfile{Kind: "lama-onnx-fixed", OutputFilename: "lama_1024.onnx"},
+		Source: models.Source{Assets: []models.Asset{
+			{Filename: "lama-source.zip", Kind: models.ArtifactBinary},
+			{Filename: "big-lama.safetensors", Kind: models.ArtifactSafetensors},
+		}},
+	}}
+	if got, want := OnnxModelPath(req, "/models/big-lama-1024-export"), "/models/big-lama-1024-export/lama_1024.onnx"; got != want {
+		t.Fatalf("derived ONNX path = %q, want %q", got, want)
 	}
 }

@@ -52,6 +52,34 @@ problem, transformation, decisive proof moment, takeaway and next action. State
 what the first-time viewer must understand before the first product interaction. Select evidence that proves that promise. Feature coverage
 is not an objective. A scene must add something that would be lost if it were cut.
 
+## Direct attention through time
+
+Before recapturing or polishing, annotate the existing shot plan with the dominant
+focus, preparation/action/result/settle, source-time interval, screen bounds and
+incoming/outgoing focus. A benefit label is not a focal subject: name the thing
+the eye follows (file link, preview, reply, voice turn). Choose when focus stays
+put, travels or changes. Plan adjacent shots together. A device entry ending on
+one viewport followed by another take or position needs a repaired join, not
+more transition decoration.
+
+Treat spatial continuity as a local handoff contract. It does not lock later
+shots to one centered rectangle or scale. Separate source geometry (complete,
+consistent viewport) from film placement (side layouts, centered detail or a
+motivated move). Give different story jobs distinct compositions and large,
+readable type. Preserve the device-entry destination only through its matched
+join; alternate later layouts where it serves attention. Compare the new contact
+sheet with the accepted reference for lost motion range, type hierarchy and shot
+variety before declaring a continuity repair complete.
+
+Read the actual selected music arrangement. Map useful phrase changes, accents,
+breaks and resolution with their observed times and source intervals. Measured
+onsets/pulse are timing aids, not listening evidence. Place a few decisive focus
+changes and payoffs at those cues; leave enough preparation and result time to
+understand the action. Vary travel velocity and reading holds. Do not quantize
+every click, create constant motion, or compete with simultaneous camera, cursor,
+scroll and new text. Review a short encoded action-to-music passage before the
+whole render. Repeated similar lengths and identical easing do not establish rhythm.
+
 ## Work table
 
 | Checkpoint | Teaser | Flagship | Failure action |

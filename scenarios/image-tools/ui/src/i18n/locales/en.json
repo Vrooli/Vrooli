@@ -872,6 +872,31 @@
       "foliage": "Foliage",
       "background": "Background",
       "object": "Object"
+    },
+    "objectMask": {
+      "title": "Object masks",
+      "tool": "Selection tool",
+      "colorTool": "Colour selection",
+      "hint": "Mark the object to keep. Add exclusion points to remove unwanted regions, then update the mask.",
+      "imageAction": "Place a point on the image. Use the coordinate fields for keyboard placement.",
+      "pointKind": "Point type",
+      "include": "Include",
+      "exclude": "Exclude",
+      "addPoint": "Add point",
+      "undo": "Undo point",
+      "clear": "Clear points",
+      "model": "Object model",
+      "automatic": "Choose an available model",
+      "disclosure": "Creates a binary object region, not a transparency matte. Models run locally and must be installed.",
+      "run": "Update mask",
+      "running": "Preparing mask · {{percent}}%",
+      "cancel": "Cancel job",
+      "manageModels": "Manage local models",
+      "cancelFailed": "Could not confirm cancellation: {{message}}",
+      "ready": "Mask ready · {{model}}",
+      "download": "Download mask",
+      "mobileSam": "MobileSAM",
+      "sam2Tiny": "SAM 2.1 Tiny"
     }
   },
   "compare": {
@@ -911,5 +936,35 @@
     "metricPhashSimilarity": "pHash similarity",
     "metricSsim": "SSIM",
     "warningsHeading": "Warnings"
+  },
+  "preparation": {
+    "title": "Prepared scenes",
+    "description": "Compare the source and clean background, then retain your review as a new revision.",
+    "loading": "Loading prepared scenes…",
+    "empty": "No prepared scenes yet. Completed scene preparations will appear here for comparison and review.",
+    "choose": "Choose a prepared scene",
+    "status": {
+      "pending": "Needs review",
+      "accepted": "Accepted",
+      "rejected": "Needs repair"
+    },
+    "source": "Source photograph",
+    "cleanPlate": "Prepared background",
+    "sourceAlt": "Original scene before background repair",
+    "cleanPlateAlt": "Prepared background for visual inspection",
+    "estimated": "Camera geometry and distances are estimates from the photograph. Inspect edges, table texture, shadows and any newly revealed areas.",
+    "download": "Download scene bundle",
+    "reviewer": "Reviewer",
+    "rationale": "What did you observe?",
+    "evidence": "Sample or evidence references (one per line)",
+    "overscan": "I inspected the full proposed camera movement and its newly revealed areas.",
+    "accept": "Accept this background",
+    "reject": "Request repair",
+    "saving": "Saving a new revision…",
+    "contextTitle": "Available background context",
+    "coverage": "{{percent}}% of the source needs reconstruction. These measurements guide inspection; they do not predict quality.",
+    "largeMask": "A large region must be invented. A wider source view may provide better context.",
+    "clippedContext": "The requested surrounding context extends beyond the image edges.",
+    "downscaled": "The large region was reduced for inference. Inspect texture at delivery size."
   }
 }

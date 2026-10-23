@@ -30,7 +30,7 @@ func approvedPhoneStudyMetadata() SceneCandidate {
 				Grade: &SceneMaterialGrade{Recipe: GradeHueSaturationLinearMixV1, Saturation: 0.88, Value: 0.98, MixFactor: 0.55, MixLinearRGB: [3]float64{0.65, 0.60, 0.50}},
 			},
 			{ID: "screen-emission", SurfaceProfile: MaterialEmissionV1, BaseColorLinearRGBA: [4]float64{1, 1, 1, 1}, Roughness: 1, AlphaMode: AlphaOpaque,
-				Inputs: []SceneMaterialInput{{Socket: SocketBaseColor, TextureBindingID: "screen-raster", Semantic: "base_color", ColorSpace: ColorSpaceSRGB, Channel: ChannelRGB, Sampler: SamplerClamp, Coordinates: CoordinatesUVSet, UVSet: "screen_uv", AffineUV: ptr6(1, 0, 0, 1, 0, 0)}},
+				Inputs: []SceneMaterialInput{{Socket: SocketBaseColor, TextureBindingID: "screen-raster", Semantic: "base_color", ColorSpace: ColorSpaceSRGB, Channel: ChannelRGB, Sampler: SamplerClamp, Coordinates: CoordinatesUVSet, UVSet: "screen_uv", AffineUV: ptr6(1, 0, 0, 0, 1, 0)}},
 			},
 		},
 		MaterialSlots: []SceneMaterialSlot{{PartID: "table-top", PrimitiveIndex: 0, SlotIndex: 0, MaterialID: "travertine"}, {PartID: "phone-screen", PrimitiveIndex: 0, SlotIndex: 1, MaterialID: "screen-emission"}},
@@ -70,6 +70,32 @@ func TestCanonicalizeApprovedPhoneStudyMetadata(t *testing.T) {
 	}
 	if got.CameraFrames[0].Focus.Mode != FocusSelectedDevice || materialByID(got.Materials, "travertine").Grade.Recipe != GradeHueSaturationLinearMixV1 {
 		t.Fatal("approved-scene metadata lost typed focus or grade")
+	}
+}
+
+func TestPhotographicBackgroundPreservesEstimateAndReviewLineage(t *testing.T) {
+	candidate := approvedPhoneStudyMetadata()
+	candidate.Photograph = &PhotographicBackground{
+		ContractVersion: "hybrid-device-scene/v1", Route: "PHOTOGRAPH_ROUTE_DEVICE_REMOVAL", SourceBundleSHA256: stringsRepeat("a", 64), SourceRasterSHA256: stringsRepeat("b", 64),
+		GeometryArchiveSHA256: stringsRepeat("c", 64), RepairProvenanceSHA256: stringsRepeat("d", 64), DeviceMaskSHA256: stringsRepeat("e", 64),
+		RemovalMaskSHA256: stringsRepeat("f", 64), ScaleStatus: "estimated_monocular_scale_not_measured", EstimatedScaleMeters: 1.3,
+		GeometryModel: "moge-2-vits-normal", CheckpointSHA256: stringsRepeat("1", 64), Postprocess: "focal-shift-recovery-v1", RenderMode: "SOURCE_CAMERA_PLATE_V1",
+		SupportPlaneNormal: [3]float64{0, -1, 0}, SupportPlaneOffsetM: .4, SupportPlaneInliers: 100, SupportPlaneResidual95: .01,
+		CameraEnvelopeTranslationM: .02, CameraEnvelopeRotationDegrees: 1, OverscanReviewed: true,
+		SourceReviewSHA256: stringsRepeat("2", 64), SourceReviewer: "operator", SourceReviewRationale: "Clean-plate repair visually inspected",
+		SourceReviewEvidence: []string{"evidence:sha256:" + stringsRepeat("3", 64)},
+	}
+	if _, _, _, err := CanonicalizeCandidate(candidate); err != nil {
+		t.Fatalf("valid photographic lineage rejected: %v", err)
+	}
+	candidate.Photograph.RenderMode = "CAMERA_MOVING_PARALLAX_WITHOUT_OVERSCAN"
+	if _, _, _, err := CanonicalizeCandidate(candidate); err == nil {
+		t.Fatal("unknown photographic render mode was accepted")
+	}
+	candidate.Photograph.RenderMode = "SOURCE_CAMERA_PLATE_V1"
+	candidate.Photograph.ScaleStatus = "measured"
+	if _, _, _, err := CanonicalizeCandidate(candidate); err == nil {
+		t.Fatal("monocular estimate was allowed to become a measured scale claim")
 	}
 }
 
@@ -157,6 +183,20 @@ func TestCanonicalizeRejectsInvalidLocalSceneContracts(t *testing.T) {
 				t.Fatal("invalid candidate was accepted")
 			}
 		})
+	}
+}
+
+func TestAffineUVUsesRowMajorTwoByThreeMatrix(t *testing.T) {
+	candidate := approvedPhoneStudyMetadata()
+	candidate.Materials[1].Inputs[0].AffineUV = ptr6(2, 0.25, 10, -0.5, 3, -20)
+	if _, _, _, err := CanonicalizeCandidate(candidate); err != nil {
+		t.Fatalf("nonsymmetric affine transform with translation must be valid: %v", err)
+	}
+	// The determinant uses [a,b,tx,c,d,ty], so translation is excluded from
+	// invertibility and the off-diagonal terms remain distinguishable.
+	candidate.Materials[1].Inputs[0].AffineUV = ptr6(1, 2, 100, 2, 4, -100)
+	if _, _, _, err := CanonicalizeCandidate(candidate); err == nil {
+		t.Fatal("singular row-major UV matrix was accepted")
 	}
 }
 

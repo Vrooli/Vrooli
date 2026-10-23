@@ -20,6 +20,7 @@ func TestHostFromProto(t *testing.T) {
 		Gpus: []*cliv1.HostGPU{
 			{
 				Index:         0,
+				Uuid:          "GPU-physical",
 				Name:          "NVIDIA GeForce RTX 4070 Ti SUPER",
 				VramBytes:     17171480576,
 				VramUsedBytes: 13670285312,
@@ -41,7 +42,7 @@ func TestHostFromProto(t *testing.T) {
 	if !h.HasGPU() {
 		t.Fatal("expected a GPU")
 	}
-	if got := h.GPUs[0]; got.Name == "" || got.VRAMBytes != 17171480576 {
+	if got := h.GPUs[0]; got.Name == "" || got.VRAMBytes != 17171480576 || got.UUID != "GPU-physical" {
 		t.Fatalf("gpu: %+v", got)
 	}
 }

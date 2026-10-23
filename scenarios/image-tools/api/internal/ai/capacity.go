@@ -2,141 +2,205 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"os/exec"
-	"strconv"
-)
+	"time"
 
-// fallbackGPUVRAMEstimateBytes is used only when a selected GPU model has no
-// registry VRAM metadata. Most generative models declare min_vram_gb, and that
-// model-specific value is the claim source of truth.
-const fallbackGPUVRAMEstimateBytes int64 = 6 << 30 // 6 GiB
+	"image-tools/internal/backends"
+	"image-tools/internal/capabilities"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+)
 
 // capacityClaimTTL bounds an op claim's liveness without a heartbeat. A
 // generation is bounded (seconds–minutes) and run() releases the claim in a
 // defer; the TTL is the crash-safety net so an abandoned claim is swept by the
 // broker rather than leaking a VRAM reservation forever.
-const capacityClaimTTL = "10m"
+const capacityClaimTTL = 10 * time.Minute
 
-// CapacityLease is the broker's verdict on an op-scoped GPU claim. The zero
-// value means "proceed on GPU unchanged" — the broker is advisory and never
-// blocks a generation.
+// capacityGPU binds accounting and execution to the same freshly observed
+// physical device. Backends without device selection retain their qualified
+// single-GPU path with UUID accounting; unidentified hardware requires explicit
+// qualification rather than silently claiming a different device.
+func capacityGPU(host capabilities.Host, bytes int64, provider backends.Provider) (capabilities.GPU, error) {
+	binder, canBind := provider.(interface{ SupportsGPUUUID() bool })
+	canBind = canBind && binder.SupportsGPUUUID()
+	var best capabilities.GPU
+	var bestFree uint64
+	found := false
+	for _, g := range host.GPUs {
+		free, known := g.VRAMFreeBytes()
+		if !known || g.UUID == "" || g.VRAMBytes < uint64(bytes) {
+			continue
+		}
+		if !canBind && (len(host.GPUs) != 1 || g.Index != 0) {
+			continue
+		}
+		if !found || free > bestFree || (free == bestFree && g.Index < best.Index) {
+			best, bestFree, found = g, free, true
+		}
+	}
+	if !found {
+		return capabilities.GPU{}, fmt.Errorf("ai: no GPU with known capacity and a supported physical-device binding; use a CPU-capable backend or qualify device selection")
+	}
+	return best, nil
+}
+
+// CapacityLease retains the shared owner's exact lease along with diagnostics.
+// Only an explicit valid denial permits a CPU fallback; protocol/cleanup failures
+// are errors and must never start unadmitted GPU work.
 type CapacityLease struct {
 	ClaimID      string
+	Generation   int64
 	DegradeToCPU bool
 	Warnings     []string
 	ReclaimBytes int64
 	Enforce      string
+	native       *vroolicli.GPUCapacityLease
 }
 
-// CapacityClaimOptions carries request policy that affects the broker claim.
 type CapacityClaimOptions struct {
 	Priority     string
 	AllowReclaim bool
+	GPUUUID      string
 }
 
-// CapacityBroker arbitrates op-scoped GPU VRAM for a single generation against
-// the host capacity ledger (plan §7 Phase 7, §8.4 CLI contract). It is optional
-// in Deps: a nil broker means no arbitration and the engine runs exactly as
-// before. Declared behind a seam so tests fake it without shelling out.
+// CapacityBroker is the engine seam; the shared typed client owns CLI policy,
+// fresh UUID/index validation, claim renewal and cancellation-safe cleanup.
 type CapacityBroker interface {
-	// Claim reserves preferredBytes of GPU VRAM for ownerID with an fp16-gpu→cpu
-	// degrade profile, returning whether the broker degraded the job to CPU.
-	Claim(ctx context.Context, ownerID string, preferredBytes int64, opts CapacityClaimOptions) (CapacityLease, error)
-	// Release frees a prior claim; a no-op on the empty claim id.
-	Release(ctx context.Context, claimID string)
+	Claim(context.Context, string, int64, CapacityClaimOptions) (CapacityLease, error)
+	Release(context.Context, CapacityLease) error
+	Heartbeat(context.Context, CapacityLease) (CapacityLease, error)
 }
 
-// CLICapacityBroker is the production CapacityBroker. It speaks the sanctioned
-// `vrooli capacity …` CLI contract (plan §8.4) so image-tools never couples to
-// the broker's SQLite storage internals.
-type CLICapacityBroker struct {
-	// GPUIndex is the GPU the op contends for (default 0).
-	GPUIndex int
-	// Exec runs `vrooli capacity …` and returns stdout. Injectable for tests;
-	// nil resolves the real vrooli binary on PATH.
-	Exec func(ctx context.Context, args ...string) ([]byte, error)
-}
+type CLICapacityBroker struct{ Client *vroolicli.Client }
 
-func (b *CLICapacityBroker) run(ctx context.Context, args ...string) ([]byte, error) {
-	if b.Exec != nil {
-		return b.Exec(ctx, args...)
-	}
-	return exec.CommandContext(ctx, "vrooli", args...).Output()
-}
-
-// claimResponse mirrors the `vrooli capacity claim --json` envelope (the
-// fields this adopter needs).
-type claimResponse struct {
-	Verdict struct {
-		Kind         string   `json:"kind"`
-		Step         string   `json:"step"`
-		Warnings     []string `json:"warnings,omitempty"`
-		ReclaimBytes int64    `json:"reclaim_bytes,omitempty"`
-	} `json:"verdict"`
-	Claim struct {
-		ClaimID string `json:"claim_id"`
-	} `json:"claim"`
-	Enforce string `json:"enforce"`
-}
-
-// Claim reserves an op-scoped fp16-gpu→cpu VRAM claim for ownerID. A non-grant
-// verdict (or a granted "cpu" step) means the GPU can't host this op now → the
-// caller should run on CPU. Any returned claim id must be released.
 func (b *CLICapacityBroker) Claim(ctx context.Context, ownerID string, preferredBytes int64, opts CapacityClaimOptions) (CapacityLease, error) {
-	priority := normalizeCapacityPriority(opts.Priority)
-	if !opts.AllowReclaim {
-		// The broker CLI currently has no direct allow-reclaim flag. A batch
-		// claim is the conservative mapping: it avoids service-tier reclaim of
-		// idle interactive audio resources while still reporting current fit.
-		priority = "batch"
+	client := b.Client
+	if client == nil {
+		client = vroolicli.New()
 	}
-	profile := fmt.Sprintf(
-		`{"steps":[{"label":"fp16-gpu","amount_bytes":%d},{"label":"cpu","amount_bytes":0}],"apply":{"verb":"noop","argv":[]},"upshift":false}`,
-		preferredBytes,
-	)
-	out, err := b.run(ctx,
-		"capacity", "claim",
-		"--owner-kind", "op",
-		"--owner-id", ownerID,
-		"--resource-kind", "vram",
-		"--gpu-index", strconv.Itoa(b.GPUIndex),
-		"--preferred", strconv.FormatInt(preferredBytes, 10),
-		"--floor", "0",
-		"--priority", priority,
-		"--ttl", capacityClaimTTL,
-		"--profile", profile,
-		"--json",
-	)
+	native, err := client.AcquireGPUCapacity(ctx, vroolicli.GPUCapacityRequest{
+		OwnerID: ownerID, GPUUUID: opts.GPUUUID, VRAMBytes: preferredBytes,
+		Priority: normalizeCapacityPriority(opts.Priority), AllowReclaim: opts.AllowReclaim, TTL: capacityClaimTTL,
+	})
 	if err != nil {
-		return CapacityLease{}, fmt.Errorf("capacity claim: %w", err)
+		var denied *vroolicli.GPUCapacityDenied
+		if errors.As(err, &denied) {
+			return CapacityLease{DegradeToCPU: true, Warnings: append(append([]string{}, denied.Warnings...), denied.Reason), ReclaimBytes: denied.ReclaimBytes, Enforce: denied.Enforce}, nil
+		}
+		return CapacityLease{}, err
 	}
-	var resp claimResponse
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return CapacityLease{}, fmt.Errorf("capacity claim: decode verdict: %w", err)
+	return CapacityLease{ClaimID: native.ClaimID(), Generation: native.Generation(), Warnings: native.Warnings(), ReclaimBytes: native.ReclaimBytes(), Enforce: native.Enforce(), native: native}, nil
+}
+
+func (b *CLICapacityBroker) Heartbeat(ctx context.Context, lease CapacityLease) (CapacityLease, error) {
+	if lease.native == nil {
+		return lease, fmt.Errorf("capacity heartbeat: no owned GPU lease")
 	}
-	lease := CapacityLease{
-		ClaimID:      resp.Claim.ClaimID,
-		Warnings:     resp.Verdict.Warnings,
-		ReclaimBytes: resp.Verdict.ReclaimBytes,
-		Enforce:      resp.Enforce,
-	}
-	// GPU only when the broker granted the top (fp16-gpu) step. Any degrade /
-	// queue / deny — or a granted "cpu" step — means the GPU can't host this op
-	// right now, so the caller runs on CPU.
-	if resp.Verdict.Kind != "grant" || resp.Verdict.Step == "cpu" {
-		lease.DegradeToCPU = true
-	}
-	// In advisory mode, a grant that requires reclaim names capacity that has not
-	// actually been freed. Treat that local GPU candidate as unavailable rather
-	// than risking an OOM; enforce=on is the only mode where the broker actuates.
-	if resp.Enforce != "on" && resp.Verdict.ReclaimBytes > 0 {
-		lease.DegradeToCPU = true
-		lease.Warnings = append(lease.Warnings, "capacity grant requires reclaim but enforcement is advisory; skipping local GPU")
+	if err := lease.native.Heartbeat(ctx); err != nil {
+		return lease, err
 	}
 	return lease, nil
 }
+
+func (b *CLICapacityBroker) Release(ctx context.Context, lease CapacityLease) error {
+	if lease.native == nil {
+		if lease.ClaimID == "" {
+			return nil
+		}
+		return fmt.Errorf("capacity release %s: no owned GPU lease", lease.ClaimID)
+	}
+	return lease.native.Release(ctx)
+}
+
+// keepCapacityAlive shares the job cancellation path with renewal failure. Stop
+// and join renewal before releasing the claim so no late heartbeat can race it.
+func keepCapacityAlive(ctx context.Context, broker CapacityBroker, lease CapacityLease, interval time.Duration) (context.Context, func()) {
+	return keepLeaseAlive(ctx, "GPU", func(beatCtx context.Context) error {
+		updated, err := broker.Heartbeat(beatCtx, lease)
+		if err == nil {
+			lease = updated
+		}
+		return err
+	}, interval)
+}
+
+func keepLeaseAlive(ctx context.Context, kind string, heartbeat func(context.Context) error, interval time.Duration) (context.Context, func()) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				beatCtx, stop := context.WithTimeout(ctx, 5*time.Second)
+				err := heartbeat(beatCtx)
+				stop()
+				if err != nil {
+					cancel(fmt.Errorf("%s capacity renewal lost: %w", kind, err))
+					return
+				}
+			}
+		}
+	}()
+	return ctx, func() { cancel(context.Canceled); <-done }
+}
+
+// MemoryLease stays live until inference and any resident worker have stopped.
+// Production uses the shared broker; tests inject admission without host writes.
+type MemoryLease interface {
+	Heartbeat(context.Context) error
+	Release(context.Context) error
+}
+
+type MemoryAdmission func(context.Context, string, int64) (MemoryLease, error)
+
+func keepMemoryAlive(ctx context.Context, lease MemoryLease) (context.Context, func()) {
+	return keepLeaseAlive(ctx, "RAM", lease.Heartbeat, sharedcapacity.RecommendedLeaseHeartbeatInterval())
+}
+
+type localMemoryLease struct {
+	sharedcapacity.RenewableLease
+	broker *sharedcapacity.Broker
+}
+
+func (l *localMemoryLease) Release(ctx context.Context) error {
+	return errors.Join(l.RenewableLease.Release(ctx), l.broker.Close())
+}
+
+// AcquireLocalRAM admits the declared host memory independently of GPU tier.
+// It never reclaims another owner's resident models or invokes a paid fallback.
+func AcquireLocalRAM(ctx context.Context, owner string, bytes int64) (MemoryLease, error) {
+	broker, err := sharedcapacity.NewBroker(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("open RAM capacity broker: %w", err)
+	}
+	lease, verdict, err := broker.AcquireNoReclaim(ctx, owner, bytes, 0)
+	if err != nil || verdict.Kind != "grant" || lease == nil {
+		var releaseErr error
+		if lease != nil {
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			releaseErr = lease.Release(cleanup)
+			cancel()
+		}
+		return nil, errors.Join(fmt.Errorf("RAM capacity admission %s: %s", verdict.Kind, verdict.Reason), err, releaseErr, broker.Close())
+	}
+	renewable, ok := lease.(sharedcapacity.RenewableLease)
+	if !ok {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		return nil, errors.Join(errors.New("RAM lease cannot be renewed"), lease.Release(cleanup), broker.Close())
+	}
+	return &localMemoryLease{RenewableLease: renewable, broker: broker}, nil
+}
+
+type operationMemoryContextKey struct{}
 
 func normalizeCapacityPriority(priority string) string {
 	switch priority {
@@ -145,14 +209,4 @@ func normalizeCapacityPriority(priority string) string {
 	default:
 		return "service"
 	}
-}
-
-// Release frees a prior op claim. Best-effort: a generation that completed has
-// already produced its output; a failed release only delays the broker's TTL
-// sweep, so errors are swallowed (advisory contract).
-func (b *CLICapacityBroker) Release(ctx context.Context, claimID string) {
-	if claimID == "" {
-		return
-	}
-	_, _ = b.run(ctx, "capacity", "release", "--claim-id", claimID, "--json")
 }

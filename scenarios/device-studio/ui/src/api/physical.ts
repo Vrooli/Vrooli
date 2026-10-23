@@ -1,6 +1,6 @@
 import { createClient } from "@connectrpc/connect";
 import { DevicesService, type DeviceRevision, type QualificationReview } from "@vrooli/proto-types/device-studio/v1/devices/devices_pb";
-import { ScenesService, type SceneRevision } from "@vrooli/proto-types/device-studio/v1/scenes/scenes_pb";
+import { ScenesService, type ImportPreparedPhotographResponse, type SceneRevision } from "@vrooli/proto-types/device-studio/v1/scenes/scenes_pb";
 import { MotionsService, type MotionRevision } from "@vrooli/proto-types/device-studio/v1/motions/motions_pb";
 import { PhysicalStarterService, type InitializeReviewedStarterResponse } from "@vrooli/proto-types/device-studio/v1/physical/physical_pb";
 import { LibraryCatalogService, type BundleRevisionMetadata } from "@vrooli/proto-types/device-studio/v1/library/library_pb";
@@ -13,6 +13,40 @@ export const scenesClient = createClient(ScenesService, transport);
 export const motionsClient = createClient(MotionsService, transport);
 export const libraryCatalogClient = createClient(LibraryCatalogService, transport);
 export const physicalShotPresetsClient = createClient(ShotsService, transport);
+
+export async function importPreparedPhotograph(request: {
+  preparationId: string; expectedBundleSha256: string; licenseId: string; attribution: string; sourceLabel: string;
+  allowLocalRender?: boolean; sourceUseRationale?: string;
+}): Promise<ImportPreparedPhotographResponse> {
+  if (!/^[0-9a-f]{64}$/.test(request.preparationId) || request.expectedBundleSha256 !== request.preparationId) {
+    throw new Error("Use the exact lowercase SHA-256 preparation ID as its expected bundle hash.");
+  }
+  if (!request.licenseId.trim() || request.licenseId.length > 128 ||
+      !request.attribution.trim() || request.attribution.length > 1024 ||
+      !request.sourceLabel.trim() || request.sourceLabel.length > 512) {
+    throw new Error("License, attribution, and source label are required within their size limits.");
+  }
+  const sourceUseRationale = request.sourceUseRationale?.trim() ?? "";
+  if (sourceUseRationale.length > 1024 || (request.allowLocalRender && !sourceUseRationale) || (!request.allowLocalRender && sourceUseRationale)) {
+    throw new Error("Local rendering requires a bounded source-use rationale; leave the rationale empty when local rendering is not authorized.");
+  }
+  const response = await scenesClient.importPreparedPhotograph({
+    preparationId: request.preparationId,
+    expectedBundleSha256: request.expectedBundleSha256,
+    licenseId: request.licenseId.trim(),
+    attribution: request.attribution.trim(),
+    sourceLabel: request.sourceLabel.trim(),
+    allowLocalRender: request.allowLocalRender ?? false,
+    sourceUseRationale,
+  });
+  const revision = response.revision;
+  if (!revision?.candidate || revision.state !== "candidate" || revision.candidate.sceneId !== revision.sceneId ||
+      !response.libraryBundleId || response.libraryRevision < 1 || !/^[0-9a-f]{64}$/.test(response.libraryManifestSha256) ||
+      response.scaleStatus !== "estimated_monocular_scale_not_measured" || !Number.isFinite(response.estimatedScaleM) || response.estimatedScaleM <= 0) {
+    throw new Error("Prepared-photo import did not return a complete candidate-only scene and exact library revision.");
+  }
+  return response;
+}
 
 function stableCatalogID(value: string) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value);

@@ -33,6 +33,27 @@ func (f fakeProvider) Execute(context.Context, Request) (Result, error) {
 	return Result{OutputRef: "out", Tier: TierLocalCPU}, nil
 }
 
+type closeableProvider struct {
+	fakeProvider
+	closed int
+}
+
+func (p *closeableProvider) Close() error { p.closed++; return nil }
+
+func TestRegistryCloseClosesEachMultiOperationProviderOnce(t *testing.T) {
+	r := New()
+	p := &closeableProvider{fakeProvider: fakeProvider{ops: []string{"segment", "depth_map"}}}
+	if err := r.Register(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if p.closed != 1 {
+		t.Fatalf("provider closed %d times", p.closed)
+	}
+}
+
 // cpuOnlyProvider is a standalone backend that cannot use the GPU (e.g. the
 // onnxruntime sidecar bound to CPUExecutionProvider). It implements the optional
 // GPUCapable() capability returning false.

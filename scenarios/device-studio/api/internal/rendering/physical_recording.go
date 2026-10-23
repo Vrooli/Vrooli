@@ -138,6 +138,16 @@ func runPhysicalRecordingMotion(ctx context.Context, root *os.Root, workspace, b
 	if err := ensurePhysicalOutputAbsent(root, physicalMotionFrameName); err != nil {
 		return result, err
 	}
+	if err := ensurePhysicalOutputAbsent(root, physicalMotionCheckpoint); err != nil {
+		return result, err
+	}
+	defer func() {
+		if retErr == nil {
+			if err := root.Remove(physicalMotionCheckpoint); err != nil && !errors.Is(err, os.ErrNotExist) {
+				retErr = errors.Join(retErr, fmt.Errorf("remove successful recording motion checkpoint: %w", err))
+			}
+		}
+	}()
 	defer func() {
 		if err := root.Remove(physicalMotionFrameName); err != nil && !errors.Is(err, os.ErrNotExist) {
 			retErr = errors.Join(retErr, fmt.Errorf("remove recording Blender frame scratch: %w", err))
@@ -186,9 +196,10 @@ func runPhysicalRecordingMotion(ctx context.Context, root *os.Root, workspace, b
 	if err := verifyInspectionSourceUnchanged(deadline, source, InspectionSource{Name: r.Inspection.Source.Name, SHA256: r.Inspection.Source.SHA256, SizeBytes: r.Inspection.Source.SizeBytes}); err != nil {
 		return result, err
 	}
-	stream := &physicalRecordingBlenderStream{ctx: deadline, workspace: workspace, blender: blender, expected: manifest.Output.FrameCount}
+	stream := &physicalRecordingBlenderStream{ctx: deadline, root: root, workspace: workspace, blender: blender, manifest: manifest, expected: manifest.Output.FrameCount}
 	defer stream.abort()
 	facts := make([]PhysicalRecordingFrameFact, 0, len(plan))
+	var lastCheckpointAt time.Time
 	videoManifest := VideoManifest{Inspection: r.Inspection, TrimStartPTS: r.TrimStartPTS, TrimEndPTS: r.TrimEndPTS, PlaybackRate: r.PlaybackRate, OutputRate: manifest.Output.Rate, Width: int(manifest.Output.Width), Height: int(manifest.Output.Height)}
 	if err := decodeVideoRGBPrefix(deadline, ffmpeg, source, videoManifest, pts, r.SourcePrefixFrameCount, func(sourceOrdinal int, sourcePTS int64, raw []byte) error {
 		ordinals := bySource[sourceOrdinal]
@@ -236,6 +247,12 @@ func runPhysicalRecordingMotion(ctx context.Context, root *os.Root, workspace, b
 			if err != nil {
 				return err
 			}
+			if lastCheckpointAt.IsZero() || time.Since(lastCheckpointAt) >= time.Second {
+				if err := writePhysicalMotionCheckpoint(root, pngOutput, manifest.Output.Width, manifest.Output.Height); err != nil {
+					return fmt.Errorf("checkpoint recording motion frame %d: %w", outputOrdinal, err)
+				}
+				lastCheckpointAt = time.Now()
+			}
 			if err := encoder.writeFrame(deadline, pixels); err != nil {
 				return err
 			}
@@ -276,9 +293,12 @@ func runPhysicalRecordingMotion(ctx context.Context, root *os.Root, workspace, b
 
 type physicalRecordingBlenderStream struct {
 	ctx                context.Context
+	root               *os.Root
 	workspace, blender string
+	manifest           PhysicalRenderManifest
 	expected           uint32
 	cmd                *exec.Cmd
+	process            *physicalBlenderProcess
 	outR               *os.File
 	inW                *os.File
 	waited             bool
@@ -288,10 +308,6 @@ type physicalRecordingBlenderStream struct {
 func (s *physicalRecordingBlenderStream) start() error {
 	if s.ctx == nil || s.expected == 0 || s.expected > PhysicalRecordingMaxFrames || !filepath.IsAbs(s.blender) || filepath.Clean(s.blender) != s.blender {
 		return errors.New("recording Blender stream identity is invalid")
-	}
-	binary, err := readRegularPath(s.blender, 512<<20)
-	if err != nil || digest(binary) != PhysicalBlenderBinarySHA {
-		return errors.New("managed Blender executable differs from pinned profile")
 	}
 	outR, outW, err := os.Pipe()
 	if err != nil {
@@ -303,21 +319,10 @@ func (s *physicalRecordingBlenderStream) start() error {
 		outW.Close()
 		return err
 	}
-	if err := ensurePhysicalBlenderDirectories(s.workspace); err != nil {
-		outR.Close()
-		outW.Close()
-		inR.Close()
-		inW.Close()
-		return err
-	}
-	cmd := exec.CommandContext(s.ctx, s.blender, physicalBlenderArgs(s.workspace)...)
-	cmd.Dir = s.workspace
-	cmd.Env = physicalBlenderEnvironment(s.workspace)
-	cmd.ExtraFiles = []*os.File{outW, inR}
 	var stdout, stderr physicalBlenderLogBuffer
 	stdout.limit, stderr.limit = physicalCommandOutMax, physicalCommandErrMax
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Start(); err != nil {
+	process, err := startPhysicalBlenderProcess(s.ctx, s.root, s.workspace, s.blender, s.manifest, []*os.File{outW, inR}, &stdout, &stderr)
+	if err != nil {
 		outR.Close()
 		outW.Close()
 		inR.Close()
@@ -326,9 +331,10 @@ func (s *physicalRecordingBlenderStream) start() error {
 	}
 	outW.Close()
 	inR.Close()
-	s.cmd, s.outR, s.inW, s.stderr = cmd, outR, inW, &stderr
+	s.process, s.cmd, s.outR, s.inW, s.stderr = process, process.cmd, outR, inW, &stderr
 	return nil
 }
+
 func (s *physicalRecordingBlenderStream) send(ordinal int, pngBytes []byte) error {
 	if s.cmd == nil || s.inW == nil || ordinal <= 0 || uint32(ordinal) >= s.expected || len(pngBytes) == 0 || len(pngBytes) > physicalScreenBytesMax {
 		return errors.New("recording Blender input frame is outside its bound")
@@ -350,12 +356,14 @@ func (s *physicalRecordingBlenderStream) send(ordinal int, pngBytes []byte) erro
 	}
 	return nil
 }
+
 func (s *physicalRecordingBlenderStream) receive() (uint32, []byte, error) {
 	if s.outR == nil {
 		return 0, nil, errors.New("recording Blender stream is not started")
 	}
 	return readPhysicalFrame(s.outR)
 }
+
 func (s *physicalRecordingBlenderStream) finish() error {
 	if s.cmd == nil {
 		return errors.New("recording Blender stream did not start")
@@ -370,18 +378,16 @@ func (s *physicalRecordingBlenderStream) finish() error {
 		s.abort()
 		return errors.New("recording Blender emitted trailing frame bytes")
 	}
-	err := s.cmd.Wait()
+	var err error
+	if s.process != nil {
+		err = s.process.wait()
+	} else {
+		err = s.cmd.Wait()
+	}
 	s.waited = true
 	s.outR.Close()
 	s.outR = nil
-	if err != nil {
-		diagnostic := ""
-		if s.stderr != nil {
-			diagnostic = s.stderr.data.String()
-		}
-		return physicalBlenderFailure(err, s.ctx.Err(), diagnostic)
-	}
-	return nil
+	return err
 }
 
 func physicalRGB24Image(raw []byte, width, height int) (*image.NRGBA, error) {
@@ -419,6 +425,7 @@ func validatePhysicalRecordingSchedule(recording *PhysicalRecordingInput, plan [
 	}
 	return nil
 }
+
 func (s *physicalRecordingBlenderStream) abort() {
 	if s.inW != nil {
 		s.inW.Close()
@@ -428,7 +435,10 @@ func (s *physicalRecordingBlenderStream) abort() {
 		s.outR.Close()
 		s.outR = nil
 	}
-	if s.cmd != nil && !s.waited && s.cmd.Process != nil {
+	if s.process != nil && !s.waited {
+		_ = s.process.abort()
+		s.waited = true
+	} else if s.cmd != nil && !s.waited && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
 		_ = s.cmd.Wait()
 		s.waited = true

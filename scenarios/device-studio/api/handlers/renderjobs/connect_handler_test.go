@@ -319,9 +319,11 @@ func TestJobToProtoProjectsImmutableRenderModeAcrossStates(t *testing.T) {
 		{"physical motion v2 succeeded", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalMotionMP4V2, jobs.Succeeded, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4},
 		{"physical recording queued", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalRecordingMP4, jobs.Queued, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4},
 		{"physical recording succeeded", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalRecordingMP4, jobs.Succeeded, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4},
+		{"physical diagnostic motion queued", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalDiagnosticMotionMP4, jobs.Queued, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_DIAGNOSTIC_MOTION_MP4},
 		{"physical still failed", jobs.SubjectPhysicalRender, domain.OutputProfilePNG, jobs.Failed, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_STILL_PNG},
 		{"physical preview queued", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalPreviewPNG, jobs.Queued, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG},
 		{"physical preview succeeded", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalPreviewPNG, jobs.Succeeded, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG},
+		{"physical diagnostic queued", jobs.SubjectPhysicalRender, domain.OutputProfilePhysicalDiagnosticPNG, jobs.Queued, shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -348,6 +350,21 @@ func TestJobToProtoKeepsPhysicalPreviewOutputDistinctFromFinalStill(t *testing.T
 	}
 	if got.Output.WidthPixels != 960 || got.Output.HeightPixels != 540 || got.Output.MediaType != "image/png" {
 		t.Fatalf("preview output metadata = %#v", got.Output)
+	}
+}
+
+func TestJobToProtoKeepsDiagnosticOutputDistinct(t *testing.T) {
+	job := jobs.Job{
+		ID: "diagnostic-job", State: jobs.Succeeded,
+		Input: jobs.Input{ProjectID: "project", SubjectID: "shot", SubjectKind: jobs.SubjectPhysicalRender, OutputProfile: domain.OutputProfilePhysicalDiagnosticPNG},
+		Attempts: []jobs.Attempt{{Completion: &jobs.CompletionEvidence{Outputs: []jobs.OutputRef{{
+			Kind: "physical_diagnostic_png", MIMEType: "image/png", SizeBytes: 1234, Width: 960, Height: 540,
+			SHA256: strings.Repeat("b", 64), ArtifactID: "routed-output",
+		}}}}},
+	}
+	got := jobToProto(job, "")
+	if got.RenderMode != shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG || got.Output == nil || got.Output.WidthPixels != 960 || got.Output.HeightPixels != 540 {
+		t.Fatalf("diagnostic job projection = %+v", got)
 	}
 }
 

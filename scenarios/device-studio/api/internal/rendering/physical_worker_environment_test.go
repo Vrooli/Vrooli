@@ -58,6 +58,20 @@ func TestPhysicalBlenderDiagnosticsStayBounded(t *testing.T) {
 	}
 }
 
+func TestGPUProcessMemoryBindsExactPIDAndUUID(t *testing.T) {
+	csv := "1001, GPU-other, 900\n" + "1002, GPU-target, 1536\n" + "1001, GPU-target, 500\n"
+	got, ok := gpuProcessMemoryBytes(csv, 1002, "GPU-target")
+	if !ok || got != 1536*(1<<20) {
+		t.Fatalf("gpuProcessMemoryBytes = (%d, %v), want exact process 1536 MiB", got, ok)
+	}
+	if _, ok := gpuProcessMemoryBytes(csv, 1003, "GPU-target"); ok {
+		t.Fatal("usage from another PID was attributed to Blender")
+	}
+	if _, ok := gpuProcessMemoryBytes(csv, 1002, "GPU-other"); ok {
+		t.Fatal("usage from another UUID was attributed to Blender")
+	}
+}
+
 func TestPhysicalBlenderFailureKeepsFinalExceptionAfterVerbosePreamble(t *testing.T) {
 	const final = "RuntimeError: final-frame-material-binding-failed"
 	stderr := strings.Repeat("DeprecationWarning: verbose Blender startup warning café\n", 80) + final

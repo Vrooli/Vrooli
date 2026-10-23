@@ -9,6 +9,14 @@ no model is loaded — mirroring the Go arg-builder discipline.
 
 from __future__ import annotations
 
+import io
+import json
+import os
+from unittest.mock import patch
+
+import numpy as np
+from PIL import Image
+
 from . import _diffusers
 from ._diffusers import Params, build_call_kwargs
 
@@ -25,6 +33,135 @@ def test_ip2p_defaults():
     _eq(k["guidance_scale"], 7.5, "ip2p default guidance")
     _eq(k["image_guidance_scale"], 1.5, "ip2p default image_guidance")
     assert "true_cfg_scale" not in k, "ip2p must not emit true_cfg_scale"
+
+
+def test_inpaint_composite_preserves_outside_binary_mask():
+    original = Image.new("RGB", (13, 9), (13, 29, 41))
+    generated = Image.new("RGB", (8, 8), (220, 170, 70))
+    mask = Image.new("L", original.size, 0)
+    for y in range(2, 7):
+        for x in range(4, 10):
+            mask.putpixel((x, y), 255)
+    result = _diffusers._composite_only_mask(original, mask, generated)
+    np.testing.assert_array_equal(np.asarray(result)[np.asarray(mask) == 0], np.asarray(original)[np.asarray(mask) == 0])
+    assert np.all(np.asarray(result)[np.asarray(mask) > 0] == (220, 170, 70))
+
+
+def test_inpaint_png_embeds_provenance():
+    output = io.BytesIO()
+    receipt = {"seed": 42, "model_id": "sd-1.5-inpainting"}
+    _diffusers._save_provenance_png(Image.new("RGB", (2, 2)), output, receipt)
+    decoded = Image.open(io.BytesIO(output.getvalue()))
+    actual = json.loads(decoded.info["vrooli_inpaint_provenance"])
+    _eq(actual, receipt, "inpaint provenance PNG text")
+
+
+def test_inpaint_repository_selects_pinned_weight_variant():
+    captured = {}
+
+    class Loader:
+        @staticmethod
+        def from_pretrained(path, **kwargs):
+            captured["path"] = path
+            captured.update(kwargs)
+            return object()
+
+    class FakeTorch:
+        float32 = "float32"
+
+    class FakeCuda:
+        @staticmethod
+        def is_available():
+            return False
+
+    FakeTorch.cuda = FakeCuda
+    fake_diffusers = type("FakeDiffusers", (), {"AutoPipelineForInpainting": Loader})
+    with patch.dict(os.environ, {"IMAGE_TOOLS_DEVICE": "cpu"}):
+        _diffusers._load_inpaint_pipe(
+            fake_diffusers, FakeTorch, "sdxl", "/models/sdxl", True, None, "fp16"
+        )
+    _eq(captured.get("variant"), "fp16", "repo fp16 variant")
+
+
+def test_inpaint_mask_crop_keeps_context_and_full_resolution_outside_pixels():
+    original = Image.new("RGB", (1200, 800), (15, 35, 55))
+    mask = Image.new("L", original.size, 0)
+    for y in range(100, 700):
+        for x in range(200, 1000):
+            mask.putpixel((x, y), 255)
+    crop_image, crop_mask, box, receipt = _diffusers._prepare_inpaint_crop(original, mask, 32, 512)
+    _eq(box, (168, 68, 1032, 732), "mask crop with context")
+    _eq(crop_image.size, (512, 392), "crop inference dimensions")
+    _eq(crop_mask.size, crop_image.size, "crop image/mask dimensions")
+    _eq(receipt["source_to_inference_matrix_row_major"][0][2], -168 * (512 / 864), "crop translation")
+    generated = Image.new("RGB", crop_image.size, (230, 170, 90))
+    result = _diffusers._composite_cropped_inpaint(original, mask, generated, box)
+    source = np.asarray(original)
+    output = np.asarray(result)
+    binary = np.asarray(mask) >= 128
+    np.testing.assert_array_equal(output[~binary], source[~binary])
+    assert np.all(output[binary] == (230, 170, 90))
+
+
+def test_inpaint_crop_neutralizes_masked_condition_without_changing_retained_pixels():
+    original = Image.new("RGB", (64, 48), (40, 90, 130))
+    # A distinctive object color must not be visible in the pipeline init crop.
+    for y in range(12, 36):
+        for x in range(20, 48):
+            original.putpixel((x, y), (220, 20, 30))
+    mask = Image.new("L", original.size, 0)
+    for y in range(12, 36):
+        for x in range(20, 48):
+            mask.putpixel((x, y), 255)
+    crop, crop_mask, box, receipt = _diffusers._prepare_inpaint_crop(
+        original, mask, 8, 512, neutralize_masked_pixels=True
+    )
+    _eq(box, (12, 4, 56, 44), "neutralized crop bounds")
+    assert receipt["masked_input_neutralization"].startswith("nearest_unmasked_pixel_voronoi_gaussian_sigma_"), receipt
+    assert receipt["neutralization_sigma_px"] > 0, receipt
+    crop_pixels = np.asarray(crop)
+    crop_mask_pixels = np.asarray(crop_mask) >= 128
+    assert not np.any(np.all(crop_pixels[crop_mask_pixels] == (220, 20, 30), axis=1)), "masked source object color leaked into init image"
+    generated = Image.new("RGB", crop.size, (200, 180, 80))
+    result = _diffusers._composite_cropped_inpaint(original, mask, generated, box)
+    result_pixels, source_pixels = np.asarray(result), np.asarray(original)
+    full_mask = np.asarray(mask) >= 128
+    np.testing.assert_array_equal(result_pixels[~full_mask], source_pixels[~full_mask])
+    assert np.all(result_pixels[full_mask] == (200, 180, 80))
+
+
+def test_inpaint_cuda_peak_provenance_uses_initialized_logical_device():
+    class FakeCuda:
+        reset_device = None
+
+        def init(self):
+            self.initialized = True
+
+        def current_device(self):
+            return 0
+
+        def reset_peak_memory_stats(self, device):
+            self.reset_device = device
+
+        def max_memory_allocated(self, device):
+            assert device == 0
+            return 1234
+
+        def max_memory_reserved(self, device):
+            assert device == 0
+            return 2345
+
+    cuda = FakeCuda()
+    torch = type("FakeTorch", (), {"cuda": cuda})
+    device = _diffusers._begin_cuda_peak_measurement(torch, True)
+    _eq(device, 0, "initialized CUDA logical device")
+    _eq(cuda.reset_device, 0, "CUDA peak reset device")
+    with patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "GPU-qualified-uuid"}):
+        receipt = _diffusers._cuda_peak_receipt(torch, device)
+    _eq(receipt["gpu_uuid"], "GPU-qualified-uuid", "broker UUID provenance")
+    _eq(receipt["gpu_peak_allocated_bytes"], 1234, "CUDA allocated peak")
+    _eq(receipt["gpu_peak_reserved_bytes"], 2345, "CUDA reserved peak")
+    assert "before inpaint model load" in receipt["gpu_peak_scope"]
 
 
 def test_ip2p_overrides():
@@ -86,6 +223,21 @@ def test_inpaint_kwargs_defaults():
     _eq(k["guidance_scale"], 7.5, "inpaint default guidance")
     _eq(k["strength"], 0.85, "inpaint default strength")
     assert "negative_prompt" not in k, "inpaint omits negative_prompt when empty"
+
+
+def test_sdxl_inpainting_model_uses_upstream_reference_strength():
+    from ._diffusers import TransformParams, build_inpaint_kwargs
+
+    params = TransformParams(prompt="continue the tabletop")
+    sdxl = build_inpaint_kwargs(params, "sdxl-inpainting-0.1")
+    generic = build_inpaint_kwargs(params, "some-other-sdxl-model")
+    explicit = build_inpaint_kwargs(
+        TransformParams(prompt="continue the tabletop", strength=0.7),
+        "sdxl-inpainting-0.1",
+    )
+    _eq(sdxl["strength"], 0.99, "SDXL inpainting card default")
+    _eq(generic["strength"], 0.85, "generic inpaint default remains unchanged")
+    _eq(explicit["strength"], 0.7, "explicit strength overrides model default")
 
 
 def test_inpaint_kwargs_overrides():

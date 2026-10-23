@@ -19,6 +19,9 @@ const (
 // CameraMotionProfileID identifies the typed photographic screen-entry motion profile.
 const CameraMotionProfileID = "screen-entry-projective-contain-v1"
 
+// StationaryCameraMotionProfileID lifts the screen while the photograph stays still.
+const StationaryCameraMotionProfileID = "screen-entry-stationary-scene-v1"
+
 // CameraMotionProfileVersion is the schema/behavior version of CameraMotionProfileID.
 const CameraMotionProfileVersion = 1
 

@@ -30,7 +30,12 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     base: './',  // Required for tunnel/proxy contexts
     plugins: [react(), stringsCodegen()],
-    resolve: isProfile
+    resolve: {
+      // Shared helpers and the app must use the same React contexts and test
+      // renderer. api-base's pinned Testing Library copy otherwise maintains a
+      // separate mounted-root registry, so local cleanup leaves its trees live.
+      dedupe: ["react", "react-dom", "@tanstack/react-query", "@testing-library/react", "react-router-dom"],
+      ...(isProfile
       ? {
           alias: {
             "react-dom/client": "react-dom/profiling",
@@ -40,13 +45,15 @@ export default defineConfig(({ mode }): UserConfig => {
             "react-dom$": "react-dom/profiling",
           },
         }
-      : undefined,
+      : {}),
+    },
     esbuild: isProfile
       ? {
           keepNames: true,
         }
       : undefined,
     test: {
+      server: { deps: { inline: [/@vrooli\/api-base/] } },
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],

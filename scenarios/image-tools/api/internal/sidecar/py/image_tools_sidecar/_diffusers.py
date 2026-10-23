@@ -21,7 +21,13 @@ Two seams keep this honest:
 from __future__ import annotations
 
 import os
+import json
+import resource
+import time
 from typing import Any, Callable, NamedTuple, Optional, Sequence
+
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 from . import _adapters, _common
 
@@ -265,7 +271,7 @@ def smoke(*, family: str, model_dir: str, deep: bool = False) -> str:
         )
 
     # deep: actually construct the pipeline (reads full weights).
-    use_cuda = torch.cuda.is_available()
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, adapter.dtype, use_cuda)
     load_kwargs = {"torch_dtype": dtype}
     if adapter.disable_safety:
@@ -324,7 +330,7 @@ def run(*, family: str, model_dir: str, image_paths, out_path: str, params: "Par
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"failed to open input image: {exc}", code=6)
 
-    use_cuda = torch.cuda.is_available()
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, adapter.dtype, use_cuda)
     load_kwargs = {"torch_dtype": dtype}
     if adapter.disable_safety:
@@ -433,19 +439,28 @@ _INPAINT_SINGLE_FILE = {
     "sdxl": "StableDiffusionXLInpaintPipeline",
 }
 
-# Per-architecture inpaint dtype + default sampler steps. Kept tiny + explicit so
-# the cheap path (kwargs) stays torch-free and unit-testable.
+# Per-model inpaint defaults. SDXL Inpainting 0.1's upstream model card uses
+# strength=0.99 for its reference inpaint call; generic SD15 inpaint keeps the
+# established 0.85 default. Keep this table explicit and the kwargs mapping
+# torch-free so the model-specific choice is testable without loading weights.
 _INPAINT_DEFAULT_STEPS = 30
+_INPAINT_DEFAULT_STRENGTH = 0.85
+_INPAINT_DEFAULT_STRENGTH_BY_MODEL = {
+    "sdxl-inpainting-0.1": 0.99,
+}
 
 
-def build_inpaint_kwargs(params: "TransformParams") -> dict:
+def build_inpaint_kwargs(params: "TransformParams", model_id: str = "") -> dict:
     """Pure param→kwargs mapping for a base-checkpoint inpaint (no torch).
     Unit-testable; mirrors build_call_kwargs for the family path."""
     out = {
         "prompt": params.prompt,
         "num_inference_steps": params.steps or _INPAINT_DEFAULT_STEPS,
         "guidance_scale": 7.5 if params.guidance is None else params.guidance,
-        "strength": 0.85 if params.strength is None else params.strength,
+        "strength": (
+            _INPAINT_DEFAULT_STRENGTH_BY_MODEL.get(model_id, _INPAINT_DEFAULT_STRENGTH)
+            if params.strength is None else params.strength
+        ),
     }
     if params.negative_prompt:
         out["negative_prompt"] = params.negative_prompt
@@ -496,7 +511,7 @@ def _place_pipe(pipe, torch, use_cuda: bool, offload: bool):
     return pipe.to("cuda" if use_cuda else "cpu")
 
 
-def inpaint_smoke(*, architecture: str, model_dir: str, deep: bool = False) -> str:
+def inpaint_smoke(*, architecture: str, model_dir: str, deep: bool = False, variant: str = "") -> str:
     """Install-time load-smoke for a base-checkpoint inpaint, the analogue of
     smoke() for the family path. Cheap path: the architecture's inpaint pipeline
     class resolves against the installed diffusers and the install shape is valid.
@@ -528,14 +543,16 @@ def inpaint_smoke(*, architecture: str, model_dir: str, deep: bool = False) -> s
             f"shape={shape}; pipeline class resolves and the install shape is valid"
         )
 
-    pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single)
+    pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single, variant)
     return f"diffusers inpaint smoke OK (deep): constructed {type(pipe).__name__} from {model_dir}"
 
 
-def _load_inpaint_pipe(diffusers, torch, architecture: str, model_dir: str, repo_index: bool, single):
-    use_cuda = torch.cuda.is_available()
+def _load_inpaint_pipe(diffusers, torch, architecture: str, model_dir: str, repo_index: bool, single, variant: str = ""):
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, "float16", use_cuda)
     load_kwargs = {"torch_dtype": dtype}
+    if repo_index and variant:
+        load_kwargs["variant"] = variant
     # SD-1.5 base checkpoints ship a safety checker that blanks flagged output; the
     # scenario owns its own NSFW gate, so disable the in-pipeline one (SD-family
     # only — SDXL's inpaint pipeline takes no safety_checker arg).
@@ -565,16 +582,24 @@ def run_inpaint(
     out_path: str,
     params: "TransformParams",
     lora_specs: Optional[Sequence[str]] = None,
+    provenance: Optional[dict] = None,
+    started: Optional[float] = None,
+    variant: str = "",
+    crop_to_mask: bool = False,
+    crop_context_pixels: int = 0,
+    crop_max_edge_px: int = 0,
+    neutralize_masked_pixels: bool = False,
 ) -> None:
     """Load a base checkpoint into its architecture's inpaint pipeline and run one
     masked regenerate (white mask = repaint, black = keep), writing a PNG. FAILS
     LOUD on a missing backend or load failure — never a fabricated success.
     lora_specs are fused before placement."""
+    started = time.perf_counter() if started is None else started
     diffusers, torch, Image = _import_diffusers_backend()
 
     try:
-        image = Image.open(image_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")  # white=repaint, black=keep
+        image, source_raster = _common.load_oriented_image(image_path, 16_000_000, mode="RGB")
+        mask, mask_raster = _common.load_oriented_image(mask_path, 16_000_000, mode="L")
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"failed to open input image/mask: {exc}", code=6)
 
@@ -587,18 +612,32 @@ def run_inpaint(
             code=5,
         )
 
-    pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single)
+    use_cuda = _common.use_cuda(torch)
+    cuda_device = _begin_cuda_peak_measurement(torch, use_cuda)
+    pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single, variant)
     _adapters.apply_loras(pipe, lora_specs or [])
-    use_cuda = torch.cuda.is_available()
     pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
 
-    kwargs = build_inpaint_kwargs(params)
-    kwargs["image"] = image
-    kwargs["mask_image"] = mask
+    kwargs = build_inpaint_kwargs(params, str((provenance or {}).get("model_id", "")))
+    inference_image, inference_mask = image, mask
+    crop_receipt = {"crop_to_mask": False}
+    crop_box = None
+    if crop_to_mask:
+        native_max_edge = crop_max_edge_px or (1024 if architecture == "sdxl" else 512)
+        inference_image, inference_mask, crop_box, crop_receipt = _prepare_inpaint_crop(
+            image, mask, crop_context_pixels, native_max_edge,
+            neutralize_masked_pixels=neutralize_masked_pixels,
+        )
+    elif crop_context_pixels or crop_max_edge_px:
+        raise ValueError("inpaint crop context and max edge require crop_to_mask")
+    elif neutralize_masked_pixels:
+        raise ValueError("neutralize_masked_pixels requires crop_to_mask")
+    kwargs["image"] = inference_image
+    kwargs["mask_image"] = inference_mask
     # Pin the output geometry to the (multiple-of-8) input size so the pipeline does
     # not silently fall back to its native default and return a differently-sized
     # canvas the caller did not ask for.
-    w, h = image.size
+    w, h = inference_image.size
     kwargs["width"], kwargs["height"] = w - (w % 8), h - (h % 8)
     if params.seed:
         kwargs["generator"] = torch.Generator(
@@ -610,10 +649,158 @@ def run_inpaint(
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"inpaint ({architecture}) failed: {exc}", code=8)
         raise
+    cuda_receipt = _cuda_peak_receipt(torch, cuda_device)
     try:
-        result.save(out_path, format="PNG")
+        if crop_box is None:
+            result = _composite_only_mask(image, mask, result)
+        else:
+            result = _composite_cropped_inpaint(image, mask, result, crop_box)
+        receipt = dict(provenance or {})
+        receipt["effective_strength"] = kwargs["strength"]
+        receipt.update({
+            "source_raster": source_raster,
+            "mask_raster": mask_raster,
+            "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
+            "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024),
+            "process_peak_rss_scope": "cumulative sidecar process high-water mark",
+            "sidecar_pid": os.getpid(),
+            "execution_device": "cuda" if use_cuda else "cpu",
+            **cuda_receipt,
+            "inpaint_crop": crop_receipt,
+        })
+        _save_provenance_png(result, out_path, receipt)
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"failed to write output {out_path!r}: {exc}", code=7)
+
+
+def _composite_only_mask(original, mask, generated):
+    """Keep original RGB pixels outside the explicit binary regeneration mask."""
+    if original.size != mask.size:
+        raise ValueError("inpaint mask must match the oriented source image raster")
+    if generated.size != original.size:
+        generated = generated.resize(original.size, resample=Image.Resampling.LANCZOS)
+    binary = mask.convert("L").point(lambda value: 255 if value >= 128 else 0)
+    result = original.convert("RGB").copy()
+    result.paste(generated.convert("RGB"), mask=binary)
+    return result
+
+
+def _begin_cuda_peak_measurement(torch, use_cuda: bool):
+    """Reset this process's CUDA allocator peaks after initializing logical 0."""
+    if not use_cuda:
+        return None
+    torch.cuda.init()
+    device = torch.cuda.current_device()
+    torch.cuda.reset_peak_memory_stats(device)
+    return device
+
+
+def _cuda_peak_receipt(torch, device):
+    if device is None:
+        return {"gpu_uuid": None, "gpu_peak_allocated_bytes": None, "gpu_peak_reserved_bytes": None}
+    return {
+        "gpu_uuid": os.environ.get("CUDA_VISIBLE_DEVICES") or None,
+        "gpu_logical_device": int(device),
+        "gpu_peak_allocated_bytes": int(torch.cuda.max_memory_allocated(device)),
+        "gpu_peak_reserved_bytes": int(torch.cuda.max_memory_reserved(device)),
+        "gpu_peak_scope": "torch CUDA allocator peak reset before inpaint model load",
+    }
+
+
+def _composite_cropped_inpaint(original, mask, generated, crop_box):
+    """Restore a resized crop and apply only the full-resolution source mask."""
+    x0, y0, x1, y1 = crop_box
+    source_crop = original.crop(crop_box)
+    mask_crop = mask.crop(crop_box)
+    crop_result = _composite_only_mask(source_crop, mask_crop, generated)
+    full = original.convert("RGB").copy()
+    full.paste(crop_result, (x0, y0))
+    return full
+
+
+def _prepare_inpaint_crop(
+    image, mask, context_pixels: int, max_edge_px: int, *, neutralize_masked_pixels: bool = False
+):
+    """Crop to the explicit white-mask bounds for inference; return source-space map."""
+    if context_pixels < 0 or context_pixels > 512:
+        raise ValueError("inpaint crop context_pixels must be between 0 and 512")
+    if max_edge_px not in (512, 1024):
+        raise ValueError("inpaint crop max_edge_px must be 512 or 1024 (or omitted for model-native)")
+    if image.size != mask.size:
+        raise ValueError("inpaint mask must match the oriented source image raster")
+    binary = mask.convert("L").point(lambda value: 255 if value >= 128 else 0)
+    bounds = binary.getbbox()
+    if bounds is None:
+        raise ValueError("crop_to_mask requires a non-empty white mask")
+    x0, y0, x1, y1 = bounds
+    x0, y0 = max(0, x0 - context_pixels), max(0, y0 - context_pixels)
+    x1, y1 = min(image.width, x1 + context_pixels), min(image.height, y1 + context_pixels)
+    source_box = (x0, y0, x1, y1)
+    source_crop = image.crop(source_box)
+    mask_crop = binary.crop(source_box)
+    neutralization_sigma = 0
+    if neutralize_masked_pixels:
+        source_crop, neutralization_sigma = _neutralize_masked_pixels(source_crop, mask_crop)
+    source_w, source_h = source_crop.size
+    scale = min(1.0, max_edge_px / max(source_w, source_h))
+    infer_w = max(8, int(round(source_w * scale / 8)) * 8)
+    infer_h = max(8, int(round(source_h * scale / 8)) * 8)
+    if (infer_w, infer_h) != source_crop.size:
+        source_crop = source_crop.resize((infer_w, infer_h), resample=Image.Resampling.LANCZOS)
+        mask_crop = mask_crop.resize((infer_w, infer_h), resample=Image.Resampling.NEAREST)
+    sx, sy = infer_w / (x1 - x0), infer_h / (y1 - y0)
+    receipt = {
+        "crop_to_mask": True,
+        "source_box_xyxy": [x0, y0, x1, y1],
+        "source_crop_size": [x1 - x0, y1 - y0],
+        "inference_size": [infer_w, infer_h],
+        "context_pixels": context_pixels,
+        "max_edge_px": max_edge_px,
+        "source_to_inference_matrix_row_major": [[sx, 0, -x0 * sx], [0, sy, -y0 * sy], [0, 0, 1]],
+        "mask_resampling": "nearest",
+        "neutralization_sigma_px": neutralization_sigma,
+        "masked_input_neutralization": (
+            f"nearest_unmasked_pixel_voronoi_gaussian_sigma_{neutralization_sigma}"
+            if neutralize_masked_pixels else "none"
+        ),
+    }
+    return source_crop, mask_crop, source_box, receipt
+
+
+def _neutralize_masked_pixels(image, mask):
+    """Remove object color/shape cues from the pipeline init image.
+
+    Each masked pixel receives its nearest unmasked source pixel color. The
+    generated crop is still composited through the original binary mask, so this
+    preprocessing cannot alter the retained output region.
+    """
+    import numpy as np
+    from scipy.ndimage import distance_transform_edt, gaussian_filter
+
+    rgb = np.asarray(image.convert("RGB")).copy()
+    masked = np.asarray(mask.convert("L")) >= 128
+    if rgb.shape[:2] != masked.shape:
+        raise ValueError("neutralization mask must match the inference image")
+    if not masked.any():
+        return image.convert("RGB"), 0
+    if masked.all():
+        raise ValueError("neutralize_masked_pixels requires unmasked context pixels")
+    nearest = distance_transform_edt(masked, return_distances=False, return_indices=True)
+    rgb[masked] = rgb[nearest[0][masked], nearest[1][masked]]
+    # Voronoi propagation removes the object, but its piecewise-constant sectors
+    # create strong synthetic edges that become conditioning cues. Smooth only
+    # the filled mask before inference; final output compositing still uses the
+    # untouched source and binary mask.
+    sigma = max(8.0, min(32.0, max(image.size) * 0.02))
+    smooth = gaussian_filter(rgb.astype("float32"), sigma=(sigma, sigma, 0), mode="nearest")
+    rgb[masked] = np.clip(smooth[masked], 0, 255).astype("uint8")
+    return Image.fromarray(rgb, mode="RGB"), round(sigma, 3)
+
+
+def _save_provenance_png(image, out_path, receipt):
+    info = PngInfo()
+    info.add_text("vrooli_inpaint_provenance", json.dumps(receipt, sort_keys=True, separators=(",", ":")))
+    image.save(out_path, format="PNG", pnginfo=info)
 
 
 # =============================================================================
@@ -687,7 +874,7 @@ def _load_controlnet_pipe(diffusers, torch, architecture, model_dir, repo_index,
     ControlNetModel(s) attached. Mirrors _load_generate_pipe's repo/single-file
     branch but uses the concrete ControlNet class (the AutoPipeline does not take a
     controlnet= kwarg)."""
-    use_cuda = torch.cuda.is_available()
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, "float16", use_cuda)
     # diffusers treats a list as a MultiControlNet (which then requires list-typed
     # image + conditioning_scale at call time); a lone ControlNet must be passed as
@@ -755,7 +942,7 @@ def _generate_class(architecture: str, single_file_map: dict, op: str) -> str:
 
 
 def _load_generate_pipe(diffusers, torch, architecture, model_dir, repo_index, single, auto_cls, single_file_map, op):
-    use_cuda = torch.cuda.is_available()
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, "float16", use_cuda)
     load_kwargs = {"torch_dtype": dtype}
     if architecture == "sd15":
@@ -800,7 +987,7 @@ def run_txt2img(
             "single-file .safetensors/.ckpt checkpoint",
             code=5,
         )
-    use_cuda = torch.cuda.is_available()
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, "float16", use_cuda)
     cn_models, cn_images, cn_scales = _adapters.load_controlnets(diffusers, torch, dtype, controlnet_specs or [])
     if cn_models:
@@ -867,7 +1054,7 @@ def run_img2img(
             "single-file .safetensors/.ckpt checkpoint",
             code=5,
         )
-    use_cuda = torch.cuda.is_available()
+    use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, "float16", use_cuda)
     cn_models, cn_images, cn_scales = _adapters.load_controlnets(diffusers, torch, dtype, controlnet_specs or [])
     if cn_models:

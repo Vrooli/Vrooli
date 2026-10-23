@@ -162,13 +162,13 @@ func (s *starterInitializer) saveLaptopDevice(ctx context.Context, bundle librar
 	if err != nil {
 		return devices.DeviceRevision{}, fmt.Errorf("derive laptop candidate bounds: %w", err)
 	}
+	widthMM := (bounds.max.X - bounds.min.X) * 1000
+	heightMM := (bounds.max.Y - bounds.min.Y) * 1000
+	depthMM := (bounds.max.Z - bounds.min.Z) * 1000
 	screenBounds, err := physicalGLBNodeMeshWorldBounds(inventory, screen.Index)
 	if err != nil {
 		return devices.DeviceRevision{}, fmt.Errorf("derive laptop screen metrics: %w", err)
 	}
-	widthMM := (bounds.max.X - bounds.min.X) * 1000
-	heightMM := (bounds.max.Y - bounds.min.Y) * 1000
-	depthMM := (bounds.max.Z - bounds.min.Z) * 1000
 	screenWidthMM := (screenBounds.max.X - screenBounds.min.X) * 1000
 	screenHeightMM := (screenBounds.max.Y - screenBounds.min.Y) * 1000
 	if !positiveFinite(widthMM) || !positiveFinite(heightMM) || !positiveFinite(depthMM) || !positiveFinite(screenWidthMM) || !positiveFinite(screenHeightMM) {
@@ -212,7 +212,39 @@ func (s *starterInitializer) saveLaptopDevice(ctx context.Context, bundle librar
 	if _, err := rendering.ResolvePhysicalScreenGeometry(data, candidate, laptopDisplayID); err != nil {
 		return devices.DeviceRevision{}, fmt.Errorf("preflight derive16 laptop screen mapping: %w", err)
 	}
+	if existing, getErr := s.devices.GetHead(ctx, laptopDeviceID); getErr == nil {
+		if existing.Candidate.Geometry.SHA256 == ref.SHA256 && sameLaptopCandidateExceptDisplayMetric(existing.Candidate, candidate) {
+			return existing, nil
+		}
+		return devices.DeviceRevision{}, fmt.Errorf("derive16 laptop candidate head differs from the pinned source geometry: %w", devices.ErrRevisionConflict)
+	} else if !errors.Is(getErr, devices.ErrRevisionNotFound) {
+		return devices.DeviceRevision{}, getErr
+	}
 	return saveDeviceCandidateIfUnchanged(ctx, s.devices, candidate)
+}
+
+// sameLaptopCandidateExceptDisplayMetric permits reuse of an immutable source
+// candidate whose sole revision difference is its active-screen metric. That
+// metric can be corrected from the pinned UV surface without changing model
+// identity, hierarchy, motion, source rights, or supports.
+func sameLaptopCandidateExceptDisplayMetric(a, b devices.DeviceCandidate) bool {
+	a.Definition.Displays = append([]devices.DisplaySurface(nil), a.Definition.Displays...)
+	b.Definition.Displays = append([]devices.DisplaySurface(nil), b.Definition.Displays...)
+	const correctedMetricVariant = "derive16 UV-calibrated active display; candidate-only geometry review; hinge remains unqualified"
+	if a.Definition.Variant == correctedMetricVariant {
+		a.Definition.Variant = b.Definition.Variant
+	} else if b.Definition.Variant == correctedMetricVariant {
+		b.Definition.Variant = a.Definition.Variant
+	}
+	for i := range a.Definition.Displays {
+		a.Definition.Displays[i].CoordinateMetric = nil
+	}
+	for i := range b.Definition.Displays {
+		b.Definition.Displays[i].CoordinateMetric = nil
+	}
+	_, _, aDigest, aErr := devices.CanonicalizeDeviceCandidate(a)
+	_, _, bDigest, bErr := devices.CanonicalizeDeviceCandidate(b)
+	return aErr == nil && bErr == nil && aDigest == bDigest
 }
 
 func (s *starterInitializer) saveLaptopScene(ctx context.Context, bundle library.BundleRevision) (scenes.Revision, error) {

@@ -18,14 +18,17 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/blobstore"
+	"github.com/vrooli/api-core/filerouting"
 	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // Store persists image blobs under api-core storage and routes outputs to
 // either the managed blob store or a caller-supplied host path.
 type Store struct {
-	blobs blobstore.BlobStore
-	root  string
+	blobs     blobstore.BlobStore
+	root      string
+	cacheRoot string
+	roots     *filerouting.RoutedRoots
 }
 
 // New resolves the blob root for the given storage namespace (use
@@ -33,22 +36,46 @@ type Store struct {
 // and returns a filesystem-backed Store rooted there. The root lives under the
 // platform data class, outside the repo.
 func New(namespace string) (*Store, error) {
+	paths, err := ResolvePaths(namespace)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithRoutedRoots(paths, nil)
+}
+
+// ResolvePaths resolves the scenario's primary storage roots. Model assets and
+// model assets stay in data; regenerable outputs and runtime material use cache.
+func ResolvePaths(namespace string) (corestorage.Paths, error) {
 	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: corestorage.ProfileAuto,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("storage: resolver: %w", err)
+		return corestorage.Paths{}, fmt.Errorf("storage: resolver: %w", err)
 	}
 	paths, err := resolver.Resolve(corestorage.Options{ScenarioID: namespace})
 	if err != nil {
-		return nil, fmt.Errorf("storage: resolve namespace %q: %w", namespace, err)
+		return corestorage.Paths{}, fmt.Errorf("storage: resolve namespace %q: %w", namespace, err)
 	}
+	return paths, nil
+}
+
+// NewWithRoutedRoots keeps inputs and retained preparations in data, and
+// derived out/ blobs in cache. Both classes honor active leased roots per call.
+func NewWithRoutedRoots(paths corestorage.Paths, routes *filerouting.RoutedRoots) (*Store, error) {
 	root := filepath.Join(paths.DataDir, "blobs")
+	// Switching the writer must never strand existing opaque out/ references.
+	// Placement migrations run while the owner is stopped; do not perform an
+	// uncoordinated copy or introduce a permanently ambiguous two-root lookup.
+	if _, err := os.Stat(filepath.Join(root, "out")); err == nil {
+		return nil, fmt.Errorf("storage: legacy derived outputs remain at %s; stop image-tools and migrate that tree to %s through Storage Manager placement before starting", filepath.Join(root, "out"), filepath.Join(paths.CacheDir, "blobs", "out"))
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("storage: inspect legacy output placement: %w", err)
+	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, fmt.Errorf("storage: create blob root: %w", err)
 	}
-	return NewWithBlobStore(blobstore.NewFilesystemBlobStore(root), root), nil
+	return &Store{blobs: blobstore.NewFilesystemBlobStore(root), root: root, cacheRoot: filepath.Join(paths.CacheDir, "blobs"), roots: routes}, nil
 }
 
 // NewWithBlobStore wraps an existing BlobStore (the test seam — pass an
@@ -67,7 +94,49 @@ func (s *Store) PathForKey(key string) (string, error) {
 	if err := validateKey(key); err != nil {
 		return "", err
 	}
-	return filepath.Join(s.root, filepath.FromSlash(key)), nil
+	return s.PathForKeyContext(context.Background(), key)
+}
+
+// PathForKeyContext resolves the managed path using the request's root routing.
+func (s *Store) PathForKeyContext(ctx context.Context, key string) (string, error) {
+	if err := validateKey(key); err != nil {
+		return "", err
+	}
+	root, err := s.blobRoot(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, filepath.FromSlash(key)), nil
+}
+
+func (s *Store) blobRoot(ctx context.Context, key string) (string, error) {
+	class := corestorage.ClassData
+	root := s.root
+	if strings.HasPrefix(key, "out/") && s.cacheRoot != "" {
+		class, root = corestorage.ClassCache, s.cacheRoot
+	}
+	if s.roots == nil {
+		return root, nil
+	}
+	dataRoot, err := s.roots.PickRequired(ctx, class)
+	if err != nil {
+		return "", fmt.Errorf("storage: select routed blob root: %w", err)
+	}
+	return filepath.Join(dataRoot, "blobs"), nil
+}
+
+func (s *Store) blobStore(ctx context.Context, key string) (blobstore.BlobStore, error) {
+	if s.roots == nil && (s.cacheRoot == "" || !strings.HasPrefix(key, "out/")) {
+		return s.blobs, nil
+	}
+	root, err := s.blobRoot(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return nil, fmt.Errorf("storage: create blob root: %w", err)
+	}
+	return blobstore.NewFilesystemBlobStore(root), nil
 }
 
 // Put stores bytes under key with the given MIME type.
@@ -75,8 +144,15 @@ func (s *Store) Put(ctx context.Context, key string, r io.Reader, mime string) e
 	if err := validateKey(key); err != nil {
 		return err
 	}
-	if err := s.blobs.Put(ctx, key, r, mime); err != nil {
+	bs, err := s.blobStore(ctx, key)
+	if err != nil {
+		return err
+	}
+	if err := bs.Put(ctx, key, r, mime); err != nil {
 		return fmt.Errorf("storage: put %q: %w", key, err)
+	}
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
 	}
 	return nil
 }
@@ -86,7 +162,11 @@ func (s *Store) Get(ctx context.Context, key string) (io.ReadCloser, string, err
 	if err := validateKey(key); err != nil {
 		return nil, "", err
 	}
-	rc, mime, err := s.blobs.Get(ctx, key)
+	bs, err := s.blobStore(ctx, key)
+	if err != nil {
+		return nil, "", err
+	}
+	rc, mime, err := bs.Get(ctx, key)
 	if err != nil {
 		return nil, "", fmt.Errorf("storage: get %q: %w", key, err)
 	}
@@ -98,8 +178,15 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 	if err := validateKey(key); err != nil {
 		return err
 	}
-	if err := s.blobs.Delete(ctx, key); err != nil {
+	bs, err := s.blobStore(ctx, key)
+	if err != nil {
+		return err
+	}
+	if err := bs.Delete(ctx, key); err != nil {
 		return fmt.Errorf("storage: delete %q: %w", key, err)
+	}
+	if s.roots != nil {
+		s.roots.RecordWrite(ctx)
 	}
 	return nil
 }

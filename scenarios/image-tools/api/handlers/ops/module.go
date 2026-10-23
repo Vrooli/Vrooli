@@ -17,8 +17,8 @@ import (
 // Module returns the ops domain's contribution: the OpsService discovery
 // handler (Connect-RPC) plus the two REST edges — the multipart execution edge
 // (POST /api/v1/ops/{operation}) and the result-blob serve (GET
-// /api/v1/blobs/{key}). Execution runs synchronously (deterministic ops are
-// instant) and is recorded as a terminal durable job for uniform observability.
+// /api/v1/blobs/{key}). Single-view operations run synchronously and record a
+// terminal job. Parallax sequences submit to the existing durable CPU lane.
 func Module(store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()

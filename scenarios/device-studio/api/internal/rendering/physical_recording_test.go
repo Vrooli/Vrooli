@@ -100,6 +100,26 @@ func TestPhysicalRecordingManifestUsesBoundedV4ProfileAndPreservesLegacy(t *test
 	}
 }
 
+func TestPhysicalRecordingDiagnosticMotionIsLowSampleAndKeepsSavedClock(t *testing.T) {
+	m := validPhysicalRecordingManifest(t)
+	m.Output.ProfileID = PhysicalDiagnosticMotionOutput
+	m.Output.MotionProfile = PhysicalDiagnosticMotionProfile
+	m.Profile.Samples = PhysicalDiagnosticMotionSamples
+	m.Profile.WallTimeSeconds = PhysicalDiagnosticMotionWallTimeSeconds
+	m.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(m.Profile)
+	if err := ValidatePhysicalRenderManifest(m); err != nil {
+		t.Fatalf("valid low-sample recording diagnostic rejected: %v", err)
+	}
+	if m.Output.FrameCount != 2 || m.Output.Samples[1].RequestedMotionTick != (composition.Rational{Num: 1, Den: 1}) || m.Screen.Recording.TrimEndPTS != 2 {
+		t.Fatalf("diagnostic changed the exact source/motion clock: output=%+v recording=%+v", m.Output, m.Screen.Recording)
+	}
+	m.Profile.Samples = PhysicalMotionSamples
+	m.Profile.DigestSHA256, _ = PhysicalRenderProfileDigest(m.Profile)
+	if err := ValidatePhysicalRenderManifest(m); err == nil {
+		t.Fatal("diagnostic silently accepted the delivery-quality sample count")
+	}
+}
+
 func TestDerivePhysicalRecordingScheduleUsesVerifiedClockAndExactPrefix(t *testing.T) {
 	recording, rate, count, manifestBytes, receiptBytes, clockBytes := verifiedPhysicalRecordingInputs(t, []int64{0, 1, 2}, 1, composition.Rational{Num: 1, Den: 30}, 0, 2, 24, 2)
 	facts, err := DerivePhysicalRecordingSchedule(context.Background(), recording, rate, count, manifestBytes, receiptBytes, clockBytes)

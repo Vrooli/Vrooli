@@ -3,6 +3,7 @@ package ai
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +13,8 @@ import (
 	"strings"
 
 	"image-tools/internal/ai"
-	"image-tools/internal/backends"
 	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
-	"image-tools/internal/models"
 	"image-tools/internal/safety"
 	"image-tools/internal/storage"
 
@@ -24,6 +23,7 @@ import (
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // BlobStore is the storage surface the submit edge needs (satisfied by
@@ -36,6 +36,7 @@ type BlobStore interface {
 // Submitter submits a durable job (satisfied by *internal/jobs.Manager).
 type Submitter interface {
 	Submit(ctx context.Context, spec internaljobs.Spec) (internaljobs.Job, error)
+	GetByClientOperation(ctx context.Context, operationID string) (internaljobs.Job, error)
 }
 
 // Gate is the Responsible-Use deployment gate the submit edge enforces
@@ -78,33 +79,17 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "malformed multipart form")
 		return
 	}
+	defer r.MultipartForm.RemoveAll()
 
 	params, ok := h.parseParams(w, r.FormValue("params"))
 	if !ok {
 		return
 	}
-
-	// Responsible-Use deployment gate (IMG-P1-015). On the public tier this
-	// enforces the abuse throttle, requires a consent affirmation for
-	// identity-altering ops, forces the NSFW output scan, and audits consent.
-	// On the local tier it is a no-op (personal use is unrestricted).
-	forceScan := false
-	if h.Gate != nil {
-		if !h.Gate.AllowRate() {
-			httpx.WriteError(w, http.StatusTooManyRequests, httpx.CodeRateLimited, "rate limit exceeded for this deployment tier; retry shortly")
-			return
-		}
-		decision := h.Gate.Evaluate(op, params.GetConsentAffirmed())
-		if !decision.Allowed {
-			httpx.WriteError(w, http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
-			return
-		}
-		forceScan = decision.ForceNSFWScan
-		if decision.RecordConsent {
-			if err := h.Gate.RecordConsent(r.Context(), op, decision.Weight); err != nil {
-				h.logf("ai.submit consent log: %v", err)
-			}
-		}
+	operationID := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	forceScan, err := h.preflightAdmission(r.Context(), op, params, operationID)
+	if err != nil {
+		writeAdmissionError(w, err)
+		return
 	}
 
 	inputRef := strings.TrimSpace(r.FormValue("input_ref"))
@@ -135,82 +120,110 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
-	plan, err := h.Engine.Plan(r.Context(), ai.PlanRequest{
-		Operation:      op,
-		ModelOverride:  params.GetModelOverride(),
-		AllowBYOK:      allowBYOKForParams(params),
-		QualityPolicy:  qualityPolicyForParams(params),
-		FallbackPolicy: fallbackPolicyForParams(params),
-		Priority:       priorityForParams(params),
-		AllowReclaim:   allowReclaimForParams(params),
-		Role:           params.GetOpenrouterRole(),
-		Adapters:       adapterRequests(params),
-	})
+	response, err := h.admitStored(r.Context(), op, params, inputKey, maskKey, operationID, forceScan)
 	if err != nil {
-		h.writePlanError(w, err)
+		writeAdmissionError(w, err)
 		return
 	}
+	httpx.WriteProto(w, http.StatusAccepted, response)
+}
 
-	// Conditioning weight elevation (decision C4): an adapter stack can raise the
-	// effective consent weight above the bare op's (an IP-Adapter / identity LoRA
-	// makes a none-weight op identity-altering). When the resolver elevated it,
-	// re-check consent under the elevated weight on the public tier.
-	if h.Gate != nil && len(plan.Adapters) > 0 && plan.Weight != "" {
-		decision := h.Gate.EvaluateWeight(safety.Weight(plan.Weight), op, params.GetConsentAffirmed())
-		if !decision.Allowed {
-			httpx.WriteError(w, http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
-			return
-		}
-		if decision.RecordConsent {
-			if err := h.Gate.RecordConsent(r.Context(), op, decision.Weight); err != nil {
-				h.logf("ai.submit consent log (adapter-elevated): %v", err)
+func writeAdmissionError(w http.ResponseWriter, err error) {
+	var rejection *admissionError
+	if errors.As(err, &rejection) {
+		httpx.WriteError(w, rejection.status, rejection.code, rejection.message)
+		return
+	}
+	httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "AI admission unavailable")
+}
+
+func (h *Deps) requestFingerprint(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey string) (string, error) {
+	canonical, err := (proto.MarshalOptions{Deterministic: true}).Marshal(params)
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.New()
+	hash.Write([]byte(op + "\n"))
+	hash.Write(canonical)
+	hash.Write([]byte{0})
+	if inputKey != "" || maskKey != "" {
+		// Fixed-size per-role digests are unambiguous and independent of random
+		// upload keys, multipart boundaries, filenames and filename extensions.
+		for _, key := range []string{inputKey, maskKey} {
+			if key == "" {
+				hash.Write(make([]byte, sha256.Size))
+				continue
 			}
+			r, _, err := h.Store.Get(ctx, key)
+			if err != nil {
+				return "", err
+			}
+			digest := sha256.New()
+			const maxInput = 64 << 20
+			n, err := io.Copy(digest, io.LimitReader(r, maxInput+1))
+			closeErr := r.Close()
+			if err != nil || closeErr != nil {
+				return "", errors.Join(err, closeErr)
+			}
+			if n > maxInput {
+				return "", fmt.Errorf("retained input exceeds 64MiB")
+			}
+			hash.Write(digest.Sum(nil))
 		}
 	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
 
-	payload := ai.Payload{
-		Operation:        op,
-		InputKey:         inputKey,
-		MaskKey:          maskKey,
-		ModelID:          plan.ModelID,
-		Backend:          h.modelBackend(plan.ModelID),
-		Tier:             plan.Tier,
-		GPU:              plan.GPUViable,
-		AllowBYOK:        allowBYOKForParams(params),
-		CapacityPriority: priorityForParams(params),
-		AllowReclaim:     allowReclaimForParams(params),
-		AutoScanNSFW:     params.GetAutoScanNsfw() || forceScan,
-		Variations:       int(params.GetVariations()),
-		Params:           paramsMap(params),
-		Adapters:         plan.Adapters,
+type operationStatus struct {
+	JobID      string            `json:"job_id"`
+	Operation  string            `json:"operation"`
+	ModelID    string            `json:"model_id,omitempty"`
+	Tier       string            `json:"tier,omitempty"`
+	State      string            `json:"state"`
+	Progress   int               `json:"progress"`
+	Message    string            `json:"message,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	ResultRef  string            `json:"result_ref,omitempty"`
+	ResultMeta map[string]string `json:"result_meta,omitempty"`
+}
+
+// Retained admissions must keep their original operation/model identity even
+// while that model is currently unavailable. Empty or mismatched saved JSON is
+// corruption, not a successful operation with missing presentation fields.
+func decodeSavedAIPayload(job internaljobs.Job, payload *ai.Payload) error {
+	if err := json.Unmarshal(job.Payload, payload); err != nil {
+		return err
 	}
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		h.logf("ai.submit marshal payload: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "failed to prepare job")
+	if payload.ModelID == "" || payload.Operation == "" || payload.Operation != job.Operation {
+		return fmt.Errorf("saved AI operation identity is incomplete or inconsistent")
+	}
+	return nil
+}
+
+func (h *Deps) operationHandler(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(mux.Vars(r)["operation_id"])
+	if _, err := uuid.Parse(id); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "invalid operation id")
 		return
 	}
-
-	job, err := h.Jobs.Submit(r.Context(), internaljobs.Spec{
-		Operation:        op,
-		Lane:             ai.LaneForTier(plan.Tier),
-		Payload:          raw,
-		EstimatedSeconds: plan.EstimatedSeconds,
-	})
+	job, err := h.Jobs.GetByClientOperation(r.Context(), id)
 	if err != nil {
-		h.logf("ai.submit enqueue: %v", err)
-		httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "failed to enqueue job")
+		if errors.Is(err, internaljobs.ErrNotFound) {
+			httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "operation was not accepted")
+		} else {
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "operation status unavailable")
+		}
 		return
 	}
-
-	httpx.WriteProto(w, http.StatusAccepted, &aiv1.SubmitAIResponse{
-		JobId:            job.ID,
-		EstimatedSeconds: int32(plan.EstimatedSeconds),
-		ModelId:          plan.ModelID,
-		Tier:             plan.Tier,
-		Warnings:         plan.Warnings,
-	})
+	w.Header().Set("Cache-Control", "no-store")
+	var payload ai.Payload
+	if err := decodeSavedAIPayload(job, &payload); err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "saved operation metadata is invalid")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(operationStatus{JobID: job.ID, Operation: job.Operation, ModelID: payload.ModelID, Tier: payload.Tier, State: string(job.State), Progress: job.Progress, Message: job.Message, Error: job.Error, ResultRef: job.ResultRef, ResultMeta: job.Meta})
 }
 
 func (h *Deps) modelBackend(modelID string) string {
@@ -263,27 +276,14 @@ func (h *Deps) storeOptionalInput(w http.ResponseWriter, r *http.Request, field 
 		}
 		return "", false
 	}
-	key := prefix + "/" + uuid.NewString() + extOf(header.Filename)
+	digest := sha256.Sum256(inspected.Bytes)
+	key := fmt.Sprintf("%s/%x%s", prefix, digest, extOf(header.Filename))
 	if err := h.Store.Put(r.Context(), key, bytes.NewReader(inspected.Bytes), ""); err != nil {
 		h.logf("ai.submit store %s: %v", field, err)
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "failed to store input")
 		return "", false
 	}
 	return key, true
-}
-
-func (h *Deps) writePlanError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, ai.ErrModelNotInstalled):
-		httpx.WriteError(w, http.StatusConflict, httpx.CodeInvalidRequest, err.Error())
-	case errors.Is(err, backends.ErrNoneAvailable), errors.Is(err, backends.ErrNoProvider):
-		httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, err.Error())
-	case errors.Is(err, models.ErrUnknownOperation):
-		httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, err.Error())
-	default:
-		// ErrNoEnabledModel / ErrNotRunnable / ErrOverrideInvalid / probe failure
-		httpx.WriteError(w, http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, err.Error())
-	}
 }
 
 func (h *Deps) logf(format string, args ...any) {

@@ -25,6 +25,16 @@ Existing local entry points (choose the domain test for the behavior you change)
 
 ## API testing
 
+### Routed storage isolation
+
+The storage package tests exercise managed blob writes with a leased test data
+root: test-mode writes and reads stay under that root, successful writes are
+counted, and a missing lease fails without writing to primary storage. The jobs
+package tests verify that a test-mode submission persists its job in the routed
+database and the async runner receives test mode after the submit request ends.
+The scenario registers both the routed database and file roots through
+`devrouting.RegisterWithFileRoots`.
+
 ### CRUD reference — `notes` end-to-end
 
 The `notes` domain is the canonical CRUD reference. New scenarios add

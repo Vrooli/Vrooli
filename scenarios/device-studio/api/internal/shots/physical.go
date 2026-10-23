@@ -646,6 +646,9 @@ func validatePhysicalSelection(binding *shotsv1.PhysicalShotBinding, device devi
 			return err
 		}
 	}
+	if err := validatePhysicalCameraEndpointBinding(binding); err != nil {
+		return err
+	}
 	if binding.GetSceneSupportWorld() == nil || binding.GetDeviceRootRest() == nil || binding.GetSupportPivotM() == nil {
 		return errors.New("explicit support world, pivot, and device rest transform are required")
 	}
@@ -681,6 +684,30 @@ func validatePhysicalSelection(binding *shotsv1.PhysicalShotBinding, device devi
 				return fmt.Errorf("motion target camera %q is not part of the scene candidate", track.Target.SceneCameraID)
 			}
 		}
+	}
+	return nil
+}
+
+func finitePhysical(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
+
+func validatePhysicalCameraEndpointBinding(binding *shotsv1.PhysicalShotBinding) error {
+	endpoint := binding.GetCameraEndpoint()
+	if endpoint == nil {
+		return nil
+	}
+	output := binding.GetMotionOutput()
+	if output == nil || endpoint.GetDisplayId() != binding.GetDisplayId() {
+		return errors.New("camera endpoint requires the selected display and a physical motion output")
+	}
+	if endpoint.GetRasterWidth() != output.GetWidth() || endpoint.GetRasterHeight() != output.GetHeight() || endpoint.GetRasterWidth() == 0 || endpoint.GetRasterHeight() == 0 {
+		return errors.New("camera endpoint raster must match the pinned physical motion output")
+	}
+	x, y, w, h := endpoint.GetX(), endpoint.GetY(), endpoint.GetWidth(), endpoint.GetHeight()
+	if !finitePhysical(x) || !finitePhysical(y) || !finitePhysical(w) || !finitePhysical(h) || x < 0 || y < 0 || w <= 0 || h <= 0 || x+w > 1 || y+h > 1 {
+		return errors.New("camera endpoint rectangle must be finite, nonempty, and contained in the output raster")
+	}
+	if endpoint.GetMaxErrorPixels() < 0 || endpoint.GetMaxErrorPixels() > 8 || math.IsNaN(endpoint.GetMaxErrorPixels()) || math.IsInf(endpoint.GetMaxErrorPixels(), 0) {
+		return errors.New("camera endpoint pixel tolerance must be zero or within (0,8]")
 	}
 	return nil
 }

@@ -39,3 +39,8 @@ Pillow>=9
 # --- ONNX Runtime inference stack ---
 onnxruntime>=1.17
 numpy>=1.26
+einops==0.8.2
+trimesh==4.7.4
+scikit-image==0.25.2
+onnx==1.19.0
+kornia==0.5.0

@@ -128,7 +128,10 @@ type Params struct {
 	// Composite. Plates carry their own pixels, set by the handler from the
 	// `plate0`, `plate1`, … multipart parts rather than from JSON: a stack of
 	// full-size rasters does not belong in a parameter document.
-	Plates []PlateSpec `json:"plates,omitempty"`
+	Plates []PlateSpec    `json:"plates,omitempty"`
+	Camera *LayeredCamera `json:"camera,omitempty"`
+
+	Parallax *ParallaxSequence `json:"parallax,omitempty"`
 
 	// Metadata.
 	StripAll   bool `json:"strip_all,omitempty"`

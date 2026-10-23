@@ -317,6 +317,60 @@
       "request_sha256": "1e8bbd6ed39809c22d0b2df677535718cd92da6f743c92eb33b75c4b38dd1bfc",
       "generation_receipt_sha256": "1fd0e4c0998dbb07cfe2f1f75ad3ac22b894e818aecfac2a179c97b3ba16d57e",
       "feedback_sha256": "907daa13997e30427cacdef714cac064277c0bf5c160e2520f20b70c21a21352"
+    },
+    {
+      "id": "aquila-native-track-occluded-opening-2026-10-21",
+      "kind": "failure",
+      "product": "aquila",
+      "purpose": [
+        "render",
+        "stacking",
+        "native-video",
+        "intro",
+        "preview-parity"
+      ],
+      "date": "2026-10-21",
+      "proof_scope": "Exact managed export versus browser-preview stills; short managed correction qualification",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/polish/renders/final/render.mp4",
+      "sha256": "49f44c8d8eaf44e422732ac4b1d290b6322aac32e9a2f01547241afed3cd0f73",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/polish/WORK.md",
+      "correction": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/polish/renders/intro-qualification/render.mp4",
+      "lesson": "A full-canvas native track later in DOM covered earlier opening cards in actual render, despite direct seek previews showing them. Explicit graphic z-index above media fixes this composition; actual short owner render verifies both cards. Review the exact export, not only still previews.",
+      "operator_rating": null
+    },
+    {
+      "id": "aquila-dynamic-108s-2026-10-21",
+      "kind": "film",
+      "product": "aquila",
+      "purpose": [
+        "story",
+        "desktop",
+        "side-layout",
+        "local-continuity",
+        "device-screen-entry",
+        "cursor",
+        "native-actions",
+        "file-viewer",
+        "voice",
+        "expressive-pacing"
+      ],
+      "viewport": "1920x1080 desktop source and film",
+      "date": "2026-10-21",
+      "operator_rating": 8.5,
+      "rating_scale": 10,
+      "rating_scope": "Current Aquila 108-second film, with explicit device-zoom/parallax exception.",
+      "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/dynamic/aquila-in-motion.mp4",
+      "sha256": "e7ec15b06edd36784a72d1f02bb88b5cb09efc1299a69bd98defec8e6215f346",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/dynamic/feedback.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/dynamic/WORK.md",
+      "review": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/dynamic/quality-review.json",
+      "proof_scope": "Operator feedback on exact delivered 108-second film; native UI fixture workflow evidence and separately qualified owner mechanics.",
+      "lesson": "Use as a positive reference for varied side layouts, large editorial type, connected native actions and a selected continuous desktop cursor. Keep continuity local to the device/window join; preserve the unresolved device-zoom/parallax caveat.",
+      "limits": [
+        "No publication approval or independent audience/conversion evidence inferred.",
+        "No separate sound-on audition assertion inferred from the general rating.",
+        "Prepared-layer parallax operation is qualified separately; automatic photo preparation and calibrated device-screen parallax remain unqualified."
+      ]
     }
   ],
   "excluded_audio_source_ids": [

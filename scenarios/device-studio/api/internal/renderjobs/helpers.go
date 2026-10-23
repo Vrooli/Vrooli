@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -176,7 +177,7 @@ func validateSubmitRequest(req SubmitRequest) error {
 	if req.OutputProfile == "" {
 		req.OutputProfile = OutputProfilePNG
 	}
-	if req.OutputProfile != OutputProfilePNG && req.OutputProfile != OutputProfileMP4 && req.OutputProfile != OutputProfilePhysicalPreviewPNG {
+	if req.OutputProfile != OutputProfilePNG && req.OutputProfile != OutputProfileMP4 && req.OutputProfile != OutputProfilePhysicalPreviewPNG && req.OutputProfile != OutputProfilePhysicalDiagnosticPNG && req.OutputProfile != OutputProfilePhysicalDiagnosticMotionMP4 {
 		return fmt.Errorf("%w: output profile %q is unsupported", ErrInvalidRequest, req.OutputProfile)
 	}
 	return nil
@@ -340,8 +341,10 @@ func operationSpecFor(mode operationMode, workerPath, manifestPath, workspace st
 			return platform.OperationSpec{}, err
 		}
 	}
-	return platform.OperationSpec{Path: workerPath, Args: []string{command, "--manifest", manifestPath}, Env: env, Dir: workspace,
-		Limits: platform.OperationLimits{MemoryMaxBytes: memory, TasksMax: 128, CPUWeight: 100, WallTime: wallTime}}, nil
+	return platform.OperationSpec{
+		Path: workerPath, Args: []string{command, "--manifest", manifestPath}, Env: env, Dir: workspace,
+		Limits: platform.OperationLimits{MemoryMaxBytes: memory, TasksMax: 128, CPUWeight: 100, WallTime: wallTime},
+	}, nil
 }
 
 func physicalWorkerEnvironment(workspace string) ([]string, error) {
@@ -349,13 +352,23 @@ func physicalWorkerEnvironment(workspace string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return physicalWorkerEnvironmentFor(ownerHome, workspace, os.Getenv(cliinvoke.BinaryEnvVar))
+	nvidiaSMI, err := resolveNvidiaSMI()
+	if err != nil {
+		return nil, err
+	}
+	return physicalWorkerEnvironmentFor(ownerHome, workspace, os.Getenv(cliinvoke.BinaryEnvVar), nvidiaSMI)
 }
 
-func physicalWorkerEnvironmentFor(ownerHome, workspace, configuredCLI string) ([]string, error) {
+func physicalWorkerEnvironmentFor(ownerHome, workspace, configuredCLI, nvidiaSMI string) ([]string, error) {
 	env, err := geometryWorkerEnvironmentFor(ownerHome, workspace, configuredCLI)
 	if err != nil {
 		return nil, err
+	}
+	if !filepath.IsAbs(nvidiaSMI) || filepath.Clean(nvidiaSMI) != nvidiaSMI {
+		return nil, errors.New("renderjobs: resolved nvidia-smi path must be absolute and clean")
+	}
+	if info, statErr := os.Stat(nvidiaSMI); statErr != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("renderjobs: resolved nvidia-smi path is not a regular file")
 	}
 	return append(env,
 		"XDG_CONFIG_HOME="+filepath.Join(workspace, "config"),
@@ -366,7 +379,25 @@ func physicalWorkerEnvironmentFor(ownerHome, workspace, configuredCLI string) ([
 		"PYTHONPYCACHEPREFIX="+filepath.Join(workspace, "pycache"),
 		"PYTHONDONTWRITEBYTECODE=1",
 		"OMP_NUM_THREADS=2",
+		"DEVICE_STUDIO_NVIDIA_SMI="+nvidiaSMI,
 	), nil
+}
+
+func resolveNvidiaSMI() (string, error) {
+	path, err := exec.LookPath("nvidia-smi")
+	if err != nil {
+		return "", fmt.Errorf("renderjobs: resolve nvidia-smi for physical render telemetry: %w", err)
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("renderjobs: resolve absolute nvidia-smi path: %w", err)
+	}
+	path = filepath.Clean(path)
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", errors.New("renderjobs: resolved nvidia-smi is not a regular file")
+	}
+	return path, nil
 }
 
 func geometryWorkerEnvironment(workspace string) ([]string, error) {

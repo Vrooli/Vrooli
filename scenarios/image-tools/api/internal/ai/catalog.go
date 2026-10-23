@@ -25,9 +25,10 @@ import (
 )
 
 // Category and Op are views over the operation vocabulary SSOT
-// (internal/operations). The AI engine owns exactly the generation + enhancement
-// ops — the ones it builds runners for — so its catalog is a category filter over
-// the one table rather than a re-declared list (W1 collapse, see
+// (internal/operations). The AI engine runs generation/enhancement and the
+// image-producing prompted segmentation job. Structured analysis and builtin
+// smart selection retain their owners. This catalog filters the vocabulary
+// rather than redeclaring operation entries (W1 collapse, see
 // docs/internal/TECHNIQUE-SUBSTRATE.md).
 type Category = operations.Category
 
@@ -53,6 +54,13 @@ var catalog = func() map[string]Op {
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
 		m[o.Name] = o
+	}
+	// Prompted segmentation is an image-producing, model-backed job, unlike
+	// synchronous heuristic smart-selection. Reuse the durable AI execution lane.
+	for _, o := range operations.ByCategory(operations.CategoryAnalysis) {
+		if o.Name == "segment" {
+			m[o.Name] = o
+		}
 	}
 	return m
 }()

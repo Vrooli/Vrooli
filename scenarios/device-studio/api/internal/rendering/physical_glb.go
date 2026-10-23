@@ -14,6 +14,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"sort"
 
 	"device-studio/internal/devices"
 	"device-studio/internal/library"
@@ -22,15 +23,16 @@ import (
 )
 
 const (
-	PhysicalScreenMappingProfile = "device-studio-glb-uv0-full-rect-image-v1"
-	PhysicalBlenderUV0LayerName  = "UVMap"
-	physicalGLBMaxBytes          = 128 << 20
-	physicalGLBMaxNodes          = 512
-	physicalGLBMaxMeshes         = 512
-	physicalGLBMaxMaterials      = 256
-	physicalGLBMaxAccessors      = 4096
-	physicalGLBMaxViews          = 4096
-	physicalGLBMaxVertices       = 4_000_000
+	PhysicalScreenMappingProfile           = "device-studio-glb-uv0-full-rect-image-v1"
+	PhysicalBlenderUV0LayerName            = "UVMap"
+	PhysicalScreenTriangleUVMappingProfile = "device-studio-glb-indexed-triangle-uv0-v1"
+	physicalGLBMaxBytes                    = 128 << 20
+	physicalGLBMaxNodes                    = 512
+	physicalGLBMaxMeshes                   = 512
+	physicalGLBMaxMaterials                = 256
+	physicalGLBMaxAccessors                = 4096
+	physicalGLBMaxViews                    = 4096
+	physicalGLBMaxVertices                 = 4_000_000
 )
 
 type PhysicalGLBInventory struct {
@@ -550,6 +552,591 @@ func ResolvePhysicalScreenGeometry(data []byte, candidate devices.DeviceCandidat
 	return PhysicalScreenGeometryBinding{DisplayID: displayID, PartID: partID, NodeIndex: node.Index, NodeName: node.Name, MeshIndex: mesh.Index, PrimitiveIndex: selected.Index, MaterialIndex: selected.Material, BlenderUVLayer: PhysicalBlenderUV0LayerName, UVMin: selected.UVMin, UVMax: selected.UVMax}, nil
 }
 
+// ResolvePhysicalDisplayCorners derives the selected panel's planar boundary
+// from its pinned display primitive and semantic node ancestry, then converts
+// those corners into the candidate's canonical meter basis. It intentionally
+// uses the display primitive bounds rather than the whole device AABB.
+func ResolvePhysicalDisplayCorners(data []byte, candidate devices.DeviceCandidate, displayID string) ([4]physical.Vec3, error) {
+	out, err := resolvePhysicalDisplayCornersByUV(data, candidate, displayID)
+	if err != nil {
+		return [4]physical.Vec3{}, err
+	}
+	var metricRatio float64
+	for _, display := range candidate.Definition.Displays {
+		if display.ID == displayID && display.CoordinateMetric != nil && positiveCameraNumber(display.CoordinateMetric.WidthMM) && positiveCameraNumber(display.CoordinateMetric.HeightMM) {
+			metricRatio = display.CoordinateMetric.WidthMM / display.CoordinateMetric.HeightMM
+			break
+		}
+	}
+	if metricRatio == 0 {
+		return [4]physical.Vec3{}, errors.New("selected display lacks a positive physical width/height metric")
+	}
+	width := (physicalDistance(out[0], out[1]) + physicalDistance(out[3], out[2])) / 2
+	height := (physicalDistance(out[0], out[3]) + physicalDistance(out[1], out[2])) / 2
+	if !positiveCameraNumber(width) || !positiveCameraNumber(height) {
+		return [4]physical.Vec3{}, errors.New("selected display UV rectangle has degenerate physical dimensions")
+	}
+	geometryRatio := width / height
+	if math.Abs(geometryRatio-metricRatio) > metricRatio*.02 {
+		return [4]physical.Vec3{}, fmt.Errorf("selected display UV-calibrated aspect %.6f differs from its candidate physical metric %.6f", geometryRatio, metricRatio)
+	}
+	return out, nil
+}
+
+// ResolvePhysicalDisplayGeometryMetrics returns the actual in-plane edge
+// lengths of the selected UV-mapped screen viewport in millimeters. Unlike an
+// axis-aligned mesh bound, this remains correct when the screen plane is tilted
+// within a creator model's local frame.
+func ResolvePhysicalDisplayGeometryMetrics(data []byte, candidate devices.DeviceCandidate, displayID string) (float64, float64, error) {
+	corners, err := resolvePhysicalDisplayCornersByUV(data, candidate, displayID)
+	if err != nil {
+		return 0, 0, err
+	}
+	width := (physicalDistance(corners[0], corners[1]) + physicalDistance(corners[3], corners[2])) * 500
+	height := (physicalDistance(corners[0], corners[3]) + physicalDistance(corners[1], corners[2])) * 500
+	if !positiveCameraNumber(width) || !positiveCameraNumber(height) {
+		return 0, 0, errors.New("selected display UV rectangle has degenerate physical dimensions")
+	}
+	return width, height, nil
+}
+
+func resolvePhysicalDisplayCornersByUV(data []byte, candidate devices.DeviceCandidate, displayID string) ([4]physical.Vec3, error) {
+	var out [4]physical.Vec3
+	inventory, err := InspectPhysicalGLB(data)
+	if err != nil {
+		return out, err
+	}
+	mapping, err := ResolvePhysicalScreenGeometry(data, candidate, displayID)
+	if err != nil {
+		return out, err
+	}
+	mesh := inventory.Meshes[mapping.MeshIndex]
+	var primitive *PhysicalGLBPrimitive
+	for i := range mesh.Primitives {
+		if mesh.Primitives[i].Index == mapping.PrimitiveIndex {
+			primitive = &mesh.Primitives[i]
+			break
+		}
+	}
+	if primitive == nil {
+		return out, errors.New("selected display primitive is unavailable")
+	}
+	local, err := physicalGLBPrimitiveUVRectangleCorners(data, *primitive)
+	if err != nil {
+		return out, fmt.Errorf("resolve selected display UV rectangle: %w", err)
+	}
+	if int(mapping.NodeIndex) >= len(inventory.Nodes) {
+		return out, errors.New("selected display node is outside its GLB inventory")
+	}
+	node := inventory.Nodes[mapping.NodeIndex]
+	matrix, err := node.Frame.Matrix()
+	if err != nil {
+		return out, err
+	}
+	for parent := node.Parent; parent != nil; {
+		if int(*parent) >= len(inventory.Nodes) {
+			return out, errors.New("display node ancestry is outside its GLB inventory")
+		}
+		ancestor := inventory.Nodes[*parent]
+		localMatrix, matrixErr := ancestor.Frame.Matrix()
+		if matrixErr != nil {
+			return out, matrixErr
+		}
+		matrix, err = physical.Compose(localMatrix, matrix)
+		if err != nil {
+			return out, err
+		}
+		parent = ancestor.Parent
+	}
+	canonical, err := candidate.SourceToCanonical.Matrix()
+	if err != nil {
+		return out, err
+	}
+	matrix, err = physical.Compose(canonical, matrix)
+	if err != nil {
+		return out, err
+	}
+	for i, p := range local {
+		out[i], err = physical.TransformPoint(matrix, p)
+		if err != nil {
+			return [4]physical.Vec3{}, err
+		}
+	}
+	out = orderPhysicalDisplayCorners(out)
+	return out, nil
+}
+
+// ResolvePhysicalDisplayContainedContentCorners maps the actual source-content
+// rectangle through the indexed UV0 triangles used by Blender's screen image
+// material. The source is uniformly contained in the physical display; its
+// four UV positions are then evaluated on the mesh rather than inferred from
+// the nearest UV corner vertices. This matters for beveled panels whose UV
+// chart clips the texture at a corner.
+func ResolvePhysicalDisplayContainedContentCorners(data []byte, candidate devices.DeviceCandidate, displayID string, sourceWidth, sourceHeight uint32) ([4]physical.Vec3, error) {
+	var out [4]physical.Vec3
+	if sourceWidth == 0 || sourceHeight == 0 {
+		return out, errors.New("contained display content requires a nonempty source raster")
+	}
+	inventory, err := InspectPhysicalGLB(data)
+	if err != nil {
+		return out, err
+	}
+	mapping, err := ResolvePhysicalScreenGeometry(data, candidate, displayID)
+	if err != nil {
+		return out, err
+	}
+	mesh := inventory.Meshes[mapping.MeshIndex]
+	var primitive *PhysicalGLBPrimitive
+	for i := range mesh.Primitives {
+		if mesh.Primitives[i].Index == mapping.PrimitiveIndex {
+			primitive = &mesh.Primitives[i]
+			break
+		}
+	}
+	if primitive == nil {
+		return out, errors.New("selected display primitive is unavailable")
+	}
+	display, err := resolvePhysicalDisplayCornersByUV(data, candidate, displayID)
+	if err != nil {
+		return out, err
+	}
+	displayAspect, err := physicalDisplayAspect(display)
+	if err != nil {
+		return out, err
+	}
+	sourceAspect := float64(sourceWidth) / float64(sourceHeight)
+	x0, x1, top, bottom := 0.0, 1.0, 0.0, 1.0
+	if sourceAspect > displayAspect {
+		visible := displayAspect / sourceAspect
+		top, bottom = (1-visible)/2, (1+visible)/2
+	} else {
+		visible := sourceAspect / displayAspect
+		x0, x1 = (1-visible)/2, (1+visible)/2
+	}
+	// glTF/Blender UV v=0 addresses the bottom row; source rectangles use a
+	// top-left origin. Keep this conversion explicit at the texture boundary.
+	uvs := [4][2]float64{{x0, 1 - top}, {x1, 1 - top}, {x1, 1 - bottom}, {x0, 1 - bottom}}
+	local, err := physicalGLBPrimitivePositionsAtUV(data, *primitive, uvs)
+	if err != nil {
+		return out, fmt.Errorf("resolve contained display pixels through UV0 triangles: %w", err)
+	}
+	if int(mapping.NodeIndex) >= len(inventory.Nodes) {
+		return out, errors.New("selected display node is outside its GLB inventory")
+	}
+	world, err := physicalGLBNodeWorldMatrix(inventory, mapping.NodeIndex, candidate)
+	if err != nil {
+		return out, err
+	}
+	for i, point := range local {
+		out[i], err = physical.TransformPoint(world, point)
+		if err != nil {
+			return [4]physical.Vec3{}, err
+		}
+	}
+	return orderPhysicalDisplayCorners(out), nil
+}
+
+func physicalGLBNodeWorldMatrix(inventory PhysicalGLBInventory, nodeIndex uint32, candidate devices.DeviceCandidate) (physical.Matrix4, error) {
+	if int(nodeIndex) >= len(inventory.Nodes) {
+		return physical.Matrix4{}, errors.New("selected display node is outside its GLB inventory")
+	}
+	node := inventory.Nodes[nodeIndex]
+	matrix, err := node.Frame.Matrix()
+	if err != nil {
+		return physical.Matrix4{}, err
+	}
+	for parent := node.Parent; parent != nil; {
+		if int(*parent) >= len(inventory.Nodes) {
+			return physical.Matrix4{}, errors.New("display node ancestry is outside its GLB inventory")
+		}
+		ancestor := inventory.Nodes[*parent]
+		ancestorMatrix, matrixErr := ancestor.Frame.Matrix()
+		if matrixErr != nil {
+			return physical.Matrix4{}, matrixErr
+		}
+		matrix, err = physical.Compose(ancestorMatrix, matrix)
+		if err != nil {
+			return physical.Matrix4{}, err
+		}
+		parent = ancestor.Parent
+	}
+	canonical, err := candidate.SourceToCanonical.Matrix()
+	if err != nil {
+		return physical.Matrix4{}, err
+	}
+	return physical.Compose(canonical, matrix)
+}
+
+// physicalGLBPrimitivePositionsAtUV follows the indexed triangle surface and
+// interpolates position by barycentric coordinates in UV space. It rejects
+// UVs outside the triangulated chart and inconsistent overlaps instead of
+// guessing a point from a nearby vertex or a whole-mesh bound.
+func physicalGLBPrimitivePositionsAtUV(data []byte, primitive PhysicalGLBPrimitive, targets [4][2]float64) ([4]physical.Vec3, error) {
+	var result [4]physical.Vec3
+	if primitive.UV0 == nil || primitive.Mode != 4 {
+		return result, errors.New("display UV mapping requires an indexed triangle primitive with UV0")
+	}
+	chunks, err := splitGLBChunks(data)
+	if err != nil {
+		return result, err
+	}
+	var doc glbDocument
+	if err := json.Unmarshal(chunks[0], &doc); err != nil {
+		return result, fmt.Errorf("decode display GLB metadata: %w", err)
+	}
+	if int(primitive.Position) >= len(doc.Accessors) || int(*primitive.UV0) >= len(doc.Accessors) {
+		return result, errors.New("display position or UV accessor is outside the GLB")
+	}
+	positionAccessor, uvAccessor := doc.Accessors[primitive.Position], doc.Accessors[*primitive.UV0]
+	if positionAccessor.Type != "VEC3" || positionAccessor.ComponentType != 5126 || uvAccessor.Type != "VEC2" || positionAccessor.Count != uvAccessor.Count || positionAccessor.BufferView == nil || uvAccessor.BufferView == nil {
+		return result, errors.New("display UV0 and position accessors are incompatible")
+	}
+	positionView, uvView := doc.BufferViews[*positionAccessor.BufferView], doc.BufferViews[*uvAccessor.BufferView]
+	positionStride := uint64(positionView.ByteStride)
+	if positionStride == 0 {
+		positionStride = 12
+	}
+	uvComponentBytes := uint64(4)
+	switch uvAccessor.ComponentType {
+	case 5126:
+	case 5121:
+		uvComponentBytes = 1
+	case 5123:
+		uvComponentBytes = 2
+	default:
+		return result, errors.New("display UV component type is unsupported")
+	}
+	uvStride := uint64(uvView.ByteStride)
+	if uvStride == 0 {
+		uvStride = uvComponentBytes * 2
+	}
+	readUV := func(vertex uint32) ([2]float64, error) {
+		var uv [2]float64
+		for axis := 0; axis < 2; axis++ {
+			offset := uint64(uvView.ByteOffset) + uint64(uvAccessor.ByteOffset) + uint64(vertex)*uvStride + uint64(axis)*uvComponentBytes
+			if offset+uvComponentBytes > uint64(len(chunks[1])) {
+				return uv, errors.New("display UV accessor exceeds the GLB binary chunk")
+			}
+			switch uvAccessor.ComponentType {
+			case 5126:
+				uv[axis] = float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset : offset+4])))
+			case 5121:
+				uv[axis] = float64(chunks[1][offset])
+				if uvAccessor.Normalized {
+					uv[axis] /= math.MaxUint8
+				}
+			case 5123:
+				uv[axis] = float64(binary.LittleEndian.Uint16(chunks[1][offset : offset+2]))
+				if uvAccessor.Normalized {
+					uv[axis] /= math.MaxUint16
+				}
+			}
+			if !finiteNumber(uv[axis]) {
+				return uv, errors.New("display UV accessor contains a non-finite value")
+			}
+		}
+		return uv, nil
+	}
+	readPosition := func(vertex uint32) (physical.Vec3, error) {
+		offset := uint64(positionView.ByteOffset) + uint64(positionAccessor.ByteOffset) + uint64(vertex)*positionStride
+		if offset+12 > uint64(len(chunks[1])) {
+			return physical.Vec3{}, errors.New("display position accessor exceeds the GLB binary chunk")
+		}
+		point := physical.Vec3{X: float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset : offset+4]))), Y: float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset+4 : offset+8]))), Z: float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset+8 : offset+12])))}
+		if err := point.Validate(); err != nil {
+			return physical.Vec3{}, err
+		}
+		return point, nil
+	}
+	indices := make([]uint32, 0, primitive.IndexCount)
+	if primitive.IndexAccessor == nil {
+		for i := uint32(0); i < positionAccessor.Count; i++ {
+			indices = append(indices, i)
+		}
+	} else {
+		if int(*primitive.IndexAccessor) >= len(doc.Accessors) {
+			return result, errors.New("display index accessor is outside the GLB")
+		}
+		a := doc.Accessors[*primitive.IndexAccessor]
+		if a.BufferView == nil {
+			return result, errors.New("display index accessor has no buffer view")
+		}
+		view := doc.BufferViews[*a.BufferView]
+		bytesPerIndex := uint64(0)
+		switch a.ComponentType {
+		case 5121:
+			bytesPerIndex = 1
+		case 5123:
+			bytesPerIndex = 2
+		case 5125:
+			bytesPerIndex = 4
+		default:
+			return result, errors.New("display index component type is unsupported")
+		}
+		start, stride := uint64(view.ByteOffset)+uint64(a.ByteOffset), uint64(view.ByteStride)
+		if stride == 0 {
+			stride = bytesPerIndex
+		}
+		for i := uint32(0); i < a.Count; i++ {
+			offset := start + uint64(i)*stride
+			if offset+bytesPerIndex > uint64(len(chunks[1])) {
+				return result, errors.New("display index accessor exceeds the GLB binary chunk")
+			}
+			var index uint32
+			switch a.ComponentType {
+			case 5121:
+				index = uint32(chunks[1][offset])
+			case 5123:
+				index = uint32(binary.LittleEndian.Uint16(chunks[1][offset : offset+2]))
+			case 5125:
+				index = binary.LittleEndian.Uint32(chunks[1][offset : offset+4])
+			}
+			if index >= positionAccessor.Count {
+				return result, errors.New("display index references an out-of-range vertex")
+			}
+			indices = append(indices, index)
+		}
+	}
+	if len(indices) == 0 || len(indices)%3 != 0 {
+		return result, errors.New("display index stream is not a nonempty triangle list")
+	}
+	uvCache, posCache := make([][2]float64, positionAccessor.Count), make([]physical.Vec3, positionAccessor.Count)
+	read := make([]bool, positionAccessor.Count)
+	for targetIndex, target := range targets {
+		found := false
+		for i := 0; i < len(indices); i += 3 {
+			ids := [3]uint32{indices[i], indices[i+1], indices[i+2]}
+			for _, id := range ids {
+				if !read[id] {
+					uvCache[id], err = readUV(id)
+					if err != nil {
+						return result, err
+					}
+					posCache[id], err = readPosition(id)
+					if err != nil {
+						return result, err
+					}
+					read[id] = true
+				}
+			}
+			weights, inside := uvBarycentric(target, uvCache[ids[0]], uvCache[ids[1]], uvCache[ids[2]])
+			if !inside {
+				continue
+			}
+			point := physical.Vec3{}
+			for k, id := range ids {
+				point.X += weights[k] * posCache[id].X
+				point.Y += weights[k] * posCache[id].Y
+				point.Z += weights[k] * posCache[id].Z
+			}
+			if found && physicalDistance(point, result[targetIndex]) > 1e-5 {
+				return result, errors.New("display UV position is ambiguous across overlapping triangles")
+			}
+			result[targetIndex], found = point, true
+		}
+		if !found {
+			return result, fmt.Errorf("contained display UV (%.6f, %.6f) is outside the indexed triangle chart", target[0], target[1])
+		}
+	}
+	if !physicalPlanarQuad(result, .02) {
+		return result, errors.New("contained display content corners are not a planar near-rectangle")
+	}
+	return result, nil
+}
+
+func uvBarycentric(p, a, b, c [2]float64) ([3]float64, bool) {
+	denominator := (b[1]-c[1])*(a[0]-c[0]) + (c[0]-b[0])*(a[1]-c[1])
+	if math.Abs(denominator) < 1e-12 {
+		return [3]float64{}, false
+	}
+	w0 := ((b[1]-c[1])*(p[0]-c[0]) + (c[0]-b[0])*(p[1]-c[1])) / denominator
+	w1 := ((c[1]-a[1])*(p[0]-c[0]) + (a[0]-c[0])*(p[1]-c[1])) / denominator
+	w2 := 1 - w0 - w1
+	const epsilon = 1e-7
+	return [3]float64{w0, w1, w2}, w0 >= -epsilon && w1 >= -epsilon && w2 >= -epsilon && w0 <= 1+epsilon && w1 <= 1+epsilon && w2 <= 1+epsilon
+}
+
+// orderPhysicalDisplayCorners gives the renderer a stable device-space
+// orientation (top-left, top-right, bottom-right, bottom-left), independent
+// of UV flips used to orient the screen texture. Device Studio's canonical
+// basis defines +X as right and +Y as up.
+func orderPhysicalDisplayCorners(corners [4]physical.Vec3) [4]physical.Vec3 {
+	indices := []int{0, 1, 2, 3}
+	sort.Slice(indices, func(i, j int) bool { return corners[indices[i]].Y > corners[indices[j]].Y })
+	top, bottom := indices[:2], indices[2:]
+	sort.Slice(top, func(i, j int) bool { return corners[top[i]].X < corners[top[j]].X })
+	sort.Slice(bottom, func(i, j int) bool { return corners[bottom[i]].X < corners[bottom[j]].X })
+	return [4]physical.Vec3{corners[top[0]], corners[top[1]], corners[bottom[1]], corners[bottom[0]]}
+}
+
+func physicalGLBPrimitiveUVRectangleCorners(data []byte, primitive PhysicalGLBPrimitive) ([4]physical.Vec3, error) {
+	var corners [4]physical.Vec3
+	if primitive.UV0 == nil {
+		return corners, errors.New("selected display primitive has no UV0 coordinates")
+	}
+	chunks, err := splitGLBChunks(data)
+	if err != nil {
+		return corners, err
+	}
+	var doc glbDocument
+	decoder := json.NewDecoder(bytes.NewReader(chunks[0]))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&doc); err != nil {
+		return corners, fmt.Errorf("decode display GLB metadata: %w", err)
+	}
+	if int(primitive.Position) >= len(doc.Accessors) || int(*primitive.UV0) >= len(doc.Accessors) {
+		return corners, errors.New("display position or UV accessor is outside the GLB")
+	}
+	positionAccessor, uvAccessor := doc.Accessors[primitive.Position], doc.Accessors[*primitive.UV0]
+	if positionAccessor.Count != uvAccessor.Count || positionAccessor.Type != "VEC3" || positionAccessor.ComponentType != 5126 || uvAccessor.Type != "VEC2" {
+		return corners, errors.New("display UV0 and position accessors are incompatible")
+	}
+	positionView, uvView := doc.BufferViews[*positionAccessor.BufferView], doc.BufferViews[*uvAccessor.BufferView]
+	positionStride := uint64(positionView.ByteStride)
+	if positionStride == 0 {
+		positionStride = 12
+	}
+	uvStride := uint64(uvView.ByteStride)
+	uvComponentBytes := uint64(4)
+	if uvStride == 0 {
+		uvStride = 8
+	}
+	if uvAccessor.ComponentType == 5121 {
+		uvComponentBytes = 1
+	} else if uvAccessor.ComponentType == 5123 {
+		uvComponentBytes = 2
+	}
+	readUV := func(vertex uint32) ([2]float64, error) {
+		offset := uint64(uvView.ByteOffset) + uint64(uvAccessor.ByteOffset) + uint64(vertex)*uvStride
+		var result [2]float64
+		for axis := 0; axis < 2; axis++ {
+			component := offset + uint64(axis)*uvComponentBytes
+			var value float64
+			switch uvAccessor.ComponentType {
+			case 5126:
+				value = float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][component : component+4])))
+			case 5121:
+				value = float64(chunks[1][component])
+				if uvAccessor.Normalized {
+					value /= math.MaxUint8
+				}
+			case 5123:
+				value = float64(binary.LittleEndian.Uint16(chunks[1][component : component+2]))
+				if uvAccessor.Normalized {
+					value /= math.MaxUint16
+				}
+			default:
+				return [2]float64{}, errors.New("display UV component type is unsupported")
+			}
+			result[axis] = value
+		}
+		return result, nil
+	}
+	readPosition := func(vertex uint32) (physical.Vec3, error) {
+		offset := uint64(positionView.ByteOffset) + uint64(positionAccessor.ByteOffset) + uint64(vertex)*positionStride
+		return physical.Vec3{
+			X: float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset : offset+4]))),
+			Y: float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset+4 : offset+8]))),
+			Z: float64(math.Float32frombits(binary.LittleEndian.Uint32(chunks[1][offset+8 : offset+12]))),
+		}, nil
+	}
+	indices := make([]bool, positionAccessor.Count)
+	if primitive.IndexAccessor == nil {
+		for i := range indices {
+			indices[i] = true
+		}
+	} else {
+		if int(*primitive.IndexAccessor) >= len(doc.Accessors) {
+			return corners, errors.New("display index accessor is outside the GLB")
+		}
+		accessor := doc.Accessors[*primitive.IndexAccessor]
+		view := doc.BufferViews[*accessor.BufferView]
+		bytesPerIndex := uint64(0)
+		switch accessor.ComponentType {
+		case 5121:
+			bytesPerIndex = 1
+		case 5123:
+			bytesPerIndex = 2
+		case 5125:
+			bytesPerIndex = 4
+		default:
+			return corners, errors.New("display index component type is unsupported")
+		}
+		start := uint64(view.ByteOffset) + uint64(accessor.ByteOffset)
+		for i := uint32(0); i < accessor.Count; i++ {
+			offset := start + uint64(i)*bytesPerIndex
+			if offset+bytesPerIndex > uint64(len(chunks[1])) {
+				return corners, errors.New("display index accessor exceeds the GLB binary chunk")
+			}
+			var vertex uint32
+			switch accessor.ComponentType {
+			case 5121:
+				vertex = uint32(chunks[1][offset])
+			case 5123:
+				vertex = uint32(binary.LittleEndian.Uint16(chunks[1][offset : offset+2]))
+			case 5125:
+				vertex = binary.LittleEndian.Uint32(chunks[1][offset : offset+4])
+			}
+			if int(vertex) >= len(indices) {
+				return corners, errors.New("display index references an out-of-range vertex")
+			}
+			indices[vertex] = true
+		}
+	}
+	uvTargets := [4][2]float64{{primitive.UVMin[0], primitive.UVMin[1]}, {primitive.UVMax[0], primitive.UVMin[1]}, {primitive.UVMax[0], primitive.UVMax[1]}, {primitive.UVMin[0], primitive.UVMax[1]}}
+	bestDistance := [4]float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}
+	bestVertex := [4]uint32{}
+	for vertex := uint32(0); vertex < positionAccessor.Count; vertex++ {
+		if !indices[vertex] {
+			continue
+		}
+		uv, readErr := readUV(vertex)
+		if readErr != nil {
+			return corners, readErr
+		}
+		for i, target := range uvTargets {
+			dx, dy := uv[0]-target[0], uv[1]-target[1]
+			distance := dx*dx + dy*dy
+			if distance < bestDistance[i] {
+				bestDistance[i], bestVertex[i] = distance, vertex
+			}
+		}
+	}
+	used := map[uint32]bool{}
+	for i, distance := range bestDistance {
+		if distance > .02*.02 || used[bestVertex[i]] {
+			return corners, errors.New("UV chart does not expose four distinct screen corners")
+		}
+		used[bestVertex[i]] = true
+		position, readErr := readPosition(bestVertex[i])
+		if readErr != nil {
+			return corners, readErr
+		}
+		corners[i] = position
+	}
+	if !physicalPlanarQuad(corners, .02) {
+		return corners, errors.New("UV-calibrated screen corners are not a planar rectangle")
+	}
+	return corners, nil
+}
+
+func physicalDistance(a, b physical.Vec3) float64 {
+	dx, dy, dz := a.X-b.X, a.Y-b.Y, a.Z-b.Z
+	return math.Sqrt(dx*dx + dy*dy + dz*dz)
+}
+
+func physicalPlanarQuad(corners [4]physical.Vec3, relativeTolerance float64) bool {
+	v := func(a, b physical.Vec3) physical.Vec3 { return physical.Vec3{X: b.X - a.X, Y: b.Y - a.Y, Z: b.Z - a.Z} }
+	dot := func(a, b physical.Vec3) float64 { return a.X*b.X + a.Y*b.Y + a.Z*b.Z }
+	width, height := v(corners[0], corners[1]), v(corners[0], corners[3])
+	widthLen, heightLen := physicalDistance(corners[0], corners[1]), physicalDistance(corners[0], corners[3])
+	if !positiveCameraNumber(widthLen) || !positiveCameraNumber(heightLen) || math.Abs(dot(width, height)) > widthLen*heightLen*relativeTolerance {
+		return false
+	}
+	expected := physical.Vec3{X: corners[1].X + corners[3].X - corners[0].X, Y: corners[1].Y + corners[3].Y - corners[0].Y, Z: corners[1].Z + corners[3].Z - corners[0].Z}
+	return physicalDistance(corners[2], expected) <= math.Max(widthLen, heightLen)*relativeTolerance
+}
+
 func ValidateScenePhysicalGLB(data []byte, candidate scenes.SceneCandidate) (PhysicalGLBInventory, error) {
 	inventory, err := InspectPhysicalGLB(data)
 	if err != nil {
@@ -1028,7 +1615,7 @@ func validatePrimitiveBufferData(primitive PhysicalGLBPrimitive, doc glbDocument
 	}
 	for axis := 0; axis < 3; axis++ {
 		if math.Abs(minima[axis]-primitive.PositionMin[axis]) > 1e-5 || math.Abs(maxima[axis]-primitive.PositionMax[axis]) > 1e-5 {
-			return uvMin, uvMax, errors.New("position accessor bounds differ from decoded vertices")
+			return uvMin, uvMax, fmt.Errorf("position accessor bounds differ from decoded vertices: axis=%d accessor=[%g,%g] decoded=[%g,%g]", axis, primitive.PositionMin[axis], primitive.PositionMax[axis], minima[axis], maxima[axis])
 		}
 	}
 	if primitive.UV0 != nil {

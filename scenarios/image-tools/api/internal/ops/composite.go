@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -38,7 +40,8 @@ type PlateSpec struct {
 	// Opacity is 0..1. Zero is fully transparent, so a caller wanting the
 	// default has to send 1 — the alternative, treating zero as "unset", makes
 	// a deliberately hidden plate unexpressible.
-	Opacity float64 `json:"opacity"`
+	Opacity  float64  `json:"opacity"`
+	Distance *float64 `json:"distance,omitempty"`
 	// Image is the plate's pixels, set by the handler from a multipart part
 	// rather than carried in JSON.
 	Image []byte `json:"-"`
@@ -50,9 +53,18 @@ type PlateSpec struct {
 // single-image edge; it is otherwise the background. Either way the result is
 // one raster at the declared geometry.
 func Composite(base image.Image, p *Params) (image.Image, error) {
+	_ = base
+	plates, decoded, width, height, err := prepareComposite(p)
+	if err != nil {
+		return nil, err
+	}
+	return compositePrepared(context.Background(), plates, decoded, p, width, height)
+}
+
+func prepareComposite(p *Params) ([]PlateSpec, []image.Image, int, int, error) {
 	plates := append([]PlateSpec(nil), p.Plates...)
 	if len(plates) == 0 {
-		return nil, fmt.Errorf("ops: composite requires at least one plate")
+		return nil, nil, 0, 0, fmt.Errorf("ops: composite requires at least one plate")
 	}
 	// Sorted by declared depth, stably, so two plates that claim the same layer
 	// keep their list order rather than swapping between runs. Depth is
@@ -62,17 +74,36 @@ func Composite(base image.Image, p *Params) (image.Image, error) {
 	sort.SliceStable(plates, func(i, j int) bool { return plates[i].Depth < plates[j].Depth })
 
 	width, height := p.Width, p.Height
+	bounded := p.Camera != nil || p.Parallax != nil
+	if bounded && len(plates) > 8 {
+		return nil, nil, 0, 0, fmt.Errorf("ops: layered views permit at most 8 prepared plates")
+	}
+	var encodedBytes, decodedPixels int64
 	decoded := make([]image.Image, 0, len(plates))
 	for i, plate := range plates {
 		if len(plate.Image) == 0 {
-			return nil, fmt.Errorf("ops: composite plate %d (%q) carries no image", i, plate.Name)
+			return nil, nil, 0, 0, fmt.Errorf("ops: composite plate %d (%q) carries no image", i, plate.Name)
+		}
+		if bounded {
+			encodedBytes += int64(len(plate.Image))
+			if encodedBytes > 96<<20 {
+				return nil, nil, 0, 0, fmt.Errorf("ops: layered inputs exceed 96MiB")
+			}
+			cfg, _, err := image.DecodeConfig(bytes.NewReader(plate.Image))
+			if err != nil {
+				return nil, nil, 0, 0, fmt.Errorf("ops: layered plate %d must be a prepared raster: %w", i, err)
+			}
+			decodedPixels += int64(cfg.Width) * int64(cfg.Height)
+			if cfg.Width <= 0 || cfg.Height <= 0 || decodedPixels > 24_000_000 {
+				return nil, nil, 0, 0, fmt.Errorf("ops: layered inputs exceed 24 million decoded pixels")
+			}
 		}
 		img, _, err := Decode(plate.Image)
 		if err != nil {
-			return nil, fmt.Errorf("ops: decode composite plate %d (%q): %w", i, plate.Name, err)
+			return nil, nil, 0, 0, fmt.Errorf("ops: decode composite plate %d (%q): %w", i, plate.Name, err)
 		}
 		if err := validateBlend(plate.Blend, i, plate.Name); err != nil {
-			return nil, err
+			return nil, nil, 0, 0, err
 		}
 		decoded = append(decoded, img)
 	}
@@ -81,9 +112,28 @@ func Composite(base image.Image, p *Params) (image.Image, error) {
 		width, height = b.Dx(), b.Dy()
 	}
 	if width <= 0 || height <= 0 {
-		return nil, fmt.Errorf("ops: composite needs positive geometry (got %dx%d)", width, height)
+		return nil, nil, 0, 0, fmt.Errorf("ops: composite needs positive geometry (got %dx%d)", width, height)
 	}
-	_ = base
+	return plates, decoded, width, height, nil
+}
+
+func compositePrepared(ctx context.Context, plates []PlateSpec, decoded []image.Image, p *Params, width, height int) (image.Image, error) {
+	layers := append([]image.Image(nil), decoded...)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if p.Camera != nil {
+		if err := validateLayeredCamera(*p.Camera, width, height, plates); err != nil {
+			return nil, err
+		}
+		for i := range decoded {
+			warped, err := renderLayeredViewContext(ctx, decoded[i], image.Pt(width, height), *plates[i].Distance, *p.Camera)
+			if err != nil {
+				return nil, err
+			}
+			layers[i] = warped
+		}
+	}
 
 	canvas := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if strings.TrimSpace(p.Background) != "" {
@@ -101,7 +151,14 @@ func Composite(base image.Image, p *Params) (image.Image, error) {
 		if opacity > 1 {
 			opacity = 1
 		}
-		blendPlate(canvas, decoded[i], blendModeOf(plate.Blend), opacity)
+		blendPlate(canvas, layers[i], blendModeOf(plate.Blend), opacity)
+	}
+	if p.Camera != nil && p.Camera.RequireOpaque {
+		for i := 3; i < len(canvas.Pix); i += 4 {
+			if canvas.Pix[i] != 255 {
+				return nil, fmt.Errorf("ops: parallax view exposes missing/translucent scenery; provide filled background layers or an explicit background")
+			}
+		}
 	}
 	return canvas, nil
 }

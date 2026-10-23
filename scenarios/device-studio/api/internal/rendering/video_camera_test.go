@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -240,4 +241,110 @@ func cameraSampleManifest(width, height, plateWidth, plateHeight int, quad [4]Co
 	m.PresentationLayout = nil
 	m.ShotRevision, m.BaseShotRevision = 3, 3
 	return m
+}
+
+func TestScreenEntryDestinationContainsWholeViewportAndHolds(t *testing.T) {
+	for _, size := range []image.Point{{1920, 1080}, {1080, 1920}} {
+		m := cameraSampleManifest(size.X, size.Y, size.X, size.Y, [4]Corner{{200, 200}, {800, 200}, {800, 900}, {200, 900}})
+		m.Camera.TargetRect = &presentations.BasisRect{X: 4000, Y: 2000, Width: 5500, Height: 6500}
+		p, err := newVideoCameraPath(m, image.Rect(0, 0, size.X, size.Y), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		q := p.target
+		x, y, w, h := float64(size.X)*.4, float64(size.Y)*.2, float64(size.X)*.55, float64(size.Y)*.65
+		if q[0].X < x-1e-8 || q[0].Y < y-1e-8 || q[2].X > x+w+1e-8 || q[2].Y > y+h+1e-8 {
+			t.Fatalf("endpoint outside destination: %+v", q)
+		}
+		gotAspect := (q[1].X - q[0].X) / (q[3].Y - q[0].Y)
+		wantAspect := float64(p.viewport.Dx()) / float64(p.viewport.Dy())
+		if math.Abs(gotAspect-wantAspect) > 1e-8 {
+			t.Fatalf("viewport stretched: %f vs %f", gotAspect, wantAspect)
+		}
+		if math.Abs((q[0].X+q[2].X)/2-(x+w/2)) > 1e-8 || math.Abs((q[0].Y+q[2].Y)/2-(y+h/2)) > 1e-8 {
+			t.Fatal("viewport not centered in destination")
+		}
+		if p.quad(0) != p.from || p.quad(p.duration-1) != q || p.quad(p.duration+8) != q {
+			t.Fatal("endpoint schedule not preserved")
+		}
+	}
+}
+
+func TestScreenEntryDestinationRejectsInvalidBounds(t *testing.T) {
+	for _, r := range []presentations.BasisRect{{0, 0, 0, 10000}, {0, 0, 10000, 0}, {-1, 0, 10000, 10000}, {0, -1, 10000, 10000}, {1, 0, 10000, 10000}, {0, 1, 10000, 10000}, {0, 0, 10001, 10000}, {10001, 0, 1, 1}} {
+		m := cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
+		m.Camera.TargetRect = &r
+		if err := ValidateVideoManifest(m); err == nil {
+			t.Fatalf("invalid destination accepted: %+v", r)
+		}
+	}
+}
+
+func TestScreenEntryOmittedDestinationPreservesLegacyDigestAndEndpoint(t *testing.T) {
+	m := cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
+	b, _ := json.Marshal(m.Camera)
+	if bytes.Contains(b, []byte("target_rect")) {
+		t.Fatal("absent destination changes legacy JSON")
+	}
+	p, err := newVideoCameraPath(m, image.Rect(0, 0, 1920, 1080), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.target != containedViewportQuad(p.viewport, image.Pt(1920, 1080)) {
+		t.Fatal("default endpoint changed")
+	}
+}
+
+func TestPlainScreenEntryFinalUsesExplicitMatteWithoutSimulatedChrome(t *testing.T) {
+	m := cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
+	m.Mode = VideoModeFinal
+	m.Presentation.Browser = nil
+	m.Presentation.Phone = nil
+	m.Presentation.Matte = &presentations.RGB{R: 7, G: 20, B: 34}
+	layout, err := presentations.BuildLayoutForVideoRaster(image.Rect(0, 0, m.Inspection.Width, m.Inspection.Height), *m.Presentation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.PresentationLayout = &layout
+	if err := ValidateVideoManifest(m); err != nil {
+		t.Fatalf("plain final with explicit source-independent matte rejected: %v", err)
+	}
+	m.Presentation.Matte = nil
+	layout, err = presentations.BuildLayoutForVideoRaster(image.Rect(0, 0, m.Inspection.Width, m.Inspection.Height), *m.Presentation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.PresentationLayout = &layout
+	if err := ValidateVideoManifest(m); err == nil {
+		t.Fatal("plain final accepted without explicit matte")
+	}
+}
+
+func TestStationaryCameraPlacesPhotoAndScreenIndependently(t *testing.T) {
+	m := cameraSampleManifest(1920, 1080, 1536, 1024, [4]Corner{{512, 128}, {1024, 128}, {1024, 896}, {512, 896}})
+	m.Camera.ProfileID = StationaryScreenEntryCameraProfileID
+	m.Camera.SceneRect = &presentations.BasisRect{X: 3500, Y: 1500, Width: 6000, Height: 7500}
+	m.Camera.TargetRect = &presentations.BasisRect{X: 4000, Y: 2000, Width: 5500, Height: 6500}
+	if err := ValidateVideoManifest(m); err != nil {
+		t.Fatal(err)
+	}
+	p, err := newVideoCameraPath(m, image.Rect(0, 0, 1536, 1024), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.from[0].X < 1920*.35 || p.from[2].X > 1920*.95 {
+		t.Fatalf("initial screen lost photo placement: %+v", p.from)
+	}
+	if p.target[0].X < 1920*.4 || p.target[2].X > 1920*.95 {
+		t.Fatalf("endpoint lost side placement: %+v", p.target)
+	}
+	m.Camera.ProfileID = ScreenEntryCameraProfileID
+	if err := ValidateVideoManifest(m); err == nil {
+		t.Fatal("legacy camera silently ignored photo placement")
+	}
+	m.Camera.ProfileID = StationaryScreenEntryCameraProfileID
+	m.Camera.SceneRect.Width = 0
+	if err := ValidateVideoManifest(m); err == nil {
+		t.Fatal("empty photo placement accepted")
+	}
 }

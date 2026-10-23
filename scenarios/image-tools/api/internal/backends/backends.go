@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -59,8 +60,15 @@ type Request struct {
 	// weights (resolved by the engine from the models root). Empty for ops whose
 	// provider needs no weights.
 	ModelDir string
+	// SourceProfileDir is an engine-resolved, owner-verified source tree for
+	// providers that execute pinned upstream source. It is never populated from
+	// request parameters.
+	SourceProfileDir string
 	// GPU asks the provider to run on the GPU when true.
 	GPU bool
+	// GPUUUID pins CUDA execution to the exact physical device reserved by the
+	// capacity owner. Providers must apply it before initializing CUDA.
+	GPUUUID string
 	// InputKeys are blob-store keys (or local paths) of the operation inputs.
 	InputKeys []string
 	// Params carries op-specific parameters (e.g. prompt, scale, seed).
@@ -112,7 +120,8 @@ type Provider interface {
 
 // Registry holds the registered providers, indexed by operation.
 type Registry struct {
-	byOp map[string][]Provider
+	byOp      map[string][]Provider
+	providers []Provider
 }
 
 // New returns an empty registry.
@@ -143,7 +152,20 @@ func (r *Registry) Register(p Provider) error {
 	for _, op := range ops {
 		r.byOp[op] = append(r.byOp[op], p)
 	}
+	r.providers = append(r.providers, p)
 	return nil
+}
+
+// Close releases provider-owned workers after the job manager has stopped.
+// Register retains each provider once, independent of its number of operations.
+func (r *Registry) Close() error {
+	var errs []error
+	for _, p := range r.providers {
+		if closer, ok := p.(io.Closer); ok {
+			errs = append(errs, closer.Close())
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // Validate enforces the headless tenet: every registered operation must have at

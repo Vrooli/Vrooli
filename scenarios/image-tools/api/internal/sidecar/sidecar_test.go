@@ -30,6 +30,7 @@ func TestMaterialize_WritesPackage(t *testing.T) {
 		"face_detection.py",
 		"nsfw.py",
 		"restore.py",
+		"sam2.py",
 		"segment.py",
 		"tagging.py",
 		"worker.py",
@@ -45,16 +46,31 @@ func TestMaterialize_WritesPackage(t *testing.T) {
 	}
 }
 
+func TestPythonSidecar_SAM2PromptContracts(t *testing.T) {
+	cmd := exec.Command("python3", "-m", "image_tools_sidecar.test_sam2", "-v")
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("SAM 2 prompt contracts: %v\n%s", err, out)
+	}
+}
+
 func TestPythonSidecar_SessionCacheReusesModelPath(t *testing.T) {
 	script := `
 from image_tools_sidecar import _common
 
 class FakeOrt:
     calls = 0
+    class ExecutionMode:
+        ORT_SEQUENTIAL = "sequential"
+    class SessionOptions:
+        pass
 
     @staticmethod
-    def InferenceSession(path, providers):
+    def InferenceSession(path, sess_options, providers):
         FakeOrt.calls += 1
+        assert sess_options.intra_op_num_threads > 0
+        assert sess_options.inter_op_num_threads == 1
+        assert sess_options.execution_mode == "sequential"
         return {"path": path, "providers": tuple(providers), "ordinal": FakeOrt.calls}
 
 _common.require_deps = lambda: (None, FakeOrt, None)
@@ -78,6 +94,66 @@ assert first["providers"] == ("CPUExecutionProvider",)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("python sidecar session cache contract failed: %v\n%s", err, out)
+	}
+}
+
+func TestPythonSidecar_SessionCacheIsBounded(t *testing.T) {
+	script := `
+from image_tools_sidecar import _common
+class FakeOrt:
+    class ExecutionMode:
+        ORT_SEQUENTIAL = "sequential"
+    class SessionOptions:
+        pass
+    @staticmethod
+    def InferenceSession(path, sess_options, providers):
+        return object()
+_common.require_deps = lambda: (None, FakeOrt, None)
+for i in range(10):
+    _common.make_session(str(i))
+assert len(_common._SESSION_CACHE) <= 2, len(_common._SESSION_CACHE)
+assert "9" in _common._SESSION_CACHE
+`
+	cmd := exec.Command("python3", "-c", script)
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("bounded model residency: %v\n%s", err, out)
+	}
+}
+
+func TestPythonSidecar_SAMExportContracts(t *testing.T) {
+	cmd := exec.Command("python3", "-m", "image_tools_sidecar.test_segment", "-v")
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("SAM export contracts: %v\n%s", err, out)
+	}
+}
+
+func TestPythonSidecar_CPUFallbackDoesNotProbeOrUseCUDA(t *testing.T) {
+	script := `
+import os
+from image_tools_sidecar import _common
+class CUDA:
+    @staticmethod
+    def is_available():
+        raise AssertionError("CPU fallback probed CUDA")
+class Torch:
+    cuda = CUDA
+os.environ["IMAGE_TOOLS_DEVICE"] = "cpu"
+assert not _common.use_cuda(Torch)
+CUDA.is_available = staticmethod(lambda: False)
+os.environ["IMAGE_TOOLS_DEVICE"] = "cuda"
+try:
+    _common.use_cuda(Torch)
+except RuntimeError:
+    pass
+else:
+    raise AssertionError("unavailable GPU silently accepted")
+`
+	cmd := exec.Command("python3", "-c", script)
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("device fallback: %v\n%s", err, out)
 	}
 }
 
@@ -233,5 +309,13 @@ assert payload["score"] > 0.88
 			t.Skipf("python sidecar golden contract requires numpy and Pillow: %s", out)
 		}
 		t.Fatalf("python sidecar golden contract failed: %v\n%s", err, out)
+	}
+}
+
+func TestPythonSidecar_SourceRasterAndRepairContracts(t *testing.T) {
+	cmd := exec.Command("python3", "-m", "unittest", "image_tools_sidecar.test_source_raster", "image_tools_sidecar.test_lama", "-v")
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("source raster/repair contracts: %v\n%s", err, out)
 	}
 }

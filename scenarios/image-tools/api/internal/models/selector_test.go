@@ -401,3 +401,27 @@ func TestSupportsHost(t *testing.T) {
 		t.Fatal("linux host must not match darwin-only model")
 	}
 }
+
+func TestBrokerManagedSelectionDefersContentionButNotHardwareFit(t *testing.T) {
+	r := testRegistry(t)
+	req := SelectRequest{
+		Operation: "upscale", OverrideID: "gpu-quality",
+		Host: capabilities.Host{OS: "linux", Arch: "amd64", GPUs: []capabilities.GPU{{VRAMBytes: 16 << 30, VRAMUsedBytes: 15 << 30}}},
+	}
+	if _, err := r.Select(req, func(string) bool { return true }); err == nil {
+		t.Fatal("unbrokered GPU-only model admitted against insufficient free memory")
+	}
+	req.CapacityManagedGPU = true
+	sel, err := r.Select(req, func(string) bool { return true })
+	if err != nil || !sel.GPUViable || !strings.Contains(strings.Join(sel.Warnings, " "), "admission") {
+		t.Fatalf("broker could not arbitrate contention: %+v, %v", sel, err)
+	}
+	req.Host.GPUs[0].VRAMBytes = 4 << 30
+	if _, err := r.Select(req, func(string) bool { return true }); err == nil {
+		t.Fatal("broker policy pretended undersized hardware could fit the model")
+	}
+	req.Host.GPUs[0].VRAMBytes = 0
+	if _, err := r.Select(req, func(string) bool { return true }); err == nil {
+		t.Fatal("broker policy treated unknown hardware capacity as sufficient")
+	}
+}

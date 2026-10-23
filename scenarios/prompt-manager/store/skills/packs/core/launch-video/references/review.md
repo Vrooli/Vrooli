@@ -7,6 +7,13 @@ encoder cannot establish meaning or finish. Label self-review honestly. Use an
 independent reviewer only when the user or active workflow authorizes delegation.
 Operator acceptance is separate from self-review and publication authority.
 
+When the media treatment changes, qualify a short section through the actual
+render owner. Explicitly stack graphic overlays above full-canvas native tracks.
+A browser seek can respect inherited visibility while a renderer's extracted
+media replacement still covers earlier DOM siblings. Inspect the encoded opening
+and a media/graphic boundary; do not infer them from styleframes. Retain a failed
+export and its correction as a failure case, without a taste rating.
+
 ## Viewer comprehension
 
 Before polish, review the plain script or timed rough against the offer-specific
@@ -75,6 +82,15 @@ composition or product-clarity findings; do not invent a motion score.
 | Acceleration hides the result or suggests unverified speed | Restore the result hold or qualify the timing implication, then inspect the encoded cut. |
 | A still explains a result better than interaction | Retain it with the specific viewer reason; generic permission for stills is not a disposition. |
 
+Review an unbroken encoded passage across each change of focus with music, then
+muted. Trace where the eye looks before and after the cut. Flag unexplained screen
+resizing/cropping, a device endpoint that changes content/position immediately,
+a focused-reader jump substituted for scroll, empty search, or voice setup in
+place of conversation. Inspect velocity through time, not only settled frames.
+An audio cue table and matching keyframes cannot establish musical fit by themselves.
+Retain per-feedback dispositions; earlier self-acceptance does not overrule a
+later operator report of a craft defect.
+
 Check that the sequence demonstrates useful depth and breadth without losing the
 core promise. Inspect the final montage at normal playback and the smallest
 player size. The native action, focal content and outcome must remain traceable.
@@ -110,3 +126,13 @@ alternatives. Review affected meaning/craft checks after a recut and technical/
 listening checks after a remaster. Never copy a passing verdict onto a new hash.
 Supply unfinished drafts when useful with explicit open findings; do not present
 an unpassed readiness gate as acceptance.
+
+
+For a continuity repair, compare both retained strengths and new defects. Full
+source viewports must not become a requirement for near-full-canvas placement.
+Flag a sequence that repeats one centered window and small top labels after a
+reference had useful large type and distinct shot layouts. Review the device
+entry and the very next action as one encoded interval. Check the destination,
+source time, cursor and matte. Reject photographic room shear unless deliberately
+selected. Check desktop pointer travel/click/park and touch contact separately;
+visible typed characters do not prove a convincing whole interaction.

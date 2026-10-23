@@ -33,7 +33,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--lora", action="append", default=[], help="conditioning LoRA as <path>:<scale> (repeatable)")
     p.add_argument("--controlnet", action="append", default=[], help="ControlNet as <dir>:<scale>:<image> (repeatable)")
     p.add_argument("--ip-adapter", dest="ip_adapter", action="append", default=[], help="IP-Adapter as <weightfile>:<scale>:<reference> (repeatable)")
-    return p.parse_args()
+    return _common.parse_device_args(p)
 
 
 def main() -> None:

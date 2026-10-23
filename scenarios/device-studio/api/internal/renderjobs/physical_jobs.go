@@ -193,6 +193,7 @@ func (c *Coordinator) submitPhysicalWithReceipt(ctx context.Context, route route
 	}
 	outputProfile := OutputProfilePNG
 	recording := resolved.Revision.Snapshot.GetVideoTiming() != nil
+	diagnosticMotion := req.OutputProfile == OutputProfilePhysicalDiagnosticMotionMP4
 	articulated := physicalMotionHasJointTracks(resolved.Revision.Physical.MotionCandidate)
 	if articulated && req.OutputProfile != OutputProfileMP4 {
 		return jobs.Job{}, false, nil, fmt.Errorf("%w: articulated physical motion currently requires the final static-screen MP4 output", ErrInvalidRequest)
@@ -201,15 +202,18 @@ func (c *Coordinator) submitPhysicalWithReceipt(ctx context.Context, route route
 		if articulated {
 			return jobs.Job{}, false, nil, fmt.Errorf("%w: articulated recording textures are not supported yet", ErrInvalidRequest)
 		}
-		if req.OutputProfile == OutputProfilePhysicalPreviewPNG {
+		if req.OutputProfile == OutputProfilePhysicalPreviewPNG || req.OutputProfile == OutputProfilePhysicalDiagnosticPNG {
 			return jobs.Job{}, false, nil, fmt.Errorf("%w: recording sources need a selected-frame preview profile; submit final MP4 only", ErrInvalidRequest)
 		}
-		if req.OutputProfile != OutputProfileMP4 || resolved.Revision.Physical.Binding.GetMotionOutput() == nil {
-			return jobs.Job{}, false, nil, fmt.Errorf("%w: physical recording sources require the pinned final MP4 schedule", ErrInvalidRequest)
+		if (req.OutputProfile != OutputProfileMP4 && !diagnosticMotion) || resolved.Revision.Physical.Binding.GetMotionOutput() == nil {
+			return jobs.Job{}, false, nil, fmt.Errorf("%w: physical recording sources require the pinned MP4 schedule", ErrInvalidRequest)
 		}
 		outputProfile = OutputProfilePhysicalRecordingMP4
-	} else if req.OutputProfile == OutputProfilePhysicalPreviewPNG {
-		outputProfile = OutputProfilePhysicalPreviewPNG
+		if diagnosticMotion {
+			outputProfile = OutputProfilePhysicalDiagnosticMotionMP4
+		}
+	} else if req.OutputProfile == OutputProfilePhysicalPreviewPNG || req.OutputProfile == OutputProfilePhysicalDiagnosticPNG {
+		outputProfile = req.OutputProfile
 	} else if resolved.Revision.Physical.Binding.GetMotionOutput() != nil {
 		if req.OutputProfile != OutputProfileMP4 {
 			return jobs.Job{}, false, nil, fmt.Errorf("%w: physical motion shots require the pinned MP4 output profile", ErrInvalidRequest)
@@ -344,9 +348,10 @@ func (c *Coordinator) makePhysicalClosure(ctx context.Context, route routePin, r
 		return physicalClosure{}, errors.New("renderjobs: physical shot lacks pinned candidate or screen raster facts")
 	}
 	recording := resolved.Revision.Snapshot.GetVideoTiming() != nil
+	diagnosticMotion := req.OutputProfile == OutputProfilePhysicalDiagnosticMotionMP4
 	if recording {
-		if len(p.ScreenRasterPNG) != 0 || p.RecordingConfig == nil || p.RecordingLayout == nil || p.Binding.GetMotionOutput() == nil || req.OutputProfile != OutputProfileMP4 {
-			return physicalClosure{}, fmt.Errorf("%w: physical recording closure requires a pinned final MP4 schedule and verified layout", ErrInvalidRequest)
+		if len(p.ScreenRasterPNG) != 0 || p.RecordingConfig == nil || p.RecordingLayout == nil || p.Binding.GetMotionOutput() == nil || (req.OutputProfile != OutputProfileMP4 && !diagnosticMotion) {
+			return physicalClosure{}, fmt.Errorf("%w: physical recording closure requires a pinned MP4 schedule and verified layout", ErrInvalidRequest)
 		}
 		if !physicalRecordingRateMatches(resolved.Revision.Snapshot.GetVideoTiming(), p.Binding.GetMotionOutput()) {
 			return physicalClosure{}, fmt.Errorf("%w: recording output rate does not match the pinned physical motion output rate", ErrInvalidRequest)
@@ -384,12 +389,20 @@ func (c *Coordinator) makePhysicalClosure(ctx context.Context, route routePin, r
 	}
 	sampleCount := rendering.PhysicalStillSamples
 	preview := req.OutputProfile == OutputProfilePhysicalPreviewPNG
+	diagnostic := req.OutputProfile == OutputProfilePhysicalDiagnosticPNG
 	if recording {
 		wallTime = rendering.PhysicalRecordingWallTimeSeconds
 		sampleCount = rendering.PhysicalMotionSamples
+		if diagnosticMotion {
+			wallTime = rendering.PhysicalDiagnosticMotionWallTimeSeconds
+			sampleCount = rendering.PhysicalDiagnosticMotionSamples
+		}
 	} else if preview {
 		wallTime = rendering.PhysicalPreviewWallTimeSeconds
 		sampleCount = rendering.PhysicalPreviewSamples
+	} else if diagnostic {
+		wallTime = rendering.PhysicalDiagnosticWallTimeSeconds
+		sampleCount = rendering.PhysicalDiagnosticSamples
 	} else if motionOutput != nil {
 		wallTime = rendering.PhysicalMotionWallTimeSeconds
 		sampleCount = rendering.PhysicalMotionSamples
@@ -505,6 +518,32 @@ func (c *Coordinator) makePhysicalClosure(ctx context.Context, route routePin, r
 	if err := bindPhysicalArticulationProfile(&output, &manifestVersion, articulated); err != nil {
 		return physicalClosure{}, err
 	}
+	if endpoint := p.Binding.GetCameraEndpoint(); endpoint != nil {
+		if articulated {
+			return physicalClosure{}, errors.New("renderjobs: camera endpoint cannot be combined with articulated hinge motion until screen geometry is qualified across hinge poses")
+		}
+		corners, cornerErr := rendering.ResolvePhysicalDisplayCorners(deviceGLB, p.DeviceCandidate, endpoint.GetDisplayId())
+		if cornerErr != nil {
+			return physicalClosure{}, fmt.Errorf("resolve selected active display viewport for camera endpoint: %w", cornerErr)
+		}
+		if pivot == nil {
+			return physicalClosure{}, errors.New("renderjobs: camera endpoint requires a pinned support pivot")
+		}
+		var mappedContentCorners *[4]physical.Vec3
+		if endpoint.GetTargetKind() == shotsv1.PhysicalCameraEndpointTargetKind_PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_RECORDING_CONTENT {
+			contentCorners, contentErr := rendering.ResolvePhysicalDisplayContainedContentCorners(deviceGLB, p.DeviceCandidate, endpoint.GetDisplayId(), endpoint.GetContentWidthPixels(), endpoint.GetContentHeightPixels())
+			if contentErr != nil {
+				return physicalClosure{}, fmt.Errorf("resolve recording-content pixels through screen UV triangles: %w", contentErr)
+			}
+			mappedContentCorners = &contentCorners
+		}
+		cameraID := p.Binding.GetCameraId()
+		endpointPlan, endpointErr := applyPhysicalCameraEndpoint(endpoint, corners, mappedContentCorners, p.SceneCandidate.CameraFrames, cameraID, sceneWorld, physical.Vec3{X: pivot.GetX(), Y: pivot.GetY(), Z: pivot.GetZ()}, deviceRest, scheduled, output.Width, output.Height)
+		if endpointErr != nil {
+			return physicalClosure{}, fmt.Errorf("compile native physical camera endpoint: %w", endpointErr)
+		}
+		output.CameraEndpoint = endpointPlan
+	}
 	if recording {
 		source, sourceErr := c.media.Get(ctx, req.ProjectID, p.ScreenMedia.ID)
 		if sourceErr != nil {
@@ -550,6 +589,9 @@ func (c *Coordinator) makePhysicalClosure(ctx context.Context, route routePin, r
 		recordingInput.SourcePrefixFrameCount = facts.RequiredSourcePrefixFrameCount
 		screenInput.Recording = &recordingInput
 		output.ProfileID, output.ProfileVersion, output.MotionProfile = rendering.PhysicalRecordingMotionOutput, 1, rendering.PhysicalRecordingMotionProfile
+		if diagnosticMotion {
+			output.ProfileID, output.MotionProfile = rendering.PhysicalDiagnosticMotionOutput, rendering.PhysicalDiagnosticMotionProfile
+		}
 		output.VideoToolProfileID, output.VideoToolArtifactID = rendering.PhysicalMotionVideoProfileID, rendering.PhysicalMotionVideoArtifactID
 		manifestVersion = rendering.PhysicalRecordingManifestVersion
 		pinSidecar := func(name string, data []byte) (string, error) {
@@ -571,11 +613,15 @@ func (c *Coordinator) makePhysicalClosure(ctx context.Context, route routePin, r
 			return physicalClosure{}, fmt.Errorf("pin accepted recording inspection artifacts: %w", err)
 		}
 	}
-	if preview {
+	if preview || diagnostic {
 		if len(scheduled) == 0 {
-			return physicalClosure{}, errors.New("renderjobs: physical preview has no exact saved pose sample")
+			return physicalClosure{}, errors.New("renderjobs: physical still sample has no exact saved pose")
 		}
-		output = rendering.NewPhysicalPreviewOutputPlan(scheduled[0], p.MotionCandidate.Timebase)
+		if diagnostic {
+			output = rendering.NewPhysicalDiagnosticOutputPlan(scheduled[0], p.MotionCandidate.Timebase)
+		} else {
+			output = rendering.NewPhysicalPreviewOutputPlan(scheduled[0], p.MotionCandidate.Timebase)
+		}
 		scheduled = output.Samples
 		manifestVersion = rendering.PhysicalPreviewManifestVersion
 	}
@@ -1018,6 +1064,8 @@ func (c *Coordinator) loadPhysicalClosure(ctx context.Context, route routePin, j
 	wantOutputProfile := OutputProfilePNG
 	if closure.Manifest.Output.ProfileID == rendering.PhysicalPreviewProfile && closure.Manifest.Output.ProfileVersion == rendering.PhysicalPreviewProfileVersion {
 		wantOutputProfile = OutputProfilePhysicalPreviewPNG
+	} else if closure.Manifest.Output.ProfileID == rendering.PhysicalDiagnosticProfile && closure.Manifest.Output.ProfileVersion == rendering.PhysicalDiagnosticProfileVersion {
+		wantOutputProfile = OutputProfilePhysicalDiagnosticPNG
 	}
 	if closure.Manifest.Output.Kind == "motion_mp4" {
 		if closure.Manifest.Output.ProfileID == rendering.PhysicalMotionOutput && closure.Manifest.Output.ProfileVersion == 1 {
@@ -1026,6 +1074,8 @@ func (c *Coordinator) loadPhysicalClosure(ctx context.Context, route routePin, j
 			wantOutputProfile = OutputProfilePhysicalMotionMP4V2
 		} else if closure.Manifest.Output.ProfileID == rendering.PhysicalRecordingMotionOutput && closure.Manifest.Output.ProfileVersion == 1 && closure.Manifest.Version == rendering.PhysicalRecordingManifestVersion && closure.Manifest.Screen.Recording != nil {
 			wantOutputProfile = OutputProfilePhysicalRecordingMP4
+		} else if closure.Manifest.Output.ProfileID == rendering.PhysicalDiagnosticMotionOutput && closure.Manifest.Output.ProfileVersion == 1 && closure.Manifest.Version == rendering.PhysicalRecordingManifestVersion && closure.Manifest.Screen.Recording != nil {
+			wantOutputProfile = OutputProfilePhysicalDiagnosticMotionMP4
 		} else {
 			return physicalClosure{}, errors.New("renderjobs: physical closure uses an unsupported motion output profile")
 		}

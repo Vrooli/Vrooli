@@ -288,7 +288,7 @@ func validateVideoManifest(m VideoManifest) error {
 		if m.VideoProfile != VideoProfileID {
 			return errors.New("fixed video profile is unsupported")
 		}
-	} else if m.VideoProfile != VideoScreenEntryProfileID || m.Camera.ProfileID != ScreenEntryCameraProfileID || m.Camera.ProfileVersion != ScreenEntryCameraProfileVersion || m.Camera.MatteRGB == nil {
+	} else if m.VideoProfile != VideoScreenEntryProfileID || (m.Camera.ProfileID != ScreenEntryCameraProfileID && m.Camera.ProfileID != StationaryScreenEntryCameraProfileID) || m.Camera.ProfileVersion != ScreenEntryCameraProfileVersion || m.Camera.MatteRGB == nil {
 		return errors.New("screen-entry camera profile or matte is unsupported")
 	}
 	i := m.Inspection
@@ -350,6 +350,9 @@ func validateVideoManifest(m VideoManifest) error {
 		}
 	}
 	if m.Camera != nil {
+		if m.Camera.SceneRect != nil && m.Camera.ProfileID != StationaryScreenEntryCameraProfileID {
+			return errors.New("scene rectangle requires stationary-scene camera profile")
+		}
 		if m.Scene.PlateWidth <= 0 || m.Scene.PlateHeight <= 0 || m.Scene.PlateWidth > composition.StillMaxDimension || m.Scene.PlateHeight > composition.StillMaxDimension || int64(m.Scene.PlateWidth)*int64(m.Scene.PlateHeight) > composition.StillMaxPixels {
 			return errors.New("camera plate dimensions are missing or exceed composition limits")
 		}
@@ -437,7 +440,9 @@ func videoPresentationHasManualFills(c *presentations.Config) bool {
 	if c.Browser != nil {
 		return c.Browser.DesktopColor != nil
 	}
-	return false
+	// Plain app-only video has no system chrome. Its explicit matte is the
+	// source-independent fill, including any contained viewport letterbox.
+	return c.Matte != nil
 }
 
 func sameRGB(a, b *presentations.RGB) bool {
@@ -962,11 +967,18 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 					if composeErr != nil {
 						return fmt.Errorf("compose photographed video frame: %w", composeErr)
 					}
-					frame, e = resizeVideoFrameWithMatte(deadline, composed.Image, manifest.Width, manifest.Height, matte)
+					frame, e = resizeVideoFrameIntoRect(deadline, composed.Image, manifest.Width, manifest.Height, matte, manifest.Camera.SceneRect)
 					if e == nil {
 						to := cameraPath.quad(uint32(selected))
 						blend, fade := cameraPath.blend(uint32(selected))
-						frame, e = composition.RenderScreenEntry(deadline, frame, cameraPath.from, to, viewport, matte, blend, fade)
+						if manifest.Camera.ProfileID == StationaryScreenEntryCameraProfileID {
+							if selected > 0 {
+								u := min(1.0, float64(selected)/float64(cameraPath.duration-1)/0.65)
+								frame, e = composition.RenderStationaryScreenEntry(deadline, frame, to, viewport, matte, u*u*(3-2*u))
+							}
+						} else {
+							frame, e = composition.RenderScreenEntry(deadline, frame, cameraPath.from, to, viewport, matte, blend, fade)
+						}
 					}
 				}
 				if e != nil {
@@ -1251,11 +1263,15 @@ func videoContainFit(source, target image.Point) (videoFit, error) {
 }
 
 func resizeVideoFrameWithMatte(ctx context.Context, src image.Image, width, height int, matte color.NRGBA) (*image.RGBA64, error) {
+	return resizeVideoFrameIntoRect(ctx, src, width, height, matte, nil)
+}
+
+func resizeVideoFrameIntoRect(ctx context.Context, src image.Image, width, height int, matte color.NRGBA, rect *presentations.BasisRect) (*image.RGBA64, error) {
 	if src == nil || width <= 0 || height <= 0 || int64(width)*int64(height) > videoMaxPixels {
 		return nil, errors.New("video resample target exceeds profile")
 	}
 	b := src.Bounds()
-	fit, err := videoContainFit(image.Pt(b.Dx(), b.Dy()), image.Pt(width, height))
+	fit, err := cameraSceneFit(image.Pt(b.Dx(), b.Dy()), image.Pt(width, height), rect)
 	if err != nil {
 		return nil, err
 	}
@@ -1685,9 +1701,9 @@ func videoInputFilter(i VideoInspection) string {
 	}
 	rng := i.ColorRange
 	if rng == "tv" || rng == "mpeg" {
-		rng = "tv"
+		rng = "limited"
 	} else {
-		rng = "pc"
+		rng = "full"
 	}
 	prim := i.ColorPrimaries
 	if prim == "" {
@@ -1697,7 +1713,7 @@ func videoInputFilter(i VideoInspection) string {
 	if trc == "" {
 		trc = "bt709"
 	}
-	return fmt.Sprintf("colorspace=ispace=%s:irange=%s:iprimaries=%s:itrc=%s:space=gbr:range=pc:primaries=bt709:trc=iec61966-2-1,format=rgb24", space, rng, prim, trc)
+	return fmt.Sprintf("zscale=matrixin=%s:rangein=%s:primariesin=%s:transferin=%s:matrix=gbr:range=full:primaries=bt709:transfer=iec61966-2-1,format=gbrp,format=rgb24", space, rng, prim, trc)
 }
 
 type videoEncoder struct {

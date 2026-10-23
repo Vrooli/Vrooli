@@ -14,7 +14,9 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
+	preparationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/preparation"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestSubmitPinsLocalOneImageRequestAndOperationIdentity(t *testing.T) {
@@ -49,6 +51,72 @@ func TestSubmitPinsLocalOneImageRequestAndOperationIdentity(t *testing.T) {
 	op, status, err := c.Submit(context.Background(), "f7f4f09f-a93a-4f34-93ef-4fa814891f5b", "a bright kitchen", 768, 512)
 	if err != nil || status != 202 || op.JobID != "owner-job" || op.State != "queued" {
 		t.Fatalf("submit=%+v status=%d err=%v", op, status, err)
+	}
+}
+
+func TestPreparedPhotographReadsExactOwnerChildAndVerifiesBytes(t *testing.T) {
+	raw := photographicFixture(t)
+	id := digest(raw)
+	opened, err := openBundle(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := &preparationv1.StoredPhotograph{Id: id, BundleRef: "scene-preparations/" + id + ".zip", Manifest: opened.manifest, CreatedAtUnixMs: opened.manifest.Review.ReviewedAtUnixMs}
+	response, err := proto.Marshal(&preparationv1.PhotographResponse{Photograph: stored})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/vrooli.image_tools.v1.preparation.PreparationService/GetPhotograph":
+			w.Header().Set("Content-Type", "application/proto")
+			_, _ = w.Write(response)
+		case "/api/v1/blobs/scene-preparations/" + id + ".zip":
+			_, _ = w.Write(raw)
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	c := NewClient(func(context.Context, string) (string, error) { return server.URL, nil }, server.Client())
+	got, err := c.PreparedPhotograph(context.Background(), id)
+	if err != nil || !bytes.Equal(got, raw) {
+		t.Fatalf("prepared bytes mismatch: len=%d err=%v", len(got), err)
+	}
+}
+
+func TestPreparedPhotographAllowsPendingReviewWithoutReviewTimestamp(t *testing.T) {
+	files, manifest := unpackFixture(t, photographicFixture(t))
+	manifest.Review = &preparationv1.VisualReview{Decision: "pending"}
+	raw := repackFixture(t, files, manifest)
+	id := digest(raw)
+	opened, err := openBundle(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := &preparationv1.StoredPhotograph{Id: id, BundleRef: "scene-preparations/" + id + ".zip", Manifest: opened.manifest, CreatedAtUnixMs: 1792691006965}
+	response, err := proto.Marshal(&preparationv1.PhotographResponse{Photograph: stored})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/vrooli.image_tools.v1.preparation.PreparationService/GetPhotograph":
+			w.Header().Set("Content-Type", "application/proto")
+			_, _ = w.Write(response)
+		case "/api/v1/blobs/scene-preparations/" + id + ".zip":
+			_, _ = w.Write(raw)
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	c := NewClient(func(context.Context, string) (string, error) { return server.URL, nil }, server.Client())
+	got, err := c.PreparedPhotograph(context.Background(), id)
+	if err != nil || !bytes.Equal(got, raw) {
+		t.Fatalf("pending preparation bytes mismatch: len=%d err=%v", len(got), err)
 	}
 }
 

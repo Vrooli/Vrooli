@@ -18,11 +18,13 @@ import (
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/blobstore"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
+	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
 )
 
 // fakeProvider is a standalone provider that writes a fixed output.
@@ -43,12 +45,82 @@ func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backend
 
 // fakeSubmitter records submitted specs and returns a synthetic job.
 type fakeSubmitter struct {
-	last internaljobs.Spec
+	last  internaljobs.Spec
+	calls int
 }
 
 func (f *fakeSubmitter) Submit(_ context.Context, spec internaljobs.Spec) (internaljobs.Job, error) {
 	f.last = spec
-	return internaljobs.Job{ID: "job-1", Operation: spec.Operation, State: internaljobs.StateQueued}, nil
+	f.calls++
+	return internaljobs.Job{ID: "job-1", Operation: spec.Operation, State: internaljobs.StateQueued, Payload: spec.Payload, EstimatedSeconds: spec.EstimatedSeconds, ClientOperationID: spec.ClientOperationID, RequestFingerprint: spec.RequestFingerprint}, nil
+}
+
+func (f *fakeSubmitter) GetByClientOperation(_ context.Context, id string) (internaljobs.Job, error) {
+	if id != f.last.ClientOperationID || id == "" {
+		return internaljobs.Job{}, internaljobs.ErrNotFound
+	}
+	return internaljobs.Job{ID: "job-1", Operation: f.last.Operation, State: internaljobs.StateQueued, Payload: f.last.Payload, EstimatedSeconds: f.last.EstimatedSeconds, ClientOperationID: id, RequestFingerprint: f.last.RequestFingerprint}, nil
+}
+
+func TestSubmitImageOperationRetryUsesSourceBytesAndSurvivesModelUnload(t *testing.T) {
+	r, sub, store := newTestServerWithStore(t, true)
+	for _, key := range []string{"input/original", "input/same-bytes-other-key"} {
+		if err := store.Put(context.Background(), key, bytes.NewReader([]byte("same oriented image bytes")), "image/png"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.Put(context.Background(), "input/changed", bytes.NewReader([]byte("different image")), "image/png"); err != nil {
+		t.Fatal(err)
+	}
+	operationID := uuid.NewString()
+	request := func(input, prompt string) *http.Request {
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		if err := mw.WriteField("input_ref", input); err != nil {
+			t.Fatal(err)
+		}
+		if err := mw.WriteField("params", prompt); err != nil {
+			t.Fatal(err)
+		}
+		if err := mw.Close(); err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/segment", &body)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		req.Header.Set("Idempotency-Key", operationID)
+		return req
+	}
+	const params = `{"modelOverride":"mobilesam","segmentation":{"points":[{"x":0.5,"y":0.4}]}}`
+	for _, input := range []string{"input/original", "input/same-bytes-other-key"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, request(input, params))
+		if w.Code != http.StatusAccepted {
+			t.Fatalf("retry=%d %s", w.Code, w.Body.String())
+		}
+	}
+	if sub.calls != 1 {
+		t.Fatalf("same input submitted %d inferences", sub.calls)
+	}
+	for _, req := range []*http.Request{
+		request("input/changed", params),
+		request("input/original", `{"modelOverride":"mobilesam","segmentation":{"points":[{"x":0.7,"y":0.4}]}}`),
+	} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusConflict {
+			t.Fatalf("changed closure reused operation: %d %s", w.Code, w.Body.String())
+		}
+	}
+	offline, retained, offlineStore := newTestServerWithStore(t, false)
+	retained.last = sub.last
+	if err := offlineStore.Put(context.Background(), "input/original", bytes.NewReader([]byte("same oriented image bytes")), "image/png"); err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	offline.ServeHTTP(w, request("input/original", params))
+	if w.Code != http.StatusAccepted || retained.calls != 0 || !bytes.Contains(w.Body.Bytes(), []byte("mobilesam")) {
+		t.Fatalf("model unload blocked recovery: %d %s, new inferences=%d", w.Code, w.Body.String(), retained.calls)
+	}
 }
 
 func newTestServer(t *testing.T, installed bool) (*mux.Router, *fakeSubmitter) {
@@ -67,6 +139,9 @@ func newTestServerWithStore(t *testing.T, installed bool) (*mux.Router, *fakeSub
 	if err := backendReg.Register(&fakeProvider{name: def.Backend, ops: []string{"text_to_image", "edit_instruct"}}); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
+	if err := backendReg.Register(&fakeProvider{name: "onnxruntime", ops: []string{"segment"}}); err != nil {
+		t.Fatal(err)
+	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 	eng, err := internalai.NewEngine(internalai.Deps{
 		Registry:       registry,
@@ -82,8 +157,79 @@ func newTestServerWithStore(t *testing.T, installed bool) (*mux.Router, *fakeSub
 	sub := &fakeSubmitter{}
 	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard()}
 	r := mux.NewRouter()
+	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, deps))
+	r.PathPrefix(path).Handler(handler)
 	r.HandleFunc("/api/v1/ai/{operation}", deps.submitHandler).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/ai/operations/{operation_id}", deps.operationHandler).Methods(http.MethodGet)
 	return r, sub, store
+}
+
+func TestSubmit_ClientOperationKeyCanBeReadBack(t *testing.T) {
+	r, sub := newTestServer(t, true)
+	key := uuid.NewString()
+	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"a cat","width":512,"height":512,"allowByok":false,"fallbackPolicy":"local_only"}`)
+	req.Header.Set("Idempotency-Key", key)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("submit status=%d body=%s", w.Code, w.Body.String())
+	}
+	if sub.last.ClientOperationID != key || sub.last.RequestFingerprint == "" || sub.last.ExecutionTimeoutSeconds != 30*60 {
+		t.Fatalf("idempotency metadata missing: %+v", sub.last)
+	}
+	read := httptest.NewRecorder()
+	r.ServeHTTP(read, httptest.NewRequest(http.MethodGet, "/api/v1/ai/operations/"+key, nil))
+	if read.Code != http.StatusOK || !bytes.Contains(read.Body.Bytes(), []byte(`"job_id":"job-1"`)) {
+		t.Fatalf("readback status=%d body=%s", read.Code, read.Body.String())
+	}
+}
+
+func TestSubmit_PromptedSegmentationRetainsTypedCoordinates(t *testing.T) {
+	r, sub, store := newTestServerWithStore(t, true)
+	if err := store.Put(context.Background(), "input/device.png", bytes.NewReader([]byte("image")), "image/png"); err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	mw.WriteField("input_ref", "input/device.png")
+	mw.WriteField("params", `{"modelOverride":"mobilesam","segmentation":{"points":[{"x":0.72,"y":0.4},{"x":0.1,"y":0.2,"negative":true}],"box":{"x":0.2,"y":0.1,"width":0.6,"height":0.8}}}`)
+	mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/segment", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("submit=%d %s", w.Code, w.Body.String())
+	}
+	var payload internalai.Payload
+	if err := json.Unmarshal(sub.last.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	var prompt aiv1.SegmentationPrompt
+	if err := protojson.Unmarshal([]byte(payload.Params["segmentation"]), &prompt); err != nil {
+		t.Fatal(err)
+	}
+	if len(prompt.Points) != 2 || !prompt.Points[1].Negative || prompt.Points[0].X != 0.72 || prompt.Box.Width != 0.6 || payload.ModelID != "mobilesam" {
+		t.Fatalf("prompt/model lost: %+v %+v", prompt, payload)
+	}
+	// All local model jobs serialize to bound resident model memory, even when
+	// inference is CPU-only. The tier and GPU flag describe actual execution.
+	if sub.last.Lane != internaljobs.LaneGPU || payload.GPU {
+		t.Fatalf("wrong execution lane: %s", sub.last.Lane)
+	}
+}
+
+func TestSubmit_InvalidSegmentationDoesNotQueue(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"segmentation":{}}`, `{"segmentation":{"points":[{"x":0.5,"y":0.5,"negative":true}]}}`, `{"segmentation":{"points":[{"x":"NaN","y":0.5}]}}`, `{"segmentation":{"box":{"x":0.9,"y":0,"width":0.2,"height":1}}}`} {
+		t.Run(raw, func(t *testing.T) {
+			r, sub := newTestServer(t, true)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, newMultipartSubmit(t, "segment", raw))
+			if w.Code != http.StatusBadRequest || sub.last.Operation != "" {
+				t.Fatalf("invalid prompt admitted: %d %s", w.Code, w.Body.String())
+			}
+		})
+	}
 }
 
 func TestSubmit_EditUsesExistingInputReferenceWithoutUploadingBytes(t *testing.T) {
@@ -207,4 +353,19 @@ func newMultipartSubmit(t *testing.T, op, params string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/"+op, &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	return req
+}
+
+func TestOperationReadRejectsCorruptSavedMetadata(t *testing.T) {
+	for _, raw := range []string{"{", "null", "{}", `{"operation":"caption","model_id":"model"}`} {
+		t.Run(raw, func(t *testing.T) {
+			r, sub := newTestServer(t, true)
+			key := uuid.NewString()
+			sub.last = internaljobs.Spec{ClientOperationID: key, Operation: "segment", Payload: []byte(raw)}
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ai/operations/"+key, nil))
+			if w.Code != http.StatusInternalServerError {
+				t.Fatalf("corrupt metadata returned success: %d %s", w.Code, w.Body.String())
+			}
+		})
+	}
 }

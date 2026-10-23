@@ -294,6 +294,10 @@ type Installer struct {
 	// (fetch → env → smoke), so an installed-but-broken model fails the install
 	// instead of surfacing as a late job crash. nil disables the gate.
 	Smoke *SmokeConfig
+	// Build, when set, executes only the closed built-in exporter selected by a
+	// validated seed BuildProfile. Export assets are already installed and hash
+	// checked before this hook can run.
+	Build *BuildConfig
 }
 
 func (in *Installer) now() time.Time {
@@ -352,6 +356,20 @@ func (in *Installer) Installed(ctx context.Context, id string) bool {
 // install. It is idempotent: an already-installed model returns its record
 // without re-downloading. emit reports human-readable progress.
 func (in *Installer) Install(ctx context.Context, id string, emit func(progress int, message string)) (InstallRecord, error) {
+	return in.install(ctx, id, "", emit)
+}
+
+// InstallForJob is the durable-job entry point. jobID is the persisted model
+// installation job identity used to bind a native build operation before it is
+// dispatched.
+func (in *Installer) InstallForJob(ctx context.Context, id, jobID string, emit func(progress int, message string)) (InstallRecord, error) {
+	if strings.TrimSpace(jobID) == "" {
+		return InstallRecord{}, errors.New("models: install job identity is required")
+	}
+	return in.install(ctx, id, jobID, emit)
+}
+
+func (in *Installer) install(ctx context.Context, id, jobID string, emit func(progress int, message string)) (InstallRecord, error) {
 	if emit == nil {
 		emit = func(int, string) {}
 	}
@@ -374,11 +392,25 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 		if rec.Path == "" {
 			rec = InstallRecord{ID: id, Installed: true, Path: in.modelDir(id)}
 		}
-		if err := in.ensureSmoke(ctx, m, rec.Path, rec.Checksum, emit); err != nil {
-			return rec, err
+		// Build candidates can be recorded as installed after source acquisition
+		// even when their compiled artifact failed or was interrupted. Reuse a
+		// complete, hash-matching build input set; when a newly declared pinned
+		// asset is absent, fall through to the managed asset downloader instead
+		// of trying to build from a partial prior install.
+		if m.BuildProfile == nil || buildInputsReady(m.BuildProfile, rec.Path) {
+			modelHash, buildErr := in.ensureBuild(ctx, m, rec.Path, jobID, emit)
+			if buildErr != nil {
+				return rec, buildErr
+			}
+			if modelHash == "" {
+				modelHash = rec.Checksum
+			}
+			if err := in.ensureSmoke(ctx, m, rec.Path, modelHash, emit); err != nil {
+				return rec, err
+			}
+			emit(100, "already installed")
+			return rec, nil
 		}
-		emit(100, "already installed")
-		return rec, nil
 	}
 
 	// A custom local model is "installed" by reference — no download.
@@ -455,10 +487,17 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 			return InstallRecord{}, err
 		}
 	}
+	modelHash, buildErr := in.ensureBuild(ctx, m, dir, jobID, emit)
+	if buildErr != nil {
+		return rec, buildErr
+	}
+	if modelHash == "" {
+		modelHash = primarySum
+	}
 	// Proven-before-use: the weights are recorded as installed, but a smoke
 	// failure is reported as the install outcome so the caller sees the model is
 	// broken (the weights are kept for retry once the cause is fixed).
-	if err := in.ensureSmoke(ctx, m, dir, primarySum, emit); err != nil {
+	if err := in.ensureSmoke(ctx, m, dir, modelHash, emit); err != nil {
 		return rec, err
 	}
 	emit(100, "installed")

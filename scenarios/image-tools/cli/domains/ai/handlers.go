@@ -8,10 +8,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
+	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 )
 
 type handlers struct {
@@ -56,14 +58,80 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 			}
 		}
 		mask := ""
-		if needsMask {
+		if needsMask || (operation == "image_to_object" && ctx.FlagDeclared("mask")) {
 			mask = ctx.Flag("mask")
-			if mask == "" {
+			if needsMask && mask == "" {
 				return fmt.Errorf("--mask is required for %s", operation)
 			}
 		}
 		params := buildParams(ctx)
-		resp, err := submitAI(h.core, operation, input, mask, params)
+		if operation == "inpaint" {
+			contextRaw, edgeRaw := flagOr(ctx, "crop-context-pixels"), flagOr(ctx, "crop-max-edge-px")
+			neutralize := boolOr(ctx, "neutralize-masked-pixels")
+			if boolOr(ctx, "crop-to-mask") || contextRaw != "" || edgeRaw != "" || neutralize {
+				if !boolOr(ctx, "crop-to-mask") {
+					return fmt.Errorf("inpaint crop controls and --neutralize-masked-pixels require --crop-to-mask")
+				}
+				crop := &aiv1.InpaintParams{CropToMask: true, NeutralizeMaskedPixels: neutralize}
+				if contextRaw != "" {
+					value, err := strconv.ParseUint(contextRaw, 10, 32)
+					if err != nil || value > 512 {
+						return fmt.Errorf("invalid --crop-context-pixels %q: expected 0..512", contextRaw)
+					}
+					crop.ContextPixels = uint32(value)
+				}
+				if edgeRaw != "" {
+					value, err := strconv.ParseUint(edgeRaw, 10, 32)
+					if err != nil || (value != 512 && value != 1024) {
+						return fmt.Errorf("invalid --crop-max-edge-px %q: expected 512 or 1024", edgeRaw)
+					}
+					crop.MaxEdgePx = uint32(value)
+				}
+				params.Inpaint = crop
+			}
+		}
+		var removalRegions []string
+		if ctx.FlagDeclared("remove-region") {
+			removalRegions = ctx.FlagValues("remove-region")
+		}
+		if raw := flagOr(ctx, "mask-expansion"); raw != "" || len(removalRegions) > 0 {
+			expansion := uint64(0)
+			if raw != "" {
+				parsed, err := strconv.ParseUint(raw, 10, 32)
+				if err != nil || parsed > 64 {
+					return fmt.Errorf("invalid --mask-expansion %q: expected 0..64", raw)
+				}
+				expansion = parsed
+			}
+			params.BackgroundRepair = &aiv1.BackgroundRepairParams{MaskExpansionPixels: uint32(expansion)}
+			for _, raw := range removalRegions {
+				box := &selectionv1.Box{}
+				if err := protojson.Unmarshal([]byte(raw), box); err != nil {
+					return fmt.Errorf("invalid --remove-region: %w", err)
+				}
+				params.BackgroundRepair.RemovalRegions = append(params.BackgroundRepair.RemovalRegions, box)
+			}
+		}
+		if raw := flagOr(ctx, "selection"); raw != "" {
+			params.Segmentation = &aiv1.SegmentationPrompt{}
+			if err := protojson.Unmarshal([]byte(raw), params.Segmentation); err != nil {
+				return fmt.Errorf("invalid --selection: %w", err)
+			}
+		}
+		if raw := flagOr(ctx, "support-roi"); raw != "" {
+			params.SceneGeometry = &aiv1.SceneGeometryParams{}
+			if err := protojson.Unmarshal([]byte(raw), params.SceneGeometry); err != nil {
+				return fmt.Errorf("invalid --support-roi: %w", err)
+			}
+		}
+		if raw := flagOr(ctx, "mesh-resolution"); raw != "" {
+			resolution, err := strconv.ParseUint(raw, 10, 32)
+			if err != nil {
+				return fmt.Errorf("invalid --mesh-resolution %q: expected 128 or 256", raw)
+			}
+			params.ImageToObject = &aiv1.ImageToObjectParams{MeshResolution: uint32(resolution)}
+		}
+		resp, err := submitAI(h.core, operation, input, mask, params, flagOr(ctx, "operation-id"))
 		if err != nil {
 			return err
 		}
@@ -323,4 +391,20 @@ func i64(s string) int64 {
 func f64(s string) float64 {
 	f, _ := strconv.ParseFloat(s, 64)
 	return f
+}
+
+// submitStored composes native artifact refs without reuploading source bytes.
+func (h *handlers) submitStored(ctx cliapp.RunContext) error {
+	params := &aiv1.AIParams{}
+	if raw := ctx.Flag("params"); raw != "" {
+		if err := protojson.Unmarshal([]byte(raw), params); err != nil {
+			return fmt.Errorf("invalid --params: %w", err)
+		}
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+	response, err := aiconnect.NewAIServiceClient(httpClient, baseURL).SubmitStoredAI(context.Background(), connect.NewRequest(&aiv1.SubmitStoredAIRequest{Operation: ctx.Positional("operation"), Params: params, InputRef: ctx.Flag("input-ref"), MaskRef: ctx.Flag("mask-ref"), OperationId: ctx.Flag("operation-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("submit stored AI operation", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, response.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Submitted %s as %s on %s/%s", ctx.Positional("operation"), response.Msg.JobId, response.Msg.ModelId, response.Msg.Tier)}, Changes: []string{"wait: image-tools jobs wait " + response.Msg.JobId}})
 }

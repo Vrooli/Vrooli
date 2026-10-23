@@ -1099,6 +1099,30 @@
             "implemented"
           ],
           "completion": "optional"
+        },
+        {
+          "path": "reference/layered-photography.md",
+          "docType": "backends-reference",
+          "title": "Layered photographic parallax",
+          "aliases": [
+            "parallax",
+            "2.5d",
+            "layered-depth"
+          ],
+          "description": "Prepared depth layers, bounded nearby camera views and lossless parallax sequence export",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "layered-photographic-parallax"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },

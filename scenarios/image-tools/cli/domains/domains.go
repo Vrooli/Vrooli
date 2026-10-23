@@ -10,6 +10,7 @@ import (
 	"image-tools/cli/domains/looks"
 	"image-tools/cli/domains/models"
 	"image-tools/cli/domains/ops"
+	"image-tools/cli/domains/preparation"
 	"image-tools/cli/domains/safety"
 	"image-tools/cli/domains/selection"
 	"image-tools/cli/domains/settings"
@@ -95,5 +96,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{jobsGroup, modelsGroup, adaptersGroup, backendsGroup, opsGroup, aiGroup, analyzeGroup, settingsGroup, looksGroup, selectGroup, diffGroup, safetyGroup}, nil
+	preparationGroup, err := preparation.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{preparationGroup, jobsGroup, modelsGroup, adaptersGroup, backendsGroup, opsGroup, aiGroup, analyzeGroup, settingsGroup, looksGroup, selectGroup, diffGroup, safetyGroup}, nil
 }

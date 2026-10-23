@@ -103,6 +103,13 @@ func (p *execProvider) Name() string     { return p.name }
 func (p *execProvider) Standalone() bool { return true } // none of these are ComfyUI
 func (p *execProvider) IsCloud() bool    { return false }
 
+func (p *execProvider) Close() error {
+	if p.warm != nil {
+		return p.warm.Close()
+	}
+	return nil
+}
+
 // Operations returns the ops this backend serves, sorted for determinism.
 func (p *execProvider) Operations() []string {
 	ops := make([]string, 0, len(p.techniques))
@@ -164,15 +171,23 @@ func (p *execProvider) GPUCapable() bool {
 	if p.gpuProbe == nil {
 		return true
 	}
-	p.gpuProbeOnce.Do(func() {
-		program := p.programName()
-		if p.lookPath != nil {
-			if resolved, err := p.lookPath(program); err == nil {
-				program = resolved
-			} else {
-				return // not installed → leave gpuProbeValue false
-			}
+	program := p.programName()
+	if program == "" {
+		return false
+	}
+	if p.lookPath != nil {
+		resolved, err := p.lookPath(program)
+		if err != nil {
+			return false
 		}
+		program = resolved
+	}
+	if p.program == pythonProgram {
+		// The private environment is provisioned asynchronously. A probe before
+		// Torch is ready must not pin this provider to CPU for its whole lifetime.
+		return p.gpuProbe(context.Background(), program)
+	}
+	p.gpuProbeOnce.Do(func() {
 		p.gpuProbeValue = p.gpuProbe(context.Background(), program)
 	})
 	return p.gpuProbeValue
@@ -307,6 +322,9 @@ func defaultCheckONNXRuntimeProviders(ctx context.Context, python string) ([]str
 // arg-builder, and runs the program. The output is written to
 // req.Output.LocalPath by contract; Execute returns that path as the result ref.
 func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
+	if req.GPU && req.GPUUUID != "" && p.SupportsGPUUUID() {
+		ctx = context.WithValue(ctx, gpuDeviceContextKey{}, req.GPUUUID)
+	}
 	if req.Output.LocalPath == "" {
 		return backends.Result{}, fmt.Errorf("ai: backend %q requires a local output path", p.name)
 	}
@@ -329,10 +347,22 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if err != nil {
 		return backends.Result{}, fmt.Errorf("ai: backend %q build args: %w", p.name, err)
 	}
-	if p.warm != nil {
-		if err := p.warm.Run(ctx, program, args); err == nil {
-			return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": "warm"}}, nil
+	if p.name == "diffusers" {
+		device := "cpu"
+		if req.GPU {
+			device = "cuda"
 		}
+		args = append(args, "--device", device)
+	}
+	if p.warm != nil {
+		if err := p.warm.Run(ctx, program, args); err != nil {
+			return backends.Result{}, fmt.Errorf("ai: backend %q warm execution failed: %w", p.name, err)
+		}
+		runner := "warm"
+		if admitted, _ := ctx.Value(operationMemoryContextKey{}).(bool); admitted {
+			runner = "operation-scoped-worker"
+		}
+		return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": runner}}, nil
 	}
 	// Stream when the caller wants progress and this backend can parse its own
 	// output. Otherwise fall back to the simple run-to-completion path so the
@@ -363,7 +393,7 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 }
 
 func defaultRun(ctx context.Context, name string, args []string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := inferenceCommand(ctx, name, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %v: %w (%s)", name, args, err, string(out))
@@ -372,7 +402,7 @@ func defaultRun(ctx context.Context, name string, args []string) error {
 }
 
 func defaultRunOutput(ctx context.Context, name string, args []string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := inferenceCommand(ctx, name, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("%s %v: %w (%s)", name, args, err, string(out))
@@ -390,7 +420,7 @@ type streamRunner func(ctx context.Context, name string, args []string, onLine f
 // fragments live (so per-step progress surfaces immediately rather than buffering
 // until a newline), and accumulates everything for the failure message.
 func defaultStreamRun(ctx context.Context, name string, args []string, onLine func(line string)) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := inferenceCommand(ctx, name, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("%s: stdout pipe: %w", name, err)
@@ -754,8 +784,10 @@ func providerSpecs() []providerSpec {
 				nativeTechnique("onnx-denoise", "denoise", technique.OnnxSidecar),
 				nativeTechnique("onnx-deblur", "deblur", technique.OnnxSidecar),
 				nativeTechnique("onnx-background-removal", "background_removal", technique.OnnxSidecar),
+				nativeTechnique("onnx-object-removal", "object_removal", technique.OnnxSidecar),
 				nativeTechnique("onnx-colorize", "colorize", technique.OnnxSidecar),
 				nativeTechnique("onnx-depth-map", "depth_map", technique.OnnxSidecar),
+				nativeTechnique("moge-scene-geometry", "scene_geometry", technique.OnnxSidecar),
 				nativeTechnique("onnx-object-detection", "object_detection", technique.OnnxSidecar),
 				nativeTechnique("onnx-segment", "segment", technique.OnnxSidecar),
 				nativeTechnique("onnx-tagging", "tagging", technique.OnnxSidecar),
@@ -776,6 +808,18 @@ func providerSpecs() []providerSpec {
 				nativeTechnique("python-sidecar-old-photo-restore", "old_photo_restore", technique.PythonSidecar),
 			},
 		},
+		{
+			name: "sam2-transformers", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"torch", "transformers", "PIL"},
+			techniques: []technique.Technique{
+				nativeTechnique("sam2-transformers-segment", "segment", technique.SAM2Sidecar),
+			},
+		},
+		{
+			name: "triposr", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"torch", "einops", "trimesh", "skimage", "yaml"},
+			techniques: []technique.Technique{
+				nativeTechnique("triposr-image-to-object", "image_to_object", technique.TripoSRSidecar),
+			},
+		},
 	}
 }
 
@@ -789,10 +833,28 @@ func providerSpecs() []providerSpec {
 // backends then report unavailable (no bare-"python3" PATH fallback), surfaced
 // before use via doctor/health/ready_state.
 func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner, pythonInterpreter string) error {
+	// Hardware presence alone does not prove the scenario's Torch wheel can use
+	// CUDA. Python providers share a bounded, short-lived cached runtime probe
+	// so native environment convergence can recover without another restart.
+	var torchProbeMu sync.Mutex
+	var torchProbeUntil time.Time
+	var torchCUDA bool
+	torchProbe := func(ctx context.Context, program string) bool {
+		torchProbeMu.Lock()
+		defer torchProbeMu.Unlock()
+		if !time.Now().Before(torchProbeUntil) {
+			torchCUDA = probeTorchCUDA(ctx, program)
+			torchProbeUntil = time.Now().Add(30 * time.Second)
+		}
+		return torchCUDA
+	}
 	for _, s := range providerSpecs() {
 		p := &execProvider{name: s.name, program: s.program, programAliases: s.programAliases, techniques: technique.NewSet(s.techniques...), gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
 		if s.isPython() {
 			p.pythonInterpreter = pythonInterpreter
+			if s.gpuCapable {
+				p.gpuProbe = torchProbe
+			}
 		}
 		if s.name == "onnxruntime" && run == nil {
 			p.warm = newWarmSidecarRunner()

@@ -3,7 +3,8 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
 import type { IntakeCandidateRevision } from "@vrooli/proto-types/device-studio/v1/library/library_pb";
-import { correctLocalGeometryMaterial, downloadLocalGeometryCandidate, getLocalGeometryMaterials, importLocalGeometryCandidate, listLocalGeometryCandidates, MAX_LOCAL_GEOMETRY_BYTES, type MaterialCorrectionRequest } from "../../api/library-intake";
+import { correctLocalGeometryMaterial, downloadLocalGeometryCandidate, getLocalGeometryMaterials, getLocalGeometryPreview, importLocalGeometryCandidate, listLocalGeometryCandidates, MAX_LOCAL_GEOMETRY_BYTES, type MaterialCorrectionRequest } from "../../api/library-intake";
+import { importPreparedPhotograph } from "../../api/physical";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 
@@ -87,6 +88,26 @@ function MaterialEditor({ candidate, onComplete }: { candidate: IntakeCandidateR
   </div>;
 }
 
+function CandidatePreview({ candidate }: { candidate: IntakeCandidateRevision }) {
+  const { t } = useTranslation();
+  const preview = useQuery({ queryKey: ["local-geometry-preview", candidate.id, candidate.revision, candidate.revisionSha256], queryFn: () => getLocalGeometryPreview(candidate), retry: false });
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    if (!preview.data) return;
+    const next = URL.createObjectURL(preview.data.blob);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [preview.data]);
+  if (preview.isLoading) return <p>{t(strings.physical.intakePreviewLoading)}</p>;
+  if (preview.error) return <p role="alert">{t(strings.physical.intakePreviewUnavailable)}</p>;
+  if (!preview.data || !url) return null;
+  return <div className="physical-shot__candidate" data-testid={`intake-preview-${candidate.id}`}>
+    <p>{t(strings.physical.intakePreviewNote, { colorMode: preview.data.vertex_colors ? t(strings.physical.intakePreviewVertexColors) : t(strings.physical.intakePreviewNeutralColor) })}</p>
+    <img src={url} width={preview.data.width} height={preview.data.height} alt={t(strings.physical.intakePreviewAlt)} style={{ display: "block", width: "100%", maxWidth: 768, height: "auto" }} />
+    <small>{t(strings.physical.intakePreviewDigest, { digest: preview.data.preview_sha256.slice(0, 12) })}</small>
+  </div>;
+}
+
 export function LibraryIntakePanel() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -99,6 +120,13 @@ export function LibraryIntakePanel() {
   const [attribution, setAttribution] = useState("");
   const [downloadError, setDownloadError] = useState("");
   const [materialCandidate, setMaterialCandidate] = useState<string>();
+  const [previewCandidate, setPreviewCandidate] = useState<string>();
+  const [preparationID, setPreparationID] = useState("");
+  const [preparationLicense, setPreparationLicense] = useState("");
+  const [preparationAttribution, setPreparationAttribution] = useState("");
+  const [preparationSource, setPreparationSource] = useState("");
+  const [allowPhotoLocalRender, setAllowPhotoLocalRender] = useState(false);
+  const [photoUseRationale, setPhotoUseRationale] = useState("");
   const candidates = useInfiniteQuery({
     queryKey: ["local-geometry-intake"],
     queryFn: ({ pageParam }) => listLocalGeometryCandidates(pageParam),
@@ -122,6 +150,12 @@ export function LibraryIntakePanel() {
       await queryClient.invalidateQueries({ queryKey: ["local-geometry-intake"] });
     },
   });
+  const photoImport = useMutation({
+    mutationFn: () => importPreparedPhotograph({ preparationId: preparationID.trim(), expectedBundleSha256: preparationID.trim(), licenseId: preparationLicense, attribution: preparationAttribution, sourceLabel: preparationSource, allowLocalRender: allowPhotoLocalRender, sourceUseRationale: allowPhotoLocalRender ? photoUseRationale : "" }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["physical-scene-candidates"] });
+    },
+  });
   const importReady = Boolean(file && file.size > 0 && file.size <= MAX_LOCAL_GEOMETRY_BYTES && displayName.trim() && sourceLabel.trim() && candidateId.trim());
   const download = async (candidate: IntakeCandidateRevision) => {
     setDownloadError("");
@@ -141,6 +175,25 @@ export function LibraryIntakePanel() {
   return <Card className="physical-shot__intake" data-testid="physical-library-intake">
     <CardHeader><CardTitle as="h3">{t(strings.physical.intakeTitle)}</CardTitle><p>{t(strings.physical.intakeHelp)}</p></CardHeader>
     <CardContent className="physical-shot__fields">
+      <section className="physical-shot__fields" aria-labelledby="prepared-photo-import-title" data-testid="prepared-photo-import">
+        <h4 id="prepared-photo-import-title">{t(strings.physical.preparedPhotoImportTitle)}</h4>
+        <p>{t(strings.physical.preparedPhotoImportHelp)}</p>
+        <label>{t(strings.physical.preparedPhotoID)}<input className="physical-shot__input" value={preparationID} maxLength={64} autoCapitalize="off" spellCheck={false} onChange={(event) => setPreparationID(event.target.value.trim().toLowerCase())} /></label>
+        <label>{t(strings.physical.intakeSource)}<input className="physical-shot__input" value={preparationSource} maxLength={512} onChange={(event) => setPreparationSource(event.target.value)} /></label>
+        <label>{t(strings.physical.intakeLicense)}<input className="physical-shot__input" value={preparationLicense} maxLength={128} onChange={(event) => setPreparationLicense(event.target.value)} /></label>
+        <label>{t(strings.physical.intakeAttribution)}<input className="physical-shot__input" value={preparationAttribution} maxLength={1024} onChange={(event) => setPreparationAttribution(event.target.value)} /></label>
+        <label className="flex items-start gap-2"><input type="checkbox" checked={allowPhotoLocalRender} onChange={(event) => setAllowPhotoLocalRender(event.target.checked)} />{t(strings.physical.preparedPhotoAllowLocalRender)}</label>
+        {allowPhotoLocalRender && <label>{t(strings.physical.preparedPhotoUseRationale)}<textarea className="physical-shot__input min-h-20" value={photoUseRationale} maxLength={1024} onChange={(event) => setPhotoUseRationale(event.target.value)} /></label>}
+        <p className="physical-shot__candidate">{t(strings.physical.preparedPhotoLocalRenderLimit)}</p>
+        <p className="physical-shot__candidate">{t(strings.physical.preparedPhotoCandidateOnly)}</p>
+        <Button type="button" className="min-h-11" disabled={!/^[0-9a-f]{64}$/.test(preparationID.trim()) || !preparationSource.trim() || !preparationLicense.trim() || !preparationAttribution.trim() || (allowPhotoLocalRender && !photoUseRationale.trim()) || photoImport.isPending} onClick={() => photoImport.mutate()}>{photoImport.isPending ? t(strings.physical.preparedPhotoImporting) : t(strings.physical.preparedPhotoImportAction)}</Button>
+        {photoImport.error && <p role="alert">{photoImport.error.message}</p>}
+        {photoImport.data && <div role="status" data-testid="prepared-photo-import-result">
+          <p>{t(strings.physical.preparedPhotoImportSuccess, { scene: photoImport.data.revision?.sceneId ?? "", revision: photoImport.data.revision?.revision ?? 0 })}</p>
+          <p>{t(strings.physical.preparedPhotoLibraryRevision, { id: photoImport.data.libraryBundleId, revision: photoImport.data.libraryRevision, sha: photoImport.data.libraryManifestSha256 })}</p>
+          <p>{t(strings.physical.preparedPhotoScaleEstimate, { status: photoImport.data.scaleStatus, meters: photoImport.data.estimatedScaleM })}</p>
+        </div>}
+      </section>
       <label>{t(strings.physical.intakeFile)}<input ref={fileInput} className="physical-shot__input" type="file" accept=".glb,model/gltf-binary" onChange={(event) => setFile(event.currentTarget.files?.[0])} /></label>
       {file && <p>{file.name} · {file.size.toLocaleString()} bytes</p>}
       <label>{t(strings.physical.intakeDisplayName)}<input className="physical-shot__input" value={displayName} maxLength={120} onChange={(event) => setDisplayName(event.target.value)} /></label>
@@ -161,6 +214,8 @@ export function LibraryIntakePanel() {
         {t(strings.physical.intakeStatus, { review: candidate.reviewStatus, render: candidate.renderStatus })} · SHA-256 {candidate.originalSha256.slice(0, 12)}…
         {candidate.inspection && <span> · {candidate.inspection.supported ? t(strings.physical.intakeSupported) : t(strings.physical.intakeUnsupported)}{candidate.inspection.finding ? ` · ${candidate.inspection.finding}` : ""}</span>}
         <Button type="button" variant="outline" className="min-h-11" onClick={() => void download(candidate)}>{t(strings.physical.intakeDownload)}</Button>
+        <Button type="button" variant="outline" className="min-h-11" onClick={() => setPreviewCandidate((current) => current === candidate.id ? undefined : candidate.id)}>{previewCandidate === candidate.id ? t(strings.physical.intakePreviewClose) : t(strings.physical.intakePreviewOpen)}</Button>
+        {previewCandidate === candidate.id && <CandidatePreview candidate={candidate} />}
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setMaterialCandidate((current) => current === candidate.id ? undefined : candidate.id)}>{materialCandidate === candidate.id ? t(strings.physical.intakeMaterialClose) : t(strings.physical.intakeMaterialEdit)}</Button>
         {materialCandidate === candidate.id && <MaterialEditor candidate={candidate} onComplete={() => { void queryClient.invalidateQueries({ queryKey: ["local-geometry-intake"] }); }} />}
       </li>)}</ul>}{candidates.hasNextPage && <Button type="button" variant="outline" className="min-h-11" disabled={candidates.isFetchingNextPage} onClick={() => void candidates.fetchNextPage()}>{t(strings.physical.intakeLoadMore)}</Button>}</div>}

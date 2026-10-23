@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/binaryfetch"
@@ -58,6 +59,26 @@ func TestValidateArtifact_RejectsBelowDeclaredMinBytes(t *testing.T) {
 	err := ValidateArtifact(p, Asset{Filename: "short.onnx", Kind: ArtifactONNX, MinBytes: 1 << 20})
 	if !errors.Is(err, binaryfetch.ErrTooSmall) {
 		t.Fatalf("expected ErrTooSmall vs declared min_bytes, got %v", err)
+	}
+}
+
+func TestValidateSmallPinnedYAMLConfigBelowGenericWeightFloor(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.yaml")
+	body := []byte("cond_image_size: 512\nrenderer:\n  radius: 0.87\n" + strings.Repeat("# pinned model architecture\n", 24))
+	if err := os.WriteFile(p, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if len(body) >= int(binaryfetch.DefaultSizeFloor) {
+		t.Fatalf("fixture must exercise config-specific size floor: %d", len(body))
+	}
+	if err := ValidateArtifact(p, Asset{Filename: "config.yaml", Kind: ArtifactConfig, MinBytes: int64(len(body))}); err != nil {
+		t.Fatalf("valid small YAML config rejected: %v", err)
+	}
+	if err := os.WriteFile(p, []byte("<!doctype html><html>"+strings.Repeat("x", 1100)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateArtifact(p, Asset{Filename: "config.yaml", Kind: ArtifactConfig, MinBytes: 128}); err == nil {
+		t.Fatal("HTML was accepted as model config")
 	}
 }
 

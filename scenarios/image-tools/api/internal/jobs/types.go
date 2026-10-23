@@ -58,9 +58,14 @@ type Spec struct {
 	Lane Lane
 	// Payload is opaque JSON the Runner interprets (request params, refs).
 	Payload []byte
+	// ClientOperationID and RequestFingerprint deduplicate caller retries when set.
+	ClientOperationID  string
+	RequestFingerprint string
 	// EstimatedSeconds is the caller's pre-run estimate, surfaced as the initial
 	// ETA. 0 means "unknown".
 	EstimatedSeconds int
+	// ExecutionTimeoutSeconds bounds work after a lane worker starts it; 0 is unbounded.
+	ExecutionTimeoutSeconds int
 }
 
 // Job is the persisted, observable record of a submitted unit of work.
@@ -76,12 +81,17 @@ type Job struct {
 	// Meta is the backend's record of the run: which model served it, which
 	// tier it ran on, what the route cost. Set only on success, and only by
 	// backends that report it. See Result.Meta.
-	Meta             map[string]string
-	Payload          []byte
-	EstimatedSeconds int
-	CreatedAt        time.Time
-	StartedAt        *time.Time
-	FinishedAt       *time.Time
+	Meta               map[string]string
+	Payload            []byte
+	ClientOperationID  string
+	RequestFingerprint string
+	// TestMode pins persistence and execution to the active routed test pool.
+	TestMode                bool
+	EstimatedSeconds        int
+	ExecutionTimeoutSeconds int
+	CreatedAt               time.Time
+	StartedAt               *time.Time
+	FinishedAt              *time.Time
 }
 
 // ProgressEvent is one progress update streamed to subscribers (SSE).

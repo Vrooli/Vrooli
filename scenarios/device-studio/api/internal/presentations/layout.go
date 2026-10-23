@@ -272,9 +272,10 @@ func browserWindow(target image.Point, b BasisRect) (image.Rectangle, error) {
 	if b == (BasisRect{}) {
 		b = BasisRect{X: 800, Y: 800, Width: 8400, Height: 8000}
 	}
-	if b.X < 0 || b.Y < 0 || b.X > BrowserRectBasis || b.Y > BrowserRectBasis || b.Width <= 0 || b.Height <= 0 || b.Width > BrowserRectBasis || b.Height > BrowserRectBasis || b.X+b.Width > BrowserRectBasis || b.Y+b.Height > BrowserRectBasis {
+	if !b.Valid() {
 		return image.Rectangle{}, ErrInvalidConfig
 	}
+
 	min := image.Pt(scaled(b.X, target.X, BrowserRectBasis), scaled(b.Y, target.Y, BrowserRectBasis))
 	max := image.Pt(scaled(b.X+b.Width, target.X, BrowserRectBasis), scaled(b.Y+b.Height, target.Y, BrowserRectBasis))
 	if max.X-min.X < 320 || max.Y-min.Y < 220 {

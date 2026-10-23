@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -159,5 +165,60 @@ func TestLibraryMaterialCLIUsesExactParentAndStableChildRESTContract(t *testing.
 	}
 	if err := app.Run([]string{"library", "intake-material-correct", "material-parent", "--revision", "1", "--revision-sha256", parentSHA, "--child-candidate-id", "material-child", "--material-index", "0", "--material-name", "shell", "--roughness", "0.2"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLibraryIntakePreviewCLIVerifiesExactRevisionAndDoesNotOverwrite(t *testing.T) {
+	revisionSHA := strings.Repeat("a", 64)
+	glbSHA := strings.Repeat("b", 64)
+	img := image.NewRGBA(image.Rect(0, 0, 768, 256))
+	img.SetRGBA(12, 12, color.RGBA{R: 255, A: 255})
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, img); err != nil {
+		t.Fatal(err)
+	}
+	previewBytes := encoded.Bytes()
+	previewHash := sha256.Sum256(previewBytes)
+	previewSHA := hex.EncodeToString(previewHash[:])
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			_, _ = io.WriteString(w, `{"status":"ok"}`)
+			return
+		}
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/library/intake-candidates/candidate-preview/revisions/1/preview" || r.URL.Query().Get("revision_sha256") != revisionSHA {
+			t.Errorf("unexpected preview request: %s %s", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("X-Intake-Candidate-ID", "candidate-preview")
+		w.Header().Set("X-Intake-Revision", "1")
+		w.Header().Set("X-Intake-Revision-SHA256", revisionSHA)
+		w.Header().Set("X-Intake-GLB-SHA256", glbSHA)
+		w.Header().Set("X-Intake-Preview-SHA256", previewSHA)
+		w.Header().Set("X-Intake-Preview-Vertex-Colors", "true")
+		w.Header().Set("X-Intake-Preview-Scale", "not-estimated")
+		w.Header().Set("X-Intake-Preview-Review", "unreviewed")
+		_, _ = w.Write(previewBytes)
+	}))
+	defer server.Close()
+	t.Setenv("DEVICE_STUDIO_API_BASE", server.URL)
+	t.Setenv("API_BASE_URL", "")
+	t.Setenv("VITE_API_BASE_URL", "")
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "candidate.png")
+	args := []string{"library", "intake-preview", "candidate-preview", "--revision", "1", "--revision-sha256", revisionSHA, "--out", out}
+	if err := app.Run(args); err != nil {
+		t.Fatalf("preview CLI failed: %v", err)
+	}
+	written, err := os.ReadFile(out)
+	if err != nil || !bytes.Equal(written, previewBytes) {
+		t.Fatalf("preview output mismatch: %v", err)
+	}
+	if err := app.Run(args); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("existing preview path was overwritten or gave wrong error: %v", err)
 	}
 }

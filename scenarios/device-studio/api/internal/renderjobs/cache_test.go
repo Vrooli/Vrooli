@@ -145,6 +145,7 @@ func TestCanonicalCacheFingerprintChangesWithEachPinnedDependency(t *testing.T) 
 		{"tool profile", func(in *jobs.Input) { in.ToolProfileDigest = digest("tool-profile-v2") }},
 		{"renderer and strategy version", func(in *jobs.Input) { in.RendererVersion = "blender-worker-v2" }},
 		{"output color/profile", func(in *jobs.Input) { in.OutputProfile = OutputProfilePhysicalPreviewPNG }},
+		{"diagnostic profile", func(in *jobs.Input) { in.OutputProfile = OutputProfilePhysicalDiagnosticPNG }},
 		{"worker build", func(in *jobs.Input) { in.Bindings[1].SHA256 = digest("worker-v2") }},
 		{"display asset bytes", func(in *jobs.Input) { in.Bindings[4].SHA256 = digest("display-v2") }},
 		{"scene asset bytes", func(in *jobs.Input) { in.Bindings[5].SHA256 = digest("scene-v2") }},

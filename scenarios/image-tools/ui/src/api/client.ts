@@ -51,9 +51,11 @@ export async function decodeApiError(res: Response): Promise<ApiError> {
   return new ApiError(envelope, res.status);
 }
 
-export async function uploadFile(path: string, formData: FormData): Promise<Response> {
+export async function uploadFile(path: string, formData: FormData, options: { headers?: HeadersInit; signal?: AbortSignal } = {}): Promise<Response> {
   return fetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), {
     method: "POST",
+    headers: options.headers,
+    signal: options.signal,
     body: formData,
     cache: "no-store",
   });

@@ -16,12 +16,19 @@ Python on the host.
 
 ## Regenerating the lock
 
-Never edit `requirements.lock` by hand. After changing `requirements.in`:
+Never edit `requirements.lock` by hand or run a package manager directly. Use
+Scenario Dependency Analyzer's governed entry point; it follows the API's
+compatibility `requirements.txt` forwarder to this canonical input/lock pair:
 
 ```bash
-cd scenarios/image-tools/api/internal/pydeps
-uv pip compile requirements.in --generate-hashes -o requirements.lock --no-header
+scenario-dependency-analyzer deps install pip/<name>@<version> \
+  --scenario image-tools --surface api --json
+# Inspect the preview, then repeat with --apply when the dependency is approved.
 ```
+
+The owner preserves unrelated ranged inputs and lock pins, resolves wheel-only
+artifacts, and stages both files before publication. Publication errors restore
+the previous pair; an interrupted process still requires conformance verification.
 
 Then run the conformance tests, which keep the lock honest against both
 `requirements.in` and the SDA governance store:
@@ -36,7 +43,7 @@ Every **direct** dependency in `requirements.in` must be approved in the Scenari
 Dependency Analyzer (governed, never hand-edited):
 
 ```bash
-scenario-dependency-analyzer deps-approved approve pip/<name> --range ">=X" --rationale "..." --apply
+scenario-dependency-analyzer deps approved approve pip/<name> --range ">=X" --rationale "..." --apply
 ```
 
 Transitive pins (the CUDA `nvidia-*` libraries, `triton`, etc.) are covered by

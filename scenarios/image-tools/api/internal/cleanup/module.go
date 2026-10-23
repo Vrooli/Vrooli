@@ -160,7 +160,7 @@ func (h *ownerCleanup) candidates(ctx context.Context, age time.Duration, keep i
 		if _, ok := referenced[job.ResultRef]; ok {
 			continue
 		}
-		path, pathErr := h.store.PathForKey(job.ResultRef)
+		path, pathErr := h.store.PathForKeyContext(ctx, job.ResultRef)
 		if pathErr != nil || !strings.HasPrefix(job.ResultRef, "out/") {
 			continue
 		}

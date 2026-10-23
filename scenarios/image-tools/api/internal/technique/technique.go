@@ -297,6 +297,11 @@ func StableDiffusionCpp(req backends.Request, modelDir string) ([]string, error)
 		return nil, fmt.Errorf("stable-diffusion.cpp does not support conditioning adapters; use a diffusers-backed model for LoRA/ControlNet/IP-Adapter")
 	}
 	args := []string{"-m", sdModelArg(modelDir), "-o", req.Output.LocalPath, "-p", StrParam(req, "prompt")}
+	if !req.GPU {
+		// A GPU-capable sd launcher can also serve CPU work. Explicitly pin
+		// compute AND parameter placement; offload-to-cpu alone retains GPU compute.
+		args = append(args, "--backend", "cpu", "--params-backend", "cpu")
+	}
 	if neg := StrParam(req, "negative_prompt"); neg != "" {
 		args = append(args, "-n", neg)
 	}
@@ -350,11 +355,37 @@ func DiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
 	args := []string{
 		"-m", "image_tools_sidecar.inpaint",
 		"--model", modelDir,
+		"--model-id", req.Model.ID,
 		"--architecture", arch,
 		"--image", in,
 		"--mask", mask,
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
+	}
+	for _, asset := range req.Model.Source.Assets {
+		if asset.Filename == "" || asset.SHA256 == "" {
+			continue
+		}
+		args = append(args, "--model-sha256", asset.SHA256)
+		break
+	}
+	if variant := strings.TrimSpace(req.Model.Runtime.Variant); variant != "" {
+		args = append(args, "--variant", variant)
+	}
+	if revision := strings.TrimSpace(req.Model.Source.Repo.Revision); revision != "" {
+		args = append(args, "--model-revision", revision)
+	}
+	if StrParam(req, "inpaint_crop_to_mask") == "true" {
+		args = append(args, "--crop-to-mask")
+		if context := IntParam(req, "inpaint_context_pixels", 0); context > 0 {
+			args = append(args, "--crop-context-pixels", strconv.Itoa(context))
+		}
+		if edge := IntParam(req, "inpaint_max_edge_px", 0); edge > 0 {
+			args = append(args, "--crop-max-edge-px", strconv.Itoa(edge))
+		}
+		if StrParam(req, "inpaint_neutralize_masked_pixels") == "true" {
+			args = append(args, "--neutralize-masked-pixels")
+		}
 	}
 	lora, err := LoRAArgs(req)
 	if err != nil {
@@ -659,6 +690,8 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 	switch req.Operation {
 	case "background_removal":
 		module = "image_tools_sidecar.bg_removal"
+	case "object_removal":
+		module = "image_tools_sidecar.lama"
 	case "denoise":
 		module = "image_tools_sidecar.denoise"
 	case "deblur":
@@ -667,6 +700,8 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		module = "image_tools_sidecar.colorize"
 	case "depth_map":
 		module = "image_tools_sidecar.depth"
+	case "scene_geometry":
+		module = "image_tools_sidecar.geometry"
 	case "object_detection":
 		module = "image_tools_sidecar.detect"
 	case "segment":
@@ -681,12 +716,34 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("onnxruntime sidecar: unsupported operation %q", req.Operation)
 	}
-	return []string{
+	args := []string{
 		"-m", module,
 		"--model", model,
 		"--image", in,
 		"--out", req.Output.LocalPath,
-	}, nil
+	}
+	if req.Operation == "object_removal" {
+		mask, err := MaskPath(req)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, "--mask", mask)
+		if params := req.Params["background_repair"]; params != "" {
+			args = append(args, "--params", params)
+		}
+	}
+	if req.Operation == "segment" {
+		if prompt := req.Params["segmentation"]; prompt != "" {
+			args = append(args, "--prompts", prompt)
+		}
+	}
+	if req.Operation == "scene_geometry" {
+		args = append(args, "--model-id", req.Model.ID)
+		if roi := req.Params["support_roi"]; roi != "" {
+			args = append(args, "--support-roi", roi)
+		}
+	}
+	return args, nil
 }
 
 // PythonSidecar assembles invocations for enabled catalog entries whose native
@@ -715,10 +772,62 @@ func PythonSidecar(req backends.Request, modelDir string) ([]string, error) {
 	}, nil
 }
 
+// SAM2Sidecar assembles the isolated Transformers SAM 2 image adapter. The
+// model folder contains pinned HF config and weights; processor defaults are
+// explicit in the sidecar because upstream processor metadata is sub-kilobyte.
+func SAM2Sidecar(req backends.Request, modelDir string) ([]string, error) {
+	in, err := Input0(req)
+	if err != nil {
+		return nil, err
+	}
+	device := "cpu"
+	if req.GPU {
+		device = "cuda"
+	}
+	args := []string{"-m", "image_tools_sidecar.sam2", "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}
+	if prompt := req.Params["segmentation"]; prompt != "" {
+		args = append(args, "--prompts", prompt)
+	}
+	return args, nil
+}
+
+// TripoSRSidecar invokes the pinned single-image object reconstruction adapter.
+// The optional second input is an explicit foreground mask; the module never
+// downloads or invokes an automatic background remover.
+func TripoSRSidecar(req backends.Request, modelDir string) ([]string, error) {
+	if strings.TrimSpace(req.SourceProfileDir) == "" {
+		return nil, fmt.Errorf("image_to_object requires an engine-resolved managed TripoSR source profile")
+	}
+	in, err := Input0(req)
+	if err != nil {
+		return nil, err
+	}
+	device := "cpu"
+	if req.GPU {
+		device = "cuda"
+	}
+	resolution := IntParam(req, "mesh_resolution", 256)
+	if resolution != 128 && resolution != 256 {
+		return nil, fmt.Errorf("image_to_object mesh resolution must be 128 or 256")
+	}
+	args := []string{"-m", "image_tools_sidecar.image_to_object", "--model", modelDir, "--source-dir", req.SourceProfileDir, "--image", in, "--out", req.Output.LocalPath, "--device", device, "--mesh-resolution", strconv.Itoa(resolution)}
+	if len(req.InputKeys) > 1 && req.InputKeys[1] != "" {
+		args = append(args, "--mask", req.InputKeys[1])
+	}
+	return args, nil
+}
+
 // OnnxModelPath resolves the ONNX weight file the sidecar should load: the first
 // registry asset of kind ONNX (else the first asset) under the model dir. Falls
 // back to the model dir itself when the model declares no assets.
 func OnnxModelPath(req backends.Request, modelDir string) string {
+	// Closed build profiles own a derived runtime artifact that is not one of the
+	// downloaded source assets. Resolve only the validated LaMa profile output;
+	// otherwise the source archive/checkpoint could be handed to ONNX Runtime.
+	if req.Model.ID == "big-lama-1024-export" && req.Model.BuildProfile != nil &&
+		req.Model.BuildProfile.Kind == "lama-onnx-fixed" && req.Model.BuildProfile.OutputFilename == "lama_1024.onnx" {
+		return filepath.Join(modelDir, req.Model.BuildProfile.OutputFilename)
+	}
 	assets := req.Model.Source.Assets
 	for _, a := range assets {
 		if a.Kind == models.ArtifactONNX && a.Filename != "" {

@@ -279,6 +279,56 @@
       }
     },
     {
+      "id": "prepared_photo_to_scene_candidate",
+      "path": "/api/v1/photographic-scenes/from-preparation",
+      "method": "POST",
+      "summary": "Convert an accepted immutable photograph preparation into an edit-only scene candidate",
+      "description": "Fetches a content-addressed Image Tools preparation by ID, validates its exact retained review/geometry/source bytes, publishes geometry and clean-plate assets through Library, then saves a SceneCandidate. It never grants render rights or claims measured scale.",
+      "category": "scenes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "attribution": "explicit caller claim",
+          "license_id": "explicit caller claim",
+          "preparation_id": "64-character content SHA-256",
+          "source_label": "explicit caller claim"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "library_bundle_id": "string",
+          "scale_status": "estimated_monocular_scale_not_measured",
+          "scene_id": "string",
+          "scene_revision": "integer",
+          "scene_sha256": "SHA-256"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The workbench submits an immutable preparation ID and explicit source-rights claims; the server fetches exact retained bytes from Image Tools and publishes through canonical Library and SceneCandidate owners."
+      }
+    },
+    {
+      "id": "pending_preparation_geometry_qa",
+      "path": "/api/v1/photographic-scenes/preparations/{preparation_id}/geometry-qa",
+      "method": "GET",
+      "summary": "Inspect geometry for a pending EMPTY_SCENE preparation",
+      "description": "Runs strict outer bundle, inner ZIP/NPY and camera-projection checks and returns a diagnostic-only ZIP with source/ROI/depth/plane overlays. It cannot accept or publish a preparation.",
+      "category": "scenes",
+      "response": {
+        "type": "application/zip",
+        "properties": {
+          "geometry-qa.json": "pending-only numerical validation report",
+          "geometry-qa.png": "source ROI/inlier/reject, depth and plane-residual panels"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "This bounded inspection download is read-only and requires the content-addressed pending preparation ID."
+      }
+    },
+    {
       "id": "devices_candidate_save",
       "path": "/vrooli.device_studio.v1.devices.DevicesService/SaveDeviceCandidate",
       "method": "POST",
@@ -319,6 +369,30 @@
       "category": "devices"
     },
     {
+      "id": "devices_candidate_review",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ReviewDeviceCandidate",
+      "method": "POST",
+      "summary": "Review and qualify exact device revision",
+      "description": "Records an explicit exact-revision physical review and appends a qualified revision only when source, scope, preset, and native-output evidence validate.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_qualification_package_export",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ExportQualificationPackage",
+      "method": "POST",
+      "summary": "Export a scoped qualification package",
+      "description": "Exports an existing passed review and verified render evidence for explicit operator transfer; package hashes do not authenticate the reviewer.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_qualification_package_import",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ImportQualificationPackage",
+      "method": "POST",
+      "summary": "Import a scoped qualification package",
+      "description": "Revalidates exact existing destination revisions and appends the transferred human decision without creating a render job or widening scope.",
+      "category": "devices"
+    },
+    {
       "id": "scenes_candidate_save",
       "path": "/vrooli.device_studio.v1.scenes.ScenesService/SaveSceneCandidate",
       "method": "POST",
@@ -356,6 +430,22 @@
       "method": "POST",
       "summary": "List scene candidate heads",
       "description": "Returns one latest immutable candidate revision per scene in stable identifier order.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_pose_fit",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/FitKnownCameraPose",
+      "method": "POST",
+      "summary": "Fit known-camera device pose",
+      "description": "Fits only the rigid device transform from caller-supplied 2D/3D landmarks and an immutable scene camera; a declared hinge assumption remains fixed.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_import_prepared_photograph",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/ImportPreparedPhotograph",
+      "method": "POST",
+      "summary": "Import accepted prepared photograph",
+      "description": "Fetches an exact content-addressed Image Tools child, verifies its expected bundle hash and reviewed source, then publishes an edit-only scene candidate through canonical Library and SceneCandidate owners. Monocular scale remains an estimate.",
       "category": "scenes"
     },
     {
@@ -487,6 +577,33 @@
       }
     },
     {
+      "id": "library_intake_candidate_preview",
+      "path": "/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/preview",
+      "method": "GET",
+      "summary": "Render a bounded local preview of an exact imported GLB revision",
+      "description": "Returns a read-only three-view CPU PNG with embedded vertex colors honored where present. The preview remains tied to the exact unreviewed intake revision and makes no UV, PBR, metric-scale, or render-readiness claim.",
+      "category": "library",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Requires revision_sha256 query parameter; returned headers bind PNG bytes to the candidate revision and GLB digests.",
+        "proto_payloads": {
+          "request": {
+            "transport": "query",
+            "conformance": "revision_sha256 is required and must match the immutable intake revision"
+          },
+          "response": {
+            "transport": "image/png",
+            "conformance": "bounded 768×256 CPU preview; identity, content digest, vertex-color mode, and unreviewed status in X-Intake-* headers"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
       "id": "physical_starter_initialize",
       "path": "/vrooli.device_studio.v1.physical.PhysicalStarterService/InitializeReviewedStarter",
       "method": "POST",
@@ -556,6 +673,22 @@
       "method": "POST",
       "summary": "Validate shot draft",
       "description": "Validates typed shot fields without persisting a revision.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_review_output_readability",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ReviewOutputReadability",
+      "method": "POST",
+      "summary": "Review rendered output readability",
+      "description": "Records a human readability verdict against one exact immutable render output.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_get_output_readability_review",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetOutputReadabilityReview",
+      "method": "POST",
+      "summary": "Get output readability review",
+      "description": "Returns the human readability verdict for one exact immutable render output.",
       "category": "shots"
     },
     {

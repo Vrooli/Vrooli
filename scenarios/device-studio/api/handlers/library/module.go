@@ -17,6 +17,7 @@ type intakeModuleService interface {
 	IntakeService
 	intakeOperations
 	materialIntakeOperations
+	intakePreviewOperations
 }
 
 func ModuleWithIntake(service Service, intake intakeModuleService, db *database.RoutedDB, roots *filerouting.RoutedRoots) module.Module {
@@ -27,6 +28,7 @@ func ModuleWithIntake(service Service, intake intakeModuleService, db *database.
 			r.Handle("/api/v1/library/intake-candidates", newIntakeUploadHandler(intake, db, roots, nil)).Methods("POST")
 			r.Handle("/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/content", newIntakeContentHandler(intake, db, roots, nil)).Methods("GET")
 			r.Handle("/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/materials", newIntakeMaterialsHandler(intake, db, roots, nil)).Methods("GET")
+			r.Handle("/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/preview", newIntakePreviewHandler(intake, db, roots, nil)).Methods("GET")
 			r.Handle("/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/material-corrections", newIntakeMaterialCorrectionHandler(intake, db, roots, nil)).Methods("POST")
 		}
 	}, Endpoints: Endpoints}

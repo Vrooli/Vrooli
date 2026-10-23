@@ -18,9 +18,9 @@ import (
 )
 
 // Module returns the ai domain's contribution: the AIService discovery handler
-// (Connect-RPC) plus the REST multipart submit edge (POST /api/v1/ai/{operation}).
+// and stored-input admission handler (Connect-RPC), plus multipart uploads.
 // Execution is asynchronous on the durable job Manager's GPU-serialized lane. The
-// gate is the Responsible-Use deployment gate enforced on the submit edge.
+// Both submission transports enforce the same Responsible-Use deployment gate.
 func Module(engine *internalai.Engine, registry *models.Registry, store *storage.Store, jobs *internaljobs.Manager, gate *safety.Gate, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
@@ -33,12 +33,13 @@ func Module(engine *internalai.Engine, registry *models.Registry, store *storage
 		Gate:   gate,
 		Logger: logger,
 	}
-	connectPath, connectHandler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry))
+	connectPath, connectHandler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, rest))
 	return module.Module{
 		Name: "ai",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			r.HandleFunc("/api/v1/ai/{operation}", rest.submitHandler).Methods(http.MethodPost)
+			r.HandleFunc("/api/v1/ai/operations/{operation_id}", rest.operationHandler).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}

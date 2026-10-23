@@ -4,7 +4,8 @@
  * `<title>`) and a decorative `aria-hidden` glyph, plus the `size` default.
  */
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import {  } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 
 import { LumeMark } from "./lume-mark";
 

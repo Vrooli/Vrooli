@@ -14,6 +14,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"AIService.ListAIOperations": h.list,
+		"AIService.SubmitStoredAI":   h.submitStored,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
@@ -30,6 +31,7 @@ func inputArg() cliapp.Positional {
 // commonFlags are shared by every submit command.
 func commonFlags() []cliapp.Flag {
 	return []cliapp.Flag{
+		{Name: "operation-id", Description: "Stable UUID for retrying the same operation without duplicate inference"},
 		{Name: "out", Description: "Path to write the result (with --wait)"},
 		{Name: "wait", Bool: true, Description: "Block once until the job finishes and download the result"},
 		{Name: "model", Description: "Force a specific model id (override hardware-fit)"},
@@ -83,10 +85,18 @@ func (h *handlers) submitCommands() []cliapp.Command {
 		cmd("edit", "edit_instruct", "Edit an image from a natural-language instruction (identity-preserving)", true, false,
 			append(genFlags(), cliapp.Flag{Name: "strength", Description: "image-guidance: how faithful to the source (higher = preserve more)"})...),
 		cmd("inpaint", "inpaint", "Regenerate a masked region from a prompt", true, true,
-			append(genFlags(), maskFlag)...),
+			append(append(genFlags(), maskFlag),
+				cliapp.Flag{Name: "crop-to-mask", Bool: true, Description: "Crop inference to the white mask bounds with surrounding context"},
+				cliapp.Flag{Name: "crop-context-pixels", Description: "Source-pixel context around the mask crop (0..512)"},
+				cliapp.Flag{Name: "crop-max-edge-px", Description: "Inference crop maximum edge in pixels (512 or 1024)"},
+				cliapp.Flag{Name: "neutralize-masked-pixels", Bool: true, Description: "Replace masked init-image pixels with nearest unmasked context before inpaint"},
+			)...),
 		cmd("outpaint", "outpaint", "Expand an image beyond its borders, generating the new region from a prompt", true, true,
 			append(genFlags(), maskFlag)...),
-		cmd("object-removal", "object_removal", "Remove a masked object and fill the gap", true, true, maskFlag),
+		cmd("object-removal", "object_removal", "Remove a masked object and fill the gap", true, true,
+			maskFlag,
+			cliapp.Flag{Name: "mask-expansion", Description: "Explicitly expand the removal mask by 0..64 source pixels"},
+			cliapp.Flag{Name: "remove-region", Description: "Additional normalized removal box JSON {\"x\":0.2,\"y\":0.7,\"width\":0.1,\"height\":0.05}; repeatable"}),
 		cmd("background-replace", "background_replace", "Replace the background behind a masked subject from a prompt", true, true,
 			append(genFlags(), maskFlag)...),
 		cmd("upscale", "upscale", "Super-resolve / enlarge an image", true, false,
@@ -95,6 +105,13 @@ func (h *handlers) submitCommands() []cliapp.Command {
 		cmd("denoise", "denoise", "Reduce noise / deblur an image", true, false),
 		cmd("colorize", "colorize", "Add realistic colour to a grayscale / black-and-white image", true, false),
 		cmd("depth", "depth_map", "Estimate a per-pixel depth map from a single image", true, false),
+		cmd("geometry", "scene_geometry", "Estimate a camera and full floating-point scene geometry bundle", true, false,
+			cliapp.Flag{Name: "support-roi", Description: "Optional normalized support-plane region JSON {\"supportRoi\":{\"x\":0,\"y\":0.85,\"width\":1,\"height\":0.15}}; fitted scale remains estimated"}),
+		cmd("image-to-object", "image_to_object", "Reconstruct a 3D prop mesh from one image and optional foreground mask", true, false,
+			maskFlag,
+			cliapp.Flag{Name: "mesh-resolution", Description: "Marching-cubes resolution: 128 or 256 (default 256)"}),
+		cmd("segment", "segment", "Segment an object with a SAM model in a durable job", true, false,
+			cliapp.Flag{Name: "selection", Description: "JSON normalized points and/or box, e.g. {\"points\":[{\"x\":0.7,\"y\":0.5}]}"}),
 		cmd("normal-map", "normal_map", "Convert image luminance/depth into a tangent-space normal map", true, false),
 		cmd("naturalize", "naturalize", "Reintroduce realistic texture/grain to an over-smoothed (restored/upscaled) image", true, false,
 			cliapp.Flag{Name: "realism", Description: "Fidelity↔realism knob 0..1 (default 0.5)"},

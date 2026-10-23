@@ -113,3 +113,15 @@ from articulated devices, and requires actual alpha/profile proof for device-onl
 output. Preserve workflow context and readable detail instead of treating a bezel
 or a moving device as an automatic quality pass. This feedback is a direction for
 future craft; it does not approve a new unseen film or every device-owner output.
+
+
+### Aquila varied desktop cut, 2026-10-21
+
+The operator rated the 108-second dynamic cut 8.5/10, explicitly excepting the
+device zoom/parallax issue. The exact export and feedback are indexed as
+`aquila-dynamic-108s-2026-10-21` in examples.json. This is a positive local
+reference after restoring varied side layouts, large titles, connected native
+actions and a selected continuous desktop pointer. The rating does not separately
+validate each technique, final audio audition or future audience response. Preserve
+the unresolved device concern; await the operator’s further parallax direction
+before treating the current stationary-room transition as the intended final effect.

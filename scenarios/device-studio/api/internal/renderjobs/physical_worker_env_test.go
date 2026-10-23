@@ -75,13 +75,17 @@ func TestPhysicalWorkerEnvironmentPassesOnlyResolvedControlPlaneCLIAndPrivateScr
 	home := filepath.Join(root, "operator-home")
 	workspace := filepath.Join(root, "attempt")
 	cli := filepath.Join(home, ".vrooli", "bin", "vrooli")
+	nvidiaSMI := filepath.Join(root, "nvidia-smi")
 	if err := os.MkdirAll(filepath.Dir(cli), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(cli, []byte("test cli"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	env, err := physicalWorkerEnvironmentFor(home, workspace, "")
+	if err := os.WriteFile(nvidiaSMI, []byte("test nvidia-smi"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	env, err := physicalWorkerEnvironmentFor(home, workspace, "", nvidiaSMI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,6 +100,9 @@ func TestPhysicalWorkerEnvironmentPassesOnlyResolvedControlPlaneCLIAndPrivateScr
 	if values["HOME"] != home || values[cliinvoke.BinaryEnvVar] != cli {
 		t.Fatalf("worker owner lookup = HOME %q, VROOLI_BIN %q; want %q, %q", values["HOME"], values[cliinvoke.BinaryEnvVar], home, cli)
 	}
+	if values["DEVICE_STUDIO_NVIDIA_SMI"] != nvidiaSMI {
+		t.Fatalf("worker telemetry executable = %q; want resolved absolute path %q", values["DEVICE_STUDIO_NVIDIA_SMI"], nvidiaSMI)
+	}
 	for _, key := range []string{"TMPDIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "BLENDER_USER_CONFIG", "BLENDER_USER_SCRIPTS", "BLENDER_USER_DATAFILES", "PYTHONPYCACHEPREFIX"} {
 		if !strings.HasPrefix(values[key], workspace+string(filepath.Separator)) {
 			t.Errorf("%s=%q is outside private attempt workspace %q", key, values[key], workspace)
@@ -104,8 +111,8 @@ func TestPhysicalWorkerEnvironmentPassesOnlyResolvedControlPlaneCLIAndPrivateScr
 	if _, ok := values["VROOLI_ROOT"]; ok {
 		t.Fatal("worker inherited VROOLI_ROOT; only the canonical CLI path should be forwarded")
 	}
-	if len(values) != 11 {
-		t.Fatalf("worker received %d environment entries, want fixed allowlist of 11: %v", len(values), values)
+	if len(values) != 12 {
+		t.Fatalf("worker received %d environment entries, want fixed allowlist of 12: %v", len(values), values)
 	}
 }
 

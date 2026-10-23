@@ -9,18 +9,21 @@ import (
 )
 
 const (
-	ScreenEntryCameraProfileID      = "screen-entry-projective-contain-v1"
-	ScreenEntryCameraProfileVersion = 1
-	videoCameraMaxFrames            = 360
+	ScreenEntryCameraProfileID           = "screen-entry-projective-contain-v1"
+	ScreenEntryCameraProfileVersion      = 1
+	StationaryScreenEntryCameraProfileID = "screen-entry-stationary-scene-v1"
+	videoCameraMaxFrames                 = 360
 )
 
 // Camera pins the bounded photographic screen-entry motion. It contains no
-// caller geometry: the viewport comes from the presentation profile.
+// source geometry: the viewport comes from the presentation profile.
 type Camera struct {
-	ProfileID            string             `json:"profile_id"`
-	ProfileVersion       uint32             `json:"profile_version"`
-	DurationOutputFrames uint32             `json:"duration_output_frames"`
-	MatteRGB             *presentations.RGB `json:"matte_rgb"`
+	ProfileID            string                   `json:"profile_id"`
+	ProfileVersion       uint32                   `json:"profile_version"`
+	DurationOutputFrames uint32                   `json:"duration_output_frames"`
+	MatteRGB             *presentations.RGB       `json:"matte_rgb"`
+	TargetRect           *presentations.BasisRect `json:"target_rect,omitempty"`
+	SceneRect            *presentations.BasisRect `json:"scene_rect,omitempty"`
 }
 
 type videoCameraPath struct {
@@ -38,7 +41,7 @@ func newVideoCameraPath(m VideoManifest, plateBounds image.Rectangle, layout *pr
 	if plateBounds.Dx() != m.Scene.PlateWidth || plateBounds.Dy() != m.Scene.PlateHeight {
 		return nil, errors.New("decoded camera plate dimensions differ from pinned scene metadata")
 	}
-	fit, err := videoContainFit(image.Pt(m.Scene.PlateWidth, m.Scene.PlateHeight), image.Pt(m.Width, m.Height))
+	fit, err := cameraSceneFit(image.Pt(m.Scene.PlateWidth, m.Scene.PlateHeight), image.Pt(m.Width, m.Height), m.Camera.SceneRect)
 	if err != nil {
 		return nil, errors.New("camera plate cannot be fit into the output raster: " + err.Error())
 	}
@@ -80,6 +83,19 @@ func newVideoCameraPath(m VideoManifest, plateBounds image.Rectangle, layout *pr
 		return nil, err
 	}
 	target := containedViewportQuad(viewport, image.Pt(m.Width, m.Height))
+	if r := m.Camera.TargetRect; r != nil {
+		if !r.Valid() {
+			return nil, errors.New("camera target rectangle must have positive size and lie within basis 10000")
+		}
+		// Keep subpixel boundaries until rasterization, matching the following
+		// composition's normalized placement without integer-rounding drift.
+		x, y := float64(r.X)*float64(m.Width)/10000, float64(r.Y)*float64(m.Height)/10000
+		w, h := float64(r.Width)*float64(m.Width)/10000, float64(r.Height)*float64(m.Height)/10000
+		scale := min(w/float64(viewport.Dx()), h/float64(viewport.Dy()))
+		vw, vh := float64(viewport.Dx())*scale, float64(viewport.Dy())*scale
+		left, top := x+(w-vw)/2, y+(h-vh)/2
+		target = [4]composition.Point{{X: left, Y: top}, {X: left + vw, Y: top}, {X: left + vw, Y: top + vh}, {X: left, Y: top + vh}}
+	}
 	path := &videoCameraPath{from: projected, target: target, viewport: viewport, duration: m.Camera.DurationOutputFrames, matte: *m.Camera.MatteRGB}
 	path.frames = make([][4]composition.Point, frames)
 	for ordinal := int64(0); ordinal < frames; ordinal++ {
@@ -87,8 +103,10 @@ func newVideoCameraPath(m VideoManifest, plateBounds image.Rectangle, layout *pr
 		if err := composition.ValidatePlateQuad(m.Width, m.Height, viewport.Dx(), viewport.Dy(), q); err != nil {
 			return nil, errors.New("camera interpolation leaves a finite convex output path: " + err.Error())
 		}
-		if err := composition.ValidateProjectiveWarp(image.Pt(m.Width, m.Height), path.from, q); err != nil {
-			return nil, err
+		if m.Camera.ProfileID == ScreenEntryCameraProfileID {
+			if err := composition.ValidateProjectiveWarp(image.Pt(m.Width, m.Height), path.from, q); err != nil {
+				return nil, err
+			}
 		}
 		path.frames[ordinal] = q
 	}
@@ -143,4 +161,16 @@ func videoSceneQuad(scene VideoScene) [4]composition.Point {
 		out[i] = composition.Point{X: point.X, Y: point.Y}
 	}
 	return out
+}
+
+func cameraSceneFit(source, output image.Point, r *presentations.BasisRect) (videoFit, error) {
+	if r == nil {
+		return videoContainFit(source, output)
+	}
+	if !r.Valid() {
+		return videoFit{}, errors.New("camera scene rectangle must have positive size and lie within basis 10000")
+	}
+	w, h := float64(output.X)*float64(r.Width)/10000, float64(output.Y)*float64(r.Height)/10000
+	scale := min(w/float64(source.X), h/float64(source.Y))
+	return videoFit{scale: scale, offsetX: float64(output.X)*float64(r.X)/10000 + (w-float64(source.X)*scale)/2, offsetY: float64(output.Y)*float64(r.Y)/10000 + (h-float64(source.Y)*scale)/2}, nil
 }

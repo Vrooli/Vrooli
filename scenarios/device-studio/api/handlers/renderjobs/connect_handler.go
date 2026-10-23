@@ -85,15 +85,24 @@ func (h *handler) SubmitRender(ctx context.Context, req *connect.Request[shotsv1
 		// public output format remains the shared PNG profile; the renderer's
 		// quality profile is pinned separately in the physical manifest.
 	case shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG:
-		if req.Msg.SampleOutputIndex != 0 || req.Msg.OutputProfile != shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_PREVIEW_PNG_V1 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("physical preview requires its pinned 960×540 PNG profile"))
+		if req.Msg.SampleOutputIndex != 0 || (req.Msg.OutputProfile != shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_PREVIEW_PNG_V1 && req.Msg.OutputProfile != shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_PNG_V1) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("physical preview requires a pinned preview or diagnostic PNG profile"))
 		}
-		profile = domain.OutputProfilePhysicalPreviewPNG
+		if req.Msg.OutputProfile == shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_PNG_V1 {
+			profile = domain.OutputProfilePhysicalDiagnosticPNG
+		} else {
+			profile = domain.OutputProfilePhysicalPreviewPNG
+		}
 	case shotsv1.RenderMode_RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4:
 		if req.Msg.SampleOutputIndex != 0 || req.Msg.OutputProfile != shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_MP4_H264_SDR_V1 {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("physical motion requires the pinned MP4 H.264 SDR output profile"))
 		}
 		profile = domain.OutputProfileMP4
+	case shotsv1.RenderMode_RENDER_MODE_PHYSICAL_DIAGNOSTIC_MOTION_MP4:
+		if req.Msg.SampleOutputIndex != 0 || req.Msg.OutputProfile != shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_MOTION_MP4_V1 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("physical motion diagnostic requires its pinned low-sample MP4 profile"))
+		}
+		profile = domain.OutputProfilePhysicalDiagnosticMotionMP4
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported render mode"))
 	}
@@ -333,7 +342,7 @@ func jobToProto(j jobs.Job, projectID string) *shotsv1.RenderJob {
 	}
 	if a, ok := lastAttempt(j); ok && a.Completion != nil {
 		for _, o := range a.Completion.Outputs {
-			if o.Kind == "still_png" || o.Kind == "physical_still_png" || o.Kind == "physical_preview_png" || o.Kind == "video_sample_png" || o.Kind == "video_mp4" || o.Kind == "physical_motion_mp4" {
+			if o.Kind == "still_png" || o.Kind == "physical_still_png" || o.Kind == "physical_preview_png" || o.Kind == "physical_diagnostic_png" || o.Kind == "video_sample_png" || o.Kind == "video_mp4" || o.Kind == "physical_motion_mp4" {
 				p.Output = &shotsv1.RenderOutput{MediaType: o.MIMEType, SizeBytes: o.SizeBytes, WidthPixels: uint32(o.Width), HeightPixels: uint32(o.Height), Sha256: o.SHA256, ContentUrl: fmt.Sprintf("/api/v1/projects/%s/renders/%s/content", url.PathEscape(j.Input.ProjectID), url.PathEscape(j.ID))}
 				break
 			}
@@ -354,10 +363,13 @@ func renderModeForJob(j jobs.Job) shotsv1.RenderMode {
 	case "", jobs.SubjectStillRender:
 		return shotsv1.RenderMode_RENDER_MODE_STILL
 	case jobs.SubjectPhysicalRender:
-		if j.Input.OutputProfile == domain.OutputProfilePhysicalPreviewPNG {
+		if j.Input.OutputProfile == domain.OutputProfilePhysicalPreviewPNG || j.Input.OutputProfile == domain.OutputProfilePhysicalDiagnosticPNG {
 			return shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG
 		}
-		if j.Input.OutputProfile == domain.OutputProfilePhysicalMotionMP4 || j.Input.OutputProfile == domain.OutputProfilePhysicalMotionMP4V2 || j.Input.OutputProfile == domain.OutputProfilePhysicalRecordingMP4 {
+		if j.Input.OutputProfile == domain.OutputProfilePhysicalDiagnosticMotionMP4 {
+			return shotsv1.RenderMode_RENDER_MODE_PHYSICAL_DIAGNOSTIC_MOTION_MP4
+		}
+		if j.Input.OutputProfile == domain.OutputProfilePhysicalMotionMP4 || j.Input.OutputProfile == domain.OutputProfilePhysicalMotionMP4V2 || j.Input.OutputProfile == domain.OutputProfilePhysicalRecordingMP4 || j.Input.OutputProfile == domain.OutputProfilePhysicalDiagnosticMotionMP4 {
 			return shotsv1.RenderMode_RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4
 		}
 		return shotsv1.RenderMode_RENDER_MODE_PHYSICAL_STILL_PNG

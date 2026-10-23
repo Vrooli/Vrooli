@@ -32,21 +32,31 @@ func newStore(db SQLExecutor) *store { return &store{db: db} }
 // CREATE TABLE IF NOT EXISTS is a no-op there — and every insert fails on the
 // column count.
 func (s *store) migrate(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `ALTER TABLE jobs ADD COLUMN meta TEXT NOT NULL DEFAULT ''`)
-	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
-		return fmt.Errorf("jobs: migrate schema: %w", err)
+	for _, stmt := range []string{
+		`ALTER TABLE jobs ADD COLUMN meta TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN client_operation_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN request_fingerprint TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN execution_timeout_seconds INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE jobs ADD COLUMN test_mode INTEGER NOT NULL DEFAULT 0`,
+	} {
+		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return fmt.Errorf("jobs: migrate schema: %w", err)
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_client_operation ON jobs(client_operation_id) WHERE client_operation_id <> ''`); err != nil {
+		return fmt.Errorf("jobs: migrate operation index: %w", err)
 	}
 	return nil
 }
 
 const insertJobSQL = `
-INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_ref, meta, payload, estimated_seconds, created_at, started_at, finished_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_ref, meta, payload, client_operation_id, request_fingerprint, execution_timeout_seconds, estimated_seconds, test_mode, created_at, started_at, finished_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 func (s *store) insert(ctx context.Context, j Job) error {
 	_, err := s.db.ExecContext(ctx, insertJobSQL,
 		j.ID, j.Operation, string(j.Lane), string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
-		j.Payload, j.EstimatedSeconds, j.CreatedAt.Format(jobTimeFormat), formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt),
+		j.Payload, j.ClientOperationID, j.RequestFingerprint, j.ExecutionTimeoutSeconds, j.EstimatedSeconds, j.TestMode, j.CreatedAt.Format(jobTimeFormat), formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt),
 	)
 	if err != nil {
 		return fmt.Errorf("jobs: insert: %w", err)
@@ -69,7 +79,7 @@ func (s *store) update(ctx context.Context, j Job) error {
 	return nil
 }
 
-const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, meta, payload, estimated_seconds, created_at, started_at, finished_at`
+const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, meta, payload, client_operation_id, request_fingerprint, execution_timeout_seconds, estimated_seconds, test_mode, created_at, started_at, finished_at`
 
 // encodeMeta stores an absent map as the empty string rather than "{}" so a row
 // that carries no backend record is distinguishable from one that carries an
@@ -100,6 +110,11 @@ func decodeMeta(raw string) map[string]string {
 
 func (s *store) get(ctx context.Context, id string) (Job, error) {
 	row := s.db.QueryRowContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE id=?", id)
+	return scanJob(row)
+}
+
+func (s *store) getByClientOperation(ctx context.Context, operationID string) (Job, error) {
+	row := s.db.QueryRowContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE client_operation_id=?", operationID)
 	return scanJob(row)
 }
 
@@ -177,16 +192,18 @@ type scanner interface {
 
 func scanJob(sc scanner) (Job, error) {
 	var (
-		j                     Job
-		lane, state           string
-		createdAt             string
-		startedAt, finishedAt string
-		meta                  string
-		payload               []byte
+		j                                     Job
+		lane, state                           string
+		createdAt                             string
+		startedAt, finishedAt                 string
+		meta                                  string
+		clientOperationID, requestFingerprint string
+		payload                               []byte
+		testMode                              bool
 	)
 	if err := sc.Scan(
 		&j.ID, &j.Operation, &lane, &state, &j.Progress, &j.Message, &j.Error, &j.ResultRef, &meta,
-		&payload, &j.EstimatedSeconds, &createdAt, &startedAt, &finishedAt,
+		&payload, &clientOperationID, &requestFingerprint, &j.ExecutionTimeoutSeconds, &j.EstimatedSeconds, &testMode, &createdAt, &startedAt, &finishedAt,
 	); err != nil {
 		return Job{}, fmt.Errorf("jobs: scan: %w", err)
 	}
@@ -194,6 +211,9 @@ func scanJob(sc scanner) (Job, error) {
 	j.State = State(state)
 	j.Meta = decodeMeta(meta)
 	j.Payload = payload
+	j.ClientOperationID = clientOperationID
+	j.RequestFingerprint = requestFingerprint
+	j.TestMode = testMode
 	t, err := time.Parse(jobTimeFormat, createdAt)
 	if err != nil {
 		return Job{}, fmt.Errorf("jobs: parse created_at: %w", err)

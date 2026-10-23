@@ -74,6 +74,7 @@ func (h *Deps) runHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.MultipartForm.RemoveAll()
 	inputBytes, ok := h.readImagePart(w, r, "file")
 	if !ok {
 		return
@@ -96,7 +97,11 @@ func (h *Deps) runHandler(w http.ResponseWriter, r *http.Request) {
 			params.OverlayImage = overlay
 		}
 	}
-	if operation == "composite" {
+	if operation == "composite" || operation == "parallax" {
+		if (operation == "parallax" || params.Camera != nil) && len(params.Plates) > 8 {
+			httpx.WriteError(w, 422, httpx.CodeInvalidRequest, "Layered views permit at most eight prepared plates")
+			return
+		}
 		// Plate pixels arrive as `plate0`, `plate1`, … parts, positionally
 		// matched to the declared plate list. A stack of full-size rasters does
 		// not belong in a JSON parameter, and the positional pairing is checked
@@ -117,7 +122,11 @@ func (h *Deps) runHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, runErr := internalops.Execute(operation, inputBytes, params)
+	if operation == "parallax" {
+		h.submitParallax(w, r, inputBytes, params)
+		return
+	}
+	res, runErr := internalops.ExecuteContext(r.Context(), operation, inputBytes, params)
 	if runErr != nil {
 		// Record the failure for observability, then surface it as a 422 — these
 		// are client-side bad params / undecodable images, not server faults.

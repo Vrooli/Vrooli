@@ -458,3 +458,12 @@ piece into an owning domain instead of growing infrastructure.
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — dependency contracts
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — boundary registry
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test strategy
+
+
+### Layered 2.5D nearby views
+
+The deterministic `composite` operation owns a bounded pinhole-camera view of prepared, full-canvas color/alpha layers at explicit relative distances. Image Tools also owns optional depth estimation, segmentation and inpainting used to prepare those layers. This extends the existing compositing contract; it is not automatic scene reconstruction. Video orchestration and calibrated live-screen replacement remain Device Studio's responsibilities.
+
+When `composite.camera` is supplied, require finite bounded camera values and a positive distance for every layer. Render sorted stack depth far-to-near. Keep alpha and bilinear edge sampling; do not invent hidden pixels. A `require_opaque` request must fail if the result has uncovered or translucent pixels. Provide filled background/overscan layers or an explicitly chosen background before claiming a finished nearby view. Omitted camera retains legacy compositing. Do not use plane motion for a lid opening, a large orbit, or a newly exposed device side. Keep hardware and its active screen on the same plane/transform when a consumer prepares such a layer.
+
+Research and current limits are retained in `docs/reference/layered-photography.md`. Local deterministic rendering needs no new model download. Learned depth and inpainting retain their existing model/readiness/license gates.

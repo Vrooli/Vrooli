@@ -44,6 +44,29 @@ func TestWarmSidecarRunner_AmortizesPythonImport(t *testing.T) {
 	}
 }
 
+func TestWarmSidecarRunner_ReapsOperationAdmittedWorkerBeforeReturning(t *testing.T) {
+	root, imports, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	runner := newWarmSidecarRunner()
+	t.Cleanup(func() { _ = runner.Close() })
+	ctx := context.WithValue(context.Background(), operationMemoryContextKey{}, true)
+	for i := 0; i < 2; i++ {
+		out := filepath.Join(outputs, fmt.Sprintf("admitted-%d.txt", i))
+		if err := runner.Run(ctx, "python3", []string{"-m", "benchmark_sidecar.sleepy", "--out", out}); err != nil {
+			t.Fatal(err)
+		}
+		if runner.cmd != nil || runner.exited != nil || runner.idleTimer != nil {
+			t.Fatal("operation returned with a resident worker after its RAM ownership ended")
+		}
+		if _, err := os.Stat(out); err != nil {
+			t.Fatalf("worker did not complete output before reaping: %v", err)
+		}
+	}
+	if got := importCount(t, imports); got != 2 {
+		t.Fatalf("each admitted operation should own and reap its worker, imports=%d", got)
+	}
+}
+
 func TestWarmSidecarRunner_ReturnsSidecarFailuresAndRestarts(t *testing.T) {
 	root, _, outputs := writeSleepySidecarPackage(t)
 	writeWarmFailureModule(t, root)
@@ -78,6 +101,43 @@ func TestWarmSidecarRunner_StartAndCancelFailures(t *testing.T) {
 	if err := runner.Run(ctx, "python3", []string{"-m", "benchmark_sidecar.long_sleep"}); err == nil || !strings.Contains(err.Error(), "deadline") {
 		t.Fatalf("expected context deadline, got %v", err)
 	}
+}
+
+func TestWarmSidecarRunner_ReapsIdleProcessAndStartsFresh(t *testing.T) {
+	root, imports, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	runner := newWarmSidecarRunner()
+	runner.idleTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { _ = runner.Close() })
+	args := []string{"-m", "benchmark_sidecar.sleepy", "--out", filepath.Join(outputs, "idle.txt")}
+	if err := runner.Run(context.Background(), "python3", args); err != nil {
+		t.Fatal(err)
+	}
+	runner.mu.Lock()
+	exited := runner.exited
+	runner.mu.Unlock()
+	select {
+	case <-exited:
+	case <-time.After(3 * time.Second):
+		t.Fatal("unused model worker remained resident")
+	}
+	if err := runner.Run(context.Background(), "python3", args); err != nil {
+		t.Fatal(err)
+	}
+	if got := importCount(t, imports); got != 2 {
+		t.Fatalf("expected fresh model process after eviction; imports=%d", got)
+	}
+}
+
+func TestWarmSidecarRunner_QueuedCancellationDoesNotLaunch(t *testing.T) {
+	runner := newWarmSidecarRunner()
+	runner.gate <- struct{}{} // simulate an active inference
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := runner.Run(ctx, "must-not-launch", nil); err != context.Canceled {
+		t.Fatalf("queued cancellation = %v", err)
+	}
+	<-runner.gate
 }
 
 func BenchmarkWarmSidecarRunner_AmortizesModuleLoad(b *testing.B) {

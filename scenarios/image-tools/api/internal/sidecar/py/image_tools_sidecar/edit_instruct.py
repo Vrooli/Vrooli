@@ -38,7 +38,7 @@ def _parse_args() -> argparse.Namespace:
         help="image-guidance / edit-strength scale (higher = stay closer to the source)",
     )
     p.add_argument("--seed", type=int, default=0, help="RNG seed (0 = nondeterministic)")
-    return p.parse_args()
+    return _common.parse_device_args(p)
 
 
 def main() -> None:

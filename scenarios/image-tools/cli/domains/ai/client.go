@@ -37,7 +37,7 @@ const GroupName = "ai"
 // submitAI posts the optional input/mask images + protojson params to the REST
 // submit edge and returns the parsed SubmitAIResponse. inputPath/maskPath may be
 // empty (text_to_image needs neither).
-func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, params *aiv1.AIParams) (*aiv1.SubmitAIResponse, error) {
+func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, params *aiv1.AIParams, operationID string) (*aiv1.SubmitAIResponse, error) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	if inputPath != "" {
@@ -70,6 +70,9 @@ func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, p
 		return nil, err
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
+	if operationID != "" {
+		req.Header.Set("Idempotency-Key", operationID)
+	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {

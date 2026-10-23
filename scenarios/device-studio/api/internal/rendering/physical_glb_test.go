@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"device-studio/internal/devices"
+	"device-studio/internal/physical"
 	"device-studio/internal/scenes"
 )
 
@@ -234,6 +236,118 @@ func TestResolvePhysicalScreenGeometryDerivesOnlyUniqueFullRectPrimitive(t *test
 	if _, err := ResolvePhysicalScreenGeometry(ambiguous, candidate, "front"); err == nil || !strings.Contains(err.Error(), "complete screen primitive/material pair") {
 		t.Fatalf("one-sided pinned screen selector was accepted: %v", err)
 	}
+}
+
+func TestResolvePhysicalDisplayCornersUsesSelectedPanelGeometry(t *testing.T) {
+	data := physicalDisplayQuadFixtureGLB(t)
+	manifest := validPhysicalManifest(t)
+	candidate, err := decodeDevice(manifest.Device.CanonicalJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate.Geometry.SizeBytes = int64(len(data))
+	candidate.Geometry.SHA256 = sha256Bytes(data)
+	candidate.Definition.Displays[0].CoordinateMetric = &devices.DisplayMetric{WidthMM: 100, HeightMM: 100}
+	corners, err := ResolvePhysicalDisplayCorners(data, candidate, "front")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [4]physical.Vec3{{X: 0, Y: 1}, {X: 1, Y: 1}, {X: 1}, {X: 0}}
+	if corners != want {
+		t.Fatalf("resolved active display viewport = %#v, want %#v", corners, want)
+	}
+}
+
+func TestResolvePhysicalDisplayContentCornersSamplesContainedRasterThroughUVTriangles(t *testing.T) {
+	data := physicalDisplayQuadFixtureGLB(t)
+	manifest := validPhysicalManifest(t)
+	candidate, err := decodeDevice(manifest.Device.CanonicalJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate.Geometry.SizeBytes = int64(len(data))
+	candidate.Geometry.SHA256 = sha256Bytes(data)
+	candidate.Definition.Displays[0].CoordinateMetric = &devices.DisplayMetric{WidthMM: 100, HeightMM: 100}
+	corners, err := ResolvePhysicalDisplayContainedContentCorners(data, candidate, "front", 100, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [4]physical.Vec3{{X: 0, Y: 1}, {X: 1, Y: 1}, {X: 1}, {X: 0}}
+	if corners != want {
+		t.Fatalf("UV-sampled content corners = %#v, want %#v", corners, want)
+	}
+}
+
+func TestPhysicalScreenContentCornersFollowInsetSkewedIndexedUVTriangles(t *testing.T) {
+	data := physicalDisplayQuadFixtureGLB(t)
+	chunks, err := splitGLBChunks(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(chunks[0], &doc); err != nil {
+		t.Fatal(err)
+	}
+	// The bottom UV edge is inset and the chart is slightly skewed. The
+	// physical positions remain a simple square, so exact triangle sampling has
+	// a known answer while nearest-corner and AABB approximations do not.
+	uvs := [][2]float32{{.005, .004}, {.995, .006}, {.997, 1}, {0, .998}}
+	for index, uv := range uvs {
+		for axis, value := range uv {
+			offset := 96 + index*8 + axis*4
+			binary.LittleEndian.PutUint32(chunks[1][offset:offset+4], math.Float32bits(value))
+		}
+	}
+	data = encodePhysicalGLBWithBinary(t, doc, chunks[1])
+	inventory, err := InspectPhysicalGLB(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	primitive := inventory.Meshes[0].Primitives[0]
+	points, err := physicalGLBPrimitivePositionsAtUV(data, primitive, [4][2]float64{{.2, .8}, {.8, .8}, {.8, .2}, {.2, .2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [4]physical.Vec3{{X: .197, Y: .2}, {X: .802, Y: .2}, {X: .802, Y: .8}, {X: .2, Y: .8}}
+	for i := range want {
+		if physicalDistance(points[i], want[i]) > .006 {
+			t.Fatalf("UV triangle sample %d = %#v, want near %#v", i, points[i], want[i])
+		}
+	}
+	if _, err := physicalGLBPrimitivePositionsAtUV(data, primitive, [4][2]float64{{0, 0}, {1, 0}, {1, 1}, {0, 1}}); err == nil {
+		t.Fatal("UV targets clipped outside the indexed chart were accepted")
+	}
+}
+
+func physicalDisplayQuadFixtureGLB(t *testing.T) []byte {
+	t.Helper()
+	doc := physicalFixtureDocument()
+	accessors := doc["accessors"].([]any)
+	accessors[0] = map[string]any{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3", "min": []any{0, 0, 0}, "max": []any{1, 1, 0}}
+	accessors[1] = map[string]any{"bufferView": 1, "componentType": 5126, "count": 4, "type": "VEC3"}
+	accessors[2] = map[string]any{"bufferView": 2, "componentType": 5126, "count": 4, "type": "VEC2"}
+	accessors[3] = map[string]any{"bufferView": 3, "componentType": 5123, "count": 6, "type": "SCALAR"}
+	doc["bufferViews"] = []any{
+		map[string]any{"buffer": 0, "byteOffset": 0, "byteLength": 48},
+		map[string]any{"buffer": 0, "byteOffset": 48, "byteLength": 48},
+		map[string]any{"buffer": 0, "byteOffset": 96, "byteLength": 32},
+		map[string]any{"buffer": 0, "byteOffset": 128, "byteLength": 12},
+	}
+	doc["buffers"] = []any{map[string]any{"byteLength": 140}}
+	bin := make([]byte, 140)
+	putFloats := func(offset int, values ...float32) {
+		for _, value := range values {
+			binary.LittleEndian.PutUint32(bin[offset:offset+4], math.Float32bits(value))
+			offset += 4
+		}
+	}
+	putFloats(0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0)
+	putFloats(48, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1)
+	putFloats(96, 0, 0, 1, 0, 1, 1, 0, 1)
+	for i, index := range []uint16{0, 1, 2, 0, 2, 3} {
+		binary.LittleEndian.PutUint16(bin[128+i*2:130+i*2], index)
+	}
+	return encodePhysicalGLBWithBinary(t, doc, bin)
 }
 
 func TestPhysicalScreenUVBoundsUseOnlyIndexedVertices(t *testing.T) {

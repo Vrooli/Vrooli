@@ -46,6 +46,37 @@ func TestPhysicalMotionOutputPinsClosedProfileAndMutualExclusion(t *testing.T) {
 	}
 }
 
+func TestPhysicalCameraEndpointBindingIsTypedAndBoundToOutput(t *testing.T) {
+	valid := &shotsv1.PhysicalShotBinding{
+		DisplayId:      "display",
+		MotionOutput:   &shotsv1.PhysicalMotionOutputBinding{Width: 1920, Height: 1080},
+		CameraEndpoint: &shotsv1.PhysicalCameraEndpoint{DisplayId: "display", RasterWidth: 1920, RasterHeight: 1080, X: .36, Y: .2, Width: .583333333333, Height: .583333333333},
+	}
+	if err := validatePhysicalCameraEndpointBinding(valid); err != nil {
+		t.Fatalf("valid endpoint rejected: %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		mutate func(*shotsv1.PhysicalShotBinding)
+	}{
+		{"requires-motion-output", func(b *shotsv1.PhysicalShotBinding) { b.MotionOutput = nil }},
+		{"requires-selected-display", func(b *shotsv1.PhysicalShotBinding) { b.CameraEndpoint.DisplayId = "other" }},
+		{"matches-output-raster", func(b *shotsv1.PhysicalShotBinding) { b.CameraEndpoint.RasterWidth = 1280 }},
+		{"contained-target", func(b *shotsv1.PhysicalShotBinding) { b.CameraEndpoint.X = .8 }},
+		{"bounded-error", func(b *shotsv1.PhysicalShotBinding) { b.CameraEndpoint.MaxErrorPixels = 9 }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			bad := proto.Clone(valid).(*shotsv1.PhysicalShotBinding)
+			tc.mutate(bad)
+			if err := validatePhysicalCameraEndpointBinding(bad); err == nil {
+				t.Fatal("invalid endpoint binding was accepted")
+			}
+		})
+	}
+}
+
 func TestPhysicalArticulationRequiresOneStaticRasterMotionTrack(t *testing.T) {
 	output := &shotsv1.PhysicalMotionOutputBinding{ProfileId: rendering.PhysicalMotionOutput, ProfileVersion: 1}
 	joint := motions.MotionTrack{Target: motions.TrackTarget{JointID: "lid-hinge"}}

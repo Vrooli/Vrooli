@@ -7,6 +7,52 @@ import (
 	"testing"
 )
 
+func TestStationaryEntryKeepsRoomStillWhileScreenTravels(t *testing.T) {
+	scene := image.NewNRGBA(image.Rect(0, 0, 80, 60))
+	for y := 0; y < 60; y++ {
+		for x := 0; x < 80; x++ {
+			scene.SetNRGBA(x, y, color.NRGBA{R: uint8(x * 2), G: uint8(y * 3), A: 255})
+		}
+	}
+	app := image.NewNRGBA(image.Rect(0, 0, 16, 10))
+	for y := 0; y < 10; y++ {
+		for x := 0; x < 16; x++ {
+			app.SetNRGBA(x, y, color.NRGBA{B: 255, A: 255})
+		}
+	}
+	from := [4]Point{{20, 20}, {40, 18}, {40, 38}, {20, 40}}
+	to := [4]Point{{45, 15}, {75, 15}, {75, 35}, {45, 35}}
+	matte := color.NRGBA{R: 7, G: 20, B: 34, A: 255}
+	got, err := RenderStationaryScreenEntry(context.Background(), scene, to, app, matte, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !samePixel(got.At(8, 8), scene.At(8, 8)) {
+		t.Fatal("room changed with zero fade")
+	}
+	if !samePixel(got.At(60, 25), app.At(5, 5)) {
+		t.Fatal("direct app did not follow its moving screen")
+	}
+	zero, err := RenderStationaryScreenEntry(context.Background(), scene, from, app, matte, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !samePixel(zero.At(8, 8), got.At(8, 8)) {
+		t.Fatal("screen position rotates the room")
+	}
+	end, err := RenderStationaryScreenEntry(context.Background(), scene, to, app, matte, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := RenderScreenEntryEndpoint(context.Background(), image.Pt(80, 60), app, to, matte)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !samePixel(end.At(8, 8), want.At(8, 8)) || !samePixel(end.At(60, 25), want.At(60, 25)) {
+		t.Fatal("stationary endpoint differs from direct handoff")
+	}
+}
+
 func TestProjectRasterRectUsesCompositionContainAndHomography(t *testing.T) {
 	quad := [4]Point{{10, 20}, {190, 10}, {180, 180}, {20, 170}}
 	got, err := ProjectRasterRect(image.Pt(200, 100), image.Pt(200, 180), quad, image.Rect(13, 17, 213, 117), image.Rect(13, 17, 213, 117))

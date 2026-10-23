@@ -157,5 +157,6 @@ func (h *handlers) runCommands() []cliapp.Command {
 		cmd("pixel_sort", "Sort bright runs along an axis", h.pixelSortParams, cliapp.Flag{Name: "threshold", Description: "Luminance threshold 0..1"}, cliapp.Flag{Name: "axis", Description: "horizontal|vertical"}),
 		cmd("displacement", "Offset pixels through a deterministic field", h.displacementParams, cliapp.Flag{Name: "amplitude", Description: "Displacement amplitude in pixels"}, cliapp.Flag{Name: "amplitude-rel", Description: "Displacement amplitude as a fraction of the short edge; wins over --amplitude"}, cliapp.Flag{Name: "spacing", Description: "Displacement field wavelength in pixels"}, cliapp.Flag{Name: "spacing-rel", Description: "Field wavelength as a fraction of the short edge; wins over --spacing"}, cliapp.Flag{Name: "seed", Description: "Deterministic seed"}),
 	)
+	commands = append(commands, h.layeredCommand("composite", "Compose prepared depth layers into one PNG view"), h.layeredCommand("parallax", "Render prepared layers into a lossless parallax PNG sequence ZIP"))
 	return commands
 }

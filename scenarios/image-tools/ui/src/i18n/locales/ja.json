@@ -868,6 +868,31 @@
       "foliage": "植物",
       "background": "背景",
       "object": "オブジェクト"
+    },
+    "objectMask": {
+      "title": "オブジェクトマスク",
+      "tool": "選択ツール",
+      "colorTool": "色による選択",
+      "hint": "残すオブジェクトを指定してください。不要な領域には除外ポイントを追加し、マスクを更新します。",
+      "imageAction": "画像にポイントを配置します。キーボードでは座標入力を使います。",
+      "pointKind": "ポイントの種類",
+      "include": "含める",
+      "exclude": "除外する",
+      "addPoint": "ポイントを追加",
+      "undo": "ポイントを戻す",
+      "clear": "ポイントを消去",
+      "model": "オブジェクトモデル",
+      "automatic": "利用可能なモデルを選択",
+      "disclosure": "透明度マットではなく、二値のオブジェクト領域を作成します。モデルはローカルで実行され、インストールが必要です。",
+      "run": "マスクを更新",
+      "running": "マスクを準備中 · {{percent}}%",
+      "cancel": "ジョブをキャンセル",
+      "manageModels": "ローカルモデルを管理",
+      "cancelFailed": "キャンセルを確認できませんでした: {{message}}",
+      "ready": "マスクの準備完了 · {{model}}",
+      "download": "マスクをダウンロード",
+      "mobileSam": "MobileSAM",
+      "sam2Tiny": "SAM 2.1 Tiny"
     }
   },
   "compare": {
@@ -907,5 +932,35 @@
     "metricPhashSimilarity": "pHash 類似度",
     "metricSsim": "SSIM",
     "warningsHeading": "警告"
+  },
+  "preparation": {
+    "title": "準備済みシーン",
+    "description": "元の画像と修復した背景を比較し、レビューを新しいリビジョンとして保存します。",
+    "loading": "シーンを読み込み中…",
+    "empty": "準備済みシーンはまだありません。準備が完了すると、ここで比較とレビューができます。",
+    "choose": "準備済みシーンを選択",
+    "status": {
+      "pending": "要レビュー",
+      "accepted": "承認済み",
+      "rejected": "要修復"
+    },
+    "source": "元の写真",
+    "cleanPlate": "準備した背景",
+    "sourceAlt": "背景修復前の元のシーン",
+    "cleanPlateAlt": "目視確認用の修復済み背景",
+    "estimated": "カメラ形状と距離は写真からの推定値です。輪郭、机の質感、影、新しく見える領域を確認してください。",
+    "download": "シーンバンドルをダウンロード",
+    "reviewer": "レビュー担当者",
+    "rationale": "確認した内容",
+    "evidence": "サンプルまたは証拠の参照（1行に1件）",
+    "overscan": "提案されたカメラ移動の全体と、新しく見える領域を確認しました。",
+    "accept": "この背景を承認",
+    "reject": "修復を依頼",
+    "saving": "新しいリビジョンを保存中…",
+    "contextTitle": "利用できる背景情報",
+    "coverage": "元の画像の{{percent}}%を再構成する必要があります。これは確認の目安であり、品質の予測ではありません。",
+    "largeMask": "広い領域を生成する必要があります。より広い構図の画像なら背景情報が増えます。",
+    "clippedContext": "必要な周辺領域が画像の端を越えています。",
+    "downscaled": "推論時に大きな領域が縮小されました。最終出力サイズで質感を確認してください。"
   }
 }

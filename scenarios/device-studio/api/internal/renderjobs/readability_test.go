@@ -41,11 +41,13 @@ func TestReadabilityStaleRevisionIsCallerInvalidAndMissingJobIsNotFound(t *testi
 func TestReadabilityAcceptsOnlyFinalStillAndVideoProfiles(t *testing.T) {
 	require.True(t, readabilityFinalStillProfile(OutputProfilePNG))
 	require.False(t, readabilityFinalStillProfile(OutputProfilePhysicalPreviewPNG))
+	require.False(t, readabilityFinalStillProfile(OutputProfilePhysicalDiagnosticPNG))
 	require.False(t, readabilityFinalStillProfile(OutputProfileMP4))
 	require.True(t, isFinalVideoProfile(OutputProfileMP4))
 	require.True(t, isFinalVideoProfile(OutputProfilePhysicalMotionMP4))
 	require.True(t, isFinalVideoProfile(OutputProfilePhysicalMotionMP4V2))
 	require.True(t, isFinalVideoProfile(OutputProfilePhysicalRecordingMP4))
 	require.False(t, isFinalVideoProfile(OutputProfilePhysicalPreviewPNG))
+	require.False(t, isFinalVideoProfile(OutputProfilePhysicalDiagnosticPNG))
 	require.False(t, isFinalVideoProfile("video-sample-png-v1"))
 }

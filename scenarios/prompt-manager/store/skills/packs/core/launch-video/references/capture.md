@@ -53,12 +53,38 @@ connection, then cut faster between related formats. Starting every shot inside
 an isolated viewer can hide the integration that makes the feature useful. The
 first reveal and later repetitive travel have different editorial value.
 
+Keep the complete product viewport as the default when a single desktop/device
+establishes the scene. Capture dialogs within that workspace, rather than cutting
+the dialog out and presenting it as a differently shaped screen. A deliberate
+detail can be useful, but establish where it came from, motivate the move, retain
+aspect and return to context. Use a consistent base viewport/raster across takes;
+different source dimensions need an explicit contain transform, not hidden crops.
+
 For a reading sequence, decide whether the viewer should read specific words or
 recognize the richness and breadth of a conversation. Capture enough messages,
 sections or native reply navigation for that purpose. Compress travel between
 distinct answers, tables, diagrams or decisions, then settle on the useful detail.
 A slow scroll over a few lines does not demonstrate breadth; accelerating an
 insufficient take does not reveal content that was never captured.
+
+Choose conversation-list scrolling when showing the breadth of a thread; a
+focused-reader next/previous action is a different demonstration. Do not silently
+substitute reply jumps for a requested continuous scroll. Give scrolls a shaped
+velocity: accelerate through travel, coast, ease into a distinct useful reply.
+Pause only where the viewer gains something. Search footage needs an actual typed
+query and visible useful result. Use plausible uneven keystroke/word pauses;
+opening search and holding an empty field does not demonstrate finding anything.
+
+Voice proof should show a turn-taking exchange through the product's actual voice
+controls, captions and response state when that is the promised experience.
+Settings prove configuration, not conversation. For authorized mocked capture,
+use the unmodified frontend with contract-conformant capability/signaling,
+speaker-labelled transcript events and recorded/generated audio at the boundary.
+Drive the real mic/control state and retain the exact fixture and audio timing;
+do not paint captions, force internal UI state, or fabricate successful live
+provider execution. Block unhandled traffic. Disclose authored voice/UI fixture
+scope in the report and retain necessary in-film eligibility/setup qualifiers.
+A mock does not establish recognition quality, provider latency or account access.
 
 For session management, test a visible transformation: move related sessions into
 a group, change a label/color/icon, collapse the group and reveal the resulting
@@ -95,13 +121,22 @@ For each, record the stronger native action attempted, or the specific viewer
 reason for retaining the hold. A pan over a still does not close an omitted
 workflow finding. Recapture before adding effects when source coverage is weak.
 
-Choose a pointer deliberately for this product's direction. Retain observed
-positions/timestamps and indicate whether it is baked in or added during replay.
-Do not add a second pointer or fabricate an observed gesture. Retain a clean
-source where supported so another pointer can be chosen later. Inspect style
-scale and contrast on both light and dark UI; a default white arrow is not an
-intentional campaign choice. Cursor-free shots can be valid when no action needs
-pointing. Choose a locked camera when a pan would compete with the real pointer.
+For desktop interaction footage, select a named BAS cursor preset and record its
+scale and baked/replayed status before capture. Show one pointer throughout the
+operated sequence. Move it continuously to each actual target, anticipate the
+click, show a restrained click effect, then park it for typing, scrolling and
+reading. An automated click without visible travel can teleport; a headless
+recording may omit the OS pointer entirely. Inspect the encoded take, including
+iframe controls, drag paths and edit boundaries. Do not add a second pointer or
+invent gestures that did not drive the product. A hard cut can change pointer
+position; an unbroken action or matched device handoff cannot. Reserve cursor-free
+captures for explicitly passive imagery or operator direction, not missing capture
+support. For touch footage, show contact feedback from observed taps; do not add a
+desktop arrow. BAS owns cursor geometry and replay interpolation. Its
+`scripts/capture/pointer.mjs` adapter supports explicitly selected `arrowLight`
+for a Puppeteer-compatible desktop fixture; it records actual move/down/up events
+and uses BAS's arrow path. Other paths use BAS replay/export settings. Review
+contrast and scale on the final placed screen, not only the full-size source.
 
 Record these facts per source:
 

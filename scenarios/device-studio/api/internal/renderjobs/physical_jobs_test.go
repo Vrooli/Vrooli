@@ -53,6 +53,8 @@ func TestPhysicalInputBuilderFingerprintBindsCompiledShotClosure(t *testing.T) {
 		outputProfile := OutputProfilePNG
 		if closure.Manifest.Output.ProfileID == rendering.PhysicalPreviewProfile {
 			outputProfile = OutputProfilePhysicalPreviewPNG
+		} else if closure.Manifest.Output.ProfileID == rendering.PhysicalDiagnosticProfile {
+			outputProfile = OutputProfilePhysicalDiagnosticPNG
 		}
 		input := physicalJobInput(route, closure, closureBlobPrefix+closureSHA+".json", closureSHA, closure.WorkerKey, closure.WorkerSHA256, outputProfile)
 		_, fingerprint, err := jobs.CanonicalInput(input)

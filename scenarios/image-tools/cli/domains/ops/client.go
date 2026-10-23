@@ -64,6 +64,10 @@ func extToFormat(outPath string) string {
 // the `overlay` multipart part (image watermark). outFormat, when non-empty,
 // requests that output encoding via the `?format=` query.
 func runOp(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outFormat string, params *opsv1.OpParams) (runResult, error) {
+	return runOpWithPlates(core, operation, inputPath, overlayPath, outFormat, params, nil, "")
+}
+
+func runOpWithPlates(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outFormat string, params *opsv1.OpParams, plates []string, operationID string) (runResult, error) {
 	imgBytes, err := os.ReadFile(inputPath)
 	if err != nil {
 		return runResult{}, fmt.Errorf("read input %q: %w", inputPath, err)
@@ -100,6 +104,19 @@ func runOp(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outForma
 			return runResult{}, oerr
 		}
 	}
+	for i, path := range plates {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return runResult{}, fmt.Errorf("read plate %d: %w", i, err)
+		}
+		part, err := mw.CreateFormFile(fmt.Sprintf("plate%d", i), filepath.Base(path))
+		if err != nil {
+			return runResult{}, err
+		}
+		if _, err = part.Write(data); err != nil {
+			return runResult{}, err
+		}
+	}
 	if err := mw.Close(); err != nil {
 		return runResult{}, err
 	}
@@ -114,6 +131,9 @@ func runOp(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outForma
 		return runResult{}, err
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
+	if operationID != "" {
+		req.Header.Set("Idempotency-Key", operationID)
+	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -123,6 +143,13 @@ func runOp(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outForma
 	out, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return runResult{}, err
+	}
+	if resp.StatusCode == http.StatusAccepted {
+		var accepted opsv1.RunOpResponse
+		if err := protojson.Unmarshal(out, &accepted); err != nil {
+			return runResult{}, err
+		}
+		return runResult{jobID: accepted.GetJobId(), format: "queued"}, nil
 	}
 	if resp.StatusCode != http.StatusOK {
 		return runResult{}, fmt.Errorf("%s failed (%d): %s", operation, resp.StatusCode, strings.TrimSpace(string(out)))

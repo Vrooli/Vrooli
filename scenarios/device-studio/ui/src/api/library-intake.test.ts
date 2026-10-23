@@ -30,6 +30,7 @@ import {
   MAX_LOCAL_GEOMETRY_BYTES,
   correctLocalGeometryMaterial,
   getLocalGeometryMaterials,
+  getLocalGeometryPreview,
   getLocalGeometryCreationLineage,
 } from "./library-intake";
 
@@ -149,6 +150,39 @@ describe("library intake API client boundaries", () => {
     expect(mocks.getFile).toHaveBeenCalledWith("/library/intake-candidates/candidate-1/revisions/1/materials?revision_sha256=revision-hash");
     mocks.getFile.mockResolvedValue(new Response(JSON.stringify({ candidate_id: "candidate-1", revision: 1, revision_sha256: "different", glb_sha256: candidate.originalSha256, materials: [] }), { status: 200 }));
     await expect(getLocalGeometryMaterials(candidate as never)).rejects.toThrow(/exact imported candidate revision/);
+  });
+
+  it("accepts only an exact, bounded three-view preview for the immutable candidate", async () => {
+    const candidate = candidateJSON();
+    const png = new Uint8Array(24);
+    png.set([137, 80, 78, 71, 13, 10, 26, 10]);
+    const view = new DataView(png.buffer);
+    view.setUint32(16, 768, false);
+    view.setUint32(20, 256, false);
+    const previewDigest = [...new Uint8Array(await webcrypto.subtle.digest("SHA-256", png))]
+      .map((value) => value.toString(16).padStart(2, "0")).join("");
+    const headers = new Headers({
+      "Content-Type": "image/png",
+      "X-Intake-Candidate-ID": "candidate-1",
+      "X-Intake-Revision": "1",
+      "X-Intake-Revision-SHA256": "revision-hash",
+      "X-Intake-GLB-SHA256": candidate.originalSha256 as string,
+      "X-Intake-Preview-Review": "unreviewed",
+      "X-Intake-Preview-Scale": "not-estimated",
+      "X-Intake-Preview-SHA256": previewDigest,
+      "X-Intake-Preview-Vertex-Colors": "true",
+    });
+    mocks.getFile.mockResolvedValue(new Response(Buffer.from(png), { status: 200, headers }));
+
+    await expect(getLocalGeometryPreview(candidate as never)).resolves.toMatchObject({
+      preview_sha256: previewDigest, vertex_colors: true, width: 768, height: 256,
+    });
+    expect(mocks.getFile).toHaveBeenCalledWith("/library/intake-candidates/candidate-1/revisions/1/preview?revision_sha256=revision-hash");
+
+    const wrongRevisionHeaders = new Headers(headers);
+    wrongRevisionHeaders.set("X-Intake-Revision-SHA256", "other-revision");
+    mocks.getFile.mockResolvedValueOnce(new Response(Buffer.from(png), { status: 200, headers: wrongRevisionHeaders }));
+    await expect(getLocalGeometryPreview(candidate as never)).rejects.toThrow(/exact unreviewed candidate revision/);
   });
 
   it("posts one exact local correction request and refuses a promoted or mismatched child", async () => {

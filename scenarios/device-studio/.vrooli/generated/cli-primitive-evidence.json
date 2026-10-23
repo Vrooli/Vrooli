@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "19e8a0de422f28bb3d21bdb115cd94666c680ce04212cb4c362dcc5a518fd979",
+  "manifest_hash": "81b113a4186a06dd34f883b3cd7fba8babbaf391dc0cf27b8ef5c2cf5ef64db7",
   "commands": [
     {
       "path": "creation cancel",
@@ -31,6 +31,14 @@
       "observed_primitive": "action"
     },
     {
+      "path": "devices export-qualification-package",
+      "group": "devices",
+      "command": "export-qualification-package",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
       "path": "devices get",
       "group": "devices",
       "command": "get",
@@ -45,6 +53,14 @@
       "binding": "DevicesService.GetDeviceHead",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "devices import-qualification-package",
+      "group": "devices",
+      "command": "import-qualification-package",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "devices list",
@@ -119,6 +135,12 @@
       "path": "library intake-materials",
       "group": "library",
       "command": "intake-materials",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "library intake-preview",
+      "group": "library",
+      "command": "intake-preview",
       "observed_primitive": "action"
     },
     {
@@ -351,6 +373,30 @@
       "binding": "RenderJobsService.SubmitRender",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scenes fit-known-camera-pose",
+      "group": "scenes",
+      "command": "fit-known-camera-pose",
+      "binding": "ScenesService.FitKnownCameraPose",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scenes from-preparation",
+      "group": "scenes",
+      "command": "from-preparation",
+      "binding": "ScenesService.ImportPreparedPhotograph",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "scenes geometry-qa",
+      "group": "scenes",
+      "command": "geometry-qa",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "scenes get",

@@ -28,19 +28,53 @@ const (
 )
 
 type SceneCandidate struct {
-	Version              string                 `json:"version"`
-	SceneID              string                 `json:"scene_id"`
-	CoordinateConvention string                 `json:"coordinate_convention"`
-	Artifacts            []SceneArtifactBinding `json:"artifacts"`
-	Materials            []SceneMaterial        `json:"materials"`
-	MaterialSlots        []SceneMaterialSlot    `json:"material_slots"`
-	Parts                []ScenePart            `json:"parts"`
-	SupportFrames        []SceneSupportFrame    `json:"support_frames"`
-	SupportSlots         []SceneSupportSlot     `json:"support_slots,omitempty"`
-	CameraFrames         []SceneCameraFrame     `json:"camera_frames"`
-	LightFrames          []SceneLightFrame      `json:"light_frames"`
-	Environment          SceneEnvironment       `json:"environment"`
-	Regions              []SceneRegion          `json:"regions"`
+	Version              string                  `json:"version"`
+	SceneID              string                  `json:"scene_id"`
+	CoordinateConvention string                  `json:"coordinate_convention"`
+	Artifacts            []SceneArtifactBinding  `json:"artifacts"`
+	Materials            []SceneMaterial         `json:"materials"`
+	MaterialSlots        []SceneMaterialSlot     `json:"material_slots"`
+	Parts                []ScenePart             `json:"parts"`
+	SupportFrames        []SceneSupportFrame     `json:"support_frames"`
+	SupportSlots         []SceneSupportSlot      `json:"support_slots,omitempty"`
+	CameraFrames         []SceneCameraFrame      `json:"camera_frames"`
+	LightFrames          []SceneLightFrame       `json:"light_frames"`
+	Environment          SceneEnvironment        `json:"environment"`
+	Regions              []SceneRegion           `json:"regions"`
+	Photograph           *PhotographicBackground `json:"photographic_background,omitempty"`
+}
+
+// PhotographicBackground carries image reconstruction lineage and uncertainty.
+// Its scale fields explicitly remain estimates, never physical measurements.
+type PhotographicBackground struct {
+	ContractVersion               string     `json:"contract_version"`
+	Route                         string     `json:"route"`
+	SourceBundleSHA256            string     `json:"source_bundle_sha256"`
+	SourceRasterSHA256            string     `json:"source_raster_sha256"`
+	GeometryArchiveSHA256         string     `json:"geometry_archive_sha256"`
+	RepairProvenanceSHA256        string     `json:"repair_provenance_sha256"`
+	DeviceMaskSHA256              string     `json:"device_mask_sha256"`
+	RemovalMaskSHA256             string     `json:"removal_mask_sha256"`
+	ScaleStatus                   string     `json:"scale_status"`
+	EstimatedScaleMeters          float64    `json:"estimated_scale_meters"`
+	GeometryModel                 string     `json:"geometry_model"`
+	CheckpointSHA256              string     `json:"checkpoint_sha256"`
+	Postprocess                   string     `json:"postprocess"`
+	RenderMode                    string     `json:"render_mode,omitempty"`
+	SupportPlaneNormal            [3]float64 `json:"support_plane_normal_opencv"`
+	SupportPlaneOffsetM           float64    `json:"support_plane_offset_estimate_m"`
+	SupportPlaneInliers           uint32     `json:"support_plane_inliers"`
+	SupportPlaneResidual95        float64    `json:"support_plane_residual_p95_estimate_m"`
+	CameraEnvelopeTranslationM    float64    `json:"camera_envelope_max_translation_m"`
+	CameraEnvelopeRotationDegrees float64    `json:"camera_envelope_max_rotation_degrees"`
+	OverscanReviewed              bool       `json:"overscan_reviewed"`
+	SourceReviewSHA256            string     `json:"source_visual_review_sha256"`
+	SourceReviewer                string     `json:"source_visual_reviewer"`
+	SourceReviewRationale         string     `json:"source_visual_review_rationale"`
+	SourceReviewEvidence          []string   `json:"source_visual_review_evidence"`
+	SourceUseClaimSHA256          string     `json:"source_use_claim_sha256,omitempty"`
+	LocalRenderAuthorized         bool       `json:"local_render_authorized,omitempty"`
+	SourceUseRationale            string     `json:"source_use_rationale,omitempty"`
 }
 
 type SceneArtifactBinding struct {
@@ -127,12 +161,14 @@ type SceneMaterialInput struct {
 	Sampler          TextureSampler    `json:"sampler"`
 	Coordinates      CoordinateMapping `json:"coordinates"`
 	UVSet            string            `json:"uv_set,omitempty"`
-	AffineUV         *[6]float64       `json:"affine_uv,omitempty"`
-	PhysicalRepeatM  *[2]float64       `json:"physical_repeat_m,omitempty"`
-	NormalConvention string            `json:"normal_convention,omitempty"`
-	NormalStrength   *float64          `json:"normal_strength,omitempty"`
-	BumpStrength     *float64          `json:"bump_strength,omitempty"`
-	BumpDistanceM    *float64          `json:"bump_distance_m,omitempty"`
+	// AffineUV uses row-major [a,b,tx,c,d,ty]: u'=a*u+b*v+tx,
+	// v'=c*u+d*v+ty. Keep the two translation terms after the 2x2 matrix.
+	AffineUV         *[6]float64 `json:"affine_uv,omitempty"`
+	PhysicalRepeatM  *[2]float64 `json:"physical_repeat_m,omitempty"`
+	NormalConvention string      `json:"normal_convention,omitempty"`
+	NormalStrength   *float64    `json:"normal_strength,omitempty"`
+	BumpStrength     *float64    `json:"bump_strength,omitempty"`
+	BumpDistanceM    *float64    `json:"bump_distance_m,omitempty"`
 }
 
 type GradeRecipe string
@@ -404,6 +440,27 @@ func validateAndCanonicalize(c *SceneCandidate) error {
 	if c.Environment.Model != "CONSTANT_V1" || !unitRGB(c.Environment.LinearRGB[:]) || !finiteNonnegative(c.Environment.Strength) {
 		return errors.New("scene environment must be finite CONSTANT_V1 linear RGB with nonnegative strength")
 	}
+	if c.Photograph != nil {
+		p := c.Photograph
+		if p.RenderMode != "" && p.RenderMode != "SOURCE_CAMERA_PLATE_V1" && p.RenderMode != "DEPTH_REPROJECTED_GEOMETRY_V1" {
+			return errors.New("photographic render mode is unsupported")
+		}
+		normalLength := math.Sqrt(p.SupportPlaneNormal[0]*p.SupportPlaneNormal[0] + p.SupportPlaneNormal[1]*p.SupportPlaneNormal[1] + p.SupportPlaneNormal[2]*p.SupportPlaneNormal[2])
+		removalRoute := p.Route == "PHOTOGRAPH_ROUTE_DEVICE_REMOVAL"
+		emptyRoute := p.Route == "PHOTOGRAPH_ROUTE_EMPTY_SCENE"
+		maskLineageValid := removalRoute && validDigest(p.RepairProvenanceSHA256) && validDigest(p.DeviceMaskSHA256) && validDigest(p.RemovalMaskSHA256) || emptyRoute && p.RepairProvenanceSHA256 == "" && p.DeviceMaskSHA256 == "" && p.RemovalMaskSHA256 == ""
+		if p.ContractVersion != "hybrid-device-scene/v1" || !maskLineageValid || p.ScaleStatus != "estimated_monocular_scale_not_measured" || !positive(p.EstimatedScaleMeters) || !library.IsValidStableID(p.GeometryModel) || !validDigest(p.SourceBundleSHA256) || !validDigest(p.SourceRasterSHA256) || !validDigest(p.GeometryArchiveSHA256) || !validDigest(p.CheckpointSHA256) || !validDigest(p.SourceReviewSHA256) || strings.TrimSpace(p.SourceReviewer) == "" || strings.TrimSpace(p.SourceReviewRationale) == "" || len(p.SourceReviewEvidence) == 0 || !finite(normalLength) || math.Abs(normalLength-1) > 1e-5 || !finite(p.SupportPlaneOffsetM) || p.SupportPlaneInliers < 3 || !finite(p.SupportPlaneResidual95) || p.SupportPlaneResidual95 < 0 || !finite(p.CameraEnvelopeTranslationM) || p.CameraEnvelopeTranslationM < 0 || p.CameraEnvelopeTranslationM > .25 || !finite(p.CameraEnvelopeRotationDegrees) || p.CameraEnvelopeRotationDegrees < 0 || p.CameraEnvelopeRotationDegrees > 10 || ((p.CameraEnvelopeTranslationM > 0 || p.CameraEnvelopeRotationDegrees > 0) && !p.OverscanReviewed) || strings.TrimSpace(p.Postprocess) == "" || (p.SourceUseClaimSHA256 != "" && !validDigest(p.SourceUseClaimSHA256)) || (p.LocalRenderAuthorized && (!validDigest(p.SourceUseClaimSHA256) || strings.TrimSpace(p.SourceUseRationale) == "")) || (!p.LocalRenderAuthorized && p.SourceUseRationale != "") || len(p.SourceUseRationale) > 1024 || strings.ContainsAny(p.SourceUseRationale, "\x00\r") {
+			return errors.New("photographic background lineage, review, estimated scale, plane or camera envelope is invalid")
+		}
+		if len(p.SourceReviewEvidence) > 16 {
+			return errors.New("photographic review evidence exceeds bound")
+		}
+		for _, ref := range p.SourceReviewEvidence {
+			if strings.TrimSpace(ref) == "" || len(ref) > 512 {
+				return errors.New("photographic review evidence reference is invalid")
+			}
+		}
+	}
 	seenRegions := make(map[string]bool, len(c.Regions))
 	for _, region := range c.Regions {
 		if !library.IsValidStableID(region.ID) || seenRegions[region.ID] || parts[region.PartID].ID == "" || (region.Purpose != RegionContact && region.Purpose != RegionClearance && region.Purpose != RegionExclusion) {
@@ -554,7 +611,7 @@ func validateTextureInput(in SceneMaterialInput) error {
 				return errors.New("UV affine transform must be finite")
 			}
 		}
-		determinant := (*in.AffineUV)[0]*(*in.AffineUV)[3] - (*in.AffineUV)[1]*(*in.AffineUV)[2]
+		determinant := (*in.AffineUV)[0]*(*in.AffineUV)[4] - (*in.AffineUV)[1]*(*in.AffineUV)[3]
 		if !finite(determinant) || determinant == 0 {
 			return errors.New("UV affine transform must be invertible")
 		}
@@ -795,6 +852,11 @@ func cloneCandidate(in SceneCandidate) SceneCandidate {
 	}
 	out.LightFrames = append([]SceneLightFrame(nil), in.LightFrames...)
 	out.Regions = append([]SceneRegion(nil), in.Regions...)
+	if in.Photograph != nil {
+		value := *in.Photograph
+		value.SourceReviewEvidence = append([]string(nil), in.Photograph.SourceReviewEvidence...)
+		out.Photograph = &value
+	}
 	return out
 }
 

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/packages/capacity"
 )
 
 type Input struct {
@@ -41,20 +42,21 @@ type Request struct {
 }
 
 type Receipt struct {
-	Version        int               `json:"version"`
-	Status         string            `json:"status"`
-	Key            string            `json:"render_key"`
-	OutputSHA256   string            `json:"output_sha256"`
-	Installation   Installation      `json:"installation"`
-	Profile        RenderProfile     `json:"profile"`
-	Request        Request           `json:"request"`
-	StartedAt      time.Time         `json:"started_at"`
-	ElapsedSeconds float64           `json:"elapsed_seconds"`
-	Reused         bool              `json:"reused"`
-	ToolVersions   map[string]string `json:"tool_versions"`
-	Limits         []string          `json:"limits"`
-	Error          string            `json:"error,omitempty"`
-	DiagnosticDir  string            `json:"diagnostic_dir,omitempty"`
+	Admission      *InvocationAdmission `json:"capacity_admission,omitempty"`
+	Version        int                  `json:"version"`
+	Status         string               `json:"status"`
+	Key            string               `json:"render_key"`
+	OutputSHA256   string               `json:"output_sha256"`
+	Installation   Installation         `json:"installation"`
+	Profile        RenderProfile        `json:"profile"`
+	Request        Request              `json:"request"`
+	StartedAt      time.Time            `json:"started_at"`
+	ElapsedSeconds float64              `json:"elapsed_seconds"`
+	Reused         bool                 `json:"reused"`
+	ToolVersions   map[string]string    `json:"tool_versions"`
+	Limits         []string             `json:"limits"`
+	Error          string               `json:"error,omitempty"`
+	DiagnosticDir  string               `json:"diagnostic_dir,omitempty"`
 }
 
 type invocationStartKey struct{}
@@ -95,7 +97,9 @@ func Execute(ctx context.Context, requestFile, out string) (result Receipt, err 
 	if err != nil {
 		return Receipt{}, fmt.Errorf("managed tool required: %w", err)
 	}
-	return execute(ctx, req, out, dir, installation, runContained)
+	return withRenderAdmission(ctx, req.MemoryMiB, newRenderBroker, capacity.RecommendedLeaseHeartbeatInterval(), func(workCtx context.Context) (Receipt, error) {
+		return execute(workCtx, req, out, dir, installation, runContained)
+	})
 }
 
 func validateRequest(req Request) error {
@@ -740,29 +744,29 @@ func waitOwned(ctx context.Context, wait func() error, stop func(context.Context
 	case result = <-done:
 	case <-ctx.Done():
 		if err := stopBounded(); err != nil {
-			return fmt.Errorf("owned scope cancellation failed: %w (context: %v)", err, ctx.Err())
+			return errors.Join(errOwnedCleanup, fmt.Errorf("owned scope cancellation failed: %w (context: %v)", err, ctx.Err()))
 		}
 		select {
 		case <-done:
 		case <-time.After(10 * time.Second):
-			return errors.New("owned root did not exit after scope cancellation")
+			return errors.Join(errOwnedCleanup, errors.New("owned root did not exit after scope cancellation"))
 		}
 		result = ctx.Err()
 	}
 	pids, err := processes()
 	if err != nil {
-		return fmt.Errorf("owned scope cleanup could not be verified: %w", err)
+		return errors.Join(errOwnedCleanup, fmt.Errorf("owned scope cleanup could not be verified: %w", err))
 	}
 	if len(pids) > 0 {
 		if err := stopBounded(); err != nil {
-			return err
+			return errors.Join(errOwnedCleanup, err)
 		}
 		pids, err = processes()
 		if err != nil {
-			return err
+			return errors.Join(errOwnedCleanup, err)
 		}
 		if len(pids) > 0 {
-			return fmt.Errorf("owned scope still contains %d processes", len(pids))
+			return errors.Join(errOwnedCleanup, fmt.Errorf("owned scope still contains %d processes", len(pids)))
 		}
 	}
 	return result

@@ -2,11 +2,13 @@ package jobs
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
@@ -42,7 +44,8 @@ var (
 	// ErrQueueFull is returned when a lane's queue is saturated.
 	ErrQueueFull = errors.New("jobs: queue full")
 	// ErrNotStarted is returned when Submit is called before Start.
-	ErrNotStarted = errors.New("jobs: manager not started")
+	ErrNotStarted          = errors.New("jobs: manager not started")
+	ErrIdempotencyConflict = errors.New("jobs: client operation id was reused with different input")
 )
 
 const laneQueueCap = 1024
@@ -93,12 +96,30 @@ type subscriber struct {
 }
 
 type jobEntry struct {
-	mu     sync.Mutex
-	job    Job
-	cancel context.CancelFunc
-	done   chan struct{}
-	subs   []*subscriber
-	last   *ProgressEvent
+	mu          sync.Mutex
+	job         Job
+	routeValues context.Context
+	cancel      context.CancelFunc
+	done        chan struct{}
+	subs        []*subscriber
+	last        *ProgressEvent
+}
+
+type testPoolPinner interface {
+	ActiveLeaseID() string
+	PinTestPool(context.Context, string) (context.Context, error)
+}
+
+type valueOverlayContext struct {
+	context.Context
+	values context.Context
+}
+
+func (c valueOverlayContext) Value(key any) any {
+	if value := c.values.Value(key); value != nil {
+		return value
+	}
+	return c.Context.Value(key)
 }
 
 // New builds a Manager backed by db. Call Start before Submit.
@@ -212,24 +233,65 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 		return Job{}, ErrNotStarted
 	}
 	m.mu.Unlock()
+	testMode := database.IsTestMode(ctx)
+	routeValues := context.Background()
+	if testMode {
+		routeValues = database.WithTestMode(routeValues)
+		if pinner, ok := m.st.db.(testPoolPinner); ok {
+			leaseID := pinner.ActiveLeaseID()
+			if leaseID == "" {
+				return Job{}, fmt.Errorf("jobs: test-mode submission requires an active database lease")
+			}
+			var err error
+			routeValues, err = pinner.PinTestPool(routeValues, leaseID)
+			if err != nil {
+				return Job{}, fmt.Errorf("jobs: pin test database lease: %w", err)
+			}
+		}
+	}
+	storeCtx := valueOverlayContext{Context: m.baseCtx, values: routeValues}
+	if spec.ClientOperationID != "" {
+		if spec.RequestFingerprint == "" {
+			return Job{}, ErrIdempotencyConflict
+		}
+		if prior, err := m.st.getByClientOperation(storeCtx, spec.ClientOperationID); err == nil {
+			if prior.RequestFingerprint != spec.RequestFingerprint {
+				return Job{}, ErrIdempotencyConflict
+			}
+			return prior, nil
+		}
+	}
 
 	lane := normalizeLane(spec.Lane)
 	now := m.clock.Now()
 	job := Job{
-		ID:               uuid.NewString(),
-		Operation:        spec.Operation,
-		Lane:             lane,
-		State:            StateQueued,
-		Payload:          spec.Payload,
-		EstimatedSeconds: spec.EstimatedSeconds,
-		CreatedAt:        now,
+		ID:                      uuid.NewString(),
+		Operation:               spec.Operation,
+		Lane:                    lane,
+		State:                   StateQueued,
+		Payload:                 spec.Payload,
+		ClientOperationID:       spec.ClientOperationID,
+		RequestFingerprint:      spec.RequestFingerprint,
+		TestMode:                testMode,
+		ExecutionTimeoutSeconds: spec.ExecutionTimeoutSeconds,
+		EstimatedSeconds:        spec.EstimatedSeconds,
+		CreatedAt:               now,
 	}
-	// Persist under baseCtx so a caller disconnect can't lose the record.
-	if err := m.st.insert(m.baseCtx, job); err != nil {
+	// Persist on the server-lifetime context while retaining only the pinned
+	// routing values, so disconnects do not cancel or redirect the job.
+	if err := m.st.insert(storeCtx, job); err != nil {
+		if spec.ClientOperationID != "" {
+			if prior, lookupErr := m.st.getByClientOperation(storeCtx, spec.ClientOperationID); lookupErr == nil {
+				if prior.RequestFingerprint != spec.RequestFingerprint {
+					return Job{}, ErrIdempotencyConflict
+				}
+				return prior, nil
+			}
+		}
 		return Job{}, err
 	}
 
-	entry := &jobEntry{job: job, done: make(chan struct{})}
+	entry := &jobEntry{job: job, routeValues: routeValues, done: make(chan struct{})}
 	m.mu.Lock()
 	m.entries[job.ID] = entry
 	ch := m.laneChannel(lane)
@@ -244,10 +306,25 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 		failed.State = StateFailed
 		failed.Error = "lane queue is full"
 		failed.FinishedAt = &now
-		_ = m.st.update(m.baseCtx, failed)
+		_ = m.st.update(valueOverlayContext{Context: m.baseCtx, values: routeValues}, failed)
 		m.finalizeEntry(entry, failed)
 		return Job{}, ErrQueueFull
 	}
+}
+
+// GetByClientOperation returns a durable job by its caller-owned idempotency key.
+func (m *Manager) GetByClientOperation(ctx context.Context, operationID string) (Job, error) {
+	if operationID == "" {
+		return Job{}, ErrNotFound
+	}
+	job, err := m.st.getByClientOperation(ctx, operationID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Job{}, fmt.Errorf("%w: %s", ErrNotFound, operationID)
+		}
+		return Job{}, err
+	}
+	return m.Get(ctx, job.ID)
 }
 
 // Record persists an already-completed unit of work as a terminal job. It is
@@ -267,15 +344,16 @@ func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error)
 	lane := normalizeLane(spec.Lane)
 	now := m.clock.Now()
 	job := Job{
-		ID:               uuid.NewString(),
-		Operation:        spec.Operation,
-		Lane:             lane,
-		Payload:          spec.Payload,
-		EstimatedSeconds: spec.EstimatedSeconds,
-		CreatedAt:        now,
-		StartedAt:        &now,
-		FinishedAt:       &now,
-		Progress:         100,
+		ID:                      uuid.NewString(),
+		Operation:               spec.Operation,
+		Lane:                    lane,
+		Payload:                 spec.Payload,
+		EstimatedSeconds:        spec.EstimatedSeconds,
+		ExecutionTimeoutSeconds: spec.ExecutionTimeoutSeconds,
+		CreatedAt:               now,
+		StartedAt:               &now,
+		FinishedAt:              &now,
+		Progress:                100,
 	}
 	if runErr != nil {
 		job.State = StateFailed
@@ -313,7 +391,13 @@ func (m *Manager) execute(entry *jobEntry) {
 		entry.mu.Unlock()
 		return
 	}
-	jobCtx, cancel := context.WithCancel(m.baseCtx)
+	var jobCtx context.Context
+	var cancel context.CancelFunc
+	if entry.job.ExecutionTimeoutSeconds > 0 {
+		jobCtx, cancel = context.WithTimeout(m.baseCtx, time.Duration(entry.job.ExecutionTimeoutSeconds)*time.Second)
+	} else {
+		jobCtx, cancel = context.WithCancel(m.baseCtx)
+	}
 	entry.cancel = cancel
 	now := m.clock.Now()
 	entry.job.State = StateRunning
@@ -321,8 +405,12 @@ func (m *Manager) execute(entry *jobEntry) {
 	snapshot := entry.job
 	entry.mu.Unlock()
 	defer cancel()
+	storeCtx := valueOverlayContext{Context: m.baseCtx, values: entry.routeValues}
+	if snapshot.TestMode {
+		jobCtx = valueOverlayContext{Context: jobCtx, values: entry.routeValues}
+	}
 
-	_ = m.st.update(m.baseCtx, snapshot)
+	_ = m.st.update(storeCtx, snapshot)
 	m.emit(entry, StateRunning, snapshot.Progress, "started")
 
 	emit := func(progress int, message string) {
@@ -337,16 +425,22 @@ func (m *Manager) execute(entry *jobEntry) {
 		entry.job.Message = message
 		snap := entry.job
 		entry.mu.Unlock()
-		_ = m.st.update(m.baseCtx, snap)
+		_ = m.st.update(storeCtx, snap)
 		m.emit(entry, StateRunning, progress, message)
 	}
 
 	result, err := m.runner(jobCtx, snapshot, emit)
+	if err == nil && errors.Is(jobCtx.Err(), context.DeadlineExceeded) {
+		err = context.DeadlineExceeded
+	}
 
 	entry.mu.Lock()
 	fin := m.clock.Now()
 	entry.job.FinishedAt = &fin
 	switch {
+	case errors.Is(jobCtx.Err(), context.DeadlineExceeded):
+		entry.job.State = StateFailed
+		entry.job.Error = "execution time limit exceeded"
 	case err != nil && jobCtx.Err() != nil:
 		entry.job.State = StateCanceled
 		entry.job.Message = "canceled"
@@ -362,7 +456,7 @@ func (m *Manager) execute(entry *jobEntry) {
 	final := entry.job
 	entry.mu.Unlock()
 
-	_ = m.st.update(m.baseCtx, final)
+	_ = m.st.update(storeCtx, final)
 	m.finalizeEntry(entry, final)
 }
 
@@ -444,7 +538,7 @@ func (m *Manager) Cancel(id string) error {
 	entry.job.Message = "canceled"
 	final := entry.job
 	entry.mu.Unlock()
-	_ = m.st.update(m.baseCtx, final)
+	_ = m.st.update(valueOverlayContext{Context: m.baseCtx, values: entry.routeValues}, final)
 	m.finalizeEntry(entry, final)
 	return nil
 }
@@ -488,7 +582,10 @@ func (m *Manager) Get(ctx context.Context, id string) (Job, error) {
 	}
 	j, err := m.st.get(ctx, id)
 	if err != nil {
-		return Job{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return Job{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+		}
+		return Job{}, err
 	}
 	return j, nil
 }

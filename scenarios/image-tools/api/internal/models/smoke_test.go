@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"image-tools/internal/smoke"
@@ -51,6 +52,23 @@ func TestProbeArgsFor(t *testing.T) {
 	// binary backend with no onnx weight → not applicable.
 	if _, _, ok := probeArgsFor(Model{ID: "sd", Backend: "stable-diffusion.cpp"}, t.TempDir(), false); ok {
 		t.Error("binary backend must not be smoke-applicable")
+	}
+}
+
+func TestProbeArgsForDiffusersInpaintWithoutFamily(t *testing.T) {
+	m := Model{
+		ID: "sdxl-inpainting-0.1", Backend: BackendDiffusers, Architecture: "sdxl",
+		Operations: []string{"inpaint", "outpaint"}, Runtime: Runtime{Variant: "fp16"},
+	}
+	kind, args, ok := probeArgsFor(m, "/models/sdxl-inpainting-0.1", true)
+	if !ok || kind != "diffusers-inpaint" {
+		t.Fatalf("inpaint probe: ok=%v kind=%q", ok, kind)
+	}
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"--kind diffusers-inpaint", "--architecture sdxl", "--variant fp16", "--deep"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("inpaint probe args %q missing %q", joined, want)
+		}
 	}
 }
 

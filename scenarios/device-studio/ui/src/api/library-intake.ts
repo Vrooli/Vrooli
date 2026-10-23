@@ -15,6 +15,9 @@ export interface IntakeMaterialInventory {
   candidate_id: string; revision: number; revision_sha256: string; glb_sha256: string; materials: IntakeMaterial[];
   material_correction_lineage?: Record<string, unknown>;
 }
+export interface IntakeGeometryPreview {
+  blob: Blob; preview_sha256: string; vertex_colors: boolean; width: number; height: number;
+}
 export interface MaterialCorrectionRequest {
   parent_candidate_id: string; parent_revision: number; parent_revision_sha256: string; child_candidate_id: string;
   material_index: number; material_name: string; base_color_factor?: [number, number, number, number];
@@ -83,6 +86,35 @@ export async function getLocalGeometryMaterials(candidate: IntakeCandidateRevisi
     throw new Error("Material inventory does not match the exact imported candidate revision.");
   }
   return inventory;
+}
+
+export async function getLocalGeometryPreview(candidate: IntakeCandidateRevision): Promise<IntakeGeometryPreview> {
+  const path = `/library/intake-candidates/${encodeURIComponent(candidate.id)}/revisions/${candidate.revision}/preview?revision_sha256=${encodeURIComponent(candidate.revisionSha256)}`;
+  const response = await getFile(path);
+  if (!response.ok) throw await decodeApiError(response);
+  const headers = response.headers;
+  if (headers.get("Content-Type")?.split(";")[0] !== "image/png" || headers.get("X-Intake-Candidate-ID") !== candidate.id ||
+      headers.get("X-Intake-Revision") !== String(candidate.revision) || headers.get("X-Intake-Revision-SHA256") !== candidate.revisionSha256 ||
+      headers.get("X-Intake-GLB-SHA256") !== candidate.originalSha256 || headers.get("X-Intake-Preview-Review") !== "unreviewed" ||
+      headers.get("X-Intake-Preview-Scale") !== "not-estimated") {
+    throw new Error("Geometry preview metadata does not match the exact unreviewed candidate revision.");
+  }
+  const previewSha = headers.get("X-Intake-Preview-SHA256") ?? "";
+  if (!/^[0-9a-f]{64}$/.test(previewSha)) throw new Error("Geometry preview digest is invalid.");
+  const vertexColors = headers.get("X-Intake-Preview-Vertex-Colors");
+  if (vertexColors !== "true" && vertexColors !== "false") throw new Error("Geometry preview color mode is invalid.");
+  const blob = await response.blob();
+  if (blob.size <= 0 || blob.size > 4 * 1024 * 1024) throw new Error("Geometry preview exceeds the supported byte bound.");
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (bytes.length < 24 || signature.some((value, index) => bytes[index] !== value)) throw new Error("Geometry preview is not a PNG image.");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const width = view.getUint32(16, false), height = view.getUint32(20, false);
+  if (width !== 768 || height !== 256) throw new Error("Geometry preview dimensions are outside the fixed three-view profile.");
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const actualSha = [...digest].map((value) => value.toString(16).padStart(2, "0")).join("");
+  if (actualSha !== previewSha) throw new Error("Geometry preview bytes do not match their response digest.");
+  return { blob, preview_sha256: previewSha, vertex_colors: vertexColors === "true", width, height };
 }
 
 export async function correctLocalGeometryMaterial(request: MaterialCorrectionRequest): Promise<MaterialCorrectionCandidate> {

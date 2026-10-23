@@ -12,6 +12,20 @@ import (
 // proto-typed (see the proto_payloads declaration).
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID: "ai_submit_stored", Path: aiconnect.AIServiceSubmitStoredAIProcedure, Method: "POST",
+		Summary:     "Admit one retry-safe AI job from owned source and mask blobs",
+		Description: "Uses the same responsible-use gate, typed validation, model selection and durable job queue as multipart; a stable UUID operation_id is required.",
+		Category:    "ai",
+	},
+	{
+		ID: "ai_operation_readback", Path: "/api/v1/ai/operations/{operation_id}", Method: "GET",
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Browser admission recovery reads operation status without resubmitting inference; response is the existing native durable job readback."},
+		Summary:       "Read a durable AI submission by its idempotency key",
+		Description:   "Returns the owner job created for a caller UUID idempotency key; it never submits or resumes work.", Category: "ai",
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "state": "string", "progress": "integer", "result_ref": "string"}},
+		Errors:   []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "The operation key has not been accepted"}},
+	},
+	{
 		ID:          "ai_list_operations",
 		Path:        aiconnect.AIServiceListAIOperationsProcedure,
 		Method:      "POST",

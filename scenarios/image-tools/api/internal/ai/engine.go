@@ -10,9 +10,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
@@ -83,9 +85,12 @@ type Deps struct {
 	AutoScan NSFWScanner
 	// Capacity arbitrates op-scoped GPU VRAM against the host capacity broker
 	// before a GPU generation (plan §7 Phase 7). Optional; nil disables
-	// arbitration and the engine runs exactly as before (advisory by default —
-	// the broker can degrade a job from GPU to CPU but never blocks it).
+	// arbitration. Production always wires it; admission/renewal failures stop
+	// GPU work, and degraded work requires a real CPU-capable model/backend.
 	Capacity CapacityBroker
+	// Memory admits local CPU and GPU inference. Production always supplies it;
+	// a warm worker must be reaped before this operation's RAM lease is released.
+	Memory MemoryAdmission
 	// Logger for diagnostics. Defaults to log.Default().
 	Logger *log.Logger
 }
@@ -157,6 +162,8 @@ type Payload struct {
 	// Adapters is the validated conditioning stack pinned at submit time (typed,
 	// not in Params — decision C2). Empty for an unconditioned op.
 	Adapters []adapters.ResolvedAdapter `json:"adapters,omitempty"`
+	// Execution-only binding selected from a fresh inventory before admission.
+	GPUUUID string `json:"-"`
 }
 
 // Plan is the selection verdict returned to the submit edge so it can surface
@@ -230,18 +237,19 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		return Plan{}, err
 	}
 	res, err := resolver.New(e.effectiveRegistry(ctx), e.deps.Backends).Resolve(ctx, resolver.Request{
-		Operation:        req.Operation,
-		ModelOverride:    override,
-		Host:             host,
-		AllowBYOK:        req.AllowBYOK,
-		FallbackPolicy:   req.FallbackPolicy,
-		QualityPolicy:    req.QualityPolicy,
-		PreferRemote:     strings.TrimSpace(req.Role) != "",
-		IsEnabled:        enabled,
-		Adapters:         req.Adapters,
-		AdapterByID:      e.deps.AdapterByID,
-		AdapterEnabled:   adapterEnabled,
-		AdapterInstalled: e.deps.AdapterInstalled,
+		Operation:          req.Operation,
+		ModelOverride:      override,
+		Host:               host,
+		AllowBYOK:          req.AllowBYOK,
+		FallbackPolicy:     req.FallbackPolicy,
+		QualityPolicy:      req.QualityPolicy,
+		PreferRemote:       strings.TrimSpace(req.Role) != "",
+		CapacityManagedGPU: e.deps.Capacity != nil,
+		IsEnabled:          enabled,
+		Adapters:           req.Adapters,
+		AdapterByID:        e.deps.AdapterByID,
+		AdapterEnabled:     adapterEnabled,
+		AdapterInstalled:   e.deps.AdapterInstalled,
 	})
 	if err != nil {
 		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider / adapter incompatible|not-ready|uninstalled)
@@ -358,7 +366,21 @@ func (e *Engine) BuildRunners() map[string]OpRunner {
 	return runners
 }
 
-func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
+func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit func(progress int, message string)) (result internaljobs.Result, runErr error) {
+	jobContext := ctx
+	defer func() {
+		if runErr != nil {
+			if cause := context.Cause(ctx); cause != nil && cause != context.Canceled {
+				if !errors.Is(runErr, cause) {
+					runErr = errors.Join(runErr, cause)
+				}
+			} else if jobContext.Err() != nil {
+				if cause := context.Cause(jobContext); !errors.Is(runErr, cause) {
+					runErr = errors.Join(runErr, cause)
+				}
+			}
+		}
+	}()
 	var pl Payload
 	if err := json.Unmarshal(job.Payload, &pl); err != nil {
 		return internaljobs.Result{}, fmt.Errorf("ai: decode payload: %w", err)
@@ -381,26 +403,97 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if err != nil {
 		return internaljobs.Result{}, err
 	}
+	if bsel.Tier == backends.TierLocalCPU && !model.Hardware.CPUCapable {
+		return internaljobs.Result{}, fmt.Errorf("ai: model %q has no CPU execution path on the current backend", model.ID)
+	}
+	if bsel.Tier == backends.TierLocalGPU && modelVRAMClaimBytes(model) <= 0 {
+		if !model.Hardware.CPUCapable {
+			return internaljobs.Result{}, fmt.Errorf("ai: model %q has no declared GPU memory budget or CPU execution path", model.ID)
+		}
+		e.deps.Logger.Printf("ai: model %q has no declared GPU memory budget; using CPU", model.ID)
+		bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
+			Operation: op, ModelBackend: model.Backend, GPUViable: false,
+			AllowBYOK: pl.AllowBYOK, RequireAdapters: len(pl.Adapters) > 0,
+		})
+		if err != nil {
+			return internaljobs.Result{}, err
+		}
+	}
+
+	if e.deps.Memory != nil && (bsel.Tier == backends.TierLocalCPU || bsel.Tier == backends.TierLocalGPU) {
+		if model.Hardware.MinRAMGB <= 0 || model.Hardware.MinRAMGB > 1024 {
+			return internaljobs.Result{}, fmt.Errorf("ai: model %q requires a bounded host RAM budget before local execution", model.ID)
+		}
+		lease, err := e.deps.Memory(ctx, "image-tools:"+job.ID+":ram", int64(model.Hardware.MinRAMGB)<<30)
+		if err != nil {
+			return internaljobs.Result{}, fmt.Errorf("ai: local RAM capacity: %w", err)
+		}
+		if lease == nil {
+			return internaljobs.Result{}, errors.New("ai: local RAM admission returned no lease")
+		}
+		ctx = context.WithValue(ctx, operationMemoryContextKey{}, true)
+		var stopMemory func()
+		ctx, stopMemory = keepMemoryAlive(ctx, lease)
+		defer func() {
+			stopMemory()
+			if result.Meta == nil {
+				result.Meta = map[string]string{}
+			}
+			result.Meta["ram_capacity_claim_bytes"] = strconv.FormatInt(int64(model.Hardware.MinRAMGB)<<30, 10)
+			result.Meta["ram_capacity_policy"] = "shared-broker-no-reclaim"
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(jobContext), 10*time.Second)
+			defer cancel()
+			if err := lease.Release(cleanup); err != nil {
+				e.deps.Logger.Printf("ai: job %s RAM capacity release: %v", job.ID, err)
+				result.Meta["ram_capacity_release_warning"] = err.Error()
+				result.Meta["ram_capacity_release"] = "unknown; retained native TTL recovery"
+				runErr = errors.Join(runErr, fmt.Errorf("ai: release local RAM capacity: %w", err))
+			} else {
+				result.Meta["ram_capacity_release"] = "released"
+			}
+		}()
+	}
 
 	// Capacity arbitration (plan §7 Phase 7): when the selected tier is GPU, make
 	// an op-scoped VRAM claim against the host capacity broker. The broker may
 	// degrade this batch job to CPU when the GPU is contended by higher-priority
 	// work (e.g. an active transcription) — in which case we honor the verdict by
-	// re-selecting on CPU. Advisory by default: any broker error leaves the GPU
-	// selection untouched (the engine never blocks on the broker).
+	// re-selecting on CPU. Broker failures refuse unadmitted GPU work; a valid
+	// grant is renewed until execution stops, then released independently of
+	// job cancellation.
 	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU {
+		host, err := e.deps.Probe.Inventory(ctx)
+		if err != nil {
+			return internaljobs.Result{}, fmt.Errorf("ai: GPU capacity inventory: %w", err)
+		}
+		gpu, err := capacityGPU(host, modelVRAMClaimBytes(model), bsel.Provider)
+		if err != nil {
+			return internaljobs.Result{}, err
+		}
 		lease, cerr := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, modelVRAMClaimBytes(model), CapacityClaimOptions{
 			Priority:     pl.CapacityPriority,
 			AllowReclaim: pl.AllowReclaim,
+			GPUUUID:      gpu.UUID,
 		})
 		if cerr != nil {
-			e.deps.Logger.Printf("ai: capacity claim failed (advisory, proceeding on GPU): %v", cerr)
+			return internaljobs.Result{}, fmt.Errorf("ai: GPU capacity admission failed: %w", cerr)
 		} else {
-			defer e.deps.Capacity.Release(ctx, lease.ClaimID)
+			defer func() {
+				if err := e.deps.Capacity.Release(jobContext, lease); err != nil {
+					e.deps.Logger.Printf("ai: job %s: %v", job.ID, err)
+					if result.Meta == nil {
+						result.Meta = map[string]string{}
+					}
+					result.Meta["capacity_release_warning"] = err.Error()
+				}
+			}()
 			for _, w := range lease.Warnings {
 				e.deps.Logger.Printf("ai: capacity: %s", w)
 			}
 			if lease.DegradeToCPU {
+				if !model.Hardware.CPUCapable {
+					return internaljobs.Result{}, fmt.Errorf("ai: GPU capacity unavailable; model %q has no CPU execution path", model.ID)
+				}
 				emit(5, "GPU contended — capacity broker degraded this job to CPU")
 				bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
 					Operation:       op,
@@ -412,6 +505,11 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 				if err != nil {
 					return internaljobs.Result{}, err
 				}
+			} else {
+				pl.GPUUUID = gpu.UUID
+				var stop func()
+				ctx, stop = keepCapacityAlive(ctx, e.deps.Capacity, lease, capacityClaimTTL/3)
+				defer stop()
 			}
 		}
 	}
@@ -492,7 +590,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	}
 
 	primary := outKeys[0]
-	if e.deps.AutoScan != nil && pl.AutoScanNSFW {
+	if e.deps.AutoScan != nil && pl.AutoScanNSFW && op != "scene_geometry" && op != "image_to_object" {
 		emit(92, "auto-scanning output for NSFW content")
 		if msg := e.autoScan(ctx, primary); msg != "" {
 			emit(96, msg)
@@ -514,7 +612,7 @@ func modelVRAMClaimBytes(model models.Model) int64 {
 	if model.Hardware.MinVRAMGB > 0 {
 		return int64(model.Hardware.MinVRAMGB) << 30
 	}
-	return fallbackGPUVRAMEstimateBytes
+	return 0
 }
 
 type inputFiles struct {
@@ -592,7 +690,11 @@ func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string
 }
 
 func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bsel backends.Selection, tmpDir string, in inputFiles, pl Payload, variation int, progress func(frac float64, message string)) (string, map[string]string, error) {
-	outPath := filepath.Join(tmpDir, fmt.Sprintf("out-%d.png", variation))
+	ext := ".png"
+	if op == "scene_geometry" || op == "image_to_object" {
+		ext = ".zip"
+	}
+	outPath := filepath.Join(tmpDir, fmt.Sprintf("out-%d%s", variation, ext))
 	params := map[string]string{}
 	for k, v := range pl.Params {
 		params[k] = v
@@ -603,16 +705,37 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 			params["seed"] = strconv.Itoa(n + variation)
 		}
 	}
+	sourceProfileDir := ""
+	if op == "image_to_object" {
+		cli, err := exec.LookPath("vrooli")
+		if err != nil {
+			return "", nil, fmt.Errorf("image_to_object requires the native TripoSR source profile command: %w", err)
+		}
+		cmd := exec.CommandContext(ctx, cli, "host", "triposr-source", "profile", "--json")
+		out, err := cmd.Output()
+		if err != nil {
+			return "", nil, fmt.Errorf("resolve managed TripoSR source profile: %w", err)
+		}
+		var profile struct {
+			SourceDir string `json:"source_dir"`
+		}
+		if err := json.Unmarshal(out, &profile); err != nil || strings.TrimSpace(profile.SourceDir) == "" {
+			return "", nil, errors.New("native TripoSR source profile returned invalid JSON")
+		}
+		sourceProfileDir = profile.SourceDir
+	}
 	req := backends.Request{
-		Operation: op,
-		Model:     model,
-		ModelDir:  e.absModelDir(model.ID),
-		GPU:       bsel.Tier == backends.TierLocalGPU,
-		InputKeys: collectInputs(in),
-		Output:    storage.OutputTarget{LocalPath: outPath},
-		Params:    params,
-		Adapters:  pl.Adapters,
-		Progress:  progress,
+		Operation:        op,
+		Model:            model,
+		ModelDir:         e.absModelDir(model.ID),
+		SourceProfileDir: sourceProfileDir,
+		GPU:              bsel.Tier == backends.TierLocalGPU,
+		GPUUUID:          pl.GPUUUID,
+		InputKeys:        collectInputs(in),
+		Output:           storage.OutputTarget{LocalPath: outPath},
+		Params:           params,
+		Adapters:         pl.Adapters,
+		Progress:         progress,
 	}
 	res, err := bsel.Provider.Execute(ctx, req)
 	if err != nil {
@@ -666,6 +789,8 @@ func outputFormat(data []byte, meta map[string]string) (mime, ext string) {
 		}
 	}
 	switch strings.ToLower(strings.Split(mime, ";")[0]) {
+	case "application/zip":
+		return "application/zip", ".zip"
 	case "image/svg+xml":
 		return "image/svg+xml", ".svg"
 	case "image/jpeg":

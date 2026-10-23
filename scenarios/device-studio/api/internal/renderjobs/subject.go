@@ -74,17 +74,21 @@ func operationModeForJob(input jobs.Input) (operationMode, error) {
 			return operationPhysicalRender, nil
 		case OutputProfilePhysicalPreviewPNG:
 			return operationPhysicalPreview, nil
+		case OutputProfilePhysicalDiagnosticPNG:
+			return operationPhysicalPreview, nil
 		case OutputProfilePhysicalMotionMP4:
 			return operationPhysicalMotion, nil
 		case OutputProfilePhysicalMotionMP4V2:
 			return operationPhysicalMotionV2, nil
 		case OutputProfilePhysicalRecordingMP4:
 			return operationPhysicalRecording, nil
+		case OutputProfilePhysicalDiagnosticMotionMP4:
+			return operationPhysicalRecording, nil
 		default:
 			return "", errors.New("renderjobs: physical job output profile is unsupported")
 		}
 	}
-	if input.OutputProfile == OutputProfilePhysicalMotionMP4 || input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || input.OutputProfile == OutputProfilePhysicalRecordingMP4 {
+	if input.OutputProfile == OutputProfilePhysicalMotionMP4 || input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || input.OutputProfile == OutputProfilePhysicalRecordingMP4 || input.OutputProfile == OutputProfilePhysicalDiagnosticMotionMP4 {
 		return "", errors.New("renderjobs: physical motion output profile requires a physical render subject")
 	}
 	return operationModeForSubject(input.SubjectKind)

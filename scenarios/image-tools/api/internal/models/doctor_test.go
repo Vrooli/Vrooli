@@ -1,6 +1,30 @@
 package models
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestDoctorTreatsDisabledExperimentalOperationAsUnavailableWarning(t *testing.T) {
+	const seed = `{"schema_version":"1.0.0","models":[{"id":"experimental","name":"Experimental","operations":["image_to_object"],"default_for":["image_to_object"],"tier":"default","backend":"python-sidecar","hardware":{"cpu_capable":true},"capability_labels":{"commercial_use":"yes"},"enabled":false,"source":{"assets":[{"url":"https://example.test/model.ckpt","filename":"model.ckpt","kind":"checkpoint","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","min_bytes":1}]}}]}`
+	r, err := Parse([]byte(seed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := r.DoctorCatalog()
+	found := false
+	for _, finding := range report.Findings {
+		if finding.Operation == "image_to_object" {
+			found = true
+			if finding.Severity != FindingWarning || !strings.Contains(finding.Message, "intentionally unavailable") {
+				t.Fatalf("unexpected finding: %+v", finding)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected an explicit unavailable warning")
+	}
+}
 
 func TestDoctorCatalogReportsActionableFindings(t *testing.T) {
 	const seed = `{

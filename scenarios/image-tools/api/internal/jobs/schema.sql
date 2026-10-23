@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS jobs (
   -- state, read whole, and never queried by key.
   meta              TEXT NOT NULL DEFAULT '',
   payload           BLOB,
+  client_operation_id TEXT NOT NULL DEFAULT '',
+  request_fingerprint TEXT NOT NULL DEFAULT '',
+  execution_timeout_seconds INTEGER NOT NULL DEFAULT 0,
+  test_mode INTEGER NOT NULL DEFAULT 0,
   estimated_seconds INTEGER NOT NULL DEFAULT 0,
   created_at        TEXT NOT NULL,
   started_at        TEXT NOT NULL DEFAULT '',
@@ -25,3 +29,5 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_client_operation
+  ON jobs(client_operation_id) WHERE client_operation_id <> '';

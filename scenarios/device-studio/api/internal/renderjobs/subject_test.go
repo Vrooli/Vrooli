@@ -353,12 +353,14 @@ func TestPhysicalJobModeIsBoundBySubjectAndImmutableOutputProfile(t *testing.T) 
 	}{
 		{"still", OutputProfilePNG, operationPhysicalRender, false},
 		{"preview", OutputProfilePhysicalPreviewPNG, operationPhysicalPreview, false},
+		{"diagnostic", OutputProfilePhysicalDiagnosticPNG, operationPhysicalPreview, false},
 		{"motion-v1", OutputProfilePhysicalMotionMP4, operationPhysicalMotion, false},
 		{"motion-v2", OutputProfilePhysicalMotionMP4V2, operationPhysicalMotionV2, false},
 		{"recording-v1", OutputProfilePhysicalRecordingMP4, operationPhysicalRecording, false},
+		{"recording-diagnostic", OutputProfilePhysicalDiagnosticMotionMP4, operationPhysicalRecording, false},
 		{"unknown", "user-command", "", true},
 	}
-	if physicalOutputKind(OutputProfilePhysicalPreviewPNG) != "physical_preview_png" || physicalOutputKind(OutputProfilePNG) != "physical_still_png" {
+	if physicalOutputKind(OutputProfilePhysicalPreviewPNG) != "physical_preview_png" || physicalOutputKind(OutputProfilePhysicalDiagnosticPNG) != "physical_diagnostic_png" || physicalOutputKind(OutputProfilePNG) != "physical_still_png" {
 		t.Fatal("physical preview and final still output kinds are not distinct")
 	}
 	for _, tt := range tests {
@@ -375,7 +377,7 @@ func TestPhysicalJobModeIsBoundBySubjectAndImmutableOutputProfile(t *testing.T) 
 			}
 		})
 	}
-	for _, profile := range []string{OutputProfilePhysicalMotionMP4, OutputProfilePhysicalMotionMP4V2, OutputProfilePhysicalRecordingMP4} {
+	for _, profile := range []string{OutputProfilePhysicalMotionMP4, OutputProfilePhysicalMotionMP4V2, OutputProfilePhysicalRecordingMP4, OutputProfilePhysicalDiagnosticMotionMP4} {
 		if _, err := operationModeForJob(jobs.Input{SubjectKind: jobs.SubjectStillRender, OutputProfile: profile}); err == nil {
 			t.Fatalf("physical motion profile %q was accepted for a legacy still subject", profile)
 		}

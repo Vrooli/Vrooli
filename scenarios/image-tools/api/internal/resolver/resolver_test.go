@@ -34,6 +34,36 @@ func (p fakeProvider) Execute(context.Context, backends.Request) (backends.Resul
 
 type fakeCloudProvider struct{ fakeProvider }
 
+type fakeCPUProvider struct{ fakeProvider }
+
+func (p fakeCPUProvider) GPUCapable() bool { return false }
+
+func TestResolveSkipsGPUOnlyModelWhenBackendCanOnlyUseCPU(t *testing.T) {
+	reg, err := models.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	be := backends.New()
+	if err := be.Register(fakeCPUProvider{fakeProvider{name: "onnxruntime", ops: []string{"segment"}}}); err != nil {
+		t.Fatal(err)
+	}
+	host := cpuHost()
+	host.GPUs = []capabilities.GPU{{VRAMBytes: 16 << 30}}
+	resolve := New(reg, be)
+	req := Request{Operation: "segment", Host: host, IsEnabled: func(id string) bool { return id == "mobilesam" || id == "sam-2.1-large" }}
+	got, err := resolve.Resolve(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Model.ID != "mobilesam" || got.GPUViable || got.Tier != "local-cpu" {
+		t.Fatalf("CPU provider selected GPU-only model or advertised GPU execution: %+v", got)
+	}
+	req.ModelOverride = "sam-2.1-large"
+	if _, err := resolve.Resolve(context.Background(), req); err == nil {
+		t.Fatal("explicit GPU-only override ran on CPU-only provider")
+	}
+}
+
 func (p fakeCloudProvider) IsCloud() bool { return true }
 
 // newResolver builds a resolver over the real registry and a backend registry

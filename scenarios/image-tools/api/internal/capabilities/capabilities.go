@@ -23,6 +23,7 @@ import (
 // conservatively rather than disqualifying the GPU.
 type GPU struct {
 	Index         int
+	UUID          string // stable physical CUDA binding, distinct from logical cuda ordinal
 	Name          string
 	VRAMBytes     uint64 // 0 == unknown
 	VRAMUsedBytes uint64 // 0 == unknown
@@ -127,6 +128,7 @@ func hostFromProto(resp *cliv1.HostInventoryResponse) Host {
 	for _, g := range resp.GetGpus() {
 		h.GPUs = append(h.GPUs, GPU{
 			Index:         int(g.GetIndex()),
+			UUID:          g.GetUuid(),
 			Name:          g.GetName(),
 			VRAMBytes:     g.GetVramBytes(),
 			VRAMUsedBytes: g.GetVramUsedBytes(),

@@ -4,13 +4,30 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	testdb "github.com/vrooli/api-core/databasetest"
 )
+
+type modeTrackingExecutor struct {
+	SQLExecutor
+	mu     sync.Mutex
+	writes []bool
+}
+
+func (e *modeTrackingExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(query)), "INSERT INTO JOBS") || strings.HasPrefix(strings.TrimSpace(strings.ToUpper(query)), "UPDATE JOBS") {
+		e.mu.Lock()
+		e.writes = append(e.writes, database.IsTestMode(ctx))
+		e.mu.Unlock()
+	}
+	return e.SQLExecutor.ExecContext(ctx, query, args...)
+}
 
 func newJobsDB(t *testing.T) *sql.DB {
 	t.Helper()
@@ -51,6 +68,140 @@ func TestSubmitWaitSuccess(t *testing.T) {
 	}
 	if done.State != StateSucceeded || done.ResultRef != "out/result.png" || done.Progress != 100 {
 		t.Fatalf("final job %+v", done)
+	}
+}
+
+func TestTestModeSubmissionKeepsAsyncWorkAndJobWritesRouted(t *testing.T) {
+	db := newJobsDB(t)
+	tracked := &modeTrackingExecutor{SQLExecutor: db}
+	runnerMode := make(chan bool, 1)
+	m := New(tracked, Config{Runner: func(ctx context.Context, job Job, _ func(int, string)) (Result, error) {
+		runnerMode <- database.IsTestMode(ctx) && job.TestMode
+		return Result{Ref: "out/routed.png"}, nil
+	}})
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(m.Close)
+	job, err := m.Submit(database.WithTestMode(context.Background()), Spec{Operation: "text_to_image", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !job.TestMode {
+		t.Fatal("submitted job did not persist test-mode intent")
+	}
+	done, err := m.Wait(context.Background(), job.ID)
+	if err != nil || done.State != StateSucceeded {
+		t.Fatalf("wait job=%+v err=%v", done, err)
+	}
+	if ok := <-runnerMode; !ok {
+		t.Fatal("async runner lost routed test mode")
+	}
+	var persisted bool
+	if err := db.QueryRowContext(context.Background(), "SELECT test_mode FROM jobs WHERE id=?", job.ID).Scan(&persisted); err != nil || !persisted {
+		t.Fatalf("persisted test_mode=%v err=%v", persisted, err)
+	}
+	tracked.mu.Lock()
+	writes := append([]bool(nil), tracked.writes...)
+	tracked.mu.Unlock()
+	if len(writes) < 3 {
+		t.Fatalf("observed only %d job writes", len(writes))
+	}
+	for i, testMode := range writes {
+		if !testMode {
+			t.Fatalf("job write %d did not carry test mode: %v", i, writes)
+		}
+	}
+}
+
+func TestClientOperationIDDeduplicatesAndRejectsChangedInput(t *testing.T) {
+	var runs atomic.Int32
+	m := startManager(t, Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+		runs.Add(1)
+		return Result{Ref: "out/one.png"}, nil
+	}})
+	spec := Spec{Operation: "text_to_image", Lane: LaneGPU, Payload: []byte(`{"prompt":"a red chair"}`), ClientOperationID: "op-1", RequestFingerprint: "sha256:a"}
+	first, err := m.Submit(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := m.Submit(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ID != first.ID {
+		t.Fatalf("duplicate created job %s; original %s", second.ID, first.ID)
+	}
+	if _, err := m.Wait(context.Background(), first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if runs.Load() != 1 {
+		t.Fatalf("runner executed %d times", runs.Load())
+	}
+	spec.RequestFingerprint = "sha256:b"
+	if _, err := m.Submit(context.Background(), spec); !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("changed input error=%v", err)
+	}
+	readback, err := m.GetByClientOperation(context.Background(), "op-1")
+	if err != nil || readback.ID != first.ID || readback.State != StateSucceeded {
+		t.Fatalf("readback=%+v err=%v", readback, err)
+	}
+}
+
+func TestExecutionTimeoutFailsInsteadOfReportingUserCancellation(t *testing.T) {
+	m := startManager(t, Config{Runner: func(ctx context.Context, _ Job, _ func(int, string)) (Result, error) {
+		<-ctx.Done()
+		return Result{}, ctx.Err()
+	}})
+	job, err := m.Submit(context.Background(), Spec{Operation: "bounded", Lane: LaneCPU, ExecutionTimeoutSeconds: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateFailed || final.Error != "execution time limit exceeded" {
+		t.Fatalf("timeout reported as %+v", final)
+	}
+}
+
+func TestClientOperationIDSurvivesManagerRestart(t *testing.T) {
+	db := newJobsDB(t)
+	cfg := Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+		return Result{Ref: "out/recovered.png"}, nil
+	}}
+	first := New(db, cfg)
+	if err := first.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	accepted, err := first.Submit(context.Background(), Spec{Operation: "text_to_image", Lane: LaneCPU, ClientOperationID: "durable-op", RequestFingerprint: "fingerprint"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = first.Wait(context.Background(), accepted.ID); err != nil {
+		t.Fatal(err)
+	}
+	first.Close()
+	second := New(db, cfg)
+	if err := second.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	recovered, err := second.GetByClientOperation(context.Background(), "durable-op")
+	if err != nil || recovered.ID != accepted.ID || recovered.State != StateSucceeded {
+		t.Fatalf("recovered=%+v err=%v", recovered, err)
+	}
+}
+
+func TestOperationReadbackPreservesDatabaseFailure(t *testing.T) {
+	db := newJobsDB(t)
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	m := New(db, Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) { return Result{}, nil }})
+	if _, err := m.GetByClientOperation(context.Background(), "operation"); err == nil || errors.Is(err, ErrNotFound) {
+		t.Fatalf("database failure was hidden as not found: %v", err)
 	}
 }
 

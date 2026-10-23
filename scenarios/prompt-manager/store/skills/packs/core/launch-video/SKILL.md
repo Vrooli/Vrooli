@@ -9,9 +9,9 @@ metadata:
   tags: ["marketing", "video", "launch"]
   icon: "video"
   status: "active"
-  revision: 38
+  revision: 46
   createdAt: "2026-09-17T00:00:00Z"
-  updatedAt: "2026-10-21T00:00:00Z"
+  updatedAt: "2026-10-22T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "landing-page-business-suite", "brand-manager", "device-studio", "program-runtime"]
     commands: ["prompt-manager skill read", "brand-manager", "vrooli scenario port", "program-runtime library run", "device-studio renders export"]
@@ -26,7 +26,7 @@ Choose `profile: teaser` unless the request calls for a major launch, hero film,
 flagship, or investor-quality demonstration. Choose `flagship` for those requests.
 These are skill inputs, not flags on a Vrooli CLI. Narration is opt-in.
 
-Direct the audience's understanding before polishing scenes. Establish the problem,
+Direct the audience's understanding and moment-to-moment attention before polishing scenes. Establish the problem,
 product category and promise, show decisive genuine product proof, then give a
 usable next action. Choose the balance of product captures, typography, conceptual
 inserts and holds from that story. Preserve requested music character and genuine

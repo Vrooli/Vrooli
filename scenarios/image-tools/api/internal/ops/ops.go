@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"sort"
@@ -11,10 +12,11 @@ import (
 // RunInput is what an operation receives: the original encoded bytes, the
 // decoded image, its source metadata, and the typed parameters.
 type RunInput struct {
-	Bytes  []byte
-	Img    image.Image
-	Meta   Meta
-	Params *Params
+	Context context.Context
+	Bytes   []byte
+	Img     image.Image
+	Meta    Meta
+	Params  *Params
 }
 
 // RunResult is an operation's output: the encoded result bytes plus the result
@@ -94,6 +96,7 @@ var registry = func() map[string]Op {
 		{Name: "icon_container", Category: CategoryFormat, Summary: "Pack PNG renders into an ICO or ICNS container", run: IconContainer},
 		{Name: "compress", Category: CategoryFormat, Summary: "Re-encode at a quality or to a target file size", run: compressRun},
 		{Name: "overlay", Category: CategoryCompose, Summary: "Composite a watermark image or text", run: pixel(Overlay)},
+		{Name: "parallax", Category: CategoryCompose, Summary: "Render a bounded layered-depth parallax PNG sequence with provenance", run: parallaxSequence},
 		{Name: "composite", Category: CategoryCompose, Summary: "Merge an ordered stack of depth plates into one raster", run: pixel(Composite)},
 		{Name: "metadata", Category: CategoryMetadata, Summary: "Read, strip, or auto-orient image metadata", run: metadataRun},
 	}
@@ -168,6 +171,16 @@ func Has(name string) bool {
 // touches storage, jobs, or HTTP. The guard/ingest check happens upstream at
 // the multipart boundary — Execute assumes src is already size-bounded.
 func Execute(name string, src []byte, p *Params) (RunResult, error) {
+	return ExecuteContext(context.Background(), name, src, p)
+}
+
+func ExecuteContext(ctx context.Context, name string, src []byte, p *Params) (RunResult, error) {
+	if ctx == nil {
+		return RunResult{}, fmt.Errorf("ops: execution context is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return RunResult{}, err
+	}
 	op, ok := registry[name]
 	if !ok {
 		return RunResult{}, fmt.Errorf("ops: unknown operation %q", name)
@@ -185,7 +198,7 @@ func Execute(name string, src []byte, p *Params) (RunResult, error) {
 	// implementations of one rule.
 	b := img.Bounds()
 	resolved := ResolveSpatialParams(p, b.Dx(), b.Dy())
-	res, err := op.run(RunInput{Bytes: src, Img: img, Meta: meta, Params: p})
+	res, err := op.run(RunInput{Context: ctx, Bytes: src, Img: img, Meta: meta, Params: p})
 	if err != nil {
 		return RunResult{}, err
 	}

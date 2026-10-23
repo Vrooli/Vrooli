@@ -30,6 +30,7 @@ import (
 	motionsH "device-studio/handlers/motions"
 	photographicH "device-studio/handlers/photographic"
 	physicalruntimeH "device-studio/handlers/physicalruntime"
+	preparedphotoH "device-studio/handlers/preparedphoto"
 	projectsH "device-studio/handlers/projects"
 	renderjobsH "device-studio/handlers/renderjobs"
 	scenesH "device-studio/handlers/scenes"
@@ -59,6 +60,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, projectsH.Endpoints...)
 	out = append(out, photographicH.Endpoints...)
+	out = append(out, preparedphotoH.Endpoints...)
 	out = append(out, devicesH.Endpoints...)
 	out = append(out, scenesH.Endpoints...)
 	out = append(out, motionsH.Endpoints...)

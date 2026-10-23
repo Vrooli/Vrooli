@@ -21,67 +21,78 @@ import (
 	"device-studio/internal/physical"
 	"device-studio/internal/presentations"
 	"device-studio/internal/scenes"
+	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
 )
 
 const (
-	PhysicalManifestName               = "physical-render-manifest.json"
-	PhysicalAdapterInputName           = "physical-worker-input.json"
-	PhysicalReceiptName                = "physical-render-receipt.json"
-	PhysicalAdapterName                = "physical_blender.py"
-	PhysicalManifestVersion            = 1
-	PhysicalMotionManifestVersion      = 2
-	PhysicalPreviewManifestVersion     = 3
-	PhysicalRecordingManifestVersion   = 4
-	PhysicalArticulatedManifestVersion = 5
-	PhysicalArticulationProfile        = "device-studio-single-revolute-hinge-v1"
-	PhysicalRendererProfile            = "device-studio-physical-cycles-v1"
-	PhysicalMotionProfile              = "device-studio-rigid-root-motion-v1"
-	PhysicalMotionProfileV2            = "device-studio-rigid-root-motion-v2"
-	PhysicalStillProfile               = "device-studio-physical-still-2560-v1"
-	PhysicalPreviewProfile             = "device-studio-physical-preview-960x540-v1"
-	PhysicalPreviewProfileVersion      = uint32(1)
-	PhysicalMotionOutput               = "device-studio-physical-motion-1080p-v1"
-	PhysicalMotionOutputV2             = "device-studio-physical-motion-1080p-v2"
-	PhysicalRecordingMotionOutput      = "device-studio-physical-recording-1080p-v1"
-	PhysicalRecordingMotionProfile     = "device-studio-physical-recording-motion-v1"
-	PhysicalRecordingAudioUnspecified  = "unspecified"
-	PhysicalRecordingAudioSilent       = "silent"
-	PhysicalRecordingAudioPassthrough  = "passthrough"
-	PhysicalColorProfile               = "device-studio-blender-standard-v1"
-	PhysicalBlenderProfileID           = "blender-5.2.2-linux-x64"
-	PhysicalBlenderVersion             = "Blender 5.2.2 LTS"
-	PhysicalBlenderArtifact            = "a1660c40fcc34e79aaa339f846b95d5973981a23b9e4b87e50ee2c633159762e"
-	PhysicalBlenderTreeSHA             = "5fca420feab408276778511a84d7a2f5659bbc09aa5cb43b6d24ae59b220cb55"
-	PhysicalBlenderBinarySHA           = "bafec183e960819c76fe213c000cdb2284c53a87ef6791812f8728b51f07145b"
-	PhysicalBlenderArchive             = "blender-5.2.2-linux-x64"
-	PhysicalStillWallTimeSeconds       = uint32(180)
-	PhysicalStillCPUWallTimeSeconds    = uint32(600)
-	PhysicalPreviewWallTimeSeconds     = uint32(30)
-	PhysicalMotionWallTimeSeconds      = uint32(300)
-	PhysicalMotionV2WallTimeSeconds    = uint32(1200)
-	PhysicalRecordingWallTimeSeconds   = uint32(1200)
-	PhysicalOperationMemoryMaxBytes    = uint64(8 << 30)
-	PhysicalOperationTasksMax          = uint32(128)
-	PhysicalOperationCPUWeight         = uint32(100)
-	PhysicalOperationThreads           = uint32(2)
-	PhysicalStillSamples               = uint32(256)
-	PhysicalPreviewSamples             = uint32(64)
-	PhysicalMotionSamples              = uint32(128)
-	PhysicalMotionMaxFramesV1          = uint32(48)
-	PhysicalMotionMaxFramesV2          = uint32(300)
-	PhysicalRecordingMaxFrames         = uint32(300)
-	PhysicalRecordingMaxSourcePrefix   = uint32(3600)
-	PhysicalStillOutputName            = "physical-output.png"
-	PhysicalPreviewOutputName          = "physical-preview.png"
-	PhysicalMotionOutputName           = "physical-output.mp4"
-	PhysicalMotionVideoProfileID       = "btbn-ffmpeg-video-n9.0.2-28-g669f5ab083-linux64-gpl"
-	PhysicalMotionVideoArtifactID      = "2ad074849ce8635ce03d623865a26fdb1636a9a44346d21d4af08c1b191a9789"
-	physicalManifestMax                = 4 << 20
-	physicalSnapshotMax                = 1 << 20
-	physicalAssetsMax                  = 16
-	physicalFrameMax                   = 360
-	physicalInputBytesMax              = 512 << 20
-	physicalScreenBytesMax             = 64 << 20
+	PhysicalManifestName                    = "physical-render-manifest.json"
+	PhysicalAdapterInputName                = "physical-worker-input.json"
+	PhysicalReceiptName                     = "physical-render-receipt.json"
+	PhysicalAdapterName                     = "physical_blender.py"
+	PhysicalManifestVersion                 = 1
+	PhysicalMotionManifestVersion           = 2
+	PhysicalPreviewManifestVersion          = 3
+	PhysicalRecordingManifestVersion        = 4
+	PhysicalArticulatedManifestVersion      = 5
+	PhysicalArticulationProfile             = "device-studio-single-revolute-hinge-v1"
+	PhysicalRendererProfile                 = "device-studio-physical-cycles-v1"
+	PhysicalMotionProfile                   = "device-studio-rigid-root-motion-v1"
+	PhysicalMotionProfileV2                 = "device-studio-rigid-root-motion-v2"
+	PhysicalStillProfile                    = "device-studio-physical-still-2560-v1"
+	PhysicalPreviewProfile                  = "device-studio-physical-preview-960x540-v1"
+	PhysicalPreviewProfileVersion           = uint32(1)
+	PhysicalDiagnosticProfile               = "device-studio-physical-diagnostic-960x540-v1"
+	PhysicalDiagnosticProfileVersion        = uint32(1)
+	PhysicalDiagnosticMotionOutput          = "device-studio-physical-recording-diagnostic-1080p-v1"
+	PhysicalDiagnosticMotionProfile         = "device-studio-physical-recording-diagnostic-motion-v1"
+	PhysicalMotionOutput                    = "device-studio-physical-motion-1080p-v1"
+	PhysicalMotionOutputV2                  = "device-studio-physical-motion-1080p-v2"
+	PhysicalRecordingMotionOutput           = "device-studio-physical-recording-1080p-v1"
+	PhysicalRecordingMotionProfile          = "device-studio-physical-recording-motion-v1"
+	PhysicalRecordingAudioUnspecified       = "unspecified"
+	PhysicalRecordingAudioSilent            = "silent"
+	PhysicalRecordingAudioPassthrough       = "passthrough"
+	PhysicalColorProfile                    = "device-studio-blender-standard-v1"
+	PhysicalBlenderProfileID                = "blender-5.2.2-linux-x64"
+	PhysicalBlenderVersion                  = "Blender 5.2.2 LTS"
+	PhysicalBlenderArtifact                 = "a1660c40fcc34e79aaa339f846b95d5973981a23b9e4b87e50ee2c633159762e"
+	PhysicalBlenderTreeSHA                  = "5fca420feab408276778511a84d7a2f5659bbc09aa5cb43b6d24ae59b220cb55"
+	PhysicalBlenderBinarySHA                = "bafec183e960819c76fe213c000cdb2284c53a87ef6791812f8728b51f07145b"
+	PhysicalBlenderArchive                  = "blender-5.2.2-linux-x64"
+	PhysicalStillWallTimeSeconds            = uint32(180)
+	PhysicalStillCPUWallTimeSeconds         = uint32(600)
+	PhysicalPreviewWallTimeSeconds          = uint32(30)
+	PhysicalDiagnosticWallTimeSeconds       = uint32(30)
+	PhysicalMotionWallTimeSeconds           = uint32(300)
+	PhysicalMotionV2WallTimeSeconds         = uint32(1200)
+	PhysicalRecordingWallTimeSeconds        = uint32(1200)
+	PhysicalDiagnosticMotionWallTimeSeconds = uint32(600)
+	PhysicalOperationMemoryMaxBytes         = uint64(8 << 30)
+	PhysicalOperationTasksMax               = uint32(128)
+	PhysicalOperationCPUWeight              = uint32(100)
+	PhysicalOperationThreads                = uint32(2)
+	PhysicalStillSamples                    = uint32(256)
+	PhysicalPreviewSamples                  = uint32(64)
+	PhysicalDiagnosticSamples               = uint32(4)
+	PhysicalDiagnosticMotionSamples         = uint32(4)
+	PhysicalMotionSamples                   = uint32(128)
+	PhysicalMotionMaxFramesV1               = uint32(48)
+	PhysicalMotionMaxFramesV2               = uint32(300)
+	PhysicalRecordingMaxFrames              = uint32(300)
+	PhysicalDiagnosticMotionMaxFrames       = uint32(48)
+	PhysicalRecordingMaxSourcePrefix        = uint32(3600)
+	PhysicalStillOutputName                 = "physical-output.png"
+	PhysicalPreviewOutputName               = "physical-preview.png"
+	PhysicalDiagnosticOutputName            = "physical-diagnostic.png"
+	PhysicalMotionOutputName                = "physical-output.mp4"
+	PhysicalMotionVideoProfileID            = "btbn-ffmpeg-video-n9.0.2-28-g669f5ab083-linux64-gpl"
+	PhysicalMotionVideoArtifactID           = "2ad074849ce8635ce03d623865a26fdb1636a9a44346d21d4af08c1b191a9789"
+	physicalManifestMax                     = 4 << 20
+	physicalSnapshotMax                     = 1 << 20
+	physicalAssetsMax                       = 16
+	physicalFrameMax                        = 360
+	physicalInputBytesMax                   = 512 << 20
+	physicalScreenBytesMax                  = 64 << 20
 )
 
 var physicalDigestPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -177,25 +188,53 @@ type PhysicalRenderProfile struct {
 }
 
 type PhysicalOutputPlan struct {
-	ProfileID           string                 `json:"profile_id"`
-	ProfileVersion      uint32                 `json:"profile_version,omitempty"`
-	ArticulationProfile string                 `json:"articulation_profile,omitempty"`
-	Kind                string                 `json:"kind"` // still_png or motion_mp4
-	MotionProfile       string                 `json:"motion_profile,omitempty"`
-	Width               uint32                 `json:"width"`
-	Height              uint32                 `json:"height"`
-	Codec               string                 `json:"codec,omitempty"`
-	PixelFormat         string                 `json:"pixel_format,omitempty"`
-	ColorPolicy         string                 `json:"color_policy,omitempty"`
-	Rate                composition.Rational   `json:"rate"`
-	FrameCount          uint32                 `json:"frame_count"`
-	MotionTicks         uint32                 `json:"motion_ticks"`
-	Timebase            composition.Rational   `json:"timebase_ticks_per_second"`
-	FinalPoseHold       string                 `json:"final_pose_hold"`
-	Samples             []PhysicalMotionSample `json:"samples,omitempty"`
-	OutputName          string                 `json:"output_name"`
-	VideoToolProfileID  string                 `json:"video_tool_profile_id,omitempty"`
-	VideoToolArtifactID string                 `json:"video_tool_artifact_identity,omitempty"`
+	ProfileID           string                      `json:"profile_id"`
+	ProfileVersion      uint32                      `json:"profile_version,omitempty"`
+	ArticulationProfile string                      `json:"articulation_profile,omitempty"`
+	Kind                string                      `json:"kind"` // still_png or motion_mp4
+	MotionProfile       string                      `json:"motion_profile,omitempty"`
+	Width               uint32                      `json:"width"`
+	Height              uint32                      `json:"height"`
+	Codec               string                      `json:"codec,omitempty"`
+	PixelFormat         string                      `json:"pixel_format,omitempty"`
+	ColorPolicy         string                      `json:"color_policy,omitempty"`
+	Rate                composition.Rational        `json:"rate"`
+	FrameCount          uint32                      `json:"frame_count"`
+	MotionTicks         uint32                      `json:"motion_ticks"`
+	Timebase            composition.Rational        `json:"timebase_ticks_per_second"`
+	FinalPoseHold       string                      `json:"final_pose_hold"`
+	Samples             []PhysicalMotionSample      `json:"samples,omitempty"`
+	CameraEndpoint      *PhysicalCameraEndpointPlan `json:"camera_endpoint,omitempty"`
+	OutputName          string                      `json:"output_name"`
+	VideoToolProfileID  string                      `json:"video_tool_profile_id,omitempty"`
+	VideoToolArtifactID string                      `json:"video_tool_artifact_identity,omitempty"`
+}
+
+// PhysicalCameraEndpointPlan captures the reviewed geometric input for a
+// compiled camera handoff. Display corners are already transformed into the
+// final device pose and canonical world basis; the immutable shot/asset
+// revision remains the source of those facts.
+type PhysicalCameraEndpointPlan struct {
+	CameraID              string           `json:"camera_id"`
+	DisplayID             string           `json:"display_id"`
+	TargetKind            string           `json:"target_kind"`
+	RasterWidth           uint32           `json:"raster_width"`
+	RasterHeight          uint32           `json:"raster_height"`
+	Target                NormalizedRect   `json:"target"`
+	DisplayTarget         NormalizedRect   `json:"display_target"`
+	ContentTarget         NormalizedRect   `json:"content_target"`
+	ContentWidth          uint32           `json:"content_width_pixels,omitempty"`
+	ContentHeight         uint32           `json:"content_height_pixels,omitempty"`
+	DisplayCorners        [4]physical.Vec3 `json:"display_corners_world_m"`
+	ContentCorners        [4]physical.Vec3 `json:"content_corners_world_m"`
+	ContentMappingProfile string           `json:"content_mapping_profile,omitempty"`
+	CameraFrame           physical.TRS     `json:"camera_frame"`
+	FocalLengthMM         float64          `json:"focal_length_mm"`
+	SensorWidthMM         float64          `json:"sensor_width_mm"`
+	SensorHeightMM        float64          `json:"sensor_height_mm"`
+	MaxErrorPixels        float64          `json:"max_error_pixels"`
+	ResidualPixels        float64          `json:"residual_pixels,omitempty"`
+	ArrivalMotionTick     uint32           `json:"arrival_motion_tick,omitempty"`
 }
 
 // PhysicalMotionSample is computed by motions.SampleAt before a native claim.
@@ -247,9 +286,9 @@ func CanonicalPhysicalRenderManifest(input PhysicalRenderManifest) ([]byte, stri
 
 func ValidatePhysicalRenderManifest(m PhysicalRenderManifest) error {
 	if !((m.Version == PhysicalManifestVersion && m.Output.Kind == "still_png" && m.Output.ProfileID == PhysicalStillProfile) ||
-		(m.Version == PhysicalPreviewManifestVersion && m.Output.Kind == "still_png" && m.Output.ProfileID == PhysicalPreviewProfile) ||
+		(m.Version == PhysicalPreviewManifestVersion && m.Output.Kind == "still_png" && (m.Output.ProfileID == PhysicalPreviewProfile || m.Output.ProfileID == PhysicalDiagnosticProfile)) ||
 		(m.Version == PhysicalMotionManifestVersion && m.Output.Kind == "motion_mp4" && m.Screen.Recording == nil) ||
-		(m.Version == PhysicalRecordingManifestVersion && m.Output.Kind == "motion_mp4" && m.Output.ProfileID == PhysicalRecordingMotionOutput && m.Screen.Recording != nil) ||
+		(m.Version == PhysicalRecordingManifestVersion && m.Output.Kind == "motion_mp4" && (m.Output.ProfileID == PhysicalRecordingMotionOutput || m.Output.ProfileID == PhysicalDiagnosticMotionOutput) && m.Screen.Recording != nil) ||
 		(m.Version == PhysicalArticulatedManifestVersion && m.Output.ArticulationProfile == PhysicalArticulationProfile && validPhysicalArticulatedOutput(m.Output, m.Screen.Recording != nil))) || !identifierPattern.MatchString(m.JobID) || !identifierPattern.MatchString(m.AttemptID) ||
 		!physicalDigestPattern.MatchString(m.InputFingerprint) || !physicalDigestPattern.MatchString(m.WorkerSHA256) {
 		return errors.New("physical render identity is invalid")
@@ -332,11 +371,18 @@ func ValidatePhysicalRenderManifest(m PhysicalRenderManifest) error {
 	switch m.Output.ProfileID {
 	case PhysicalPreviewProfile:
 		wantSamples = PhysicalPreviewSamples
+	case PhysicalDiagnosticProfile:
+		wantSamples = PhysicalDiagnosticSamples
 	case PhysicalMotionOutput, PhysicalMotionOutputV2, PhysicalRecordingMotionOutput:
 		wantSamples = PhysicalMotionSamples
+	case PhysicalDiagnosticMotionOutput:
+		wantSamples = PhysicalDiagnosticMotionSamples
 	}
 	if m.Profile.Samples != wantSamples {
 		return errors.New("physical render quality does not match the closed output profile")
+	}
+	if err := validatePhysicalCameraEndpointPlan(m.Output.CameraEndpoint, scene.CameraFrames, m.Placement, m.Screen.DisplayID, motion, m.Output); err != nil {
+		return err
 	}
 	for _, sample := range m.Output.Samples {
 		if m.Version != PhysicalArticulatedManifestVersion && len(sample.JointAngles) != 0 {
@@ -362,12 +408,90 @@ func ValidatePhysicalRenderManifest(m PhysicalRenderManifest) error {
 	return validateMotionOutput(m.Output, motion)
 }
 
+func validatePhysicalCameraEndpointPlan(endpoint *PhysicalCameraEndpointPlan, cameras []scenes.SceneCameraFrame, placement PhysicalPlacement, displayID string, motion motions.MotionCandidate, output PhysicalOutputPlan) error {
+	if endpoint == nil {
+		return nil
+	}
+	if output.Kind != "motion_mp4" || len(output.Samples) < 2 || endpoint.CameraID != placement.SelectedCameraID || endpoint.DisplayID == "" || endpoint.DisplayID != displayID || endpoint.RasterWidth != output.Width || endpoint.RasterHeight != output.Height {
+		return errors.New("physical camera endpoint plan does not match the selected display, camera, and motion output")
+	}
+	var camera *scenes.SceneCameraFrame
+	for i := range cameras {
+		if cameras[i].ID == endpoint.CameraID {
+			camera = &cameras[i]
+			break
+		}
+	}
+	if camera == nil || camera.Projection != scenes.ProjectionPerspective || camera.SensorFit != scenes.SensorFitHorizontal || camera.FocalLengthMM == nil || camera.SensorWidthMM == nil || camera.SensorHeightMM == nil || camera.Frame != endpoint.CameraFrame || *camera.FocalLengthMM != endpoint.FocalLengthMM || *camera.SensorWidthMM != endpoint.SensorWidthMM || *camera.SensorHeightMM != endpoint.SensorHeightMM {
+		return errors.New("physical camera endpoint plan intrinsics differ from the selected immutable scene camera")
+	}
+	legacyActiveDisplay := endpoint.TargetKind == "" && endpoint.DisplayTarget == (NormalizedRect{}) && endpoint.ContentTarget == (NormalizedRect{}) && endpoint.ContentCorners == ([4]physical.Vec3{})
+	targetKind := shotsv1.PhysicalCameraEndpointTargetKind_PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_ACTIVE_DISPLAY
+	switch endpoint.TargetKind {
+	case targetKind.String():
+	case shotsv1.PhysicalCameraEndpointTargetKind_PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_RECORDING_CONTENT.String():
+		targetKind = shotsv1.PhysicalCameraEndpointTargetKind_PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_RECORDING_CONTENT
+	case "":
+	default:
+		return errors.New("physical camera endpoint target kind is unknown")
+	}
+	protoEndpoint := &shotsv1.PhysicalCameraEndpoint{DisplayId: endpoint.DisplayID, RasterWidth: endpoint.RasterWidth, RasterHeight: endpoint.RasterHeight, X: endpoint.Target.X, Y: endpoint.Target.Y, Width: endpoint.Target.Width, Height: endpoint.Target.Height, TargetKind: targetKind, ContentWidthPixels: endpoint.ContentWidth, ContentHeightPixels: endpoint.ContentHeight, ArrivalMotionTick: endpoint.ArrivalMotionTick}
+	var mappedContentCorners *[4]physical.Vec3
+	if endpoint.ContentMappingProfile != "" {
+		if endpoint.ContentMappingProfile != PhysicalScreenTriangleUVMappingProfile || targetKind != shotsv1.PhysicalCameraEndpointTargetKind_PHYSICAL_CAMERA_ENDPOINT_TARGET_KIND_RECORDING_CONTENT {
+			return errors.New("physical camera endpoint has an unsupported content mapping profile")
+		}
+		mappedContentCorners = &endpoint.ContentCorners
+	}
+	geometry, err := ResolvePhysicalCameraEndpointGeometryWithContentCorners(protoEndpoint, endpoint.DisplayCorners, mappedContentCorners)
+	if err != nil {
+		return fmt.Errorf("validate physical camera endpoint content layout: %w", err)
+	}
+	if !legacyActiveDisplay && (geometry.DisplayTarget != endpoint.DisplayTarget || geometry.ContentTarget != endpoint.ContentTarget || geometry.ContentCorners != endpoint.ContentCorners || geometry.ContentWidth != endpoint.ContentWidth || geometry.ContentHeight != endpoint.ContentHeight) {
+		return errors.New("physical camera endpoint recorded contain geometry differs from its source, display, or target")
+	}
+	pose, residual, err := CompilePhysicalCameraEndpoint(PhysicalCameraEndpoint{DisplayCorners: geometry.ContentCorners, RasterWidth: endpoint.RasterWidth, RasterHeight: endpoint.RasterHeight, Target: geometry.ContentTarget, FocalLengthMM: endpoint.FocalLengthMM, SensorWidthMM: endpoint.SensorWidthMM, SensorHeightMM: endpoint.SensorHeightMM})
+	if err != nil {
+		return fmt.Errorf("validate physical camera endpoint geometry: %w", err)
+	}
+	tolerance := endpoint.MaxErrorPixels
+	if tolerance == 0 {
+		tolerance = defaultCameraEndpointErrorPixels
+	}
+	if !positiveCameraNumber(tolerance) || tolerance > 8 || residual > tolerance {
+		return errors.New("physical camera endpoint residual exceeds its bounded pixel tolerance")
+	}
+	if endpoint.ResidualPixels != 0 && (!finiteNumber(endpoint.ResidualPixels) || math.Abs(endpoint.ResidualPixels-residual) > 1e-6) {
+		return errors.New("physical camera endpoint recorded residual differs from its recomputed residual")
+	}
+	delta, err := CameraEndpointRelativeTransform(endpoint.CameraFrame, pose)
+	if err != nil {
+		return fmt.Errorf("validate physical camera endpoint local transform: %w", err)
+	}
+	for _, track := range motion.Tracks {
+		if track.Target.SceneCameraID == endpoint.CameraID {
+			return errors.New("physical camera endpoint duplicates an authored selected-camera motion track")
+		}
+	}
+	progress, err := PhysicalCameraEndpointSampleProgress(endpoint.ArrivalMotionTick, output.Samples)
+	if err != nil {
+		return fmt.Errorf("validate physical camera endpoint arrival schedule: %w", err)
+	}
+	for i, sample := range output.Samples {
+		got, ok := sample.CameraTransforms[endpoint.CameraID]
+		if !ok || got != InterpolateCameraTransform(delta, progress[i]) {
+			return fmt.Errorf("physical camera endpoint sample %d differs from the compiled deterministic handoff", i)
+		}
+	}
+	return nil
+}
+
 func validPhysicalArticulatedOutput(output PhysicalOutputPlan, hasRecording bool) bool {
 	if output.ArticulationProfile != PhysicalArticulationProfile {
 		return false
 	}
 	if output.Kind == "still_png" {
-		return !hasRecording && (output.ProfileID == PhysicalStillProfile || output.ProfileID == PhysicalPreviewProfile)
+		return !hasRecording && (output.ProfileID == PhysicalStillProfile || output.ProfileID == PhysicalPreviewProfile || output.ProfileID == PhysicalDiagnosticProfile)
 	}
 	if output.Kind != "motion_mp4" {
 		return false
@@ -627,8 +751,14 @@ func validatePhysicalProfile(p PhysicalRenderProfile, output PhysicalOutputPlan)
 	case PhysicalPreviewProfile:
 		wallTime = PhysicalPreviewWallTimeSeconds
 		wantSamples = PhysicalPreviewSamples
+	case PhysicalDiagnosticProfile:
+		wallTime = PhysicalDiagnosticWallTimeSeconds
+		wantSamples = PhysicalDiagnosticSamples
 	case PhysicalMotionOutput, PhysicalMotionOutputV2, PhysicalRecordingMotionOutput:
 		wantSamples = PhysicalMotionSamples
+	case PhysicalDiagnosticMotionOutput:
+		wallTime = PhysicalDiagnosticMotionWallTimeSeconds
+		wantSamples = PhysicalDiagnosticMotionSamples
 	}
 	if output.Kind == "motion_mp4" {
 		switch output.ProfileID {
@@ -638,6 +768,8 @@ func validatePhysicalProfile(p PhysicalRenderProfile, output PhysicalOutputPlan)
 			wallTime = PhysicalMotionV2WallTimeSeconds
 		case PhysicalRecordingMotionOutput:
 			wallTime = PhysicalRecordingWallTimeSeconds
+		case PhysicalDiagnosticMotionOutput:
+			wallTime = PhysicalDiagnosticMotionWallTimeSeconds
 		default:
 			return errors.New("physical motion output profile is unsupported")
 		}
@@ -674,11 +806,30 @@ func PhysicalRenderProfileDigest(profile PhysicalRenderProfile) (string, error) 
 // physical preview plan. It reuses the saved still's exact pose sample; callers
 // cannot select an arbitrary raster or sampling quality.
 func NewPhysicalPreviewOutputPlan(sample PhysicalMotionSample, timebase composition.Rational) PhysicalOutputPlan {
+	// A preview is a still image at the selected pose. It carries motion ticks
+	// for reproducibility, but no output-time coordinate; preserving the source
+	// motion frame's 0/1 output time here makes it fail the still manifest's
+	// canonical zero-value invariant (0/0).
+	sample.OutputOrdinal = 0
+	sample.OutputTime = composition.Rational{}
 	return PhysicalOutputPlan{
 		ProfileID: PhysicalPreviewProfile, ProfileVersion: PhysicalPreviewProfileVersion, Kind: "still_png",
 		Width: 960, Height: 540, Rate: composition.Rational{Num: 1, Den: 1}, FrameCount: 1,
 		Timebase: timebase, FinalPoseHold: "none", Samples: []PhysicalMotionSample{sample},
 		OutputName: PhysicalPreviewOutputName, Codec: "png", PixelFormat: "rgba8",
+	}
+}
+
+// NewPhysicalDiagnosticOutputPlan returns a low-sample diagnostic still. It is
+// intended for wiring/backend checks and carries no delivery-quality claim.
+func NewPhysicalDiagnosticOutputPlan(sample PhysicalMotionSample, timebase composition.Rational) PhysicalOutputPlan {
+	sample.OutputOrdinal = 0
+	sample.OutputTime = composition.Rational{}
+	return PhysicalOutputPlan{
+		ProfileID: PhysicalDiagnosticProfile, ProfileVersion: PhysicalDiagnosticProfileVersion, Kind: "still_png",
+		Width: 960, Height: 540, Rate: composition.Rational{Num: 1, Den: 1}, FrameCount: 1,
+		Timebase: timebase, FinalPoseHold: "none", Samples: []PhysicalMotionSample{sample},
+		OutputName: PhysicalDiagnosticOutputName, Codec: "png", PixelFormat: "rgba8",
 	}
 }
 
@@ -698,7 +849,9 @@ func validatePhysicalOutput(o PhysicalOutputPlan) error {
 			((o.Width == 2560 && o.Height == 1440) || (o.Width == 3840 && o.Height == 2160)) && o.OutputName == PhysicalStillOutputName
 		preview := o.ProfileID == PhysicalPreviewProfile && o.ProfileVersion == PhysicalPreviewProfileVersion &&
 			o.Width == 960 && o.Height == 540 && o.OutputName == PhysicalPreviewOutputName
-		if (!fullStill && !preview) || o.VideoToolProfileID != "" || o.VideoToolArtifactID != "" || o.MotionProfile != "" || o.MotionTicks != 0 || len(o.Samples) != 1 || o.FinalPoseHold != "none" || o.FrameCount != 1 || o.Codec != "png" || o.PixelFormat != "rgba8" {
+		diagnostic := o.ProfileID == PhysicalDiagnosticProfile && o.ProfileVersion == PhysicalDiagnosticProfileVersion &&
+			o.Width == 960 && o.Height == 540 && o.OutputName == PhysicalDiagnosticOutputName
+		if (!fullStill && !preview && !diagnostic) || o.VideoToolProfileID != "" || o.VideoToolArtifactID != "" || o.MotionProfile != "" || o.MotionTicks != 0 || len(o.Samples) != 1 || o.FinalPoseHold != "none" || o.FrameCount != 1 || o.Codec != "png" || o.PixelFormat != "rgba8" {
 			return errors.New("physical still output does not match the still profile")
 		}
 		if o.Samples[0].OutputOrdinal != 0 || o.Samples[0].OutputTime != (composition.Rational{}) || o.Samples[0].RequestedMotionTick.Den <= 0 || o.Samples[0].RequestedMotionTick.Num < 0 || !rationalEqual(o.Samples[0].RequestedMotionTick, o.Samples[0].SampledMotionTick) {
@@ -706,9 +859,10 @@ func validatePhysicalOutput(o PhysicalOutputPlan) error {
 		}
 	case "motion_mp4":
 		recording := o.ProfileID == PhysicalRecordingMotionOutput && o.ProfileVersion == 1 && o.MotionProfile == PhysicalRecordingMotionProfile
+		diagnosticRecording := o.ProfileID == PhysicalDiagnosticMotionOutput && o.ProfileVersion == 1 && o.MotionProfile == PhysicalDiagnosticMotionProfile
 		motionV1 := o.ProfileID == PhysicalMotionOutput && o.ProfileVersion == 1 && o.MotionProfile == PhysicalMotionProfile
 		motionV2 := o.ProfileID == PhysicalMotionOutputV2 && o.ProfileVersion == 2 && o.MotionProfile == PhysicalMotionProfileV2
-		if (!motionV1 && !motionV2 && !recording) ||
+		if (!motionV1 && !motionV2 && !recording && !diagnosticRecording) ||
 			o.VideoToolProfileID != PhysicalMotionVideoProfileID || o.VideoToolArtifactID != PhysicalMotionVideoArtifactID ||
 			(o.Width != 1920 || o.Height != 1080) && (o.Width != 1080 || o.Height != 1920) || o.OutputName != PhysicalMotionOutputName {
 			return errors.New("physical motion output must use a pinned 1080p raster")
@@ -716,6 +870,9 @@ func validatePhysicalOutput(o PhysicalOutputPlan) error {
 		maxFrames := PhysicalMotionMaxFramesV1
 		if motionV2 || recording {
 			maxFrames = PhysicalMotionMaxFramesV2
+		}
+		if diagnosticRecording {
+			maxFrames = PhysicalDiagnosticMotionMaxFrames
 		}
 		if o.Rate.Num != 24 && o.Rate.Num != 30 || o.Rate.Den != 1 || o.MotionTicks == 0 || o.FrameCount > maxFrames ||
 			o.FrameCount > uint32(o.Rate.Num)*10 || o.FrameCount != uint32(len(o.Samples)) || o.FinalPoseHold != "last-key-through-output-end-v1" || o.Codec != "h264" || o.PixelFormat != "yuv420p" || o.ColorPolicy != "sdr-unmarked-default709-v1" {
@@ -824,6 +981,13 @@ func validateMotionOutput(plan PhysicalOutputPlan, motion motions.MotionCandidat
 			targets["camera:"+track.Target.SceneCameraID] = true
 		}
 	}
+	endpointCameraID := ""
+	if plan.CameraEndpoint != nil {
+		endpointCameraID = plan.CameraEndpoint.CameraID
+		if targets["camera:"+endpointCameraID] {
+			return errors.New("physical camera endpoint duplicates an authored selected-camera motion track")
+		}
+	}
 	for _, sample := range plan.Samples {
 		if sample.DeviceRoot != nil {
 			if !targets["device_root"] {
@@ -839,14 +1003,18 @@ func validateMotionOutput(plan PhysicalOutputPlan, motion motions.MotionCandidat
 			}
 		}
 		for id, transform := range sample.CameraTransforms {
-			if !targets["camera:"+id] {
+			if id != endpointCameraID && !targets["camera:"+id] {
 				return errors.New("motion sample supplies an unrequested camera transform")
 			}
 			if _, err := transform.Matrix(); err != nil {
 				return fmt.Errorf("sampled camera transform: %w", err)
 			}
 		}
-		if len(sample.JointAngles) > len(targets) || len(sample.CameraTransforms) > len(targets) {
+		maxCameraTargets := len(targets)
+		if endpointCameraID != "" {
+			maxCameraTargets++
+		}
+		if len(sample.JointAngles) > len(targets) || len(sample.CameraTransforms) > maxCameraTargets {
 			return errors.New("motion sample contains unexpected target data")
 		}
 		if err := comparePhysicalSample(motion, sample, targets); err != nil {

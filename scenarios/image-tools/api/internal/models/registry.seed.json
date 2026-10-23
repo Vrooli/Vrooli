@@ -76,7 +76,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "No revenue cap. OpenRAIL use-based restrictions apply: ship a license copy and propagate restrictions to end users.",
         "base_model_lineage": "Stable Diffusion 1.5 (RunwayML/CompVis, LAION-trained)",
-        "known_risks": "Can generate NSFW; inherent copyright/likeness risk from LAION training data; finetunes are tagged 'license: other' \u2014 verify each."
+        "known_risks": "Can generate NSFW; inherent copyright/likeness risk from LAION training data; finetunes are tagged 'license: other' — verify each."
       },
       "source": {
         "download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5",
@@ -204,7 +204,7 @@
         "nsfw_capable": true,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Apache-2.0 weights \u2014 clean commercial use, no revenue cap. Heavy: opt-in (disabled by default) until the operator confirms the hardware fit.",
+        "commercial_use_notes": "Apache-2.0 weights — clean commercial use, no revenue cap. Heavy: opt-in (disabled by default) until the operator confirms the hardware fit.",
         "base_model_lineage": "Qwen-Image-Edit-2509 (Alibaba Qwen team; Sept 2025 iteration of Qwen-Image-Edit)",
         "known_risks": "Can generate NSFW; powerful identity-altering edits carry the deployment-gate consent weight (SECURITY.md)."
       },
@@ -260,19 +260,19 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "4B rectified-flow transformer; runs on consumer GPUs (~13GB VRAM, RTX 3090/4070+). Sub-second multi-reference edits. diffusers Flux2KleinPipeline \u2014 requires a bleeding-edge diffusers (install-from-git as of 2026-06); PIN the version at ingest."
+        "speed_note": "4B rectified-flow transformer; runs on consumer GPUs (~13GB VRAM, RTX 3090/4070+). Sub-second multi-reference edits. diffusers Flux2KleinPipeline — requires a bleeding-edge diffusers (install-from-git as of 2026-06); PIN the version at ingest."
       },
       "io": {
         "native_resolution": "1024x1024",
-        "notes": "Unified generate + edit + multi-reference editing in one compact model; instruction edit via `prompt` + reference image(s). Use the 4B (Apache) build ONLY \u2014 not the 9B."
+        "notes": "Unified generate + edit + multi-reference editing in one compact model; instruction edit via `prompt` + reference image(s). Use the 4B (Apache) build ONLY — not the 9B."
       },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "ONLY the FLUX.2 [klein] 4B weights are Apache-2.0 (clean commercial use). The FLUX.2 [klein] 9B and FLUX.2 [dev] weights are FLUX.2 Non-Commercial \u2014 do NOT substitute them. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
+        "commercial_use_notes": "ONLY the FLUX.2 [klein] 4B weights are Apache-2.0 (clean commercial use). The FLUX.2 [klein] 9B and FLUX.2 [dev] weights are FLUX.2 Non-Commercial — do NOT substitute them. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
         "base_model_lineage": "FLUX.2 [klein] 4B (Black Forest Labs, size-distilled; released 2026-01-15)",
-        "known_risks": "Sibling 9B/dev weights are a non-commercial trap \u2014 verify the exact repo at ingest; brand-new architecture needs current diffusers; NSFW unlikely but not guaranteed-safe. size_mb_approx is approximate (VLM text encoder adds to disk/VRAM) \u2014 verify at ingest."
+        "known_risks": "Sibling 9B/dev weights are a non-commercial trap — verify the exact repo at ingest; brand-new architecture needs current diffusers; NSFW unlikely but not guaranteed-safe. size_mb_approx is approximate (VLM text encoder adds to disk/VRAM) — verify at ingest."
       },
       "source": {
         "manual": true,
@@ -319,7 +319,7 @@
         "os_arch": [
           "linux/amd64"
         ],
-        "speed_note": "Distilled 10x-faster 'turbo' of LongCat-Image-Edit; only 8 NFEs/inference, bf16. ~18GB VRAM with model CPU offload enabled (more without). diffusers LongCatImageEditPipeline \u2014 recent/custom diffusers required; PIN the version at ingest."
+        "speed_note": "Distilled 10x-faster 'turbo' of LongCat-Image-Edit; only 8 NFEs/inference, bf16. ~18GB VRAM with model CPU offload enabled (more without). diffusers LongCatImageEditPipeline — recent/custom diffusers required; PIN the version at ingest."
       },
       "io": {
         "native_resolution": "1024x1024",
@@ -329,9 +329,9 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Apache-2.0 weights \u2014 clean commercial use. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
+        "commercial_use_notes": "Apache-2.0 weights — clean commercial use. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
         "base_model_lineage": "LongCat-Image-Edit-Turbo (Meituan LongCat; distilled from LongCat-Image-Edit, released 2026-02-03)",
-        "known_risks": "On-disk size + param count not published upstream \u2014 VERIFY size_mb_approx / min_vram at ingest; brand-new architecture needs current diffusers."
+        "known_risks": "On-disk size + param count not published upstream — VERIFY size_mb_approx / min_vram at ingest; brand-new architecture needs current diffusers."
       },
       "source": {
         "manual": true,
@@ -459,7 +459,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Fully free, no cap, no use-restrictions \u2014 the cleanest generative license available.",
+        "commercial_use_notes": "Fully free, no cap, no use-restrictions — the cleanest generative license available.",
         "base_model_lineage": "FLUX.1 schnell (Black Forest Labs, distilled)",
         "known_risks": "Distilled/timestep-guided; fewer steps. NSFW unlikely but not guaranteed-safe."
       },
@@ -495,9 +495,9 @@
         "stable-diffusion.cpp (--mask)"
       ],
       "requires_comfyui": false,
-      "size_mb_approx": 2000,
+      "size_mb_approx": 4265,
       "quant_variants": [
-        "fp16 ~2GB"
+        "fp32 .ckpt 4265437280 bytes; diffusers loads fp16 on CUDA"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -521,7 +521,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "No revenue cap; OpenRAIL restrictions apply.",
         "base_model_lineage": "SD 1.5 inpainting (use stable-diffusion-v1-5 mirror; runwayml repo was deleted in 2024)",
-        "known_risks": "Can generate NSFW. stable-diffusion.cpp issue #1309 (Mar 2026): dedicated-inpaint checkpoints can misbehave on some builds \u2014 pin a known-good build or use diffusers where reliability matters."
+        "known_risks": "Can generate NSFW. stable-diffusion.cpp issue #1309 (Mar 2026): dedicated-inpaint checkpoints can misbehave on some builds — pin a known-good build or use diffusers where reliability matters."
       },
       "source": {
         "download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting",
@@ -533,6 +533,7 @@
             "url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting/resolve/main/sd-v1-5-inpainting.ckpt",
             "filename": "sd-v1-5-inpainting.ckpt",
             "kind": "binary",
+            "sha256": "c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19",
             "min_bytes": 4260000000
           }
         ],
@@ -587,16 +588,36 @@
         "known_risks": "Can generate NSFW; GPU-only in practice."
       },
       "source": {
-        "manual": true,
         "download_url": "https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
         "source_repo": "https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
         "docs_url": "https://huggingface.co/docs/diffusers/en/using-diffusers/inpaint",
         "update_source": "https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+        "repo": {
+          "repo_id": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+          "revision": "115134f363124c53c7d878647567d04daf26e41e",
+          "allow_patterns": [
+            "*.json",
+            "**/*.json",
+            "*.txt",
+            "**/*.txt",
+            "*.model",
+            "**/*.model",
+            "*.vocab",
+            "**/*.vocab",
+            "*.merges",
+            "**/*.merges",
+            "*.fp16.safetensors",
+            "**/*.fp16.safetensors"
+          ]
+        },
         "checksum": {
           "algo": "sha256",
           "value": "",
           "status": "unverified-capture-on-download"
         }
+      },
+      "runtime": {
+        "variant": "fp16"
       },
       "enabled": false
     },
@@ -672,11 +693,8 @@
       ],
       "default_for": [],
       "tier": "quality",
-      "backend": "iopaint",
-      "alt_backends": [
-        "simple-lama-inpainting",
-        "onnxruntime (Carve/LaMa-ONNX)"
-      ],
+      "backend": "onnxruntime",
+      "alt_backends": [],
       "requires_comfyui": false,
       "size_mb_approx": 196,
       "quant_variants": [
@@ -693,10 +711,10 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Best general remover; a few seconds/image on CPU."
+        "speed_note": "CPU ONNX adapter with fixed 512×512 contextual repair crops; latency requires local qualification."
       },
       "io": {
-        "notes": "Prompt-free mask inpaint. Best general-purpose object remover."
+        "notes": "White mask pixels are removed. The adapter preserves unmasked source pixels and returns source-size output; mask must include superseded shadows/reflections when appropriate."
       },
       "capability_labels": {
         "nsfw_capable": false,
@@ -709,14 +727,15 @@
       "source": {
         "download_url": "https://github.com/advimman/lama",
         "source_repo": "https://github.com/advimman/lama",
-        "docs_url": "https://www.iopaint.com/models",
-        "update_source": "https://www.iopaint.com/models",
+        "docs_url": "https://huggingface.co/Carve/LaMa-ONNX",
+        "update_source": "https://huggingface.co/Carve/LaMa-ONNX",
         "assets": [
           {
-            "url": "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx",
+            "url": "https://huggingface.co/Carve/LaMa-ONNX/resolve/c3c0c9e468934d62e79c329e35d82dd09ff8c444/lama_fp32.onnx",
             "filename": "lama_fp32.onnx",
             "kind": "onnx",
-            "min_bytes": 200000000
+            "min_bytes": 208044816,
+            "sha256": "1faef5301d78db7dda502fe59966957ec4b79dd64e16f03ed96913c7a4eb68d6"
           }
         ],
         "checksum": {
@@ -726,6 +745,83 @@
         }
       },
       "enabled": true
+    },
+    {
+      "id": "big-lama-1024-export",
+      "name": "Big-LaMa 1024 fixed-resolution export candidate",
+      "operations": [
+        "object_removal"
+      ],
+      "default_for": [],
+      "tier": "quality",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 450,
+      "quant_variants": [
+        "Apache-2.0 Big-LaMa generator-only safetensors; fixed 1024x1024 ONNX export candidate"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64"
+        ],
+        "speed_note": "Latest managed CPU export completed in 145.8s with a 16GiB RAM and 2000m CPU no-reclaim broker claim, a 16GiB cgroup ceiling, and two PyTorch/BLAS threads; exporter process RSS high-water was 13,639,499,776 bytes (~12.7GiB). The earlier 7GiB-claimed run was under-budget and is not capacity evidence. CPUWeight 100 is relative scheduling, not a quota. Repair performance/quality remain under evaluation."
+      },
+      "io": {
+        "native_resolution": "Pinned 1024x1024 fixed ONNX export; visual repair qualification pending.",
+        "notes": "Pinned 1024 ONNX artifact was generated and passed strict tensor parity, verified 512 reference probe, and native ONNX parity checks. Visual photographic repair qualification remains separate; candidate stays disabled."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Carve LaMa source and the pinned AEmotionStudio Big-LaMa safetensors model card identify Apache-2.0 licensing; its card traces the generator weights to the original LaMa checkpoint.",
+        "base_model_lineage": "LaMa / Big-LaMa (Samsung AI / advimman)",
+        "known_risks": "1024 fixed-shape export is experimental; hidden-background reconstruction requires visual review."
+      },
+      "source": {
+        "download_url": "https://github.com/Carve-Photos/lama",
+        "source_repo": "https://github.com/Carve-Photos/lama",
+        "docs_url": "https://huggingface.co/Carve/LaMa-ONNX",
+        "update_source": "https://github.com/Carve-Photos/lama/tree/f5fb39a18022c34a71bf9a47a6ec393c804b49ca",
+        "assets": [
+          {
+            "url": "https://github.com/Carve-Photos/lama/archive/f5fb39a18022c34a71bf9a47a6ec393c804b49ca.zip",
+            "filename": "lama-source.zip",
+            "kind": "binary",
+            "min_bytes": 1048576,
+            "sha256": "87ae34629d745e16f186f848fc676e7d0142c78a9783cf7099336396c3c4c398"
+          },
+          {
+            "url": "https://huggingface.co/AEmotionStudio/lama-inpainting/resolve/353e64100236fd934e1dcbaa1cbff13ea8362151/big-lama.safetensors",
+            "filename": "big-lama.safetensors",
+            "kind": "safetensors",
+            "min_bytes": 204348820,
+            "sha256": "12cb5eb5d515400f262b48d4e7c1994183e170aedb4b86699d9a55b770038e16"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "build_profile": {
+        "kind": "lama-onnx-fixed",
+        "source_asset": "lama-source.zip",
+        "source_sha256": "87ae34629d745e16f186f848fc676e7d0142c78a9783cf7099336396c3c4c398",
+        "checkpoint_asset": "big-lama.safetensors",
+        "checkpoint_sha256": "12cb5eb5d515400f262b48d4e7c1994183e170aedb4b86699d9a55b770038e16",
+        "resolution": 1024,
+        "opset": 17,
+        "output_filename": "lama_1024.onnx",
+        "output_sha256": "ed44a7c0468b633e106078b3e700ed5e2b0187d87efbdf9e6b03e08fe1b7a2b0"
+      },
+      "enabled": false
     },
     {
       "id": "ic-light-v1",
@@ -753,7 +849,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Harmonizes subject lighting to a new background. V2 is Flux-based and NON-COMMERCIAL \u2014 only V1 is bundled."
+        "speed_note": "Harmonizes subject lighting to a new background. V2 is Flux-based and NON-COMMERCIAL — only V1 is bundled."
       },
       "io": {
         "notes": "Background-replace DEFAULT is non-AI: BiRefNet/u2net cutout -> alpha_composite (CPU, instant). IC-Light is the optional GPU realism upgrade."
@@ -824,7 +920,7 @@
         "nsfw_capable": false,
         "license": "BSD-3-Clause (repo) / MIT (ncnn binary)",
         "commercial_use": "yes",
-        "commercial_use_notes": "Use only official weights \u2014 community .pth (4x-UltraSharp, Remacri, etc.) are CC-BY-NC-SA and BLOCKED.",
+        "commercial_use_notes": "Use only official weights — community .pth (4x-UltraSharp, Remacri, etc.) are CC-BY-NC-SA and BLOCKED.",
         "base_model_lineage": "Real-ESRGAN (Tencent ARC / xinntao)",
         "known_risks": "Beware community model zoo: most popular ESRGAN .pth are non-commercial despite 'mit' mislabels."
       },
@@ -893,7 +989,7 @@
         "nsfw_capable": false,
         "license": "MIT",
         "commercial_use": "yes",
-        "commercial_use_notes": "Both code and weights MIT (the 'disputed license' reputation is false \u2014 LICENSE is clean MIT).",
+        "commercial_use_notes": "Both code and weights MIT (the 'disputed license' reputation is false — LICENSE is clean MIT).",
         "base_model_lineage": "Real-CUGAN (bilibili AI Lab)",
         "known_risks": "Anime/illustration domain; underperforms on natural photos."
       },
@@ -1109,7 +1205,7 @@
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "GPU preferred; CPU feasible (pure conv), width32 friendlier. 'Non-commercial' reputation is a MYTH \u2014 LICENSE is MIT."
+        "speed_note": "GPU preferred; CPU feasible (pure conv), width32 friendlier. 'Non-commercial' reputation is a MYTH — LICENSE is MIT."
       },
       "io": {},
       "capability_labels": {
@@ -1165,7 +1261,7 @@
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "GPU strongly preferred; CPU very slow. 'Academic-only' reputation is STALE \u2014 now pure MIT."
+        "speed_note": "GPU strongly preferred; CPU very slow. 'Academic-only' reputation is STALE — now pure MIT."
       },
       "io": {},
       "capability_labels": {
@@ -1454,9 +1550,9 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "rembg lib is MIT; model is Apache. Do NOT enable rembg's bria-rmbg (RMBG-1.4/2.0) entry \u2014 those are CC-BY-NC.",
+        "commercial_use_notes": "rembg lib is MIT; model is Apache. Do NOT enable rembg's bria-rmbg (RMBG-1.4/2.0) entry — those are CC-BY-NC.",
         "base_model_lineage": "IS-Net / DIS (xuebinqin)",
-        "known_risks": "rembg model zoo also contains the non-commercial RMBG models \u2014 block them explicitly."
+        "known_risks": "rembg model zoo also contains the non-commercial RMBG models — block them explicitly."
       },
       "source": {
         "download_url": "",
@@ -1646,7 +1742,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Permissive. (Avoid FastSAM \u2014 AGPL via Ultralytics.)",
+        "commercial_use_notes": "Permissive. (Avoid FastSAM — AGPL via Ultralytics.)",
         "base_model_lineage": "MobileSAM (ChaoningZhang), distilled from SAM",
         "known_risks": "Lower mask quality than full SAM2/HQ-SAM."
       },
@@ -1678,6 +1774,141 @@
       "enabled": true
     },
     {
+      "id": "sam-2.1-tiny",
+      "name": "SAM 2.1 Tiny (Segment Anything 2.1)",
+      "operations": [
+        "segment"
+      ],
+      "default_for": [],
+      "tier": "quality",
+      "backend": "sam2-transformers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 156,
+      "quant_variants": [
+        "Hiera Tiny, 38.9M parameters"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 3,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "CPU and CUDA use the dedicated Transformers SAM2 adapter; performance is host-dependent and qualification evidence records measured runtime and resident memory. Image preprocessing follows the pinned upstream 1024-square processor settings."
+      },
+      "io": {
+        "notes": "One still image per request. Accepts normalized positive/negative points or one positive box; SAM 2 point and box prompt forms are separate."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "SAM 2.1 code and checkpoints are Apache-2.0 per Meta's upstream README.",
+        "base_model_lineage": "Segment Anything 2.1 Hiera Tiny (Meta)",
+        "known_risks": "Segmentation boundaries vary with image content and prompt placement; thin structures require fixture-specific review."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/facebook/sam2.1-hiera-tiny",
+        "source_repo": "https://github.com/facebookresearch/sam2",
+        "docs_url": "https://huggingface.co/docs/transformers/model_doc/sam2",
+        "update_source": "https://huggingface.co/facebook/sam2.1-hiera-tiny",
+        "assets": [
+          {
+            "url": "https://huggingface.co/facebook/sam2.1-hiera-tiny/resolve/de431c4043854a71d8101e17995dfe596bf101a5/config.json",
+            "filename": "config.json",
+            "kind": "binary",
+            "sha256": "860aff9751b139d83a4ad7df1e5535416fded533e0ead02625edbefcb9953cce",
+            "min_bytes": 5695
+          },
+          {
+            "url": "https://huggingface.co/facebook/sam2.1-hiera-tiny/resolve/de431c4043854a71d8101e17995dfe596bf101a5/model.safetensors",
+            "filename": "model.safetensors",
+            "kind": "safetensors",
+            "sha256": "48c14467e5cf9e51870511feb72c89688e82dd74523142c0538b663e193ac2a7",
+            "min_bytes": 155908064
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "sam-2.1-base-plus",
+      "name": "SAM 2.1 Base+ (Segment Anything 2.1)",
+      "operations": [
+        "segment"
+      ],
+      "default_for": [],
+      "tier": "quality",
+      "backend": "sam2-transformers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 324,
+      "quant_variants": [
+        "Hiera Base+, 80.9M parameters"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 3,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "CPU and CUDA use the dedicated Transformers SAM2 adapter; no performance claim until comparative qualification."
+      },
+      "io": {
+        "notes": "One still image per request. Accepts normalized positive/negative points or one positive box."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "SAM 2.1 code and checkpoints are Apache-2.0 per Meta's upstream README.",
+        "base_model_lineage": "Segment Anything 2.1 Hiera Base+ (Meta)",
+        "known_risks": "Larger and slower than Hiera Tiny. Boundary quality must be compared on the same prompt/image before promotion."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus",
+        "source_repo": "https://github.com/facebookresearch/sam2",
+        "docs_url": "https://huggingface.co/docs/transformers/model_doc/sam2",
+        "update_source": "https://huggingface.co/facebook/sam2.1-hiera-base-plus",
+        "assets": [
+          {
+            "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/resolve/47b9e36ec942f6ff9900555727478a1c96f63225/model.safetensors",
+            "filename": "model.safetensors",
+            "kind": "safetensors",
+            "sha256": "2012733a0de5d03efd1bba550a2847c4551be9ef2e0d497c83074df66189f780",
+            "min_bytes": 323476296
+          },
+          {
+            "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/resolve/47b9e36ec942f6ff9900555727478a1c96f63225/config.json",
+            "filename": "config.json",
+            "kind": "binary",
+            "min_bytes": 5705
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": false
+    },
+    {
       "id": "sam-2.1-large",
       "name": "SAM 2.1 large (Segment Anything 2.1)",
       "operations": [
@@ -1685,16 +1916,12 @@
       ],
       "default_for": [],
       "tier": "quality",
-      "backend": "onnxruntime",
-      "alt_backends": [
-        "pytorch"
-      ],
+      "backend": "sam2-transformers",
+      "alt_backends": [],
       "requires_comfyui": false,
       "size_mb_approx": 900,
       "quant_variants": [
-        "large ~900MB (224.4M)",
-        "tiny ~128MB (38.9M, CPU-friendly)",
-        "small/base+"
+        "Hiera Large, 224.4M parameters; no checkpoint provisioned"
       ],
       "hardware": {
         "cpu_capable": false,
@@ -1706,7 +1933,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Best general masks; heavy on CPU at large size (use SAM 2.1 tiny for a CPU one-family option). ONNX via samexporter."
+        "speed_note": "Manual, disabled catalog entry. No checkpoint is provisioned and this size has not been qualified by the SAM2 Transformers adapter."
       },
       "io": {},
       "capability_labels": {
@@ -1721,7 +1948,7 @@
         "manual": true,
         "download_url": "https://github.com/facebookresearch/sam2",
         "source_repo": "https://github.com/facebookresearch/sam2",
-        "docs_url": "https://github.com/vietanhdev/samexporter",
+        "docs_url": "https://huggingface.co/docs/transformers/model_doc/sam2",
         "update_source": "https://github.com/facebookresearch/sam2",
         "checksum": {
           "algo": "sha256",
@@ -1759,7 +1986,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Best boundary precision \u2014 ideal for inpaint/removal masks. Light variant is CPU-capable."
+        "speed_note": "Best boundary precision — ideal for inpaint/removal masks. Light variant is CPU-capable."
       },
       "io": {},
       "capability_labels": {
@@ -1783,6 +2010,129 @@
         }
       },
       "enabled": false
+    },
+    {
+      "id": "triposr-vision-to-mesh",
+      "name": "TripoSR single-image prop reconstruction",
+      "operations": [
+        "image_to_object"
+      ],
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "triposr",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 1680,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 6,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64"
+        ],
+        "speed_note": "Upstream default mesh extraction uses a 256^3 field; CPU execution is not qualified. GPU requirement is a conservative model-level floor, not a measured peak-memory claim."
+      },
+      "io": {
+        "native_resolution": "single square-conditioned image; 128 or 256 marching-cubes grid",
+        "notes": "Writes a bounded ZIP containing model.glb and a manifest. Vertex colors are used; UVs are absent. Hidden geometry is generated and requires inspection."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "MIT",
+        "commercial_use": "yes",
+        "commercial_use_notes": "The stabilityai/TripoSR checkpoint repository declares MIT; source code is separately pinned to the VAST-AI-Research/TripoSR MIT repository.",
+        "base_model_lineage": "TripoSR single-image reconstruction model",
+        "known_risks": "One view cannot establish occluded surfaces or physical scale; generated hidden faces, shape, color and dimensions are model estimates. Review the exported mesh before use."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/stabilityai/TripoSR",
+        "source_repo": "https://github.com/VAST-AI-Research/TripoSR",
+        "docs_url": "https://github.com/VAST-AI-Research/TripoSR/blob/107cefdc244c39106fa830359024f6a2f1c78871/README.md",
+        "update_source": "https://huggingface.co/stabilityai/TripoSR/tree/5b521936b01fbe1890f6f9baed0254ab6351c04a",
+        "assets": [
+          {
+            "url": "https://huggingface.co/stabilityai/TripoSR/resolve/5b521936b01fbe1890f6f9baed0254ab6351c04a/config.yaml",
+            "filename": "config.yaml",
+            "kind": "config",
+            "min_bytes": 987
+          },
+          {
+            "url": "https://huggingface.co/stabilityai/TripoSR/resolve/5b521936b01fbe1890f6f9baed0254ab6351c04a/model.ckpt",
+            "filename": "model.ckpt",
+            "kind": "checkpoint",
+            "min_bytes": 1677246742
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": false
+    },
+    {
+      "id": "moge-2-vits-normal",
+      "name": "MoGe-2 ViT-S Normal (ONNX)",
+      "operations": [
+        "scene_geometry"
+      ],
+      "default_for": [
+        "scene_geometry"
+      ],
+      "tier": "default",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 141,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Pinned MoGe-2 ViT-S ONNX export, CPUExecutionProvider. Runtime depends on image size and host; no latency claim yet."
+      },
+      "io": {
+        "native_resolution": "dynamic input; geometry raster capped to 4 megapixels",
+        "notes": "Writes a ZIP archive containing float32 camera-space points/depth/normals, uint8 validity, normalized intrinsics and JSON provenance."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "MIT",
+        "commercial_use": "yes",
+        "commercial_use_notes": "MoGe-2 ViT-S checkpoint is MIT; MoGe source code is MIT. MoGe's DINOv2 backbone code is Apache-2.0.",
+        "base_model_lineage": "MoGe-2 ViT-S normal head; DINOv2 ViT-S/14 backbone",
+        "known_risks": "Monocular camera, geometry and metric scale are estimates. They are not measured calibration or ground truth."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/Ruicheng/moge-2-vits-normal-onnx",
+        "source_repo": "https://github.com/microsoft/MoGe",
+        "docs_url": "https://github.com/microsoft/MoGe/blob/main/docs/onnx.md",
+        "update_source": "https://huggingface.co/Ruicheng/moge-2-vits-normal-onnx/tree/main",
+        "assets": [
+          {
+            "url": "https://huggingface.co/Ruicheng/moge-2-vits-normal-onnx/resolve/e50ffda41565591092adea54c6ac83d6212e1e23/model.onnx",
+            "filename": "model.onnx",
+            "kind": "onnx",
+            "min_bytes": 140000000
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "24eacb5dc7a2c54c7bc98f7de085ffbed79ad006ea5b664c2c2cdc02ff3a52f0",
+          "status": "pinned"
+        }
+      },
+      "enabled": true
     },
     {
       "id": "depth-anything-v2-small",
@@ -1821,7 +2171,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "ONLY the Small (vits) checkpoint is Apache. Base/Large/Giant are CC-BY-NC-4.0 \u2014 do NOT silently upgrade.",
+        "commercial_use_notes": "ONLY the Small (vits) checkpoint is Apache. Base/Large/Giant are CC-BY-NC-4.0 — do NOT silently upgrade.",
         "base_model_lineage": "Depth Anything V2 (TikTok/HKU)",
         "known_risks": "Per-size license trap: never auto-upgrade to V2 Base/Large/Giant (non-commercial)."
       },
@@ -1873,14 +2223,14 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Commercial-safe large tier \u2014 V1 is Apache across ALL sizes (unlike V2). Use this instead of V2-Large."
+        "speed_note": "Commercial-safe large tier — V1 is Apache across ALL sizes (unlike V2). Use this instead of V2-Large."
       },
       "io": {},
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "V1 is Apache at all sizes \u2014 the safe 'large' fallback since V2-Large is non-commercial.",
+        "commercial_use_notes": "V1 is Apache at all sizes — the safe 'large' fallback since V2-Large is non-commercial.",
         "base_model_lineage": "Depth Anything V1 (TikTok/HKU)",
         "known_risks": "Slightly behind V2 quality, but license-clean at large size."
       },
@@ -1982,7 +2332,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "conditional",
-        "commercial_use_notes": "VERIFY the exact weight card at bundle time \u2014 prs-eth has migrated cards between RAIL++-M and Apache-2.0. Avoid DSINE (custom non-commercial).",
+        "commercial_use_notes": "VERIFY the exact weight card at bundle time — prs-eth has migrated cards between RAIL++-M and Apache-2.0. Avoid DSINE (custom non-commercial).",
         "base_model_lineage": "Marigold (prs-eth / ETH Zurich), SD2 base",
         "known_risks": "No ONNX; GPU-only; confirm weight license string before shipping."
       },
@@ -2461,7 +2811,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Permissive. CRITICAL: do NOT use Ultralytics YOLOv8/v11 (AGPL-3.0) or YOLO-NAS (Deci non-commercial weights).",
         "base_model_lineage": "YOLOX (Megvii)",
-        "known_risks": "Lower accuracy than the newest (AGPL/NC) detectors \u2014 acceptable tradeoff for license cleanliness."
+        "known_risks": "Lower accuracy than the newest (AGPL/NC) detectors — acceptable tradeoff for license cleanliness."
       },
       "source": {
         "download_url": "",
@@ -2572,7 +2922,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Official repo is Apache. D-FINE (Apache) is a strong 2024/25 alternative.",
         "base_model_lineage": "RT-DETR (Baidu / lyuwenyu)",
-        "known_risks": "Ultralytics' RT-DETR wrapper is AGPL \u2014 use the official repo."
+        "known_risks": "Ultralytics' RT-DETR wrapper is AGPL — use the official repo."
       },
       "source": {
         "manual": true,
@@ -2739,7 +3089,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Fully permissive. The commercial-safe face detector (InsightFace weights are non-commercial).",
         "base_model_lineage": "YuNet (OpenCV Zoo / ShiqiYu)",
-        "known_risks": "Detection only \u2014 never extend to recognition (project non-goal)."
+        "known_risks": "Detection only — never extend to recognition (project non-goal)."
       },
       "source": {
         "download_url": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet",
@@ -3176,7 +3526,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Pure deterministic image processing shipped in-repo; no third-party weights.",
         "base_model_lineage": "n/a (deterministic image processing)",
-        "known_risks": "Not a generative restorer \u2014 adds texture/grain; cannot invent lost structure."
+        "known_risks": "Not a generative restorer — adds texture/grain; cannot invent lost structure."
       },
       "source": {
         "download_url": "",
@@ -3230,7 +3580,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Billed per OpenRouter pricing with your own key; commercial use governed by OpenRouter and the upstream model's terms.",
         "base_model_lineage": "OpenRouter-hosted image model resolved by role policy (resource-openrouter)",
-        "known_risks": "Sends prompts (and any input image) to a third-party cloud \u2014 not for private/local-only data. Each call costs real money. Availability depends on the upstream model staying listed on OpenRouter."
+        "known_risks": "Sends prompts (and any input image) to a third-party cloud — not for private/local-only data. Each call costs real money. Availability depends on the upstream model staying listed on OpenRouter."
       },
       "source": {
         "download_url": "https://openrouter.ai/docs",
@@ -3304,7 +3654,7 @@
         "face_restore"
       ],
       "license": "S-Lab License 1.0",
-      "reason": "NON-COMMERCIAL. The most-recommended face restorer online; ships in countless web UIs \u2014 high accidental-adoption risk. Use restoreformer-plus-plus.",
+      "reason": "NON-COMMERCIAL. The most-recommended face restorer online; ships in countless web UIs — high accidental-adoption risk. Use restoreformer-plus-plus.",
       "exporting_onnx_removes_restriction": false
     },
     {

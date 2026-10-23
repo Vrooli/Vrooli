@@ -25,12 +25,24 @@ func TestLoadSeed(t *testing.T) {
 		t.Fatal("missing schema version")
 	}
 
-	// Every operation that has models must have exactly one default, and that
-	// default must be enabled + CPU-capable (headless-completeness tenet).
+	// Every operation with an available default must select an enabled,
+	// CPU-capable model. Experimental GPU-only operations may remain unavailable
+	// while their only model is disabled; catalog doctor reports that state as a
+	// warning instead of promoting it or breaking unrelated startup.
+	doctor := r.DoctorCatalog()
 	for _, op := range r.SortedOperations() {
 		def, ok := r.DefaultFor(op)
 		if !ok {
-			t.Errorf("operation %q has no default", op)
+			expectedUnavailable := false
+			for _, finding := range doctor.Findings {
+				if finding.Code == "operation_without_installable_enabled_model" && finding.Operation == op && finding.Severity == FindingWarning {
+					expectedUnavailable = true
+					break
+				}
+			}
+			if !expectedUnavailable {
+				t.Errorf("operation %q has no default and is not explicitly marked unavailable", op)
+			}
 			continue
 		}
 		if !def.Enabled {
@@ -65,6 +77,91 @@ func TestLoadSeed(t *testing.T) {
 
 	if len(r.Blocklist()) == 0 {
 		t.Error("expected a non-empty blocklist")
+	}
+}
+
+func TestDisabledExperimentalImageToObjectHasNoSeededDefault(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	model, ok := r.ByID("triposr-vision-to-mesh")
+	if !ok || model.Enabled {
+		t.Fatalf("TripoSR must remain disabled in the seed until qualification completes: %+v", model)
+	}
+	if _, ok := r.DefaultFor("image_to_object"); ok {
+		t.Fatal("unqualified GPU-only image_to_object must not become a seeded default")
+	}
+	for _, finding := range r.DoctorCatalog().Findings {
+		if finding.Code == "operation_without_installable_enabled_model" && finding.Operation == "image_to_object" {
+			if finding.Severity != FindingWarning {
+				t.Fatalf("disabled experimental image_to_object availability must be a warning, got %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatal("expected catalog doctor to report the disabled experimental operation as intentionally unavailable")
+}
+
+func TestLaMaBuildProfileIsClosedAndCannotEnableUnpinnedOutput(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, ok := r.ByID("big-lama-1024-export")
+	if !ok || model.Enabled {
+		t.Fatalf("expected disabled LaMa export candidate, got %+v", model)
+	}
+	sourceHash := strings.Repeat("a", 64)
+	model.Source.Assets[0].SHA256 = sourceHash
+	model.BuildProfile = &BuildProfile{
+		Kind: "lama-onnx-fixed", SourceAsset: "lama-source.zip", SourceSHA256: sourceHash,
+		CheckpointAsset: "big-lama.safetensors", CheckpointSHA256: "12cb5eb5d515400f262b48d4e7c1994183e170aedb4b86699d9a55b770038e16",
+		Resolution: 1024, Opset: 17, OutputFilename: "lama_1024.onnx",
+	}
+	if err := r.validateModel(model); err != nil {
+		t.Fatalf("valid closed build profile rejected: %v", err)
+	}
+	mutated := model
+	bad := *model.BuildProfile
+	bad.Kind = "shell"
+	mutated.BuildProfile = &bad
+	if err := r.validateModel(mutated); err == nil {
+		t.Fatal("arbitrary build kind was accepted")
+	}
+	mutated = model
+	mutated.Enabled = true
+	if err := r.validateModel(mutated); err == nil {
+		t.Fatal("build candidate enabled without pinned output hash")
+	}
+}
+
+func TestSdxlInpaintUsesPinnedFp16RepositorySubsetAndRemainsDisabled(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, ok := r.ByID("sdxl-inpainting-0.1")
+	if !ok {
+		t.Fatal("catalog is missing the SDXL inpainting candidate")
+	}
+	if model.Enabled {
+		t.Fatal("SDXL inpainting must remain opt-in until visual qualification passes")
+	}
+	if model.Source.Repo.RepoID != "diffusers/stable-diffusion-xl-1.0-inpainting-0.1" || model.Source.Repo.Revision != "115134f363124c53c7d878647567d04daf26e41e" {
+		t.Fatalf("SDXL inpaint source is not pinned: %+v", model.Source.Repo)
+	}
+	if model.Runtime.Variant != "fp16" {
+		t.Fatalf("SDXL inpaint variant=%q, want fp16", model.Runtime.Variant)
+	}
+	patterns := strings.Join(model.Source.Repo.AllowPatterns, " ")
+	if !strings.Contains(patterns, "**/*.fp16.safetensors") {
+		t.Fatalf("SDXL inpaint install must select fp16 weights only: %v", model.Source.Repo.AllowPatterns)
+	}
+	for _, pattern := range model.Source.Repo.AllowPatterns {
+		if strings.Contains(pattern, "*.safetensors") && !strings.Contains(pattern, ".fp16.safetensors") {
+			t.Fatalf("SDXL inpaint install allows non-fp16 weights: %s", pattern)
+		}
 	}
 }
 

@@ -13,6 +13,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// provider-free-exception: the real <App /> case must prove its own Theme,
+// Settings and router composition; the canonical scenario wrapper would mask it.
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 

@@ -233,6 +233,31 @@ def check_world(adapter):
         fail("canonical scene environment strength did not reach the Blender world")
 
 
+def check_photographic_compositor(adapter, texture_path):
+    scene = bpy.context.scene
+    previous = scene.compositing_node_group
+    tree = None
+    plate = None
+    try:
+        tree, plate = adapter.build_photographic_compositor(scene, texture_path)
+        if scene.compositing_node_group is not tree:
+            fail("Blender 5 compositor node group was not assigned to the scene")
+        if not hasattr(scene, "compositing_node_group") or hasattr(scene, "node_tree"):
+            fail("scene compositor API does not match pinned Blender 5")
+        node_types = [node.bl_idname for node in tree.nodes]
+        expected_nodes = ("CompositorNodeImage", "CompositorNodeRLayers", "CompositorNodeAlphaOver", "NodeGroupOutput")
+        if sorted(node_types) != sorted(expected_nodes):
+            fail("photographic compositor nodes differ from the approved plate-over-device graph")
+        if len(tree.links) != 3 or not tree.interface.items_tree:
+            fail("photographic compositor graph is missing required links or output interface")
+    finally:
+        scene.compositing_node_group = previous
+        if plate is not None:
+            bpy.data.images.remove(plate)
+        if tree is not None:
+            bpy.data.node_groups.remove(tree, do_unlink=True)
+
+
 def check_screen_uv_binding(adapter, root, manifest):
     mesh = bpy.data.meshes.new("semantic-probe-screen-mesh")
     mesh.from_pydata([(0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)], [], [(0, 1, 2, 3)])
@@ -384,8 +409,9 @@ def main():
     check_material_graph(adapter, root, manifest)
     check_color_profile(adapter, root)
     check_world(adapter)
+    check_photographic_compositor(adapter, texture)
     check_screen_uv_binding(adapter, root, manifest)
-    receipt = {"version": 1, "adapter_sha256": manifest["adapter_sha256"], "status": "verified", "checks": ["empty-factory-scene", "actual-parented-device-landmark", "absolute-hinge-pose-and-child-screen-landmark", "imported-glb-hinge-basis-and-child-landmark", "affine-uv-node-construction", "red-channel-roughness-and-bump", "normal-bump-chain", "grade-order", "mask-cutoff", "pinned-color-management", "canonical-constant-world", "logical-uv0-to-blender-uvmap", "pinned-cycles-look"]}
+    receipt = {"version": 1, "adapter_sha256": manifest["adapter_sha256"], "status": "verified", "checks": ["empty-factory-scene", "actual-parented-device-landmark", "absolute-hinge-pose-and-child-screen-landmark", "imported-glb-hinge-basis-and-child-landmark", "affine-uv-node-construction", "red-channel-roughness-and-bump", "normal-bump-chain", "grade-order", "mask-cutoff", "pinned-color-management", "canonical-constant-world", "blender-5-photographic-compositor-node-group", "logical-uv0-to-blender-uvmap", "pinned-cycles-look"]}
     with open(os.path.join(root, "physical-semantic-probe-receipt.json"), "x", encoding="utf-8") as stream:
         json.dump(receipt, stream, sort_keys=True, separators=(",", ":"))
         stream.write("\n")

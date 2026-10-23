@@ -15,6 +15,8 @@ import json
 import sys
 import traceback
 
+from . import _common
+
 
 def _run(argv):
     if len(argv) < 2 or argv[0] != "-m":
@@ -34,12 +36,18 @@ def _run(argv):
 
 
 def main() -> None:
+    active_model = None
     for line in sys.stdin:
         if not line.strip():
             continue
         try:
             payload = json.loads(line)
-            _run(payload["argv"])
+            argv = payload["argv"]
+            model = argv[argv.index("--model") + 1] if "--model" in argv else None
+            if model != active_model:
+                _common._SESSION_CACHE.clear()
+                active_model = model
+            _run(argv)
             response = {"ok": True}
         except SystemExit as exc:
             response = {"ok": False, "error": f"sidecar exited with code {exc.code}"}

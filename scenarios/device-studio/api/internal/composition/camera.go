@@ -66,6 +66,17 @@ func InterpolateQuad(from, to [4]Point, progress float64) ([4]Point, error) {
 // zero factors preserve the scene pixels exactly; at the endpoint use both
 // factors as one to expose only the direct viewport and matte.
 func RenderScreenEntry(ctx context.Context, scene image.Image, from, to [4]Point, directViewport image.Image, matte color.NRGBA, directBlend, outsideFade float64) (*image.RGBA64, error) {
+	return renderScreenEntry(ctx, scene, from, to, directViewport, matte, directBlend, outsideFade, false)
+}
+
+// RenderStationaryScreenEntry lifts the direct screen over an unchanged room.
+// Only the active viewport changes geometry; scenery fades without a warp.
+// Consumers preserve the fixed composite at ordinal zero before this reveal.
+func RenderStationaryScreenEntry(ctx context.Context, scene image.Image, to [4]Point, directViewport image.Image, matte color.NRGBA, outsideFade float64) (*image.RGBA64, error) {
+	return renderScreenEntry(ctx, scene, to, to, directViewport, matte, 1, outsideFade, true)
+}
+
+func renderScreenEntry(ctx context.Context, scene image.Image, from, to [4]Point, directViewport image.Image, matte color.NRGBA, directBlend, outsideFade float64, stationary bool) (*image.RGBA64, error) {
 	if ctx == nil || scene == nil || directViewport == nil || !finite(directBlend) || !finite(outsideFade) || directBlend < 0 || directBlend > 1 || outsideFade < 0 || outsideFade > 1 {
 		return nil, errors.New("camera frame inputs or blend factors are invalid")
 	}
@@ -79,8 +90,14 @@ func RenderScreenEntry(ctx context.Context, scene image.Image, from, to [4]Point
 	if err := validateBounds("direct viewport", db); err != nil {
 		return nil, err
 	}
-	warpInverse, err := projectiveWarpInverse(image.Pt(sb.Dx(), sb.Dy()), from, to)
-	if err != nil {
+	var warpInverse matrix3
+	if !stationary {
+		var err error
+		warpInverse, err = projectiveWarpInverse(image.Pt(sb.Dx(), sb.Dy()), from, to)
+		if err != nil {
+			return nil, err
+		}
+	} else if err := validateQuadInside(image.Pt(sb.Dx(), sb.Dy()), to); err != nil {
 		return nil, err
 	}
 	if directBlend == 0 && outsideFade == 0 && from == to {
@@ -114,12 +131,18 @@ func RenderScreenEntry(ctx context.Context, scene image.Image, from, to [4]Point
 			for sy := 0; sy < samples; sy++ {
 				for sx := 0; sx < samples; sx++ {
 					dx, dy := float64(x)+(float64(sx)+0.5)/samples, float64(y)+(float64(sy)+0.5)/samples
-					scx, scy, ok := project(warpInverse, dx, dy)
+					scx, scy, ok := dx, dy, true
+					if !stationary {
+						scx, scy, ok = project(warpInverse, dx, dy)
+					}
 					if !ok {
 						return nil, errors.New("camera scene inverse warp is unbounded")
 					}
 					var sr, sg, sbc, sa uint16
-					if scx < 0 || scy < 0 || scx > float64(sb.Dx()) || scy > float64(sb.Dy()) {
+					if stationary {
+						r, g, b, a := scene.At(sb.Min.X+x, sb.Min.Y+y).RGBA()
+						sr, sg, sbc, sa = uint16(r), uint16(g), uint16(b), uint16(a)
+					} else if scx < 0 || scy < 0 || scx > float64(sb.Dx()) || scy > float64(sb.Dy()) {
 						sr, sg, sbc, sa = uint16(matte.R)*257, uint16(matte.G)*257, uint16(matte.B)*257, 65535
 					} else {
 						sr, sg, sbc, sa = sampleBilinear(scene, sb, scx-0.5, scy-0.5)

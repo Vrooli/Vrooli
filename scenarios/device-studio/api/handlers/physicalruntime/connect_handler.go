@@ -3,6 +3,7 @@ package physicalruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"connectrpc.com/connect"
 	"device-studio/internal/library"
@@ -37,7 +38,7 @@ func (h *Handler) InitializeReviewedStarter(ctx context.Context, request *connec
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, errors.New("candidate starter initialization failed"))
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("candidate starter initialization failed: %w", err))
 		}
 		candidateOnly := true
 		if statusOwner, ok := h.service.(interface {
@@ -56,7 +57,7 @@ func (h *Handler) InitializeReviewedStarter(ctx context.Context, request *connec
 	}
 	state, err := h.service.InitializeReviewedStarter(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("reviewed starter initialization failed"))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reviewed starter initialization failed: %w", err))
 	}
 	response := &physicalv1.InitializeReviewedStarterResponse{
 		PhoneDevice:      componentRef(state.Phone.DeviceID, state.Phone.Revision, state.Phone.SHA256),

@@ -321,7 +321,7 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		ShotID: shotID, Revision: revision, CreatedAt: createdAt.UTC(), Name: name, Snapshot: canonical,
 		SceneVersion: sceneSemanticVersion, PresentationVersion: presentationSemanticVersion, CompositorProfile: composition.StillProfile,
 	}
-	presentationVersion, err := resolvePresentationVersion(canonical.GetPresentation(), storedPresentationVersion, canonical.GetPhysicalBinding() != nil)
+	presentationVersion, err := resolvePresentationVersion(canonical.GetPresentation(), storedPresentationVersion, canonical.GetPhysicalBinding() != nil || canonical.GetVideoTiming() != nil)
 	if err != nil {
 		return Revision{}, err
 	}
@@ -564,11 +564,26 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		if camera == nil {
 			return malformed("camera_motion", "is required for crop-push motion")
 		}
-		if camera.GetProfileId() != CameraMotionProfileID || camera.GetProfileVersion() != CameraMotionProfileVersion {
+		if (camera.GetProfileId() != CameraMotionProfileID && camera.GetProfileId() != StationaryCameraMotionProfileID) || camera.GetProfileVersion() != CameraMotionProfileVersion {
 			return malformed("camera_motion.profile", "is not a supported photographic screen-entry profile")
 		}
 		if camera.GetMatteRgb() == nil || camera.GetMatteRgb().GetRed() > 255 || camera.GetMatteRgb().GetGreen() > 255 || camera.GetMatteRgb().GetBlue() > 255 {
 			return malformed("camera_motion.matte_rgb", "must be present with channels from 0 through 255")
+		}
+		if r := camera.GetTargetRect(); r != nil {
+			target := presentations.BasisRect{X: int(r.GetX()), Y: int(r.GetY()), Width: int(r.GetWidth()), Height: int(r.GetHeight())}
+			if !target.Valid() {
+				return malformed("camera_motion.target_rect", "must have positive size and lie within basis 10000")
+			}
+		}
+		if r := camera.GetSceneRect(); r != nil {
+			if camera.GetProfileId() != StationaryCameraMotionProfileID {
+				return malformed("camera_motion.scene_rect", "requires the stationary-scene profile")
+			}
+			rect := presentations.BasisRect{X: int(r.GetX()), Y: int(r.GetY()), Width: int(r.GetWidth()), Height: int(r.GetHeight())}
+			if !rect.Valid() {
+				return malformed("camera_motion.scene_rect", "must have positive size and lie within basis 10000")
+			}
 		}
 		if camera.GetDurationOutputFrames() < 2 || camera.GetDurationOutputFrames() > maxCameraOutputFrames {
 			return malformed("camera_motion.duration_output_frames", "must be between 2 and 360 output frames")
@@ -675,7 +690,7 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 	return result, nil
 }
 
-func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string, physical bool) (string, error) {
+func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string, appRaster bool) (string, error) {
 	kind := shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED
 	if p != nil {
 		kind = p.GetKind()
@@ -690,7 +705,7 @@ func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string, ph
 				version = presentationSemanticV2
 			}
 		case shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN:
-			if physical && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
+			if appRaster && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
 				version = presentationSemanticV2
 			} else {
 				version = presentationSemanticVersion
@@ -704,12 +719,12 @@ func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string, ph
 		if p != nil && kind != shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED && kind != shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN {
 			return "", ErrUnsupportedPresentationVersion{Version: version}
 		}
-		if physical && p != nil && kind == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
+		if appRaster && p != nil && kind == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
 			return "", ErrUnsupportedPresentationVersion{Version: version}
 		}
 	case presentationSemanticV2:
-		plainPhysicalAppOnly := physical && p != nil && kind == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY
-		if kind != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && kind != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP && !plainPhysicalAppOnly {
+		plainAppRaster := appRaster && p != nil && kind == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY
+		if kind != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && kind != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP && !plainAppRaster {
 			return "", ErrUnsupportedPresentationVersion{Version: version}
 		}
 	case presentationSemanticV3:

@@ -39,11 +39,37 @@ verticals are visible before an operator tries a job. Hardware fit is still
 reported by `models select` / AI planning; backend doctor answers "is this
 backend actually probeable/executable on this host?".
 
+## Local inference capacity and lifetime
+
+Every production local CPU or GPU inference reserves the selected catalog
+model's positive `min_ram_gb` through the shared host capacity broker, using
+no-reclaim admission. The host RAM reservation precedes any GPU reservation or
+provider execution. A denial does not start a worker, reclaim another service,
+or silently choose a paid provider. GPU jobs also retain their separately
+validated, UUID-bound VRAM claim.
+
+The engine renews both leases during execution and cancels the operation if
+renewal fails. Before releasing RAM, an admitted JSONL sidecar is stopped and
+reaped, including successful inference. This prevents a resident model from
+outliving its operation's reservation. The result records
+`ram_capacity_claim_bytes`, `ram_capacity_policy`, and
+`ram_capacity_release`; an uncertain release is reported with native TTL
+recovery rather than asserted successful. The declared RAM reservation is an
+admission budget, not a claim of measured peak RSS or an operating-system memory
+ceiling. Model export builds have a separate owned-process/cgroup lifecycle.
+
+The native MoGe CPU proof on 2026-10-22 completed with a 4 GiB claim and no
+remaining JSONL worker after completion. The exact claim was independently
+observed released. Cancellation, denial-before-provider, worker teardown and
+release-error behavior are covered by focused engine tests and the race-enabled
+AI package suite. This proof qualifies that selected execution path, not every
+catalog model's memory estimate.
+
 ## Backends
 
 | Backend | Program | Ops | GPU-capable | Management decision |
 |---|---|---|---|---|
-| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `deblur`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | no (CPU) | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). The provider probes ONNX Runtime execution providers and requires `CPUExecutionProvider`; `CUDAExecutionProvider` presence is reported in doctor output, but this row stays CPU-labeled until a separate GPU-capable ONNX provider is promoted. The provider prefers the warm JSONL worker and falls back to one-shot `python3 -m image_tools_sidecar.<op>` if the worker dies. |
+| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `deblur`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | no (CPU) | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). The provider probes ONNX Runtime execution providers and requires `CPUExecutionProvider`; `CUDAExecutionProvider` presence is reported in doctor output, but this row stays CPU-labeled until a separate GPU-capable ONNX provider is promoted. The provider uses the JSONL sidecar protocol, reports failures once, and starts fresh on the next request. Production local calls reap the worker before releasing operation-scoped RAM; the unleased control benchmark retains bounded warm reuse. |
 | `python-sidecar` | `python3` modules | `colorize`, `face_restore`, `old_photo_restore` | no (CPU for registered rows) | Registered embedded sidecar providers. `colorize` uses the ONNX/Pillow/numpy sidecar path; restoration probes the heavier RestoreFormer++ stack (`torch`, `basicsr`, `facexlib`) and stays red until provisioned through SDA. |
 | `diffusers` (sidecar) | `python3` + diffusers | `edit_instruct`, `inpaint`, `outpaint`, `background_replace` | yes | Embedded sidecar pattern; `diffusers`/`torch` runtime deps managed through SDA. |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | yes | Standalone binary managed through SDA / host-tool provisioning. |
@@ -72,12 +98,14 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 | `diffusers` | `uv` | `text_to_image`, `image_to_image`, `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install uv` |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
-| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install uv` |
+| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `object_removal`, `colorize`, `depth_map`, `scene_geometry`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install uv` |
 | `python-sidecar` | `uv` | `colorize` | `vrooli host install uv` |
 | `python-sidecar` | `uv` | `face_restore`, `old_photo_restore` | `vrooli host install uv` |
 | `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | `vrooli host install realesrgan-ncnn-vulkan` |
 | `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |
+| `sam2-transformers` | `uv` | `segment` | `vrooli host install uv` |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | `vrooli host install sd` |
+| `triposr` | `uv` | `image_to_object` | `vrooli host install uv` |
 <!-- END GENERATED: host-tool-matrix -->
 
 ## Operation Support Matrix
@@ -175,12 +203,14 @@ until a governed installer is provisioned.
 > fixture-backed E2E golden gates as their weights/provisioning become runnable.
 
 > Status (2026-06-20): Phase 4 warm-sidecar hardening has started for the
-> `onnxruntime` backend. Production ONNX sidecar calls now prefer a persistent
-> `image_tools_sidecar.worker` JSONL process, and `_common.make_session()` caches
-> ONNX Runtime sessions by model path inside that process so repeated requests do
-> not pay model-load cost every time. The existing one-shot sidecar path remains
-> the fallback when the worker exits or cannot start; this is an internal
-> reliability fallback, not a compatibility surface. Runtime performance levers
+> `onnxruntime` backend. The `image_tools_sidecar.worker` JSONL process caches
+> ONNX Runtime sessions by model path, bounded to one active model (at most two
+> encoder/decoder sessions). Since 2026-10-22, production local inference holds
+> an operation-scoped RAM lease and reaps the worker before that lease is
+> released. Unleased control/benchmark callers retain model-switch cleanup and
+> the 30-second idle bound; their warm timing is not a production latency promise.
+> Failed requests are reported once; the next request starts a fresh worker.
+> Runtime performance levers
 > are now explicit: `IMAGE_TOOLS_CPU_WORKERS` bounds CPU-lane concurrency and
 > `IMAGE_TOOLS_INSTALL_MB_PER_SECOND` tunes model-install ETA math without
 > changing download behavior. A synthetic warm-worker benchmark now records the
@@ -253,11 +283,11 @@ shared mutable namespace, and an unrelated `pip` upgrade on the box once pulled
 How it works (`api/internal/pyenv`, wired in `main.go`):
 
 1. `uv` (a host tool — `vrooli host install uv`) builds the venv at
-   `<data-dir>/pyenv/` and syncs it from the embedded, fully-pinned + hashed
+   `<cache-dir>/pyenv/` and syncs it from the embedded, fully-pinned + hashed
    `api/internal/pydeps/requirements.lock` (the single version source of truth).
    The first build downloads torch (multi-GB) in the background.
 2. The Go providers invoke the venv interpreter by **absolute path**
-   (`<data-dir>/pyenv/bin/python`) — never a bare `python3` off `PATH`. There is
+   (`<cache-dir>/pyenv/bin/python`) — never a bare `python3` off `PATH`. There is
    **no host-interpreter fallback**: until the venv is built, the Python backends
    report *unavailable* (surfaced before use via `models doctor`, `/health`, and
    `ListOperationModels` ready_state), rather than silently running unisolated.
@@ -273,18 +303,37 @@ lock (`internal/pydeps/README.md`) — never edit the lock or `pip install` by h
 
 The CPU-tractable backend is a small Python package shipped **inside the Go
 binary** (`api/internal/sidecar/py/image_tools_sidecar`). At boot the server
-materializes it under `<data-dir>/sidecar/` and prepends that directory to
+materializes it under `<cache-dir>/sidecar/` and prepends that directory to
 `PYTHONPATH`, so the venv interpreter's `python -m image_tools_sidecar.<op>`
 resolves regardless of the working directory. You do **not** install the sidecar
 code separately.
 
 For ONNX Runtime operations, the Go provider starts the **venv interpreter**
-`<data>/pyenv/bin/python -m image_tools_sidecar.worker` and sends one JSON
+`<cache>/pyenv/bin/python -m image_tools_sidecar.worker` and sends one JSON
 request per line. The worker invokes the same module entrypoints as the one-shot
-path but keeps the process alive, allowing ONNX sessions to be cached per model
-path. If the worker crashes or a request context is cancelled, the provider
-restarts on the next request and falls back to the one-shot command for the
-failed request.
+path but keeps the CPU process alive for at most 30 seconds idle, with two
+sessions maximum and cache eviction on model changes. A crash or cancellation
+is reported without replaying inference. Teardown joins the child and protocol
+reader before returning; the next request starts fresh. API shutdown closes
+providers after stopping jobs.
+
+Diffusion processes remain one-shot, so framework/model memory ends with each
+process. The scheduler passes an explicit `--device cpu|cuda`; CUDA availability
+cannot override a CPU decision. GPU work requires a valid host capacity grant,
+renews it every one-third of its ten-minute TTL with the generation guard, and
+stops when renewal fails. Cleanup releases with a separate bounded context even
+when the job was canceled. A GPU-only model cannot be relabeled as CPU fallback.
+The stable-diffusion.cpp CPU route pins both `--backend cpu` and
+`--params-backend cpu`: [upstream backend selection](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/backend.md)
+distinguishes runtime compute from parameter residency. CPU offloading alone
+does not prove CPU execution.
+
+Prompted segmentation is available as `image-tools ai segment` / the durable
+`POST /api/v1/ai/segment` edge with typed `AIParams.segmentation` points/box.
+The qualified existing runtime is CPU MobileSAM (SAM1 export contract), not
+SAM2. The synchronous `select segment` region-grow remains heuristic and does
+not invoke this model path. See [layered photography](layered-photography.md)
+for usage, source-image variants and the unqualified hybrid stages.
 
 You do **not** install the Python stack by hand. Every Python backend runs from a
 private, lock-pinned uv venv that image-tools builds on start (see

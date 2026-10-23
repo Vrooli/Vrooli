@@ -43,11 +43,16 @@ func TestOpVocabularyConformance(t *testing.T) {
 	}
 
 	// 2. AI discovery catalog: every op the engine builds a runner for, and each
-	//    must be a generation/enhancement op (the categories ai owns).
+	//    must be a generation/enhancement op, or the explicit image-producing
+	//    prompted SAM job. Other analysis operations remain structured results.
 	for _, op := range ai.List() {
 		check(t, "ai catalog", op.Name)
 		switch op.Category {
 		case operations.CategoryGeneration, operations.CategoryEnhancement:
+		case operations.CategoryAnalysis:
+			if op.Name != "segment" {
+				t.Errorf("unexpected analysis job %q in AI image catalog", op.Name)
+			}
 		default:
 			t.Errorf("ai catalog op %q has category %q; ai owns only generation/enhancement", op.Name, op.Category)
 		}

@@ -1,5 +1,14 @@
 # Scenes, motion, shot compilation and output
 
+Hybrid photographic scenes follow the source-dependent preparation contract in
+`path:scenarios/image-tools/docs/reference/layered-photography.md`. Known-camera
+geometry-first scenes, device-free plates and photographed-device replacement
+are distinct routes. Image Tools owns reusable inference/repair/reprojection;
+Device Studio owns known-device pose/hinge fitting, physical screen projection,
+contact shadows and composition. A qualified mask or prepared parallax sequence
+does not establish a calibrated physical scene. Qualify a short source-matched
+render and screen handoff before replacing an accepted film's device shot.
+
 ## Scope
 
 Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
@@ -22,6 +31,14 @@ A manual strategy override cannot waive incompatibility. Explain the violating m
 Scene slots expose measured support plane/mesh, normal, local frame, mount interfaces, exclusion zones and clearance. Device orientation/scale is physical, not fitted to a silhouette. Props, materials, texture scale, lights, camera/lens, focus and depth of field are independent and versioned. Art direction favors restrained realistic surfaces and coherent illumination; primitive props and more samples do not meet the photographic benchmark.
 
 Motion has separate device root, joint and camera channels with explicit easing/interpolation and time ranges. Bound tracks to supported targets/ranges. Repeated playback does not accumulate transforms. Preview and native worker evaluate the same channel/time semantics; their lighting is visibly different until separately matched. Camera screen-entry ends on the active app surface and transitions to the actual capture, preserving crop/time continuity. It must not merely enlarge the whole device and stop on a bezel. The direct-app transition surface must contain source pixels and the presentation-owned flat letterbox fill only. Browser window outlines, rounded corners, toolbar, dock and phone system chrome must not leak into that surface; preserve the source mapping rather than cropping away source pixels to hide chrome.
+
+### Photographic editorial handoff destination
+
+A photographic screen-entry camera may name an optional destination rectangle in normalized output coordinates (x/y/width/height in integer basis 10000, positive size, entirely inside output). Omitting it preserves full-output contain. The renderer contains the entire active app viewport within that rectangle, without stretch or source crop, and fades the surrounding device/chrome to the pinned matte. The saved revision and worker manifest pin the destination. Output orientation changes resolve the same normalized intent against that output raster. This is a bounded photographic camera endpoint, not arbitrary moving hardware or transparent output.
+
+New photographic app-only plain video revisions use the existing v2 app-raster presentation adapter, matching the video worker. Plain still revisions retain their historical v1 semantics. A historical v1 plain video must be saved as a new revision before rendering; compilation must not silently reinterpret its saved identity.
+
+The following film shot must use the same source, source-time continuation, aspect, matte and computed contained viewport bounds. A destination rectangle alone does not prove editorial continuity. Clients may introduce surrounding titles/background after the screen reaches its endpoint; they must not replace the screen with another take at that join.
 
 ## Compilation and revision
 
@@ -262,3 +279,21 @@ Derive the active app quad using the exact surface contain transform and homogra
 Interpolate corresponding viewport corners from their initial output positions to the endpoint rectangle using profile-pinned smoothstep over output frames0..N−1. Validate finite/convex/nondegenerate geometry for the bounded full path before dispatch; reject folding or singular paths with a repair explanation. Frame0 is an exact identity operation on the existing fixed composite. For intermediate frames, inverse-warp the composed scene using the corresponding projective transform. During the final quarter, smoothly fade scenery outside the moving viewport to matte and blend inside it toward the direct presented AppViewport from the same scheduled source frame. Antialias viewport boundaries. At and after the endpoint, render the direct AppViewport into the contained rectangle with matte outside: no bezel, scene or hardware occlusion pixels may remain. Never obtain the endpoint solely by magnifying the previously projected plate.
 
 One queue, native execution owner, decoder and output verifier remain authoritative. Composition owns the shared projection/warp math; rendering owns ordinal evaluation and direct handoff; shots owns validation/immutable recipe; UI exposes duration/matte and explains containment. Required evidence includes fixed-byte compatibility, frame-zero sample parity, aspect/matte/hardware-free endpoint, perspective and singular-path cases, continuous source PTS including repeated VFR selections, actual output decode, cancellation/resource bounds and observed added runtime. Fixed-video run6 evidence remains valid only for its unchanged profile.
+
+
+### Stationary photographic screen entry
+
+Operator-approved extension (Aquila craft feedback,2026-10-21): `screen-entry-stationary-scene-v1` is an editorial reveal. Preserve the photograph's orientation and pixels while its screen lifts into `target_rect`; fade the stationary photograph to matte. An optional `scene_rect` contains the full photograph in a separate normalized output rectangle. Default scene placement is full-output contain. Derive the initial active screen projection from that exact contain placement. The entry begins with the native fixed composite and ends with the direct full viewport at the requested destination; source PTS must remain continuous. Do not label this as physical camera movement, depth parallax or laptop articulation. Keep legacy projective-contain saved recipes unchanged; reject scene placement on that legacy profile rather than ignoring it.
+
+The destination is local to the following shot. A side destination permits large text alongside it; it does not require all later shots to use that placement. Review the room for warping and the screen for source-time/geometry continuity in the actual encoded handoff.
+
+
+### Video source color at a screen handoff
+
+The decoded active viewport is sRGB RGB24. Decode inspected SDR YUV with explicit
+matrix, range, primaries and transfer through zscale, requesting planar GBR
+before packing RGB24. Do not let a later implicit YUV-to-packed-RGB conversion
+reinterpret a full-range planar result: it lifts dark UI values. A dark-sRGB
+encode/decode regression exercises the actual FFmpeg filter and bounds the
+round-trip error. The worker digest pins this repair; retained old artifacts are
+not rewritten. Camera geometry and source clocks are unchanged by this fix.

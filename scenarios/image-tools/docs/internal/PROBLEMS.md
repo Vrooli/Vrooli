@@ -49,6 +49,225 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-10-21 — Hybrid scene preparation and inference lifetime
+
+Operator direction: support scene-only, photographed-device and geometry-first
+routes, proper segmentation/geometry/object reconstruction, governed model
+selection, and release unused model resources. Target:
+`docs/reference/layered-photography.md#hybrid-device-scenes-target-and-current-limits`.
+
+Work shape: bounded engineering foundation with a durable continuation record;
+the complete hybrid pipeline remains an explicitly tracked target. Harness goal:
+work until the affected native model execution paths have bounded residency,
+cancel-safe worker teardown, correctly prompted SAM masks, and focused passing
+regressions. Then report each remaining hybrid stage and its qualification gap.
+Boundary: Image Tools owners and Device Studio integration documentation;
+control-plane fixes only when a reproduced owner defect requires them. Preserve
+the operator-rated Aquila film. Targeted tests and relevant Test Genie phases;
+no full certification claim. Blocked means a missing decision, credential or
+approval; diagnose ordinary engineering friction. Checkpoint here on interruption.
+
+Full delivery approved 2026-10-22. This supersedes the foundation-only finish
+line above. Work until each supported source route produces an editable,
+inspected physical scene through native surfaces; interruption recovery and
+resource release pass; the accepted Aquila device sequence has a reviewed
+replacement. Canonical design: the approved delivery contract in
+`docs/reference/layered-photography.md`. Proof is per-route retained inputs,
+actual outputs, focused behavior tests and affected Test Genie phases, followed
+by review of the encoded film. Preserve unrelated dirty work and accepted assets.
+
+Original delivery sequence (historical checklist; current evidence is summarized below):
+
+1. Shared scene contract, source manifest and known-camera laptop/phone corpus.
+2. Geometry-first physical sample through Device Studio's existing renderer.
+3. Capacity owner no-reclaim semantics, observable cleanup, bound device and
+   measured stage requirements; contention/cancel/crash/model-switch evidence.
+4. Full MoGe geometry adapter/archive, postprocess and support-plane fitting.
+5. Separate SAM2 adapter, mask refinement/correction and comparison fixtures.
+6. Landmark/camera/hinge fitting and corrected photographed-device overlays.
+7. Device/shadow/reflection removal, repaired background and overscan inspection.
+8. Hybrid physical composition, occlusion/contact/light/color and motion limits.
+9. Governed image-to-object prop backend, mesh/material/UV/scale qualification.
+10. Checkpointed program, API/CLI/UI progress/preview/correction and retry paths.
+11. Relevant UI-unit and dependency-governance repairs; remove superseded paths.
+12. Skill integration, short approved sample and revised Aquila encoded film.
+
+Current delivery checkpoint, 2026-10-22 (photo qualification in progress):
+
+- The revised 108s Aquila film is rendered, mastered and technically inspected.
+  Local player: `~/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/film/physical-v1/report.html`.
+  Exact MP4 SHA-256 is
+  `f1181dfc5a783bf762fda1de1db029115a595ed357229977ebd8980be5a22a7a`.
+  The 128-sample physical reveal uses indexed-triangle screen UV geometry,
+  a right-side active-content target and arrival hold before its fade. Encoded
+  prefix and final-frame reviews cover the actual join. Later layouts, file
+  origin story and full native captures remain; the accepted parent is unchanged.
+  The parent AAC bytes and packet timing are identical. Fresh sound-on review
+  remains open; the local artifact is a review draft, not publication approval.
+- MoGe native jobs retain full geometry, estimated camera intrinsics, validity,
+  support-plane fit and uncertainty. A genuine empty desk source/geometry passed
+  immutable review and typed scene import. The governed `import-scene` stage
+  also passed through the current main Device Studio owner, with normal Library
+  readback and source-use rationale. A native fixed-source-camera diagnostic
+  now preserves the exact photographic plate with a separately rendered known
+  device and contact shadow; camera drift is rejected in this explicit mode.
+  A native 48-frame 128-sample device-only motion sample passes review, with its
+  GPU claim released. Depth-mesh reprojection still
+  exposes discontinuity holes and remains experimental; it is not substituted
+  into the Aquila film. An older private snapshot used stale candidate
+  identity code and is not the authoritative replay proof.
+- SAM2 Tiny has native CPU/GPU masks and contention evidence, plus include/exclude
+  correction UI. Base+ showed no useful uplift on the tested thin boundaries and
+  remains disabled. Segmentation regions are not transparency mattes.
+- The governed fixed-1024 LaMa build passed strict weight/export parity, native
+  owned-process execution with a 16GiB ceiling, and measured ~12.7GiB peak RSS.
+  Local 512/1024 LaMa and tested diffusion repairs were visually rejected on the
+  retained laptop/phone plates. The 1024 candidate remains installed but disabled;
+  the prior 7GiB build budget remains rejected. An explicit authored ImageGen
+  phone-removal edit is retained as a separate clean-plate preparation, with
+  full prompt/hash provenance and near-identity registration. Its native PNG
+  encoding preserves every decoded tool-output pixel. The preparation passed
+  source review and normal Device Studio import using an explicit authored
+  provenance schema; it is not a local-model success or outside-mask exact-pixel
+  repair. An explicit 16:9 photographic derivative uses identical native crops
+  for source/plate/masks, retains the parents/transform, and has fresh native
+  geometry. Its manually placed known-phone static passes native render and
+  visual inspection; evidence is under
+  `~/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/evidence/phone-authored-16x9-v1/`.
+  Original-device pose fitting, automatic local repair and camera motion remain
+  unqualified. No automatic photographed-device route is claimed ready.
+- Local inference now reserves catalog host RAM before any provider/GPU work,
+  renews leases and reaps admitted workers before releasing RAM. Native CPU
+  MoGe proofs show exact claim release and no remaining JSONL worker. ONNX
+  sessions use bounded threads; the phone geometry proof ran on the adopted
+  source. Build cancellation/recovery has focused owner-fake tests; a native
+  interrupted-export/restart proof has not been run. Physical render cancellation
+  independently proves reap/release and checkpoint survival.
+- TripoSR emits real GLBs and has native intake previews. The teapot is
+  recognizable but imperfect; this profile has no UVs and remains a candidate.
+  Known device meshes stay preferred; generated props are optional and unpromoted.
+- PreparationService owns protected immutable bundles and idempotent review
+  operation IDs. The bounded stage program uses normal owner APIs rather than a
+  new queue. Source/model/mask/preparation assets are protected data; disposable
+  outputs and lock-pinned Python runtime use leased cache roots. Native storage
+  migration verified 5.3GB before removing the obsolete output tree.
+- Image Tools Test Genie unit `20261022-200352-e50ef4e4` and dependency/program
+  `20261022-200519-935a11af` phases pass. Two dependency governance warnings remain.
+  Device Studio unit `20261022-200421-4e61d91e` passes; its dependency drift was
+  corrected and dependency run `20261022-200822-43fff49e` passes. These are scoped
+  validations, not full scenario certification or resolution of every advisory.
+- Canonical launch-video revision 45 includes source-continuous local joins,
+  active-content bounds, settled arrival, actual UV/pixel comparison and material
+  review. Its sidecar was generated through the owner; Prompt Manager reads the
+  current source. Native base-pack selection is unchanged.
+
+Historical foundation checkpoint, 2026-10-22 (superseded by the evidence above):
+
+- SAM2 Tiny has separate pinned config/weight hashes and fresh managed CPU/GPU
+  durable-job proofs. Base+ comparison did not show useful uplift on the laptop
+  fixture and remains disabled. Region quality is not universal matte quality.
+- MoGe produces a validated float geometry/camera bundle and selected-ROI support
+  plane with analytic projection tests plus the actual device-plate output.
+  Estimated monocular scale is not measured scene geometry.
+- Capacity now honors no-reclaim independently of priority, rejects unsuccessful
+  enforced reclaim, binds a freshly selected CUDA UUID per subprocess, and
+  exposes release failures. CPU-only Torch runtimes do not advertise CUDA.
+- Image operations retain source-byte fingerprints and durable retry identity.
+  Corrupt saved operation metadata fails explicitly rather than returning success.
+- Select has an include/exclude object-mask correction UI, cancellation and
+  download. Its 25 focused UI/API/locale tests pass; visual browser review is due.
+  Existing shared Testing Library instances were unified; scoped UI execution
+  and policy checks pass. No final scenario certification is claimed.
+- SDA resolves the embedded Python compatibility forwarder to the canonical
+  input/lock owner, stages both outputs, restores publication errors, and keeps
+  distinct PEP 503 package identities. Focused gateway/governance tests pass and
+  native adoption succeeded. Interrupted publication still requires verification.
+- The isolated Device Studio variant started healthy through native lifecycle.
+  A shared dependency symlink correctly caused refusal; there was no missing
+  runtime source-root bug, and no speculative lifecycle fallback was retained.
+  The physical sample exposed tilted-screen UV/metric defects now under repair.
+- TripoSR source acquisition/profile, provider and GLB validation are in progress.
+  No native prop reconstruction or completed scene/film is claimed yet.
+
+Evidence: `~/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/evidence/`
+and `evidence/full-delivery/`. These checks do not close the remaining delivery
+sequence above; the physical sample, photographic routes, orchestration, skill
+adoption and encoded film review remain required.
+
+Orchestration observation: `agent-manager run identity --json` returned
+`identity_refresh_unavailable` on 2026-10-22. No CreateRun was attempted and no
+native delivery team was enabled; this is not a CreateRun denial. Do not remove
+identity headers or substitute principals. Continue authorized direct engineering
+with bounded native collaboration under the existing Device Studio direct-session
+commission; retain actual child identities without claiming Agent Manager
+admission. Restore a verified native handoff only through its supported owner.
+
+Recall: search-hub returned related device-domain and image model work; agent
+reranking and source-ledger recall degraded. Code confirms related warm-worker
+work, not a previously qualified hybrid reconstruction path.
+
+Hypotheses and experiments:
+
+- The ONNX worker retains CPU sessions without limit or idle exit. Inspect
+  `_SESSION_CACHE`, switch model paths and verify bounded retention; run an idle
+  timeout regression with a real lightweight worker process.
+- GPU memory might remain in that warm worker after claim release. Inspection
+  rejects this specific hypothesis: the registered warm backend is CPU-only;
+  diffusion backends are one-shot. Verify cancellation reaps children before
+  return, and independently audit CPU/GPU selection in one-shot providers.
+- Existing SAM inference does not honor object prompts or export preprocessing.
+  Exercise a non-square image and off-center positive/negative points/box;
+  validate tensor coordinates, padding, mask candidate scores and source sizing.
+
+Foundation outcome, 2026-10-22: repaired the actual installed MobileSAM tensor
+contract (HWC embedded preprocessing versus NCHW), prompt coordinates/box labels,
+the `has_mask_input` rank collision, and best-score source-resolution logits.
+Added typed prompts and `ai segment` through the existing durable model-job
+owner. Local model jobs remain serialized even on CPU. The legacy synchronous
+smart-selection endpoint remains heuristic; SAM2 is not routed through SAM1.
+
+Scoped work-ladder disposition: W3, established operator expectations for
+correct model execution and idle release. Reproducing tests and owner checks are
+the gate; this record does not claim a full W0–W2 or scenario maturity review.
+Final review also reproduced a GPU-only catalog model selected through a
+CPU-only backend (`model-backend-fit-before.log`). The resolver now skips that
+candidate (or rejects an explicit override), reports actual backend GPU viability,
+and the runner rechecks CPU compatibility if the backend changes after admission.
+`model-backend-fit-final.log` passes the resolver, engine and handler packages.
+
+Residency repair: two ONNX sessions maximum, clear on model change, reap after
+30 seconds idle, join child/protocol teardown, and close providers at shutdown.
+Failed inference runs once. Diffusers receives the admitted CPU/CUDA decision;
+sd.cpp CPU requests pin both compute and parameters to CPU. Capacity grants use
+the host owner, renew with generation guards, cancel on renewal loss and release
+under a bounded context independent of canceled jobs. No resource model server,
+private GPU scheduler, heavyweight dependency or new weight download was added.
+
+Evidence root:
+`~/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/evidence/`.
+`cache-before.log` reproduced ten retained sessions; `owner-tests-final.log`,
+`race-tests-final.log`, `cli-tests-final.log` and `sam-admission-tests-final.log`
+pass. `sam-native-job.log` records a real 1672×941 laptop mask from installed
+weights through HTTP and a temporary durable queue after client disconnect.
+`capacity-native-{claim,heartbeat,release}.json` prove a bounded 1MiB host-owner
+reservation cycle returned to released. `unit-health-api-final.json` passes the
+full API workspace; protobuf verification and canonical skill validation/sync
+pass. Launch Video revision 43 records source-dependent route selection and
+preserves the accepted film.
+
+Broader Test Genie run `20261022-035644-88fe586b` failed the unit phase. Its initial
+API/CLI expectation failures were repaired and checked above. Existing UI
+execution/policy debt remains; Scenario QA report `knw-1792642077947355550`
+records it. Dependencies completed with preexisting approval-range and graph
+warnings. This is not full scenario certification.
+
+Remaining delivery: full MoGe geometry contract/post-processing and a known-camera
+geometry-first physical sample; landmark/hinge pose fit; repaired photographic
+background with shadow/reflection removal; physical device/shadow/occlusion/screen
+composition; then SAM2 quality escalation and optional prop reconstruction with
+separate governed installs and qualification. Prepared-layer parallax and one
+qualified mask do not close those gaps. No new film was rendered in this repair.
+
 ### 2026-06-16 — Documentation foundation complete; implementation not started — RESOLVED 2026-06-17
 
 **Symptom (original):** Orientation reported 5/8 gates: `scaffold-health`,
@@ -516,3 +735,67 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+
+### 2026-10-22 — Storage placement and cache migration
+
+The native storage phase exposed undeclared derived outputs and cache declarations
+that did not match the data-root writer. The writer now routes `out/` to the
+request-selected cache class; uploads, masks, comparison assets and retained
+preparation bundles/previews remain protected data. Both classes honor leased
+test roots. Startup fails explicitly on an unmigrated legacy output tree.
+
+On a stopped native owner, Storage Manager placement copied and verified
+5,322,714,869 bytes of outputs before removing the old tree. It also migrated
+the materialized sidecar and requirements lock with verified receipts. The old
+virtualenv was atomically retained as cache `legacy-pyenv`, never executed after
+relocation; native lock-pinned provisioning rebuilt cache `pyenv` and reported
+ready. Original result refs and protected preparation readback pass. The old
+runtime remains temporary rollback retention until replacement qualification,
+then can be explicitly retired. Retention enforcement receipts are declared in
+their actual state class. Focused routing, leased-root isolation, legacy-tree
+refusal, preparation persistence and AI lifetime regressions pass. Scoped storage
+revalidation remains in progress; filesystem audit advisories are not full
+maturity certification.
+
+The warning claiming raw SQL in `handlers/models/module.go:159` is a validator
+false positive on the endpoint example text "Select for upscale"; there is no
+SQL call there. Filed through report-bug as `knw-1792684261250157000` on
+`bug-inbox/code-defect/storage-sql-analyzer-treats-model-help-text-as`.
+
+
+### 2026-10-22 — Preparation service and native backend environment checkpoint
+
+Normal PreparationService create/get/list/review calls, manifest CLI bindings,
+protected content-addressed ZIP/preview retention, and the Library comparison
+and immutable review controls are implemented. Focused preparation persistence,
+source substitution, review immutability, API-domain parity, CLI and UI tests
+pass. Native UI/complete photographic conversion qualification remains pending.
+Preparation metadata and preview/bundle bytes are declared as protected data;
+they survive disposal of source job outputs. The governed stage program now
+includes assembly/inspection/review boundaries; its new fixtures still need the
+program owner run after temporary CLI-build pressure clears.
+
+Image Tools now adopts the same typed GPU capacity client as Device Studio.
+The shared owner validates fresh UUID/index identity before and after admission,
+retains the exact generation, joins renewal before release, and distinguishes
+valid capacity denial from transport/protocol/cleanup failures. The private
+scenario CLI JSON implementation is removed. Focused shared-client and engine
+checks pass; earlier native GPU/CPU contention evidence remains retained.
+
+The resource CPU downgrade exposed a control-plane defect: native managed
+services ignored the selected backend's declared environment. The launch owner
+now applies that environment after generic configuration. Ollama's CPU profile
+explicitly disables CUDA/ROCm/Vulkan visibility using upstream documented
+settings. Native PID 722047 was serving on CPU with those exact process values
+and no Ollama GPU ledger claim; evidence is in full-delivery/
+`ollama-cpu-process-environment.json`. Focused regressions pass. Broader resource
+package tests also exposed independent blueprint fixture, PII-detector fleet
+contract and Kokoro legacy footprint failures; those are not claimed passing.
+
+SDXL native GPU jobs mechanically passed but failed visual review: original
+conditioning regenerated the laptop; explicit neutralized conditioning removed
+it but invented an oval object and left seams. Both remain rejected and the
+runtime candidate was disabled. Preserve these outputs when qualifying a more
+appropriate photographed-device fixture; do not treat a pinned checkpoint or
+successful inference as photographic readiness.

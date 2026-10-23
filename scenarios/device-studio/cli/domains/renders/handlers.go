@@ -51,8 +51,12 @@ func (h *handlers) submitCall(ctx cliapp.OperationContext) (*shotsv1.SubmitRende
 		mode, profile = shotsv1.RenderMode_RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4, shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_MP4_H264_SDR_V1
 	case "PHYSICAL_PREVIEW_PNG", "RENDER_MODE_PHYSICAL_PREVIEW_PNG":
 		mode, profile = shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG, shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_PREVIEW_PNG_V1
+	case "PHYSICAL_DIAGNOSTIC_PNG", "RENDER_MODE_PHYSICAL_DIAGNOSTIC_PNG":
+		mode, profile = shotsv1.RenderMode_RENDER_MODE_PHYSICAL_PREVIEW_PNG, shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_PNG_V1
+	case "PHYSICAL_DIAGNOSTIC_MOTION_MP4", "RENDER_MODE_PHYSICAL_DIAGNOSTIC_MOTION_MP4":
+		mode, profile = shotsv1.RenderMode_RENDER_MODE_PHYSICAL_DIAGNOSTIC_MOTION_MP4, shotsv1.RenderOutputProfile_RENDER_OUTPUT_PROFILE_PHYSICAL_DIAGNOSTIC_MOTION_MP4_V1
 	default:
-		return nil, fmt.Errorf("render-mode must be STILL, VIDEO_SAMPLE_PNG, VIDEO_FINAL_MP4, PHYSICAL_STILL_PNG, PHYSICAL_FINAL_MP4 or PHYSICAL_PREVIEW_PNG")
+		return nil, fmt.Errorf("render-mode must be STILL, VIDEO_SAMPLE_PNG, VIDEO_FINAL_MP4, PHYSICAL_STILL_PNG, PHYSICAL_FINAL_MP4, PHYSICAL_PREVIEW_PNG, PHYSICAL_DIAGNOSTIC_PNG or PHYSICAL_DIAGNOSTIC_MOTION_MP4")
 	}
 	r, err := h.client.SubmitRender(context.Background(), connect.NewRequest(&shotsv1.SubmitRenderRequest{ProjectId: ctx.Flag("project-id"), ShotId: ctx.Flag("shot-id"), Revision: rev, IdempotencyKey: ctx.Flag("idempotency-key"), OutputProfile: profile, RenderMode: mode}))
 	if err != nil {

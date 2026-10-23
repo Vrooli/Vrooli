@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"device-studio/handlers/preparedphoto"
 	"device-studio/internal/capabilities"
 	"device-studio/internal/jobs"
 	librarydomain "device-studio/internal/library"
@@ -170,8 +171,9 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		projectsH.ModuleWithRootsAndInspection(db, fileRoots, renderCoordinator, renderPump, log.Default()),
 		photographicH.Module(projectService, photoClient),
+		preparedphoto.Module(photoClient, physicalOwners.LibraryCatalog, physicalOwners.Scenes),
 		devicesH.ModuleWithService(physicalOwners.Devices, qualificationOwner),
-		scenesH.ModuleWithService(physicalOwners.Scenes),
+		scenesH.ModuleWithPreparedPhotographs(physicalOwners.Scenes, photoClient, physicalOwners.LibraryCatalog, physicalOwners.Devices),
 		motionsH.ModuleWithService(physicalOwners.Motions),
 		libraryH.ModuleWithIntake(physicalOwners.LibraryCatalog, intakeOwner, db, fileRoots),
 		creationH.ModuleWithCoordinator(renderCoordinator, jobs.NewService(jobs.NewSQLiteRepository(db), nil), renderPump),

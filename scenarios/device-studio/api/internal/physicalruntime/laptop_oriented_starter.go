@@ -88,8 +88,21 @@ func (o Owners) initializeReviewedLaptopScreenView(ctx context.Context, spec lap
 	candidate := base.Device.Candidate
 	candidate.Definition.ModelCandidates = append([]devices.ModelCandidate(nil), candidate.Definition.ModelCandidates...)
 	candidate.Definition.Provenance = append([]devices.Evidence(nil), candidate.Definition.Provenance...)
+	candidate.Definition.Displays = append([]devices.DisplaySurface(nil), candidate.Definition.Displays...)
 	if candidate.Definition.ID != laptopDeviceID || len(candidate.Definition.ModelCandidates) != 1 {
 		return LaptopStarterState{}, errors.New("derive16 laptop candidate identity or provenance inventory differs")
+	}
+	if len(candidate.Definition.Displays) != 1 || candidate.Definition.Displays[0].ID != laptopDisplayID {
+		return LaptopStarterState{}, errors.New("derive16 laptop display inventory differs")
+	}
+	candidate.Geometry = ref
+	if spec.deviceID == laptopOrientedDeviceID {
+		widthMM, heightMM, metricErr := rendering.ResolvePhysicalDisplayGeometryMetrics(data, candidate, laptopDisplayID)
+		if metricErr != nil {
+			return LaptopStarterState{}, fmt.Errorf("derive oriented laptop active display geometry metrics: %w", metricErr)
+		}
+		metricEvidence := []devices.Evidence{{Source: spec.assetFile + " SHA-256 " + spec.assetSHA, Kind: "derived_asset_geometry", Qualifier: "candidate active-screen dimensions are average opposing edge lengths from the exact selected UV0 rectangle; not independent physical-device measurements"}}
+		candidate.Definition.Displays[0].CoordinateMetric = &devices.DisplayMetric{WidthMM: widthMM, HeightMM: heightMM, Evidence: metricEvidence}
 	}
 	candidate.Definition.ID = spec.deviceID
 	candidate.Definition.Variant = "derive16 creator model with a display-only " + spec.orientation

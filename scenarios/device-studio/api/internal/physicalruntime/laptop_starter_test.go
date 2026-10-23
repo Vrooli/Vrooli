@@ -98,6 +98,27 @@ func TestReviewedLaptopCandidateAndPhysicalClosure(t *testing.T) {
 	if err != nil || screenMap.NodeIndex != 5 || screenMap.UVMin != [2]float64{0, 0} || screenMap.UVMax != [2]float64{1, 1} {
 		t.Fatalf("derived screen UV profile did not pass exact geometry preflight: mapping=%+v err=%v", screenMap, err)
 	}
+	uvWidthMM, uvHeightMM, err := rendering.ResolvePhysicalDisplayGeometryMetrics(laptopGLB, laptop.Device.Candidate, laptopDisplayID)
+	if err != nil {
+		t.Fatalf("resolve UV-calibrated active screen dimensions: %v", err)
+	}
+	t.Logf("derive16 UV-calibrated screen dimensions: %.3f × %.3f mm (ratio %.6f); old AABB metric %.3f × %.3f mm", uvWidthMM, uvHeightMM, uvWidthMM/uvHeightMM, laptop.Device.Candidate.Definition.Displays[0].CoordinateMetric.WidthMM, laptop.Device.Candidate.Definition.Displays[0].CoordinateMetric.HeightMM)
+	uvCandidate := laptop.Device.Candidate
+	uvCandidate.Definition.Displays[0].CoordinateMetric.HeightMM = uvHeightMM
+	uvCorners, err := rendering.ResolvePhysicalDisplayCorners(laptopGLB, uvCandidate, laptopDisplayID)
+	if err != nil {
+		t.Fatalf("resolve active screen rectangle: %v", err)
+	}
+	t.Logf("derive16 active display corners: %+v", uvCorners)
+	targetHeight := (.42 * 1920 / 1080) / (uvWidthMM / uvHeightMM)
+	_, endpointResidual, err := rendering.CompilePhysicalCameraEndpoint(rendering.PhysicalCameraEndpoint{DisplayCorners: uvCorners, RasterWidth: 1920, RasterHeight: 1080, Target: rendering.NormalizedRect{X: .48, Y: .25, Width: .42, Height: targetHeight}, FocalLengthMM: 50, SensorWidthMM: 36, SensorHeightMM: 24})
+	if err != nil {
+		t.Fatalf("compile fitted laptop endpoint: %v", err)
+	}
+	t.Logf("derive16 fitted endpoint residual: %.6f px", endpointResidual)
+	if endpointResidual > 2 {
+		t.Fatalf("fitted endpoint residual %.6f px exceeds the two-pixel handoff target", endpointResidual)
+	}
 	if laptop.Scene.SceneID != laptopSceneID || laptop.Scene.State != "candidate" || len(laptop.Scene.Candidate.Parts) != 11 {
 		t.Fatalf("cup-free room candidate is not separately identified and unqualified: %+v", laptop.Scene)
 	}

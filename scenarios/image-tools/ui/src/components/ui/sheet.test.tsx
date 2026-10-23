@@ -7,7 +7,8 @@
  * focus into the panel; and the Tab focus-trap loop at both edges.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 
 import { Sheet } from "./sheet";

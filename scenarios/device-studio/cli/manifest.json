@@ -718,7 +718,7 @@
             },
             {
               "name": "render-mode",
-              "description": "STILL (default), VIDEO_SAMPLE_PNG, VIDEO_FINAL_MP4, PHYSICAL_STILL_PNG, PHYSICAL_FINAL_MP4 or PHYSICAL_PREVIEW_PNG"
+              "description": "STILL (default), VIDEO_SAMPLE_PNG, VIDEO_FINAL_MP4, PHYSICAL_STILL_PNG, PHYSICAL_FINAL_MP4, PHYSICAL_PREVIEW_PNG, PHYSICAL_DIAGNOSTIC_PNG (four-sample still; not delivery quality) or PHYSICAL_DIAGNOSTIC_MOTION_MP4 (four-sample source-clock motion; not delivery quality)"
             }
           ],
           "binding": {
@@ -1150,6 +1150,43 @@
       "name": "scenes",
       "description": "Immutable scene candidate revisions",
       "commands": [
+        {
+          "name": "fit-known-camera-pose",
+          "description": "Fit a rigid device pose from explicit 2D/3D landmarks under a pinned scene camera; hinge angle is held independently",
+          "flags": [
+            { "name": "request", "required": true, "description": "Strict FitKnownCameraPoseRequest proto-JSON file path or - for stdin" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenesService", "method": "FitKnownCameraPose" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "from-preparation",
+          "description": "Convert an accepted immutable Image Tools photograph preparation into an unqualified scene candidate with explicitly bounded source uses",
+          "flags": [
+            { "name": "preparation-id", "required": true, "description": "Accepted Image Tools preparation content SHA-256" },
+            { "name": "expected-bundle-sha256", "required": true, "description": "Exact owner bundle SHA-256 (must equal preparation-id)" },
+            { "name": "license-id", "required": true, "description": "Explicit source license claim" },
+            { "name": "attribution", "required": true, "description": "Explicit source attribution claim" },
+            { "name": "source-label", "required": true, "description": "Source provenance label" },
+            { "name": "allow-local-render", "required": false, "description": "Explicitly grant local rendering only (true or false; default false)" },
+            { "name": "source-use-rationale", "required": false, "description": "Bounded reason supporting local rendering; required only when allow-local-render=true" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenesService", "method": "ImportPreparedPhotograph" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "action" }
+        },
+        {
+          "name": "geometry-qa",
+          "description": "Create a pending-only diagnostic bundle with strict geometry validation and source/depth/plane overlays",
+          "flags": [
+            { "name": "preparation-id", "required": true, "description": "Pending Image Tools preparation content SHA-256" },
+            { "name": "out", "required": true, "description": "New .zip path for diagnostic JSON and PNG" }
+          ],
+          "binding": { "kind": "local", "handler": "geometry-qa" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] },
+          "architecture": { "primitive": "action" }
+        },
         {
           "name": "save",
           "description": "Save an immutable scene candidate revision using the observed head",
@@ -1851,5 +1888,31 @@
       "reason": "Multipart GLB bytes use the typed-response local geometry intake endpoint."
     }
   ],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "DevicesService",
+      "method": "ReviewDeviceCandidate",
+      "reason": "The explicit human evidence review is exposed by the local `devices review` handler, not as a generated Connect-RPC command."
+    },
+    {
+      "service": "DevicesService",
+      "method": "ExportQualificationPackage",
+      "reason": "The bounded package export is exposed by the local `devices export-qualification-package` handler, not as a generated Connect-RPC command."
+    },
+    {
+      "service": "DevicesService",
+      "method": "ImportQualificationPackage",
+      "reason": "The operator-authorized package import is exposed by the local `devices import-qualification-package` handler, not as a generated Connect-RPC command."
+    },
+    {
+      "service": "ShotsService",
+      "method": "ReviewOutputReadability",
+      "reason": "Readability verdict authoring remains a human review action in the Device Studio UI; there is no interactive CLI command for it."
+    },
+    {
+      "service": "ShotsService",
+      "method": "GetOutputReadabilityReview",
+      "reason": "Readability verdict retrieval remains available from the Device Studio UI; the CLI does not currently expose a review-query command."
+    }
+  ]
 }

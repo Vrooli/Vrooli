@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { exportQualificationPackage, getBundleRevisionMetadata, getReviewedPhysicalStarter, getPhysicalShotPresetRevision, importQualificationPackage, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, physicalStarterChoices, resolvePhysicalShotPreset, reviewDeviceCandidate } from "./physical";
+import { exportQualificationPackage, getBundleRevisionMetadata, getReviewedPhysicalStarter, getPhysicalShotPresetRevision, importPreparedPhotograph, importQualificationPackage, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, physicalStarterChoices, resolvePhysicalShotPreset, reviewDeviceCandidate } from "./physical";
 
 const clients = vi.hoisted(() => ({
   starter: { initializeReviewedStarter: vi.fn() },
   devices: { getDeviceRevision: vi.fn(), listDeviceCandidates: vi.fn(), reviewDeviceCandidate: vi.fn(), exportQualificationPackage: vi.fn(), importQualificationPackage: vi.fn() },
-  scenes: { getSceneRevision: vi.fn(), listSceneCandidates: vi.fn() },
+  scenes: { getSceneRevision: vi.fn(), listSceneCandidates: vi.fn(), importPreparedPhotograph: vi.fn() },
   motions: { getMotionRevision: vi.fn(), listMotionCandidates: vi.fn() },
   library: { getBundleRevision: vi.fn() },
   presets: { listPhysicalShotPresets: vi.fn(), getPhysicalShotPreset: vi.fn() },
@@ -105,6 +105,39 @@ describe("physical starter choice labels", () => {
     expect(labels.get("generic-smart-display-concept-v7-reviewed")).toContain("visual setup only");
     expect(labels.get("generic-vehicle-dashboard-carplay-sim")).toContain("simulated screen");
     expect(labels.get("generic-vehicle-dashboard-android-auto-sim")).toContain("simulated screen");
+  });
+});
+
+describe("prepared photograph import", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const request = {
+    preparationId: "a".repeat(64), expectedBundleSha256: "a".repeat(64),
+    licenseId: "CC-BY-4.0", attribution: "Studio asset author", sourceLabel: "Generated desk plate",
+    allowLocalRender: true, sourceUseRationale: "The source license permits local render evaluation.",
+  };
+  const response = {
+    revision: { sceneId: "desk-candidate", revision: 2, state: "candidate", candidate: { sceneId: "desk-candidate" } },
+    libraryBundleId: "desk-candidate", libraryRevision: 2, libraryManifestSha256: "b".repeat(64),
+    scaleStatus: "estimated_monocular_scale_not_measured", estimatedScaleM: 1.25,
+  };
+
+  it("sends declared source rights and returns the exact candidate-only scene revision", async () => {
+    clients.scenes.importPreparedPhotograph.mockResolvedValue(response);
+
+    await expect(importPreparedPhotograph(request)).resolves.toEqual(response);
+    expect(clients.scenes.importPreparedPhotograph).toHaveBeenCalledWith({
+      ...request, licenseId: "CC-BY-4.0", attribution: "Studio asset author", sourceLabel: "Generated desk plate",
+      allowLocalRender: true, sourceUseRationale: "The source license permits local render evaluation.",
+    });
+  });
+
+  it("rejects malformed identity, inconsistent source-use rationale, or promoted/incomplete owner results", async () => {
+    await expect(importPreparedPhotograph({ ...request, preparationId: "A".repeat(64) })).rejects.toThrow(/exact lowercase SHA-256/);
+    await expect(importPreparedPhotograph({ ...request, allowLocalRender: false })).rejects.toThrow(/leave the rationale empty/);
+    clients.scenes.importPreparedPhotograph.mockResolvedValue({ ...response, revision: { ...response.revision, state: "approved" } });
+    await expect(importPreparedPhotograph(request)).rejects.toThrow(/complete candidate-only scene/);
+    expect(clients.scenes.importPreparedPhotograph).toHaveBeenCalledTimes(1);
   });
 });
 

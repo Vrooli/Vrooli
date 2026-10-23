@@ -12,17 +12,19 @@ import (
 	_ "image/png"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
-	physicalVideoProfileName = "physical-video-profile.json"
-	physicalMotionFrameName  = "physical-motion-frame.png"
-	physicalMotionFrameMax   = 64 << 20
+	physicalVideoProfileName         = "physical-video-profile.json"
+	physicalMotionFrameName          = "physical-motion-frame.png"
+	physicalMotionFrameMax           = 64 << 20
+	physicalMotionPreviewPrefix      = "physical-motion-preview-"
+	physicalMotionInterruptedPreview = "physical-motion-preview-interrupted.png"
+	physicalMotionCheckpoint         = "physical-motion-preview-current.png"
+	physicalMotionCheckpointTemp     = "physical-motion-preview-current.tmp"
 )
 
 type physicalMotionExecution struct {
@@ -68,7 +70,26 @@ func runPhysicalMotion(ctx context.Context, root *os.Root, workspace, blender st
 	if err := ensurePhysicalOutputAbsent(root, physicalMotionFrameName); err != nil {
 		return result, err
 	}
+	previewNames := []string{
+		physicalMotionPreviewPrefix + "first.png",
+		physicalMotionPreviewPrefix + "middle.png",
+		physicalMotionPreviewPrefix + "last.png",
+		physicalMotionInterruptedPreview,
+		physicalMotionCheckpoint,
+	}
+	for _, name := range previewNames {
+		if err := ensurePhysicalOutputAbsent(root, name); err != nil {
+			return result, err
+		}
+	}
 	defer func() {
+		if retErr == nil {
+			for _, name := range previewNames {
+				if err := root.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+					retErr = errors.Join(retErr, fmt.Errorf("remove successful physical motion preview: %w", err))
+				}
+			}
+		}
 		if err := root.Remove(physicalMotionFrameName); err != nil && !errors.Is(err, os.ErrNotExist) {
 			retErr = errors.Join(retErr, fmt.Errorf("remove physical motion frame scratch: %w", err))
 		}
@@ -79,23 +100,56 @@ func runPhysicalMotion(ctx context.Context, root *os.Root, workspace, blender st
 		return result, fmt.Errorf("start bounded physical MP4 encoder: %w", err)
 	}
 	defer encoder.abort()
-	if err := runPhysicalBlenderFrameStream(deadline, workspace, blender, func(ordinal uint32, pngBytes []byte) error {
+	var lastReceivedFrame []byte
+	var lastCheckpointAt time.Time
+	if err := runPhysicalBlenderFrameStream(deadline, root, workspace, blender, manifest, func(ordinal uint32, pngBytes []byte) error {
 		if ordinal >= manifest.Output.FrameCount {
 			return errors.New("Blender emitted an unplanned physical frame ordinal")
 		}
 		if !isPhysicalRGBA8PNG(pngBytes) {
 			return errors.New("Blender motion frame is not an 8-bit RGBA PNG")
 		}
+		// Keep only the most recent complete frame in memory. Blender removes its
+		// scratch file after sending a frame, so a cancellation between frames
+		// cannot rely on that file still existing when the stream unwinds.
+		lastReceivedFrame = append(lastReceivedFrame[:0], pngBytes...)
 		frame, err := physicalPNGToRGB(pngBytes, int(manifest.Output.Width), int(manifest.Output.Height))
 		if err != nil {
 			return err
 		}
+		if lastCheckpointAt.IsZero() || time.Since(lastCheckpointAt) >= time.Second {
+			if err := writePhysicalMotionCheckpoint(root, pngBytes, manifest.Output.Width, manifest.Output.Height); err != nil {
+				return err
+			}
+			lastCheckpointAt = time.Now()
+		}
 		if err := encoder.writeFrame(deadline, frame); err != nil {
 			return err
+		}
+		for index, target := range physicalMotionPreviewOrdinals(manifest.Output.FrameCount) {
+			if ordinal == target {
+				if err := writePhysicalRoot(root, previewNames[index], pngBytes); err != nil {
+					return fmt.Errorf("retain bounded failed-attempt motion preview %s: %w", previewNames[index], err)
+				}
+			}
 		}
 		result.frameRGBDigests = append(result.frameRGBDigests, PhysicalFrameRGBDigest{OutputOrdinal: ordinal, RGBSHA256: digest(frame)})
 		return nil
 	}, manifest.Output.FrameCount); err != nil {
+		// Blender writes each complete frame to the attempt-local scratch path
+		// before sending it over the frame pipe. If cancellation or another error
+		// interrupts the pipe between those steps, preserve one validated frame
+		// for review before deferred scratch cleanup runs. This is bounded
+		// evidence from a failed attempt, never a render output.
+		var previewErr error
+		if len(lastReceivedFrame) > 0 {
+			previewErr = retainInterruptedPhysicalPNG(root, lastReceivedFrame, manifest.Output.Width, manifest.Output.Height)
+		} else {
+			previewErr = retainInterruptedPhysicalFrame(root, manifest.Output.Width, manifest.Output.Height)
+		}
+		if previewErr != nil && !errors.Is(previewErr, os.ErrNotExist) {
+			return result, errors.Join(err, fmt.Errorf("retain interrupted physical motion frame: %w", previewErr))
+		}
 		return result, err
 	}
 	result.outputSize, result.outputSHA256, err = encoder.finish(deadline)
@@ -116,16 +170,85 @@ func runPhysicalMotion(ctx context.Context, root *os.Root, workspace, blender st
 	return result, nil
 }
 
-func runPhysicalBlenderFrameStream(ctx context.Context, workspace, blender string, onFrame func(uint32, []byte) error, expected uint32) error {
+func retainInterruptedPhysicalFrame(root *os.Root, width, height uint32) error {
+	if root == nil || width == 0 || height == 0 {
+		return errors.New("interrupted physical frame retention arguments are invalid")
+	}
+	file, err := root.Open(physicalMotionFrameName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > physicalMotionFrameMax {
+		return errors.New("interrupted physical frame scratch is not a bounded regular file")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, physicalMotionFrameMax+1))
+	if err != nil || int64(len(data)) != info.Size() || int64(len(data)) > physicalMotionFrameMax {
+		return errors.New("interrupted physical frame scratch changed or exceeded its bound")
+	}
+	return retainInterruptedPhysicalPNG(root, data, width, height)
+}
+
+func retainInterruptedPhysicalPNG(root *os.Root, data []byte, width, height uint32) error {
+	if root == nil || width == 0 || height == 0 || len(data) == 0 || int64(len(data)) > physicalMotionFrameMax {
+		return errors.New("interrupted physical frame retention arguments are invalid")
+	}
+	if !isPhysicalRGBA8PNG(data) {
+		return errors.New("interrupted physical frame scratch is not an RGBA8 PNG")
+	}
+	if _, err := physicalPNGToRGB(data, int(width), int(height)); err != nil {
+		return fmt.Errorf("validate interrupted physical frame: %w", err)
+	}
+	return writePhysicalRoot(root, physicalMotionInterruptedPreview, data)
+}
+
+// writePhysicalMotionCheckpoint atomically replaces one validated frame in the
+// private attempt workspace. The single bounded file survives worker loss and
+// is removed after successful render completion; it is not published as output.
+func writePhysicalMotionCheckpoint(root *os.Root, data []byte, width, height uint32) error {
+	if root == nil || len(data) == 0 || int64(len(data)) > physicalMotionFrameMax || !isPhysicalRGBA8PNG(data) {
+		return errors.New("physical motion checkpoint is not a bounded RGBA8 PNG")
+	}
+	if _, err := physicalPNGToRGB(data, int(width), int(height)); err != nil {
+		return fmt.Errorf("validate physical motion checkpoint: %w", err)
+	}
+	if err := root.Remove(physicalMotionCheckpointTemp); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove stale physical motion checkpoint temporary: %w", err)
+	}
+	f, err := root.OpenFile(physicalMotionCheckpointTemp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("create physical motion checkpoint temporary: %w", err)
+	}
+	if _, err = f.Write(data); err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		_ = root.Remove(physicalMotionCheckpointTemp)
+		return err
+	}
+	if closeErr != nil {
+		_ = root.Remove(physicalMotionCheckpointTemp)
+		return closeErr
+	}
+	if err := root.Rename(physicalMotionCheckpointTemp, physicalMotionCheckpoint); err != nil {
+		_ = root.Remove(physicalMotionCheckpointTemp)
+		return fmt.Errorf("publish physical motion checkpoint atomically: %w", err)
+	}
+	return nil
+}
+
+func physicalMotionPreviewOrdinals(frameCount uint32) [3]uint32 {
+	if frameCount <= 1 {
+		return [3]uint32{0, 0, 0}
+	}
+	return [3]uint32{0, (frameCount - 1) / 2, frameCount - 1}
+}
+
+func runPhysicalBlenderFrameStream(ctx context.Context, root *os.Root, workspace, blender string, manifest PhysicalRenderManifest, onFrame func(uint32, []byte) error, expected uint32) error {
 	if ctx == nil || onFrame == nil || expected == 0 || expected > PhysicalMotionMaxFramesV2 {
 		return errors.New("physical motion frame stream arguments are invalid")
-	}
-	if !filepath.IsAbs(blender) || filepath.Clean(blender) != blender {
-		return errors.New("managed Blender path is not absolute and clean")
-	}
-	binary, err := readRegularPath(blender, 512<<20)
-	if err != nil || digest(binary) != PhysicalBlenderBinarySHA {
-		return errors.New("managed Blender executable digest differs from profile")
 	}
 	readEnd, writeEnd, err := os.Pipe()
 	if err != nil {
@@ -133,54 +256,39 @@ func runPhysicalBlenderFrameStream(ctx context.Context, workspace, blender strin
 	}
 	defer readEnd.Close()
 	defer writeEnd.Close()
-	if err := ensurePhysicalBlenderDirectories(workspace); err != nil {
-		return err
-	}
-	cmd := exec.CommandContext(ctx, blender, physicalBlenderArgs(workspace)...)
-	cmd.Dir = workspace
-	cmd.Env = physicalBlenderEnvironment(workspace)
-	cmd.ExtraFiles = []*os.File{writeEnd}
 	var stdout, stderr physicalBlenderLogBuffer
 	stdout.limit, stderr.limit = physicalCommandOutMax, physicalCommandErrMax
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err = cmd.Start(); err != nil {
+	process, err := startPhysicalBlenderProcess(ctx, root, workspace, blender, manifest, []*os.File{writeEnd}, &stdout, &stderr)
+	if err != nil {
 		return err
 	}
 	_ = writeEnd.Close()
 	for ordinal := uint32(0); ordinal < expected; ordinal++ {
 		gotOrdinal, data, readErr := readPhysicalFrame(readEnd)
 		if readErr != nil {
-			_ = cmd.Process.Kill()
-			waitErr := cmd.Wait()
+			waitErr := process.abort()
 			if ctx.Err() != nil {
 				return fmt.Errorf("physical Blender frame stream ended: %w", ctx.Err())
 			}
 			return fmt.Errorf("physical Blender frame stream ended before ordinal %d: %w (%v): %s", ordinal, readErr, waitErr, truncateUTF8Tail(stderr.data.String(), 1024))
 		}
 		if gotOrdinal != ordinal {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-			return fmt.Errorf("physical Blender emitted frame ordinal %d, expected %d", gotOrdinal, ordinal)
+			waitErr := process.abort()
+			return errors.Join(fmt.Errorf("physical Blender emitted frame ordinal %d, expected %d", gotOrdinal, ordinal), waitErr)
 		}
 		if err := onFrame(ordinal, data); err != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-			return fmt.Errorf("consume physical frame %d: %w", ordinal, err)
+			return errors.Join(fmt.Errorf("consume physical frame %d: %w", ordinal, err), process.abort())
 		}
 	}
 	var extra [1]byte
 	if n, readErr := readEnd.Read(extra[:]); n != 0 || readErr != io.EOF {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		waitErr := process.abort()
 		if ctx.Err() != nil {
 			return fmt.Errorf("physical Blender frame stream ended: %w", ctx.Err())
 		}
-		return errors.New("physical Blender emitted trailing frame protocol bytes")
+		return errors.Join(errors.New("physical Blender emitted trailing frame protocol bytes"), waitErr)
 	}
-	if err := cmd.Wait(); err != nil {
-		return physicalBlenderFailure(err, ctx.Err(), stderr.data.String())
-	}
-	return nil
+	return process.wait()
 }
 
 func readPhysicalFrame(r io.Reader) (uint32, []byte, error) {

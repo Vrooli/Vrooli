@@ -554,6 +554,7 @@ func TestMakeVideoClosureProducesWorkerValidCompositorProfile(t *testing.T) {
 	cameraResolved.Revision.Snapshot.CameraMotion = &shotsv1.PhotographicCameraMotion{
 		ProfileId: shots.CameraMotionProfileID, ProfileVersion: shots.CameraMotionProfileVersion,
 		DurationOutputFrames: 24, MatteRgb: &shotsv1.PresentationRGB{Red: 4, Green: 5, Blue: 6},
+		TargetRect: &shotsv1.PresentationRect{X: 4000, Y: 1000, Width: 5500, Height: 8000},
 	}
 	cameraResolved.Revision.Snapshot.VideoTiming.VideoCompositionProfileId = shots.VideoProfileScreenEntry
 	cameraClosure, err := c.makeVideoClosure(ctx, route, request, cameraResolved, workerKey, workerSHA)
@@ -567,11 +568,26 @@ func TestMakeVideoClosureProducesWorkerValidCompositorProfile(t *testing.T) {
 	if cameraClosure.Manifest.VideoProfile != rendering.VideoScreenEntryProfileID || camera == nil || camera.ProfileID != shots.CameraMotionProfileID || camera.ProfileVersion != 1 || camera.DurationOutputFrames != 24 || camera.MatteRGB == nil || camera.MatteRGB.R != 4 || camera.MatteRGB.G != 5 || camera.MatteRGB.B != 6 {
 		t.Fatalf("camera closure mapping mismatch: profile=%q camera=%+v", cameraClosure.Manifest.VideoProfile, cameraClosure.Manifest.Camera)
 	}
+	if camera.TargetRect == nil || *camera.TargetRect != (presentations.BasisRect{X: 4000, Y: 1000, Width: 5500, Height: 8000}) {
+		t.Fatalf("closure lost destination: %+v", camera)
+	}
 	if cameraClosure.Manifest.Scene.PlateWidth != 1920 || cameraClosure.Manifest.Scene.PlateHeight != 1080 {
 		t.Fatalf("camera closure omitted pinned plate raster: %dx%d", cameraClosure.Manifest.Scene.PlateWidth, cameraClosure.Manifest.Scene.PlateHeight)
 	}
 	if err := rendering.ValidateVideoManifest(cameraClosure.Manifest); err != nil {
 		t.Fatalf("camera closure is rejected by worker contract: %v", err)
+	}
+	plainResolved := cameraResolved
+	plainResolved.Revision.Snapshot = proto.Clone(cameraResolved.Revision.Snapshot).(*shotsv1.ShotSnapshot)
+	plainResolved.Revision.Snapshot.Presentation.Kind = shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN
+	plainResolved.Revision.Snapshot.Presentation.BrowserDesktopChrome = nil
+	plainResolved.Revision.PresentationVersion = presentations.SemanticVersionV2
+	plainClosure, err := c.makeVideoClosure(ctx, route, request, plainResolved, workerKey, workerSHA)
+	if err != nil {
+		t.Fatalf("eligible plain camera video rejected before dispatch: %v", err)
+	}
+	if plainClosure.Manifest.PresentationLayout == nil || plainClosure.Manifest.Presentation.Browser != nil || plainClosure.Manifest.Presentation.Phone != nil {
+		t.Fatal("plain camera closure lost native app viewport")
 	}
 	for _, tc := range []struct {
 		name          string

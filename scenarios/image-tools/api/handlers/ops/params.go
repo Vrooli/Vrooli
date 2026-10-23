@@ -67,16 +67,25 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 		if v := pb.GetOverlay(); v != nil {
 			p.Text, p.Position, p.Opacity, p.Color, p.FontSize = v.GetText(), v.GetPosition(), v.GetOpacity(), v.GetColor(), v.GetFontSize()
 		}
-	case "composite":
-		if v := pb.GetComposite(); v != nil {
+	case "composite", "parallax":
+		v := pb.GetComposite()
+		if operation == "parallax" {
+			if q := pb.GetParallax(); q != nil {
+				v = q.GetScene()
+				if q.GetStartCamera() == nil || q.GetEndCamera() == nil {
+					return nil, fmt.Errorf("parallax start_camera and end_camera are required")
+				}
+				p.Parallax = &internalops.ParallaxSequence{Start: layeredCamera(q.GetStartCamera()), End: layeredCamera(q.GetEndCamera()), Frames: q.GetFrames(), FPS: q.GetFramesPerSecond()}
+			}
+		}
+		if v != nil {
 			p.Width, p.Height, p.Background = int(v.GetWidth()), int(v.GetHeight()), v.GetBackground()
+			if c := v.GetCamera(); c != nil {
+				camera := layeredCamera(c)
+				p.Camera = &camera
+			}
 			for _, plate := range v.GetPlates() {
-				p.Plates = append(p.Plates, internalops.PlateSpec{
-					Name:    plate.GetName(),
-					Depth:   int(plate.GetDepth()),
-					Blend:   plate.GetBlend(),
-					Opacity: plate.GetOpacity(),
-				})
+				p.Plates = append(p.Plates, internalops.PlateSpec{Name: plate.GetName(), Depth: int(plate.GetDepth()), Blend: plate.GetBlend(), Opacity: plate.GetOpacity(), Distance: plate.Distance})
 			}
 		}
 	case "metadata":
@@ -213,4 +222,8 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 		p.KnockoutSolid = k.GetSolid()
 	}
 	return p, nil
+}
+
+func layeredCamera(c *opsv1.LayeredCamera) internalops.LayeredCamera {
+	return internalops.LayeredCamera{X: c.GetX(), Y: c.GetY(), Z: c.GetZ(), YawDegrees: c.GetYawDegrees(), PitchDegrees: c.GetPitchDegrees(), FocalLengthPixels: c.GetFocalLengthPixels(), RequireOpaque: c.GetRequireOpaque()}
 }

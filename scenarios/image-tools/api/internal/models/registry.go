@@ -175,6 +175,9 @@ type Runtime struct {
 	// Dtype is the torch dtype the family loads in ("float16", "bfloat16"). Empty
 	// means the sidecar's device default (fp16 on cuda, fp32 on cpu).
 	Dtype string `json:"dtype"`
+	// Variant selects an upstream Diffusers weight variant when a pinned repo
+	// intentionally omits full-precision weights (for example fp16 safetensors).
+	Variant string `json:"variant"`
 	// MinRuntime is the minimum runtime/library constraint surfaced to the
 	// provision/availability check (e.g. "diffusers>=0.36.0"; a git ref for a
 	// bleeding-edge family). Phase 4 enforces it; informational otherwise.
@@ -251,8 +254,26 @@ type Model struct {
 	IO               IO               `json:"io"`
 	CapabilityLabels CapabilityLabels `json:"capability_labels"`
 	Source           Source           `json:"source"`
-	Runtime          Runtime          `json:"runtime"`
-	Enabled          bool             `json:"enabled"`
+	// BuildProfile is a closed, built-in derivation recipe for an artifact that
+	// the installer can deterministically build from pinned Source.Assets. It is
+	// not a general-purpose command runner.
+	BuildProfile *BuildProfile `json:"build_profile,omitempty"`
+	Runtime      Runtime       `json:"runtime"`
+	Enabled      bool          `json:"enabled"`
+}
+
+// BuildProfile describes one reviewed model-export shape. Its values are
+// validated against the single supported LaMa profile in validateModel.
+type BuildProfile struct {
+	Kind             string `json:"kind"`
+	SourceAsset      string `json:"source_asset"`
+	SourceSHA256     string `json:"source_sha256"`
+	CheckpointAsset  string `json:"checkpoint_asset"`
+	CheckpointSHA256 string `json:"checkpoint_sha256"`
+	Resolution       int    `json:"resolution"`
+	Opset            int    `json:"opset"`
+	OutputFilename   string `json:"output_filename"`
+	OutputSHA256     string `json:"output_sha256,omitempty"`
 }
 
 // BackendBuiltin is the backend name for deterministic, in-process models that
@@ -552,6 +573,27 @@ func (r *Registry) validateModel(m Model) error {
 	if len(m.Source.Assets) > 0 && m.Source.HasRepo() {
 		return fmt.Errorf("source declares both assets and repo (mutually exclusive fetch strategies)")
 	}
+	if profile := m.BuildProfile; profile != nil {
+		if m.ID != "big-lama-1024-export" || profile.Kind != "lama-onnx-fixed" || profile.SourceAsset != "lama-source.zip" || profile.CheckpointAsset != "big-lama.safetensors" || profile.Resolution != 1024 || profile.Opset != 17 || profile.OutputFilename != "lama_1024.onnx" {
+			return fmt.Errorf("unsupported model build profile %q", profile.Kind)
+		}
+		if !validSHA256(profile.SourceSHA256) || profile.CheckpointSHA256 != "12cb5eb5d515400f262b48d4e7c1994183e170aedb4b86699d9a55b770038e16" {
+			return fmt.Errorf("LaMa build profile must pin source and known generator-only safetensors SHA-256 values")
+		}
+		if profile.OutputSHA256 != "" && !validSHA256(profile.OutputSHA256) {
+			return fmt.Errorf("LaMa build profile output_sha256 must be a SHA-256 hex digest")
+		}
+		if m.Enabled && profile.OutputSHA256 == "" {
+			return fmt.Errorf("LaMa model cannot be enabled until its built ONNX output is pinned")
+		}
+		assets := map[string]Asset{}
+		for _, asset := range m.Source.Assets {
+			assets[asset.Filename] = asset
+		}
+		if assets[profile.SourceAsset].SHA256 != profile.SourceSHA256 || assets[profile.CheckpointAsset].SHA256 != profile.CheckpointSHA256 {
+			return fmt.Errorf("LaMa build profile asset hashes must match the pinned source assets")
+		}
+	}
 	if fam := strings.TrimSpace(m.Runtime.Family); fam != "" {
 		reg, ok := DiffusersFamilyByName(fam)
 		if !ok {
@@ -562,6 +604,18 @@ func (r *Registry) validateModel(m Model) error {
 		}
 	}
 	return nil
+}
+
+func validSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, char := range value {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 
 // validateSeedInvariants asserts the policy guarantees the bundled seed must
@@ -600,9 +654,22 @@ func (r *Registry) validateSeedInvariants() error {
 			return fmt.Errorf("model %q is also on the blocklist (%s)", m.ID, b.Reason)
 		}
 	}
-	// Every operation in the vocabulary that any model serves must have a default.
+	// Every operation with an enabled model must have a default. Disabled-only
+	// operations remain structurally registered but unavailable until an
+	// experimental backend has passed its native qualification; DoctorCatalog
+	// reports that state as a warning.
 	for op := range r.byOperation {
-		if _, ok := r.defaultFor[op]; !ok {
+		if _, ok := r.defaultFor[op]; ok {
+			continue
+		}
+		available := false
+		for _, model := range r.byOperation[op] {
+			if model.Enabled {
+				available = true
+				break
+			}
+		}
+		if available {
 			return fmt.Errorf("operation %q has models but no seeded default", op)
 		}
 	}

@@ -32,6 +32,15 @@ type fakeProvider struct {
 	failWith error
 }
 
+func TestOutputFormatRetainsGeometryArchive(t *testing.T) {
+	for _, meta := range []map[string]string{nil, {"media_type": "application/zip"}} {
+		mime, ext := outputFormat([]byte{'P', 'K', 3, 4, 0, 0, 0, 0}, meta)
+		if mime != "application/zip" || ext != ".zip" {
+			t.Fatalf("archive mislabeled as an image: %s %s", mime, ext)
+		}
+	}
+}
+
 func (p *fakeProvider) Name() string                   { return p.name }
 func (p *fakeProvider) Operations() []string           { return p.ops }
 func (p *fakeProvider) Standalone() bool               { return true }

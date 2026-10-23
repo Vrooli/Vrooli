@@ -11,6 +11,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli-cli-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/image v0.42.0
@@ -62,3 +63,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
