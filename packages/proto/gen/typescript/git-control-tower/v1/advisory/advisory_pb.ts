@@ -2,15 +2,15 @@
 // @generated from file git-control-tower/v1/advisory/advisory.proto (package vrooli.git_control_tower.v1.advisory, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file git-control-tower/v1/advisory/advisory.proto.
  */
 export const file_git_control_tower_v1_advisory_advisory: GenFile = /*@__PURE__*/
-  fileDesc("CixnaXQtY29udHJvbC10b3dlci92MS9hZHZpc29yeS9hZHZpc29yeS5wcm90bxIkdnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5IqoBCgxEcmFmdFJlcXVlc3QSDAoEa2luZBgBIAEoCRJECgdzdWJqZWN0GAIgASgLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkNoYW5nZVN1YmplY3QSRgoIZXZpZGVuY2UYAyABKAsyNC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuRXZpZGVuY2VCdW5kbGUimAIKDUNoYW5nZVN1YmplY3QSFQoNcmVwb3NpdG9yeV9pZBgBIAEoCRIMCgRraW5kGAIgASgJEj8KBGhvc3QYAyABKAsyMS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuSG9zdFN1YmplY3QSFQoNYmFzZV9yZXZpc2lvbhgEIAEoCRIVCg1oZWFkX3JldmlzaW9uGAUgASgJEhcKD3BhcmVudF9yZXZpc2lvbhgGIAEoCRJBCgVzY29wZRgHIAEoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdWJqZWN0U2NvcGUSFwoPc25hcHNob3RfZGlnZXN0GAggASgJImIKC0hvc3RTdWJqZWN0EhAKCHByb3ZpZGVyGAEgASgJEhMKC2luc3RhbmNlX2lkGAIgASgJEhUKDXJlcG9zaXRvcnlfaWQYAyABKAkSFQoNY2hhbmdlX251bWJlchgEIAEoCSI3CgxTdWJqZWN0U2NvcGUSDQoFcGF0aHMYASADKAkSGAoQc2VsZWN0aW9uX2RpZ2VzdBgCIAEoCSKvAwoORXZpZGVuY2VCdW5kbGUSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhYKDnN1YmplY3RfZGlnZXN0GAIgASgJEg4KBnN0YXR1cxgDIAEoCRI7CgZjbGFpbXMYBCADKAsyKy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuQ2xhaW0SQAoIY292ZXJhZ2UYBSABKAsyLi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuQ292ZXJhZ2USRwoKdmFsaWRhdGlvbhgGIAMoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5WYWxpZGF0aW9uUmVmEhAKCHVua25vd25zGAcgAygJElQKCHZlcnNpb25zGAggAygLMkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkV2aWRlbmNlQnVuZGxlLlZlcnNpb25zRW50cnkaLwoNVmVyc2lvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIiwKBUNsYWltEgwKBHRleHQYASABKAkSFQoNZXZpZGVuY2VfcmVmcxgCIAMoCSJ8CghDb3ZlcmFnZRIWCg5pbmNsdWRlZF9maWxlcxgBIAEoBRIVCg1vbWl0dGVkX2ZpbGVzGAIgASgFEkEKCW9taXNzaW9ucxgDIAMoCzIuLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5PbWlzc2lvbiIoCghPbWlzc2lvbhIMCgRwYXRoGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJMCg1WYWxpZGF0aW9uUmVmEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIUCgxhdmFpbGFiaWxpdHkYAiABKAkSDwoHdmVyZGljdBgDIAEoCSLNAQoNRHJhZnRSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDAoEa2luZBgCIAEoCRIWCg5zdWJqZWN0X2RpZ2VzdBgDIAEoCRINCgV0aXRsZRgEIAEoCRIMCgRib2R5GAUgASgJEhAKCHVua25vd25zGAYgAygJEkAKCGNvdmVyYWdlGAcgASgLMi4udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkNvdmVyYWdlEhUKDWV2aWRlbmNlX3JlZnMYCCADKAkygwEKD0Fkdmlzb3J5U2VydmljZRJwCgVEcmFmdBIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5EcmFmdFJlcXVlc3QaMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuRHJhZnRSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2dpdC1jb250cm9sLXRvd2VyL3YxL2Fkdmlzb3J5O2Fkdmlzb3J5X3YxYgZwcm90bzM");
+  fileDesc("CixnaXQtY29udHJvbC10b3dlci92MS9hZHZpc29yeS9hZHZpc29yeS5wcm90bxIkdnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5IqoBCgxEcmFmdFJlcXVlc3QSDAoEa2luZBgBIAEoCRJECgdzdWJqZWN0GAIgASgLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkNoYW5nZVN1YmplY3QSRgoIZXZpZGVuY2UYAyABKAsyNC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuRXZpZGVuY2VCdW5kbGUimAIKDUNoYW5nZVN1YmplY3QSFQoNcmVwb3NpdG9yeV9pZBgBIAEoCRIMCgRraW5kGAIgASgJEj8KBGhvc3QYAyABKAsyMS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuSG9zdFN1YmplY3QSFQoNYmFzZV9yZXZpc2lvbhgEIAEoCRIVCg1oZWFkX3JldmlzaW9uGAUgASgJEhcKD3BhcmVudF9yZXZpc2lvbhgGIAEoCRJBCgVzY29wZRgHIAEoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdWJqZWN0U2NvcGUSFwoPc25hcHNob3RfZGlnZXN0GAggASgJImIKC0hvc3RTdWJqZWN0EhAKCHByb3ZpZGVyGAEgASgJEhMKC2luc3RhbmNlX2lkGAIgASgJEhUKDXJlcG9zaXRvcnlfaWQYAyABKAkSFQoNY2hhbmdlX251bWJlchgEIAEoCSI3CgxTdWJqZWN0U2NvcGUSDQoFcGF0aHMYASADKAkSGAoQc2VsZWN0aW9uX2RpZ2VzdBgCIAEoCSKvAwoORXZpZGVuY2VCdW5kbGUSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhYKDnN1YmplY3RfZGlnZXN0GAIgASgJEg4KBnN0YXR1cxgDIAEoCRI7CgZjbGFpbXMYBCADKAsyKy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuQ2xhaW0SQAoIY292ZXJhZ2UYBSABKAsyLi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuQ292ZXJhZ2USRwoKdmFsaWRhdGlvbhgGIAMoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5WYWxpZGF0aW9uUmVmEhAKCHVua25vd25zGAcgAygJElQKCHZlcnNpb25zGAggAygLMkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkV2aWRlbmNlQnVuZGxlLlZlcnNpb25zRW50cnkaLwoNVmVyc2lvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIiwKBUNsYWltEgwKBHRleHQYASABKAkSFQoNZXZpZGVuY2VfcmVmcxgCIAMoCSJ8CghDb3ZlcmFnZRIWCg5pbmNsdWRlZF9maWxlcxgBIAEoBRIVCg1vbWl0dGVkX2ZpbGVzGAIgASgFEkEKCW9taXNzaW9ucxgDIAMoCzIuLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5PbWlzc2lvbiIoCghPbWlzc2lvbhIMCgRwYXRoGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJMCg1WYWxpZGF0aW9uUmVmEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIUCgxhdmFpbGFiaWxpdHkYAiABKAkSDwoHdmVyZGljdBgDIAEoCSLNAQoNRHJhZnRSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDAoEa2luZBgCIAEoCRIWCg5zdWJqZWN0X2RpZ2VzdBgDIAEoCRINCgV0aXRsZRgEIAEoCRIMCgRib2R5GAUgASgJEhAKCHVua25vd25zGAYgAygJEkAKCGNvdmVyYWdlGAcgASgLMi4udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkNvdmVyYWdlEhUKDWV2aWRlbmNlX3JlZnMYCCADKAkiNAobQ29sbGVjdFN0YWdlZE1lc3NhZ2VSZXF1ZXN0EhUKDXJlcG9zaXRvcnlfaWQYASABKAkizAEKGVN0YXJ0U3RhZ2VkTWVzc2FnZVJlcXVlc3QSFQoNcmVwb3NpdG9yeV9pZBgBIAEoCRIVCg1jb2xsZWN0aW9uX2lkGAIgASgJEhcKD3NuYXBzaG90X2RpZ2VzdBgDIAEoCRIcChRzZWxlY3RlZF9jb250ZXh0X2lkcxgEIAMoCRITCgtyZXF1ZXN0X2tleRgFIAEoCRIVCg1vcGVyYXRvcl9ub3RlGAYgASgJEh4KFmNvbnRpbnVhdGlvbl9vZl9qb2JfaWQYByABKAkibgoXU3RhZ2VkTWVzc2FnZUpvYlJlcXVlc3QSFQoNcmVwb3NpdG9yeV9pZBgBIAEoCRIOCgZqb2JfaWQYAiABKAkSFwoPdGltZW91dF9zZWNvbmRzGAMgASgFEhMKC3JlcXVlc3Rfa2V5GAQgASgJIjIKFFN0YWdlZE1lc3NhZ2VUcmFpbGVyEgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCSJvChdTdGFnZWRNZXNzYWdlVGltaW5nSGludBIOCgZzb3VyY2UYASABKAkSEQoJdGltZXN0YW1wGAIgASgJEh0KFWNvbnRlbnRfbWF0Y2hlc19pbmRleBgDIAEoCBISCgpsaW1pdGF0aW9uGAQgASgJIrICChFTdGFnZWRNZXNzYWdlRmlsZRIMCgRwYXRoGAEgASgJEhAKCG9sZF9wYXRoGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIQCghvbGRfbW9kZRgEIAEoCRIQCghuZXdfbW9kZRgFIAEoCRITCgtvbGRfYmxvYl9pZBgGIAEoCRITCgtuZXdfYmxvYl9pZBgHIAEoCRINCgVwYXRjaBgIIAEoCRIOCgZiaW5hcnkYCSABKAgSFwoPb21pc3Npb25fcmVhc29uGAogASgJElMKDHRpbWluZ19oaW50cxgLIAMoCzI9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlVGltaW5nSGludBISCgplZGl0X2NvdW50GAwgASgFIq4BChVTdGFnZWRNZXNzYWdlU25hcHNob3QSDgoGZGlnZXN0GAEgASgJEhUKDXJlcG9zaXRvcnlfaWQYAiABKAkSEQoJYmFzZV9oZWFkGAMgASgJEkYKBWZpbGVzGAQgAygLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LlN0YWdlZE1lc3NhZ2VGaWxlEhMKC2NhcHR1cmVkX2F0GAUgASgJIscBChVTdGFnZWRNZXNzYWdlQ292ZXJhZ2USFQoNY292ZXJlZF9wYXRocxgBIAMoCRIXCg91bmNvdmVyZWRfcGF0aHMYAiADKAkSFQoNbWF0Y2hlZF9lZGl0cxgDIAEoBRITCgt0b3RhbF9lZGl0cxgEIAEoBRIPCgdwYXJ0aWFsGAUgASgIEkEKCW9taXNzaW9ucxgGIAMoCzIuLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5PbWlzc2lvbiKUAgoUU3RhZ2VkTWVzc2FnZUNvbnRleHQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIRCglyZWZlcmVuY2UYAyABKAkSEAoIcmV2aXNpb24YBCABKAkSDQoFdGl0bGUYBSABKAkSDAoEYm9keRgGIAEoCRIOCgZzdGF0dXMYByABKAkSDgoGZGV0YWlsGAggASgJEhUKDW1hdGNoZWRfcGF0aHMYCSADKAkSFQoNbWF0Y2hlZF9lZGl0cxgKIAEoBRISCgpmdWxsX21hdGNoGAsgASgIEhAKCHVua25vd25zGAwgAygJEhYKDmFjdGl2aXR5X3N0YXJ0GA0gASgJEhQKDGFjdGl2aXR5X2VuZBgOIAEoCSL5AgoXU3RhZ2VkTWVzc2FnZVN1Z2dlc3Rpb24SCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDAoEYm9keRgDIAEoCRJMCgh0cmFpbGVycxgEIAMoCzI6LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlVHJhaWxlchJNCghjb3ZlcmFnZRgFIAEoCzI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlQ292ZXJhZ2USEgoKc291cmNlX2lkcxgGIAMoCRIQCgh1bmtub3ducxgHIAMoCRJPCg1tZXNzYWdlX3Njb3BlGAggASgOMjgudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LlN0YWdlZE1lc3NhZ2VTY29wZRIhChltZXNzYWdlX3Njb3BlX2V4cGxhbmF0aW9uGAkgASgJIv8CChdTdGFnZWRNZXNzYWdlQ29sbGVjdGlvbhIKCgJpZBgBIAEoCRJNCghzbmFwc2hvdBgCIAEoCzI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlU25hcHNob3QSUgoLc3VnZ2VzdGlvbnMYAyADKAsyPS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuU3RhZ2VkTWVzc2FnZVN1Z2dlc3Rpb24STAoIY29udGV4dHMYBCADKAsyOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuU3RhZ2VkTWVzc2FnZUNvbnRleHQSQQoJb21pc3Npb25zGAUgAygLMi4udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5Lk9taXNzaW9uEg4KBnN0YXR1cxgGIAEoCRIUCgxjb2xsZWN0ZWRfYXQYByABKAki/wMKEFN0YWdlZE1lc3NhZ2VKb2ISCgoCaWQYASABKAkSFQoNcmVwb3NpdG9yeV9pZBgCIAEoCRIXCg9zbmFwc2hvdF9kaWdlc3QYAyABKAkSDgoGc3RhdHVzGAQgASgJEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCRIUCgxleGVjdXRpb25faWQYByABKAkSGAoQY2FuY2VsX3JlcXVlc3RlZBgIIAEoCBJNCgZyZXN1bHQYCSABKAsyPS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuU3RhZ2VkTWVzc2FnZVN1Z2dlc3Rpb24SDQoFZXJyb3IYCiABKAkSEgoKYXBwbGljYWJsZRgLIAEoCBIcChRhcHBsaWNhYmlsaXR5X3JlYXNvbhgMIAEoCRJNCghzbmFwc2hvdBgNIAEoCzI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlU25hcHNob3QSDQoFcGhhc2UYDiABKAkSHgoWY29udGludWF0aW9uX29mX2pvYl9pZBgPIAEoCRIbChNldmlkZW5jZV9maWxlc19yZWFkGBAgASgNEhwKFGV2aWRlbmNlX2ZpbGVzX3RvdGFsGBEgASgNIq8BCiBSZWFkU3RhZ2VkTWVzc2FnZUV2aWRlbmNlUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEg4KBmpvYl9pZBgCIAEoCRIXCg9zbmFwc2hvdF9kaWdlc3QYAyABKAkSDgoGY3Vyc29yGAQgASgNEhEKCW1heF9ieXRlcxgFIAEoDRIWCg5pbnZlbnRvcnlfb25seRgGIAEoCBIQCghmaWxlX2lkcxgHIAMoDSL+AQoZU3RhZ2VkTWVzc2FnZUV2aWRlbmNlRmlsZRIPCgdmaWxlX2lkGAEgASgNEgwKBHBhdGgYAiABKAkSEAoIb2xkX3BhdGgYAyABKAkSDQoFcGF0Y2gYBCABKAkSFgoOY29tcGxldGVfcGF0Y2gYBSABKAgSFwoPb21pc3Npb25fcmVhc29uGAYgASgJEhMKC29sZF9ibG9iX2lkGAcgASgJEhMKC25ld19ibG9iX2lkGAggASgJEg4KBnN0YXR1cxgJIAEoCRISCgplZGl0X2NvdW50GAogASgFEhAKCG9sZF9tb2RlGAsgASgJEhAKCG5ld19tb2RlGAwgASgJItkBCiFSZWFkU3RhZ2VkTWVzc2FnZUV2aWRlbmNlUmVzcG9uc2USFwoPc25hcHNob3RfZGlnZXN0GAEgASgJEk4KBWZpbGVzGAIgAygLMj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LlN0YWdlZE1lc3NhZ2VFdmlkZW5jZUZpbGUSEwoLbmV4dF9jdXJzb3IYAyABKA0SEAoIY29tcGxldGUYBCABKAgSDwoHcmVjZWlwdBgFIAEoCRITCgt0b3RhbF9maWxlcxgGIAEoDSJLChlDaGVja1N0YWdlZE1lc3NhZ2VSZXF1ZXN0EhUKDXJlcG9zaXRvcnlfaWQYASABKAkSFwoPc25hcHNob3RfZGlnZXN0GAIgASgJImEKGkNoZWNrU3RhZ2VkTWVzc2FnZVJlc3BvbnNlEhIKCmFwcGxpY2FibGUYASABKAgSDgoGcmVhc29uGAIgASgJEh8KF2N1cnJlbnRfc25hcHNob3RfZGlnZXN0GAMgASgJKoYBChJTdGFnZWRNZXNzYWdlU2NvcGUSJAogU1RBR0VEX01FU1NBR0VfU0NPUEVfVU5TUEVDSUZJRUQQABIoCiRTVEFHRURfTUVTU0FHRV9TQ09QRV9XSE9MRV9TRUxFQ1RJT04QARIgChxTVEFHRURfTUVTU0FHRV9TQ09QRV9MSU1JVEVEEAIyqAkKD0Fkdmlzb3J5U2VydmljZRJwCgVEcmFmdBIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5EcmFmdFJlcXVlc3QaMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuRHJhZnRSZXNwb25zZRKXAQoSQ2hlY2tTdGFnZWRNZXNzYWdlEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkNoZWNrU3RhZ2VkTWVzc2FnZVJlcXVlc3QaQC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuQ2hlY2tTdGFnZWRNZXNzYWdlUmVzcG9uc2USmAEKFENvbGxlY3RTdGFnZWRNZXNzYWdlEkEudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LkNvbGxlY3RTdGFnZWRNZXNzYWdlUmVxdWVzdBo9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlQ29sbGVjdGlvbhKNAQoSU3RhcnRTdGFnZWRNZXNzYWdlEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LlN0YXJ0U3RhZ2VkTWVzc2FnZVJlcXVlc3QaNi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuU3RhZ2VkTWVzc2FnZUpvYhKMAQoTR2V0U3RhZ2VkTWVzc2FnZUpvYhI9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlSm9iUmVxdWVzdBo2LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlSm9iEo0BChRXYWl0U3RhZ2VkTWVzc2FnZUpvYhI9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlSm9iUmVxdWVzdBo2LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5hZHZpc29yeS5TdGFnZWRNZXNzYWdlSm9iEo8BChZDYW5jZWxTdGFnZWRNZXNzYWdlSm9iEj0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LlN0YWdlZE1lc3NhZ2VKb2JSZXF1ZXN0GjYudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmFkdmlzb3J5LlN0YWdlZE1lc3NhZ2VKb2ISrAEKGVJlYWRTdGFnZWRNZXNzYWdlRXZpZGVuY2USRi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuUmVhZFN0YWdlZE1lc3NhZ2VFdmlkZW5jZVJlcXVlc3QaRy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYWR2aXNvcnkuUmVhZFN0YWdlZE1lc3NhZ2VFdmlkZW5jZVJlc3BvbnNlQlpaWGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZ2l0LWNvbnRyb2wtdG93ZXIvdjEvYWR2aXNvcnk7YWR2aXNvcnlfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.git_control_tower.v1.advisory.DraftRequest
@@ -348,6 +348,846 @@ export const DraftResponseSchema: GenMessage<DraftResponse> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_advisory_advisory, 9);
 
 /**
+ * Collection is deterministic and never dispatches an agent.
+ *
+ * @generated from message vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest
+ */
+export type CollectStagedMessageRequest = Message<"vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest"> & {
+  /**
+   * @generated from field: string repository_id = 1;
+   */
+  repositoryId: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest.
+ * Use `create(CollectStagedMessageRequestSchema)` to create a new message.
+ */
+export const CollectStagedMessageRequestSchema: GenMessage<CollectStagedMessageRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 10);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest
+ */
+export type StartStagedMessageRequest = Message<"vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest"> & {
+  /**
+   * @generated from field: string repository_id = 1;
+   */
+  repositoryId: string;
+
+  /**
+   * @generated from field: string collection_id = 2;
+   */
+  collectionId: string;
+
+  /**
+   * @generated from field: string snapshot_digest = 3;
+   */
+  snapshotDigest: string;
+
+  /**
+   * @generated from field: repeated string selected_context_ids = 4;
+   */
+  selectedContextIds: string[];
+
+  /**
+   * @generated from field: string request_key = 5;
+   */
+  requestKey: string;
+
+  /**
+   * @generated from field: string operator_note = 6;
+   */
+  operatorNote: string;
+
+  /**
+   * Explicit deeper investigation of this successful partial draft; uses its
+   * original immutable subject and a new request key, never recollects staging.
+   *
+   * @generated from field: string continuation_of_job_id = 7;
+   */
+  continuationOfJobId: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest.
+ * Use `create(StartStagedMessageRequestSchema)` to create a new message.
+ */
+export const StartStagedMessageRequestSchema: GenMessage<StartStagedMessageRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 11);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
+ */
+export type StagedMessageJobRequest = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest"> & {
+  /**
+   * @generated from field: string repository_id = 1;
+   */
+  repositoryId: string;
+
+  /**
+   * @generated from field: string job_id = 2;
+   */
+  jobId: string;
+
+  /**
+   * @generated from field: int32 timeout_seconds = 3;
+   */
+  timeoutSeconds: number;
+
+  /**
+   * @generated from field: string request_key = 4;
+   */
+  requestKey: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest.
+ * Use `create(StagedMessageJobRequestSchema)` to create a new message.
+ */
+export const StagedMessageJobRequestSchema: GenMessage<StagedMessageJobRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 12);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
+ */
+export type StagedMessageTrailer = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageTrailer"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string value = 2;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageTrailer.
+ * Use `create(StagedMessageTrailerSchema)` to create a new message.
+ */
+export const StagedMessageTrailerSchema: GenMessage<StagedMessageTrailer> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 13);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint
+ */
+export type StagedMessageTimingHint = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint"> & {
+  /**
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string timestamp = 2;
+   */
+  timestamp: string;
+
+  /**
+   * @generated from field: bool content_matches_index = 3;
+   */
+  contentMatchesIndex: boolean;
+
+  /**
+   * @generated from field: string limitation = 4;
+   */
+  limitation: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint.
+ * Use `create(StagedMessageTimingHintSchema)` to create a new message.
+ */
+export const StagedMessageTimingHintSchema: GenMessage<StagedMessageTimingHint> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 14);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageFile
+ */
+export type StagedMessageFile = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageFile"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string old_path = 2;
+   */
+  oldPath: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string old_mode = 4;
+   */
+  oldMode: string;
+
+  /**
+   * @generated from field: string new_mode = 5;
+   */
+  newMode: string;
+
+  /**
+   * @generated from field: string old_blob_id = 6;
+   */
+  oldBlobId: string;
+
+  /**
+   * @generated from field: string new_blob_id = 7;
+   */
+  newBlobId: string;
+
+  /**
+   * @generated from field: string patch = 8;
+   */
+  patch: string;
+
+  /**
+   * @generated from field: bool binary = 9;
+   */
+  binary: boolean;
+
+  /**
+   * @generated from field: string omission_reason = 10;
+   */
+  omissionReason: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint timing_hints = 11;
+   */
+  timingHints: StagedMessageTimingHint[];
+
+  /**
+   * @generated from field: int32 edit_count = 12;
+   */
+  editCount: number;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageFile.
+ * Use `create(StagedMessageFileSchema)` to create a new message.
+ */
+export const StagedMessageFileSchema: GenMessage<StagedMessageFile> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 15);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
+ */
+export type StagedMessageSnapshot = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot"> & {
+  /**
+   * @generated from field: string digest = 1;
+   */
+  digest: string;
+
+  /**
+   * @generated from field: string repository_id = 2;
+   */
+  repositoryId: string;
+
+  /**
+   * @generated from field: string base_head = 3;
+   */
+  baseHead: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.StagedMessageFile files = 4;
+   */
+  files: StagedMessageFile[];
+
+  /**
+   * @generated from field: string captured_at = 5;
+   */
+  capturedAt: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot.
+ * Use `create(StagedMessageSnapshotSchema)` to create a new message.
+ */
+export const StagedMessageSnapshotSchema: GenMessage<StagedMessageSnapshot> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 16);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageCoverage
+ */
+export type StagedMessageCoverage = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageCoverage"> & {
+  /**
+   * @generated from field: repeated string covered_paths = 1;
+   */
+  coveredPaths: string[];
+
+  /**
+   * @generated from field: repeated string uncovered_paths = 2;
+   */
+  uncoveredPaths: string[];
+
+  /**
+   * @generated from field: int32 matched_edits = 3;
+   */
+  matchedEdits: number;
+
+  /**
+   * @generated from field: int32 total_edits = 4;
+   */
+  totalEdits: number;
+
+  /**
+   * @generated from field: bool partial = 5;
+   */
+  partial: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.Omission omissions = 6;
+   */
+  omissions: Omission[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageCoverage.
+ * Use `create(StagedMessageCoverageSchema)` to create a new message.
+ */
+export const StagedMessageCoverageSchema: GenMessage<StagedMessageCoverage> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 17);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageContext
+ */
+export type StagedMessageContext = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageContext"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string reference = 3;
+   */
+  reference: string;
+
+  /**
+   * @generated from field: string revision = 4;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string title = 5;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string body = 6;
+   */
+  body: string;
+
+  /**
+   * @generated from field: string status = 7;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string detail = 8;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: repeated string matched_paths = 9;
+   */
+  matchedPaths: string[];
+
+  /**
+   * @generated from field: int32 matched_edits = 10;
+   */
+  matchedEdits: number;
+
+  /**
+   * @generated from field: bool full_match = 11;
+   */
+  fullMatch: boolean;
+
+  /**
+   * @generated from field: repeated string unknowns = 12;
+   */
+  unknowns: string[];
+
+  /**
+   * @generated from field: string activity_start = 13;
+   */
+  activityStart: string;
+
+  /**
+   * @generated from field: string activity_end = 14;
+   */
+  activityEnd: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageContext.
+ * Use `create(StagedMessageContextSchema)` to create a new message.
+ */
+export const StagedMessageContextSchema: GenMessage<StagedMessageContext> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 18);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
+ */
+export type StagedMessageSuggestion = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string body = 3;
+   */
+  body: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.StagedMessageTrailer trailers = 4;
+   */
+  trailers: StagedMessageTrailer[];
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.advisory.StagedMessageCoverage coverage = 5;
+   */
+  coverage?: StagedMessageCoverage | undefined;
+
+  /**
+   * @generated from field: repeated string source_ids = 6;
+   */
+  sourceIds: string[];
+
+  /**
+   * @generated from field: repeated string unknowns = 7;
+   */
+  unknowns: string[];
+
+  /**
+   * Message scope is independent from detailed patch inspection coverage.
+   *
+   * @generated from field: vrooli.git_control_tower.v1.advisory.StagedMessageScope message_scope = 8;
+   */
+  messageScope: StagedMessageScope;
+
+  /**
+   * @generated from field: string message_scope_explanation = 9;
+   */
+  messageScopeExplanation: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.
+ * Use `create(StagedMessageSuggestionSchema)` to create a new message.
+ */
+export const StagedMessageSuggestionSchema: GenMessage<StagedMessageSuggestion> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 19);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageCollection
+ */
+export type StagedMessageCollection = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageCollection"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot snapshot = 2;
+   */
+  snapshot?: StagedMessageSnapshot | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion suggestions = 3;
+   */
+  suggestions: StagedMessageSuggestion[];
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.StagedMessageContext contexts = 4;
+   */
+  contexts: StagedMessageContext[];
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.Omission omissions = 5;
+   */
+  omissions: Omission[];
+
+  /**
+   * @generated from field: string status = 6;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string collected_at = 7;
+   */
+  collectedAt: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageCollection.
+ * Use `create(StagedMessageCollectionSchema)` to create a new message.
+ */
+export const StagedMessageCollectionSchema: GenMessage<StagedMessageCollection> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 20);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageJob
+ */
+export type StagedMessageJob = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageJob"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string repository_id = 2;
+   */
+  repositoryId: string;
+
+  /**
+   * @generated from field: string snapshot_digest = 3;
+   */
+  snapshotDigest: string;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string created_at = 5;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 6;
+   */
+  updatedAt: string;
+
+  /**
+   * @generated from field: string execution_id = 7;
+   */
+  executionId: string;
+
+  /**
+   * @generated from field: bool cancel_requested = 8;
+   */
+  cancelRequested: boolean;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion result = 9;
+   */
+  result?: StagedMessageSuggestion | undefined;
+
+  /**
+   * @generated from field: string error = 10;
+   */
+  error: string;
+
+  /**
+   * @generated from field: bool applicable = 11;
+   */
+  applicable: boolean;
+
+  /**
+   * @generated from field: string applicability_reason = 12;
+   */
+  applicabilityReason: string;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot snapshot = 13;
+   */
+  snapshot?: StagedMessageSnapshot | undefined;
+
+  /**
+   * @generated from field: string phase = 14;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: string continuation_of_job_id = 15;
+   */
+  continuationOfJobId: string;
+
+  /**
+   * @generated from field: uint32 evidence_files_read = 16;
+   */
+  evidenceFilesRead: number;
+
+  /**
+   * @generated from field: uint32 evidence_files_total = 17;
+   */
+  evidenceFilesTotal: number;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageJob.
+ * Use `create(StagedMessageJobSchema)` to create a new message.
+ */
+export const StagedMessageJobSchema: GenMessage<StagedMessageJob> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 21);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest
+ */
+export type ReadStagedMessageEvidenceRequest = Message<"vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest"> & {
+  /**
+   * @generated from field: string repository_id = 1;
+   */
+  repositoryId: string;
+
+  /**
+   * @generated from field: string job_id = 2;
+   */
+  jobId: string;
+
+  /**
+   * @generated from field: string snapshot_digest = 3;
+   */
+  snapshotDigest: string;
+
+  /**
+   * Zero-based offset in the complete canonical manifest.
+   *
+   * @generated from field: uint32 cursor = 4;
+   */
+  cursor: number;
+
+  /**
+   * @generated from field: uint32 max_bytes = 5;
+   */
+  maxBytes: number;
+
+  /**
+   * Metadata only; never reads Git blobs. Cursor pages the complete manifest.
+   *
+   * @generated from field: bool inventory_only = 6;
+   */
+  inventoryOnly: boolean;
+
+  /**
+   * Exact stable IDs for targeted patches, mutually exclusive with inventory/cursor.
+   *
+   * @generated from field: repeated uint32 file_ids = 7;
+   */
+  fileIds: number[];
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest.
+ * Use `create(ReadStagedMessageEvidenceRequestSchema)` to create a new message.
+ */
+export const ReadStagedMessageEvidenceRequestSchema: GenMessage<ReadStagedMessageEvidenceRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 22);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile
+ */
+export type StagedMessageEvidenceFile = Message<"vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile"> & {
+  /**
+   * @generated from field: uint32 file_id = 1;
+   */
+  fileId: number;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string old_path = 3;
+   */
+  oldPath: string;
+
+  /**
+   * @generated from field: string patch = 4;
+   */
+  patch: string;
+
+  /**
+   * @generated from field: bool complete_patch = 5;
+   */
+  completePatch: boolean;
+
+  /**
+   * @generated from field: string omission_reason = 6;
+   */
+  omissionReason: string;
+
+  /**
+   * @generated from field: string old_blob_id = 7;
+   */
+  oldBlobId: string;
+
+  /**
+   * @generated from field: string new_blob_id = 8;
+   */
+  newBlobId: string;
+
+  /**
+   * @generated from field: string status = 9;
+   */
+  status: string;
+
+  /**
+   * Positive retained measurement; absent/zero means unmeasured, not no changes.
+   *
+   * @generated from field: int32 edit_count = 10;
+   */
+  editCount: number;
+
+  /**
+   * @generated from field: string old_mode = 11;
+   */
+  oldMode: string;
+
+  /**
+   * @generated from field: string new_mode = 12;
+   */
+  newMode: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile.
+ * Use `create(StagedMessageEvidenceFileSchema)` to create a new message.
+ */
+export const StagedMessageEvidenceFileSchema: GenMessage<StagedMessageEvidenceFile> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 23);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse
+ */
+export type ReadStagedMessageEvidenceResponse = Message<"vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse"> & {
+  /**
+   * @generated from field: string snapshot_digest = 1;
+   */
+  snapshotDigest: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile files = 2;
+   */
+  files: StagedMessageEvidenceFile[];
+
+  /**
+   * @generated from field: uint32 next_cursor = 3;
+   */
+  nextCursor: number;
+
+  /**
+   * Sequential/inventory: end of manifest. Targeted: every requested ID returned.
+   * Independently of each file's complete_patch flag; retry omitted target IDs directly.
+   *
+   * @generated from field: bool complete = 4;
+   */
+  complete: boolean;
+
+  /**
+   * Non-secret evidence receipt, never an authorization credential.
+   *
+   * @generated from field: string receipt = 5;
+   */
+  receipt: string;
+
+  /**
+   * @generated from field: uint32 total_files = 6;
+   */
+  totalFiles: number;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse.
+ * Use `create(ReadStagedMessageEvidenceResponseSchema)` to create a new message.
+ */
+export const ReadStagedMessageEvidenceResponseSchema: GenMessage<ReadStagedMessageEvidenceResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 24);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest
+ */
+export type CheckStagedMessageRequest = Message<"vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest"> & {
+  /**
+   * @generated from field: string repository_id = 1;
+   */
+  repositoryId: string;
+
+  /**
+   * @generated from field: string snapshot_digest = 2;
+   */
+  snapshotDigest: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest.
+ * Use `create(CheckStagedMessageRequestSchema)` to create a new message.
+ */
+export const CheckStagedMessageRequestSchema: GenMessage<CheckStagedMessageRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 25);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse
+ */
+export type CheckStagedMessageResponse = Message<"vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse"> & {
+  /**
+   * @generated from field: bool applicable = 1;
+   */
+  applicable: boolean;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string current_snapshot_digest = 3;
+   */
+  currentSnapshotDigest: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse.
+ * Use `create(CheckStagedMessageResponseSchema)` to create a new message.
+ */
+export const CheckStagedMessageResponseSchema: GenMessage<CheckStagedMessageResponse> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_advisory_advisory, 26);
+
+/**
+ * @generated from enum vrooli.git_control_tower.v1.advisory.StagedMessageScope
+ */
+export enum StagedMessageScope {
+  /**
+   * @generated from enum value: STAGED_MESSAGE_SCOPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: STAGED_MESSAGE_SCOPE_WHOLE_SELECTION = 1;
+   */
+  WHOLE_SELECTION = 1,
+
+  /**
+   * @generated from enum value: STAGED_MESSAGE_SCOPE_LIMITED = 2;
+   */
+  LIMITED = 2,
+}
+
+/**
+ * Describes the enum vrooli.git_control_tower.v1.advisory.StagedMessageScope.
+ */
+export const StagedMessageScopeSchema: GenEnum<StagedMessageScope> = /*@__PURE__*/
+  enumDesc(file_git_control_tower_v1_advisory_advisory, 0);
+
+/**
  * AdvisoryService is the typed surface for evidence-bound, non-mutating
  * summaries and drafts. Provider delivery remains a separate webhook
  * transport because it must accept the provider's signed payload shape.
@@ -362,6 +1202,62 @@ export const AdvisoryService: GenService<{
     methodKind: "unary";
     input: typeof DraftRequestSchema;
     output: typeof DraftResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage
+   */
+  checkStagedMessage: {
+    methodKind: "unary";
+    input: typeof CheckStagedMessageRequestSchema;
+    output: typeof CheckStagedMessageResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage
+   */
+  collectStagedMessage: {
+    methodKind: "unary";
+    input: typeof CollectStagedMessageRequestSchema;
+    output: typeof StagedMessageCollectionSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage
+   */
+  startStagedMessage: {
+    methodKind: "unary";
+    input: typeof StartStagedMessageRequestSchema;
+    output: typeof StagedMessageJobSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob
+   */
+  getStagedMessageJob: {
+    methodKind: "unary";
+    input: typeof StagedMessageJobRequestSchema;
+    output: typeof StagedMessageJobSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob
+   */
+  waitStagedMessageJob: {
+    methodKind: "unary";
+    input: typeof StagedMessageJobRequestSchema;
+    output: typeof StagedMessageJobSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob
+   */
+  cancelStagedMessageJob: {
+    methodKind: "unary";
+    input: typeof StagedMessageJobRequestSchema;
+    output: typeof StagedMessageJobSchema;
+  },
+  /**
+   * @generated from rpc vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence
+   */
+  readStagedMessageEvidence: {
+    methodKind: "unary";
+    input: typeof ReadStagedMessageEvidenceRequestSchema;
+    output: typeof ReadStagedMessageEvidenceResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_git_control_tower_v1_advisory_advisory, 0);

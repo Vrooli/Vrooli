@@ -10,7 +10,49 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file personal-planner/v1/goals/goals.proto.
  */
 export const file_personal_planner_v1_goals_goals: GenFile = /*@__PURE__*/
-  fileDesc("CiVwZXJzb25hbC1wbGFubmVyL3YxL2dvYWxzL2dvYWxzLnByb3RvEiB2cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2FscyLrAQoER29hbBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdwdXJwb3NlGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIXCg9wcm9ncmVzc19tZXRob2QYBSABKAkSHQoVcHJvZ3Jlc3NfYmFzaXNfcG9pbnRzGAYgASgDEhsKE3RhcmdldF9iYXNpc19wb2ludHMYByABKAMSHwoXY3JlYXRlZF9hdF91bml4X3NlY29uZHMYCCABKAMSHwoXdXBkYXRlZF9hdF91bml4X3NlY29uZHMYCSABKAMSEAoIcmV2aXNpb24YCiABKAMigAIKCU1pbGVzdG9uZRIKCgJpZBgBIAEoCRIPCgdnb2FsX2lkGAIgASgJEg0KBXRpdGxlGAMgASgJEhAKCGNyaXRlcmlhGAQgASgJEhAKCGR1ZV9kYXRlGAUgASgJEg4KBnN0YXR1cxgGIAEoCRIfChdjcmVhdGVkX2F0X3VuaXhfc2Vjb25kcxgHIAEoAxIfChd1cGRhdGVkX2F0X3VuaXhfc2Vjb25kcxgIIAEoAxIQCghyZXZpc2lvbhgJIAEoAxIbChNsaW5rZWRfd29ya19pdGVtX2lkGAogASgJEiIKGnByZXJlcXVpc2l0ZV9taWxlc3RvbmVfaWRzGAsgAygJIhIKEExpc3RHb2Fsc1JlcXVlc3QiSgoRTGlzdEdvYWxzUmVzcG9uc2USNQoFZ29hbHMYASADKAsyJi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5Hb2FsImkKEUNyZWF0ZUdvYWxSZXF1ZXN0Eg0KBXRpdGxlGAEgASgJEg8KB3B1cnBvc2UYAiABKAkSFwoPcHJvZ3Jlc3NfbWV0aG9kGAMgASgJEhsKE3RhcmdldF9iYXNpc19wb2ludHMYBCABKAMiSgoSQ3JlYXRlR29hbFJlc3BvbnNlEjQKBGdvYWwYASABKAsyJi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5Hb2FsImEKGVVwZGF0ZUdvYWxQcm9ncmVzc1JlcXVlc3QSCgoCaWQYASABKAkSHQoVcHJvZ3Jlc3NfYmFzaXNfcG9pbnRzGAIgASgDEhkKEWV4cGVjdGVkX3JldmlzaW9uGAMgASgDIlIKGlVwZGF0ZUdvYWxQcm9ncmVzc1Jlc3BvbnNlEjQKBGdvYWwYASABKAsyJi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5Hb2FsIigKFUxpc3RNaWxlc3RvbmVzUmVxdWVzdBIPCgdnb2FsX2lkGAEgASgJIlkKFkxpc3RNaWxlc3RvbmVzUmVzcG9uc2USPwoKbWlsZXN0b25lcxgBIAMoCzIrLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLk1pbGVzdG9uZSKdAQoWQ3JlYXRlTWlsZXN0b25lUmVxdWVzdBIPCgdnb2FsX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhAKCGNyaXRlcmlhGAMgASgJEhAKCGR1ZV9kYXRlGAQgASgJEhsKE2xpbmtlZF93b3JrX2l0ZW1faWQYBSABKAkSIgoacHJlcmVxdWlzaXRlX21pbGVzdG9uZV9pZHMYBiADKAkiWQoXQ3JlYXRlTWlsZXN0b25lUmVzcG9uc2USPgoJbWlsZXN0b25lGAEgASgLMisudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuTWlsZXN0b25lIlUKHFVwZGF0ZU1pbGVzdG9uZVN0YXR1c1JlcXVlc3QSCgoCaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhkKEWV4cGVjdGVkX3JldmlzaW9uGAMgASgDIl8KHVVwZGF0ZU1pbGVzdG9uZVN0YXR1c1Jlc3BvbnNlEj4KCW1pbGVzdG9uZRgBIAEoCzIrLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLk1pbGVzdG9uZTK5BgoMR29hbHNTZXJ2aWNlEnQKCUxpc3RHb2FscxIyLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkxpc3RHb2Fsc1JlcXVlc3QaMy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5MaXN0R29hbHNSZXNwb25zZRJ3CgpDcmVhdGVHb2FsEjMudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuQ3JlYXRlR29hbFJlcXVlc3QaNC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5DcmVhdGVHb2FsUmVzcG9uc2USjwEKElVwZGF0ZUdvYWxQcm9ncmVzcxI7LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLlVwZGF0ZUdvYWxQcm9ncmVzc1JlcXVlc3QaPC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5VcGRhdGVHb2FsUHJvZ3Jlc3NSZXNwb25zZRKDAQoOTGlzdE1pbGVzdG9uZXMSNy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5MaXN0TWlsZXN0b25lc1JlcXVlc3QaOC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5MaXN0TWlsZXN0b25lc1Jlc3BvbnNlEoYBCg9DcmVhdGVNaWxlc3RvbmUSOC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5DcmVhdGVNaWxlc3RvbmVSZXF1ZXN0GjkudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuQ3JlYXRlTWlsZXN0b25lUmVzcG9uc2USmAEKFVVwZGF0ZU1pbGVzdG9uZVN0YXR1cxI+LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLlVwZGF0ZU1pbGVzdG9uZVN0YXR1c1JlcXVlc3QaPy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5VcGRhdGVNaWxlc3RvbmVTdGF0dXNSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcnNvbmFsLXBsYW5uZXIvdjEvZ29hbHM7Z29hbHNfdjFiBnByb3RvMw");
+  fileDesc("CiVwZXJzb25hbC1wbGFubmVyL3YxL2dvYWxzL2dvYWxzLnByb3RvEiB2cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2FscyKCAQoLR29hbE1lYXN1cmUSDAoEdW5pdBgBIAEoCRIbChN0YXJnZXRfYW1vdW50X21pbm9yGAIgASgDEhUKDWN1cnJlbmN5X2NvZGUYAyABKAkSDQoFYmFzaXMYBCABKAkSEgoKcmVjdXJyZW5jZRgFIAEoCRIOCgZwZXJpb2QYBiABKAki9wIKBEdvYWwSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDwoHcHVycG9zZRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSFwoPcHJvZ3Jlc3NfbWV0aG9kGAUgASgJEiIKFXByb2dyZXNzX2Jhc2lzX3BvaW50cxgGIAEoA0gAiAEBEhsKE3RhcmdldF9iYXNpc19wb2ludHMYByABKAMSHwoXY3JlYXRlZF9hdF91bml4X3NlY29uZHMYCCABKAMSHwoXdXBkYXRlZF9hdF91bml4X3NlY29uZHMYCSABKAMSEAoIcmV2aXNpb24YCiABKAMSPgoHbWVhc3VyZRgLIAEoCzItLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkdvYWxNZWFzdXJlEhMKC3RhcmdldF9kYXRlGAwgASgJEhYKDnByb2dyZXNzX3N0YXRlGA0gASgJQhgKFl9wcm9ncmVzc19iYXNpc19wb2ludHMigAIKCU1pbGVzdG9uZRIKCgJpZBgBIAEoCRIPCgdnb2FsX2lkGAIgASgJEg0KBXRpdGxlGAMgASgJEhAKCGNyaXRlcmlhGAQgASgJEhAKCGR1ZV9kYXRlGAUgASgJEg4KBnN0YXR1cxgGIAEoCRIfChdjcmVhdGVkX2F0X3VuaXhfc2Vjb25kcxgHIAEoAxIfChd1cGRhdGVkX2F0X3VuaXhfc2Vjb25kcxgIIAEoAxIQCghyZXZpc2lvbhgJIAEoAxIbChNsaW5rZWRfd29ya19pdGVtX2lkGAogASgJEiIKGnByZXJlcXVpc2l0ZV9taWxlc3RvbmVfaWRzGAsgAygJIhIKEExpc3RHb2Fsc1JlcXVlc3QiSgoRTGlzdEdvYWxzUmVzcG9uc2USNQoFZ29hbHMYASADKAsyJi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5Hb2FsIr4BChFDcmVhdGVHb2FsUmVxdWVzdBINCgV0aXRsZRgBIAEoCRIPCgdwdXJwb3NlGAIgASgJEhcKD3Byb2dyZXNzX21ldGhvZBgDIAEoCRIbChN0YXJnZXRfYmFzaXNfcG9pbnRzGAQgASgDEj4KB21lYXN1cmUYBSABKAsyLS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5Hb2FsTWVhc3VyZRITCgt0YXJnZXRfZGF0ZRgGIAEoCSJKChJDcmVhdGVHb2FsUmVzcG9uc2USNAoEZ29hbBgBIAEoCzImLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkdvYWwiYQoZVXBkYXRlR29hbFByb2dyZXNzUmVxdWVzdBIKCgJpZBgBIAEoCRIdChVwcm9ncmVzc19iYXNpc19wb2ludHMYAiABKAMSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAyABKAMiUgoaVXBkYXRlR29hbFByb2dyZXNzUmVzcG9uc2USNAoEZ29hbBgBIAEoCzImLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkdvYWwiKAoVTGlzdE1pbGVzdG9uZXNSZXF1ZXN0Eg8KB2dvYWxfaWQYASABKAkiWQoWTGlzdE1pbGVzdG9uZXNSZXNwb25zZRI/CgptaWxlc3RvbmVzGAEgAygLMisudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuTWlsZXN0b25lIp0BChZDcmVhdGVNaWxlc3RvbmVSZXF1ZXN0Eg8KB2dvYWxfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEAoIY3JpdGVyaWEYAyABKAkSEAoIZHVlX2RhdGUYBCABKAkSGwoTbGlua2VkX3dvcmtfaXRlbV9pZBgFIAEoCRIiChpwcmVyZXF1aXNpdGVfbWlsZXN0b25lX2lkcxgGIAMoCSJZChdDcmVhdGVNaWxlc3RvbmVSZXNwb25zZRI+CgltaWxlc3RvbmUYASABKAsyKy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5NaWxlc3RvbmUiVQocVXBkYXRlTWlsZXN0b25lU3RhdHVzUmVxdWVzdBIKCgJpZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAyABKAMiXwodVXBkYXRlTWlsZXN0b25lU3RhdHVzUmVzcG9uc2USPgoJbWlsZXN0b25lGAEgASgLMisudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuTWlsZXN0b25lMrkGCgxHb2Fsc1NlcnZpY2USdAoJTGlzdEdvYWxzEjIudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuTGlzdEdvYWxzUmVxdWVzdBozLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkxpc3RHb2Fsc1Jlc3BvbnNlEncKCkNyZWF0ZUdvYWwSMy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5DcmVhdGVHb2FsUmVxdWVzdBo0LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkNyZWF0ZUdvYWxSZXNwb25zZRKPAQoSVXBkYXRlR29hbFByb2dyZXNzEjsudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuVXBkYXRlR29hbFByb2dyZXNzUmVxdWVzdBo8LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLlVwZGF0ZUdvYWxQcm9ncmVzc1Jlc3BvbnNlEoMBCg5MaXN0TWlsZXN0b25lcxI3LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkxpc3RNaWxlc3RvbmVzUmVxdWVzdBo4LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkxpc3RNaWxlc3RvbmVzUmVzcG9uc2UShgEKD0NyZWF0ZU1pbGVzdG9uZRI4LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLkNyZWF0ZU1pbGVzdG9uZVJlcXVlc3QaOS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5nb2Fscy5DcmVhdGVNaWxlc3RvbmVSZXNwb25zZRKYAQoVVXBkYXRlTWlsZXN0b25lU3RhdHVzEj4udnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuZ29hbHMuVXBkYXRlTWlsZXN0b25lU3RhdHVzUmVxdWVzdBo/LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmdvYWxzLlVwZGF0ZU1pbGVzdG9uZVN0YXR1c1Jlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGVyc29uYWwtcGxhbm5lci92MS9nb2Fscztnb2Fsc192MWIGcHJvdG8z");
+
+/**
+ * @generated from message vrooli.personal_planner.v1.goals.GoalMeasure
+ */
+export type GoalMeasure = Message<"vrooli.personal_planner.v1.goals.GoalMeasure"> & {
+  /**
+   * @generated from field: string unit = 1;
+   */
+  unit: string;
+
+  /**
+   * @generated from field: int64 target_amount_minor = 2;
+   */
+  targetAmountMinor: bigint;
+
+  /**
+   * @generated from field: string currency_code = 3;
+   */
+  currencyCode: string;
+
+  /**
+   * @generated from field: string basis = 4;
+   */
+  basis: string;
+
+  /**
+   * @generated from field: string recurrence = 5;
+   */
+  recurrence: string;
+
+  /**
+   * @generated from field: string period = 6;
+   */
+  period: string;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.goals.GoalMeasure.
+ * Use `create(GoalMeasureSchema)` to create a new message.
+ */
+export const GoalMeasureSchema: GenMessage<GoalMeasure> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_goals_goals, 0);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.Goal
@@ -42,9 +84,9 @@ export type Goal = Message<"vrooli.personal_planner.v1.goals.Goal"> & {
   progressMethod: string;
 
   /**
-   * @generated from field: int64 progress_basis_points = 6;
+   * @generated from field: optional int64 progress_basis_points = 6;
    */
-  progressBasisPoints: bigint;
+  progressBasisPoints?: bigint | undefined;
 
   /**
    * @generated from field: int64 target_basis_points = 7;
@@ -65,6 +107,21 @@ export type Goal = Message<"vrooli.personal_planner.v1.goals.Goal"> & {
    * @generated from field: int64 revision = 10;
    */
   revision: bigint;
+
+  /**
+   * @generated from field: vrooli.personal_planner.v1.goals.GoalMeasure measure = 11;
+   */
+  measure?: GoalMeasure | undefined;
+
+  /**
+   * @generated from field: string target_date = 12;
+   */
+  targetDate: string;
+
+  /**
+   * @generated from field: string progress_state = 13;
+   */
+  progressState: string;
 };
 
 /**
@@ -72,7 +129,7 @@ export type Goal = Message<"vrooli.personal_planner.v1.goals.Goal"> & {
  * Use `create(GoalSchema)` to create a new message.
  */
 export const GoalSchema: GenMessage<Goal> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 0);
+  messageDesc(file_personal_planner_v1_goals_goals, 1);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.Milestone
@@ -139,7 +196,7 @@ export type Milestone = Message<"vrooli.personal_planner.v1.goals.Milestone"> & 
  * Use `create(MilestoneSchema)` to create a new message.
  */
 export const MilestoneSchema: GenMessage<Milestone> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 1);
+  messageDesc(file_personal_planner_v1_goals_goals, 2);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.ListGoalsRequest
@@ -152,7 +209,7 @@ export type ListGoalsRequest = Message<"vrooli.personal_planner.v1.goals.ListGoa
  * Use `create(ListGoalsRequestSchema)` to create a new message.
  */
 export const ListGoalsRequestSchema: GenMessage<ListGoalsRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 2);
+  messageDesc(file_personal_planner_v1_goals_goals, 3);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.ListGoalsResponse
@@ -169,7 +226,7 @@ export type ListGoalsResponse = Message<"vrooli.personal_planner.v1.goals.ListGo
  * Use `create(ListGoalsResponseSchema)` to create a new message.
  */
 export const ListGoalsResponseSchema: GenMessage<ListGoalsResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 3);
+  messageDesc(file_personal_planner_v1_goals_goals, 4);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.CreateGoalRequest
@@ -194,6 +251,16 @@ export type CreateGoalRequest = Message<"vrooli.personal_planner.v1.goals.Create
    * @generated from field: int64 target_basis_points = 4;
    */
   targetBasisPoints: bigint;
+
+  /**
+   * @generated from field: vrooli.personal_planner.v1.goals.GoalMeasure measure = 5;
+   */
+  measure?: GoalMeasure | undefined;
+
+  /**
+   * @generated from field: string target_date = 6;
+   */
+  targetDate: string;
 };
 
 /**
@@ -201,7 +268,7 @@ export type CreateGoalRequest = Message<"vrooli.personal_planner.v1.goals.Create
  * Use `create(CreateGoalRequestSchema)` to create a new message.
  */
 export const CreateGoalRequestSchema: GenMessage<CreateGoalRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 4);
+  messageDesc(file_personal_planner_v1_goals_goals, 5);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.CreateGoalResponse
@@ -218,7 +285,7 @@ export type CreateGoalResponse = Message<"vrooli.personal_planner.v1.goals.Creat
  * Use `create(CreateGoalResponseSchema)` to create a new message.
  */
 export const CreateGoalResponseSchema: GenMessage<CreateGoalResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 5);
+  messageDesc(file_personal_planner_v1_goals_goals, 6);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.UpdateGoalProgressRequest
@@ -245,7 +312,7 @@ export type UpdateGoalProgressRequest = Message<"vrooli.personal_planner.v1.goal
  * Use `create(UpdateGoalProgressRequestSchema)` to create a new message.
  */
 export const UpdateGoalProgressRequestSchema: GenMessage<UpdateGoalProgressRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 6);
+  messageDesc(file_personal_planner_v1_goals_goals, 7);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse
@@ -262,7 +329,7 @@ export type UpdateGoalProgressResponse = Message<"vrooli.personal_planner.v1.goa
  * Use `create(UpdateGoalProgressResponseSchema)` to create a new message.
  */
 export const UpdateGoalProgressResponseSchema: GenMessage<UpdateGoalProgressResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 7);
+  messageDesc(file_personal_planner_v1_goals_goals, 8);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.ListMilestonesRequest
@@ -279,7 +346,7 @@ export type ListMilestonesRequest = Message<"vrooli.personal_planner.v1.goals.Li
  * Use `create(ListMilestonesRequestSchema)` to create a new message.
  */
 export const ListMilestonesRequestSchema: GenMessage<ListMilestonesRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 8);
+  messageDesc(file_personal_planner_v1_goals_goals, 9);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.ListMilestonesResponse
@@ -296,7 +363,7 @@ export type ListMilestonesResponse = Message<"vrooli.personal_planner.v1.goals.L
  * Use `create(ListMilestonesResponseSchema)` to create a new message.
  */
 export const ListMilestonesResponseSchema: GenMessage<ListMilestonesResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 9);
+  messageDesc(file_personal_planner_v1_goals_goals, 10);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.CreateMilestoneRequest
@@ -338,7 +405,7 @@ export type CreateMilestoneRequest = Message<"vrooli.personal_planner.v1.goals.C
  * Use `create(CreateMilestoneRequestSchema)` to create a new message.
  */
 export const CreateMilestoneRequestSchema: GenMessage<CreateMilestoneRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 10);
+  messageDesc(file_personal_planner_v1_goals_goals, 11);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.CreateMilestoneResponse
@@ -355,7 +422,7 @@ export type CreateMilestoneResponse = Message<"vrooli.personal_planner.v1.goals.
  * Use `create(CreateMilestoneResponseSchema)` to create a new message.
  */
 export const CreateMilestoneResponseSchema: GenMessage<CreateMilestoneResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 11);
+  messageDesc(file_personal_planner_v1_goals_goals, 12);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.UpdateMilestoneStatusRequest
@@ -382,7 +449,7 @@ export type UpdateMilestoneStatusRequest = Message<"vrooli.personal_planner.v1.g
  * Use `create(UpdateMilestoneStatusRequestSchema)` to create a new message.
  */
 export const UpdateMilestoneStatusRequestSchema: GenMessage<UpdateMilestoneStatusRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 12);
+  messageDesc(file_personal_planner_v1_goals_goals, 13);
 
 /**
  * @generated from message vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse
@@ -399,7 +466,7 @@ export type UpdateMilestoneStatusResponse = Message<"vrooli.personal_planner.v1.
  * Use `create(UpdateMilestoneStatusResponseSchema)` to create a new message.
  */
 export const UpdateMilestoneStatusResponseSchema: GenMessage<UpdateMilestoneStatusResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_goals_goals, 13);
+  messageDesc(file_personal_planner_v1_goals_goals, 14);
 
 /**
  * @generated from service vrooli.personal_planner.v1.goals.GoalsService

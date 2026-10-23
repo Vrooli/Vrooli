@@ -18,6 +18,11 @@ enum RequestKind {
   // first-class generic inference modality even while a dedicated video
   // production scenario does not exist.
   REQUEST_KIND_VIDEO_GENERATION = 5;
+  // REQUEST_KIND_DETECT_PII asks a detector to locate personally-identifiable
+  // information in the input text and return typed spans. It is provider-neutral:
+  // callers express intent and policy here, while a PII-detection capability
+  // (the pii-detector resource) owns the regex/checksum + NER span semantics.
+  REQUEST_KIND_DETECT_PII = 6;
 }
 
 // PrivacyClass tells the gateway how sensitive the request metadata is.

@@ -21,6 +21,90 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GoalMeasure struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Unit              string                 `protobuf:"bytes,1,opt,name=unit,proto3" json:"unit,omitempty"`
+	TargetAmountMinor int64                  `protobuf:"varint,2,opt,name=target_amount_minor,json=targetAmountMinor,proto3" json:"target_amount_minor,omitempty"`
+	CurrencyCode      string                 `protobuf:"bytes,3,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
+	Basis             string                 `protobuf:"bytes,4,opt,name=basis,proto3" json:"basis,omitempty"`
+	Recurrence        string                 `protobuf:"bytes,5,opt,name=recurrence,proto3" json:"recurrence,omitempty"`
+	Period            string                 `protobuf:"bytes,6,opt,name=period,proto3" json:"period,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GoalMeasure) Reset() {
+	*x = GoalMeasure{}
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GoalMeasure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GoalMeasure) ProtoMessage() {}
+
+func (x *GoalMeasure) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GoalMeasure.ProtoReflect.Descriptor instead.
+func (*GoalMeasure) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GoalMeasure) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *GoalMeasure) GetTargetAmountMinor() int64 {
+	if x != nil {
+		return x.TargetAmountMinor
+	}
+	return 0
+}
+
+func (x *GoalMeasure) GetCurrencyCode() string {
+	if x != nil {
+		return x.CurrencyCode
+	}
+	return ""
+}
+
+func (x *GoalMeasure) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+func (x *GoalMeasure) GetRecurrence() string {
+	if x != nil {
+		return x.Recurrence
+	}
+	return ""
+}
+
+func (x *GoalMeasure) GetPeriod() string {
+	if x != nil {
+		return x.Period
+	}
+	return ""
+}
+
 type Goal struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -28,18 +112,21 @@ type Goal struct {
 	Purpose              string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	Status               string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	ProgressMethod       string                 `protobuf:"bytes,5,opt,name=progress_method,json=progressMethod,proto3" json:"progress_method,omitempty"`
-	ProgressBasisPoints  int64                  `protobuf:"varint,6,opt,name=progress_basis_points,json=progressBasisPoints,proto3" json:"progress_basis_points,omitempty"`
+	ProgressBasisPoints  *int64                 `protobuf:"varint,6,opt,name=progress_basis_points,json=progressBasisPoints,proto3,oneof" json:"progress_basis_points,omitempty"`
 	TargetBasisPoints    int64                  `protobuf:"varint,7,opt,name=target_basis_points,json=targetBasisPoints,proto3" json:"target_basis_points,omitempty"`
 	CreatedAtUnixSeconds int64                  `protobuf:"varint,8,opt,name=created_at_unix_seconds,json=createdAtUnixSeconds,proto3" json:"created_at_unix_seconds,omitempty"`
 	UpdatedAtUnixSeconds int64                  `protobuf:"varint,9,opt,name=updated_at_unix_seconds,json=updatedAtUnixSeconds,proto3" json:"updated_at_unix_seconds,omitempty"`
 	Revision             int64                  `protobuf:"varint,10,opt,name=revision,proto3" json:"revision,omitempty"`
+	Measure              *GoalMeasure           `protobuf:"bytes,11,opt,name=measure,proto3" json:"measure,omitempty"`
+	TargetDate           string                 `protobuf:"bytes,12,opt,name=target_date,json=targetDate,proto3" json:"target_date,omitempty"`
+	ProgressState        string                 `protobuf:"bytes,13,opt,name=progress_state,json=progressState,proto3" json:"progress_state,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Goal) Reset() {
 	*x = Goal{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[0]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +138,7 @@ func (x *Goal) String() string {
 func (*Goal) ProtoMessage() {}
 
 func (x *Goal) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[0]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +151,7 @@ func (x *Goal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Goal.ProtoReflect.Descriptor instead.
 func (*Goal) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{0}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Goal) GetId() string {
@@ -103,8 +190,8 @@ func (x *Goal) GetProgressMethod() string {
 }
 
 func (x *Goal) GetProgressBasisPoints() int64 {
-	if x != nil {
-		return x.ProgressBasisPoints
+	if x != nil && x.ProgressBasisPoints != nil {
+		return *x.ProgressBasisPoints
 	}
 	return 0
 }
@@ -137,6 +224,27 @@ func (x *Goal) GetRevision() int64 {
 	return 0
 }
 
+func (x *Goal) GetMeasure() *GoalMeasure {
+	if x != nil {
+		return x.Measure
+	}
+	return nil
+}
+
+func (x *Goal) GetTargetDate() string {
+	if x != nil {
+		return x.TargetDate
+	}
+	return ""
+}
+
+func (x *Goal) GetProgressState() string {
+	if x != nil {
+		return x.ProgressState
+	}
+	return ""
+}
+
 type Milestone struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	Id                       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -156,7 +264,7 @@ type Milestone struct {
 
 func (x *Milestone) Reset() {
 	*x = Milestone{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[1]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -168,7 +276,7 @@ func (x *Milestone) String() string {
 func (*Milestone) ProtoMessage() {}
 
 func (x *Milestone) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[1]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -181,7 +289,7 @@ func (x *Milestone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Milestone.ProtoReflect.Descriptor instead.
 func (*Milestone) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{1}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Milestone) GetId() string {
@@ -269,7 +377,7 @@ type ListGoalsRequest struct {
 
 func (x *ListGoalsRequest) Reset() {
 	*x = ListGoalsRequest{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[2]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -281,7 +389,7 @@ func (x *ListGoalsRequest) String() string {
 func (*ListGoalsRequest) ProtoMessage() {}
 
 func (x *ListGoalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[2]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -294,7 +402,7 @@ func (x *ListGoalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGoalsRequest.ProtoReflect.Descriptor instead.
 func (*ListGoalsRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{2}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{3}
 }
 
 type ListGoalsResponse struct {
@@ -306,7 +414,7 @@ type ListGoalsResponse struct {
 
 func (x *ListGoalsResponse) Reset() {
 	*x = ListGoalsResponse{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[3]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -318,7 +426,7 @@ func (x *ListGoalsResponse) String() string {
 func (*ListGoalsResponse) ProtoMessage() {}
 
 func (x *ListGoalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[3]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,7 +439,7 @@ func (x *ListGoalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGoalsResponse.ProtoReflect.Descriptor instead.
 func (*ListGoalsResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{3}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListGoalsResponse) GetGoals() []*Goal {
@@ -347,13 +455,15 @@ type CreateGoalRequest struct {
 	Purpose           string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	ProgressMethod    string                 `protobuf:"bytes,3,opt,name=progress_method,json=progressMethod,proto3" json:"progress_method,omitempty"`
 	TargetBasisPoints int64                  `protobuf:"varint,4,opt,name=target_basis_points,json=targetBasisPoints,proto3" json:"target_basis_points,omitempty"`
+	Measure           *GoalMeasure           `protobuf:"bytes,5,opt,name=measure,proto3" json:"measure,omitempty"`
+	TargetDate        string                 `protobuf:"bytes,6,opt,name=target_date,json=targetDate,proto3" json:"target_date,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateGoalRequest) Reset() {
 	*x = CreateGoalRequest{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[4]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +475,7 @@ func (x *CreateGoalRequest) String() string {
 func (*CreateGoalRequest) ProtoMessage() {}
 
 func (x *CreateGoalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[4]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +488,7 @@ func (x *CreateGoalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateGoalRequest.ProtoReflect.Descriptor instead.
 func (*CreateGoalRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{4}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateGoalRequest) GetTitle() string {
@@ -409,6 +519,20 @@ func (x *CreateGoalRequest) GetTargetBasisPoints() int64 {
 	return 0
 }
 
+func (x *CreateGoalRequest) GetMeasure() *GoalMeasure {
+	if x != nil {
+		return x.Measure
+	}
+	return nil
+}
+
+func (x *CreateGoalRequest) GetTargetDate() string {
+	if x != nil {
+		return x.TargetDate
+	}
+	return ""
+}
+
 type CreateGoalResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Goal          *Goal                  `protobuf:"bytes,1,opt,name=goal,proto3" json:"goal,omitempty"`
@@ -418,7 +542,7 @@ type CreateGoalResponse struct {
 
 func (x *CreateGoalResponse) Reset() {
 	*x = CreateGoalResponse{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[5]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +554,7 @@ func (x *CreateGoalResponse) String() string {
 func (*CreateGoalResponse) ProtoMessage() {}
 
 func (x *CreateGoalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[5]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +567,7 @@ func (x *CreateGoalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateGoalResponse.ProtoReflect.Descriptor instead.
 func (*CreateGoalResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{5}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateGoalResponse) GetGoal() *Goal {
@@ -464,7 +588,7 @@ type UpdateGoalProgressRequest struct {
 
 func (x *UpdateGoalProgressRequest) Reset() {
 	*x = UpdateGoalProgressRequest{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[6]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +600,7 @@ func (x *UpdateGoalProgressRequest) String() string {
 func (*UpdateGoalProgressRequest) ProtoMessage() {}
 
 func (x *UpdateGoalProgressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[6]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +613,7 @@ func (x *UpdateGoalProgressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGoalProgressRequest.ProtoReflect.Descriptor instead.
 func (*UpdateGoalProgressRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{6}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateGoalProgressRequest) GetId() string {
@@ -522,7 +646,7 @@ type UpdateGoalProgressResponse struct {
 
 func (x *UpdateGoalProgressResponse) Reset() {
 	*x = UpdateGoalProgressResponse{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[7]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +658,7 @@ func (x *UpdateGoalProgressResponse) String() string {
 func (*UpdateGoalProgressResponse) ProtoMessage() {}
 
 func (x *UpdateGoalProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[7]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +671,7 @@ func (x *UpdateGoalProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGoalProgressResponse.ProtoReflect.Descriptor instead.
 func (*UpdateGoalProgressResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{7}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpdateGoalProgressResponse) GetGoal() *Goal {
@@ -566,7 +690,7 @@ type ListMilestonesRequest struct {
 
 func (x *ListMilestonesRequest) Reset() {
 	*x = ListMilestonesRequest{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[8]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +702,7 @@ func (x *ListMilestonesRequest) String() string {
 func (*ListMilestonesRequest) ProtoMessage() {}
 
 func (x *ListMilestonesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[8]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +715,7 @@ func (x *ListMilestonesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMilestonesRequest.ProtoReflect.Descriptor instead.
 func (*ListMilestonesRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{8}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListMilestonesRequest) GetGoalId() string {
@@ -610,7 +734,7 @@ type ListMilestonesResponse struct {
 
 func (x *ListMilestonesResponse) Reset() {
 	*x = ListMilestonesResponse{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[9]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +746,7 @@ func (x *ListMilestonesResponse) String() string {
 func (*ListMilestonesResponse) ProtoMessage() {}
 
 func (x *ListMilestonesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[9]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +759,7 @@ func (x *ListMilestonesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMilestonesResponse.ProtoReflect.Descriptor instead.
 func (*ListMilestonesResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{9}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListMilestonesResponse) GetMilestones() []*Milestone {
@@ -659,7 +783,7 @@ type CreateMilestoneRequest struct {
 
 func (x *CreateMilestoneRequest) Reset() {
 	*x = CreateMilestoneRequest{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[10]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -671,7 +795,7 @@ func (x *CreateMilestoneRequest) String() string {
 func (*CreateMilestoneRequest) ProtoMessage() {}
 
 func (x *CreateMilestoneRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[10]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +808,7 @@ func (x *CreateMilestoneRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMilestoneRequest.ProtoReflect.Descriptor instead.
 func (*CreateMilestoneRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{10}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateMilestoneRequest) GetGoalId() string {
@@ -738,7 +862,7 @@ type CreateMilestoneResponse struct {
 
 func (x *CreateMilestoneResponse) Reset() {
 	*x = CreateMilestoneResponse{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[11]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +874,7 @@ func (x *CreateMilestoneResponse) String() string {
 func (*CreateMilestoneResponse) ProtoMessage() {}
 
 func (x *CreateMilestoneResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[11]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +887,7 @@ func (x *CreateMilestoneResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMilestoneResponse.ProtoReflect.Descriptor instead.
 func (*CreateMilestoneResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{11}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateMilestoneResponse) GetMilestone() *Milestone {
@@ -784,7 +908,7 @@ type UpdateMilestoneStatusRequest struct {
 
 func (x *UpdateMilestoneStatusRequest) Reset() {
 	*x = UpdateMilestoneStatusRequest{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[12]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +920,7 @@ func (x *UpdateMilestoneStatusRequest) String() string {
 func (*UpdateMilestoneStatusRequest) ProtoMessage() {}
 
 func (x *UpdateMilestoneStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[12]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +933,7 @@ func (x *UpdateMilestoneStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMilestoneStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMilestoneStatusRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{12}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UpdateMilestoneStatusRequest) GetId() string {
@@ -842,7 +966,7 @@ type UpdateMilestoneStatusResponse struct {
 
 func (x *UpdateMilestoneStatusResponse) Reset() {
 	*x = UpdateMilestoneStatusResponse{}
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[13]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +978,7 @@ func (x *UpdateMilestoneStatusResponse) String() string {
 func (*UpdateMilestoneStatusResponse) ProtoMessage() {}
 
 func (x *UpdateMilestoneStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[13]
+	mi := &file_personal_planner_v1_goals_goals_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +991,7 @@ func (x *UpdateMilestoneStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMilestoneStatusResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMilestoneStatusResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{13}
+	return file_personal_planner_v1_goals_goals_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateMilestoneStatusResponse) GetMilestone() *Milestone {
@@ -881,19 +1005,33 @@ var File_personal_planner_v1_goals_goals_proto protoreflect.FileDescriptor
 
 const file_personal_planner_v1_goals_goals_proto_rawDesc = "" +
 	"\n" +
-	"%personal-planner/v1/goals/goals.proto\x12 vrooli.personal_planner.v1.goals\"\xf5\x02\n" +
+	"%personal-planner/v1/goals/goals.proto\x12 vrooli.personal_planner.v1.goals\"\xc4\x01\n" +
+	"\vGoalMeasure\x12\x12\n" +
+	"\x04unit\x18\x01 \x01(\tR\x04unit\x12.\n" +
+	"\x13target_amount_minor\x18\x02 \x01(\x03R\x11targetAmountMinor\x12#\n" +
+	"\rcurrency_code\x18\x03 \x01(\tR\fcurrencyCode\x12\x14\n" +
+	"\x05basis\x18\x04 \x01(\tR\x05basis\x12\x1e\n" +
+	"\n" +
+	"recurrence\x18\x05 \x01(\tR\n" +
+	"recurrence\x12\x16\n" +
+	"\x06period\x18\x06 \x01(\tR\x06period\"\xa5\x04\n" +
 	"\x04Goal\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
 	"\apurpose\x18\x03 \x01(\tR\apurpose\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12'\n" +
-	"\x0fprogress_method\x18\x05 \x01(\tR\x0eprogressMethod\x122\n" +
-	"\x15progress_basis_points\x18\x06 \x01(\x03R\x13progressBasisPoints\x12.\n" +
+	"\x0fprogress_method\x18\x05 \x01(\tR\x0eprogressMethod\x127\n" +
+	"\x15progress_basis_points\x18\x06 \x01(\x03H\x00R\x13progressBasisPoints\x88\x01\x01\x12.\n" +
 	"\x13target_basis_points\x18\a \x01(\x03R\x11targetBasisPoints\x125\n" +
 	"\x17created_at_unix_seconds\x18\b \x01(\x03R\x14createdAtUnixSeconds\x125\n" +
 	"\x17updated_at_unix_seconds\x18\t \x01(\x03R\x14updatedAtUnixSeconds\x12\x1a\n" +
 	"\brevision\x18\n" +
-	" \x01(\x03R\brevision\"\x90\x03\n" +
+	" \x01(\x03R\brevision\x12G\n" +
+	"\ameasure\x18\v \x01(\v2-.vrooli.personal_planner.v1.goals.GoalMeasureR\ameasure\x12\x1f\n" +
+	"\vtarget_date\x18\f \x01(\tR\n" +
+	"targetDate\x12%\n" +
+	"\x0eprogress_state\x18\r \x01(\tR\rprogressStateB\x18\n" +
+	"\x16_progress_basis_points\"\x90\x03\n" +
 	"\tMilestone\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\agoal_id\x18\x02 \x01(\tR\x06goalId\x12\x14\n" +
@@ -909,12 +1047,15 @@ const file_personal_planner_v1_goals_goals_proto_rawDesc = "" +
 	"\x1aprerequisite_milestone_ids\x18\v \x03(\tR\x18prerequisiteMilestoneIds\"\x12\n" +
 	"\x10ListGoalsRequest\"Q\n" +
 	"\x11ListGoalsResponse\x12<\n" +
-	"\x05goals\x18\x01 \x03(\v2&.vrooli.personal_planner.v1.goals.GoalR\x05goals\"\x9c\x01\n" +
+	"\x05goals\x18\x01 \x03(\v2&.vrooli.personal_planner.v1.goals.GoalR\x05goals\"\x86\x02\n" +
 	"\x11CreateGoalRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x18\n" +
 	"\apurpose\x18\x02 \x01(\tR\apurpose\x12'\n" +
 	"\x0fprogress_method\x18\x03 \x01(\tR\x0eprogressMethod\x12.\n" +
-	"\x13target_basis_points\x18\x04 \x01(\x03R\x11targetBasisPoints\"P\n" +
+	"\x13target_basis_points\x18\x04 \x01(\x03R\x11targetBasisPoints\x12G\n" +
+	"\ameasure\x18\x05 \x01(\v2-.vrooli.personal_planner.v1.goals.GoalMeasureR\ameasure\x12\x1f\n" +
+	"\vtarget_date\x18\x06 \x01(\tR\n" +
+	"targetDate\"P\n" +
 	"\x12CreateGoalResponse\x12:\n" +
 	"\x04goal\x18\x01 \x01(\v2&.vrooli.personal_planner.v1.goals.GoalR\x04goal\"\x8c\x01\n" +
 	"\x19UpdateGoalProgressRequest\x12\x0e\n" +
@@ -965,47 +1106,50 @@ func file_personal_planner_v1_goals_goals_proto_rawDescGZIP() []byte {
 	return file_personal_planner_v1_goals_goals_proto_rawDescData
 }
 
-var file_personal_planner_v1_goals_goals_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_personal_planner_v1_goals_goals_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_personal_planner_v1_goals_goals_proto_goTypes = []any{
-	(*Goal)(nil),                          // 0: vrooli.personal_planner.v1.goals.Goal
-	(*Milestone)(nil),                     // 1: vrooli.personal_planner.v1.goals.Milestone
-	(*ListGoalsRequest)(nil),              // 2: vrooli.personal_planner.v1.goals.ListGoalsRequest
-	(*ListGoalsResponse)(nil),             // 3: vrooli.personal_planner.v1.goals.ListGoalsResponse
-	(*CreateGoalRequest)(nil),             // 4: vrooli.personal_planner.v1.goals.CreateGoalRequest
-	(*CreateGoalResponse)(nil),            // 5: vrooli.personal_planner.v1.goals.CreateGoalResponse
-	(*UpdateGoalProgressRequest)(nil),     // 6: vrooli.personal_planner.v1.goals.UpdateGoalProgressRequest
-	(*UpdateGoalProgressResponse)(nil),    // 7: vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse
-	(*ListMilestonesRequest)(nil),         // 8: vrooli.personal_planner.v1.goals.ListMilestonesRequest
-	(*ListMilestonesResponse)(nil),        // 9: vrooli.personal_planner.v1.goals.ListMilestonesResponse
-	(*CreateMilestoneRequest)(nil),        // 10: vrooli.personal_planner.v1.goals.CreateMilestoneRequest
-	(*CreateMilestoneResponse)(nil),       // 11: vrooli.personal_planner.v1.goals.CreateMilestoneResponse
-	(*UpdateMilestoneStatusRequest)(nil),  // 12: vrooli.personal_planner.v1.goals.UpdateMilestoneStatusRequest
-	(*UpdateMilestoneStatusResponse)(nil), // 13: vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse
+	(*GoalMeasure)(nil),                   // 0: vrooli.personal_planner.v1.goals.GoalMeasure
+	(*Goal)(nil),                          // 1: vrooli.personal_planner.v1.goals.Goal
+	(*Milestone)(nil),                     // 2: vrooli.personal_planner.v1.goals.Milestone
+	(*ListGoalsRequest)(nil),              // 3: vrooli.personal_planner.v1.goals.ListGoalsRequest
+	(*ListGoalsResponse)(nil),             // 4: vrooli.personal_planner.v1.goals.ListGoalsResponse
+	(*CreateGoalRequest)(nil),             // 5: vrooli.personal_planner.v1.goals.CreateGoalRequest
+	(*CreateGoalResponse)(nil),            // 6: vrooli.personal_planner.v1.goals.CreateGoalResponse
+	(*UpdateGoalProgressRequest)(nil),     // 7: vrooli.personal_planner.v1.goals.UpdateGoalProgressRequest
+	(*UpdateGoalProgressResponse)(nil),    // 8: vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse
+	(*ListMilestonesRequest)(nil),         // 9: vrooli.personal_planner.v1.goals.ListMilestonesRequest
+	(*ListMilestonesResponse)(nil),        // 10: vrooli.personal_planner.v1.goals.ListMilestonesResponse
+	(*CreateMilestoneRequest)(nil),        // 11: vrooli.personal_planner.v1.goals.CreateMilestoneRequest
+	(*CreateMilestoneResponse)(nil),       // 12: vrooli.personal_planner.v1.goals.CreateMilestoneResponse
+	(*UpdateMilestoneStatusRequest)(nil),  // 13: vrooli.personal_planner.v1.goals.UpdateMilestoneStatusRequest
+	(*UpdateMilestoneStatusResponse)(nil), // 14: vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse
 }
 var file_personal_planner_v1_goals_goals_proto_depIdxs = []int32{
-	0,  // 0: vrooli.personal_planner.v1.goals.ListGoalsResponse.goals:type_name -> vrooli.personal_planner.v1.goals.Goal
-	0,  // 1: vrooli.personal_planner.v1.goals.CreateGoalResponse.goal:type_name -> vrooli.personal_planner.v1.goals.Goal
-	0,  // 2: vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse.goal:type_name -> vrooli.personal_planner.v1.goals.Goal
-	1,  // 3: vrooli.personal_planner.v1.goals.ListMilestonesResponse.milestones:type_name -> vrooli.personal_planner.v1.goals.Milestone
-	1,  // 4: vrooli.personal_planner.v1.goals.CreateMilestoneResponse.milestone:type_name -> vrooli.personal_planner.v1.goals.Milestone
-	1,  // 5: vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse.milestone:type_name -> vrooli.personal_planner.v1.goals.Milestone
-	2,  // 6: vrooli.personal_planner.v1.goals.GoalsService.ListGoals:input_type -> vrooli.personal_planner.v1.goals.ListGoalsRequest
-	4,  // 7: vrooli.personal_planner.v1.goals.GoalsService.CreateGoal:input_type -> vrooli.personal_planner.v1.goals.CreateGoalRequest
-	6,  // 8: vrooli.personal_planner.v1.goals.GoalsService.UpdateGoalProgress:input_type -> vrooli.personal_planner.v1.goals.UpdateGoalProgressRequest
-	8,  // 9: vrooli.personal_planner.v1.goals.GoalsService.ListMilestones:input_type -> vrooli.personal_planner.v1.goals.ListMilestonesRequest
-	10, // 10: vrooli.personal_planner.v1.goals.GoalsService.CreateMilestone:input_type -> vrooli.personal_planner.v1.goals.CreateMilestoneRequest
-	12, // 11: vrooli.personal_planner.v1.goals.GoalsService.UpdateMilestoneStatus:input_type -> vrooli.personal_planner.v1.goals.UpdateMilestoneStatusRequest
-	3,  // 12: vrooli.personal_planner.v1.goals.GoalsService.ListGoals:output_type -> vrooli.personal_planner.v1.goals.ListGoalsResponse
-	5,  // 13: vrooli.personal_planner.v1.goals.GoalsService.CreateGoal:output_type -> vrooli.personal_planner.v1.goals.CreateGoalResponse
-	7,  // 14: vrooli.personal_planner.v1.goals.GoalsService.UpdateGoalProgress:output_type -> vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse
-	9,  // 15: vrooli.personal_planner.v1.goals.GoalsService.ListMilestones:output_type -> vrooli.personal_planner.v1.goals.ListMilestonesResponse
-	11, // 16: vrooli.personal_planner.v1.goals.GoalsService.CreateMilestone:output_type -> vrooli.personal_planner.v1.goals.CreateMilestoneResponse
-	13, // 17: vrooli.personal_planner.v1.goals.GoalsService.UpdateMilestoneStatus:output_type -> vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	0,  // 0: vrooli.personal_planner.v1.goals.Goal.measure:type_name -> vrooli.personal_planner.v1.goals.GoalMeasure
+	1,  // 1: vrooli.personal_planner.v1.goals.ListGoalsResponse.goals:type_name -> vrooli.personal_planner.v1.goals.Goal
+	0,  // 2: vrooli.personal_planner.v1.goals.CreateGoalRequest.measure:type_name -> vrooli.personal_planner.v1.goals.GoalMeasure
+	1,  // 3: vrooli.personal_planner.v1.goals.CreateGoalResponse.goal:type_name -> vrooli.personal_planner.v1.goals.Goal
+	1,  // 4: vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse.goal:type_name -> vrooli.personal_planner.v1.goals.Goal
+	2,  // 5: vrooli.personal_planner.v1.goals.ListMilestonesResponse.milestones:type_name -> vrooli.personal_planner.v1.goals.Milestone
+	2,  // 6: vrooli.personal_planner.v1.goals.CreateMilestoneResponse.milestone:type_name -> vrooli.personal_planner.v1.goals.Milestone
+	2,  // 7: vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse.milestone:type_name -> vrooli.personal_planner.v1.goals.Milestone
+	3,  // 8: vrooli.personal_planner.v1.goals.GoalsService.ListGoals:input_type -> vrooli.personal_planner.v1.goals.ListGoalsRequest
+	5,  // 9: vrooli.personal_planner.v1.goals.GoalsService.CreateGoal:input_type -> vrooli.personal_planner.v1.goals.CreateGoalRequest
+	7,  // 10: vrooli.personal_planner.v1.goals.GoalsService.UpdateGoalProgress:input_type -> vrooli.personal_planner.v1.goals.UpdateGoalProgressRequest
+	9,  // 11: vrooli.personal_planner.v1.goals.GoalsService.ListMilestones:input_type -> vrooli.personal_planner.v1.goals.ListMilestonesRequest
+	11, // 12: vrooli.personal_planner.v1.goals.GoalsService.CreateMilestone:input_type -> vrooli.personal_planner.v1.goals.CreateMilestoneRequest
+	13, // 13: vrooli.personal_planner.v1.goals.GoalsService.UpdateMilestoneStatus:input_type -> vrooli.personal_planner.v1.goals.UpdateMilestoneStatusRequest
+	4,  // 14: vrooli.personal_planner.v1.goals.GoalsService.ListGoals:output_type -> vrooli.personal_planner.v1.goals.ListGoalsResponse
+	6,  // 15: vrooli.personal_planner.v1.goals.GoalsService.CreateGoal:output_type -> vrooli.personal_planner.v1.goals.CreateGoalResponse
+	8,  // 16: vrooli.personal_planner.v1.goals.GoalsService.UpdateGoalProgress:output_type -> vrooli.personal_planner.v1.goals.UpdateGoalProgressResponse
+	10, // 17: vrooli.personal_planner.v1.goals.GoalsService.ListMilestones:output_type -> vrooli.personal_planner.v1.goals.ListMilestonesResponse
+	12, // 18: vrooli.personal_planner.v1.goals.GoalsService.CreateMilestone:output_type -> vrooli.personal_planner.v1.goals.CreateMilestoneResponse
+	14, // 19: vrooli.personal_planner.v1.goals.GoalsService.UpdateMilestoneStatus:output_type -> vrooli.personal_planner.v1.goals.UpdateMilestoneStatusResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_personal_planner_v1_goals_goals_proto_init() }
@@ -1013,13 +1157,14 @@ func file_personal_planner_v1_goals_goals_proto_init() {
 	if File_personal_planner_v1_goals_goals_proto != nil {
 		return
 	}
+	file_personal_planner_v1_goals_goals_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_personal_planner_v1_goals_goals_proto_rawDesc), len(file_personal_planner_v1_goals_goals_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

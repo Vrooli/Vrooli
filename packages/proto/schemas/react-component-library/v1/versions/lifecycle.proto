@@ -17,6 +17,7 @@ service VersionLifecycleService {
   rpc ReconcilePresence(ReconcilePresenceRequest) returns (ReconcilePresenceResponse);
   rpc ExportArchive(ArchiveRequest) returns (ArchiveResponse);
   rpc ImportArchive(ImportArchiveRequest) returns (ArchiveResponse);
+  rpc RecoverButton224(RecoverButton224Request) returns (ArchiveResponse);
   rpc Doctor(DoctorRequest) returns (DoctorResponse);
 }
 
@@ -76,6 +77,7 @@ message ReconcilePresenceResponse {
 
 message ArchiveRequest { string path = 1; }
 message ImportArchiveRequest { string path = 1; bool overwrite = 2; }
+message RecoverButton224Request { string path = 1; }
 message ArchiveResponse {
   string path = 1;
   int32 schema_version = 2;
@@ -90,6 +92,11 @@ message DoctorIssue {
   string expected_sha256 = 4;
   string actual_sha256 = 5;
   string reason = 6;
+  optional string ledger_created_at = 7;
+  optional string ledger_released_at = 8;
+  optional string ledger_retired_at = 9;
+  optional string ledger_lifecycle = 10;
+  optional int32 ledger_file_count = 11;
 }
 message DoctorResponse { repeated DoctorIssue issues = 1; }
 

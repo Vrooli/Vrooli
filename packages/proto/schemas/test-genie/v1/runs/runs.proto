@@ -508,6 +508,9 @@ message PhaseInfo {
   PhaseFindingsSummary findings_summary = 9;
   // Provider-owned canonical presentation for new terminal records.
   common.v1.PhasePresentation phase_presentation = 10;
+  // Count-only observation summary. Absent on historical compact records whose
+  // detailed observations were discarded before this field was introduced.
+  optional uint32 observation_count = 11;
 }
 
 // PhaseDescriptorPolicy is the descriptor-owned execution policy captured for

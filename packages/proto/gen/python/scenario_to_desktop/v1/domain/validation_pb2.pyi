@@ -125,7 +125,7 @@ VALIDATION_DISPOSITION_REFUSED: ValidationDisposition
 VALIDATION_DISPOSITION_NOT_RUN: ValidationDisposition
 
 class AppTarget(_message.Message):
-    __slots__ = ("target_id", "scenario_name", "artifact_digest", "process_id", "cdp_endpoint", "cdp_transport", "loopback_only", "authenticated", "renderer_id", "bridge_node_id", "launched_at", "context_id", "renderer_url", "renderer_title")
+    __slots__ = ("target_id", "scenario_name", "artifact_digest", "process_id", "cdp_endpoint", "cdp_transport", "loopback_only", "authenticated", "renderer_id", "bridge_node_id", "launched_at", "context_id", "renderer_url", "renderer_title", "api_url", "test_database_root")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -140,6 +140,8 @@ class AppTarget(_message.Message):
     CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
     RENDERER_URL_FIELD_NUMBER: _ClassVar[int]
     RENDERER_TITLE_FIELD_NUMBER: _ClassVar[int]
+    API_URL_FIELD_NUMBER: _ClassVar[int]
+    TEST_DATABASE_ROOT_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     scenario_name: str
     artifact_digest: str
@@ -154,7 +156,9 @@ class AppTarget(_message.Message):
     context_id: str
     renderer_url: str
     renderer_title: str
-    def __init__(self, target_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., process_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., cdp_transport: _Optional[str] = ..., loopback_only: _Optional[bool] = ..., authenticated: _Optional[bool] = ..., renderer_id: _Optional[str] = ..., bridge_node_id: _Optional[str] = ..., launched_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., context_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ...) -> None: ...
+    api_url: str
+    test_database_root: str
+    def __init__(self, target_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., process_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., cdp_transport: _Optional[str] = ..., loopback_only: _Optional[bool] = ..., authenticated: _Optional[bool] = ..., renderer_id: _Optional[str] = ..., bridge_node_id: _Optional[str] = ..., launched_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., context_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., api_url: _Optional[str] = ..., test_database_root: _Optional[str] = ...) -> None: ...
 
 class ElectronLaunchRequest(_message.Message):
     __slots__ = ("scenario_name", "artifact_path", "artifact_digest", "validation_context_id", "enable_cdp", "require_loopback_cdp", "bridge_node_id")

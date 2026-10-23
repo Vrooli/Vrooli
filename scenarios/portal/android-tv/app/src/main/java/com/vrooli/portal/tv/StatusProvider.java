@@ -21,6 +21,7 @@ public final class StatusProvider extends ContentProvider {
         c.addRow(new Object[]{"home.previous", p.getString("previous-home", "unknown")});
         c.addRow(new Object[]{"home.last_stock_class", HomeOverrideService.lastStockClass()});
         c.addRow(new Object[]{"home.boot_seen", Integer.toString(p.getInt("home-override-boot", -1))});
+        for (java.util.Map.Entry<String, String> metric : UiTimings.snapshot().entrySet()) c.addRow(new Object[]{metric.getKey(), metric.getValue()});
         return c;
     }
     @Override public String getType(Uri uri) { return "vnd.android.cursor.dir/vnd.vrooli.status"; }

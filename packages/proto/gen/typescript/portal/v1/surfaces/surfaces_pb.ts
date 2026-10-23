@@ -18,7 +18,137 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file portal/v1/surfaces/surfaces.proto.
  */
 export const file_portal_v1_surfaces_surfaces: GenFile = /*@__PURE__*/
-  fileDesc("CiFwb3J0YWwvdjEvc3VyZmFjZXMvc3VyZmFjZXMucHJvdG8SGXZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMiSgoMU291cmNlU3RhdHVzEhYKDm93bmVyX3NjZW5hcmlvGAEgASgJEg0KBXN0YXRlGAIgASgJEhMKC3JlYXNvbl9jb2RlGAMgASgJIg0KC0xpc3RSZXF1ZXN0IqkBCgxMaXN0UmVzcG9uc2USLgoIc3VyZmFjZXMYASADKAsyHC5jb21tb24udjEuU3VyZmFjZURlc2NyaXB0b3ISOAoHc291cmNlcxgCIAMoCzInLnZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMuU291cmNlU3RhdHVzEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJRCg5SZXNvbHZlUmVxdWVzdBIVCg1kaXNwbGF5X2xhYmVsGAEgASgJEigKCWV4YWN0X3JlZhgCIAEoCzIVLmNvbW1vbi52MS5TdXJmYWNlUmVmIqsBCg9SZXNvbHZlUmVzcG9uc2USLQoHbWF0Y2hlcxgBIAMoCzIcLmNvbW1vbi52MS5TdXJmYWNlRGVzY3JpcHRvchI4Cgdzb3VyY2VzGAIgAygLMicudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5Tb3VyY2VTdGF0dXMSLwoLb2JzZXJ2ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wMtIBChVTdXJmYWNlQ2F0YWxvZ1NlcnZpY2USVwoETGlzdBImLnZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMuTGlzdFJlcXVlc3QaJy52cm9vbGkucG9ydGFsLnYxLnN1cmZhY2VzLkxpc3RSZXNwb25zZRJgCgdSZXNvbHZlEikudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5SZXNvbHZlUmVxdWVzdBoqLnZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMuUmVzb2x2ZVJlc3BvbnNlMrwMChVEZXNrdG9wU2Vzc2lvblNlcnZpY2USewoNUmVjb25jaWxlT3BlbhIyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyT3BlblJlcXVlc3QaNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lck9wZW5EaXNwb3NpdGlvbhKNAQoOTGlzdEFkbWlzc2lvbnMSPC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lckxpc3RBZG1pc3Npb25zUmVxdWVzdBo9LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyTGlzdEFkbWlzc2lvbnNSZXNwb25zZRJ5CgtSZWFkQ2xlYW51cBIyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyU3RvcFJlcXVlc3QaNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lckNsZWFudXBSZXNwb25zZRJuCgdSdW5GbG93EjUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJSdW5GbG93UmVxdWVzdBosLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLkZsb3dSZWNvcmQSfAoLUHJvbW90ZUZsb3cSOS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lclByb21vdGVGbG93UmVxdWVzdBoyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLlNhdmVkRGVza3RvcEZsb3cSfgoMR2V0U2F2ZWRGbG93EjoudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJHZXRTYXZlZEZsb3dSZXF1ZXN0GjIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuU2F2ZWREZXNrdG9wRmxvdxJ4CgxSdW5TYXZlZEZsb3cSOi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lclJ1blNhdmVkRmxvd1JlcXVlc3QaLC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5GbG93UmVjb3JkEnMKB1Jlc29sdmUSNS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lclJlc29sdmVSZXF1ZXN0GjEudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuUmVzb2x2ZVJlc3BvbnNlEoIBCgxBcHBsaWNhdGlvbnMSOi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lckFwcGxpY2F0aW9uc1JlcXVlc3QaNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5BcHBsaWNhdGlvbnNSZXNwb25zZRJvCgRPcGVuEjIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJPcGVuUmVxdWVzdBozLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyT3BlblJlc3BvbnNlEnMKB09ic2VydmUSNS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lck9ic2VydmVSZXF1ZXN0GjEudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT2JzZXJ2ZVJlc3BvbnNlEmcKA0FjdBIxLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyQWN0UmVxdWVzdBotLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLkFjdFJlc3BvbnNlEmoKBFN0b3ASMi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lclN0b3BSZXF1ZXN0Gi4udnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuU3RvcFJlc3BvbnNlMpwEChZPcGVyYXRvclNlc3Npb25TZXJ2aWNlEnoKBUxvZ2luEjcudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXNwb25zZRKDAQoIUmVnaXN0ZXISOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlcXVlc3QaOy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlc3BvbnNlEoABCgdSZWZyZXNoEjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVmcmVzaFJlcXVlc3QaOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVzcG9uc2USfQoGTG9nb3V0EjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ291dFJlc3BvbnNlQk5aTGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcG9ydGFsL3YxL3N1cmZhY2VzO3N1cmZhY2VzdjFiBnByb3RvMw", [file_common_v1_surface, file_device_control_v1_desktop_desktop, file_scenario_authenticator_v1_accounts_accounts, file_google_protobuf_timestamp]);
+  fileDesc("CiFwb3J0YWwvdjEvc3VyZmFjZXMvc3VyZmFjZXMucHJvdG8SGXZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMiGQoXTGlzdEFwcGxpY2F0aW9uc1JlcXVlc3QihwEKC0FwcGxpY2F0aW9uEhAKCHNjZW5hcmlvGAEgASgJEg0KBWxhYmVsGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhUKDXJ1bnRpbWVfc3RhdGUYBCABKAkSGAoQdHZfcXVhbGlmaWNhdGlvbhgFIAEoCRIRCglpY29uX3BhdGgYBiABKAkiiQEKGExpc3RBcHBsaWNhdGlvbnNSZXNwb25zZRI8CgxhcHBsaWNhdGlvbnMYASADKAsyJi52cm9vbGkucG9ydGFsLnYxLnN1cmZhY2VzLkFwcGxpY2F0aW9uEi8KC29ic2VydmVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJCChlSZXNvbHZlQXBwbGljYXRpb25SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhMKC3VzZV9nYXRld2F5GAIgASgIIpcBChpSZXNvbHZlQXBwbGljYXRpb25SZXNwb25zZRI7CgthcHBsaWNhdGlvbhgBIAEoCzImLnZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMuQXBwbGljYXRpb24SCwoDdXJsGAIgASgJEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJKCgxTb3VyY2VTdGF0dXMSFgoOb3duZXJfc2NlbmFyaW8YASABKAkSDQoFc3RhdGUYAiABKAkSEwoLcmVhc29uX2NvZGUYAyABKAkiDQoLTGlzdFJlcXVlc3QiqQEKDExpc3RSZXNwb25zZRIuCghzdXJmYWNlcxgBIAMoCzIcLmNvbW1vbi52MS5TdXJmYWNlRGVzY3JpcHRvchI4Cgdzb3VyY2VzGAIgAygLMicudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5Tb3VyY2VTdGF0dXMSLwoLb2JzZXJ2ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlEKDlJlc29sdmVSZXF1ZXN0EhUKDWRpc3BsYXlfbGFiZWwYASABKAkSKAoJZXhhY3RfcmVmGAIgASgLMhUuY29tbW9uLnYxLlN1cmZhY2VSZWYiqwEKD1Jlc29sdmVSZXNwb25zZRItCgdtYXRjaGVzGAEgAygLMhwuY29tbW9uLnYxLlN1cmZhY2VEZXNjcmlwdG9yEjgKB3NvdXJjZXMYAiADKAsyJy52cm9vbGkucG9ydGFsLnYxLnN1cmZhY2VzLlNvdXJjZVN0YXR1cxIvCgtvYnNlcnZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAy0gEKFVN1cmZhY2VDYXRhbG9nU2VydmljZRJXCgRMaXN0EiYudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5MaXN0UmVxdWVzdBonLnZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMuTGlzdFJlc3BvbnNlEmAKB1Jlc29sdmUSKS52cm9vbGkucG9ydGFsLnYxLnN1cmZhY2VzLlJlc29sdmVSZXF1ZXN0GioudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5SZXNvbHZlUmVzcG9uc2UynAIKGUFwcGxpY2F0aW9uQ2F0YWxvZ1NlcnZpY2USewoQTGlzdEFwcGxpY2F0aW9ucxIyLnZyb29saS5wb3J0YWwudjEuc3VyZmFjZXMuTGlzdEFwcGxpY2F0aW9uc1JlcXVlc3QaMy52cm9vbGkucG9ydGFsLnYxLnN1cmZhY2VzLkxpc3RBcHBsaWNhdGlvbnNSZXNwb25zZRKBAQoSUmVzb2x2ZUFwcGxpY2F0aW9uEjQudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5SZXNvbHZlQXBwbGljYXRpb25SZXF1ZXN0GjUudnJvb2xpLnBvcnRhbC52MS5zdXJmYWNlcy5SZXNvbHZlQXBwbGljYXRpb25SZXNwb25zZTK8DAoVRGVza3RvcFNlc3Npb25TZXJ2aWNlEnsKDVJlY29uY2lsZU9wZW4SMi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lck9wZW5SZXF1ZXN0GjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJPcGVuRGlzcG9zaXRpb24SjQEKDkxpc3RBZG1pc3Npb25zEjwudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJMaXN0QWRtaXNzaW9uc1JlcXVlc3QaPS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lckxpc3RBZG1pc3Npb25zUmVzcG9uc2USeQoLUmVhZENsZWFudXASMi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lclN0b3BSZXF1ZXN0GjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJDbGVhbnVwUmVzcG9uc2USbgoHUnVuRmxvdxI1LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyUnVuRmxvd1JlcXVlc3QaLC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5GbG93UmVjb3JkEnwKC1Byb21vdGVGbG93EjkudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJQcm9tb3RlRmxvd1JlcXVlc3QaMi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5TYXZlZERlc2t0b3BGbG93En4KDEdldFNhdmVkRmxvdxI6LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyR2V0U2F2ZWRGbG93UmVxdWVzdBoyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLlNhdmVkRGVza3RvcEZsb3cSeAoMUnVuU2F2ZWRGbG93EjoudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJSdW5TYXZlZEZsb3dSZXF1ZXN0GiwudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuRmxvd1JlY29yZBJzCgdSZXNvbHZlEjUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJSZXNvbHZlUmVxdWVzdBoxLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLlJlc29sdmVSZXNwb25zZRKCAQoMQXBwbGljYXRpb25zEjoudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJBcHBsaWNhdGlvbnNSZXF1ZXN0GjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuQXBwbGljYXRpb25zUmVzcG9uc2USbwoET3BlbhIyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk93bmVyT3BlblJlcXVlc3QaMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lck9wZW5SZXNwb25zZRJzCgdPYnNlcnZlEjUudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJPYnNlcnZlUmVxdWVzdBoxLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLk9ic2VydmVSZXNwb25zZRJnCgNBY3QSMS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5Pd25lckFjdFJlcXVlc3QaLS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGVza3RvcC5BY3RSZXNwb25zZRJqCgRTdG9wEjIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRlc2t0b3AuT3duZXJTdG9wUmVxdWVzdBouLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXNrdG9wLlN0b3BSZXNwb25zZTKcBAoWT3BlcmF0b3JTZXNzaW9uU2VydmljZRJ6CgVMb2dpbhI3LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVzcG9uc2USgwEKCFJlZ2lzdGVyEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVnaXN0ZXJSZXF1ZXN0GjsudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVnaXN0ZXJSZXNwb25zZRKAAQoHUmVmcmVzaBI5LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJlZnJlc2hSZXF1ZXN0GjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVmcmVzaFJlc3BvbnNlEn0KBkxvZ291dBI4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ291dFJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dvdXRSZXNwb25zZUJOWkxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BvcnRhbC92MS9zdXJmYWNlcztzdXJmYWNlc3YxYgZwcm90bzM", [file_common_v1_surface, file_device_control_v1_desktop_desktop, file_scenario_authenticator_v1_accounts_accounts, file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message vrooli.portal.v1.surfaces.ListApplicationsRequest
+ */
+export type ListApplicationsRequest = Message<"vrooli.portal.v1.surfaces.ListApplicationsRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.portal.v1.surfaces.ListApplicationsRequest.
+ * Use `create(ListApplicationsRequestSchema)` to create a new message.
+ */
+export const ListApplicationsRequestSchema: GenMessage<ListApplicationsRequest> = /*@__PURE__*/
+  messageDesc(file_portal_v1_surfaces_surfaces, 0);
+
+/**
+ * @generated from message vrooli.portal.v1.surfaces.Application
+ */
+export type Application = Message<"vrooli.portal.v1.surfaces.Application"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string runtime_state = 4;
+   */
+  runtimeState: string;
+
+  /**
+   * @generated from field: string tv_qualification = 5;
+   */
+  tvQualification: string;
+
+  /**
+   * Origin-relative Portal artwork endpoint. Empty when no applied PNG exists.
+   *
+   * @generated from field: string icon_path = 6;
+   */
+  iconPath: string;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.surfaces.Application.
+ * Use `create(ApplicationSchema)` to create a new message.
+ */
+export const ApplicationSchema: GenMessage<Application> = /*@__PURE__*/
+  messageDesc(file_portal_v1_surfaces_surfaces, 1);
+
+/**
+ * @generated from message vrooli.portal.v1.surfaces.ListApplicationsResponse
+ */
+export type ListApplicationsResponse = Message<"vrooli.portal.v1.surfaces.ListApplicationsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.portal.v1.surfaces.Application applications = 1;
+   */
+  applications: Application[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 2;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.surfaces.ListApplicationsResponse.
+ * Use `create(ListApplicationsResponseSchema)` to create a new message.
+ */
+export const ListApplicationsResponseSchema: GenMessage<ListApplicationsResponse> = /*@__PURE__*/
+  messageDesc(file_portal_v1_surfaces_surfaces, 2);
+
+/**
+ * @generated from message vrooli.portal.v1.surfaces.ResolveApplicationRequest
+ */
+export type ResolveApplicationRequest = Message<"vrooli.portal.v1.surfaces.ResolveApplicationRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Resolve through Portal's same-origin browser gateway instead of sibling ports.
+   *
+   * @generated from field: bool use_gateway = 2;
+   */
+  useGateway: boolean;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.surfaces.ResolveApplicationRequest.
+ * Use `create(ResolveApplicationRequestSchema)` to create a new message.
+ */
+export const ResolveApplicationRequestSchema: GenMessage<ResolveApplicationRequest> = /*@__PURE__*/
+  messageDesc(file_portal_v1_surfaces_surfaces, 3);
+
+/**
+ * @generated from message vrooli.portal.v1.surfaces.ResolveApplicationResponse
+ */
+export type ResolveApplicationResponse = Message<"vrooli.portal.v1.surfaces.ResolveApplicationResponse"> & {
+  /**
+   * @generated from field: vrooli.portal.v1.surfaces.Application application = 1;
+   */
+  application?: Application | undefined;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 3;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.surfaces.ResolveApplicationResponse.
+ * Use `create(ResolveApplicationResponseSchema)` to create a new message.
+ */
+export const ResolveApplicationResponseSchema: GenMessage<ResolveApplicationResponse> = /*@__PURE__*/
+  messageDesc(file_portal_v1_surfaces_surfaces, 4);
 
 /**
  * @generated from message vrooli.portal.v1.surfaces.SourceStatus
@@ -47,7 +177,7 @@ export type SourceStatus = Message<"vrooli.portal.v1.surfaces.SourceStatus"> & {
  * Use `create(SourceStatusSchema)` to create a new message.
  */
 export const SourceStatusSchema: GenMessage<SourceStatus> = /*@__PURE__*/
-  messageDesc(file_portal_v1_surfaces_surfaces, 0);
+  messageDesc(file_portal_v1_surfaces_surfaces, 5);
 
 /**
  * @generated from message vrooli.portal.v1.surfaces.ListRequest
@@ -60,7 +190,7 @@ export type ListRequest = Message<"vrooli.portal.v1.surfaces.ListRequest"> & {
  * Use `create(ListRequestSchema)` to create a new message.
  */
 export const ListRequestSchema: GenMessage<ListRequest> = /*@__PURE__*/
-  messageDesc(file_portal_v1_surfaces_surfaces, 1);
+  messageDesc(file_portal_v1_surfaces_surfaces, 6);
 
 /**
  * @generated from message vrooli.portal.v1.surfaces.ListResponse
@@ -87,7 +217,7 @@ export type ListResponse = Message<"vrooli.portal.v1.surfaces.ListResponse"> & {
  * Use `create(ListResponseSchema)` to create a new message.
  */
 export const ListResponseSchema: GenMessage<ListResponse> = /*@__PURE__*/
-  messageDesc(file_portal_v1_surfaces_surfaces, 2);
+  messageDesc(file_portal_v1_surfaces_surfaces, 7);
 
 /**
  * @generated from message vrooli.portal.v1.surfaces.ResolveRequest
@@ -109,7 +239,7 @@ export type ResolveRequest = Message<"vrooli.portal.v1.surfaces.ResolveRequest">
  * Use `create(ResolveRequestSchema)` to create a new message.
  */
 export const ResolveRequestSchema: GenMessage<ResolveRequest> = /*@__PURE__*/
-  messageDesc(file_portal_v1_surfaces_surfaces, 3);
+  messageDesc(file_portal_v1_surfaces_surfaces, 8);
 
 /**
  * @generated from message vrooli.portal.v1.surfaces.ResolveResponse
@@ -138,7 +268,7 @@ export type ResolveResponse = Message<"vrooli.portal.v1.surfaces.ResolveResponse
  * Use `create(ResolveResponseSchema)` to create a new message.
  */
 export const ResolveResponseSchema: GenMessage<ResolveResponse> = /*@__PURE__*/
-  messageDesc(file_portal_v1_surfaces_surfaces, 4);
+  messageDesc(file_portal_v1_surfaces_surfaces, 9);
 
 /**
  * @stability stable
@@ -165,6 +295,32 @@ export const SurfaceCatalogService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_portal_v1_surfaces_surfaces, 0);
+
+/**
+ * Application inventory is projected from the control plane. Running does not
+ * imply TV compatibility or grant authentication to the application.
+ *
+ * @generated from service vrooli.portal.v1.surfaces.ApplicationCatalogService
+ */
+export const ApplicationCatalogService: GenService<{
+  /**
+   * @generated from rpc vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications
+   */
+  listApplications: {
+    methodKind: "unary";
+    input: typeof ListApplicationsRequestSchema;
+    output: typeof ListApplicationsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication
+   */
+  resolveApplication: {
+    methodKind: "unary";
+    input: typeof ResolveApplicationRequestSchema;
+    output: typeof ResolveApplicationResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_portal_v1_surfaces_surfaces, 1);
 
 /**
  * @stability stable
@@ -279,7 +435,7 @@ export const DesktopSessionService: GenService<{
     output: typeof StopResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_portal_v1_surfaces_surfaces, 1);
+  serviceDesc(file_portal_v1_surfaces_surfaces, 2);
 
 /**
  * @stability stable
@@ -322,5 +478,5 @@ export const OperatorSessionService: GenService<{
     output: typeof LogoutResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_portal_v1_surfaces_surfaces, 2);
+  serviceDesc(file_portal_v1_surfaces_surfaces, 3);
 

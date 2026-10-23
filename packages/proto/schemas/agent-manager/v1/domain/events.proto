@@ -534,7 +534,7 @@ message ProgressEventData {
   int32 turns_total = 5;
 
   // Tokens consumed so far.
-  int32 tokens_used = 6;
+  int64 tokens_used = 6;
 
   // Seconds elapsed.
   double elapsed_seconds = 7;

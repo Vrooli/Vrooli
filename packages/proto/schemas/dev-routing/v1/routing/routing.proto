@@ -43,6 +43,14 @@ service RoutingService {
   // orchestrator crashes between Install and Clear, the lease expires and
   // routing reverts to the primary pool without manual intervention.
   rpc HeartbeatTestPool(HeartbeatTestPoolRequest) returns (HeartbeatTestPoolResponse);
+
+  // PrepareTestPoolRestart persists a private checkpoint for the exact active
+  // paired DB/file lease. The opaque ticket contains no DSN or filesystem path.
+  rpc PrepareTestPoolRestart(PrepareTestPoolRestartRequest) returns (PrepareTestPoolRestartResponse);
+
+  // ResumeTestPool reattaches the owner-retained binding after the old target
+  // process has exited. Only lease_id and the opaque checkpoint ticket are accepted.
+  rpc ResumeTestPool(ResumeTestPoolRequest) returns (ResumeTestPoolResponse);
 }
 
 message InstallTestPoolRequest {
@@ -84,6 +92,10 @@ message InstallTestPoolResponse {
 message ClearTestPoolRequest {
   // lease_id must match the active install. Mismatch yields FailedPrecondition.
   string lease_id = 1;
+  // Optional ticket lets a fresh process clear the exact checkpoint after a
+  // resumed lease. It is a bearer secret and must not be logged or retained in
+  // public evidence.
+  string restart_ticket = 2;
 }
 
 message ClearTestPoolResponse {
@@ -103,6 +115,28 @@ message HeartbeatTestPoolResponse {
   // expires_at_unix_ms is the new absolute expiry timestamp, in unix
   // milliseconds, after the heartbeat extends the lease.
   int64 expires_at_unix_ms = 1;
+}
+
+message PrepareTestPoolRestartRequest {
+  string lease_id = 1;
+}
+
+message PrepareTestPoolRestartResponse {
+  string restart_ticket = 1;
+  int64 expires_at_unix_ms = 2;
+  LeaseStats pre_restart_stats = 3;
+}
+
+message ResumeTestPoolRequest {
+  string lease_id = 1;
+  string restart_ticket = 2;
+}
+
+message ResumeTestPoolResponse {
+  string active_lease_id = 1;
+  int64 expires_at_unix_ms = 2;
+  LeaseStats pre_restart_stats = 3;
+  bool file_roots_resumed = 4;
 }
 
 // LeaseStats are advisory counters tracked per-lease on the scenario side.

@@ -8,7 +8,7 @@ final class CatalogueWindow {
 
     CatalogueWindow(int total, int restoredIndex) {
         this.total = Math.max(0, total);
-        end = Math.min(this.total, Math.max(60, ((Math.max(0, restoredIndex) / BATCH) + 1) * BATCH));
+        end = Math.min(this.total, restoredIndex < 0 ? 12 : Math.max(12, ((restoredIndex / BATCH) + 1) * BATCH));
     }
 
     int end() { return end; }

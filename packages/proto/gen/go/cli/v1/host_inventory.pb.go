@@ -305,7 +305,11 @@ type HostGPU struct {
 	// Currently used VRAM, in bytes. 0 means unknown.
 	VramUsedBytes uint64 `protobuf:"varint,4,opt,name=vram_used_bytes,json=vramUsedBytes,proto3" json:"vram_used_bytes,omitempty"`
 	// Data source for this GPU's facts (e.g. "nvidia-smi").
-	Source        string `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	Source string `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	// Stable physical GPU UUID from the host probe; empty when unavailable.
+	// CUDA consumers bind this identity before model loading so reservation and
+	// execution do not accidentally use different devices.
+	Uuid          string `protobuf:"bytes,6,opt,name=uuid,proto3" json:"uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -375,6 +379,13 @@ func (x *HostGPU) GetSource() string {
 	return ""
 }
 
+func (x *HostGPU) GetUuid() string {
+	if x != nil {
+		return x.Uuid
+	}
+	return ""
+}
+
 var File_cli_v1_host_inventory_proto protoreflect.FileDescriptor
 
 const file_cli_v1_host_inventory_proto_rawDesc = "" +
@@ -399,14 +410,15 @@ const file_cli_v1_host_inventory_proto_rawDesc = "" +
 	"\vtotal_bytes\x18\x01 \x01(\x04R\n" +
 	"totalBytes\"\x1f\n" +
 	"\aHostCPU\x12\x14\n" +
-	"\x05cores\x18\x01 \x01(\x05R\x05cores\"\x92\x01\n" +
+	"\x05cores\x18\x01 \x01(\x05R\x05cores\"\xa6\x01\n" +
 	"\aHostGPU\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
 	"vram_bytes\x18\x03 \x01(\x04R\tvramBytes\x12&\n" +
 	"\x0fvram_used_bytes\x18\x04 \x01(\x04R\rvramUsedBytes\x12\x16\n" +
-	"\x06source\x18\x05 \x01(\tR\x06sourceB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x12\n" +
+	"\x04uuid\x18\x06 \x01(\tR\x04uuidB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_host_inventory_proto_rawDescOnce sync.Once

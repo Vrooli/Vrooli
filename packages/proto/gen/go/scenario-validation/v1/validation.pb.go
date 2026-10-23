@@ -1356,9 +1356,28 @@ type DesktopValidationBinding struct {
 	// Stable provider-owned workflow identity for validation-context binding.
 	// This may differ from workflow_path when a catalog prefixes the path with
 	// a scenario or provider namespace.
-	WorkflowId    string `protobuf:"bytes,12,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	WorkflowId string `protobuf:"bytes,12,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	// True only when the Electron target owns a private bundled runtime. False
+	// preserves the legacy scenario-routing behavior for external deployments.
+	BundledRuntime bool `protobuf:"varint,13,opt,name=bundled_runtime,json=bundledRuntime,proto3" json:"bundled_runtime,omitempty"`
+	// Optional exact API endpoint discovered by the target owner for a bundled
+	// runtime. Providers use this only when binding the local routed lease.
+	ApiUrl string `protobuf:"bytes,14,opt,name=api_url,json=apiUrl,proto3" json:"api_url,omitempty"`
+	// Private target-owned writable root for the lease's disposable test DB.
+	TestDatabaseRoot string `protobuf:"bytes,15,opt,name=test_database_root,json=testDatabaseRoot,proto3" json:"test_database_root,omitempty"`
+	// Optional selected Browser Automation Studio instance variant for this
+	// durable run. Empty preserves the provider's normal default resolution.
+	BrowserAutomationStudioVariant string `protobuf:"bytes,16,opt,name=browser_automation_studio_variant,json=browserAutomationStudioVariant,proto3" json:"browser_automation_studio_variant,omitempty"`
+	// Stable routed-test lease identity shared by the two phases of a target
+	// restart journey. Omitted preserves the durable run ID behavior.
+	IsolationLeaseId string `protobuf:"bytes,17,opt,name=isolation_lease_id,json=isolationLeaseId,proto3" json:"isolation_lease_id,omitempty"`
+	// Prepare the paired routed database/file roots for an immediate owner-led
+	// restart after this workflow completes.
+	PrepareIsolationRestart bool `protobuf:"varint,18,opt,name=prepare_isolation_restart,json=prepareIsolationRestart,proto3" json:"prepare_isolation_restart,omitempty"`
+	// Resume the exact paired roots prepared by the preceding workflow phase.
+	ResumeIsolationRestart bool `protobuf:"varint,19,opt,name=resume_isolation_restart,json=resumeIsolationRestart,proto3" json:"resume_isolation_restart,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *DesktopValidationBinding) Reset() {
@@ -1473,6 +1492,55 @@ func (x *DesktopValidationBinding) GetWorkflowId() string {
 		return x.WorkflowId
 	}
 	return ""
+}
+
+func (x *DesktopValidationBinding) GetBundledRuntime() bool {
+	if x != nil {
+		return x.BundledRuntime
+	}
+	return false
+}
+
+func (x *DesktopValidationBinding) GetApiUrl() string {
+	if x != nil {
+		return x.ApiUrl
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetTestDatabaseRoot() string {
+	if x != nil {
+		return x.TestDatabaseRoot
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetBrowserAutomationStudioVariant() string {
+	if x != nil {
+		return x.BrowserAutomationStudioVariant
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetIsolationLeaseId() string {
+	if x != nil {
+		return x.IsolationLeaseId
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetPrepareIsolationRestart() bool {
+	if x != nil {
+		return x.PrepareIsolationRestart
+	}
+	return false
+}
+
+func (x *DesktopValidationBinding) GetResumeIsolationRestart() bool {
+	if x != nil {
+		return x.ResumeIsolationRestart
+	}
+	return false
 }
 
 type StartValidationRunResponse struct {
@@ -2131,7 +2199,7 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x15browser_case_selector\x18\a \x01(\v22.vrooli.scenario_validation.v1.BrowserCaseSelectorR\x13browserCaseSelector\"4\n" +
 	"\x13BrowserCaseSelector\x12\x1d\n" +
 	"\n" +
-	"case_paths\x18\x01 \x03(\tR\tcasePaths\"\xbc\x03\n" +
+	"case_paths\x18\x01 \x03(\tR\tcasePaths\"\x9b\x06\n" +
 	"\x18DesktopValidationBinding\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12!\n" +
 	"\fcdp_endpoint\x18\x02 \x01(\tR\vcdpEndpoint\x12\x1f\n" +
@@ -2149,7 +2217,14 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	" \x01(\tR\fcdpTransport\x12#\n" +
 	"\rworkflow_path\x18\v \x01(\tR\fworkflowPath\x12\x1f\n" +
 	"\vworkflow_id\x18\f \x01(\tR\n" +
-	"workflowId\"\\\n" +
+	"workflowId\x12'\n" +
+	"\x0fbundled_runtime\x18\r \x01(\bR\x0ebundledRuntime\x12\x17\n" +
+	"\aapi_url\x18\x0e \x01(\tR\x06apiUrl\x12,\n" +
+	"\x12test_database_root\x18\x0f \x01(\tR\x10testDatabaseRoot\x12I\n" +
+	"!browser_automation_studio_variant\x18\x10 \x01(\tR\x1ebrowserAutomationStudioVariant\x12,\n" +
+	"\x12isolation_lease_id\x18\x11 \x01(\tR\x10isolationLeaseId\x12:\n" +
+	"\x19prepare_isolation_restart\x18\x12 \x01(\bR\x17prepareIsolationRestart\x128\n" +
+	"\x18resume_isolation_restart\x18\x13 \x01(\bR\x16resumeIsolationRestart\"\\\n" +
 	"\x1aStartValidationRunResponse\x12>\n" +
 	"\x03run\x18\x01 \x01(\v2,.vrooli.scenario_validation.v1.ValidationRunR\x03run\"0\n" +
 	"\x17GetValidationRunRequest\x12\x15\n" +

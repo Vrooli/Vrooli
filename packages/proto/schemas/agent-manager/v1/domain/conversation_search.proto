@@ -223,6 +223,65 @@ message ConversationSearchDegradation {
   bool retryable = 4;
 }
 
+// ConversationParseFailureSample is one retained transcript line a codec could
+// not parse. The raw line is a bounded prefix, not the full content.
+message ConversationParseFailureSample {
+  string run_id = 1;
+  string site = 2;
+  string detail = 3;
+  string line_sample = 4;
+}
+
+// ConversationParseFailures makes codec silent drops observable: a format drift
+// that stops a harness's lines from parsing shows up here instead of silently
+// removing conversations from the index.
+message ConversationParseFailures {
+  uint64 total = 1;
+  map<string, uint64> by_site = 2;
+  repeated ConversationParseFailureSample samples = 3;
+}
+
+// ConversationPolicyCounters surfaces the conversation visibility/exclusion and
+// PII-masking activity that otherwise lives only in process memory, so an
+// operator can see what the policy actually did rather than trusting that a
+// hidden/excluded/redacted conversation vanished for the right reason. These
+// are the explicit counter-measure to the "silently hidden/silently kept"
+// failure mode the effort set out to kill.
+//
+// All counts are PROCESS-LOCAL and reset on restart (process_local is always
+// true); they are cumulative-since-start activity, not durable totals.
+message ConversationPolicyCounters {
+  // process_local is always true: every count below is reset when the
+  // agent-manager process restarts. It is surfaced so an operator never reads a
+  // low number as "nothing was ever hidden" when it may mean "recently
+  // restarted".
+  bool process_local = 1;
+  // exclude_at_import is how many imported runs an `exclude @ import` rule kept
+  // out of the corpus entirely (zero run_events written).
+  uint64 exclude_at_import = 2;
+  // hide_at_search is how many conversations a `exclude @ search` rule filtered
+  // from search results (indexed but hidden; reversible).
+  uint64 hide_at_search = 3;
+  // redact_marked is how many conversations matched a `redact` rule (their
+  // content is routed through PII masking before indexing).
+  uint64 redact_marked = 4;
+  // by_rule maps each active rule's label to its enforcement count across both
+  // seams.
+  map<string, uint64> by_rule = 5;
+  // pii_events_scanned is how many content-bearing events were routed through
+  // PII detection for a redact-matched import.
+  uint64 pii_events_scanned = 6;
+  // pii_spans_masked is the total number of PII spans replaced across all
+  // redact-masked events.
+  uint64 pii_spans_masked = 7;
+  // pii_fail_closed is how many events were withheld (content replaced with a
+  // loud sentinel) because PII masking could NOT run. A non-zero value means
+  // the operator asked to redact but the detector/gateway was unavailable, so
+  // content was withheld rather than indexed in the clear. This is the most
+  // important signal here and MUST be surfaced prominently.
+  uint64 pii_fail_closed = 8;
+}
+
 message SearchConversationsResponse {
   repeated ConversationSearchHit hits = 1;
   string next_page_cursor = 2;
@@ -297,6 +356,8 @@ message GetConversationIndexStatusResponse {
   string candidate_generation = 11;
   repeated string degraded_dependencies = 12;
   string collection_layout = 13;
+  ConversationParseFailures parse_failures = 14;
+  ConversationPolicyCounters policy_counters = 15;
 }
 
 message PlanConversationReindexRequest {

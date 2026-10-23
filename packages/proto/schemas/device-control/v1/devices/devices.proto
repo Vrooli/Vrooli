@@ -10,6 +10,35 @@ service DeviceService {
   rpc ConnectDevice(ConnectDeviceRequest) returns (ConnectDeviceResponse);
   rpc ReconnectDevice(ReconnectDeviceRequest) returns (ReconnectDeviceResponse);
   rpc ExecuteVolume(ExecuteVolumeRequest) returns (ExecuteVolumeResponse);
+  // Read-only hardware/runtime qualification. No arbitrary device commands.
+  rpc InspectDevice(InspectDeviceRequest) returns (InspectDeviceResponse);
+}
+message InspectDeviceRequest { string device_id = 1; string transport = 2; }
+message InspectDeviceResponse {
+  string device_id = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  repeated string abis = 3;
+  optional uint64 memory_total_bytes = 4;
+  optional uint64 data_total_bytes = 5;
+  optional uint64 data_available_bytes = 6;
+  string webview_package = 7;
+  string webview_version = 8;
+  string home_component = 9;
+  optional bool low_ram = 10;
+  map<string, string> unavailable = 11;
+  string transport = 12;
+  VoiceInspection voice = 13;
+}
+// Reported configuration only: no audio capture or claim of app microphone access.
+message VoiceInspection {
+  optional bool microphone_feature = 1;
+  repeated string assistant_role_holders = 2;
+  optional string assistant_component = 3;
+  optional string voice_interaction_component = 4;
+  repeated string voice_interaction_services = 5;
+  // Names mentioned by OEM policy, not proof that an input is connected/usable.
+  repeated string policy_input_types = 6;
+  map<string, string> unavailable = 7;
 }
 message ListDevicesRequest {}
 message ListDevicesResponse {

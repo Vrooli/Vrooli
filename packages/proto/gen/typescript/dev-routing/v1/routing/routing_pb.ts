@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file dev-routing/v1/routing/routing.proto.
  */
 export const file_dev_routing_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nImMKFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJEhQKDGxlYXNlX3R0bF9tcxgDIAEoAxIUCgxlbXB0eV9jb25maWcYBCABKAgiUAoXSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USFwoPYWN0aXZlX2xlYXNlX2lkGAEgASgJEhwKFGZpbGVfcm9vdHNfaW5zdGFsbGVkGAIgASgIIigKFENsZWFyVGVzdFBvb2xSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJIlEKFUNsZWFyVGVzdFBvb2xSZXNwb25zZRI4CgVzdGF0cxgBIAEoCzIpLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkxlYXNlU3RhdHMiLAoYSGVhcnRiZWF0VGVzdFBvb2xSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJIjcKGUhlYXJ0YmVhdFRlc3RQb29sUmVzcG9uc2USGgoSZXhwaXJlc19hdF91bml4X21zGAEgASgDIpsBCgpMZWFzZVN0YXRzEhoKEnRlc3RfcG9vbF9yZXF1ZXN0cxgBIAEoAxIpCiFwcmltYXJ5X2R1cmluZ190ZXN0X21vZGVfcmVxdWVzdHMYAiABKAMSGAoQdGVzdF9yb290X3dyaXRlcxgDIAEoAxIsCiRwcmltYXJ5X3Jvb3Rfd3JpdGVzX2R1cmluZ190ZXN0X21vZGUYBCABKAMymAMKDlJvdXRpbmdTZXJ2aWNlEoABCg9JbnN0YWxsVGVzdFBvb2wSNS52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5JbnN0YWxsVGVzdFBvb2xSZXF1ZXN0GjYudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USegoNQ2xlYXJUZXN0UG9vbBIzLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXF1ZXN0GjQudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuQ2xlYXJUZXN0UG9vbFJlc3BvbnNlEoYBChFIZWFydGJlYXRUZXN0UG9vbBI3LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkhlYXJ0YmVhdFRlc3RQb29sUmVxdWVzdBo4LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkhlYXJ0YmVhdFRlc3RQb29sUmVzcG9uc2VCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXYtcm91dGluZy92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw");
+  fileDesc("CiRkZXYtcm91dGluZy92MS9yb3V0aW5nL3JvdXRpbmcucHJvdG8SHXZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nImMKFkluc3RhbGxUZXN0UG9vbFJlcXVlc3QSCwoDZHNuGAEgASgJEhAKCGxlYXNlX2lkGAIgASgJEhQKDGxlYXNlX3R0bF9tcxgDIAEoAxIUCgxlbXB0eV9jb25maWcYBCABKAgiUAoXSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USFwoPYWN0aXZlX2xlYXNlX2lkGAEgASgJEhwKFGZpbGVfcm9vdHNfaW5zdGFsbGVkGAIgASgIIkAKFENsZWFyVGVzdFBvb2xSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJEhYKDnJlc3RhcnRfdGlja2V0GAIgASgJIlEKFUNsZWFyVGVzdFBvb2xSZXNwb25zZRI4CgVzdGF0cxgBIAEoCzIpLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkxlYXNlU3RhdHMiLAoYSGVhcnRiZWF0VGVzdFBvb2xSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJIjcKGUhlYXJ0YmVhdFRlc3RQb29sUmVzcG9uc2USGgoSZXhwaXJlc19hdF91bml4X21zGAEgASgDIjEKHVByZXBhcmVUZXN0UG9vbFJlc3RhcnRSZXF1ZXN0EhAKCGxlYXNlX2lkGAEgASgJIpoBCh5QcmVwYXJlVGVzdFBvb2xSZXN0YXJ0UmVzcG9uc2USFgoOcmVzdGFydF90aWNrZXQYASABKAkSGgoSZXhwaXJlc19hdF91bml4X21zGAIgASgDEkQKEXByZV9yZXN0YXJ0X3N0YXRzGAMgASgLMikudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuTGVhc2VTdGF0cyJBChVSZXN1bWVUZXN0UG9vbFJlcXVlc3QSEAoIbGVhc2VfaWQYASABKAkSFgoOcmVzdGFydF90aWNrZXQYAiABKAkirwEKFlJlc3VtZVRlc3RQb29sUmVzcG9uc2USFwoPYWN0aXZlX2xlYXNlX2lkGAEgASgJEhoKEmV4cGlyZXNfYXRfdW5peF9tcxgCIAEoAxJEChFwcmVfcmVzdGFydF9zdGF0cxgDIAEoCzIpLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkxlYXNlU3RhdHMSGgoSZmlsZV9yb290c19yZXN1bWVkGAQgASgIIpsBCgpMZWFzZVN0YXRzEhoKEnRlc3RfcG9vbF9yZXF1ZXN0cxgBIAEoAxIpCiFwcmltYXJ5X2R1cmluZ190ZXN0X21vZGVfcmVxdWVzdHMYAiABKAMSGAoQdGVzdF9yb290X3dyaXRlcxgDIAEoAxIsCiRwcmltYXJ5X3Jvb3Rfd3JpdGVzX2R1cmluZ190ZXN0X21vZGUYBCABKAMyrwUKDlJvdXRpbmdTZXJ2aWNlEoABCg9JbnN0YWxsVGVzdFBvb2wSNS52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5JbnN0YWxsVGVzdFBvb2xSZXF1ZXN0GjYudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuSW5zdGFsbFRlc3RQb29sUmVzcG9uc2USegoNQ2xlYXJUZXN0UG9vbBIzLnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkNsZWFyVGVzdFBvb2xSZXF1ZXN0GjQudnJvb2xpLmRldl9yb3V0aW5nLnYxLnJvdXRpbmcuQ2xlYXJUZXN0UG9vbFJlc3BvbnNlEoYBChFIZWFydGJlYXRUZXN0UG9vbBI3LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkhlYXJ0YmVhdFRlc3RQb29sUmVxdWVzdBo4LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLkhlYXJ0YmVhdFRlc3RQb29sUmVzcG9uc2USlQEKFlByZXBhcmVUZXN0UG9vbFJlc3RhcnQSPC52cm9vbGkuZGV2X3JvdXRpbmcudjEucm91dGluZy5QcmVwYXJlVGVzdFBvb2xSZXN0YXJ0UmVxdWVzdBo9LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLlByZXBhcmVUZXN0UG9vbFJlc3RhcnRSZXNwb25zZRJ9Cg5SZXN1bWVUZXN0UG9vbBI0LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLlJlc3VtZVRlc3RQb29sUmVxdWVzdBo1LnZyb29saS5kZXZfcm91dGluZy52MS5yb3V0aW5nLlJlc3VtZVRlc3RQb29sUmVzcG9uc2VCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXYtcm91dGluZy92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.dev_routing.v1.routing.InstallTestPoolRequest
@@ -102,6 +102,15 @@ export type ClearTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.ClearT
    * @generated from field: string lease_id = 1;
    */
   leaseId: string;
+
+  /**
+   * Optional ticket lets a fresh process clear the exact checkpoint after a
+   * resumed lease. It is a bearer secret and must not be logged or retained in
+   * public evidence.
+   *
+   * @generated from field: string restart_ticket = 2;
+   */
+  restartTicket: string;
 };
 
 /**
@@ -173,6 +182,104 @@ export const HeartbeatTestPoolResponseSchema: GenMessage<HeartbeatTestPoolRespon
   messageDesc(file_dev_routing_v1_routing_routing, 5);
 
 /**
+ * @generated from message vrooli.dev_routing.v1.routing.PrepareTestPoolRestartRequest
+ */
+export type PrepareTestPoolRestartRequest = Message<"vrooli.dev_routing.v1.routing.PrepareTestPoolRestartRequest"> & {
+  /**
+   * @generated from field: string lease_id = 1;
+   */
+  leaseId: string;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.PrepareTestPoolRestartRequest.
+ * Use `create(PrepareTestPoolRestartRequestSchema)` to create a new message.
+ */
+export const PrepareTestPoolRestartRequestSchema: GenMessage<PrepareTestPoolRestartRequest> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 6);
+
+/**
+ * @generated from message vrooli.dev_routing.v1.routing.PrepareTestPoolRestartResponse
+ */
+export type PrepareTestPoolRestartResponse = Message<"vrooli.dev_routing.v1.routing.PrepareTestPoolRestartResponse"> & {
+  /**
+   * @generated from field: string restart_ticket = 1;
+   */
+  restartTicket: string;
+
+  /**
+   * @generated from field: int64 expires_at_unix_ms = 2;
+   */
+  expiresAtUnixMs: bigint;
+
+  /**
+   * @generated from field: vrooli.dev_routing.v1.routing.LeaseStats pre_restart_stats = 3;
+   */
+  preRestartStats?: LeaseStats | undefined;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.PrepareTestPoolRestartResponse.
+ * Use `create(PrepareTestPoolRestartResponseSchema)` to create a new message.
+ */
+export const PrepareTestPoolRestartResponseSchema: GenMessage<PrepareTestPoolRestartResponse> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 7);
+
+/**
+ * @generated from message vrooli.dev_routing.v1.routing.ResumeTestPoolRequest
+ */
+export type ResumeTestPoolRequest = Message<"vrooli.dev_routing.v1.routing.ResumeTestPoolRequest"> & {
+  /**
+   * @generated from field: string lease_id = 1;
+   */
+  leaseId: string;
+
+  /**
+   * @generated from field: string restart_ticket = 2;
+   */
+  restartTicket: string;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.ResumeTestPoolRequest.
+ * Use `create(ResumeTestPoolRequestSchema)` to create a new message.
+ */
+export const ResumeTestPoolRequestSchema: GenMessage<ResumeTestPoolRequest> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 8);
+
+/**
+ * @generated from message vrooli.dev_routing.v1.routing.ResumeTestPoolResponse
+ */
+export type ResumeTestPoolResponse = Message<"vrooli.dev_routing.v1.routing.ResumeTestPoolResponse"> & {
+  /**
+   * @generated from field: string active_lease_id = 1;
+   */
+  activeLeaseId: string;
+
+  /**
+   * @generated from field: int64 expires_at_unix_ms = 2;
+   */
+  expiresAtUnixMs: bigint;
+
+  /**
+   * @generated from field: vrooli.dev_routing.v1.routing.LeaseStats pre_restart_stats = 3;
+   */
+  preRestartStats?: LeaseStats | undefined;
+
+  /**
+   * @generated from field: bool file_roots_resumed = 4;
+   */
+  fileRootsResumed: boolean;
+};
+
+/**
+ * Describes the message vrooli.dev_routing.v1.routing.ResumeTestPoolResponse.
+ * Use `create(ResumeTestPoolResponseSchema)` to create a new message.
+ */
+export const ResumeTestPoolResponseSchema: GenMessage<ResumeTestPoolResponse> = /*@__PURE__*/
+  messageDesc(file_dev_routing_v1_routing_routing, 9);
+
+/**
  * LeaseStats are advisory counters tracked per-lease on the scenario side.
  *
  * test_pool_requests counts requests served from the installed test pool
@@ -210,7 +317,7 @@ export type LeaseStats = Message<"vrooli.dev_routing.v1.routing.LeaseStats"> & {
  * Use `create(LeaseStatsSchema)` to create a new message.
  */
 export const LeaseStatsSchema: GenMessage<LeaseStats> = /*@__PURE__*/
-  messageDesc(file_dev_routing_v1_routing_routing, 6);
+  messageDesc(file_dev_routing_v1_routing_routing, 10);
 
 /**
  * @generated from service vrooli.dev_routing.v1.routing.RoutingService
@@ -254,6 +361,28 @@ export const RoutingService: GenService<{
     methodKind: "unary";
     input: typeof HeartbeatTestPoolRequestSchema;
     output: typeof HeartbeatTestPoolResponseSchema;
+  },
+  /**
+   * PrepareTestPoolRestart persists a private checkpoint for the exact active
+   * paired DB/file lease. The opaque ticket contains no DSN or filesystem path.
+   *
+   * @generated from rpc vrooli.dev_routing.v1.routing.RoutingService.PrepareTestPoolRestart
+   */
+  prepareTestPoolRestart: {
+    methodKind: "unary";
+    input: typeof PrepareTestPoolRestartRequestSchema;
+    output: typeof PrepareTestPoolRestartResponseSchema;
+  },
+  /**
+   * ResumeTestPool reattaches the owner-retained binding after the old target
+   * process has exited. Only lease_id and the opaque checkpoint ticket are accepted.
+   *
+   * @generated from rpc vrooli.dev_routing.v1.routing.RoutingService.ResumeTestPool
+   */
+  resumeTestPool: {
+    methodKind: "unary";
+    input: typeof ResumeTestPoolRequestSchema;
+    output: typeof ResumeTestPoolResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_dev_routing_v1_routing_routing, 0);

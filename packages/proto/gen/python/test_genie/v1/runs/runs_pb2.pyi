@@ -523,7 +523,7 @@ class PhaseMaturityStanding(_message.Message):
     def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., current_level: _Optional[str] = ..., current_level_label: _Optional[str] = ..., next_level: _Optional[str] = ..., ceiling_level: _Optional[str] = ..., clean: _Optional[bool] = ..., unknown_count: _Optional[int] = ..., blocking_finding_codes: _Optional[_Iterable[str]] = ..., next_move: _Optional[str] = ..., next_move_reason: _Optional[str] = ..., priority_capability_id: _Optional[str] = ..., priority_capability_label: _Optional[str] = ..., north_star: _Optional[str] = ..., at_maximum: _Optional[bool] = ..., capabilities: _Optional[_Iterable[_Union[PhaseCapabilityStanding, _Mapping]]] = ...) -> None: ...
 
 class PhaseInfo(_message.Message):
-    __slots__ = ("name", "status", "duration_seconds", "comparable", "advisory", "artifact_backed", "non_comparable", "maturity_standing", "findings_summary", "phase_presentation")
+    __slots__ = ("name", "status", "duration_seconds", "comparable", "advisory", "artifact_backed", "non_comparable", "maturity_standing", "findings_summary", "phase_presentation", "observation_count")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -534,6 +534,7 @@ class PhaseInfo(_message.Message):
     MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     PHASE_PRESENTATION_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_COUNT_FIELD_NUMBER: _ClassVar[int]
     name: str
     status: str
     duration_seconds: float
@@ -544,7 +545,8 @@ class PhaseInfo(_message.Message):
     maturity_standing: PhaseMaturityStanding
     findings_summary: PhaseFindingsSummary
     phase_presentation: _maturity_pb2.PhasePresentation
-    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ...) -> None: ...
+    observation_count: int
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., observation_count: _Optional[int] = ...) -> None: ...
 
 class PhaseDescriptorPolicy(_message.Message):
     __slots__ = ("selection", "provider_readiness", "provider_lifecycle", "freshness", "result_gating", "unavailable")

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"\x8a\x01\n\x16InstallTestPoolRequest\x12\x10\n\x03\x64sn\x18\x01 \x01(\tR\x03\x64sn\x12\x19\n\x08lease_id\x18\x02 \x01(\tR\x07leaseId\x12 \n\x0clease_ttl_ms\x18\x03 \x01(\x03R\nleaseTtlMs\x12!\n\x0c\x65mpty_config\x18\x04 \x01(\x08R\x0b\x65mptyConfig\"s\n\x17InstallTestPoolResponse\x12&\n\x0f\x61\x63tive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\x12\x30\n\x14\x66ile_roots_installed\x18\x02 \x01(\x08R\x12\x66ileRootsInstalled\"1\n\x14\x43learTestPoolRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"X\n\x15\x43learTestPoolResponse\x12?\n\x05stats\x18\x01 \x01(\x0b\x32).vrooli.dev_routing.v1.routing.LeaseStatsR\x05stats\"5\n\x18HeartbeatTestPoolRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"H\n\x19HeartbeatTestPoolResponse\x12+\n\x12\x65xpires_at_unix_ms\x18\x01 \x01(\x03R\x0f\x65xpiresAtUnixMs\"\xfd\x01\n\nLeaseStats\x12,\n\x12test_pool_requests\x18\x01 \x01(\x03R\x10testPoolRequests\x12H\n!primary_during_test_mode_requests\x18\x02 \x01(\x03R\x1dprimaryDuringTestModeRequests\x12(\n\x10test_root_writes\x18\x03 \x01(\x03R\x0etestRootWrites\x12M\n$primary_root_writes_during_test_mode\x18\x04 \x01(\x03R\x1fprimaryRootWritesDuringTestMode2\x98\x03\n\x0eRoutingService\x12\x80\x01\n\x0fInstallTestPool\x12\x35.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a\x36.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n\rClearTestPool\x12\x33.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a\x34.vrooli.dev_routing.v1.routing.ClearTestPoolResponse\x12\x86\x01\n\x11HeartbeatTestPool\x12\x37.vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest\x1a\x38.vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$dev-routing/v1/routing/routing.proto\x12\x1dvrooli.dev_routing.v1.routing\"\x8a\x01\n\x16InstallTestPoolRequest\x12\x10\n\x03\x64sn\x18\x01 \x01(\tR\x03\x64sn\x12\x19\n\x08lease_id\x18\x02 \x01(\tR\x07leaseId\x12 \n\x0clease_ttl_ms\x18\x03 \x01(\x03R\nleaseTtlMs\x12!\n\x0c\x65mpty_config\x18\x04 \x01(\x08R\x0b\x65mptyConfig\"s\n\x17InstallTestPoolResponse\x12&\n\x0f\x61\x63tive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\x12\x30\n\x14\x66ile_roots_installed\x18\x02 \x01(\x08R\x12\x66ileRootsInstalled\"X\n\x14\x43learTestPoolRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\x12%\n\x0erestart_ticket\x18\x02 \x01(\tR\rrestartTicket\"X\n\x15\x43learTestPoolResponse\x12?\n\x05stats\x18\x01 \x01(\x0b\x32).vrooli.dev_routing.v1.routing.LeaseStatsR\x05stats\"5\n\x18HeartbeatTestPoolRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"H\n\x19HeartbeatTestPoolResponse\x12+\n\x12\x65xpires_at_unix_ms\x18\x01 \x01(\x03R\x0f\x65xpiresAtUnixMs\":\n\x1dPrepareTestPoolRestartRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"\xcb\x01\n\x1ePrepareTestPoolRestartResponse\x12%\n\x0erestart_ticket\x18\x01 \x01(\tR\rrestartTicket\x12+\n\x12\x65xpires_at_unix_ms\x18\x02 \x01(\x03R\x0f\x65xpiresAtUnixMs\x12U\n\x11pre_restart_stats\x18\x03 \x01(\x0b\x32).vrooli.dev_routing.v1.routing.LeaseStatsR\x0fpreRestartStats\"Y\n\x15ResumeTestPoolRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\x12%\n\x0erestart_ticket\x18\x02 \x01(\tR\rrestartTicket\"\xf2\x01\n\x16ResumeTestPoolResponse\x12&\n\x0f\x61\x63tive_lease_id\x18\x01 \x01(\tR\ractiveLeaseId\x12+\n\x12\x65xpires_at_unix_ms\x18\x02 \x01(\x03R\x0f\x65xpiresAtUnixMs\x12U\n\x11pre_restart_stats\x18\x03 \x01(\x0b\x32).vrooli.dev_routing.v1.routing.LeaseStatsR\x0fpreRestartStats\x12,\n\x12\x66ile_roots_resumed\x18\x04 \x01(\x08R\x10\x66ileRootsResumed\"\xfd\x01\n\nLeaseStats\x12,\n\x12test_pool_requests\x18\x01 \x01(\x03R\x10testPoolRequests\x12H\n!primary_during_test_mode_requests\x18\x02 \x01(\x03R\x1dprimaryDuringTestModeRequests\x12(\n\x10test_root_writes\x18\x03 \x01(\x03R\x0etestRootWrites\x12M\n$primary_root_writes_during_test_mode\x18\x04 \x01(\x03R\x1fprimaryRootWritesDuringTestMode2\xaf\x05\n\x0eRoutingService\x12\x80\x01\n\x0fInstallTestPool\x12\x35.vrooli.dev_routing.v1.routing.InstallTestPoolRequest\x1a\x36.vrooli.dev_routing.v1.routing.InstallTestPoolResponse\x12z\n\rClearTestPool\x12\x33.vrooli.dev_routing.v1.routing.ClearTestPoolRequest\x1a\x34.vrooli.dev_routing.v1.routing.ClearTestPoolResponse\x12\x86\x01\n\x11HeartbeatTestPool\x12\x37.vrooli.dev_routing.v1.routing.HeartbeatTestPoolRequest\x1a\x38.vrooli.dev_routing.v1.routing.HeartbeatTestPoolResponse\x12\x95\x01\n\x16PrepareTestPoolRestart\x12<.vrooli.dev_routing.v1.routing.PrepareTestPoolRestartRequest\x1a=.vrooli.dev_routing.v1.routing.PrepareTestPoolRestartResponse\x12}\n\x0eResumeTestPool\x12\x34.vrooli.dev_routing.v1.routing.ResumeTestPoolRequest\x1a\x35.vrooli.dev_routing.v1.routing.ResumeTestPoolResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,15 +37,23 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_INSTALLTESTPOOLRESPONSE']._serialized_start=212
   _globals['_INSTALLTESTPOOLRESPONSE']._serialized_end=327
   _globals['_CLEARTESTPOOLREQUEST']._serialized_start=329
-  _globals['_CLEARTESTPOOLREQUEST']._serialized_end=378
-  _globals['_CLEARTESTPOOLRESPONSE']._serialized_start=380
-  _globals['_CLEARTESTPOOLRESPONSE']._serialized_end=468
-  _globals['_HEARTBEATTESTPOOLREQUEST']._serialized_start=470
-  _globals['_HEARTBEATTESTPOOLREQUEST']._serialized_end=523
-  _globals['_HEARTBEATTESTPOOLRESPONSE']._serialized_start=525
-  _globals['_HEARTBEATTESTPOOLRESPONSE']._serialized_end=597
-  _globals['_LEASESTATS']._serialized_start=600
-  _globals['_LEASESTATS']._serialized_end=853
-  _globals['_ROUTINGSERVICE']._serialized_start=856
-  _globals['_ROUTINGSERVICE']._serialized_end=1264
+  _globals['_CLEARTESTPOOLREQUEST']._serialized_end=417
+  _globals['_CLEARTESTPOOLRESPONSE']._serialized_start=419
+  _globals['_CLEARTESTPOOLRESPONSE']._serialized_end=507
+  _globals['_HEARTBEATTESTPOOLREQUEST']._serialized_start=509
+  _globals['_HEARTBEATTESTPOOLREQUEST']._serialized_end=562
+  _globals['_HEARTBEATTESTPOOLRESPONSE']._serialized_start=564
+  _globals['_HEARTBEATTESTPOOLRESPONSE']._serialized_end=636
+  _globals['_PREPARETESTPOOLRESTARTREQUEST']._serialized_start=638
+  _globals['_PREPARETESTPOOLRESTARTREQUEST']._serialized_end=696
+  _globals['_PREPARETESTPOOLRESTARTRESPONSE']._serialized_start=699
+  _globals['_PREPARETESTPOOLRESTARTRESPONSE']._serialized_end=902
+  _globals['_RESUMETESTPOOLREQUEST']._serialized_start=904
+  _globals['_RESUMETESTPOOLREQUEST']._serialized_end=993
+  _globals['_RESUMETESTPOOLRESPONSE']._serialized_start=996
+  _globals['_RESUMETESTPOOLRESPONSE']._serialized_end=1238
+  _globals['_LEASESTATS']._serialized_start=1241
+  _globals['_LEASESTATS']._serialized_end=1494
+  _globals['_ROUTINGSERVICE']._serialized_start=1497
+  _globals['_ROUTINGSERVICE']._serialized_end=2184
 # @@protoc_insertion_point(module_scope)

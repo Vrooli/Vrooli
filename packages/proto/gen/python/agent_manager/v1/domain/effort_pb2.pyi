@@ -402,20 +402,22 @@ class EffortGoalHome(_message.Message):
     def __init__(self, path: _Optional[str] = ..., state: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., destination_metric: _Optional[str] = ..., destination_op: _Optional[str] = ..., destination_target: _Optional[float] = ..., current_value: _Optional[float] = ..., current_as_of: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., active_epoch: _Optional[str] = ..., active_status: _Optional[str] = ..., active_workers: _Optional[_Iterable[str]] = ..., last_accepted_epoch: _Optional[str] = ..., last_accepted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_yield: _Optional[str] = ..., needs_operator: _Optional[_Iterable[str]] = ..., open_workarounds: _Optional[int] = ..., open_feedback_ids: _Optional[_Iterable[str]] = ..., open_decisions: _Optional[_Iterable[_Union[EffortDecision, _Mapping]]] = ..., weighted_tokens_per_accepted_epoch: _Optional[float] = ..., accepted_epochs_measured: _Optional[int] = ..., cap_usage: _Optional[_Iterable[_Union[EffortCapUsage, _Mapping]]] = ..., canary_status: _Optional[str] = ..., lint_findings: _Optional[_Iterable[str]] = ..., read_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class EffortSignal(_message.Message):
-    __slots__ = ("seq", "effort_ref", "kind", "run_id", "detail", "created_at")
+    __slots__ = ("seq", "effort_ref", "kind", "run_id", "detail", "created_at", "newly_recorded")
     SEQ_FIELD_NUMBER: _ClassVar[int]
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    NEWLY_RECORDED_FIELD_NUMBER: _ClassVar[int]
     seq: int
     effort_ref: str
     kind: str
     run_id: str
     detail: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, seq: _Optional[int] = ..., effort_ref: _Optional[str] = ..., kind: _Optional[str] = ..., run_id: _Optional[str] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    newly_recorded: bool
+    def __init__(self, seq: _Optional[int] = ..., effort_ref: _Optional[str] = ..., kind: _Optional[str] = ..., run_id: _Optional[str] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., newly_recorded: _Optional[bool] = ...) -> None: ...
 
 class ListEffortSignalsRequest(_message.Message):
     __slots__ = ("effort_ref", "after_seq", "limit")

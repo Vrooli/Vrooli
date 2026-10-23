@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from image_tools.v1.selection import selection_pb2 as image__tools_dot_v1_dot_selection_dot_selection__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1aimage-tools/v1/ai/ai.proto\x12\x18vrooli.image_tools.v1.ai\"\xf6\x01\n\x0f\x41IOperationInfo\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n\x08\x63\x61tegory\x18\x02 \x01(\tR\x08\x63\x61tegory\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12%\n\x0erequires_image\x18\x04 \x01(\x08R\rrequiresImage\x12#\n\rrequires_mask\x18\x05 \x01(\x08R\x0crequiresMask\x12#\n\rprompt_driven\x18\x06 \x01(\x08R\x0cpromptDriven\x12(\n\x10\x64\x65\x66\x61ult_model_id\x18\x07 \x01(\tR\x0e\x64\x65\x66\x61ultModelId\"\x19\n\x17ListAIOperationsRequest\"e\n\x18ListAIOperationsResponse\x12I\n\noperations\x18\x01 \x03(\x0b\x32).vrooli.image_tools.v1.ai.AIOperationInfoR\noperations\"\xf5\x05\n\x08\x41IParams\x12\x16\n\x06prompt\x18\x01 \x01(\tR\x06prompt\x12\'\n\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n\x04seed\x18\x03 \x01(\x03R\x04seed\x12\x14\n\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n\x06height\x18\x05 \x01(\x05R\x06height\x12\x14\n\x05steps\x18\x06 \x01(\x05R\x05steps\x12\x1b\n\tcfg_scale\x18\x07 \x01(\x01R\x08\x63\x66gScale\x12\x1e\n\nvariations\x18\x08 \x01(\x05R\nvariations\x12\x1a\n\x08strength\x18\t \x01(\x01R\x08strength\x12\x14\n\x05scale\x18\n \x01(\x05R\x05scale\x12%\n\x0emodel_override\x18\x0b \x01(\tR\rmodelOverride\x12\x1d\n\nallow_byok\x18\x0c \x01(\x08R\tallowByok\x12$\n\x0e\x61uto_scan_nsfw\x18\r \x01(\x08R\x0c\x61utoScanNsfw\x12\x18\n\x07realism\x18\x0e \x01(\x01R\x07realism\x12\x1d\n\nface_aware\x18\x0f \x01(\x08R\tfaceAware\x12)\n\x10\x63onsent_affirmed\x18\x10 \x01(\x08R\x0f\x63onsentAffirmed\x12@\n\x08\x61\x64\x61pters\x18\x11 \x03(\x0b\x32$.vrooli.image_tools.v1.ai.AdapterRefR\x08\x61\x64\x61pters\x12%\n\x0equality_policy\x18\x12 \x01(\tR\rqualityPolicy\x12\'\n\x0f\x66\x61llback_policy\x18\x13 \x01(\tR\x0e\x66\x61llbackPolicy\x12\x1a\n\x08priority\x18\x14 \x01(\tR\x08priority\x12(\n\rallow_reclaim\x18\x15 \x01(\x08H\x00R\x0c\x61llowReclaim\x88\x01\x01\x12\'\n\x0fopenrouter_role\x18\x16 \x01(\tR\x0eopenrouterRoleB\x10\n\x0e_allow_reclaim\"\xac\x01\n\nAdapterRef\x12\x1d\n\nadapter_id\x18\x01 \x01(\tR\tadapterId\x12\x14\n\x05scale\x18\x02 \x01(\x01R\x05scale\x12\x34\n\x16\x63onditioning_image_key\x18\x03 \x01(\tR\x14\x63onditioningImageKey\x12\x33\n\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\"\xa1\x01\n\x10SubmitAIResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12+\n\x11\x65stimated_seconds\x18\x02 \x01(\x05R\x10\x65stimatedSeconds\x12\x19\n\x08model_id\x18\x03 \x01(\tR\x07modelId\x12\x12\n\x04tier\x18\x04 \x01(\tR\x04tier\x12\x1a\n\x08warnings\x18\x05 \x03(\tR\x08warnings2\x86\x01\n\tAIService\x12y\n\x10ListAIOperations\x12\x31.vrooli.image_tools.v1.ai.ListAIOperationsRequest\x1a\x32.vrooli.image_tools.v1.ai.ListAIOperationsResponseBHZFgithub.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai;ai_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1aimage-tools/v1/ai/ai.proto\x12\x18vrooli.image_tools.v1.ai\x1a(image-tools/v1/selection/selection.proto\"\xf6\x01\n\x0f\x41IOperationInfo\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n\x08\x63\x61tegory\x18\x02 \x01(\tR\x08\x63\x61tegory\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12%\n\x0erequires_image\x18\x04 \x01(\x08R\rrequiresImage\x12#\n\rrequires_mask\x18\x05 \x01(\x08R\x0crequiresMask\x12#\n\rprompt_driven\x18\x06 \x01(\x08R\x0cpromptDriven\x12(\n\x10\x64\x65\x66\x61ult_model_id\x18\x07 \x01(\tR\x0e\x64\x65\x66\x61ultModelId\"\x19\n\x17ListAIOperationsRequest\"e\n\x18ListAIOperationsResponse\x12I\n\noperations\x18\x01 \x03(\x0b\x32).vrooli.image_tools.v1.ai.AIOperationInfoR\noperations\"\x96\t\n\x08\x41IParams\x12\x16\n\x06prompt\x18\x01 \x01(\tR\x06prompt\x12\'\n\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n\x04seed\x18\x03 \x01(\x03R\x04seed\x12\x14\n\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n\x06height\x18\x05 \x01(\x05R\x06height\x12\x14\n\x05steps\x18\x06 \x01(\x05R\x05steps\x12\x1b\n\tcfg_scale\x18\x07 \x01(\x01R\x08\x63\x66gScale\x12\x1e\n\nvariations\x18\x08 \x01(\x05R\nvariations\x12\x1a\n\x08strength\x18\t \x01(\x01R\x08strength\x12\x14\n\x05scale\x18\n \x01(\x05R\x05scale\x12%\n\x0emodel_override\x18\x0b \x01(\tR\rmodelOverride\x12\x1d\n\nallow_byok\x18\x0c \x01(\x08R\tallowByok\x12$\n\x0e\x61uto_scan_nsfw\x18\r \x01(\x08R\x0c\x61utoScanNsfw\x12\x18\n\x07realism\x18\x0e \x01(\x01R\x07realism\x12\x1d\n\nface_aware\x18\x0f \x01(\x08R\tfaceAware\x12)\n\x10\x63onsent_affirmed\x18\x10 \x01(\x08R\x0f\x63onsentAffirmed\x12@\n\x08\x61\x64\x61pters\x18\x11 \x03(\x0b\x32$.vrooli.image_tools.v1.ai.AdapterRefR\x08\x61\x64\x61pters\x12%\n\x0equality_policy\x18\x12 \x01(\tR\rqualityPolicy\x12\'\n\x0f\x66\x61llback_policy\x18\x13 \x01(\tR\x0e\x66\x61llbackPolicy\x12\x1a\n\x08priority\x18\x14 \x01(\tR\x08priority\x12(\n\rallow_reclaim\x18\x15 \x01(\x08H\x00R\x0c\x61llowReclaim\x88\x01\x01\x12\'\n\x0fopenrouter_role\x18\x16 \x01(\tR\x0eopenrouterRole\x12P\n\x0csegmentation\x18\x17 \x01(\x0b\x32,.vrooli.image_tools.v1.ai.SegmentationPromptR\x0csegmentation\x12T\n\x0escene_geometry\x18\x18 \x01(\x0b\x32-.vrooli.image_tools.v1.ai.SceneGeometryParamsR\rsceneGeometry\x12U\n\x0fimage_to_object\x18\x19 \x01(\x0b\x32-.vrooli.image_tools.v1.ai.ImageToObjectParamsR\rimageToObject\x12]\n\x11\x62\x61\x63kground_repair\x18\x1a \x01(\x0b\x32\x30.vrooli.image_tools.v1.ai.BackgroundRepairParamsR\x10\x62\x61\x63kgroundRepair\x12\x41\n\x07inpaint\x18\x1b \x01(\x0b\x32\'.vrooli.image_tools.v1.ai.InpaintParamsR\x07inpaintB\x10\n\x0e_allow_reclaim\"\xb2\x01\n\rInpaintParams\x12 \n\x0c\x63rop_to_mask\x18\x01 \x01(\x08R\ncropToMask\x12%\n\x0e\x63ontext_pixels\x18\x02 \x01(\rR\rcontextPixels\x12\x1e\n\x0bmax_edge_px\x18\x03 \x01(\rR\tmaxEdgePx\x12\x38\n\x18neutralize_masked_pixels\x18\x04 \x01(\x08R\x16neutralizeMaskedPixels\"\x9b\x01\n\x16\x42\x61\x63kgroundRepairParams\x12\x32\n\x15mask_expansion_pixels\x18\x01 \x01(\rR\x13maskExpansionPixels\x12M\n\x0fremoval_regions\x18\x02 \x03(\x0b\x32$.vrooli.image_tools.v1.selection.BoxR\x0eremovalRegions\"\\\n\x13SceneGeometryParams\x12\x45\n\x0bsupport_roi\x18\x01 \x01(\x0b\x32$.vrooli.image_tools.v1.selection.BoxR\nsupportRoi\">\n\x13ImageToObjectParams\x12\'\n\x0fmesh_resolution\x18\x01 \x01(\rR\x0emeshResolution\"\x8c\x01\n\x12SegmentationPrompt\x12>\n\x06points\x18\x01 \x03(\x0b\x32&.vrooli.image_tools.v1.selection.PointR\x06points\x12\x36\n\x03\x62ox\x18\x02 \x01(\x0b\x32$.vrooli.image_tools.v1.selection.BoxR\x03\x62ox\"\xac\x01\n\nAdapterRef\x12\x1d\n\nadapter_id\x18\x01 \x01(\tR\tadapterId\x12\x14\n\x05scale\x18\x02 \x01(\x01R\x05scale\x12\x34\n\x16\x63onditioning_image_key\x18\x03 \x01(\tR\x14\x63onditioningImageKey\x12\x33\n\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\"\xa1\x01\n\x10SubmitAIResponse\x12\x15\n\x06job_id\x18\x01 \x01(\tR\x05jobId\x12+\n\x11\x65stimated_seconds\x18\x02 \x01(\x05R\x10\x65stimatedSeconds\x12\x19\n\x08model_id\x18\x03 \x01(\tR\x07modelId\x12\x12\n\x04tier\x18\x04 \x01(\tR\x04tier\x12\x1a\n\x08warnings\x18\x05 \x03(\tR\x08warnings\"\xcc\x01\n\x15SubmitStoredAIRequest\x12\x1c\n\toperation\x18\x01 \x01(\tR\toperation\x12:\n\x06params\x18\x02 \x01(\x0b\x32\".vrooli.image_tools.v1.ai.AIParamsR\x06params\x12\x1b\n\tinput_ref\x18\x03 \x01(\tR\x08inputRef\x12\x19\n\x08mask_ref\x18\x04 \x01(\tR\x07maskRef\x12!\n\x0coperation_id\x18\x05 \x01(\tR\x0boperationId2\xf5\x01\n\tAIService\x12y\n\x10ListAIOperations\x12\x31.vrooli.image_tools.v1.ai.ListAIOperationsRequest\x1a\x32.vrooli.image_tools.v1.ai.ListAIOperationsResponse\x12m\n\x0eSubmitStoredAI\x12/.vrooli.image_tools.v1.ai.SubmitStoredAIRequest\x1a*.vrooli.image_tools.v1.ai.SubmitAIResponseBHZFgithub.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai;ai_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,18 +33,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'image_tools.v1.ai.ai_pb2', 
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZFgithub.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai;ai_v1'
-  _globals['_AIOPERATIONINFO']._serialized_start=57
-  _globals['_AIOPERATIONINFO']._serialized_end=303
-  _globals['_LISTAIOPERATIONSREQUEST']._serialized_start=305
-  _globals['_LISTAIOPERATIONSREQUEST']._serialized_end=330
-  _globals['_LISTAIOPERATIONSRESPONSE']._serialized_start=332
-  _globals['_LISTAIOPERATIONSRESPONSE']._serialized_end=433
-  _globals['_AIPARAMS']._serialized_start=436
-  _globals['_AIPARAMS']._serialized_end=1193
-  _globals['_ADAPTERREF']._serialized_start=1196
-  _globals['_ADAPTERREF']._serialized_end=1368
-  _globals['_SUBMITAIRESPONSE']._serialized_start=1371
-  _globals['_SUBMITAIRESPONSE']._serialized_end=1532
-  _globals['_AISERVICE']._serialized_start=1535
-  _globals['_AISERVICE']._serialized_end=1669
+  _globals['_AIOPERATIONINFO']._serialized_start=99
+  _globals['_AIOPERATIONINFO']._serialized_end=345
+  _globals['_LISTAIOPERATIONSREQUEST']._serialized_start=347
+  _globals['_LISTAIOPERATIONSREQUEST']._serialized_end=372
+  _globals['_LISTAIOPERATIONSRESPONSE']._serialized_start=374
+  _globals['_LISTAIOPERATIONSRESPONSE']._serialized_end=475
+  _globals['_AIPARAMS']._serialized_start=478
+  _globals['_AIPARAMS']._serialized_end=1652
+  _globals['_INPAINTPARAMS']._serialized_start=1655
+  _globals['_INPAINTPARAMS']._serialized_end=1833
+  _globals['_BACKGROUNDREPAIRPARAMS']._serialized_start=1836
+  _globals['_BACKGROUNDREPAIRPARAMS']._serialized_end=1991
+  _globals['_SCENEGEOMETRYPARAMS']._serialized_start=1993
+  _globals['_SCENEGEOMETRYPARAMS']._serialized_end=2085
+  _globals['_IMAGETOOBJECTPARAMS']._serialized_start=2087
+  _globals['_IMAGETOOBJECTPARAMS']._serialized_end=2149
+  _globals['_SEGMENTATIONPROMPT']._serialized_start=2152
+  _globals['_SEGMENTATIONPROMPT']._serialized_end=2292
+  _globals['_ADAPTERREF']._serialized_start=2295
+  _globals['_ADAPTERREF']._serialized_end=2467
+  _globals['_SUBMITAIRESPONSE']._serialized_start=2470
+  _globals['_SUBMITAIRESPONSE']._serialized_end=2631
+  _globals['_SUBMITSTOREDAIREQUEST']._serialized_start=2634
+  _globals['_SUBMITSTOREDAIREQUEST']._serialized_end=2838
+  _globals['_AISERVICE']._serialized_start=2841
+  _globals['_AISERVICE']._serialized_end=3086
 # @@protoc_insertion_point(module_scope)

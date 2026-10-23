@@ -34,12 +34,26 @@ public final class NavigationStateTest {
         for (String previous : Arrays.asList("Home", "Vrooli", "TV apps", "Inputs", "Settings")) {
             state.page = previous; state.libraryReturn = "Settings"; state.settingsReturn = "Vrooli";
             state.systemHome();
-            equal("Home", state.page, "System Home returns from " + previous);
-            equal("Home", state.back(), "System Home resets return navigation");
+            equal(previous, state.page, "Returning to the launcher preserves " + previous);
+            equal("experience:nutrition-planner", state.focused.get("Vrooli"), "App return preserves card identity");
+            equal(220, state.scroll.get("Vrooli"), "App return preserves scroll");
             equal("Nooch", state.filter, "System Home preserves useful library query");
             equal(false, state.exitsOnBack(true), "Daily Home cannot exit on Back");
-            equal(true, state.exitsOnBack(false), "Ordinary preview can exit from Home");
+            equal("Home".equals(previous), state.exitsOnBack(false), "Ordinary preview exits only from Home");
         }
+        List<String> apps = Arrays.asList("zulu", "alpha", "Beta", "apple");
+        equal(Arrays.asList("apple", "zulu", "alpha", "Beta"), NavigationState.libraryApps(apps, value -> value, value -> value, Arrays.asList("zulu", "apple", "missing")), "Both libraries sort alphabetically within favorites and other apps");
+        equal(Arrays.asList("alpha", "apple", "Beta", "zulu"), NavigationState.libraryApps(apps, value -> value, value -> value, Collections.emptyList()), "Removing favorites preserves case-insensitive alphabetical order");
+        equal(apps, Arrays.asList("zulu", "alpha", "Beta", "apple"), "Library sort cannot mutate its source snapshot");
+        for (String origin : Arrays.asList("Home", "TV apps", "Vrooli", "Inputs", "Settings")) {
+            state.page = origin; state.appOpened(); state.page = "Home";
+            state.systemHome(); equal(origin, state.page, "App return survives platform default focus recovery from " + origin);
+            equal(null, state.appReturn, "App-return marker is consumed once");
+        }
+        equal("TV apps", NavigationState.adjacentTab("Home", 1), "Right selects TV apps directly");
+        equal("Vrooli", NavigationState.adjacentTab("TV apps", 1), "Right selects Vrooli directly");
+        equal("TV apps", NavigationState.adjacentTab("Vrooli", -1), "Left selects the previous tab");
+        equal(null, NavigationState.adjacentTab("Inputs", 1), "The right edge remains available to Settings focus");
         System.out.println("PASS: navigation returns, reconnect, focus/filter/scroll, favorites and reorder");
     }
 }

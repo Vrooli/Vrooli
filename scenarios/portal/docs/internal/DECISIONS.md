@@ -1,5 +1,22 @@
 # Decisions — Portal
 
+## Native interaction and unified libraries — 2026-10-23
+
+The operator replaces separate All apps/Favorites/TV-ready modes with one list
+per library: favorites alphabetically, then other apps alphabetically. Preserve
+Home's favorite-first recency ordering. Use the same corner-star asset on both
+card types, and omit TV-control qualification labels from cards. Search and
+actual stopped/offline state remain meaningful.
+
+Returning to the launcher means returning to the last selected page. Android
+Home intents and restored focus must not select Home implicitly. Remote
+Left/Right selects adjacent tabs directly; the Home tab explicitly selects Home.
+Retain page views across switches, prepare cold pages during idle time, and
+perform installed-app/network work off the input thread. One centered native
+opening overlay covers route resolution and WebView startup. Physical Home
+routing still uses the existing override; it gains no permissions. Evidence and
+the retained rejected focus approaches are in android-tv/README.md.
+
 ## Approved staged direct access and host ownership — 2026-10-22
 
 After the visual explanation, the operator approved direct LAN access through

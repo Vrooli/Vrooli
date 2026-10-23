@@ -144,4 +144,17 @@ message SmokeTestStatusResponse {
   optional ScreenRecordingSummary screen_recording = 12;
   optional EvidenceReview evidence_review = 13;
   optional SmokeTestPerformance performance = 14;
+  optional string deployment_mode = 15;
+  optional string screen_content_source = 16;
+  repeated ProcessLifetimeCheck process_lifetime_checks = 17;
+}
+
+// Cleanup evidence for one attempted launch stage. A passing check does not
+// imply that the application or journey passed; those outcomes remain separate.
+message ProcessLifetimeCheck {
+  string stage = 1;
+  string session_id = 2;
+  bool passed = 3;
+  repeated int64 remaining_pids = 4;
+  optional string assertion = 5;
 }

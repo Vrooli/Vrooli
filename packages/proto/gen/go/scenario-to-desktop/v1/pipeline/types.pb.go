@@ -39,6 +39,10 @@ type PipelineConfig struct {
 	// Independent, attributable Electron optimization switches. Allowed only
 	// with electron-optimized; absent switches remain disabled.
 	OptimizationProfile *ElectronOptimizationProfile `protobuf:"bytes,37,opt,name=optimization_profile,json=optimizationProfile,proto3" json:"optimization_profile,omitempty"`
+	// Optional finite managed renderer payloads included in the desktop bundle.
+	// Values are blender and ffmpeg-video; selection is separate from generic
+	// host-required tool requirements.
+	RendererToolProfiles []string `protobuf:"bytes,38,rep,name=renderer_tool_profiles,json=rendererToolProfiles,proto3" json:"renderer_tool_profiles,omitempty"`
 	// Target platforms to build for.
 	// Empty means current platform only.
 	Platforms []shared.Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platforms,omitempty"`
@@ -182,6 +186,13 @@ func (x *PipelineConfig) GetStrategyId() string {
 func (x *PipelineConfig) GetOptimizationProfile() *ElectronOptimizationProfile {
 	if x != nil {
 		return x.OptimizationProfile
+	}
+	return nil
+}
+
+func (x *PipelineConfig) GetRendererToolProfiles() []string {
+	if x != nil {
+		return x.RendererToolProfiles
 	}
 	return nil
 }
@@ -3813,12 +3824,13 @@ var File_scenario_to_desktop_v1_pipeline_types_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a*scenario-to-desktop/v1/domain/config.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xb3\x16\n" +
+	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a*scenario-to-desktop/v1/domain/config.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xe9\x16\n" +
 	"\x0ePipelineConfig\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12\x1f\n" +
 	"\vstrategy_id\x18$ \x01(\tR\n" +
 	"strategyId\x12v\n" +
-	"\x14optimization_profile\x18% \x01(\v2C.vrooli.scenario_to_desktop.v1.pipeline.ElectronOptimizationProfileR\x13optimizationProfile\x12L\n" +
+	"\x14optimization_profile\x18% \x01(\v2C.vrooli.scenario_to_desktop.v1.pipeline.ElectronOptimizationProfileR\x13optimizationProfile\x124\n" +
+	"\x16renderer_tool_profiles\x18& \x03(\tR\x14rendererToolProfiles\x12L\n" +
 	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12*\n" +
 	"\x0eskip_preflight\x18\x03 \x01(\bH\x00R\rskipPreflight\x88\x01\x01\x12+\n" +
 	"\x0fskip_smoke_test\x18\x04 \x01(\bH\x01R\rskipSmokeTest\x88\x01\x01\x12+\n" +

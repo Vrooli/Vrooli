@@ -22,7 +22,7 @@ public final class CatalogueWindowTest {
             equal(count, window.append(), "Further bottom events cannot overrun catalogue");
         }
         CatalogueWindow large = new CatalogueWindow(512, -1);
-        equal(60, large.end(), "Initial view creation remains bounded");
+        equal(12, large.end(), "First tab entry creates only nearby rows");
         equal(true, large.hasMore(), "A large catalogue remains extensible");
         CatalogueWindow restored = new CatalogueWindow(129, 128);
         equal(129, restored.end(), "Returning to the final card restores a reachable focus target");

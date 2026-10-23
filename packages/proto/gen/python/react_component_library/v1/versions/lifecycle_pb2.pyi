@@ -168,6 +168,12 @@ class ImportArchiveRequest(_message.Message):
     overwrite: bool
     def __init__(self, path: _Optional[str] = ..., overwrite: _Optional[bool] = ...) -> None: ...
 
+class RecoverButton224Request(_message.Message):
+    __slots__ = ("path",)
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    def __init__(self, path: _Optional[str] = ...) -> None: ...
+
 class ArchiveResponse(_message.Message):
     __slots__ = ("path", "schema_version", "row_counts", "checksum")
     class RowCountsEntry(_message.Message):
@@ -192,20 +198,30 @@ class DoctorRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class DoctorIssue(_message.Message):
-    __slots__ = ("library_id", "version", "path", "expected_sha256", "actual_sha256", "reason")
+    __slots__ = ("library_id", "version", "path", "expected_sha256", "actual_sha256", "reason", "ledger_created_at", "ledger_released_at", "ledger_retired_at", "ledger_lifecycle", "ledger_file_count")
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_SHA256_FIELD_NUMBER: _ClassVar[int]
     ACTUAL_SHA256_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_RELEASED_AT_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_RETIRED_AT_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_FILE_COUNT_FIELD_NUMBER: _ClassVar[int]
     library_id: str
     version: str
     path: str
     expected_sha256: str
     actual_sha256: str
     reason: str
-    def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ..., path: _Optional[str] = ..., expected_sha256: _Optional[str] = ..., actual_sha256: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+    ledger_created_at: str
+    ledger_released_at: str
+    ledger_retired_at: str
+    ledger_lifecycle: str
+    ledger_file_count: int
+    def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ..., path: _Optional[str] = ..., expected_sha256: _Optional[str] = ..., actual_sha256: _Optional[str] = ..., reason: _Optional[str] = ..., ledger_created_at: _Optional[str] = ..., ledger_released_at: _Optional[str] = ..., ledger_retired_at: _Optional[str] = ..., ledger_lifecycle: _Optional[str] = ..., ledger_file_count: _Optional[int] = ...) -> None: ...
 
 class DoctorResponse(_message.Message):
     __slots__ = ("issues",)

@@ -1,10 +1,102 @@
 # Portal Android TV launcher
 
-Current installed daily release: **0.4.7/code25**. The native library reveals
-the full fetched catalogue as you scroll; the fixed filter/status controls stay
-outside the grid viewport. The selected direct LAN connection is working with a
+Current installed daily release: **0.4.12/code30**, with final upgrade
+qualification recorded below. Earlier daily25 fixed catalogue continuation and
+viewport clipping. The selected direct LAN connection is working with a
 setup-installed, verified persistent admission rule. Trusted local HTTPS and
 endpoint-change/travel qualification remain separate work.
+
+## Interaction polish target — 23 October 2026
+
+Operator-directed W3 repair: switch tabs without network/package-discovery or
+whole-page rebuild work on the input path; preserve the previous tab, card and
+scroll when returning from native TV apps or embedded Vrooli apps. Home routing
+must still bring the launcher forward, but must not reset its selected tab.
+Prevent automatic focus recovery while changing browser/native surfaces from
+activating the Home tab. Keep one continuous opening overlay through route
+resolution and WebView loading. TV apps and Vrooli each use one list: favorites
+alphabetically, then other apps alphabetically, with the same corner star.
+Remove All apps/Favorites/TV-ready controls and TV-control qualification labels;
+retain search and truthful stopped/offline availability.
+
+Bounded handoff: reuse the current native owners, stable signing identity and
+Device Control leases. Add desired-behavior regressions, measure actual native
+tab-handler work before/after, then install and visually qualify the final
+daily release. Performance Health's browser/React profiler is not a measurement
+of this native surface; use bounded shell-only app-status timing metadata.
+Private evidence belongs in `interaction-polish-20261023` alongside earlier TV
+experiments. Budget: six submitted physical flows, zero reboots; separate
+read-only observations and final lease checks. Do not change Home permissions,
+host policy or the selected Portal connection. Preserve every failed receipt.
+
+### Implementation and qualification
+
+Tab content is retained in native page containers. Input handlers switch those
+containers rather than rebuilding grids, querying Package Manager or cancelling
+network connections. Installed-app discovery, labels and banner decoding use a
+background snapshot. HTTP disconnect runs off the UI thread. Catalogue refresh
+is asynchronous and freshness-gated; unchanged successful results retain views.
+Nearby rows are materialized initially, later rows still append as needed, and
+idle-time preparation creates the first library pages before normal navigation.
+Changed favourites, installed apps, catalogue data, search and cleared recents
+invalidate their affected pages. Home retains recent-first ordering within its
+favorite/non-favorite groups; both full libraries use alphabetical order within
+those groups. Both libraries use the same native corner-star drawable. Removed
+library-mode preferences are ignored; existing favorites remain intact.
+
+Home intents return to the current launcher page. Explicit app-return state
+restores the departure page after external lifecycle changes, including instance
+state restoration. Embedded close preserves its card, search and scroll. A
+focus-recovery event cannot select a tab: Left/Right on a tab commits the adjacent
+selection directly and retains focus there; pointer clicks still select tabs.
+This replaced a rejected input-scope flag because Android delivered focus events
+after key dispatch. The explicit Home tab remains available to select Home.
+One centered opening overlay survives both route resolution and WebView startup;
+the old bottom loading bar is removed. Actual WebView errors retain one return
+control. No Home/accessibility permission or network preference is changed.
+
+The owner build runs navigation, Home-policy/resource, origin and catalogue
+checks. Desired preservation and initial-row regressions failed before repair
+and pass afterwards; additional tests cover alphabetical groups, native app
+return markers and adjacent-tab navigation. Native status timing rows use
+`count/last_us/average_us/max_us`, with no screen text or account content.
+Three D-pad cycles on baseline26 measured Vrooli average 165.223 ms / max 199.025 ms
+and TV apps average 235.397 ms / max 853.489 ms. The daily29 run measured Vrooli
+average 1.734 ms / max 1.885 ms and TV apps average 1.558 ms / max 1.869 ms, including one
+additional TV-app selection for the app-return check. Ready pages were prepared
+with a 2.5-second startup settle. These are native handler measurements, not GPU
+presentation, network latency or Performance Health browser results.
+
+Run `da99e57d-a92d-4512-8f54-716678b4d156` confirms SmartTube foreground and
+return to the selected TV-app tab. Run
+`9bd3cca4-5025-4cd3-b5db-aae47bf51c29` captures the unified favorite-first
+library, one centered loader and Back returning to the Vrooli tab with the Aquila
+search retained; Clear restores the full list. Separate owner status confirms
+`ui.page=vrooli`, browser/loading false and Home override active. Aquila's child
+page displays an Invalid URL error; filed as Scenario QA
+`knw-1792728989890967531`. This is not a claim that Aquila is usable on TV.
+
+Keep failed evidence: daily27's native-return flow passed foreground assertions
+but its frame showed Home; its Home navigation counter rose from 3 to 4. Daily28
+failed the tab-selection precondition and opened Netflix; the exact SmartTube
+foreground assertion refused it. Neither is accepted as a correct app return.
+The six-flow budget is closed. Final code review added Home invalidation when
+clearing recents and removed the now-unused focus guard; code30 has one separate
+bounded upgrade smoke check, recorded in `final-invalidation-scope.json`.
+Operator history is not cleared during validation. Private receipts remain in
+`tv-capabilities-20261022T144942Z/interaction-polish-20261023`.
+
+Final daily30 artifact:
+`android-release:ec96821e680ab8286854373b22a660a508188068d7a98688bd1e99ca12f78772`.
+The signed owner build, all four independently executed native checks, immutable
+digest and public signer continuity pass. Final upgrade smoke
+`9abb1699-4d45-47eb-a2af-9c367e6b2607` passes. Its frames show the unified library,
+actual Nooch content through the saved local gateway, and Back returning to
+Vrooli. This confirms rendering and return, not every Nooch feature or remote
+control. Existing recents/favorites were retained; no history was cleared.
+The final native foreground assertion passes and all leases are released.
+Seven total flows were submitted, including the explicitly recorded final
+invalidation smoke; no reboot, permission or host-policy change occurred.
 
 ## Approved connection implementation — 22 October 2026
 

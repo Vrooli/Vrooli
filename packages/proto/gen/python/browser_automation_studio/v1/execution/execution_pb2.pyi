@@ -252,7 +252,7 @@ class ExecuteWorkflowOptions(_message.Message):
     def __init__(self, requires_video: _Optional[bool] = ..., requires_trace: _Optional[bool] = ..., requires_har: _Optional[bool] = ..., frame_streaming: _Optional[bool] = ..., frame_streaming_quality: _Optional[int] = ..., frame_streaming_fps: _Optional[int] = ..., seed_mode: _Optional[str] = ..., seed_scenario: _Optional[str] = ..., app_target: _Optional[_Union[AppTarget, _Mapping]] = ..., validation_context: _Optional[_Union[ValidationContext, _Mapping]] = ...) -> None: ...
 
 class AppTarget(_message.Message):
-    __slots__ = ("target_kind", "target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "cdp_transport")
+    __slots__ = ("target_kind", "target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "cdp_transport", "download_path", "test_database_root")
     TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     CDP_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
@@ -263,6 +263,8 @@ class AppTarget(_message.Message):
     ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
     CDP_TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    DOWNLOAD_PATH_FIELD_NUMBER: _ClassVar[int]
+    TEST_DATABASE_ROOT_FIELD_NUMBER: _ClassVar[int]
     target_kind: str
     target_id: str
     cdp_endpoint: str
@@ -273,7 +275,9 @@ class AppTarget(_message.Message):
     artifact_digest: str
     context_id: str
     cdp_transport: str
-    def __init__(self, target_kind: _Optional[str] = ..., target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ...) -> None: ...
+    download_path: str
+    test_database_root: str
+    def __init__(self, target_kind: _Optional[str] = ..., target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ..., download_path: _Optional[str] = ..., test_database_root: _Optional[str] = ...) -> None: ...
 
 class ValidationContext(_message.Message):
     __slots__ = ("context_id", "scenario_name", "artifact_digest", "target_id", "workflow_id", "profile_id", "isolation_lease_id")

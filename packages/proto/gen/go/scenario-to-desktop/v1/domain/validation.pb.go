@@ -374,8 +374,14 @@ type AppTarget struct {
 	ContextId      string                 `protobuf:"bytes,12,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
 	RendererUrl    string                 `protobuf:"bytes,13,opt,name=renderer_url,json=rendererUrl,proto3" json:"renderer_url,omitempty"`
 	RendererTitle  *string                `protobuf:"bytes,14,opt,name=renderer_title,json=rendererTitle,proto3,oneof" json:"renderer_title,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Optional owner-discovered private API endpoint for bundled offline runs.
+	// It must be a target-owned loopback bridge and is never a caller URL.
+	ApiUrl string `protobuf:"bytes,15,opt,name=api_url,json=apiUrl,proto3" json:"api_url,omitempty"`
+	// Private target-owned writable root for a disposable routed test database.
+	// Set only for isolated bundled validation sessions.
+	TestDatabaseRoot string `protobuf:"bytes,16,opt,name=test_database_root,json=testDatabaseRoot,proto3" json:"test_database_root,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AppTarget) Reset() {
@@ -502,6 +508,20 @@ func (x *AppTarget) GetRendererUrl() string {
 func (x *AppTarget) GetRendererTitle() string {
 	if x != nil && x.RendererTitle != nil {
 		return *x.RendererTitle
+	}
+	return ""
+}
+
+func (x *AppTarget) GetApiUrl() string {
+	if x != nil {
+		return x.ApiUrl
+	}
+	return ""
+}
+
+func (x *AppTarget) GetTestDatabaseRoot() string {
+	if x != nil {
+		return x.TestDatabaseRoot
 	}
 	return ""
 }
@@ -1322,7 +1342,7 @@ var File_scenario_to_desktop_v1_domain_validation_proto protoreflect.FileDescrip
 
 const file_scenario_to_desktop_v1_domain_validation_proto_rawDesc = "" +
 	"\n" +
-	".scenario-to-desktop/v1/domain/validation.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x05\n" +
+	".scenario-to-desktop/v1/domain/validation.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdd\x05\n" +
 	"\tAppTarget\x12$\n" +
 	"\ttarget_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\btargetId\x12,\n" +
 	"\rscenario_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x120\n" +
@@ -1342,7 +1362,9 @@ const file_scenario_to_desktop_v1_domain_validation_proto_rawDesc = "" +
 	"\n" +
 	"context_id\x18\f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcontextId\x12*\n" +
 	"\frenderer_url\x18\r \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vrendererUrl\x12*\n" +
-	"\x0erenderer_title\x18\x0e \x01(\tH\x01R\rrendererTitle\x88\x01\x01B\x11\n" +
+	"\x0erenderer_title\x18\x0e \x01(\tH\x01R\rrendererTitle\x88\x01\x01\x12\x17\n" +
+	"\aapi_url\x18\x0f \x01(\tR\x06apiUrl\x12,\n" +
+	"\x12test_database_root\x18\x10 \x01(\tR\x10testDatabaseRootB\x11\n" +
 	"\x0f_bridge_node_idB\x11\n" +
 	"\x0f_renderer_title\"\xf1\x02\n" +
 	"\x15ElectronLaunchRequest\x12,\n" +

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ops/ops.proto.
  */
 export const file_image_tools_v1_ops_ops: GenFile = /*@__PURE__*/
-  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJItsRCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSAASPwoJY29tcG9zaXRlGCAgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wb3NpdGVQYXJhbXNIABI/CglyYXN0ZXJpemUYIiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJhc3Rlcml6ZVBhcmFtc0gAEj8KCXZlY3Rvcml6ZRgjIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVmVjdG9yaXplUGFyYW1zSAASSAoOaWNvbl9jb250YWluZXIYJCABKAsyLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkljb25Db250YWluZXJQYXJhbXNIABI1Cghrbm9ja291dBghIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuS25vY2tvdXRCBAoCb3AiXwoIS25vY2tvdXQSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIPCgdmZWF0aGVyGAUgASgBEg0KBXNvbGlkGAYgASgIInYKD0NvbXBvc2l0ZVBhcmFtcxIwCgZwbGF0ZXMYASADKAsyIC52cm9v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aXBwbGVQYXJhbXMSDwoHc3BhY2luZxgBIAEoARIMCgRzZWVkGAIgASgDEgwKBGRhcmsYAyABKAkSDQoFbGlnaHQYBCABKAkSEQoJbm9ybWFsaXplGAUgASgIEhMKC3NwYWNpbmdfcmVsGAYgASgBImcKD0VuZ3JhdmluZ1BhcmFtcxIPCgdzcGFjaW5nGAEgASgBEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhMKC3NwYWNpbmdfcmVsGAUgASgBIk0KEEFiZXJyYXRpb25QYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEhAKCGRpc3RhbmNlGAIgASgFEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJECgtCbG9vbVBhcmFtcxIOCgZyYWRpdXMYASABKAUSEQoJdGhyZXNob2xkGAIgASgBEhIKCnJhZGl1c19yZWwYAyABKAEiHwoLQ3VydmVQYXJhbXMSEAoIZXhwb25lbnQYASABKAEiSAoNRGVmb2N1c1BhcmFtcxIOCgZyYWRpdXMYASABKAUSEwoLYmxhZGVfY291bnQYAiABKAUSEgoKcmFkaXVzX3JlbBgDIAEoASJJChBNb3Rpb25CbHVyUGFyYW1zEhAKCGRpc3RhbmNlGAEgASgFEg0KBWFuZ2xlGAIgASgBEhQKDGRpc3RhbmNlX3JlbBgDIAEoASJvChFBc2NpaU1vc2FpY1BhcmFtcxISCgpibG9ja19zaXplGAEgASgFEgwKBGRhcmsYAiABKAkSDQoFbGlnaHQYAyABKAkSEQoJbm9ybWFsaXplGAQgASgIEhYKDmJsb2NrX3NpemVfcmVsGAUgASgBIjIKD1BpeGVsU29ydFBhcmFtcxIRCgl0aHJlc2hvbGQYASABKAESDAoEYXhpcxgCIAEoCSJyChJEaXNwbGFjZW1lbnRQYXJhbXMSEQoJYW1wbGl0dWRlGAEgASgBEgwKBHNlZWQYAiABKAMSDwoHc3BhY2luZxgDIAEoARITCgtzcGFjaW5nX3JlbBgEIAEoARIVCg1hbXBsaXR1ZGVfcmVsGAUgASgBIkQKD1Jhc3Rlcml6ZVBhcmFtcxINCgV3aWR0aBgBIAEoBRIOCgZoZWlnaHQYAiABKAUSEgoKYmFja2dyb3VuZBgDIAEoCSLOAQoPVmVjdG9yaXplUGFyYW1zEg4KBmNvbG9ycxgBIAEoBRITCgtrZWVwX2NvbG9ycxgCIAMoCRIeChZkcm9wX2JhY2tncm91bmRfbGF5ZXJzGAMgASgIEiYKHmNsaXBfdG9fbGFyZ2VzdF9yb3VuZGVkX3JlZ2lvbhgEIAEoCBIQCghpbnNldF9weBgFIAEoARIUCgx0b2xlcmFuY2VfcHgYBiABKAESEQoJc21vb3RoaW5nGAcgASgIEhMKC21pbl9hcmVhX3B4GAggASgBIjQKE0ljb25Db250YWluZXJQYXJhbXMSDgoGZm9ybWF0GAEgASgJEg0KBXNpemVzGAIgAygFIvEBCghPcFJlc3VsdBILCgNyZWYYASABKAkSDgoGZm9ybWF0GAIgASgJEgwKBG1pbWUYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhIKCnNpemVfYnl0ZXMYBiABKAMSUAoPcmVzb2x2ZWRfcGFyYW1zGAcgAygLMjcudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdC5SZXNvbHZlZFBhcmFtc0VudHJ5GjUKE1Jlc29sdmVkUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASJUCg1SdW5PcFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIzCgZyZXN1bHQYAiABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk9wUmVzdWx0MoMBCgpPcHNTZXJ2aWNlEnUKDkxpc3RPcGVyYXRpb25zEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2VCSlpIZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9vcHM7b3BzX3YxYgZwcm90bzM");
+  fileDesc("ChxpbWFnZS10b29scy92MS9vcHMvb3BzLnByb3RvEhl2cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzIkAKDU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCKMAQoWTGlzdE9wZXJhdGlvbnNSZXNwb25zZRI8CgpvcGVyYXRpb25zGAEgAygLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcGVyYXRpb25JbmZvEhkKEWRlY29kYWJsZV9mb3JtYXRzGAIgAygJEhkKEWVuY29kYWJsZV9mb3JtYXRzGAMgAygJIpoSCghPcFBhcmFtcxI5CgZyZXNpemUYASABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJlc2l6ZVBhcmFtc0gAEjUKBGNyb3AYAiABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkNyb3BQYXJhbXNIABI5CgZyb3RhdGUYAyABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJvdGF0ZVBhcmFtc0gAEjUKBGZsaXAYBCABKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkZsaXBQYXJhbXNIABI5CgZkZXNrZXcYBSABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkRlc2tld1BhcmFtc0gAEj8KCXRodW1ibmFpbBgGIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVGh1bWJuYWlsUGFyYW1zSAASOQoGY2FudmFzGAcgASgLMicudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5DYW52YXNQYXJhbXNIABI5CgZhZGp1c3QYCCABKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkFkanVzdFBhcmFtc0gAEjkKBmZpbHRlchgJIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRmlsdGVyUGFyYW1zSAASOwoHY29udmVydBgKIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29udmVydFBhcmFtc0gAEj0KCGNvbXByZXNzGAsgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wcmVzc1BhcmFtc0gAEjsKB292ZXJsYXkYDCABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLk92ZXJsYXlQYXJhbXNIABI9CghtZXRhZGF0YRgNIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTWV0YWRhdGFQYXJhbXNIABI7CgdkdW90b25lGA4gASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5EdW90b25lUGFyYW1zSAASPwoJcG9zdGVyaXplGA8gASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Qb3N0ZXJpemVQYXJhbXNIABI9CghoYWxmdG9uZRgQIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuSGFsZnRvbmVQYXJhbXNIABJBCg5kaXRoZXJfb3JkZXJlZBgRIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASQwoQZGl0aGVyX2RpZmZ1c2lvbhgSIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGl0aGVyUGFyYW1zSAASNwoFZ3JhaW4YEyABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkdyYWluUGFyYW1zSAASNwoFc2NyaW0YFCABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlNjcmltUGFyYW1zSAASQgoLbGluZV9zY3JlZW4YFSABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxpbmVTY3JlZW5QYXJhbXNIABI7CgdzdGlwcGxlGBYgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5TdGlwcGxlUGFyYW1zSAASPwoJZW5ncmF2aW5nGBcgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5FbmdyYXZpbmdQYXJhbXNIABJBCgphYmVycmF0aW9uGBggASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5BYmVycmF0aW9uUGFyYW1zSAASNwoFYmxvb20YGSABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkJsb29tUGFyYW1zSAASNwoFY3VydmUYGiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkN1cnZlUGFyYW1zSAASOwoHZGVmb2N1cxgbIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGVmb2N1c1BhcmFtc0gAEkIKC21vdGlvbl9ibHVyGBwgASgLMisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Nb3Rpb25CbHVyUGFyYW1zSAASRAoMYXNjaWlfbW9zYWljGB0gASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Bc2NpaU1vc2FpY1BhcmFtc0gAEkAKCnBpeGVsX3NvcnQYHiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlBpeGVsU29ydFBhcmFtc0gAEkUKDGRpc3BsYWNlbWVudBgfIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuRGlzcGxhY2VtZW50UGFyYW1zSAASPwoJY29tcG9zaXRlGCAgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5Db21wb3NpdGVQYXJhbXNIABI/CglyYXN0ZXJpemUYIiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLlJhc3Rlcml6ZVBhcmFtc0gAEj8KCXZlY3Rvcml6ZRgjIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuVmVjdG9yaXplUGFyYW1zSAASSAoOaWNvbl9jb250YWluZXIYJCABKAsyLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkljb25Db250YWluZXJQYXJhbXNIABI9CghwYXJhbGxheBglIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuUGFyYWxsYXhQYXJhbXNIABI1Cghrbm9ja291dBghIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuS25vY2tvdXRCBAoCb3AiXwoIS25vY2tvdXQSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoARIPCgdmZWF0aGVyGAUgASgBEg0KBXNvbGlkGAYgASgIIrABCg9Db21wb3NpdGVQYXJhbXMSMAoGcGxhdGVzGAEgAygLMiAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5QbGF0ZRINCgV3aWR0aBgCIAEoBRIOCgZoZWlnaHQYAyABKAUSEgoKYmFja2dyb3VuZBgEIAEoCRI4CgZjYW1lcmEYBSABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEub3BzLkxheWVyZWRDYW1lcmEikQEKDUxheWVyZWRDYW1lcmESCQoBeBgBIAEoARIJCgF5GAIgASgBEgkKAXoYAyABKAESEwoLeWF3X2RlZ3JlZXMYBCABKAESFQoNcGl0Y2hfZGVncmVlcxgFIAEoARIbChNmb2NhbF9sZW5ndGhfcGl4ZWxzGAYgASgBEhYKDnJlcXVpcmVfb3BhcXVlGAcgASgIIvQBCg5QYXJhbGxheFBhcmFtcxI5CgVzY2VuZRgBIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuQ29tcG9zaXRlUGFyYW1zEj4KDHN0YXJ0X2NhbWVyYRgCIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTGF5ZXJlZENhbWVyYRI8CgplbmRfY2FtZXJhGAMgASgLMigudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MYXllcmVkQ2FtZXJhEg4KBmZyYW1lcxgEIAEoDRIZChFmcmFtZXNfcGVyX3NlY29uZBgFIAEoDSJoCgVQbGF0ZRIMCgRuYW1lGAEgASgJEg0KBWRlcHRoGAIgASgFEg0KBWJsZW5kGAMgASgJEg8KB29wYWNpdHkYBCABKAESFQoIZGlzdGFuY2UYBSABKAFIAIgBAUILCglfZGlzdGFuY2UiSwoMUmVzaXplUGFyYW1zEg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRILCgNmaXQYAyABKAkSDwoHZ3Jhdml0eRgEIAEoCSJSCgpDcm9wUGFyYW1zEgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUSDwoHZ3Jhdml0eRgFIAEoCSJBCgxSb3RhdGVQYXJhbXMSDQoFYW5nbGUYASABKAESDgoGZXhw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CgpyYWRpdXNfcmVsGAMgASgBIh8KC0N1cnZlUGFyYW1zEhAKCGV4cG9uZW50GAEgASgBIkgKDURlZm9jdXNQYXJhbXMSDgoGcmFkaXVzGAEgASgFEhMKC2JsYWRlX2NvdW50GAIgASgFEhIKCnJhZGl1c19yZWwYAyABKAEiSQoQTW90aW9uQmx1clBhcmFtcxIQCghkaXN0YW5jZRgBIAEoBRINCgVhbmdsZRgCIAEoARIUCgxkaXN0YW5jZV9yZWwYAyABKAEibwoRQXNjaWlNb3NhaWNQYXJhbXMSEgoKYmxvY2tfc2l6ZRgBIAEoBRIMCgRkYXJrGAIgASgJEg0KBWxpZ2h0GAMgASgJEhEKCW5vcm1hbGl6ZRgEIAEoCBIWCg5ibG9ja19zaXplX3JlbBgFIAEoASIyCg9QaXhlbFNvcnRQYXJhbXMSEQoJdGhyZXNob2xkGAEgASgBEgwKBGF4aXMYAiABKAkicgoSRGlzcGxhY2VtZW50UGFyYW1zEhEKCWFtcGxpdHVkZRgBIAEoARIMCgRzZWVkGAIgASgDEg8KB3NwYWNpbmcYAyABKAESEwoLc3BhY2luZ19yZWwYBCABKAESFQoNYW1wbGl0dWRlX3JlbBgFIAEoASJECg9SYXN0ZXJpemVQYXJhbXMSDQoFd2lkdGgYASABKAUSDgoGaGVpZ2h0GAIgASgFEhIKCmJhY2tncm91bmQYAyABKAkizgEKD1ZlY3Rvcml6ZVBhcmFtcxIOCgZjb2xvcnMYASABKAUSEwoLa2VlcF9jb2xvcnMYAiADKAkSHgoWZHJvcF9iYWNrZ3JvdW5kX2xheWVycxgDIAEoCBImCh5jbGlwX3RvX2xhcmdlc3Rfcm91bmRlZF9yZWdpb24YBCABKAgSEAoIaW5zZXRfcHgYBSABKAESFAoMdG9sZXJhbmNlX3B4GAYgASgBEhEKCXNtb290aGluZxgHIAEoCBITCgttaW5fYXJlYV9weBgIIAEoASI0ChNJY29uQ29udGFpbmVyUGFyYW1zEg4KBmZvcm1hdBgBIAEoCRINCgVzaXplcxgCIAMoBSLxAQoIT3BSZXN1bHQSCwoDcmVmGAEgASgJEg4KBmZvcm1hdBgCIAEoCRIMCgRtaW1lGAMgASgJEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRISCgpzaXplX2J5dGVzGAYgASgDElAKD3Jlc29sdmVkX3BhcmFtcxgHIAMoCzI3LnZyb29saS5pbWFnZV90b29scy52MS5vcHMuT3BSZXN1bHQuUmVzb2x2ZWRQYXJhbXNFbnRyeRo1ChNSZXNvbHZlZFBhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiVAoNUnVuT3BSZXNwb25zZRIOCgZqb2JfaWQYASABKAkSMwoGcmVzdWx0GAIgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5PcFJlc3VsdDKDAQoKT3BzU2VydmljZRJ1Cg5MaXN0T3BlcmF0aW9ucxIwLnZyb29saS5pbWFnZV90b29scy52MS5vcHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm9wcy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlQkpaSGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvb3BzO29wc192MWIGcHJvdG8z");
 
 /**
  * OperationInfo describes one deterministic operation for discovery.
@@ -311,6 +311,12 @@ export type OpParams = Message<"vrooli.image_tools.v1.ops.OpParams"> & {
      */
     value: IconContainerParams;
     case: "iconContainer";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.ops.ParallaxParams parallax = 37;
+     */
+    value: ParallaxParams;
+    case: "parallax";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -466,6 +472,15 @@ export type CompositeParams = Message<"vrooli.image_tools.v1.ops.CompositeParams
    * @generated from field: string background = 4;
    */
   background: string;
+
+  /**
+   * Optional bounded 2.5D view of prepared, full-canvas depth layers. This does
+   * not infer hidden geometry or fill newly exposed regions. Omit for legacy
+   * flat compositing. Every plate must declare distance when this is present.
+   *
+   * @generated from field: vrooli.image_tools.v1.ops.LayeredCamera camera = 5;
+   */
+  camera?: LayeredCamera | undefined;
 };
 
 /**
@@ -474,6 +489,107 @@ export type CompositeParams = Message<"vrooli.image_tools.v1.ops.CompositeParams
  */
 export const CompositeParamsSchema: GenMessage<CompositeParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ops_ops, 5);
+
+/**
+ * Camera translation is relative to the canvas at distance 1. Positive x/y
+ * moves the camera right/down; positive z moves toward the planes. Angles are
+ * degrees. This is a nearby-view pinhole model, not metric reconstruction.
+ *
+ * @generated from message vrooli.image_tools.v1.ops.LayeredCamera
+ */
+export type LayeredCamera = Message<"vrooli.image_tools.v1.ops.LayeredCamera"> & {
+  /**
+   * @generated from field: double x = 1;
+   */
+  x: number;
+
+  /**
+   * @generated from field: double y = 2;
+   */
+  y: number;
+
+  /**
+   * @generated from field: double z = 3;
+   */
+  z: number;
+
+  /**
+   * @generated from field: double yaw_degrees = 4;
+   */
+  yawDegrees: number;
+
+  /**
+   * @generated from field: double pitch_degrees = 5;
+   */
+  pitchDegrees: number;
+
+  /**
+   * Zero selects canvas width. Otherwise 0.5..4 times canvas width.
+   *
+   * @generated from field: double focal_length_pixels = 6;
+   */
+  focalLengthPixels: number;
+
+  /**
+   * Reject uncovered/translucent output rather than hiding missing scenery.
+   *
+   * @generated from field: bool require_opaque = 7;
+   */
+  requireOpaque: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.LayeredCamera.
+ * Use `create(LayeredCameraSchema)` to create a new message.
+ */
+export const LayeredCameraSchema: GenMessage<LayeredCamera> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 6);
+
+/**
+ * Lossless RGBA PNG sequence and manifest in a ZIP, suitable for a film owner's
+ * encoder. Layers are prepared, not inferred; use depth/segmentation/inpainting
+ * operations first when starting from an ordinary photograph. No hidden model
+ * download, media egress, frame interpolation or paid fallback occurs here.
+ *
+ * @generated from message vrooli.image_tools.v1.ops.ParallaxParams
+ */
+export type ParallaxParams = Message<"vrooli.image_tools.v1.ops.ParallaxParams"> & {
+  /**
+   * @generated from field: vrooli.image_tools.v1.ops.CompositeParams scene = 1;
+   */
+  scene?: CompositeParams | undefined;
+
+  /**
+   * @generated from field: vrooli.image_tools.v1.ops.LayeredCamera start_camera = 2;
+   */
+  startCamera?: LayeredCamera | undefined;
+
+  /**
+   * @generated from field: vrooli.image_tools.v1.ops.LayeredCamera end_camera = 3;
+   */
+  endCamera?: LayeredCamera | undefined;
+
+  /**
+   * 2..180 frames; total raster work at most 240 million pixels.
+   *
+   * @generated from field: uint32 frames = 4;
+   */
+  frames: number;
+
+  /**
+   * 24 or 30. Camera uses smoothstep over output ordinals, including endpoints.
+   *
+   * @generated from field: uint32 frames_per_second = 5;
+   */
+  framesPerSecond: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ops.ParallaxParams.
+ * Use `create(ParallaxParamsSchema)` to create a new message.
+ */
+export const ParallaxParamsSchema: GenMessage<ParallaxParams> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ops_ops, 7);
 
 /**
  * Plate is one layer in a composite stack.
@@ -519,6 +635,14 @@ export type Plate = Message<"vrooli.image_tools.v1.ops.Plate"> & {
    * @generated from field: double opacity = 4;
    */
   opacity: number;
+
+  /**
+   * Positive relative camera distance, 0.25..16. Required for layered camera
+   * views. Sorted stack depth must run far-to-near (decreasing distance).
+   *
+   * @generated from field: optional double distance = 5;
+   */
+  distance?: number | undefined;
 };
 
 /**
@@ -526,7 +650,7 @@ export type Plate = Message<"vrooli.image_tools.v1.ops.Plate"> & {
  * Use `create(PlateSchema)` to create a new message.
  */
 export const PlateSchema: GenMessage<Plate> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 6);
+  messageDesc(file_image_tools_v1_ops_ops, 8);
 
 /**
  * ResizeParams: width/height in px (0 = derive from aspect). fit is
@@ -562,7 +686,7 @@ export type ResizeParams = Message<"vrooli.image_tools.v1.ops.ResizeParams"> & {
  * Use `create(ResizeParamsSchema)` to create a new message.
  */
 export const ResizeParamsSchema: GenMessage<ResizeParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 7);
+  messageDesc(file_image_tools_v1_ops_ops, 9);
 
 /**
  * CropParams cuts the x,y,width,height rectangle; with gravity set and x=y=0 it
@@ -602,7 +726,7 @@ export type CropParams = Message<"vrooli.image_tools.v1.ops.CropParams"> & {
  * Use `create(CropParamsSchema)` to create a new message.
  */
 export const CropParamsSchema: GenMessage<CropParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 8);
+  messageDesc(file_image_tools_v1_ops_ops, 10);
 
 /**
  * RotateParams rotates by angle degrees counter-clockwise. background fills
@@ -632,7 +756,7 @@ export type RotateParams = Message<"vrooli.image_tools.v1.ops.RotateParams"> & {
  * Use `create(RotateParamsSchema)` to create a new message.
  */
 export const RotateParamsSchema: GenMessage<RotateParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 9);
+  messageDesc(file_image_tools_v1_ops_ops, 11);
 
 /**
  * FlipParams mirrors along axis "horizontal" or "vertical".
@@ -651,7 +775,7 @@ export type FlipParams = Message<"vrooli.image_tools.v1.ops.FlipParams"> & {
  * Use `create(FlipParamsSchema)` to create a new message.
  */
 export const FlipParamsSchema: GenMessage<FlipParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 10);
+  messageDesc(file_image_tools_v1_ops_ops, 12);
 
 /**
  * DeskewParams auto-straightens a skewed scan; background fills exposed corners.
@@ -670,7 +794,7 @@ export type DeskewParams = Message<"vrooli.image_tools.v1.ops.DeskewParams"> & {
  * Use `create(DeskewParamsSchema)` to create a new message.
  */
 export const DeskewParamsSchema: GenMessage<DeskewParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 11);
+  messageDesc(file_image_tools_v1_ops_ops, 13);
 
 /**
  * ThumbnailParams produces a width×height fill-cropped thumbnail.
@@ -694,7 +818,7 @@ export type ThumbnailParams = Message<"vrooli.image_tools.v1.ops.ThumbnailParams
  * Use `create(ThumbnailParamsSchema)` to create a new message.
  */
 export const ThumbnailParamsSchema: GenMessage<ThumbnailParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 12);
+  messageDesc(file_image_tools_v1_ops_ops, 14);
 
 /**
  * CanvasParams pads/extends onto a width×height background, anchored by gravity.
@@ -728,7 +852,7 @@ export type CanvasParams = Message<"vrooli.image_tools.v1.ops.CanvasParams"> & {
  * Use `create(CanvasParamsSchema)` to create a new message.
  */
 export const CanvasParamsSchema: GenMessage<CanvasParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 13);
+  messageDesc(file_image_tools_v1_ops_ops, 15);
 
 /**
  * AdjustParams applies tonal/color deltas (percent; 0 = no change). gamma 0 or
@@ -768,7 +892,7 @@ export type AdjustParams = Message<"vrooli.image_tools.v1.ops.AdjustParams"> & {
  * Use `create(AdjustParamsSchema)` to create a new message.
  */
 export const AdjustParamsSchema: GenMessage<AdjustParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 14);
+  messageDesc(file_image_tools_v1_ops_ops, 16);
 
 /**
  * FilterParams applies one effect: grayscale|sepia|invert|blur|sharpen. amount
@@ -793,7 +917,7 @@ export type FilterParams = Message<"vrooli.image_tools.v1.ops.FilterParams"> & {
  * Use `create(FilterParamsSchema)` to create a new message.
  */
 export const FilterParamsSchema: GenMessage<FilterParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 15);
+  messageDesc(file_image_tools_v1_ops_ops, 17);
 
 /**
  * ConvertParams re-encodes to format (png|jpeg|gif|webp|tiff|bmp|avif) at the
@@ -823,7 +947,7 @@ export type ConvertParams = Message<"vrooli.image_tools.v1.ops.ConvertParams"> &
  * Use `create(ConvertParamsSchema)` to create a new message.
  */
 export const ConvertParamsSchema: GenMessage<ConvertParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 16);
+  messageDesc(file_image_tools_v1_ops_ops, 18);
 
 /**
  * CompressParams re-encodes at quality, or — when target_bytes > 0 — searches
@@ -858,7 +982,7 @@ export type CompressParams = Message<"vrooli.image_tools.v1.ops.CompressParams">
  * Use `create(CompressParamsSchema)` to create a new message.
  */
 export const CompressParamsSchema: GenMessage<CompressParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 17);
+  messageDesc(file_image_tools_v1_ops_ops, 19);
 
 /**
  * OverlayParams composites a text watermark (text + color + font_size) or an
@@ -899,7 +1023,7 @@ export type OverlayParams = Message<"vrooli.image_tools.v1.ops.OverlayParams"> &
  * Use `create(OverlayParamsSchema)` to create a new message.
  */
 export const OverlayParamsSchema: GenMessage<OverlayParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 18);
+  messageDesc(file_image_tools_v1_ops_ops, 20);
 
 /**
  * MetadataParams reads (default), strips, or auto-orients image metadata.
@@ -928,7 +1052,7 @@ export type MetadataParams = Message<"vrooli.image_tools.v1.ops.MetadataParams">
  * Use `create(MetadataParamsSchema)` to create a new message.
  */
 export const MetadataParamsSchema: GenMessage<MetadataParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 19);
+  messageDesc(file_image_tools_v1_ops_ops, 21);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DuotoneParams
@@ -973,7 +1097,7 @@ export type DuotoneParams = Message<"vrooli.image_tools.v1.ops.DuotoneParams"> &
  * Use `create(DuotoneParamsSchema)` to create a new message.
  */
 export const DuotoneParamsSchema: GenMessage<DuotoneParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 20);
+  messageDesc(file_image_tools_v1_ops_ops, 22);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.PosterizeParams
@@ -1008,7 +1132,7 @@ export type PosterizeParams = Message<"vrooli.image_tools.v1.ops.PosterizeParams
  * Use `create(PosterizeParamsSchema)` to create a new message.
  */
 export const PosterizeParamsSchema: GenMessage<PosterizeParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 21);
+  messageDesc(file_image_tools_v1_ops_ops, 23);
 
 /**
  * Relative spatial parameters
@@ -1074,7 +1198,7 @@ export type HalftoneParams = Message<"vrooli.image_tools.v1.ops.HalftoneParams">
  * Use `create(HalftoneParamsSchema)` to create a new message.
  */
 export const HalftoneParamsSchema: GenMessage<HalftoneParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 22);
+  messageDesc(file_image_tools_v1_ops_ops, 24);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DitherParams
@@ -1104,7 +1228,7 @@ export type DitherParams = Message<"vrooli.image_tools.v1.ops.DitherParams"> & {
  * Use `create(DitherParamsSchema)` to create a new message.
  */
 export const DitherParamsSchema: GenMessage<DitherParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 23);
+  messageDesc(file_image_tools_v1_ops_ops, 25);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.GrainParams
@@ -1131,7 +1255,7 @@ export type GrainParams = Message<"vrooli.image_tools.v1.ops.GrainParams"> & {
  * Use `create(GrainParamsSchema)` to create a new message.
  */
 export const GrainParamsSchema: GenMessage<GrainParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 24);
+  messageDesc(file_image_tools_v1_ops_ops, 26);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.ScrimParams
@@ -1197,7 +1321,7 @@ export type ScrimParams = Message<"vrooli.image_tools.v1.ops.ScrimParams"> & {
  * Use `create(ScrimParamsSchema)` to create a new message.
  */
 export const ScrimParamsSchema: GenMessage<ScrimParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 25);
+  messageDesc(file_image_tools_v1_ops_ops, 27);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.LineScreenParams
@@ -1244,7 +1368,7 @@ export type LineScreenParams = Message<"vrooli.image_tools.v1.ops.LineScreenPara
  * Use `create(LineScreenParamsSchema)` to create a new message.
  */
 export const LineScreenParamsSchema: GenMessage<LineScreenParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 26);
+  messageDesc(file_image_tools_v1_ops_ops, 28);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.StippleParams
@@ -1291,7 +1415,7 @@ export type StippleParams = Message<"vrooli.image_tools.v1.ops.StippleParams"> &
  * Use `create(StippleParamsSchema)` to create a new message.
  */
 export const StippleParamsSchema: GenMessage<StippleParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 27);
+  messageDesc(file_image_tools_v1_ops_ops, 29);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.EngravingParams
@@ -1333,7 +1457,7 @@ export type EngravingParams = Message<"vrooli.image_tools.v1.ops.EngravingParams
  * Use `create(EngravingParamsSchema)` to create a new message.
  */
 export const EngravingParamsSchema: GenMessage<EngravingParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 28);
+  messageDesc(file_image_tools_v1_ops_ops, 30);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.AberrationParams
@@ -1366,7 +1490,7 @@ export type AberrationParams = Message<"vrooli.image_tools.v1.ops.AberrationPara
  * Use `create(AberrationParamsSchema)` to create a new message.
  */
 export const AberrationParamsSchema: GenMessage<AberrationParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 29);
+  messageDesc(file_image_tools_v1_ops_ops, 31);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.BloomParams
@@ -1395,7 +1519,7 @@ export type BloomParams = Message<"vrooli.image_tools.v1.ops.BloomParams"> & {
  * Use `create(BloomParamsSchema)` to create a new message.
  */
 export const BloomParamsSchema: GenMessage<BloomParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 30);
+  messageDesc(file_image_tools_v1_ops_ops, 32);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.CurveParams
@@ -1412,7 +1536,7 @@ export type CurveParams = Message<"vrooli.image_tools.v1.ops.CurveParams"> & {
  * Use `create(CurveParamsSchema)` to create a new message.
  */
 export const CurveParamsSchema: GenMessage<CurveParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 31);
+  messageDesc(file_image_tools_v1_ops_ops, 33);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DefocusParams
@@ -1441,7 +1565,7 @@ export type DefocusParams = Message<"vrooli.image_tools.v1.ops.DefocusParams"> &
  * Use `create(DefocusParamsSchema)` to create a new message.
  */
 export const DefocusParamsSchema: GenMessage<DefocusParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 32);
+  messageDesc(file_image_tools_v1_ops_ops, 34);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.MotionBlurParams
@@ -1470,7 +1594,7 @@ export type MotionBlurParams = Message<"vrooli.image_tools.v1.ops.MotionBlurPara
  * Use `create(MotionBlurParamsSchema)` to create a new message.
  */
 export const MotionBlurParamsSchema: GenMessage<MotionBlurParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 33);
+  messageDesc(file_image_tools_v1_ops_ops, 35);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.AsciiMosaicParams
@@ -1518,7 +1642,7 @@ export type AsciiMosaicParams = Message<"vrooli.image_tools.v1.ops.AsciiMosaicPa
  * Use `create(AsciiMosaicParamsSchema)` to create a new message.
  */
 export const AsciiMosaicParamsSchema: GenMessage<AsciiMosaicParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 34);
+  messageDesc(file_image_tools_v1_ops_ops, 36);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.PixelSortParams
@@ -1540,7 +1664,7 @@ export type PixelSortParams = Message<"vrooli.image_tools.v1.ops.PixelSortParams
  * Use `create(PixelSortParamsSchema)` to create a new message.
  */
 export const PixelSortParamsSchema: GenMessage<PixelSortParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 35);
+  messageDesc(file_image_tools_v1_ops_ops, 37);
 
 /**
  * @generated from message vrooli.image_tools.v1.ops.DisplacementParams
@@ -1582,7 +1706,7 @@ export type DisplacementParams = Message<"vrooli.image_tools.v1.ops.Displacement
  * Use `create(DisplacementParamsSchema)` to create a new message.
  */
 export const DisplacementParamsSchema: GenMessage<DisplacementParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 36);
+  messageDesc(file_image_tools_v1_ops_ops, 38);
 
 /**
  * RasterizeParams renders an SVG at an exact pixel size. background, when set,
@@ -1612,7 +1736,7 @@ export type RasterizeParams = Message<"vrooli.image_tools.v1.ops.RasterizeParams
  * Use `create(RasterizeParamsSchema)` to create a new message.
  */
 export const RasterizeParamsSchema: GenMessage<RasterizeParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 37);
+  messageDesc(file_image_tools_v1_ops_ops, 39);
 
 /**
  * VectorizeParams traces a flat raster mark into an SVG. colors is the k-means
@@ -1670,7 +1794,7 @@ export type VectorizeParams = Message<"vrooli.image_tools.v1.ops.VectorizeParams
  * Use `create(VectorizeParamsSchema)` to create a new message.
  */
 export const VectorizeParamsSchema: GenMessage<VectorizeParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 38);
+  messageDesc(file_image_tools_v1_ops_ops, 40);
 
 /**
  * IconContainerParams packs PNG renders of one source into an ICO or ICNS
@@ -1695,7 +1819,7 @@ export type IconContainerParams = Message<"vrooli.image_tools.v1.ops.IconContain
  * Use `create(IconContainerParamsSchema)` to create a new message.
  */
 export const IconContainerParamsSchema: GenMessage<IconContainerParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 39);
+  messageDesc(file_image_tools_v1_ops_ops, 41);
 
 /**
  * OpResult is the proto-typed result metadata of a run. ref is the managed blob
@@ -1751,7 +1875,7 @@ export type OpResult = Message<"vrooli.image_tools.v1.ops.OpResult"> & {
  * Use `create(OpResultSchema)` to create a new message.
  */
 export const OpResultSchema: GenMessage<OpResult> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 40);
+  messageDesc(file_image_tools_v1_ops_ops, 42);
 
 /**
  * RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
@@ -1780,7 +1904,7 @@ export type RunOpResponse = Message<"vrooli.image_tools.v1.ops.RunOpResponse"> &
  * Use `create(RunOpResponseSchema)` to create a new message.
  */
 export const RunOpResponseSchema: GenMessage<RunOpResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ops_ops, 41);
+  messageDesc(file_image_tools_v1_ops_ops, 43);
 
 /**
  * @generated from service vrooli.image_tools.v1.ops.OpsService

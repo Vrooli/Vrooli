@@ -325,6 +325,25 @@ message DesktopValidationBinding {
   // This may differ from workflow_path when a catalog prefixes the path with
   // a scenario or provider namespace.
   string workflow_id = 12;
+  // True only when the Electron target owns a private bundled runtime. False
+  // preserves the legacy scenario-routing behavior for external deployments.
+  bool bundled_runtime = 13;
+  // Optional exact API endpoint discovered by the target owner for a bundled
+  // runtime. Providers use this only when binding the local routed lease.
+  string api_url = 14;
+  // Private target-owned writable root for the lease's disposable test DB.
+  string test_database_root = 15;
+  // Optional selected Browser Automation Studio instance variant for this
+  // durable run. Empty preserves the provider's normal default resolution.
+  string browser_automation_studio_variant = 16;
+  // Stable routed-test lease identity shared by the two phases of a target
+  // restart journey. Omitted preserves the durable run ID behavior.
+  string isolation_lease_id = 17;
+  // Prepare the paired routed database/file roots for an immediate owner-led
+  // restart after this workflow completes.
+  bool prepare_isolation_restart = 18;
+  // Resume the exact paired roots prepared by the preceding workflow phase.
+  bool resume_isolation_restart = 19;
 }
 
 message StartValidationRunResponse {

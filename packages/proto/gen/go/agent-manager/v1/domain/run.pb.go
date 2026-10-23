@@ -1813,7 +1813,7 @@ type RunSummary struct {
 	// Files that were deleted.
 	FilesDeleted []string `protobuf:"bytes,4,rep,name=files_deleted,json=filesDeleted,proto3" json:"files_deleted,omitempty"`
 	// Total tokens consumed (input + output).
-	TokensUsed int32 `protobuf:"varint,5,opt,name=tokens_used,json=tokensUsed,proto3" json:"tokens_used,omitempty"`
+	TokensUsed int64 `protobuf:"varint,5,opt,name=tokens_used,json=tokensUsed,proto3" json:"tokens_used,omitempty"`
 	// Number of conversation turns.
 	TurnsUsed int32 `protobuf:"varint,6,opt,name=turns_used,json=turnsUsed,proto3" json:"turns_used,omitempty"`
 	// Estimated cost in USD.
@@ -1882,7 +1882,7 @@ func (x *RunSummary) GetFilesDeleted() []string {
 	return nil
 }
 
-func (x *RunSummary) GetTokensUsed() int32 {
+func (x *RunSummary) GetTokensUsed() int64 {
 	if x != nil {
 		return x.TokensUsed
 	}
@@ -4218,7 +4218,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x0efiles_modified\x18\x02 \x03(\tR\rfilesModified\x12#\n" +
 	"\rfiles_created\x18\x03 \x03(\tR\ffilesCreated\x12#\n" +
 	"\rfiles_deleted\x18\x04 \x03(\tR\ffilesDeleted\x12\x1f\n" +
-	"\vtokens_used\x18\x05 \x01(\x05R\n" +
+	"\vtokens_used\x18\x05 \x01(\x03R\n" +
 	"tokensUsed\x12\x1d\n" +
 	"\n" +
 	"turns_used\x18\x06 \x01(\x05R\tturnsUsed\x12#\n" +

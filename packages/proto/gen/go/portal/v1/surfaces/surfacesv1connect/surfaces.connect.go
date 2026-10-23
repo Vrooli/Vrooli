@@ -25,6 +25,9 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// SurfaceCatalogServiceName is the fully-qualified name of the SurfaceCatalogService service.
 	SurfaceCatalogServiceName = "vrooli.portal.v1.surfaces.SurfaceCatalogService"
+	// ApplicationCatalogServiceName is the fully-qualified name of the ApplicationCatalogService
+	// service.
+	ApplicationCatalogServiceName = "vrooli.portal.v1.surfaces.ApplicationCatalogService"
 	// DesktopSessionServiceName is the fully-qualified name of the DesktopSessionService service.
 	DesktopSessionServiceName = "vrooli.portal.v1.surfaces.DesktopSessionService"
 	// OperatorSessionServiceName is the fully-qualified name of the OperatorSessionService service.
@@ -45,6 +48,12 @@ const (
 	// SurfaceCatalogServiceResolveProcedure is the fully-qualified name of the SurfaceCatalogService's
 	// Resolve RPC.
 	SurfaceCatalogServiceResolveProcedure = "/vrooli.portal.v1.surfaces.SurfaceCatalogService/Resolve"
+	// ApplicationCatalogServiceListApplicationsProcedure is the fully-qualified name of the
+	// ApplicationCatalogService's ListApplications RPC.
+	ApplicationCatalogServiceListApplicationsProcedure = "/vrooli.portal.v1.surfaces.ApplicationCatalogService/ListApplications"
+	// ApplicationCatalogServiceResolveApplicationProcedure is the fully-qualified name of the
+	// ApplicationCatalogService's ResolveApplication RPC.
+	ApplicationCatalogServiceResolveApplicationProcedure = "/vrooli.portal.v1.surfaces.ApplicationCatalogService/ResolveApplication"
 	// DesktopSessionServiceReconcileOpenProcedure is the fully-qualified name of the
 	// DesktopSessionService's ReconcileOpen RPC.
 	DesktopSessionServiceReconcileOpenProcedure = "/vrooli.portal.v1.surfaces.DesktopSessionService/ReconcileOpen"
@@ -195,6 +204,105 @@ func (UnimplementedSurfaceCatalogServiceHandler) List(context.Context, *connect.
 
 func (UnimplementedSurfaceCatalogServiceHandler) Resolve(context.Context, *connect.Request[surfaces.ResolveRequest]) (*connect.Response[surfaces.ResolveResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.surfaces.SurfaceCatalogService.Resolve is not implemented"))
+}
+
+// ApplicationCatalogServiceClient is a client for the
+// vrooli.portal.v1.surfaces.ApplicationCatalogService service.
+type ApplicationCatalogServiceClient interface {
+	ListApplications(context.Context, *connect.Request[surfaces.ListApplicationsRequest]) (*connect.Response[surfaces.ListApplicationsResponse], error)
+	ResolveApplication(context.Context, *connect.Request[surfaces.ResolveApplicationRequest]) (*connect.Response[surfaces.ResolveApplicationResponse], error)
+}
+
+// NewApplicationCatalogServiceClient constructs a client for the
+// vrooli.portal.v1.surfaces.ApplicationCatalogService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewApplicationCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ApplicationCatalogServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	applicationCatalogServiceMethods := surfaces.File_portal_v1_surfaces_surfaces_proto.Services().ByName("ApplicationCatalogService").Methods()
+	return &applicationCatalogServiceClient{
+		listApplications: connect.NewClient[surfaces.ListApplicationsRequest, surfaces.ListApplicationsResponse](
+			httpClient,
+			baseURL+ApplicationCatalogServiceListApplicationsProcedure,
+			connect.WithSchema(applicationCatalogServiceMethods.ByName("ListApplications")),
+			connect.WithClientOptions(opts...),
+		),
+		resolveApplication: connect.NewClient[surfaces.ResolveApplicationRequest, surfaces.ResolveApplicationResponse](
+			httpClient,
+			baseURL+ApplicationCatalogServiceResolveApplicationProcedure,
+			connect.WithSchema(applicationCatalogServiceMethods.ByName("ResolveApplication")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// applicationCatalogServiceClient implements ApplicationCatalogServiceClient.
+type applicationCatalogServiceClient struct {
+	listApplications   *connect.Client[surfaces.ListApplicationsRequest, surfaces.ListApplicationsResponse]
+	resolveApplication *connect.Client[surfaces.ResolveApplicationRequest, surfaces.ResolveApplicationResponse]
+}
+
+// ListApplications calls vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications.
+func (c *applicationCatalogServiceClient) ListApplications(ctx context.Context, req *connect.Request[surfaces.ListApplicationsRequest]) (*connect.Response[surfaces.ListApplicationsResponse], error) {
+	return c.listApplications.CallUnary(ctx, req)
+}
+
+// ResolveApplication calls vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication.
+func (c *applicationCatalogServiceClient) ResolveApplication(ctx context.Context, req *connect.Request[surfaces.ResolveApplicationRequest]) (*connect.Response[surfaces.ResolveApplicationResponse], error) {
+	return c.resolveApplication.CallUnary(ctx, req)
+}
+
+// ApplicationCatalogServiceHandler is an implementation of the
+// vrooli.portal.v1.surfaces.ApplicationCatalogService service.
+type ApplicationCatalogServiceHandler interface {
+	ListApplications(context.Context, *connect.Request[surfaces.ListApplicationsRequest]) (*connect.Response[surfaces.ListApplicationsResponse], error)
+	ResolveApplication(context.Context, *connect.Request[surfaces.ResolveApplicationRequest]) (*connect.Response[surfaces.ResolveApplicationResponse], error)
+}
+
+// NewApplicationCatalogServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewApplicationCatalogServiceHandler(svc ApplicationCatalogServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	applicationCatalogServiceMethods := surfaces.File_portal_v1_surfaces_surfaces_proto.Services().ByName("ApplicationCatalogService").Methods()
+	applicationCatalogServiceListApplicationsHandler := connect.NewUnaryHandler(
+		ApplicationCatalogServiceListApplicationsProcedure,
+		svc.ListApplications,
+		connect.WithSchema(applicationCatalogServiceMethods.ByName("ListApplications")),
+		connect.WithHandlerOptions(opts...),
+	)
+	applicationCatalogServiceResolveApplicationHandler := connect.NewUnaryHandler(
+		ApplicationCatalogServiceResolveApplicationProcedure,
+		svc.ResolveApplication,
+		connect.WithSchema(applicationCatalogServiceMethods.ByName("ResolveApplication")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.portal.v1.surfaces.ApplicationCatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case ApplicationCatalogServiceListApplicationsProcedure:
+			applicationCatalogServiceListApplicationsHandler.ServeHTTP(w, r)
+		case ApplicationCatalogServiceResolveApplicationProcedure:
+			applicationCatalogServiceResolveApplicationHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedApplicationCatalogServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedApplicationCatalogServiceHandler struct{}
+
+func (UnimplementedApplicationCatalogServiceHandler) ListApplications(context.Context, *connect.Request[surfaces.ListApplicationsRequest]) (*connect.Response[surfaces.ListApplicationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications is not implemented"))
+}
+
+func (UnimplementedApplicationCatalogServiceHandler) ResolveApplication(context.Context, *connect.Request[surfaces.ResolveApplicationRequest]) (*connect.Response[surfaces.ResolveApplicationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication is not implemented"))
 }
 
 // DesktopSessionServiceClient is a client for the vrooli.portal.v1.surfaces.DesktopSessionService

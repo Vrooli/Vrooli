@@ -1,0 +1,90 @@
+syntax = "proto3";
+package vrooli.device_studio.v1.motions;
+
+import "device-studio/v1/physical/physical.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/motions;motions_v1";
+service MotionsService {
+  rpc SaveMotionCandidate(SaveMotionCandidateRequest) returns (SaveMotionCandidateResponse);
+  rpc GetMotionRevision(GetMotionRevisionRequest) returns (GetMotionRevisionResponse);
+  rpc GetMotionHead(GetMotionHeadRequest) returns (GetMotionHeadResponse);
+  rpc ListMotionRevisions(ListMotionRevisionsRequest) returns (ListMotionRevisionsResponse);
+  rpc ListMotionCandidates(ListMotionCandidatesRequest) returns (ListMotionCandidatesResponse);
+}
+message SaveMotionCandidateRequest {
+  MotionCandidate candidate = 1;
+  uint32 expected_head = 2;
+}
+message SaveMotionCandidateResponse {
+  MotionRevision revision = 1;
+}
+message GetMotionRevisionRequest {
+  string motion_id = 1;
+  uint32 revision = 2;
+}
+message GetMotionRevisionResponse {
+  MotionRevision revision = 1;
+}
+message GetMotionHeadRequest {
+  string motion_id = 1;
+}
+message GetMotionHeadResponse {
+  MotionRevision revision = 1;
+}
+message ListMotionRevisionsRequest {
+  string motion_id = 1;
+  uint32 after_revision = 2;
+  uint32 page_size = 3;
+}
+message ListMotionRevisionsResponse {
+  repeated MotionRevision revisions = 1;
+  uint32 next_after_revision = 2;
+}
+message ListMotionCandidatesRequest {
+  string after_motion_id = 1;
+  uint32 page_size = 2;
+}
+message ListMotionCandidatesResponse {
+  repeated MotionRevision candidates = 1;
+  string next_after_motion_id = 2;
+}
+message MotionRevision {
+  string motion_id = 1;
+  uint32 revision = 2;
+  string sha256 = 3;
+  string state = 4;
+  MotionCandidate candidate = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message Rational {
+  int64 num = 1;
+  int64 den = 2;
+}
+message MotionCandidate {
+  string version = 1;
+  string motion_id = 2;
+  Rational timebase_ticks_per_second = 3;
+  int64 duration_ticks = 4;
+  repeated MotionTrack tracks = 5;
+  repeated string required_capabilities = 6;
+}
+message TrackTarget {
+  bool device_root = 1;
+  string joint_id = 2;
+  string scene_camera_id = 3;
+}
+message MotionTrack {
+  TrackTarget target = 1;
+  string interpolation = 2;
+  repeated MotionKey keys = 3;
+}
+message MotionKey {
+  int64 tick = 1;
+  TransformKey transform = 2;
+  optional double angle_rad = 3;
+}
+message TransformKey {
+  vrooli.device_studio.v1.physical.Vec3 translation_m = 1;
+  vrooli.device_studio.v1.physical.QuatXYZW rotation_xyzw = 2;
+}

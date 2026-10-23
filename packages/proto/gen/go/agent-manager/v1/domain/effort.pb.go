@@ -1777,7 +1777,7 @@ type EffortGoalHome struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Repository-relative goal-home directory.
 	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	// available or unavailable; limitations name why.
+	// available, partial (some facts are unknown), or unavailable; limitations name why.
 	State             string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	Limitations       []string               `protobuf:"bytes,3,rep,name=limitations,proto3" json:"limitations,omitempty"`
 	DestinationMetric string                 `protobuf:"bytes,4,opt,name=destination_metric,json=destinationMetric,proto3" json:"destination_metric,omitempty"`
@@ -2017,10 +2017,14 @@ type EffortSignal struct {
 	Seq       int64                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
 	EffortRef string                 `protobuf:"bytes,2,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
 	// child_run_ended, step_back, feedback, operator_answer or cap_stop.
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	RunId         string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Detail        string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Kind      string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	RunId     string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Detail    string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Response-only result of RecordEffortSignal: true when this call inserted
+	// the event, false when its dedupe key already existed. This is never stored
+	// and is absent from ListEffortSignals results. Absent on older responses.
+	NewlyRecorded *bool `protobuf:"varint,7,opt,name=newly_recorded,json=newlyRecorded,proto3,oneof" json:"newly_recorded,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2095,6 +2099,13 @@ func (x *EffortSignal) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *EffortSignal) GetNewlyRecorded() bool {
+	if x != nil && x.NewlyRecorded != nil {
+		return *x.NewlyRecorded
+	}
+	return false
 }
 
 type ListEffortSignalsRequest struct {
@@ -3207,7 +3218,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x13_destination_targetB\x10\n" +
 	"\x0e_current_valueB\x13\n" +
 	"\x11_open_workaroundsB%\n" +
-	"#_weighted_tokens_per_accepted_epoch\"\xbd\x01\n" +
+	"#_weighted_tokens_per_accepted_epoch\"\xfc\x01\n" +
 	"\fEffortSignal\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x1d\n" +
 	"\n" +
@@ -3216,7 +3227,9 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06detail\x18\x05 \x01(\tR\x06detail\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x8d\x01\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12*\n" +
+	"\x0enewly_recorded\x18\a \x01(\bH\x00R\rnewlyRecorded\x88\x01\x01B\x11\n" +
+	"\x0f_newly_recorded\"\x8d\x01\n" +
 	"\x18ListEffortSignalsRequest\x12)\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tB\n" +
@@ -3432,6 +3445,7 @@ func file_agent_manager_v1_domain_effort_proto_init() {
 	file_agent_manager_v1_domain_effort_proto_msgTypes[7].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[17].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[18].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

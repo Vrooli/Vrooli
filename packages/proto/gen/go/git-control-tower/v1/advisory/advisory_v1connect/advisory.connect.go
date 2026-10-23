@@ -35,12 +35,40 @@ const (
 const (
 	// AdvisoryServiceDraftProcedure is the fully-qualified name of the AdvisoryService's Draft RPC.
 	AdvisoryServiceDraftProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/Draft"
+	// AdvisoryServiceCheckStagedMessageProcedure is the fully-qualified name of the AdvisoryService's
+	// CheckStagedMessage RPC.
+	AdvisoryServiceCheckStagedMessageProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/CheckStagedMessage"
+	// AdvisoryServiceCollectStagedMessageProcedure is the fully-qualified name of the AdvisoryService's
+	// CollectStagedMessage RPC.
+	AdvisoryServiceCollectStagedMessageProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/CollectStagedMessage"
+	// AdvisoryServiceStartStagedMessageProcedure is the fully-qualified name of the AdvisoryService's
+	// StartStagedMessage RPC.
+	AdvisoryServiceStartStagedMessageProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/StartStagedMessage"
+	// AdvisoryServiceGetStagedMessageJobProcedure is the fully-qualified name of the AdvisoryService's
+	// GetStagedMessageJob RPC.
+	AdvisoryServiceGetStagedMessageJobProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/GetStagedMessageJob"
+	// AdvisoryServiceWaitStagedMessageJobProcedure is the fully-qualified name of the AdvisoryService's
+	// WaitStagedMessageJob RPC.
+	AdvisoryServiceWaitStagedMessageJobProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/WaitStagedMessageJob"
+	// AdvisoryServiceCancelStagedMessageJobProcedure is the fully-qualified name of the
+	// AdvisoryService's CancelStagedMessageJob RPC.
+	AdvisoryServiceCancelStagedMessageJobProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/CancelStagedMessageJob"
+	// AdvisoryServiceReadStagedMessageEvidenceProcedure is the fully-qualified name of the
+	// AdvisoryService's ReadStagedMessageEvidence RPC.
+	AdvisoryServiceReadStagedMessageEvidenceProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/ReadStagedMessageEvidence"
 )
 
 // AdvisoryServiceClient is a client for the vrooli.git_control_tower.v1.advisory.AdvisoryService
 // service.
 type AdvisoryServiceClient interface {
 	Draft(context.Context, *connect.Request[advisory.DraftRequest]) (*connect.Response[advisory.DraftResponse], error)
+	CheckStagedMessage(context.Context, *connect.Request[advisory.CheckStagedMessageRequest]) (*connect.Response[advisory.CheckStagedMessageResponse], error)
+	CollectStagedMessage(context.Context, *connect.Request[advisory.CollectStagedMessageRequest]) (*connect.Response[advisory.StagedMessageCollection], error)
+	StartStagedMessage(context.Context, *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	GetStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	WaitStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	CancelStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	ReadStagedMessageEvidence(context.Context, *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error)
 }
 
 // NewAdvisoryServiceClient constructs a client for the
@@ -61,12 +89,61 @@ func NewAdvisoryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(advisoryServiceMethods.ByName("Draft")),
 			connect.WithClientOptions(opts...),
 		),
+		checkStagedMessage: connect.NewClient[advisory.CheckStagedMessageRequest, advisory.CheckStagedMessageResponse](
+			httpClient,
+			baseURL+AdvisoryServiceCheckStagedMessageProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("CheckStagedMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		collectStagedMessage: connect.NewClient[advisory.CollectStagedMessageRequest, advisory.StagedMessageCollection](
+			httpClient,
+			baseURL+AdvisoryServiceCollectStagedMessageProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("CollectStagedMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		startStagedMessage: connect.NewClient[advisory.StartStagedMessageRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceStartStagedMessageProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("StartStagedMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		getStagedMessageJob: connect.NewClient[advisory.StagedMessageJobRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceGetStagedMessageJobProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("GetStagedMessageJob")),
+			connect.WithClientOptions(opts...),
+		),
+		waitStagedMessageJob: connect.NewClient[advisory.StagedMessageJobRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceWaitStagedMessageJobProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("WaitStagedMessageJob")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelStagedMessageJob: connect.NewClient[advisory.StagedMessageJobRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceCancelStagedMessageJobProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("CancelStagedMessageJob")),
+			connect.WithClientOptions(opts...),
+		),
+		readStagedMessageEvidence: connect.NewClient[advisory.ReadStagedMessageEvidenceRequest, advisory.ReadStagedMessageEvidenceResponse](
+			httpClient,
+			baseURL+AdvisoryServiceReadStagedMessageEvidenceProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("ReadStagedMessageEvidence")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // advisoryServiceClient implements AdvisoryServiceClient.
 type advisoryServiceClient struct {
-	draft *connect.Client[advisory.DraftRequest, advisory.DraftResponse]
+	draft                     *connect.Client[advisory.DraftRequest, advisory.DraftResponse]
+	checkStagedMessage        *connect.Client[advisory.CheckStagedMessageRequest, advisory.CheckStagedMessageResponse]
+	collectStagedMessage      *connect.Client[advisory.CollectStagedMessageRequest, advisory.StagedMessageCollection]
+	startStagedMessage        *connect.Client[advisory.StartStagedMessageRequest, advisory.StagedMessageJob]
+	getStagedMessageJob       *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
+	waitStagedMessageJob      *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
+	cancelStagedMessageJob    *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
+	readStagedMessageEvidence *connect.Client[advisory.ReadStagedMessageEvidenceRequest, advisory.ReadStagedMessageEvidenceResponse]
 }
 
 // Draft calls vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft.
@@ -74,10 +151,57 @@ func (c *advisoryServiceClient) Draft(ctx context.Context, req *connect.Request[
 	return c.draft.CallUnary(ctx, req)
 }
 
+// CheckStagedMessage calls vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage.
+func (c *advisoryServiceClient) CheckStagedMessage(ctx context.Context, req *connect.Request[advisory.CheckStagedMessageRequest]) (*connect.Response[advisory.CheckStagedMessageResponse], error) {
+	return c.checkStagedMessage.CallUnary(ctx, req)
+}
+
+// CollectStagedMessage calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage.
+func (c *advisoryServiceClient) CollectStagedMessage(ctx context.Context, req *connect.Request[advisory.CollectStagedMessageRequest]) (*connect.Response[advisory.StagedMessageCollection], error) {
+	return c.collectStagedMessage.CallUnary(ctx, req)
+}
+
+// StartStagedMessage calls vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage.
+func (c *advisoryServiceClient) StartStagedMessage(ctx context.Context, req *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.startStagedMessage.CallUnary(ctx, req)
+}
+
+// GetStagedMessageJob calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob.
+func (c *advisoryServiceClient) GetStagedMessageJob(ctx context.Context, req *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.getStagedMessageJob.CallUnary(ctx, req)
+}
+
+// WaitStagedMessageJob calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob.
+func (c *advisoryServiceClient) WaitStagedMessageJob(ctx context.Context, req *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.waitStagedMessageJob.CallUnary(ctx, req)
+}
+
+// CancelStagedMessageJob calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob.
+func (c *advisoryServiceClient) CancelStagedMessageJob(ctx context.Context, req *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.cancelStagedMessageJob.CallUnary(ctx, req)
+}
+
+// ReadStagedMessageEvidence calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence.
+func (c *advisoryServiceClient) ReadStagedMessageEvidence(ctx context.Context, req *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error) {
+	return c.readStagedMessageEvidence.CallUnary(ctx, req)
+}
+
 // AdvisoryServiceHandler is an implementation of the
 // vrooli.git_control_tower.v1.advisory.AdvisoryService service.
 type AdvisoryServiceHandler interface {
 	Draft(context.Context, *connect.Request[advisory.DraftRequest]) (*connect.Response[advisory.DraftResponse], error)
+	CheckStagedMessage(context.Context, *connect.Request[advisory.CheckStagedMessageRequest]) (*connect.Response[advisory.CheckStagedMessageResponse], error)
+	CollectStagedMessage(context.Context, *connect.Request[advisory.CollectStagedMessageRequest]) (*connect.Response[advisory.StagedMessageCollection], error)
+	StartStagedMessage(context.Context, *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	GetStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	WaitStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	CancelStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	ReadStagedMessageEvidence(context.Context, *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error)
 }
 
 // NewAdvisoryServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -93,10 +217,66 @@ func NewAdvisoryServiceHandler(svc AdvisoryServiceHandler, opts ...connect.Handl
 		connect.WithSchema(advisoryServiceMethods.ByName("Draft")),
 		connect.WithHandlerOptions(opts...),
 	)
+	advisoryServiceCheckStagedMessageHandler := connect.NewUnaryHandler(
+		AdvisoryServiceCheckStagedMessageProcedure,
+		svc.CheckStagedMessage,
+		connect.WithSchema(advisoryServiceMethods.ByName("CheckStagedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceCollectStagedMessageHandler := connect.NewUnaryHandler(
+		AdvisoryServiceCollectStagedMessageProcedure,
+		svc.CollectStagedMessage,
+		connect.WithSchema(advisoryServiceMethods.ByName("CollectStagedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceStartStagedMessageHandler := connect.NewUnaryHandler(
+		AdvisoryServiceStartStagedMessageProcedure,
+		svc.StartStagedMessage,
+		connect.WithSchema(advisoryServiceMethods.ByName("StartStagedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceGetStagedMessageJobHandler := connect.NewUnaryHandler(
+		AdvisoryServiceGetStagedMessageJobProcedure,
+		svc.GetStagedMessageJob,
+		connect.WithSchema(advisoryServiceMethods.ByName("GetStagedMessageJob")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceWaitStagedMessageJobHandler := connect.NewUnaryHandler(
+		AdvisoryServiceWaitStagedMessageJobProcedure,
+		svc.WaitStagedMessageJob,
+		connect.WithSchema(advisoryServiceMethods.ByName("WaitStagedMessageJob")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceCancelStagedMessageJobHandler := connect.NewUnaryHandler(
+		AdvisoryServiceCancelStagedMessageJobProcedure,
+		svc.CancelStagedMessageJob,
+		connect.WithSchema(advisoryServiceMethods.ByName("CancelStagedMessageJob")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceReadStagedMessageEvidenceHandler := connect.NewUnaryHandler(
+		AdvisoryServiceReadStagedMessageEvidenceProcedure,
+		svc.ReadStagedMessageEvidence,
+		connect.WithSchema(advisoryServiceMethods.ByName("ReadStagedMessageEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.git_control_tower.v1.advisory.AdvisoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdvisoryServiceDraftProcedure:
 			advisoryServiceDraftHandler.ServeHTTP(w, r)
+		case AdvisoryServiceCheckStagedMessageProcedure:
+			advisoryServiceCheckStagedMessageHandler.ServeHTTP(w, r)
+		case AdvisoryServiceCollectStagedMessageProcedure:
+			advisoryServiceCollectStagedMessageHandler.ServeHTTP(w, r)
+		case AdvisoryServiceStartStagedMessageProcedure:
+			advisoryServiceStartStagedMessageHandler.ServeHTTP(w, r)
+		case AdvisoryServiceGetStagedMessageJobProcedure:
+			advisoryServiceGetStagedMessageJobHandler.ServeHTTP(w, r)
+		case AdvisoryServiceWaitStagedMessageJobProcedure:
+			advisoryServiceWaitStagedMessageJobHandler.ServeHTTP(w, r)
+		case AdvisoryServiceCancelStagedMessageJobProcedure:
+			advisoryServiceCancelStagedMessageJobHandler.ServeHTTP(w, r)
+		case AdvisoryServiceReadStagedMessageEvidenceProcedure:
+			advisoryServiceReadStagedMessageEvidenceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -108,4 +288,32 @@ type UnimplementedAdvisoryServiceHandler struct{}
 
 func (UnimplementedAdvisoryServiceHandler) Draft(context.Context, *connect.Request[advisory.DraftRequest]) (*connect.Response[advisory.DraftResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) CheckStagedMessage(context.Context, *connect.Request[advisory.CheckStagedMessageRequest]) (*connect.Response[advisory.CheckStagedMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) CollectStagedMessage(context.Context, *connect.Request[advisory.CollectStagedMessageRequest]) (*connect.Response[advisory.StagedMessageCollection], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) StartStagedMessage(context.Context, *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) GetStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) WaitStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) CancelStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) ReadStagedMessageEvidence(context.Context, *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence is not implemented"))
 }

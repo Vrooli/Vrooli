@@ -190,12 +190,16 @@ class ExploreRecipesResponse(_message.Message):
     def __init__(self, plan_revision: _Optional[int] = ..., profile_revision: _Optional[int] = ..., profile_configured: _Optional[bool] = ..., candidates: _Optional[_Iterable[_Union[ExploreRecipeCandidate, _Mapping]]] = ..., blocking_reasons: _Optional[_Iterable[_Union[ExploreFitReason, _Mapping]]] = ..., saved_recipe_count: _Optional[int] = ...) -> None: ...
 
 class GetShoppingPreviewRequest(_message.Message):
-    __slots__ = ("workspace_id", "expected_revision")
+    __slots__ = ("workspace_id", "expected_revision", "from_date", "to_date")
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    FROM_DATE_FIELD_NUMBER: _ClassVar[int]
+    TO_DATE_FIELD_NUMBER: _ClassVar[int]
     workspace_id: str
     expected_revision: int
-    def __init__(self, workspace_id: _Optional[str] = ..., expected_revision: _Optional[int] = ...) -> None: ...
+    from_date: str
+    to_date: str
+    def __init__(self, workspace_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., from_date: _Optional[str] = ..., to_date: _Optional[str] = ...) -> None: ...
 
 class ShoppingLine(_message.Message):
     __slots__ = ("key", "label", "need", "stock", "missing", "package_count", "price", "source_recipe_ids", "checked", "portion_cost", "checkout_total", "actual_spend", "have_this", "actual_quantity", "actual_unit", "actual_price", "purchase_omitted")

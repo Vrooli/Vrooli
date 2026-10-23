@@ -36,6 +36,9 @@ const (
 	// AIServiceListAIOperationsProcedure is the fully-qualified name of the AIService's
 	// ListAIOperations RPC.
 	AIServiceListAIOperationsProcedure = "/vrooli.image_tools.v1.ai.AIService/ListAIOperations"
+	// AIServiceSubmitStoredAIProcedure is the fully-qualified name of the AIService's SubmitStoredAI
+	// RPC.
+	AIServiceSubmitStoredAIProcedure = "/vrooli.image_tools.v1.ai.AIService/SubmitStoredAI"
 )
 
 // AIServiceClient is a client for the vrooli.image_tools.v1.ai.AIService service.
@@ -43,6 +46,10 @@ type AIServiceClient interface {
 	// ListAIOperations returns the model-backed operation catalog (stable order)
 	// with the input/parameter shape each op expects.
 	ListAIOperations(context.Context, *connect.Request[ai.ListAIOperationsRequest]) (*connect.Response[ai.ListAIOperationsResponse], error)
+	// Admit one durable operation using already-owned blob references. Uses the
+	// same validation, deployment gate, model selection and queue as multipart.
+	// The stable caller UUID is required for retry-safe governed compositions.
+	SubmitStoredAI(context.Context, *connect.Request[ai.SubmitStoredAIRequest]) (*connect.Response[ai.SubmitAIResponse], error)
 }
 
 // NewAIServiceClient constructs a client for the vrooli.image_tools.v1.ai.AIService service. By
@@ -62,12 +69,19 @@ func NewAIServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...c
 			connect.WithSchema(aIServiceMethods.ByName("ListAIOperations")),
 			connect.WithClientOptions(opts...),
 		),
+		submitStoredAI: connect.NewClient[ai.SubmitStoredAIRequest, ai.SubmitAIResponse](
+			httpClient,
+			baseURL+AIServiceSubmitStoredAIProcedure,
+			connect.WithSchema(aIServiceMethods.ByName("SubmitStoredAI")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // aIServiceClient implements AIServiceClient.
 type aIServiceClient struct {
 	listAIOperations *connect.Client[ai.ListAIOperationsRequest, ai.ListAIOperationsResponse]
+	submitStoredAI   *connect.Client[ai.SubmitStoredAIRequest, ai.SubmitAIResponse]
 }
 
 // ListAIOperations calls vrooli.image_tools.v1.ai.AIService.ListAIOperations.
@@ -75,11 +89,20 @@ func (c *aIServiceClient) ListAIOperations(ctx context.Context, req *connect.Req
 	return c.listAIOperations.CallUnary(ctx, req)
 }
 
+// SubmitStoredAI calls vrooli.image_tools.v1.ai.AIService.SubmitStoredAI.
+func (c *aIServiceClient) SubmitStoredAI(ctx context.Context, req *connect.Request[ai.SubmitStoredAIRequest]) (*connect.Response[ai.SubmitAIResponse], error) {
+	return c.submitStoredAI.CallUnary(ctx, req)
+}
+
 // AIServiceHandler is an implementation of the vrooli.image_tools.v1.ai.AIService service.
 type AIServiceHandler interface {
 	// ListAIOperations returns the model-backed operation catalog (stable order)
 	// with the input/parameter shape each op expects.
 	ListAIOperations(context.Context, *connect.Request[ai.ListAIOperationsRequest]) (*connect.Response[ai.ListAIOperationsResponse], error)
+	// Admit one durable operation using already-owned blob references. Uses the
+	// same validation, deployment gate, model selection and queue as multipart.
+	// The stable caller UUID is required for retry-safe governed compositions.
+	SubmitStoredAI(context.Context, *connect.Request[ai.SubmitStoredAIRequest]) (*connect.Response[ai.SubmitAIResponse], error)
 }
 
 // NewAIServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -95,10 +118,18 @@ func NewAIServiceHandler(svc AIServiceHandler, opts ...connect.HandlerOption) (s
 		connect.WithSchema(aIServiceMethods.ByName("ListAIOperations")),
 		connect.WithHandlerOptions(opts...),
 	)
+	aIServiceSubmitStoredAIHandler := connect.NewUnaryHandler(
+		AIServiceSubmitStoredAIProcedure,
+		svc.SubmitStoredAI,
+		connect.WithSchema(aIServiceMethods.ByName("SubmitStoredAI")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.ai.AIService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AIServiceListAIOperationsProcedure:
 			aIServiceListAIOperationsHandler.ServeHTTP(w, r)
+		case AIServiceSubmitStoredAIProcedure:
+			aIServiceSubmitStoredAIHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -110,4 +141,8 @@ type UnimplementedAIServiceHandler struct{}
 
 func (UnimplementedAIServiceHandler) ListAIOperations(context.Context, *connect.Request[ai.ListAIOperationsRequest]) (*connect.Response[ai.ListAIOperationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.ai.AIService.ListAIOperations is not implemented"))
+}
+
+func (UnimplementedAIServiceHandler) SubmitStoredAI(context.Context, *connect.Request[ai.SubmitStoredAIRequest]) (*connect.Response[ai.SubmitAIResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.ai.AIService.SubmitStoredAI is not implemented"))
 }

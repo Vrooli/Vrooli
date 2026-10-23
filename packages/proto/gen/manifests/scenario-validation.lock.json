@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-validation",
-  "input_digest": "sha256:2c399e85dc3c5146d939a2c19f28c7488a05fc0df894582f0e82b7473aa85e18",
+  "input_digest": "sha256:f5f30ebbe8e21704760c8d4a8a13954baa2f6f207d2a92b4d1b2d2556a088c80",
   "input_files": [
     "schemas/common/v1/evidence.proto",
     "schemas/common/v1/maturity.proto",
@@ -22,12 +22,12 @@
   },
   "outputs": {
     "gen/go/scenario-validation/v1/scenariovalidationv1connect/validation.connect.go": "sha256:6e258af1c825c0c0a2b1af00839b2bcef0cc5b5cf012964a91ce2430ee2a76ba",
-    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:1ab7691ee51fa8bf9a4fd7d04757ebd1ec85c3e63b1f04346e17a6c8c9d5d8f7",
+    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:1a16a0371391f5cd739e7ee7fbaab43e534781045cdfecba1bda261a950fc65b",
     "gen/python/scenario_validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:54ac43416417af6cc0bf6b5bbfa5dd8bdbbf0ff9a8da8bc42a077f88d14b622f",
-    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:997c7eea719971ebb885325d42209844cacf14290e49ff4b00c84bb88ae7631f",
+    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:224066ff63d83519d91df2cec01aea7fb73c5d8ee3002e8e04f9c2a9b57be1bd",
+    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:73b0229793cce99d4698222f64cce4260b1c7859cd8b8ed73cfd08060a5903d3",
     "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
-    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:e14259167a994168b96392656b5962a53614e99a947abc542099edfb8a5ef0f7"
+    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:b08e2d2c47da5ce0a9e2fcd22966c84dcad1885f456c61ea526d006917ffde75"
   }
 }

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/host_inventory.proto.
  */
 export const file_cli_v1_host_inventory: GenFile = /*@__PURE__*/
-  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEi6wEKFUhvc3RJbnZlbnRvcnlSZXNwb25zZRIpCgZtZW1vcnkYASABKAsyGS52cm9vbGkuY2xpLnYxLkhvc3RNZW1vcnkSJQoEc3dhcBgCIAEoCzIXLnZyb29saS5jbGkudjEuSG9zdFN3YXASCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIjCgNjcHUYBSABKAsyFi52cm9vbGkuY2xpLnYxLkhvc3RDUFUSJAoEZ3B1cxgGIAMoCzIWLnZyb29saS5jbGkudjEuSG9zdEdQVRIbChNudmlkaWFfZGV2aWNlX25vZGVzGAcgAygJImcKCkhvc3RNZW1vcnkSEwoLdG90YWxfYnl0ZXMYASABKAQSFwoPYXZhaWxhYmxlX2J5dGVzGAIgASgEEhUKDWJ1ZmZlcnNfYnl0ZXMYAyABKAQSFAoMY2FjaGVkX2J5dGVzGAQgASgEIh8KCEhvc3RTd2FwEhMKC3RvdGFsX2J5dGVzGAEgASgEIhgKB0hvc3RDUFUSDQoFY29yZXMYASABKAUiYwoHSG9zdEdQVRINCgVpbmRleBgBIAEoBRIMCgRuYW1lGAIgASgJEhIKCnZyYW1fYnl0ZXMYAyABKAQSFwoPdnJhbV91c2VkX2J5dGVzGAQgASgEEg4KBnNvdXJjZRgFIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
+  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEi6wEKFUhvc3RJbnZlbnRvcnlSZXNwb25zZRIpCgZtZW1vcnkYASABKAsyGS52cm9vbGkuY2xpLnYxLkhvc3RNZW1vcnkSJQoEc3dhcBgCIAEoCzIXLnZyb29saS5jbGkudjEuSG9zdFN3YXASCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIjCgNjcHUYBSABKAsyFi52cm9vbGkuY2xpLnYxLkhvc3RDUFUSJAoEZ3B1cxgGIAMoCzIWLnZyb29saS5jbGkudjEuSG9zdEdQVRIbChNudmlkaWFfZGV2aWNlX25vZGVzGAcgAygJImcKCkhvc3RNZW1vcnkSEwoLdG90YWxfYnl0ZXMYASABKAQSFwoPYXZhaWxhYmxlX2J5dGVzGAIgASgEEhUKDWJ1ZmZlcnNfYnl0ZXMYAyABKAQSFAoMY2FjaGVkX2J5dGVzGAQgASgEIh8KCEhvc3RTd2FwEhMKC3RvdGFsX2J5dGVzGAEgASgEIhgKB0hvc3RDUFUSDQoFY29yZXMYASABKAUicQoHSG9zdEdQVRINCgVpbmRleBgBIAEoBRIMCgRuYW1lGAIgASgJEhIKCnZyYW1fYnl0ZXMYAyABKAQSFwoPdnJhbV91c2VkX2J5dGVzGAQgASgEEg4KBnNvdXJjZRgFIAEoCRIMCgR1dWlkGAYgASgJQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM");
 
 /**
  * HostInventoryResponse is the typed subset of `vrooli host inventory --json`.
@@ -206,6 +206,15 @@ export type HostGPU = Message<"vrooli.cli.v1.HostGPU"> & {
    * @generated from field: string source = 5;
    */
   source: string;
+
+  /**
+   * Stable physical GPU UUID from the host probe; empty when unavailable.
+   * CUDA consumers bind this identity before model loading so reservation and
+   * execution do not accidentally use different devices.
+   *
+   * @generated from field: string uuid = 6;
+   */
+  uuid: string;
 };
 
 /**

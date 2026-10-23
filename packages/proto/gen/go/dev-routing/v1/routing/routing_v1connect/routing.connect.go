@@ -42,6 +42,12 @@ const (
 	// RoutingServiceHeartbeatTestPoolProcedure is the fully-qualified name of the RoutingService's
 	// HeartbeatTestPool RPC.
 	RoutingServiceHeartbeatTestPoolProcedure = "/vrooli.dev_routing.v1.routing.RoutingService/HeartbeatTestPool"
+	// RoutingServicePrepareTestPoolRestartProcedure is the fully-qualified name of the RoutingService's
+	// PrepareTestPoolRestart RPC.
+	RoutingServicePrepareTestPoolRestartProcedure = "/vrooli.dev_routing.v1.routing.RoutingService/PrepareTestPoolRestart"
+	// RoutingServiceResumeTestPoolProcedure is the fully-qualified name of the RoutingService's
+	// ResumeTestPool RPC.
+	RoutingServiceResumeTestPoolProcedure = "/vrooli.dev_routing.v1.routing.RoutingService/ResumeTestPool"
 )
 
 // RoutingServiceClient is a client for the vrooli.dev_routing.v1.routing.RoutingService service.
@@ -61,6 +67,12 @@ type RoutingServiceClient interface {
 	// orchestrator crashes between Install and Clear, the lease expires and
 	// routing reverts to the primary pool without manual intervention.
 	HeartbeatTestPool(context.Context, *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error)
+	// PrepareTestPoolRestart persists a private checkpoint for the exact active
+	// paired DB/file lease. The opaque ticket contains no DSN or filesystem path.
+	PrepareTestPoolRestart(context.Context, *connect.Request[routing.PrepareTestPoolRestartRequest]) (*connect.Response[routing.PrepareTestPoolRestartResponse], error)
+	// ResumeTestPool reattaches the owner-retained binding after the old target
+	// process has exited. Only lease_id and the opaque checkpoint ticket are accepted.
+	ResumeTestPool(context.Context, *connect.Request[routing.ResumeTestPoolRequest]) (*connect.Response[routing.ResumeTestPoolResponse], error)
 }
 
 // NewRoutingServiceClient constructs a client for the vrooli.dev_routing.v1.routing.RoutingService
@@ -92,14 +104,28 @@ func NewRoutingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(routingServiceMethods.ByName("HeartbeatTestPool")),
 			connect.WithClientOptions(opts...),
 		),
+		prepareTestPoolRestart: connect.NewClient[routing.PrepareTestPoolRestartRequest, routing.PrepareTestPoolRestartResponse](
+			httpClient,
+			baseURL+RoutingServicePrepareTestPoolRestartProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("PrepareTestPoolRestart")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeTestPool: connect.NewClient[routing.ResumeTestPoolRequest, routing.ResumeTestPoolResponse](
+			httpClient,
+			baseURL+RoutingServiceResumeTestPoolProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("ResumeTestPool")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // routingServiceClient implements RoutingServiceClient.
 type routingServiceClient struct {
-	installTestPool   *connect.Client[routing.InstallTestPoolRequest, routing.InstallTestPoolResponse]
-	clearTestPool     *connect.Client[routing.ClearTestPoolRequest, routing.ClearTestPoolResponse]
-	heartbeatTestPool *connect.Client[routing.HeartbeatTestPoolRequest, routing.HeartbeatTestPoolResponse]
+	installTestPool        *connect.Client[routing.InstallTestPoolRequest, routing.InstallTestPoolResponse]
+	clearTestPool          *connect.Client[routing.ClearTestPoolRequest, routing.ClearTestPoolResponse]
+	heartbeatTestPool      *connect.Client[routing.HeartbeatTestPoolRequest, routing.HeartbeatTestPoolResponse]
+	prepareTestPoolRestart *connect.Client[routing.PrepareTestPoolRestartRequest, routing.PrepareTestPoolRestartResponse]
+	resumeTestPool         *connect.Client[routing.ResumeTestPoolRequest, routing.ResumeTestPoolResponse]
 }
 
 // InstallTestPool calls vrooli.dev_routing.v1.routing.RoutingService.InstallTestPool.
@@ -115,6 +141,16 @@ func (c *routingServiceClient) ClearTestPool(ctx context.Context, req *connect.R
 // HeartbeatTestPool calls vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool.
 func (c *routingServiceClient) HeartbeatTestPool(ctx context.Context, req *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error) {
 	return c.heartbeatTestPool.CallUnary(ctx, req)
+}
+
+// PrepareTestPoolRestart calls vrooli.dev_routing.v1.routing.RoutingService.PrepareTestPoolRestart.
+func (c *routingServiceClient) PrepareTestPoolRestart(ctx context.Context, req *connect.Request[routing.PrepareTestPoolRestartRequest]) (*connect.Response[routing.PrepareTestPoolRestartResponse], error) {
+	return c.prepareTestPoolRestart.CallUnary(ctx, req)
+}
+
+// ResumeTestPool calls vrooli.dev_routing.v1.routing.RoutingService.ResumeTestPool.
+func (c *routingServiceClient) ResumeTestPool(ctx context.Context, req *connect.Request[routing.ResumeTestPoolRequest]) (*connect.Response[routing.ResumeTestPoolResponse], error) {
+	return c.resumeTestPool.CallUnary(ctx, req)
 }
 
 // RoutingServiceHandler is an implementation of the vrooli.dev_routing.v1.routing.RoutingService
@@ -135,6 +171,12 @@ type RoutingServiceHandler interface {
 	// orchestrator crashes between Install and Clear, the lease expires and
 	// routing reverts to the primary pool without manual intervention.
 	HeartbeatTestPool(context.Context, *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error)
+	// PrepareTestPoolRestart persists a private checkpoint for the exact active
+	// paired DB/file lease. The opaque ticket contains no DSN or filesystem path.
+	PrepareTestPoolRestart(context.Context, *connect.Request[routing.PrepareTestPoolRestartRequest]) (*connect.Response[routing.PrepareTestPoolRestartResponse], error)
+	// ResumeTestPool reattaches the owner-retained binding after the old target
+	// process has exited. Only lease_id and the opaque checkpoint ticket are accepted.
+	ResumeTestPool(context.Context, *connect.Request[routing.ResumeTestPoolRequest]) (*connect.Response[routing.ResumeTestPoolResponse], error)
 }
 
 // NewRoutingServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -162,6 +204,18 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(routingServiceMethods.ByName("HeartbeatTestPool")),
 		connect.WithHandlerOptions(opts...),
 	)
+	routingServicePrepareTestPoolRestartHandler := connect.NewUnaryHandler(
+		RoutingServicePrepareTestPoolRestartProcedure,
+		svc.PrepareTestPoolRestart,
+		connect.WithSchema(routingServiceMethods.ByName("PrepareTestPoolRestart")),
+		connect.WithHandlerOptions(opts...),
+	)
+	routingServiceResumeTestPoolHandler := connect.NewUnaryHandler(
+		RoutingServiceResumeTestPoolProcedure,
+		svc.ResumeTestPool,
+		connect.WithSchema(routingServiceMethods.ByName("ResumeTestPool")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.dev_routing.v1.routing.RoutingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoutingServiceInstallTestPoolProcedure:
@@ -170,6 +224,10 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 			routingServiceClearTestPoolHandler.ServeHTTP(w, r)
 		case RoutingServiceHeartbeatTestPoolProcedure:
 			routingServiceHeartbeatTestPoolHandler.ServeHTTP(w, r)
+		case RoutingServicePrepareTestPoolRestartProcedure:
+			routingServicePrepareTestPoolRestartHandler.ServeHTTP(w, r)
+		case RoutingServiceResumeTestPoolProcedure:
+			routingServiceResumeTestPoolHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -189,4 +247,12 @@ func (UnimplementedRoutingServiceHandler) ClearTestPool(context.Context, *connec
 
 func (UnimplementedRoutingServiceHandler) HeartbeatTestPool(context.Context, *connect.Request[routing.HeartbeatTestPoolRequest]) (*connect.Response[routing.HeartbeatTestPoolResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.dev_routing.v1.routing.RoutingService.HeartbeatTestPool is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) PrepareTestPoolRestart(context.Context, *connect.Request[routing.PrepareTestPoolRestartRequest]) (*connect.Response[routing.PrepareTestPoolRestartResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.dev_routing.v1.routing.RoutingService.PrepareTestPoolRestart is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) ResumeTestPool(context.Context, *connect.Request[routing.ResumeTestPoolRequest]) (*connect.Response[routing.ResumeTestPoolResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.dev_routing.v1.routing.RoutingService.ResumeTestPool is not implemented"))
 }

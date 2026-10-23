@@ -104,7 +104,11 @@ func LoadFormalArtifact(t TestingT, path string) FormalArtifact {
 	// awareness of where `go test` was invoked from.
 	if !filepath.IsAbs(path) {
 		if _, callerFile, _, ok := runtime.Caller(1); ok {
-			path = filepath.Join(filepath.Dir(callerFile), path)
+			resolvedPath, err := resolveFormalArtifactPath(callerFile, path, "")
+			if err != nil {
+				t.Fatalf("resolve formal artifact %s: %v", path, err)
+			}
+			path = resolvedPath
 		}
 	}
 	data, err := os.ReadFile(path)
@@ -116,6 +120,71 @@ func LoadFormalArtifact(t TestingT, path string) FormalArtifact {
 		t.Fatalf("parse formal artifact %s: %v", path, err)
 	}
 	return artifact
+}
+
+// resolveFormalArtifactPath uses an absolute source path when the compiler
+// provides one. With -trimpath, runtime.Caller returns a module-relative import
+// path instead; map that path back to the nearest module root from the test
+// working directory so generated subpackage callers still locate their own
+// adjacent artifact rather than a same-named file in the working directory.
+func resolveFormalArtifactPath(callerFile, path, workingDir string) (string, error) {
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+	if filepath.IsAbs(callerFile) {
+		return filepath.Join(filepath.Dir(callerFile), path), nil
+	}
+	if workingDir == "" {
+		var err error
+		workingDir, err = os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("get working directory: %w", err)
+		}
+	}
+	moduleRoot, modulePath, err := findGoModuleRoot(workingDir)
+	if err != nil {
+		return "", err
+	}
+	callerPath := filepath.Clean(filepath.FromSlash(callerFile))
+	modulePrefix := filepath.FromSlash(modulePath)
+	if callerPath == modulePrefix {
+		return "", fmt.Errorf("trimpath caller path %q does not identify a source file", callerFile)
+	}
+	relCaller, ok := strings.CutPrefix(callerPath, modulePrefix+string(filepath.Separator))
+	if !ok || filepath.IsAbs(relCaller) || relCaller == ".." || strings.HasPrefix(relCaller, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("trimpath caller path %q is outside module %q", callerFile, modulePath)
+	}
+	resolved := filepath.Join(moduleRoot, filepath.Dir(relCaller), path)
+	relResolved, err := filepath.Rel(moduleRoot, resolved)
+	if err != nil || relResolved == ".." || strings.HasPrefix(relResolved, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("artifact path %q escapes module root", path)
+	}
+	return resolved, nil
+}
+
+func findGoModuleRoot(start string) (string, string, error) {
+	current, err := filepath.Abs(start)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve working directory: %w", err)
+	}
+	for {
+		goMod := filepath.Join(current, "go.mod")
+		data, readErr := os.ReadFile(goMod)
+		if readErr == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				fields := strings.Fields(line)
+				if len(fields) == 2 && fields[0] == "module" {
+					return current, fields[1], nil
+				}
+			}
+			return "", "", fmt.Errorf("module declaration missing from %s", goMod)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", "", fmt.Errorf("no go.mod found above %s", start)
+		}
+		current = parent
+	}
 }
 
 type FormalArtifactExpectation struct {

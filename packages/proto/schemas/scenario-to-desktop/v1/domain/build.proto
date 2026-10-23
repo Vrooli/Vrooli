@@ -104,6 +104,15 @@ message SmokeTestStartRequest {
   // When enabled, the server owns an Xvfb demo recording and runs the
   // user-visible journey after protocol validation.
   optional bool record_desktop = 4;
+
+  // Explicit runtime target context. Omitted mode retains legacy behavior.
+  optional string deployment_mode = 5 [(buf.validate.field).string = {in: ["bundled", "proxy"]}];
+
+  // Optional registered journey override for recorded runs.
+  optional string journey_id = 6 [(buf.validate.field).string.min_len = 1];
+
+  // Required for proxy mode; bundled runs resolve their own runtime target.
+  optional string proxy_url = 7;
 }
 
 // SmokeTestStartResponse is returned when a smoke test is started.

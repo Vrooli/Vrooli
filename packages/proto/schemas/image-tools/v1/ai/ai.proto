@@ -4,6 +4,8 @@ package vrooli.image_tools.v1.ai;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai;ai_v1";
 
+import "image-tools/v1/selection/selection.proto";
+
 // =============================================================================
 // AI DOMAIN — generation & enhancement operations (model-backed, async)
 // =============================================================================
@@ -46,6 +48,10 @@ service AIService {
   // ListAIOperations returns the model-backed operation catalog (stable order)
   // with the input/parameter shape each op expects.
   rpc ListAIOperations(ListAIOperationsRequest) returns (ListAIOperationsResponse);
+  // Admit one durable operation using already-owned blob references. Uses the
+  // same validation, deployment gate, model selection and queue as multipart.
+  // The stable caller UUID is required for retry-safe governed compositions.
+  rpc SubmitStoredAI(SubmitStoredAIRequest) returns (SubmitAIResponse);
 }
 
 // AIOperationInfo describes one model-backed operation for discovery.
@@ -151,6 +157,58 @@ message AIParams {
   // "image.generate.logo") that the OpenRouter resource resolves to a concrete
   // model. Callers should pass roles, never provider-specific model ids.
   string openrouter_role = 22;
+  // Explicit normalized SAM point/box prompts. Required for model-backed
+  // segment; distinct from automatic heuristic subject selection.
+  SegmentationPrompt segmentation = 23;
+  // Optional normalized region of interest for fitted support-plane output.
+  // Plane scale and residuals remain monocular estimates, not measurements.
+  SceneGeometryParams scene_geometry = 24;
+  // Optional mesh extraction settings for a single-image prop reconstruction.
+  ImageToObjectParams image_to_object = 25;
+  // Explicit additions to a supplied object-removal mask. Empty preserves the
+  // mask exactly; these controls never infer or silently alter removal regions.
+  BackgroundRepairParams background_repair = 26;
+  // Explicit mask-aware contextual crop for native diffusion inpainting.
+  InpaintParams inpaint = 27;
+}
+
+message InpaintParams {
+  // Unset/false preserves the existing full-source inpaint path.
+  bool crop_to_mask = 1;
+  // Context around the source mask bounding box, in oriented source pixels.
+  // Zero uses the backend's documented default; API maximum is 512.
+  uint32 context_pixels = 2;
+  // Native working-crop maximum edge: 512 or 1024. Zero uses model default.
+  uint32 max_edge_px = 3;
+  // Explicitly neutralize masked conditioning pixels before generation; false
+  // preserves source conditioning. Retain the choice in repair provenance.
+  bool neutralize_masked_pixels = 4;
+}
+
+message BackgroundRepairParams {
+  // Dilate the uploaded removal mask by this many oriented source pixels.
+  // Bounded by the API to prevent accidental scene-wide removal.
+  uint32 mask_expansion_pixels = 1;
+  // Additional normalized image-space rectangles to remove, for example
+  // superseded shadows/reflections. Coordinates use the oriented source raster.
+  repeated vrooli.image_tools.v1.selection.Box removal_regions = 2;
+}
+
+message SceneGeometryParams {
+  // If present, fit a robust support plane inside this normalized image-space
+  // rectangle. Other pixels remain outside the fit; no automatic ROI is chosen.
+  vrooli.image_tools.v1.selection.Box support_roi = 1;
+}
+
+message ImageToObjectParams {
+  // Marching-cubes grid resolution. 0 selects the model default (256); the
+  // implementation currently accepts only 128 or 256 to bound memory use.
+  uint32 mesh_resolution = 1;
+}
+
+message SegmentationPrompt {
+  repeated vrooli.image_tools.v1.selection.Point points = 1;
+  vrooli.image_tools.v1.selection.Box box = 2;
 }
 
 // AdapterRef is one requested conditioning modifier on a generation.
@@ -186,4 +244,14 @@ message SubmitAIResponse {
   // Warnings carries non-fatal selection cautions (CPU time warning,
   // conservative unknown-VRAM fallback, BYOK cost caution, …).
   repeated string warnings = 5;
+}
+
+// References are opaque Image Tools blob identities, never paths or URLs.
+// Uploading new image bytes remains the multipart owner's responsibility.
+message SubmitStoredAIRequest {
+  string operation = 1;
+  AIParams params = 2;
+  string input_ref = 3;
+  string mask_ref = 4;
+  string operation_id = 5;
 }

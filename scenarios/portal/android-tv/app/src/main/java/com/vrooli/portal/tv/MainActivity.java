@@ -29,7 +29,22 @@ public final class MainActivity extends Activity {
     private final NavigationState state = new NavigationState();
     private final ExecutorService network = Executors.newSingleThreadExecutor();
     private final ArtworkLoader artwork = new ArtworkLoader();
-    private final Map<String, View> targets = new LinkedHashMap<>();
+    private Map<String, View> targets = new LinkedHashMap<>();
+    private static final class PageView {
+        final FrameLayout host;
+        final Map<String, View> targets = new LinkedHashMap<>();
+        ScrollView scroll;
+        PageView(FrameLayout host) { this.host = host; }
+    }
+    private final Map<String, PageView> pages = new HashMap<>();
+    private final Set<String> dirtyPages = new HashSet<>();
+    private final ExecutorService packageWorker = Executors.newSingleThreadExecutor();
+    private boolean packagesRefreshing, catalogueRefreshing;
+    private long catalogueCheckedAt;
+    private String cataloguePayload = "";
+    private FrameLayout pageHost;
+    private TextView librarySummary, openingCaption, openingCancel;
+    private LinearLayout openingPanel;
     private final Map<String, View> tabs = new HashMap<>();
     private final List<JSONObject> catalogue = new ArrayList<>();
     private SharedPreferences preferences;
@@ -50,7 +65,6 @@ public final class MainActivity extends Activity {
     private boolean destroyed, catalogueLoaded, staleCatalogue, webIsSignIn;
     private boolean nativeRefreshPending;
     private boolean retainTabFocus;
-    private boolean renderingPage;
     private String catalogueError;
     private String server = "";
     private String connectionDraft;
@@ -73,14 +87,14 @@ public final class MainActivity extends Activity {
         favoriteApps = readList("favorite-apps", Arrays.asList("org.smarttube.stable", "com.netflix.ninja", "com.amazon.amazonvideo.livingroom", "com.google.android.youtube.tv"));
         recentApps = readList("recent-apps", Collections.emptyList());
         favoriteExperiences = new LinkedHashSet<>(readList("favorite-experiences", Arrays.asList("web-console", "nutrition-planner")));
-        state.libraryMode = preferences.getString("library-mode", "Favorites");
+        state.page = preferences.getString("last-tab", "Home");
         if (saved != null) {
             state.page = saved.getString("page", "Home");
+            state.appReturn = saved.getString("appReturn");
             state.libraryReturn = saved.getString("libraryReturn", "Home");
             state.settingsReturn = saved.getString("settingsReturn", "Home");
             settingsSection = saved.getString("settingsSection", settingsSection); connectionDraft = saved.getString("connectionDraft");
             state.filter = saved.getString("filter", "");
-            state.libraryMode = saved.getString("libraryMode", "All apps");
             Bundle focus = saved.getBundle("focused");
             if (focus != null) for (String key : focus.keySet()) state.focused.put(key, focus.getString(key));
             Bundle scroll = saved.getBundle("scroll");
@@ -92,6 +106,8 @@ public final class MainActivity extends Activity {
         buildShell();
         render(true);
         handleConnection(getIntent());
+        refreshTvApps();
+        android.os.Looper.myQueue().addIdleHandler(() -> { if (!destroyed) prewarmPage(LIBRARY); return false; });
     }
     private int dp(float value) { return TvTheme.dp(this, value); }
     private TextView text(String value, int size, int color) { return TvTheme.text(this, value, size, color); }
@@ -122,9 +138,15 @@ public final class MainActivity extends Activity {
             tab.setGravity(Gravity.CENTER); tab.setPadding(dp(8), dp(8), dp(8), dp(8));
             tab.setFocusable(true); tab.setClickable(true); tab.setId(View.generateViewId());
             tab.setOnClickListener(v -> { if (!name.equals(state.page)) navigate(name); });
+            tab.setOnKeyListener((view, key, event) -> {
+                if (key != android.view.KeyEvent.KEYCODE_DPAD_LEFT && key != android.view.KeyEvent.KEYCODE_DPAD_RIGHT) return false;
+                String next = NavigationState.adjacentTab(name, key == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+                if (next == null) return false;
+                if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) { tabs.get(next).requestFocus(); navigate(next); }
+                return true;
+            });
             tab.setOnFocusChangeListener((v, focused) -> {
                 tab.setBackground(focused ? TvTheme.surface(this, 0xAD1F3448, true) : null);
-                if (focused && !renderingPage && content != null && !name.equals(state.page)) navigate(name);
             });
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(44)); params.rightMargin = dp(20);
             navigation.addView(tab, params); tabs.put(name, tab);
@@ -150,16 +172,34 @@ public final class MainActivity extends Activity {
     }
     private void savePosition() {
         if (currentScroll != null) state.scroll.put(state.page, currentScroll.getScrollY());
+        if (!"Settings".equals(state.page)) preferences.edit().putString("last-tab", state.page).apply();
     }
     private void navigate(String destination) {
-        if ("Home".equals(destination) || "TV apps".equals(destination)) tvApplications.refresh();
-        savePosition(); cancelRequest(); state.navigate(destination); render(true);
+        long started = android.os.SystemClock.elapsedRealtimeNanos();
+        savePosition(); state.navigate(destination);
+        if ("Settings".equals(destination) || "Inputs".equals(destination)) dirtyPages.add(destination);
+        showPage(true);
+        UiTimings.record(destination, android.os.SystemClock.elapsedRealtimeNanos() - started);
     }
     private void render(boolean refresh) {
+        dirtyPages.add(state.page); showPage(refresh);
+    }
+    private void showPage(boolean refresh) {
         if (destroyed) return;
-        View focusedTab = getCurrentFocus() instanceof NavigationTab ? getCurrentFocus() : null;
-        retainTabFocus = focusedTab != null; renderingPage = true;
-        content.removeAllViews(); targets.clear(); currentScroll = null;
+        View focusedTab = getCurrentFocus() instanceof NavigationTab ? tabs.get(state.page) : null;
+        retainTabFocus = focusedTab != null;
+        PageView previous = null;
+        for (PageView item : pages.values()) if (item.host.getVisibility() == View.VISIBLE) { previous = item; break; }
+        if (previous != null) previous.scroll = currentScroll;
+        if (dirtyPages.remove(state.page)) {
+            PageView old = pages.remove(state.page);
+            if (old != null) content.removeView(old.host);
+        }
+        for (PageView item : pages.values()) item.host.setVisibility(View.INVISIBLE);
+        PageView page = pages.get(state.page);
+        boolean cached = page != null;
+        if (!cached) { page = new PageView(new FrameLayout(this)); pages.put(state.page, page); content.addView(page.host, new FrameLayout.LayoutParams(-1, -1)); }
+        pageHost = page.host; targets = page.targets; currentScroll = page.scroll; pageHost.setVisibility(View.VISIBLE);
         libraryShade.setVisibility("Home".equals(state.page) ? View.GONE : View.VISIBLE);
         for (Map.Entry<String, View> item : tabs.entrySet()) {
             boolean selected = item.getKey().equals(state.page);
@@ -169,15 +209,59 @@ public final class MainActivity extends Activity {
             }
             item.getValue().setSelected(selected);
         }
-        if ("Home".equals(state.page)) home();
-        else if ("TV apps".equals(state.page)) tvApps();
-        else if (LIBRARY.equals(state.page)) library(refresh);
-        else if ("Inputs".equals(state.page)) inputs();
-        else settings(null);
+        if (!cached) {
+            if ("Home".equals(state.page)) home();
+            else if ("TV apps".equals(state.page)) tvApps();
+            else if (LIBRARY.equals(state.page)) library(false);
+            else if ("Inputs".equals(state.page)) inputs();
+            else settings(null);
+            page.scroll = currentScroll;
+        } else restoreFocus(null);
         if (focusedTab != null) focusedTab.requestFocus();
         View selectedTab = tabs.get(state.page);
         if (selectedTab != null && !targets.isEmpty()) selectedTab.setNextFocusDownId(targets.values().iterator().next().getId());
-        retainTabFocus = false; renderingPage = false;
+        retainTabFocus = false;
+        UiTimings.page(cached); UiTimings.surface(state.page, browser != null, openingPanel != null && openingPanel.getVisibility() == View.VISIBLE);
+        if (refresh && LIBRARY.equals(state.page)) content.post(() -> {
+            if (destroyed || !LIBRARY.equals(state.page) || browser != null) return;
+            if (!catalogueLoaded || catalogueCheckedAt == 0 || android.os.SystemClock.elapsedRealtime() - catalogueCheckedAt >= (catalogueError == null ? 60000 : 5000)) {
+                beginDiscovery(); if (!server.isEmpty()) refreshCatalogue();
+            }
+        });
+    }
+    private void prewarmPage(String name) {
+        if (destroyed || browser != null || name.equals(state.page) || (pages.containsKey(name) && !dirtyPages.contains(name))) return;
+        String previousPage = state.page; FrameLayout previousHost = pageHost; Map<String, View> previousTargets = targets; ScrollView previousScroll = currentScroll;
+        boolean previousRetain = retainTabFocus;
+        retainTabFocus = true;
+        PageView old = pages.remove(name); if (old != null) content.removeView(old.host);
+        PageView page = new PageView(new FrameLayout(this)); page.host.setVisibility(View.INVISIBLE);
+        pages.put(name, page); content.addView(page.host, new FrameLayout.LayoutParams(-1, -1));
+        state.page = name; pageHost = page.host; targets = page.targets; currentScroll = null;
+        try {
+            if (LIBRARY.equals(name)) library(false); else tvApps();
+            page.scroll = currentScroll; dirtyPages.remove(name); UiTimings.page(false);
+        } finally {
+            state.page = previousPage; pageHost = previousHost; targets = previousTargets; currentScroll = previousScroll;
+            retainTabFocus = previousRetain;
+        }
+    }
+    private void refreshTvApps() {
+        if (destroyed || packagesRefreshing) return;
+        packagesRefreshing = true;
+        packageWorker.execute(() -> {
+            boolean changed = false;
+            try { changed = tvApplications.refresh(); } catch (RuntimeException ignored) { /* Retain the last installed snapshot. */ }
+            final boolean updated = changed;
+            runOnUiThread(() -> {
+                packagesRefreshing = false; if (destroyed) return;
+                if (updated || nativeRefreshPending) {
+                    dirtyPages.add("Home"); if (updated) dirtyPages.add("TV apps"); nativeRefreshPending = false;
+                    if (browser == null && dirtyPages.contains(state.page) && ("Home".equals(state.page) || "TV apps".equals(state.page))) { savePosition(); showPage(false); }
+                    android.os.Looper.myQueue().addIdleHandler(() -> { if (!destroyed) prewarmPage("TV apps"); return false; });
+                }
+            });
+        });
     }
     private View remember(View view, String id, String label) {
         final String page = state.page;
@@ -209,12 +293,11 @@ public final class MainActivity extends Activity {
     }
     private LinearLayout appTile(ResolveInfo app, boolean compact) {
         String identity = app.activityInfo.packageName;
-        String label = app.loadLabel(getPackageManager()).toString();
+        String label = tvApplications.label(app);
         LinearLayout tile = column(); tile.setGravity(Gravity.CENTER); tile.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         tile.setPadding(dp(12), dp(10), dp(12), dp(10));
         ImageView image = new ImageView(this); image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        Drawable banner = app.activityInfo.loadBanner(getPackageManager());
-        if (banner == null) banner = app.loadIcon(getPackageManager());
+        Drawable banner = tvApplications.artwork(app, getResources());
         image.setImageDrawable(banner);
         FrameLayout art = new FrameLayout(this); art.addView(image, new FrameLayout.LayoutParams(-1, -1));
         if (favoriteApps.contains(identity)) {
@@ -234,11 +317,12 @@ public final class MainActivity extends Activity {
         });
         tile.setOnClickListener(v -> {
             try {
-                startActivity(tvApplications.launch(app));
+                launchExternal(tvApplications.launch(app));
                 nativeRefreshPending = true;
                 recentApps.remove(identity); recentApps.add(0, identity);
                 while (recentApps.size() > 128) recentApps.remove(recentApps.size() - 1);
                 saveList("recent-apps", recentApps);
+                dirtyPages.add("Home");
             }
             catch (Exception ignored) { notice("This app is unavailable. Your TV apps list will refresh when you return."); }
         });
@@ -260,7 +344,7 @@ public final class MainActivity extends Activity {
         }
         apps.addView(homeDestination("All TV apps", "all-tv", android.R.drawable.ic_menu_agenda, () -> navigate("TV apps")), homeCardParams());
         apps.addView(homeDestination("All Vrooli apps", "all-vrooli", R.drawable.portal, () -> {
-            state.filter = ""; state.libraryMode = "All apps"; state.focused.remove(LIBRARY); state.scroll.put(LIBRARY, 0); navigate(LIBRARY);
+            state.filter = ""; state.focused.remove(LIBRARY); state.scroll.put(LIBRARY, 0); dirtyPages.add(LIBRARY); navigate(LIBRARY);
         }), homeCardParams());
         for (int index = 0; index < apps.getChildCount(); index++) {
             View tile = apps.getChildAt(index);
@@ -269,8 +353,10 @@ public final class MainActivity extends Activity {
         }
         strip.addView(apps, new HorizontalScrollView.LayoutParams(-2, -1));
         body.addView(strip, new LinearLayout.LayoutParams(-1, dp(114)));
-        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
-        wireUpToNavigation(apps); restoreFocus(identities.isEmpty() ? "all-tv" : "app:" + identities.get(0));
+        pageHost.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        wireUpToNavigation(apps);
+        if (identities.isEmpty()) { if (!retainTabFocus) tabs.get("Home").requestFocus(); }
+        else restoreFocus("app:" + identities.get(0));
     }
     private LinearLayout.LayoutParams homeCardParams() {
         LinearLayout.LayoutParams value = new LinearLayout.LayoutParams(dp(176), dp(100)); value.rightMargin = dp(16); return value;
@@ -341,8 +427,8 @@ public final class MainActivity extends Activity {
     }
     private void tvApps() {
         LinearLayout body = column(); List<View> cards = new ArrayList<>();
-        for (ResolveInfo app : installedApps()) cards.add(appTile(app, false));
-        grid(body, cards, 5, 98); content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        for (ResolveInfo app : NavigationState.libraryApps(installedApps(), value -> value.activityInfo.packageName, tvApplications::label, favoriteApps)) cards.add(appTile(app, false));
+        grid(body, cards, 5, 98); pageHost.addView(body, new FrameLayout.LayoutParams(-1, -1));
         for (int i = 0; i < Math.min(5, cards.size()); i++) cards.get(i).setNextFocusUpId(tabs.get("TV apps").getId());
         if (!cards.isEmpty()) restoreFocus((String) cards.get(0).getTag());
     }
@@ -355,12 +441,12 @@ public final class MainActivity extends Activity {
         AlertDialog options = new AlertDialog.Builder(this).setTitle(app.loadLabel(getPackageManager())).setItems(actions.toArray(new String[0]), (dialog, which) -> {
             if (which == 0) {
                 if (favorite) favoriteApps.remove(identity); else favoriteApps.add(identity);
-                saveList("favorite-apps", favoriteApps); savePosition(); render(false);
+                saveList("favorite-apps", favoriteApps); dirtyPages.add("Home"); dirtyPages.add("TV apps"); savePosition(); render(false);
             } else {
                 try {
-                    startActivity(new Intent(which == 1 ? android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS : Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:" + identity)));
+                    launchExternal(new Intent(which == 1 ? android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS : Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:" + identity)));
                 } catch (Exception ignored) {
-                    try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + identity))); }
+                    try { launchExternal(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + identity))); }
                     catch (Exception unavailable) { notice("Open TV Settings → Apps to manage this app."); }
                 }
             }
@@ -374,11 +460,6 @@ public final class MainActivity extends Activity {
     private void library(boolean refresh) {
         LinearLayout body = column();
         LinearLayout toolbar = row();
-        for (String mode : new String[]{"All apps", "Favorites", "TV-ready"}) {
-            TextView choice = TvTheme.action(this, mode, () -> { savePosition(); state.libraryMode = mode; preferences.edit().putString("library-mode", mode).apply(); state.scroll.put(LIBRARY, 0); state.focused.remove(LIBRARY); render(false); });
-            if (mode.equals(state.libraryMode)) choice.setTextColor(TvTheme.ACCENT);
-            LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(-2, dp(38)); mp.rightMargin = dp(10); toolbar.addView(choice, mp);
-        }
         EditText search = new EditText(this); search.setSingleLine(true); search.setTextColor(TvTheme.TEXT); search.setTextSize(16); search.setHintTextColor(TvTheme.SECONDARY); search.setHint("Find an experience"); search.setContentDescription("Find an experience"); search.setText(state.filter); search.setSelectAllOnFocus(true); search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(0, dp(42), 1); ip.leftMargin = dp(12); toolbar.addView(search, ip);
         Runnable find = () -> { hideKeyboard(search); state.filter = search.getText().toString().trim(); state.scroll.put(LIBRARY, 0); state.focused.remove(LIBRARY); render(false); };
@@ -389,21 +470,18 @@ public final class MainActivity extends Activity {
         body.addView(toolbar);
         List<JSONObject> matches = new ArrayList<>();
         String query = state.filter.toLowerCase(Locale.ROOT);
-        for (JSONObject app : catalogue) {
+        for (JSONObject app : NavigationState.libraryApps(catalogue, value -> value.optString("scenario"), value -> value.optString("label"), favoriteExperiences)) {
             String identity = app.optString("scenario"), label = app.optString("label");
             if (!(label + " " + app.optString("description") + " " + identity).toLowerCase(Locale.ROOT).contains(query)) continue;
-            if ("Favorites".equals(state.libraryMode) && !favoriteExperiences.contains(identity)) continue;
-            if ("TV-ready".equals(state.libraryMode) && !"qualified".equals(app.optString("tvQualification"))) continue;
             matches.add(app);
         }
         String status;
         if (server.isEmpty()) status = discoveryStatus;
         else if (catalogueError != null) status = catalogueError + (catalogueLoaded ? " Showing saved apps." : "");
         else if (!catalogueLoaded) status = "Connecting to Portal…";
-        else if ("TV-ready".equals(state.libraryMode) && matches.isEmpty()) status = "No TV-ready apps";
         else if (matches.isEmpty()) status = "No matches";
         else status = (server.startsWith("http://") ? "Home LAN · unencrypted fallback · " : "Secure Portal · ") + (staleCatalogue ? "Saved library · reconnect to check availability" : "Connected");
-        TextView summary = text(status, 14, TvTheme.SECONDARY); summary.setPadding(dp(3), dp(12), 0, dp(9)); body.addView(summary);
+        librarySummary = text(status, 14, TvTheme.SECONDARY); librarySummary.setPadding(dp(3), dp(12), 0, dp(9)); body.addView(librarySummary);
         int restoredIndex = -1;
         for (int i = 0; i < matches.size(); i++) if (("experience:" + matches.get(i).optString("scenario")).equals(state.focused.get(LIBRARY))) restoredIndex = i;
         grid(body, matches.size(), index -> experienceTile(matches.get(index)), 3, 108, new CatalogueWindow(matches.size(), restoredIndex));
@@ -416,19 +494,19 @@ public final class MainActivity extends Activity {
             TextView login = TvTheme.action(this, "Open Portal", () -> openWeb(server, true)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(36)); lp.leftMargin = dp(12); footer.addView(login, lp);
         }
         body.addView(footer);
-        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        pageHost.addView(body, new FrameLayout.LayoutParams(-1, -1));
         if (!matches.isEmpty()) restoreFocus("experience:" + matches.get(0).optString("scenario")); else if (!retainTabFocus) retry.requestFocus();
-        if (refresh) { beginDiscovery(); if (!server.isEmpty()) refreshCatalogue(); }
     }
     private View experienceTile(JSONObject app) {
         String identity = app.optString("scenario"), label = app.optString("label", identity);
+        PageView owner = pages.get(LIBRARY); PortalClient connection = client;
         LinearLayout card = row(); card.setPadding(dp(16), dp(12), dp(16), dp(12)); card.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         FrameLayout art = new FrameLayout(this);
         TextView letter = text(label.isEmpty() ? "V" : label.substring(0, 1).toUpperCase(Locale.ROOT), 30, TvTheme.ACCENT); letter.setGravity(Gravity.CENTER); art.addView(letter, new FrameLayout.LayoutParams(-1, -1));
         ImageView image = new ImageView(this); image.setScaleType(ImageView.ScaleType.FIT_CENTER); art.addView(image, new FrameLayout.LayoutParams(-1, -1));
         if ("web-console".equals(identity)) { image.setImageResource(R.drawable.aquila); letter.setVisibility(View.GONE); }
-        String icon = app.optString("iconPath"); int generation = requestVersion;
-        if (!icon.isEmpty()) artwork.load(client, icon, bitmap -> { if (!destroyed && generation == requestVersion) { image.setImageBitmap(bitmap); letter.setVisibility(View.GONE); } });
+        String icon = app.optString("iconPath");
+        if (!icon.isEmpty()) artwork.load(connection, icon, bitmap -> { if (!destroyed && pages.get(LIBRARY) == owner && client == connection) { image.setImageBitmap(bitmap); letter.setVisibility(View.GONE); } });
         card.addView(art, new LinearLayout.LayoutParams(dp(48), dp(48)));
         LinearLayout details = column(); LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(0, -2, 1); dp.leftMargin = dp(14); card.addView(details, dp);
         TextView title = text(label, 18, TvTheme.TEXT); title.setTypeface(null, Typeface.BOLD); title.setMaxLines(1); title.setEllipsize(TextUtils.TruncateAt.END); details.addView(title);
@@ -438,18 +516,26 @@ public final class MainActivity extends Activity {
         String description = app.optString("description");
         TextView subtitle = text(description, 14, TvTheme.SECONDARY); subtitle.setMaxLines(1); subtitle.setEllipsize(TextUtils.TruncateAt.END); subtitle.setPadding(0, dp(5), 0, dp(5)); details.addView(subtitle);
         boolean running = "running".equals(app.optString("runtimeState"));
-        String availability = staleCatalogue ? "Saved · availability unknown" : running ? "TV controls unverified" : "Not running";
-        TextView status = text((favoriteExperiences.contains(identity) ? "★ Favorite · " : "") + availability, 12, TvTheme.SECONDARY); details.addView(status);
-        remember(card, "experience:" + identity, running ? "Open " + label : label + ", Not running");
-        if (android.os.Build.VERSION.SDK_INT >= 30) card.setStateDescription(availability);
-        card.setOnClickListener(v -> {
+        String availability = staleCatalogue ? "Saved · availability unknown" : running ? "" : "Not running";
+        if (!availability.isEmpty()) details.addView(text(availability, 12, TvTheme.SECONDARY));
+        FrameLayout tile = new FrameLayout(this); tile.addView(card, new FrameLayout.LayoutParams(-1, -1));
+        tile.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        if (favoriteExperiences.contains(identity)) {
+            ImageView favorite = new ImageView(this); favorite.setImageResource(R.drawable.ic_favorite);
+            favorite.setImageTintList(ColorStateList.valueOf(TvTheme.ACCENT)); favorite.setContentDescription("Favorite");
+            FrameLayout.LayoutParams star = new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.TOP | Gravity.RIGHT); star.topMargin = dp(8); star.rightMargin = dp(8); tile.addView(favorite, star);
+            details.setPadding(0, 0, dp(16), 0);
+        }
+        remember(tile, "experience:" + identity, (running ? "Open " : "") + label + (favoriteExperiences.contains(identity) ? ", favorite" : "") + (running ? "" : ", Not running"));
+        if (android.os.Build.VERSION.SDK_INT >= 30 && !availability.isEmpty()) tile.setStateDescription(availability);
+        tile.setOnClickListener(v -> {
             if (!running) { notice("This experience is not running. Open it on your computer first."); return; }
             savePosition(); openApplication(identity);
         });
-        card.setOnLongClickListener(v -> {
+        tile.setOnLongClickListener(v -> {
             experienceOptions(app); return true;
         });
-        return card;
+        return tile;
     }
     private void experienceOptions(JSONObject app) {
         String identity = app.optString("scenario");
@@ -472,36 +558,47 @@ public final class MainActivity extends Activity {
             if (browser == null && LIBRARY.equals(state.page) && matches.size() == 1 && !server.equals(matches.get(0))) {
                 cancelRequest(); fetchCatalogue(new PortalClient(matches.get(0), preferences.getBoolean("allow-home-http", false)), true);
             }
-            if (browser == null && (LIBRARY.equals(state.page) || ("Settings".equals(state.page) && !(getCurrentFocus() instanceof EditText)))) { savePosition(); render(false); }
+            if (browser == null && "Settings".equals(state.page) && !(getCurrentFocus() instanceof EditText)) { savePosition(); render(false); }
+            else if (browser == null && LIBRARY.equals(state.page) && server.isEmpty() && librarySummary != null) librarySummary.setText(discoveryStatus);
         });
     }
     private void selectPortal(String origin, boolean home) {
         if (!server.equals(origin)) {
             cancelRequest(); server = origin; client = new PortalClient(origin, preferences.getBoolean("allow-home-http", false));
             catalogue.clear(); catalogueLoaded = false; staleCatalogue = false; catalogueError = null;
+            dirtyPages.add(LIBRARY); catalogueCheckedAt = 0;
             preferences.edit().putString("server", origin).apply(); loadCachedCatalogue();
         }
         if (home) preferences.edit().putString("home-server", origin).apply();
     }
-    private void refreshCatalogue() { fetchCatalogue(client, false); }
+    private void refreshCatalogue() { if (!catalogueRefreshing) fetchCatalogue(client, false); }
     private void fetchCatalogue(PortalClient connection, boolean adopt) {
         final int generation = ++requestVersion;
+        catalogueRefreshing = true;
         pending = network.submit(() -> {
             try {
                 JSONArray values = connection.rpc("ListApplications", new JSONObject()).optJSONArray("applications");
                 if (values == null || values.length() > 512) throw new JSONException("invalid_catalogue");
                 List<JSONObject> apps = new ArrayList<>(); for (int i = 0; i < values.length(); i++) apps.add(values.getJSONObject(i));
                 apps.sort((a, b) -> a.optString("label").compareToIgnoreCase(b.optString("label")));
+                String payload = values.toString();
                 runOnUiThread(() -> {
                     if (destroyed || generation != requestVersion) return;
+                    catalogueRefreshing = false; catalogueCheckedAt = android.os.SystemClock.elapsedRealtime();
                     if (adopt) selectPortal(connection.origin, true);
+                    boolean changed = !catalogueLoaded || staleCatalogue || catalogueError != null || !payload.equals(cataloguePayload);
                     savePosition(); catalogue.clear(); catalogue.addAll(apps); catalogueLoaded = true; staleCatalogue = false; catalogueError = null;
-                    preferences.edit().putString("catalogue-origin", connection.origin).putString("catalogue", values.toString()).apply();
-                    if (LIBRARY.equals(state.page) && browser == null) render(false);
+                    cataloguePayload = payload;
+                    preferences.edit().putString("catalogue-origin", connection.origin).putString("catalogue", payload).apply();
+                    if (changed) {
+                        dirtyPages.add(LIBRARY);
+                        if (LIBRARY.equals(state.page) && browser == null) showPage(false);
+                        else android.os.Looper.myQueue().addIdleHandler(() -> { if (!destroyed) prewarmPage(LIBRARY); return false; });
+                    }
                 });
             } catch (Exception error) {
                 String message = failure(error);
-                runOnUiThread(() -> { if (!destroyed && generation == requestVersion) { if (adopt) { discoveryStatus = "The discovered connection could not be verified. Keeping your saved connection."; } else { catalogueError = message; staleCatalogue = catalogueLoaded; } if (LIBRARY.equals(state.page) && browser == null) render(false); } });
+                runOnUiThread(() -> { if (!destroyed && generation == requestVersion) { catalogueRefreshing = false; catalogueCheckedAt = android.os.SystemClock.elapsedRealtime(); if (adopt) { discoveryStatus = "The discovered connection could not be verified. Keeping your saved connection."; } else { catalogueError = message; staleCatalogue = catalogueLoaded; } dirtyPages.add(LIBRARY); if (LIBRARY.equals(state.page) && browser == null) showPage(false); } });
             }
         });
     }
@@ -525,11 +622,11 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(-1, -2); np.topMargin = dp(12); card.addView(name, np);
             TextView status = text(connection, 14, TvTheme.SECONDARY); status.setPadding(0, dp(6), 0, 0); card.addView(status);
             remember(card, "input:" + input.getId(), label + ", " + connection.toLowerCase(Locale.ROOT));
-            card.setOnClickListener(v -> { try { startActivity(new Intent(Intent.ACTION_VIEW, android.media.tv.TvContract.buildChannelUriForPassthroughInput(input.getId()))); } catch (Exception ignored) { notice("Use the Input button on your TV remote."); } });
+            card.setOnClickListener(v -> { try { launchExternal(new Intent(Intent.ACTION_VIEW, android.media.tv.TvContract.buildChannelUriForPassthroughInput(input.getId()))); } catch (Exception ignored) { notice("Use the Input button on your TV remote."); } });
             cards.add(card);
         }
         if (cards.isEmpty()) body.addView(text("Your remote’s Input button remains available.", 18, TvTheme.SECONDARY));
-        grid(body, cards, 4, 150); content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        grid(body, cards, 4, 150); pageHost.addView(body, new FrameLayout.LayoutParams(-1, -1));
         for (int i = 0; i < Math.min(4, cards.size()); i++) cards.get(i).setNextFocusUpId(tabs.get("Inputs").getId());
         restoreFocus(null);
     }
@@ -554,7 +651,7 @@ public final class MainActivity extends Activity {
         TextView version = text("Vrooli TV  " + BuildConfig.VERSION_NAME, 13, TvTheme.SECONDARY); version.setPadding(dp(12), 0, 0, dp(8)); sidebar.addView(version);
         layout.addView(sidebar, new LinearLayout.LayoutParams(dp(180), -1));
         LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(0, -1, 1); pp.leftMargin = dp(26); layout.addView(settingsPane, pp);
-        content.addView(layout, new FrameLayout.LayoutParams(-1, -1));
+        pageHost.addView(layout, new FrameLayout.LayoutParams(-1, -1));
         showSettingsSection(settingsSection);
         restoreFocus("settings-category:" + settingsSection);
     }
@@ -592,7 +689,7 @@ public final class MainActivity extends Activity {
             fallback.setOnClickListener(view -> { setHomeFallback(!toggle.isChecked()); render(false); });
             settingsRow(body, fallback);
         } else {
-            settingsAction(body, "clear-recents", "Recent apps", recentApps.size() + " saved", () -> new AlertDialog.Builder(this).setTitle("Clear recent apps?").setPositiveButton("Clear", (dialog, which) -> { recentApps.clear(); saveList("recent-apps", recentApps); render(false); }).setNegativeButton("Cancel", null).show());
+            settingsAction(body, "clear-recents", "Recent apps", recentApps.size() + " saved", () -> new AlertDialog.Builder(this).setTitle("Clear recent apps?").setPositiveButton("Clear", (dialog, which) -> { recentApps.clear(); saveList("recent-apps", recentApps); dirtyPages.add("Home"); render(false); }).setNegativeButton("Cancel", null).show());
         }
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(false); scroll.setClipToPadding(true); scroll.setVerticalScrollBarEnabled(false); scroll.addView(body); currentScroll = scroll;
         settingsPane.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
@@ -618,6 +715,7 @@ public final class MainActivity extends Activity {
     private void setHomeFallback(boolean allowed) {
         preferences.edit().putBoolean("allow-home-http", allowed).apply();
         if (!allowed && server.startsWith("http://")) { cancelRequest(); server = ""; preferences.edit().remove("server").apply(); catalogue.clear(); catalogueLoaded = false; staleCatalogue = false; catalogueError = null; }
+        dirtyPages.add(LIBRARY);
         client = new PortalClient(server, allowed);
     }
     private void chooseDiscoveredPortal() {
@@ -644,11 +742,11 @@ public final class MainActivity extends Activity {
     private void handleConnection(Intent intent) {
         if (BuildConfig.HOME_ENABLED && intent != null && HomeOverrideService.SETTINGS_ACTION.equals(intent.getAction())) { navigate("Settings"); return; }
         if (isHomeIntent(intent)) {
-            savePosition(); cancelRequest(); closeWeb(false); tvApplications.refresh(); state.systemHome(); render(false); HomeOverrideService.homeArrived(); return;
+            savePosition(); cancelRequest(); closeWeb(false); state.systemHome(); showPage(false); refreshTvApps(); HomeOverrideService.homeArrived(); return;
         }
         Uri uri = intent == null ? null : intent.getData();
         if (uri != null && "vrooli-portal".equals(uri.getScheme()) && "connect".equals(uri.getHost())) {
-            closeWeb(false); savePosition(); cancelRequest(); state.navigate("Settings"); render(false); content.removeAllViews(); settings(uri.getQueryParameter("server"));
+            closeWeb(false); savePosition(); cancelRequest(); connectionDraft = uri.getQueryParameter("server"); settingsSection = "Portal"; state.focused.put("Settings", "settings-category:Portal"); navigate("Settings");
         }
     }
     private boolean isHomeIntent(Intent intent) {
@@ -656,6 +754,8 @@ public final class MainActivity extends Activity {
             (intent.hasCategory(Intent.CATEGORY_HOME) || (intent.getComponent() != null && "com.vrooli.portal.tv.HomeActivity".equals(intent.getComponent().getClassName())));
     }
     private void openApplication(String identity) {
+        cancelRequest();
+        state.appOpened();
         final int generation = ++requestVersion; final PortalClient connection = client;
         showLoading("Opening experience…", () -> { cancelRequest(); closeWeb(false); });
         pending = network.submit(() -> {
@@ -677,26 +777,24 @@ public final class MainActivity extends Activity {
         } catch (Exception ignored) { return false; }
     }
     private void showLoading(String message, Runnable cancel) {
-        if (browser != null) root.removeView(browser);
-        browser = new FrameLayout(this); browser.setBackgroundColor(TvTheme.INK);
-        LinearLayout panel = column(); panel.setGravity(Gravity.CENTER);
-        TextView caption = text(message, 22, TvTheme.TEXT); caption.setGravity(Gravity.CENTER); panel.addView(caption);
-        TextView back = TvTheme.action(this, "Return to library", cancel); LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(220), dp(46)); bp.topMargin = dp(24); panel.addView(back, bp);
-        browser.addView(panel, new FrameLayout.LayoutParams(-1, -1)); root.addView(browser, new FrameLayout.LayoutParams(-1, -1)); shell.setVisibility(View.GONE); back.requestFocus();
+        if (browser == null) {
+            browser = new FrameLayout(this); browser.setBackgroundColor(TvTheme.INK);
+            openingPanel = column(); openingPanel.setGravity(Gravity.CENTER); openingPanel.setBackgroundColor(TvTheme.INK);
+            openingCaption = text(message, 22, TvTheme.TEXT); openingCaption.setGravity(Gravity.CENTER); openingPanel.addView(openingCaption);
+            openingCancel = TvTheme.action(this, "Return to library", cancel); LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(220), dp(46)); bp.topMargin = dp(24); openingPanel.addView(openingCancel, bp);
+            browser.addView(openingPanel, new FrameLayout.LayoutParams(-1, -1)); root.addView(browser, new FrameLayout.LayoutParams(-1, -1));
+        }
+        openingCaption.setText(message); openingCancel.setOnClickListener(view -> cancel.run()); openingPanel.setVisibility(View.VISIBLE);
+        shell.setVisibility(View.GONE); openingCancel.requestFocus(); UiTimings.surface(state.page, true, true);
     }
     @SuppressWarnings("SetJavaScriptEnabled") private void openWeb(String address, boolean signIn) {
         if (!safePage(address)) { showLoading("This address cannot be opened safely.", () -> closeWeb(false)); return; }
-        if (browser != null) root.removeView(browser);
         destroyWeb(); webIsSignIn = signIn;
-        browser = new FrameLayout(this); browser.setBackgroundColor(TvTheme.INK);
+        showLoading("Opening experience…", () -> { cancelRequest(); closeWeb(true); });
         web = new WebView(this);
         if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true);
         WebSettings settings = web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true); settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        browser.addView(web, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout loading = row(); loading.setPadding(dp(32), dp(12), dp(32), dp(12)); loading.setBackgroundColor(TvTheme.INK);
-        TextView caption = text("Opening experience…", 18, TvTheme.TEXT); loading.addView(caption, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView cancel = TvTheme.action(this, "Return to library", () -> closeWeb(true)); loading.addView(cancel, new LinearLayout.LayoutParams(-2, dp(40)));
-        browser.addView(loading, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+        browser.addView(web, 0, new FrameLayout.LayoutParams(-1, -1));
         web.setWebViewClient(new WebViewClient() {
             private boolean failed;
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -704,29 +802,31 @@ public final class MainActivity extends Activity {
                 if ("http".equals(destination.getScheme()) && !safePage(destination.toString())) return new WebResourceResponse("text/plain", "utf-8", 403, "Blocked", Collections.emptyMap(), new java.io.ByteArrayInputStream(new byte[0]));
                 return null;
             }
-            @Override public void onPageCommitVisible(WebView view, String url) { if (!failed) { loading.setVisibility(View.GONE); view.requestFocus(); } }
+            @Override public void onPageCommitVisible(WebView view, String url) { if (!failed && view == web && browser != null) { openingPanel.setVisibility(View.GONE); view.requestFocus(); UiTimings.surface(state.page, true, false); } }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return !safePage(request.getUrl().toString()); }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) { failed = true; loading.setVisibility(View.VISIBLE); caption.setText("This experience is unavailable. Return to your library to try again."); cancel.requestFocus(); android.util.Log.w("PortalTV", "Web page error: " + error.getErrorCode()); }
+                if (request.isForMainFrame() && view == web) { failed = true; showLoading("This experience is unavailable. Return to your library to try again.", () -> { cancelRequest(); closeWeb(false); }); android.util.Log.w("PortalTV", "Web page error: " + error.getErrorCode()); }
             }
             @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
-                if (request.isForMainFrame() && response.getStatusCode() >= 400) { failed = true; loading.setVisibility(View.VISIBLE); caption.setText("This experience could not be opened. Your library is still available."); cancel.requestFocus(); }
+                if (request.isForMainFrame() && view == web && response.getStatusCode() >= 400) { failed = true; showLoading("This experience could not be opened. Your library is still available.", () -> { cancelRequest(); closeWeb(false); }); }
             }
             @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) { closeWeb(false); notice("The experience closed. Your library is still available."); return true; }
         });
         web.setWebChromeClient(new WebChromeClient());
-        root.addView(browser, new FrameLayout.LayoutParams(-1, -1)); shell.setVisibility(View.GONE); web.loadUrl(address); cancel.requestFocus();
+        web.loadUrl(address);
     }
     private void closeWeb(boolean retrySignIn) {
         if (browser == null) return;
         boolean retry = retrySignIn && webIsSignIn;
         if (web != null && !server.isEmpty()) client.setCookie(CookieManager.getInstance().getCookie(server));
-        destroyWeb(); root.removeView(browser); browser = null; shell.setVisibility(View.VISIBLE); webIsSignIn = false;
+        state.appReturned();
+        destroyWeb(); root.removeView(browser); browser = null; openingPanel = null; openingCaption = null; openingCancel = null; shell.setVisibility(View.VISIBLE); webIsSignIn = false;
         restoreFocus(LIBRARY.equals(state.page) ? "experience:web-console" : "library");
+        UiTimings.surface(state.page, false, false);
         if (retry && LIBRARY.equals(state.page)) { catalogueError = null; refreshCatalogue(); }
     }
-    private void destroyWeb() { if (web != null) { WebView previous = web; web = null; previous.stopLoading(); previous.removeAllViews(); previous.destroy(); } }
-    private void cancelRequest() { ++requestVersion; if (pending != null) pending.cancel(true); pending = null; if (client != null) client.cancel(); }
+    private void destroyWeb() { if (web != null) { WebView previous = web; web = null; previous.stopLoading(); if (previous.getParent() instanceof ViewGroup) ((ViewGroup) previous.getParent()).removeView(previous); previous.destroy(); } }
+    private void cancelRequest() { ++requestVersion; catalogueRefreshing = false; if (pending != null) pending.cancel(true); pending = null; if (client != null) client.cancel(); }
     private String failure(Exception error) {
         String code = "request_failed", message = "Portal is unavailable. Your TV apps still work.";
         if (error instanceof java.net.SocketTimeoutException) { code = "timeout"; message = "Portal did not respond. Try again when it is available."; }
@@ -748,7 +848,7 @@ public final class MainActivity extends Activity {
     private void saveList(String key, List<String> values) { preferences.edit().putString(key, new JSONArray(values).toString()).apply(); }
     private void loadCachedCatalogue() {
         if (!server.equals(preferences.getString("catalogue-origin", ""))) return;
-        try { JSONArray values = new JSONArray(preferences.getString("catalogue", "[]")); if (values.length() > 512) return; for (int i = 0; i < values.length(); i++) catalogue.add(values.getJSONObject(i)); catalogueLoaded = !catalogue.isEmpty(); staleCatalogue = catalogueLoaded; } catch (JSONException ignored) { catalogue.clear(); }
+        try { cataloguePayload = preferences.getString("catalogue", "[]"); JSONArray values = new JSONArray(cataloguePayload); if (values.length() > 512) return; for (int i = 0; i < values.length(); i++) catalogue.add(values.getJSONObject(i)); catalogueLoaded = !catalogue.isEmpty(); staleCatalogue = catalogueLoaded; } catch (JSONException ignored) { catalogue.clear(); }
     }
     private void notice(String message) { Toast.makeText(this, message, Toast.LENGTH_LONG).show(); }
     private void hideKeyboard(View input) {
@@ -761,7 +861,8 @@ public final class MainActivity extends Activity {
         else if (state.exitsOnBack(BuildConfig.HOME_ENABLED)) super.onBackPressed();
     }
     @Override protected void onSaveInstanceState(Bundle out) {
-        savePosition(); out.putString("page", state.page); out.putString("libraryReturn", state.libraryReturn); out.putString("settingsReturn", state.settingsReturn); out.putString("settingsSection", settingsSection); out.putString("connectionDraft", connectionDraft); out.putString("filter", state.filter); out.putString("libraryMode", state.libraryMode);
+        out.putString("appReturn", state.appReturn);
+        savePosition(); out.putString("page", state.page); out.putString("libraryReturn", state.libraryReturn); out.putString("settingsReturn", state.settingsReturn); out.putString("settingsSection", settingsSection); out.putString("connectionDraft", connectionDraft); out.putString("filter", state.filter);
         Bundle focus = new Bundle(); for (Map.Entry<String, String> entry : state.focused.entrySet()) focus.putString(entry.getKey(), entry.getValue()); out.putBundle("focused", focus);
         Bundle scroll = new Bundle(); for (Map.Entry<String, Integer> entry : state.scroll.entrySet()) scroll.putInt(entry.getKey(), entry.getValue()); out.putBundle("scroll", scroll);
         super.onSaveInstanceState(out);
@@ -771,13 +872,20 @@ public final class MainActivity extends Activity {
         super.onResume();
         if (web != null) web.onResume();
         else if (browser == null && content != null) {
+            boolean returning = state.appReturn != null; String before = state.page; state.appReturned();
+            if (returning || !before.equals(state.page)) showPage(false);
             // Package availability and banners may change while an app owns the
             // screen. Re-read only local native pages; never trigger Portal here.
-            boolean appsChanged = tvApplications.refresh();
+            refreshTvApps();
             if ("Settings".equals(state.page)) render(false);
-            else if ((nativeRefreshPending || appsChanged) && ("Home".equals(state.page) || "TV apps".equals(state.page))) { nativeRefreshPending = false; savePosition(); render(false); }
-            else if (!(getCurrentFocus() instanceof NavigationTab)) restoreFocus("library");
+            else if (!(getCurrentFocus() instanceof NavigationTab)) {
+                restoreFocus("library");
+            }
         }
     }
-    @Override protected void onDestroy() { destroyed = true; discovery.stop(); cancelRequest(); network.shutdownNow(); artwork.close(); destroyWeb(); super.onDestroy(); }
+    private void launchExternal(Intent intent) {
+        savePosition(); state.appOpened();
+        try { startActivity(intent); } catch (RuntimeException error) { state.appReturned(); throw error; }
+    }
+    @Override protected void onDestroy() { destroyed = true; discovery.stop(); cancelRequest(); network.shutdownNow(); packageWorker.shutdownNow(); artwork.close(); destroyWeb(); super.onDestroy(); }
 }

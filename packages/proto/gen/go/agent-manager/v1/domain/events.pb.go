@@ -2233,7 +2233,7 @@ type ProgressEventData struct {
 	// Total turns expected (0 = unlimited).
 	TurnsTotal int32 `protobuf:"varint,5,opt,name=turns_total,json=turnsTotal,proto3" json:"turns_total,omitempty"`
 	// Tokens consumed so far.
-	TokensUsed int32 `protobuf:"varint,6,opt,name=tokens_used,json=tokensUsed,proto3" json:"tokens_used,omitempty"`
+	TokensUsed int64 `protobuf:"varint,6,opt,name=tokens_used,json=tokensUsed,proto3" json:"tokens_used,omitempty"`
 	// Seconds elapsed.
 	ElapsedSeconds float64 `protobuf:"fixed64,7,opt,name=elapsed_seconds,json=elapsedSeconds,proto3" json:"elapsed_seconds,omitempty"`
 	// Estimated seconds remaining (-1 if unknown).
@@ -2307,7 +2307,7 @@ func (x *ProgressEventData) GetTurnsTotal() int32 {
 	return 0
 }
 
-func (x *ProgressEventData) GetTokensUsed() int32 {
+func (x *ProgressEventData) GetTokensUsed() int64 {
 	if x != nil {
 		return x.TokensUsed
 	}
@@ -2877,7 +2877,7 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\x0fturns_completed\x18\x04 \x01(\x05R\x0eturnsCompleted\x12\x1f\n" +
 	"\vturns_total\x18\x05 \x01(\x05R\n" +
 	"turnsTotal\x12\x1f\n" +
-	"\vtokens_used\x18\x06 \x01(\x05R\n" +
+	"\vtokens_used\x18\x06 \x01(\x03R\n" +
 	"tokensUsed\x12'\n" +
 	"\x0felapsed_seconds\x18\a \x01(\x01R\x0eelapsedSeconds\x12/\n" +
 	"\x13estimated_remaining\x18\b \x01(\x01R\x12estimatedRemaining\"\xff\x02\n" +

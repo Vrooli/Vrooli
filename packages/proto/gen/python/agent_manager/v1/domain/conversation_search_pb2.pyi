@@ -344,6 +344,62 @@ class ConversationSearchDegradation(_message.Message):
     retryable: bool
     def __init__(self, reason: _Optional[_Union[ConversationSearchDegradationReason, str]] = ..., leg: _Optional[_Union[ConversationSearchLeg, str]] = ..., detail: _Optional[str] = ..., retryable: _Optional[bool] = ...) -> None: ...
 
+class ConversationParseFailureSample(_message.Message):
+    __slots__ = ("run_id", "site", "detail", "line_sample")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SITE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    LINE_SAMPLE_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    site: str
+    detail: str
+    line_sample: str
+    def __init__(self, run_id: _Optional[str] = ..., site: _Optional[str] = ..., detail: _Optional[str] = ..., line_sample: _Optional[str] = ...) -> None: ...
+
+class ConversationParseFailures(_message.Message):
+    __slots__ = ("total", "by_site", "samples")
+    class BySiteEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    BY_SITE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    by_site: _containers.ScalarMap[str, int]
+    samples: _containers.RepeatedCompositeFieldContainer[ConversationParseFailureSample]
+    def __init__(self, total: _Optional[int] = ..., by_site: _Optional[_Mapping[str, int]] = ..., samples: _Optional[_Iterable[_Union[ConversationParseFailureSample, _Mapping]]] = ...) -> None: ...
+
+class ConversationPolicyCounters(_message.Message):
+    __slots__ = ("process_local", "exclude_at_import", "hide_at_search", "redact_marked", "by_rule", "pii_events_scanned", "pii_spans_masked", "pii_fail_closed")
+    class ByRuleEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    PROCESS_LOCAL_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_AT_IMPORT_FIELD_NUMBER: _ClassVar[int]
+    HIDE_AT_SEARCH_FIELD_NUMBER: _ClassVar[int]
+    REDACT_MARKED_FIELD_NUMBER: _ClassVar[int]
+    BY_RULE_FIELD_NUMBER: _ClassVar[int]
+    PII_EVENTS_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    PII_SPANS_MASKED_FIELD_NUMBER: _ClassVar[int]
+    PII_FAIL_CLOSED_FIELD_NUMBER: _ClassVar[int]
+    process_local: bool
+    exclude_at_import: int
+    hide_at_search: int
+    redact_marked: int
+    by_rule: _containers.ScalarMap[str, int]
+    pii_events_scanned: int
+    pii_spans_masked: int
+    pii_fail_closed: int
+    def __init__(self, process_local: _Optional[bool] = ..., exclude_at_import: _Optional[int] = ..., hide_at_search: _Optional[int] = ..., redact_marked: _Optional[int] = ..., by_rule: _Optional[_Mapping[str, int]] = ..., pii_events_scanned: _Optional[int] = ..., pii_spans_masked: _Optional[int] = ..., pii_fail_closed: _Optional[int] = ...) -> None: ...
+
 class SearchConversationsResponse(_message.Message):
     __slots__ = ("hits", "next_page_cursor", "mode_used", "sort_used", "coverage", "degradations", "took_ms", "request_id")
     HITS_FIELD_NUMBER: _ClassVar[int]
@@ -429,7 +485,7 @@ class GetConversationIndexStatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetConversationIndexStatusResponse(_message.Message):
-    __slots__ = ("state", "coverage", "degradations", "collection_name", "active_generation", "recipe_version", "embedding_model", "last_indexed_at", "last_success_at", "last_error_code", "candidate_generation", "degraded_dependencies", "collection_layout")
+    __slots__ = ("state", "coverage", "degradations", "collection_name", "active_generation", "recipe_version", "embedding_model", "last_indexed_at", "last_success_at", "last_error_code", "candidate_generation", "degraded_dependencies", "collection_layout", "parse_failures", "policy_counters")
     STATE_FIELD_NUMBER: _ClassVar[int]
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
     DEGRADATIONS_FIELD_NUMBER: _ClassVar[int]
@@ -443,6 +499,8 @@ class GetConversationIndexStatusResponse(_message.Message):
     CANDIDATE_GENERATION_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_LAYOUT_FIELD_NUMBER: _ClassVar[int]
+    PARSE_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    POLICY_COUNTERS_FIELD_NUMBER: _ClassVar[int]
     state: ConversationIndexState
     coverage: ConversationSearchCoverage
     degradations: _containers.RepeatedCompositeFieldContainer[ConversationSearchDegradation]
@@ -456,7 +514,9 @@ class GetConversationIndexStatusResponse(_message.Message):
     candidate_generation: str
     degraded_dependencies: _containers.RepeatedScalarFieldContainer[str]
     collection_layout: str
-    def __init__(self, state: _Optional[_Union[ConversationIndexState, str]] = ..., coverage: _Optional[_Union[ConversationSearchCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ..., collection_name: _Optional[str] = ..., active_generation: _Optional[str] = ..., recipe_version: _Optional[str] = ..., embedding_model: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_error_code: _Optional[str] = ..., candidate_generation: _Optional[str] = ..., degraded_dependencies: _Optional[_Iterable[str]] = ..., collection_layout: _Optional[str] = ...) -> None: ...
+    parse_failures: ConversationParseFailures
+    policy_counters: ConversationPolicyCounters
+    def __init__(self, state: _Optional[_Union[ConversationIndexState, str]] = ..., coverage: _Optional[_Union[ConversationSearchCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ..., collection_name: _Optional[str] = ..., active_generation: _Optional[str] = ..., recipe_version: _Optional[str] = ..., embedding_model: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_error_code: _Optional[str] = ..., candidate_generation: _Optional[str] = ..., degraded_dependencies: _Optional[_Iterable[str]] = ..., collection_layout: _Optional[str] = ..., parse_failures: _Optional[_Union[ConversationParseFailures, _Mapping]] = ..., policy_counters: _Optional[_Union[ConversationPolicyCounters, _Mapping]] = ...) -> None: ...
 
 class PlanConversationReindexRequest(_message.Message):
     __slots__ = ("full", "max_documents", "control_token")

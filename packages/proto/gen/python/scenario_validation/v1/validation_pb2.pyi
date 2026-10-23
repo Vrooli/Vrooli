@@ -264,7 +264,7 @@ class BrowserCaseSelector(_message.Message):
     def __init__(self, case_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DesktopValidationBinding(_message.Message):
-    __slots__ = ("target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "profile_id", "cdp_transport", "workflow_path", "workflow_id")
+    __slots__ = ("target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "profile_id", "cdp_transport", "workflow_path", "workflow_id", "bundled_runtime", "api_url", "test_database_root", "browser_automation_studio_variant", "isolation_lease_id", "prepare_isolation_restart", "resume_isolation_restart")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     CDP_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     RENDERER_ID_FIELD_NUMBER: _ClassVar[int]
@@ -277,6 +277,13 @@ class DesktopValidationBinding(_message.Message):
     CDP_TRANSPORT_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_PATH_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    BUNDLED_RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    API_URL_FIELD_NUMBER: _ClassVar[int]
+    TEST_DATABASE_ROOT_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_AUTOMATION_STUDIO_VARIANT_FIELD_NUMBER: _ClassVar[int]
+    ISOLATION_LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    PREPARE_ISOLATION_RESTART_FIELD_NUMBER: _ClassVar[int]
+    RESUME_ISOLATION_RESTART_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     cdp_endpoint: str
     renderer_id: str
@@ -289,7 +296,14 @@ class DesktopValidationBinding(_message.Message):
     cdp_transport: str
     workflow_path: str
     workflow_id: str
-    def __init__(self, target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., profile_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ..., workflow_path: _Optional[str] = ..., workflow_id: _Optional[str] = ...) -> None: ...
+    bundled_runtime: bool
+    api_url: str
+    test_database_root: str
+    browser_automation_studio_variant: str
+    isolation_lease_id: str
+    prepare_isolation_restart: bool
+    resume_isolation_restart: bool
+    def __init__(self, target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., profile_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ..., workflow_path: _Optional[str] = ..., workflow_id: _Optional[str] = ..., bundled_runtime: _Optional[bool] = ..., api_url: _Optional[str] = ..., test_database_root: _Optional[str] = ..., browser_automation_studio_variant: _Optional[str] = ..., isolation_lease_id: _Optional[str] = ..., prepare_isolation_restart: _Optional[bool] = ..., resume_isolation_restart: _Optional[bool] = ...) -> None: ...
 
 class StartValidationRunResponse(_message.Message):
     __slots__ = ("run",)

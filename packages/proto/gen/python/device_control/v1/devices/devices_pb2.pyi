@@ -10,6 +10,76 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class InspectDeviceRequest(_message.Message):
+    __slots__ = ("device_id", "transport")
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    device_id: str
+    transport: str
+    def __init__(self, device_id: _Optional[str] = ..., transport: _Optional[str] = ...) -> None: ...
+
+class InspectDeviceResponse(_message.Message):
+    __slots__ = ("device_id", "observed_at", "abis", "memory_total_bytes", "data_total_bytes", "data_available_bytes", "webview_package", "webview_version", "home_component", "low_ram", "unavailable", "transport", "voice")
+    class UnavailableEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    ABIS_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    DATA_TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    DATA_AVAILABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    WEBVIEW_PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    WEBVIEW_VERSION_FIELD_NUMBER: _ClassVar[int]
+    HOME_COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    LOW_RAM_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    VOICE_FIELD_NUMBER: _ClassVar[int]
+    device_id: str
+    observed_at: _timestamp_pb2.Timestamp
+    abis: _containers.RepeatedScalarFieldContainer[str]
+    memory_total_bytes: int
+    data_total_bytes: int
+    data_available_bytes: int
+    webview_package: str
+    webview_version: str
+    home_component: str
+    low_ram: bool
+    unavailable: _containers.ScalarMap[str, str]
+    transport: str
+    voice: VoiceInspection
+    def __init__(self, device_id: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., abis: _Optional[_Iterable[str]] = ..., memory_total_bytes: _Optional[int] = ..., data_total_bytes: _Optional[int] = ..., data_available_bytes: _Optional[int] = ..., webview_package: _Optional[str] = ..., webview_version: _Optional[str] = ..., home_component: _Optional[str] = ..., low_ram: _Optional[bool] = ..., unavailable: _Optional[_Mapping[str, str]] = ..., transport: _Optional[str] = ..., voice: _Optional[_Union[VoiceInspection, _Mapping]] = ...) -> None: ...
+
+class VoiceInspection(_message.Message):
+    __slots__ = ("microphone_feature", "assistant_role_holders", "assistant_component", "voice_interaction_component", "voice_interaction_services", "policy_input_types", "unavailable")
+    class UnavailableEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    MICROPHONE_FEATURE_FIELD_NUMBER: _ClassVar[int]
+    ASSISTANT_ROLE_HOLDERS_FIELD_NUMBER: _ClassVar[int]
+    ASSISTANT_COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VOICE_INTERACTION_COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VOICE_INTERACTION_SERVICES_FIELD_NUMBER: _ClassVar[int]
+    POLICY_INPUT_TYPES_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    microphone_feature: bool
+    assistant_role_holders: _containers.RepeatedScalarFieldContainer[str]
+    assistant_component: str
+    voice_interaction_component: str
+    voice_interaction_services: _containers.RepeatedScalarFieldContainer[str]
+    policy_input_types: _containers.RepeatedScalarFieldContainer[str]
+    unavailable: _containers.ScalarMap[str, str]
+    def __init__(self, microphone_feature: _Optional[bool] = ..., assistant_role_holders: _Optional[_Iterable[str]] = ..., assistant_component: _Optional[str] = ..., voice_interaction_component: _Optional[str] = ..., voice_interaction_services: _Optional[_Iterable[str]] = ..., policy_input_types: _Optional[_Iterable[str]] = ..., unavailable: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
 class ListDevicesRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

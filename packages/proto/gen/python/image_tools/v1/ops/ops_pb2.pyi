@@ -31,7 +31,7 @@ class ListOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[OperationInfo, _Mapping]]] = ..., decodable_formats: _Optional[_Iterable[str]] = ..., encodable_formats: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class OpParams(_message.Message):
-    __slots__ = ("resize", "crop", "rotate", "flip", "deskew", "thumbnail", "canvas", "adjust", "filter", "convert", "compress", "overlay", "metadata", "duotone", "posterize", "halftone", "dither_ordered", "dither_diffusion", "grain", "scrim", "line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement", "composite", "rasterize", "vectorize", "icon_container", "knockout")
+    __slots__ = ("resize", "crop", "rotate", "flip", "deskew", "thumbnail", "canvas", "adjust", "filter", "convert", "compress", "overlay", "metadata", "duotone", "posterize", "halftone", "dither_ordered", "dither_diffusion", "grain", "scrim", "line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement", "composite", "rasterize", "vectorize", "icon_container", "parallax", "knockout")
     RESIZE_FIELD_NUMBER: _ClassVar[int]
     CROP_FIELD_NUMBER: _ClassVar[int]
     ROTATE_FIELD_NUMBER: _ClassVar[int]
@@ -67,6 +67,7 @@ class OpParams(_message.Message):
     RASTERIZE_FIELD_NUMBER: _ClassVar[int]
     VECTORIZE_FIELD_NUMBER: _ClassVar[int]
     ICON_CONTAINER_FIELD_NUMBER: _ClassVar[int]
+    PARALLAX_FIELD_NUMBER: _ClassVar[int]
     KNOCKOUT_FIELD_NUMBER: _ClassVar[int]
     resize: ResizeParams
     crop: CropParams
@@ -103,8 +104,9 @@ class OpParams(_message.Message):
     rasterize: RasterizeParams
     vectorize: VectorizeParams
     icon_container: IconContainerParams
+    parallax: ParallaxParams
     knockout: Knockout
-    def __init__(self, resize: _Optional[_Union[ResizeParams, _Mapping]] = ..., crop: _Optional[_Union[CropParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., flip: _Optional[_Union[FlipParams, _Mapping]] = ..., deskew: _Optional[_Union[DeskewParams, _Mapping]] = ..., thumbnail: _Optional[_Union[ThumbnailParams, _Mapping]] = ..., canvas: _Optional[_Union[CanvasParams, _Mapping]] = ..., adjust: _Optional[_Union[AdjustParams, _Mapping]] = ..., filter: _Optional[_Union[FilterParams, _Mapping]] = ..., convert: _Optional[_Union[ConvertParams, _Mapping]] = ..., compress: _Optional[_Union[CompressParams, _Mapping]] = ..., overlay: _Optional[_Union[OverlayParams, _Mapping]] = ..., metadata: _Optional[_Union[MetadataParams, _Mapping]] = ..., duotone: _Optional[_Union[DuotoneParams, _Mapping]] = ..., posterize: _Optional[_Union[PosterizeParams, _Mapping]] = ..., halftone: _Optional[_Union[HalftoneParams, _Mapping]] = ..., dither_ordered: _Optional[_Union[DitherParams, _Mapping]] = ..., dither_diffusion: _Optional[_Union[DitherParams, _Mapping]] = ..., grain: _Optional[_Union[GrainParams, _Mapping]] = ..., scrim: _Optional[_Union[ScrimParams, _Mapping]] = ..., line_screen: _Optional[_Union[LineScreenParams, _Mapping]] = ..., stipple: _Optional[_Union[StippleParams, _Mapping]] = ..., engraving: _Optional[_Union[EngravingParams, _Mapping]] = ..., aberration: _Optional[_Union[AberrationParams, _Mapping]] = ..., bloom: _Optional[_Union[BloomParams, _Mapping]] = ..., curve: _Optional[_Union[CurveParams, _Mapping]] = ..., defocus: _Optional[_Union[DefocusParams, _Mapping]] = ..., motion_blur: _Optional[_Union[MotionBlurParams, _Mapping]] = ..., ascii_mosaic: _Optional[_Union[AsciiMosaicParams, _Mapping]] = ..., pixel_sort: _Optional[_Union[PixelSortParams, _Mapping]] = ..., displacement: _Optional[_Union[DisplacementParams, _Mapping]] = ..., composite: _Optional[_Union[CompositeParams, _Mapping]] = ..., rasterize: _Optional[_Union[RasterizeParams, _Mapping]] = ..., vectorize: _Optional[_Union[VectorizeParams, _Mapping]] = ..., icon_container: _Optional[_Union[IconContainerParams, _Mapping]] = ..., knockout: _Optional[_Union[Knockout, _Mapping]] = ...) -> None: ...
+    def __init__(self, resize: _Optional[_Union[ResizeParams, _Mapping]] = ..., crop: _Optional[_Union[CropParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., flip: _Optional[_Union[FlipParams, _Mapping]] = ..., deskew: _Optional[_Union[DeskewParams, _Mapping]] = ..., thumbnail: _Optional[_Union[ThumbnailParams, _Mapping]] = ..., canvas: _Optional[_Union[CanvasParams, _Mapping]] = ..., adjust: _Optional[_Union[AdjustParams, _Mapping]] = ..., filter: _Optional[_Union[FilterParams, _Mapping]] = ..., convert: _Optional[_Union[ConvertParams, _Mapping]] = ..., compress: _Optional[_Union[CompressParams, _Mapping]] = ..., overlay: _Optional[_Union[OverlayParams, _Mapping]] = ..., metadata: _Optional[_Union[MetadataParams, _Mapping]] = ..., duotone: _Optional[_Union[DuotoneParams, _Mapping]] = ..., posterize: _Optional[_Union[PosterizeParams, _Mapping]] = ..., halftone: _Optional[_Union[HalftoneParams, _Mapping]] = ..., dither_ordered: _Optional[_Union[DitherParams, _Mapping]] = ..., dither_diffusion: _Optional[_Union[DitherParams, _Mapping]] = ..., grain: _Optional[_Union[GrainParams, _Mapping]] = ..., scrim: _Optional[_Union[ScrimParams, _Mapping]] = ..., line_screen: _Optional[_Union[LineScreenParams, _Mapping]] = ..., stipple: _Optional[_Union[StippleParams, _Mapping]] = ..., engraving: _Optional[_Union[EngravingParams, _Mapping]] = ..., aberration: _Optional[_Union[AberrationParams, _Mapping]] = ..., bloom: _Optional[_Union[BloomParams, _Mapping]] = ..., curve: _Optional[_Union[CurveParams, _Mapping]] = ..., defocus: _Optional[_Union[DefocusParams, _Mapping]] = ..., motion_blur: _Optional[_Union[MotionBlurParams, _Mapping]] = ..., ascii_mosaic: _Optional[_Union[AsciiMosaicParams, _Mapping]] = ..., pixel_sort: _Optional[_Union[PixelSortParams, _Mapping]] = ..., displacement: _Optional[_Union[DisplacementParams, _Mapping]] = ..., composite: _Optional[_Union[CompositeParams, _Mapping]] = ..., rasterize: _Optional[_Union[RasterizeParams, _Mapping]] = ..., vectorize: _Optional[_Union[VectorizeParams, _Mapping]] = ..., icon_container: _Optional[_Union[IconContainerParams, _Mapping]] = ..., parallax: _Optional[_Union[ParallaxParams, _Mapping]] = ..., knockout: _Optional[_Union[Knockout, _Mapping]] = ...) -> None: ...
 
 class Knockout(_message.Message):
     __slots__ = ("x", "y", "width", "height", "feather", "solid")
@@ -123,28 +125,64 @@ class Knockout(_message.Message):
     def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ..., width: _Optional[float] = ..., height: _Optional[float] = ..., feather: _Optional[float] = ..., solid: _Optional[bool] = ...) -> None: ...
 
 class CompositeParams(_message.Message):
-    __slots__ = ("plates", "width", "height", "background")
+    __slots__ = ("plates", "width", "height", "background", "camera")
     PLATES_FIELD_NUMBER: _ClassVar[int]
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
     BACKGROUND_FIELD_NUMBER: _ClassVar[int]
+    CAMERA_FIELD_NUMBER: _ClassVar[int]
     plates: _containers.RepeatedCompositeFieldContainer[Plate]
     width: int
     height: int
     background: str
-    def __init__(self, plates: _Optional[_Iterable[_Union[Plate, _Mapping]]] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., background: _Optional[str] = ...) -> None: ...
+    camera: LayeredCamera
+    def __init__(self, plates: _Optional[_Iterable[_Union[Plate, _Mapping]]] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., background: _Optional[str] = ..., camera: _Optional[_Union[LayeredCamera, _Mapping]] = ...) -> None: ...
+
+class LayeredCamera(_message.Message):
+    __slots__ = ("x", "y", "z", "yaw_degrees", "pitch_degrees", "focal_length_pixels", "require_opaque")
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    Z_FIELD_NUMBER: _ClassVar[int]
+    YAW_DEGREES_FIELD_NUMBER: _ClassVar[int]
+    PITCH_DEGREES_FIELD_NUMBER: _ClassVar[int]
+    FOCAL_LENGTH_PIXELS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_OPAQUE_FIELD_NUMBER: _ClassVar[int]
+    x: float
+    y: float
+    z: float
+    yaw_degrees: float
+    pitch_degrees: float
+    focal_length_pixels: float
+    require_opaque: bool
+    def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., yaw_degrees: _Optional[float] = ..., pitch_degrees: _Optional[float] = ..., focal_length_pixels: _Optional[float] = ..., require_opaque: _Optional[bool] = ...) -> None: ...
+
+class ParallaxParams(_message.Message):
+    __slots__ = ("scene", "start_camera", "end_camera", "frames", "frames_per_second")
+    SCENE_FIELD_NUMBER: _ClassVar[int]
+    START_CAMERA_FIELD_NUMBER: _ClassVar[int]
+    END_CAMERA_FIELD_NUMBER: _ClassVar[int]
+    FRAMES_FIELD_NUMBER: _ClassVar[int]
+    FRAMES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
+    scene: CompositeParams
+    start_camera: LayeredCamera
+    end_camera: LayeredCamera
+    frames: int
+    frames_per_second: int
+    def __init__(self, scene: _Optional[_Union[CompositeParams, _Mapping]] = ..., start_camera: _Optional[_Union[LayeredCamera, _Mapping]] = ..., end_camera: _Optional[_Union[LayeredCamera, _Mapping]] = ..., frames: _Optional[int] = ..., frames_per_second: _Optional[int] = ...) -> None: ...
 
 class Plate(_message.Message):
-    __slots__ = ("name", "depth", "blend", "opacity")
+    __slots__ = ("name", "depth", "blend", "opacity", "distance")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DEPTH_FIELD_NUMBER: _ClassVar[int]
     BLEND_FIELD_NUMBER: _ClassVar[int]
     OPACITY_FIELD_NUMBER: _ClassVar[int]
+    DISTANCE_FIELD_NUMBER: _ClassVar[int]
     name: str
     depth: int
     blend: str
     opacity: float
-    def __init__(self, name: _Optional[str] = ..., depth: _Optional[int] = ..., blend: _Optional[str] = ..., opacity: _Optional[float] = ...) -> None: ...
+    distance: float
+    def __init__(self, name: _Optional[str] = ..., depth: _Optional[int] = ..., blend: _Optional[str] = ..., opacity: _Optional[float] = ..., distance: _Optional[float] = ...) -> None: ...
 
 class ResizeParams(_message.Message):
     __slots__ = ("width", "height", "fit", "gravity")

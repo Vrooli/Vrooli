@@ -217,7 +217,7 @@ class SmokeTestPerformance(_message.Message):
     def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., protocol_phases: _Optional[_Iterable[_Union[PerformancePhase, _Mapping]]] = ..., demo_phases: _Optional[_Iterable[_Union[PerformancePhase, _Mapping]]] = ...) -> None: ...
 
 class SmokeTestStatusResponse(_message.Message):
-    __slots__ = ("smoke_test_id", "scenario_name", "platform", "status", "artifact_path", "started_at", "completed_at", "logs", "error", "telemetry_uploaded", "telemetry_upload_error", "screen_recording", "evidence_review", "performance")
+    __slots__ = ("smoke_test_id", "scenario_name", "platform", "status", "artifact_path", "started_at", "completed_at", "logs", "error", "telemetry_uploaded", "telemetry_upload_error", "screen_recording", "evidence_review", "performance", "deployment_mode", "screen_content_source", "process_lifetime_checks")
     SMOKE_TEST_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_FIELD_NUMBER: _ClassVar[int]
@@ -232,6 +232,9 @@ class SmokeTestStatusResponse(_message.Message):
     SCREEN_RECORDING_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_REVIEW_FIELD_NUMBER: _ClassVar[int]
     PERFORMANCE_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_MODE_FIELD_NUMBER: _ClassVar[int]
+    SCREEN_CONTENT_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_LIFETIME_CHECKS_FIELD_NUMBER: _ClassVar[int]
     smoke_test_id: str
     scenario_name: str
     platform: _common_pb2.Platform
@@ -246,4 +249,21 @@ class SmokeTestStatusResponse(_message.Message):
     screen_recording: ScreenRecordingSummary
     evidence_review: EvidenceReview
     performance: SmokeTestPerformance
-    def __init__(self, smoke_test_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., status: _Optional[_Union[SmokeTestStatus, str]] = ..., artifact_path: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., logs: _Optional[_Iterable[str]] = ..., error: _Optional[str] = ..., telemetry_uploaded: _Optional[bool] = ..., telemetry_upload_error: _Optional[str] = ..., screen_recording: _Optional[_Union[ScreenRecordingSummary, _Mapping]] = ..., evidence_review: _Optional[_Union[EvidenceReview, _Mapping]] = ..., performance: _Optional[_Union[SmokeTestPerformance, _Mapping]] = ...) -> None: ...
+    deployment_mode: str
+    screen_content_source: str
+    process_lifetime_checks: _containers.RepeatedCompositeFieldContainer[ProcessLifetimeCheck]
+    def __init__(self, smoke_test_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., status: _Optional[_Union[SmokeTestStatus, str]] = ..., artifact_path: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., logs: _Optional[_Iterable[str]] = ..., error: _Optional[str] = ..., telemetry_uploaded: _Optional[bool] = ..., telemetry_upload_error: _Optional[str] = ..., screen_recording: _Optional[_Union[ScreenRecordingSummary, _Mapping]] = ..., evidence_review: _Optional[_Union[EvidenceReview, _Mapping]] = ..., performance: _Optional[_Union[SmokeTestPerformance, _Mapping]] = ..., deployment_mode: _Optional[str] = ..., screen_content_source: _Optional[str] = ..., process_lifetime_checks: _Optional[_Iterable[_Union[ProcessLifetimeCheck, _Mapping]]] = ...) -> None: ...
+
+class ProcessLifetimeCheck(_message.Message):
+    __slots__ = ("stage", "session_id", "passed", "remaining_pids", "assertion")
+    STAGE_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_PIDS_FIELD_NUMBER: _ClassVar[int]
+    ASSERTION_FIELD_NUMBER: _ClassVar[int]
+    stage: str
+    session_id: str
+    passed: bool
+    remaining_pids: _containers.RepeatedScalarFieldContainer[int]
+    assertion: str
+    def __init__(self, stage: _Optional[str] = ..., session_id: _Optional[str] = ..., passed: _Optional[bool] = ..., remaining_pids: _Optional[_Iterable[int]] = ..., assertion: _Optional[str] = ...) -> None: ...

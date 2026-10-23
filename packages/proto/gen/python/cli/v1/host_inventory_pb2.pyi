@@ -49,15 +49,17 @@ class HostCPU(_message.Message):
     def __init__(self, cores: _Optional[int] = ...) -> None: ...
 
 class HostGPU(_message.Message):
-    __slots__ = ("index", "name", "vram_bytes", "vram_used_bytes", "source")
+    __slots__ = ("index", "name", "vram_bytes", "vram_used_bytes", "source", "uuid")
     INDEX_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     VRAM_BYTES_FIELD_NUMBER: _ClassVar[int]
     VRAM_USED_BYTES_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
+    UUID_FIELD_NUMBER: _ClassVar[int]
     index: int
     name: str
     vram_bytes: int
     vram_used_bytes: int
     source: str
-    def __init__(self, index: _Optional[int] = ..., name: _Optional[str] = ..., vram_bytes: _Optional[int] = ..., vram_used_bytes: _Optional[int] = ..., source: _Optional[str] = ...) -> None: ...
+    uuid: str
+    def __init__(self, index: _Optional[int] = ..., name: _Optional[str] = ..., vram_bytes: _Optional[int] = ..., vram_used_bytes: _Optional[int] = ..., source: _Optional[str] = ..., uuid: _Optional[str] = ...) -> None: ...

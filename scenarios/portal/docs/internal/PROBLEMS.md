@@ -1,5 +1,17 @@
 # Problems — Portal
 
+## 2026-10-23 — Aquila child URL error through local TV gateway
+
+The native interaction repair is qualified independently of child compatibility.
+Opening Aquila through the saved local Portal gateway renders its error boundary:
+`Failed to construct 'URL': Invalid URL`. Cause and ownership between the child
+and gateway are not diagnosed. The same launcher renders Nooch and returns from
+both child pages to Vrooli, so catalogue/return success does not imply Aquila is
+usable. Reported through Scenario QA as `knw-1792728989890967531`. Private child
+frame113b70a1-31d4-4c81-9f92-58637a9c6479 belongs to run
+9bd3cca4-5025-4cd3-b5db-aae47bf51c29. Maintained native release evidence and the
+scoped W3 interaction disposition are in android-tv/README.md.
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.

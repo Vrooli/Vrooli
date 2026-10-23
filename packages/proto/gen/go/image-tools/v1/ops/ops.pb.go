@@ -224,6 +224,7 @@ type OpParams struct {
 	//	*OpParams_Rasterize
 	//	*OpParams_Vectorize
 	//	*OpParams_IconContainer
+	//	*OpParams_Parallax
 	Op isOpParams_Op `protobuf_oneof:"op"`
 	// Space no colour operation may print into, whichever one is selected above.
 	//
@@ -590,6 +591,15 @@ func (x *OpParams) GetIconContainer() *IconContainerParams {
 	return nil
 }
 
+func (x *OpParams) GetParallax() *ParallaxParams {
+	if x != nil {
+		if x, ok := x.Op.(*OpParams_Parallax); ok {
+			return x.Parallax
+		}
+	}
+	return nil
+}
+
 func (x *OpParams) GetKnockout() *Knockout {
 	if x != nil {
 		return x.Knockout
@@ -741,6 +751,10 @@ type OpParams_IconContainer struct {
 	IconContainer *IconContainerParams `protobuf:"bytes,36,opt,name=icon_container,json=iconContainer,proto3,oneof"`
 }
 
+type OpParams_Parallax struct {
+	Parallax *ParallaxParams `protobuf:"bytes,37,opt,name=parallax,proto3,oneof"`
+}
+
 func (*OpParams_Resize) isOpParams_Op() {}
 
 func (*OpParams_Crop) isOpParams_Op() {}
@@ -810,6 +824,8 @@ func (*OpParams_Rasterize) isOpParams_Op() {}
 func (*OpParams_Vectorize) isOpParams_Op() {}
 
 func (*OpParams_IconContainer) isOpParams_Op() {}
+
+func (*OpParams_Parallax) isOpParams_Op() {}
 
 // Knockout reserves an area of the frame that must come out as paper.
 //
@@ -959,7 +975,11 @@ type CompositeParams struct {
 	// leaves it transparent — which is correct when the first plate is opaque and
 	// visible when it is not, rather than silently filling with a colour nobody
 	// chose.
-	Background    string `protobuf:"bytes,4,opt,name=background,proto3" json:"background,omitempty"`
+	Background string `protobuf:"bytes,4,opt,name=background,proto3" json:"background,omitempty"`
+	// Optional bounded 2.5D view of prepared, full-canvas depth layers. This does
+	// not infer hidden geometry or fill newly exposed regions. Omit for legacy
+	// flat compositing. Every plate must declare distance when this is present.
+	Camera        *LayeredCamera `protobuf:"bytes,5,opt,name=camera,proto3" json:"camera,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1022,6 +1042,192 @@ func (x *CompositeParams) GetBackground() string {
 	return ""
 }
 
+func (x *CompositeParams) GetCamera() *LayeredCamera {
+	if x != nil {
+		return x.Camera
+	}
+	return nil
+}
+
+// Camera translation is relative to the canvas at distance 1. Positive x/y
+// moves the camera right/down; positive z moves toward the planes. Angles are
+// degrees. This is a nearby-view pinhole model, not metric reconstruction.
+type LayeredCamera struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	X            float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y            float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	Z            float64                `protobuf:"fixed64,3,opt,name=z,proto3" json:"z,omitempty"`
+	YawDegrees   float64                `protobuf:"fixed64,4,opt,name=yaw_degrees,json=yawDegrees,proto3" json:"yaw_degrees,omitempty"`
+	PitchDegrees float64                `protobuf:"fixed64,5,opt,name=pitch_degrees,json=pitchDegrees,proto3" json:"pitch_degrees,omitempty"`
+	// Zero selects canvas width. Otherwise 0.5..4 times canvas width.
+	FocalLengthPixels float64 `protobuf:"fixed64,6,opt,name=focal_length_pixels,json=focalLengthPixels,proto3" json:"focal_length_pixels,omitempty"`
+	// Reject uncovered/translucent output rather than hiding missing scenery.
+	RequireOpaque bool `protobuf:"varint,7,opt,name=require_opaque,json=requireOpaque,proto3" json:"require_opaque,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LayeredCamera) Reset() {
+	*x = LayeredCamera{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LayeredCamera) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LayeredCamera) ProtoMessage() {}
+
+func (x *LayeredCamera) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LayeredCamera.ProtoReflect.Descriptor instead.
+func (*LayeredCamera) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *LayeredCamera) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *LayeredCamera) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *LayeredCamera) GetZ() float64 {
+	if x != nil {
+		return x.Z
+	}
+	return 0
+}
+
+func (x *LayeredCamera) GetYawDegrees() float64 {
+	if x != nil {
+		return x.YawDegrees
+	}
+	return 0
+}
+
+func (x *LayeredCamera) GetPitchDegrees() float64 {
+	if x != nil {
+		return x.PitchDegrees
+	}
+	return 0
+}
+
+func (x *LayeredCamera) GetFocalLengthPixels() float64 {
+	if x != nil {
+		return x.FocalLengthPixels
+	}
+	return 0
+}
+
+func (x *LayeredCamera) GetRequireOpaque() bool {
+	if x != nil {
+		return x.RequireOpaque
+	}
+	return false
+}
+
+// Lossless RGBA PNG sequence and manifest in a ZIP, suitable for a film owner's
+// encoder. Layers are prepared, not inferred; use depth/segmentation/inpainting
+// operations first when starting from an ordinary photograph. No hidden model
+// download, media egress, frame interpolation or paid fallback occurs here.
+type ParallaxParams struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Scene       *CompositeParams       `protobuf:"bytes,1,opt,name=scene,proto3" json:"scene,omitempty"`
+	StartCamera *LayeredCamera         `protobuf:"bytes,2,opt,name=start_camera,json=startCamera,proto3" json:"start_camera,omitempty"`
+	EndCamera   *LayeredCamera         `protobuf:"bytes,3,opt,name=end_camera,json=endCamera,proto3" json:"end_camera,omitempty"`
+	// 2..180 frames; total raster work at most 240 million pixels.
+	Frames uint32 `protobuf:"varint,4,opt,name=frames,proto3" json:"frames,omitempty"`
+	// 24 or 30. Camera uses smoothstep over output ordinals, including endpoints.
+	FramesPerSecond uint32 `protobuf:"varint,5,opt,name=frames_per_second,json=framesPerSecond,proto3" json:"frames_per_second,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ParallaxParams) Reset() {
+	*x = ParallaxParams{}
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ParallaxParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ParallaxParams) ProtoMessage() {}
+
+func (x *ParallaxParams) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ParallaxParams.ProtoReflect.Descriptor instead.
+func (*ParallaxParams) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ParallaxParams) GetScene() *CompositeParams {
+	if x != nil {
+		return x.Scene
+	}
+	return nil
+}
+
+func (x *ParallaxParams) GetStartCamera() *LayeredCamera {
+	if x != nil {
+		return x.StartCamera
+	}
+	return nil
+}
+
+func (x *ParallaxParams) GetEndCamera() *LayeredCamera {
+	if x != nil {
+		return x.EndCamera
+	}
+	return nil
+}
+
+func (x *ParallaxParams) GetFrames() uint32 {
+	if x != nil {
+		return x.Frames
+	}
+	return 0
+}
+
+func (x *ParallaxParams) GetFramesPerSecond() uint32 {
+	if x != nil {
+		return x.FramesPerSecond
+	}
+	return 0
+}
+
 // Plate is one layer in a composite stack.
 type Plate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1043,14 +1249,17 @@ type Plate struct {
 	Blend string `protobuf:"bytes,3,opt,name=blend,proto3" json:"blend,omitempty"`
 	// opacity scales this plate's contribution, 0..1. Zero means fully
 	// transparent; a caller wanting the default must send 1.
-	Opacity       float64 `protobuf:"fixed64,4,opt,name=opacity,proto3" json:"opacity,omitempty"`
+	Opacity float64 `protobuf:"fixed64,4,opt,name=opacity,proto3" json:"opacity,omitempty"`
+	// Positive relative camera distance, 0.25..16. Required for layered camera
+	// views. Sorted stack depth must run far-to-near (decreasing distance).
+	Distance      *float64 `protobuf:"fixed64,5,opt,name=distance,proto3,oneof" json:"distance,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Plate) Reset() {
 	*x = Plate{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[6]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1271,7 @@ func (x *Plate) String() string {
 func (*Plate) ProtoMessage() {}
 
 func (x *Plate) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[6]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1284,7 @@ func (x *Plate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plate.ProtoReflect.Descriptor instead.
 func (*Plate) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{6}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Plate) GetName() string {
@@ -1106,6 +1315,13 @@ func (x *Plate) GetOpacity() float64 {
 	return 0
 }
 
+func (x *Plate) GetDistance() float64 {
+	if x != nil && x.Distance != nil {
+		return *x.Distance
+	}
+	return 0
+}
+
 // ResizeParams: width/height in px (0 = derive from aspect). fit is
 // "fit" (contain), "fill" (cover+crop), or "stretch" (exact). gravity anchors a
 // fill crop.
@@ -1121,7 +1337,7 @@ type ResizeParams struct {
 
 func (x *ResizeParams) Reset() {
 	*x = ResizeParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[7]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1133,7 +1349,7 @@ func (x *ResizeParams) String() string {
 func (*ResizeParams) ProtoMessage() {}
 
 func (x *ResizeParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[7]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1146,7 +1362,7 @@ func (x *ResizeParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResizeParams.ProtoReflect.Descriptor instead.
 func (*ResizeParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{7}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ResizeParams) GetWidth() int32 {
@@ -1192,7 +1408,7 @@ type CropParams struct {
 
 func (x *CropParams) Reset() {
 	*x = CropParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[8]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1420,7 @@ func (x *CropParams) String() string {
 func (*CropParams) ProtoMessage() {}
 
 func (x *CropParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[8]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1433,7 @@ func (x *CropParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CropParams.ProtoReflect.Descriptor instead.
 func (*CropParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{8}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CropParams) GetX() int32 {
@@ -1268,7 +1484,7 @@ type RotateParams struct {
 
 func (x *RotateParams) Reset() {
 	*x = RotateParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[9]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1280,7 +1496,7 @@ func (x *RotateParams) String() string {
 func (*RotateParams) ProtoMessage() {}
 
 func (x *RotateParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[9]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1293,7 +1509,7 @@ func (x *RotateParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateParams.ProtoReflect.Descriptor instead.
 func (*RotateParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{9}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RotateParams) GetAngle() float64 {
@@ -1327,7 +1543,7 @@ type FlipParams struct {
 
 func (x *FlipParams) Reset() {
 	*x = FlipParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[10]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1339,7 +1555,7 @@ func (x *FlipParams) String() string {
 func (*FlipParams) ProtoMessage() {}
 
 func (x *FlipParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[10]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1352,7 +1568,7 @@ func (x *FlipParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlipParams.ProtoReflect.Descriptor instead.
 func (*FlipParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{10}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FlipParams) GetAxis() string {
@@ -1372,7 +1588,7 @@ type DeskewParams struct {
 
 func (x *DeskewParams) Reset() {
 	*x = DeskewParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[11]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1384,7 +1600,7 @@ func (x *DeskewParams) String() string {
 func (*DeskewParams) ProtoMessage() {}
 
 func (x *DeskewParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[11]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1397,7 +1613,7 @@ func (x *DeskewParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeskewParams.ProtoReflect.Descriptor instead.
 func (*DeskewParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{11}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DeskewParams) GetBackground() string {
@@ -1418,7 +1634,7 @@ type ThumbnailParams struct {
 
 func (x *ThumbnailParams) Reset() {
 	*x = ThumbnailParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[12]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1430,7 +1646,7 @@ func (x *ThumbnailParams) String() string {
 func (*ThumbnailParams) ProtoMessage() {}
 
 func (x *ThumbnailParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[12]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1443,7 +1659,7 @@ func (x *ThumbnailParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThumbnailParams.ProtoReflect.Descriptor instead.
 func (*ThumbnailParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{12}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ThumbnailParams) GetWidth() int32 {
@@ -1473,7 +1689,7 @@ type CanvasParams struct {
 
 func (x *CanvasParams) Reset() {
 	*x = CanvasParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[13]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1485,7 +1701,7 @@ func (x *CanvasParams) String() string {
 func (*CanvasParams) ProtoMessage() {}
 
 func (x *CanvasParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[13]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1498,7 +1714,7 @@ func (x *CanvasParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CanvasParams.ProtoReflect.Descriptor instead.
 func (*CanvasParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{13}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CanvasParams) GetWidth() int32 {
@@ -1544,7 +1760,7 @@ type AdjustParams struct {
 
 func (x *AdjustParams) Reset() {
 	*x = AdjustParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[14]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1556,7 +1772,7 @@ func (x *AdjustParams) String() string {
 func (*AdjustParams) ProtoMessage() {}
 
 func (x *AdjustParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[14]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1569,7 +1785,7 @@ func (x *AdjustParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdjustParams.ProtoReflect.Descriptor instead.
 func (*AdjustParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{14}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *AdjustParams) GetBrightness() float64 {
@@ -1619,7 +1835,7 @@ type FilterParams struct {
 
 func (x *FilterParams) Reset() {
 	*x = FilterParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[15]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1631,7 +1847,7 @@ func (x *FilterParams) String() string {
 func (*FilterParams) ProtoMessage() {}
 
 func (x *FilterParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[15]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1644,7 +1860,7 @@ func (x *FilterParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterParams.ProtoReflect.Descriptor instead.
 func (*FilterParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{15}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *FilterParams) GetFilter() string {
@@ -1674,7 +1890,7 @@ type ConvertParams struct {
 
 func (x *ConvertParams) Reset() {
 	*x = ConvertParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[16]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1686,7 +1902,7 @@ func (x *ConvertParams) String() string {
 func (*ConvertParams) ProtoMessage() {}
 
 func (x *ConvertParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[16]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1699,7 +1915,7 @@ func (x *ConvertParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConvertParams.ProtoReflect.Descriptor instead.
 func (*ConvertParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{16}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ConvertParams) GetFormat() string {
@@ -1737,7 +1953,7 @@ type CompressParams struct {
 
 func (x *CompressParams) Reset() {
 	*x = CompressParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1749,7 +1965,7 @@ func (x *CompressParams) String() string {
 func (*CompressParams) ProtoMessage() {}
 
 func (x *CompressParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[17]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1762,7 +1978,7 @@ func (x *CompressParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompressParams.ProtoReflect.Descriptor instead.
 func (*CompressParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{17}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CompressParams) GetFormat() string {
@@ -1809,7 +2025,7 @@ type OverlayParams struct {
 
 func (x *OverlayParams) Reset() {
 	*x = OverlayParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1821,7 +2037,7 @@ func (x *OverlayParams) String() string {
 func (*OverlayParams) ProtoMessage() {}
 
 func (x *OverlayParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[18]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1834,7 +2050,7 @@ func (x *OverlayParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayParams.ProtoReflect.Descriptor instead.
 func (*OverlayParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{18}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *OverlayParams) GetText() string {
@@ -1884,7 +2100,7 @@ type MetadataParams struct {
 
 func (x *MetadataParams) Reset() {
 	*x = MetadataParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[19]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1896,7 +2112,7 @@ func (x *MetadataParams) String() string {
 func (*MetadataParams) ProtoMessage() {}
 
 func (x *MetadataParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[19]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1909,7 +2125,7 @@ func (x *MetadataParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetadataParams.ProtoReflect.Descriptor instead.
 func (*MetadataParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{19}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *MetadataParams) GetStripAll() bool {
@@ -1949,7 +2165,7 @@ type DuotoneParams struct {
 
 func (x *DuotoneParams) Reset() {
 	*x = DuotoneParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[20]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1961,7 +2177,7 @@ func (x *DuotoneParams) String() string {
 func (*DuotoneParams) ProtoMessage() {}
 
 func (x *DuotoneParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[20]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1974,7 +2190,7 @@ func (x *DuotoneParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DuotoneParams.ProtoReflect.Descriptor instead.
 func (*DuotoneParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{20}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DuotoneParams) GetDark() string {
@@ -2033,7 +2249,7 @@ type PosterizeParams struct {
 
 func (x *PosterizeParams) Reset() {
 	*x = PosterizeParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[21]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2045,7 +2261,7 @@ func (x *PosterizeParams) String() string {
 func (*PosterizeParams) ProtoMessage() {}
 
 func (x *PosterizeParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[21]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2058,7 +2274,7 @@ func (x *PosterizeParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PosterizeParams.ProtoReflect.Descriptor instead.
 func (*PosterizeParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{21}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PosterizeParams) GetLevels() int32 {
@@ -2124,7 +2340,7 @@ type HalftoneParams struct {
 
 func (x *HalftoneParams) Reset() {
 	*x = HalftoneParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[22]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2136,7 +2352,7 @@ func (x *HalftoneParams) String() string {
 func (*HalftoneParams) ProtoMessage() {}
 
 func (x *HalftoneParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[22]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2149,7 +2365,7 @@ func (x *HalftoneParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HalftoneParams.ProtoReflect.Descriptor instead.
 func (*HalftoneParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{22}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *HalftoneParams) GetLpi() int32 {
@@ -2207,7 +2423,7 @@ type DitherParams struct {
 
 func (x *DitherParams) Reset() {
 	*x = DitherParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[23]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2219,7 +2435,7 @@ func (x *DitherParams) String() string {
 func (*DitherParams) ProtoMessage() {}
 
 func (x *DitherParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[23]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2232,7 +2448,7 @@ func (x *DitherParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DitherParams.ProtoReflect.Descriptor instead.
 func (*DitherParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{23}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DitherParams) GetDark() string {
@@ -2267,7 +2483,7 @@ type GrainParams struct {
 
 func (x *GrainParams) Reset() {
 	*x = GrainParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[24]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2279,7 +2495,7 @@ func (x *GrainParams) String() string {
 func (*GrainParams) ProtoMessage() {}
 
 func (x *GrainParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[24]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2292,7 +2508,7 @@ func (x *GrainParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrainParams.ProtoReflect.Descriptor instead.
 func (*GrainParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{24}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GrainParams) GetSeed() int64 {
@@ -2344,7 +2560,7 @@ type ScrimParams struct {
 
 func (x *ScrimParams) Reset() {
 	*x = ScrimParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[25]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2356,7 +2572,7 @@ func (x *ScrimParams) String() string {
 func (*ScrimParams) ProtoMessage() {}
 
 func (x *ScrimParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[25]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2369,7 +2585,7 @@ func (x *ScrimParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrimParams.ProtoReflect.Descriptor instead.
 func (*ScrimParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{25}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ScrimParams) GetColor() string {
@@ -2445,7 +2661,7 @@ type LineScreenParams struct {
 
 func (x *LineScreenParams) Reset() {
 	*x = LineScreenParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[26]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2457,7 +2673,7 @@ func (x *LineScreenParams) String() string {
 func (*LineScreenParams) ProtoMessage() {}
 
 func (x *LineScreenParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[26]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2470,7 +2686,7 @@ func (x *LineScreenParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LineScreenParams.ProtoReflect.Descriptor instead.
 func (*LineScreenParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{26}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *LineScreenParams) GetSpacing() float64 {
@@ -2532,7 +2748,7 @@ type StippleParams struct {
 
 func (x *StippleParams) Reset() {
 	*x = StippleParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[27]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2544,7 +2760,7 @@ func (x *StippleParams) String() string {
 func (*StippleParams) ProtoMessage() {}
 
 func (x *StippleParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[27]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2557,7 +2773,7 @@ func (x *StippleParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StippleParams.ProtoReflect.Descriptor instead.
 func (*StippleParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{27}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *StippleParams) GetSpacing() float64 {
@@ -2618,7 +2834,7 @@ type EngravingParams struct {
 
 func (x *EngravingParams) Reset() {
 	*x = EngravingParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[28]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2630,7 +2846,7 @@ func (x *EngravingParams) String() string {
 func (*EngravingParams) ProtoMessage() {}
 
 func (x *EngravingParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[28]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2643,7 +2859,7 @@ func (x *EngravingParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EngravingParams.ProtoReflect.Descriptor instead.
 func (*EngravingParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{28}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *EngravingParams) GetSpacing() float64 {
@@ -2696,7 +2912,7 @@ type AberrationParams struct {
 
 func (x *AberrationParams) Reset() {
 	*x = AberrationParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[29]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2708,7 +2924,7 @@ func (x *AberrationParams) String() string {
 func (*AberrationParams) ProtoMessage() {}
 
 func (x *AberrationParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[29]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2721,7 +2937,7 @@ func (x *AberrationParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AberrationParams.ProtoReflect.Descriptor instead.
 func (*AberrationParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{29}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *AberrationParams) GetAmplitude() float64 {
@@ -2757,7 +2973,7 @@ type BloomParams struct {
 
 func (x *BloomParams) Reset() {
 	*x = BloomParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[30]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2769,7 +2985,7 @@ func (x *BloomParams) String() string {
 func (*BloomParams) ProtoMessage() {}
 
 func (x *BloomParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[30]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2782,7 +2998,7 @@ func (x *BloomParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BloomParams.ProtoReflect.Descriptor instead.
 func (*BloomParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{30}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *BloomParams) GetRadius() int32 {
@@ -2815,7 +3031,7 @@ type CurveParams struct {
 
 func (x *CurveParams) Reset() {
 	*x = CurveParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[31]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2827,7 +3043,7 @@ func (x *CurveParams) String() string {
 func (*CurveParams) ProtoMessage() {}
 
 func (x *CurveParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[31]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2840,7 +3056,7 @@ func (x *CurveParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurveParams.ProtoReflect.Descriptor instead.
 func (*CurveParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{31}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CurveParams) GetExponent() float64 {
@@ -2862,7 +3078,7 @@ type DefocusParams struct {
 
 func (x *DefocusParams) Reset() {
 	*x = DefocusParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[32]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2874,7 +3090,7 @@ func (x *DefocusParams) String() string {
 func (*DefocusParams) ProtoMessage() {}
 
 func (x *DefocusParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[32]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2887,7 +3103,7 @@ func (x *DefocusParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefocusParams.ProtoReflect.Descriptor instead.
 func (*DefocusParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{32}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DefocusParams) GetRadius() int32 {
@@ -2923,7 +3139,7 @@ type MotionBlurParams struct {
 
 func (x *MotionBlurParams) Reset() {
 	*x = MotionBlurParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[33]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2935,7 +3151,7 @@ func (x *MotionBlurParams) String() string {
 func (*MotionBlurParams) ProtoMessage() {}
 
 func (x *MotionBlurParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[33]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2948,7 +3164,7 @@ func (x *MotionBlurParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MotionBlurParams.ProtoReflect.Descriptor instead.
 func (*MotionBlurParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{33}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MotionBlurParams) GetDistance() int32 {
@@ -2994,7 +3210,7 @@ type AsciiMosaicParams struct {
 
 func (x *AsciiMosaicParams) Reset() {
 	*x = AsciiMosaicParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[34]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3006,7 +3222,7 @@ func (x *AsciiMosaicParams) String() string {
 func (*AsciiMosaicParams) ProtoMessage() {}
 
 func (x *AsciiMosaicParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[34]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3019,7 +3235,7 @@ func (x *AsciiMosaicParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AsciiMosaicParams.ProtoReflect.Descriptor instead.
 func (*AsciiMosaicParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{34}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *AsciiMosaicParams) GetBlockSize() int32 {
@@ -3067,7 +3283,7 @@ type PixelSortParams struct {
 
 func (x *PixelSortParams) Reset() {
 	*x = PixelSortParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[35]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3079,7 +3295,7 @@ func (x *PixelSortParams) String() string {
 func (*PixelSortParams) ProtoMessage() {}
 
 func (x *PixelSortParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[35]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3092,7 +3308,7 @@ func (x *PixelSortParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PixelSortParams.ProtoReflect.Descriptor instead.
 func (*PixelSortParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{35}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *PixelSortParams) GetThreshold() float64 {
@@ -3125,7 +3341,7 @@ type DisplacementParams struct {
 
 func (x *DisplacementParams) Reset() {
 	*x = DisplacementParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[36]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3137,7 +3353,7 @@ func (x *DisplacementParams) String() string {
 func (*DisplacementParams) ProtoMessage() {}
 
 func (x *DisplacementParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[36]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3150,7 +3366,7 @@ func (x *DisplacementParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DisplacementParams.ProtoReflect.Descriptor instead.
 func (*DisplacementParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{36}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *DisplacementParams) GetAmplitude() float64 {
@@ -3201,7 +3417,7 @@ type RasterizeParams struct {
 
 func (x *RasterizeParams) Reset() {
 	*x = RasterizeParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3213,7 +3429,7 @@ func (x *RasterizeParams) String() string {
 func (*RasterizeParams) ProtoMessage() {}
 
 func (x *RasterizeParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[37]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3226,7 +3442,7 @@ func (x *RasterizeParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RasterizeParams.ProtoReflect.Descriptor instead.
 func (*RasterizeParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{37}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *RasterizeParams) GetWidth() int32 {
@@ -3271,7 +3487,7 @@ type VectorizeParams struct {
 
 func (x *VectorizeParams) Reset() {
 	*x = VectorizeParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3283,7 +3499,7 @@ func (x *VectorizeParams) String() string {
 func (*VectorizeParams) ProtoMessage() {}
 
 func (x *VectorizeParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[38]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3296,7 +3512,7 @@ func (x *VectorizeParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VectorizeParams.ProtoReflect.Descriptor instead.
 func (*VectorizeParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{38}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *VectorizeParams) GetColors() int32 {
@@ -3367,7 +3583,7 @@ type IconContainerParams struct {
 
 func (x *IconContainerParams) Reset() {
 	*x = IconContainerParams{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[39]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3379,7 +3595,7 @@ func (x *IconContainerParams) String() string {
 func (*IconContainerParams) ProtoMessage() {}
 
 func (x *IconContainerParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[39]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3392,7 +3608,7 @@ func (x *IconContainerParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IconContainerParams.ProtoReflect.Descriptor instead.
 func (*IconContainerParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{39}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *IconContainerParams) GetFormat() string {
@@ -3431,7 +3647,7 @@ type OpResult struct {
 
 func (x *OpResult) Reset() {
 	*x = OpResult{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[40]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3443,7 +3659,7 @@ func (x *OpResult) String() string {
 func (*OpResult) ProtoMessage() {}
 
 func (x *OpResult) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[40]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3456,7 +3672,7 @@ func (x *OpResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpResult.ProtoReflect.Descriptor instead.
 func (*OpResult) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{40}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *OpResult) GetRef() string {
@@ -3524,7 +3740,7 @@ type RunOpResponse struct {
 
 func (x *RunOpResponse) Reset() {
 	*x = RunOpResponse{}
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[41]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3536,7 +3752,7 @@ func (x *RunOpResponse) String() string {
 func (*RunOpResponse) ProtoMessage() {}
 
 func (x *RunOpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[41]
+	mi := &file_image_tools_v1_ops_ops_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3549,7 +3765,7 @@ func (x *RunOpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOpResponse.ProtoReflect.Descriptor instead.
 func (*RunOpResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{41}
+	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RunOpResponse) GetJobId() string {
@@ -3581,7 +3797,7 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"operations\x18\x01 \x03(\v2(.vrooli.image_tools.v1.ops.OperationInfoR\n" +
 	"operations\x12+\n" +
 	"\x11decodable_formats\x18\x02 \x03(\tR\x10decodableFormats\x12+\n" +
-	"\x11encodable_formats\x18\x03 \x03(\tR\x10encodableFormats\"\xc3\x14\n" +
+	"\x11encodable_formats\x18\x03 \x03(\tR\x10encodableFormats\"\x8c\x15\n" +
 	"\bOpParams\x12A\n" +
 	"\x06resize\x18\x01 \x01(\v2'.vrooli.image_tools.v1.ops.ResizeParamsH\x00R\x06resize\x12;\n" +
 	"\x04crop\x18\x02 \x01(\v2%.vrooli.image_tools.v1.ops.CropParamsH\x00R\x04crop\x12A\n" +
@@ -3623,7 +3839,8 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\tcomposite\x18  \x01(\v2*.vrooli.image_tools.v1.ops.CompositeParamsH\x00R\tcomposite\x12J\n" +
 	"\trasterize\x18\" \x01(\v2*.vrooli.image_tools.v1.ops.RasterizeParamsH\x00R\trasterize\x12J\n" +
 	"\tvectorize\x18# \x01(\v2*.vrooli.image_tools.v1.ops.VectorizeParamsH\x00R\tvectorize\x12W\n" +
-	"\x0eicon_container\x18$ \x01(\v2..vrooli.image_tools.v1.ops.IconContainerParamsH\x00R\riconContainer\x12?\n" +
+	"\x0eicon_container\x18$ \x01(\v2..vrooli.image_tools.v1.ops.IconContainerParamsH\x00R\riconContainer\x12G\n" +
+	"\bparallax\x18% \x01(\v2).vrooli.image_tools.v1.ops.ParallaxParamsH\x00R\bparallax\x12?\n" +
 	"\bknockout\x18! \x01(\v2#.vrooli.image_tools.v1.ops.KnockoutR\bknockoutB\x04\n" +
 	"\x02op\"\x84\x01\n" +
 	"\bKnockout\x12\f\n" +
@@ -3632,19 +3849,38 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n" +
 	"\x06height\x18\x04 \x01(\x01R\x06height\x12\x18\n" +
 	"\afeather\x18\x05 \x01(\x01R\afeather\x12\x14\n" +
-	"\x05solid\x18\x06 \x01(\bR\x05solid\"\x99\x01\n" +
+	"\x05solid\x18\x06 \x01(\bR\x05solid\"\xdb\x01\n" +
 	"\x0fCompositeParams\x128\n" +
 	"\x06plates\x18\x01 \x03(\v2 .vrooli.image_tools.v1.ops.PlateR\x06plates\x12\x14\n" +
 	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x1e\n" +
 	"\n" +
 	"background\x18\x04 \x01(\tR\n" +
-	"background\"a\n" +
+	"background\x12@\n" +
+	"\x06camera\x18\x05 \x01(\v2(.vrooli.image_tools.v1.ops.LayeredCameraR\x06camera\"\xd6\x01\n" +
+	"\rLayeredCamera\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\x12\f\n" +
+	"\x01z\x18\x03 \x01(\x01R\x01z\x12\x1f\n" +
+	"\vyaw_degrees\x18\x04 \x01(\x01R\n" +
+	"yawDegrees\x12#\n" +
+	"\rpitch_degrees\x18\x05 \x01(\x01R\fpitchDegrees\x12.\n" +
+	"\x13focal_length_pixels\x18\x06 \x01(\x01R\x11focalLengthPixels\x12%\n" +
+	"\x0erequire_opaque\x18\a \x01(\bR\rrequireOpaque\"\xac\x02\n" +
+	"\x0eParallaxParams\x12@\n" +
+	"\x05scene\x18\x01 \x01(\v2*.vrooli.image_tools.v1.ops.CompositeParamsR\x05scene\x12K\n" +
+	"\fstart_camera\x18\x02 \x01(\v2(.vrooli.image_tools.v1.ops.LayeredCameraR\vstartCamera\x12G\n" +
+	"\n" +
+	"end_camera\x18\x03 \x01(\v2(.vrooli.image_tools.v1.ops.LayeredCameraR\tendCamera\x12\x16\n" +
+	"\x06frames\x18\x04 \x01(\rR\x06frames\x12*\n" +
+	"\x11frames_per_second\x18\x05 \x01(\rR\x0fframesPerSecond\"\x8f\x01\n" +
 	"\x05Plate\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05depth\x18\x02 \x01(\x05R\x05depth\x12\x14\n" +
 	"\x05blend\x18\x03 \x01(\tR\x05blend\x12\x18\n" +
-	"\aopacity\x18\x04 \x01(\x01R\aopacity\"h\n" +
+	"\aopacity\x18\x04 \x01(\x01R\aopacity\x12\x1f\n" +
+	"\bdistance\x18\x05 \x01(\x01H\x00R\bdistance\x88\x01\x01B\v\n" +
+	"\t_distance\"h\n" +
 	"\fResizeParams\x12\x14\n" +
 	"\x05width\x18\x01 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x02 \x01(\x05R\x06height\x12\x10\n" +
@@ -3860,7 +4096,7 @@ func file_image_tools_v1_ops_ops_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_ops_ops_proto_rawDescData
 }
 
-var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_image_tools_v1_ops_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*OperationInfo)(nil),          // 0: vrooli.image_tools.v1.ops.OperationInfo
 	(*ListOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.ops.ListOperationsRequest
@@ -3868,92 +4104,99 @@ var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*OpParams)(nil),               // 3: vrooli.image_tools.v1.ops.OpParams
 	(*Knockout)(nil),               // 4: vrooli.image_tools.v1.ops.Knockout
 	(*CompositeParams)(nil),        // 5: vrooli.image_tools.v1.ops.CompositeParams
-	(*Plate)(nil),                  // 6: vrooli.image_tools.v1.ops.Plate
-	(*ResizeParams)(nil),           // 7: vrooli.image_tools.v1.ops.ResizeParams
-	(*CropParams)(nil),             // 8: vrooli.image_tools.v1.ops.CropParams
-	(*RotateParams)(nil),           // 9: vrooli.image_tools.v1.ops.RotateParams
-	(*FlipParams)(nil),             // 10: vrooli.image_tools.v1.ops.FlipParams
-	(*DeskewParams)(nil),           // 11: vrooli.image_tools.v1.ops.DeskewParams
-	(*ThumbnailParams)(nil),        // 12: vrooli.image_tools.v1.ops.ThumbnailParams
-	(*CanvasParams)(nil),           // 13: vrooli.image_tools.v1.ops.CanvasParams
-	(*AdjustParams)(nil),           // 14: vrooli.image_tools.v1.ops.AdjustParams
-	(*FilterParams)(nil),           // 15: vrooli.image_tools.v1.ops.FilterParams
-	(*ConvertParams)(nil),          // 16: vrooli.image_tools.v1.ops.ConvertParams
-	(*CompressParams)(nil),         // 17: vrooli.image_tools.v1.ops.CompressParams
-	(*OverlayParams)(nil),          // 18: vrooli.image_tools.v1.ops.OverlayParams
-	(*MetadataParams)(nil),         // 19: vrooli.image_tools.v1.ops.MetadataParams
-	(*DuotoneParams)(nil),          // 20: vrooli.image_tools.v1.ops.DuotoneParams
-	(*PosterizeParams)(nil),        // 21: vrooli.image_tools.v1.ops.PosterizeParams
-	(*HalftoneParams)(nil),         // 22: vrooli.image_tools.v1.ops.HalftoneParams
-	(*DitherParams)(nil),           // 23: vrooli.image_tools.v1.ops.DitherParams
-	(*GrainParams)(nil),            // 24: vrooli.image_tools.v1.ops.GrainParams
-	(*ScrimParams)(nil),            // 25: vrooli.image_tools.v1.ops.ScrimParams
-	(*LineScreenParams)(nil),       // 26: vrooli.image_tools.v1.ops.LineScreenParams
-	(*StippleParams)(nil),          // 27: vrooli.image_tools.v1.ops.StippleParams
-	(*EngravingParams)(nil),        // 28: vrooli.image_tools.v1.ops.EngravingParams
-	(*AberrationParams)(nil),       // 29: vrooli.image_tools.v1.ops.AberrationParams
-	(*BloomParams)(nil),            // 30: vrooli.image_tools.v1.ops.BloomParams
-	(*CurveParams)(nil),            // 31: vrooli.image_tools.v1.ops.CurveParams
-	(*DefocusParams)(nil),          // 32: vrooli.image_tools.v1.ops.DefocusParams
-	(*MotionBlurParams)(nil),       // 33: vrooli.image_tools.v1.ops.MotionBlurParams
-	(*AsciiMosaicParams)(nil),      // 34: vrooli.image_tools.v1.ops.AsciiMosaicParams
-	(*PixelSortParams)(nil),        // 35: vrooli.image_tools.v1.ops.PixelSortParams
-	(*DisplacementParams)(nil),     // 36: vrooli.image_tools.v1.ops.DisplacementParams
-	(*RasterizeParams)(nil),        // 37: vrooli.image_tools.v1.ops.RasterizeParams
-	(*VectorizeParams)(nil),        // 38: vrooli.image_tools.v1.ops.VectorizeParams
-	(*IconContainerParams)(nil),    // 39: vrooli.image_tools.v1.ops.IconContainerParams
-	(*OpResult)(nil),               // 40: vrooli.image_tools.v1.ops.OpResult
-	(*RunOpResponse)(nil),          // 41: vrooli.image_tools.v1.ops.RunOpResponse
-	nil,                            // 42: vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
+	(*LayeredCamera)(nil),          // 6: vrooli.image_tools.v1.ops.LayeredCamera
+	(*ParallaxParams)(nil),         // 7: vrooli.image_tools.v1.ops.ParallaxParams
+	(*Plate)(nil),                  // 8: vrooli.image_tools.v1.ops.Plate
+	(*ResizeParams)(nil),           // 9: vrooli.image_tools.v1.ops.ResizeParams
+	(*CropParams)(nil),             // 10: vrooli.image_tools.v1.ops.CropParams
+	(*RotateParams)(nil),           // 11: vrooli.image_tools.v1.ops.RotateParams
+	(*FlipParams)(nil),             // 12: vrooli.image_tools.v1.ops.FlipParams
+	(*DeskewParams)(nil),           // 13: vrooli.image_tools.v1.ops.DeskewParams
+	(*ThumbnailParams)(nil),        // 14: vrooli.image_tools.v1.ops.ThumbnailParams
+	(*CanvasParams)(nil),           // 15: vrooli.image_tools.v1.ops.CanvasParams
+	(*AdjustParams)(nil),           // 16: vrooli.image_tools.v1.ops.AdjustParams
+	(*FilterParams)(nil),           // 17: vrooli.image_tools.v1.ops.FilterParams
+	(*ConvertParams)(nil),          // 18: vrooli.image_tools.v1.ops.ConvertParams
+	(*CompressParams)(nil),         // 19: vrooli.image_tools.v1.ops.CompressParams
+	(*OverlayParams)(nil),          // 20: vrooli.image_tools.v1.ops.OverlayParams
+	(*MetadataParams)(nil),         // 21: vrooli.image_tools.v1.ops.MetadataParams
+	(*DuotoneParams)(nil),          // 22: vrooli.image_tools.v1.ops.DuotoneParams
+	(*PosterizeParams)(nil),        // 23: vrooli.image_tools.v1.ops.PosterizeParams
+	(*HalftoneParams)(nil),         // 24: vrooli.image_tools.v1.ops.HalftoneParams
+	(*DitherParams)(nil),           // 25: vrooli.image_tools.v1.ops.DitherParams
+	(*GrainParams)(nil),            // 26: vrooli.image_tools.v1.ops.GrainParams
+	(*ScrimParams)(nil),            // 27: vrooli.image_tools.v1.ops.ScrimParams
+	(*LineScreenParams)(nil),       // 28: vrooli.image_tools.v1.ops.LineScreenParams
+	(*StippleParams)(nil),          // 29: vrooli.image_tools.v1.ops.StippleParams
+	(*EngravingParams)(nil),        // 30: vrooli.image_tools.v1.ops.EngravingParams
+	(*AberrationParams)(nil),       // 31: vrooli.image_tools.v1.ops.AberrationParams
+	(*BloomParams)(nil),            // 32: vrooli.image_tools.v1.ops.BloomParams
+	(*CurveParams)(nil),            // 33: vrooli.image_tools.v1.ops.CurveParams
+	(*DefocusParams)(nil),          // 34: vrooli.image_tools.v1.ops.DefocusParams
+	(*MotionBlurParams)(nil),       // 35: vrooli.image_tools.v1.ops.MotionBlurParams
+	(*AsciiMosaicParams)(nil),      // 36: vrooli.image_tools.v1.ops.AsciiMosaicParams
+	(*PixelSortParams)(nil),        // 37: vrooli.image_tools.v1.ops.PixelSortParams
+	(*DisplacementParams)(nil),     // 38: vrooli.image_tools.v1.ops.DisplacementParams
+	(*RasterizeParams)(nil),        // 39: vrooli.image_tools.v1.ops.RasterizeParams
+	(*VectorizeParams)(nil),        // 40: vrooli.image_tools.v1.ops.VectorizeParams
+	(*IconContainerParams)(nil),    // 41: vrooli.image_tools.v1.ops.IconContainerParams
+	(*OpResult)(nil),               // 42: vrooli.image_tools.v1.ops.OpResult
+	(*RunOpResponse)(nil),          // 43: vrooli.image_tools.v1.ops.RunOpResponse
+	nil,                            // 44: vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
 }
 var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.ops.ListOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ops.OperationInfo
-	7,  // 1: vrooli.image_tools.v1.ops.OpParams.resize:type_name -> vrooli.image_tools.v1.ops.ResizeParams
-	8,  // 2: vrooli.image_tools.v1.ops.OpParams.crop:type_name -> vrooli.image_tools.v1.ops.CropParams
-	9,  // 3: vrooli.image_tools.v1.ops.OpParams.rotate:type_name -> vrooli.image_tools.v1.ops.RotateParams
-	10, // 4: vrooli.image_tools.v1.ops.OpParams.flip:type_name -> vrooli.image_tools.v1.ops.FlipParams
-	11, // 5: vrooli.image_tools.v1.ops.OpParams.deskew:type_name -> vrooli.image_tools.v1.ops.DeskewParams
-	12, // 6: vrooli.image_tools.v1.ops.OpParams.thumbnail:type_name -> vrooli.image_tools.v1.ops.ThumbnailParams
-	13, // 7: vrooli.image_tools.v1.ops.OpParams.canvas:type_name -> vrooli.image_tools.v1.ops.CanvasParams
-	14, // 8: vrooli.image_tools.v1.ops.OpParams.adjust:type_name -> vrooli.image_tools.v1.ops.AdjustParams
-	15, // 9: vrooli.image_tools.v1.ops.OpParams.filter:type_name -> vrooli.image_tools.v1.ops.FilterParams
-	16, // 10: vrooli.image_tools.v1.ops.OpParams.convert:type_name -> vrooli.image_tools.v1.ops.ConvertParams
-	17, // 11: vrooli.image_tools.v1.ops.OpParams.compress:type_name -> vrooli.image_tools.v1.ops.CompressParams
-	18, // 12: vrooli.image_tools.v1.ops.OpParams.overlay:type_name -> vrooli.image_tools.v1.ops.OverlayParams
-	19, // 13: vrooli.image_tools.v1.ops.OpParams.metadata:type_name -> vrooli.image_tools.v1.ops.MetadataParams
-	20, // 14: vrooli.image_tools.v1.ops.OpParams.duotone:type_name -> vrooli.image_tools.v1.ops.DuotoneParams
-	21, // 15: vrooli.image_tools.v1.ops.OpParams.posterize:type_name -> vrooli.image_tools.v1.ops.PosterizeParams
-	22, // 16: vrooli.image_tools.v1.ops.OpParams.halftone:type_name -> vrooli.image_tools.v1.ops.HalftoneParams
-	23, // 17: vrooli.image_tools.v1.ops.OpParams.dither_ordered:type_name -> vrooli.image_tools.v1.ops.DitherParams
-	23, // 18: vrooli.image_tools.v1.ops.OpParams.dither_diffusion:type_name -> vrooli.image_tools.v1.ops.DitherParams
-	24, // 19: vrooli.image_tools.v1.ops.OpParams.grain:type_name -> vrooli.image_tools.v1.ops.GrainParams
-	25, // 20: vrooli.image_tools.v1.ops.OpParams.scrim:type_name -> vrooli.image_tools.v1.ops.ScrimParams
-	26, // 21: vrooli.image_tools.v1.ops.OpParams.line_screen:type_name -> vrooli.image_tools.v1.ops.LineScreenParams
-	27, // 22: vrooli.image_tools.v1.ops.OpParams.stipple:type_name -> vrooli.image_tools.v1.ops.StippleParams
-	28, // 23: vrooli.image_tools.v1.ops.OpParams.engraving:type_name -> vrooli.image_tools.v1.ops.EngravingParams
-	29, // 24: vrooli.image_tools.v1.ops.OpParams.aberration:type_name -> vrooli.image_tools.v1.ops.AberrationParams
-	30, // 25: vrooli.image_tools.v1.ops.OpParams.bloom:type_name -> vrooli.image_tools.v1.ops.BloomParams
-	31, // 26: vrooli.image_tools.v1.ops.OpParams.curve:type_name -> vrooli.image_tools.v1.ops.CurveParams
-	32, // 27: vrooli.image_tools.v1.ops.OpParams.defocus:type_name -> vrooli.image_tools.v1.ops.DefocusParams
-	33, // 28: vrooli.image_tools.v1.ops.OpParams.motion_blur:type_name -> vrooli.image_tools.v1.ops.MotionBlurParams
-	34, // 29: vrooli.image_tools.v1.ops.OpParams.ascii_mosaic:type_name -> vrooli.image_tools.v1.ops.AsciiMosaicParams
-	35, // 30: vrooli.image_tools.v1.ops.OpParams.pixel_sort:type_name -> vrooli.image_tools.v1.ops.PixelSortParams
-	36, // 31: vrooli.image_tools.v1.ops.OpParams.displacement:type_name -> vrooli.image_tools.v1.ops.DisplacementParams
+	9,  // 1: vrooli.image_tools.v1.ops.OpParams.resize:type_name -> vrooli.image_tools.v1.ops.ResizeParams
+	10, // 2: vrooli.image_tools.v1.ops.OpParams.crop:type_name -> vrooli.image_tools.v1.ops.CropParams
+	11, // 3: vrooli.image_tools.v1.ops.OpParams.rotate:type_name -> vrooli.image_tools.v1.ops.RotateParams
+	12, // 4: vrooli.image_tools.v1.ops.OpParams.flip:type_name -> vrooli.image_tools.v1.ops.FlipParams
+	13, // 5: vrooli.image_tools.v1.ops.OpParams.deskew:type_name -> vrooli.image_tools.v1.ops.DeskewParams
+	14, // 6: vrooli.image_tools.v1.ops.OpParams.thumbnail:type_name -> vrooli.image_tools.v1.ops.ThumbnailParams
+	15, // 7: vrooli.image_tools.v1.ops.OpParams.canvas:type_name -> vrooli.image_tools.v1.ops.CanvasParams
+	16, // 8: vrooli.image_tools.v1.ops.OpParams.adjust:type_name -> vrooli.image_tools.v1.ops.AdjustParams
+	17, // 9: vrooli.image_tools.v1.ops.OpParams.filter:type_name -> vrooli.image_tools.v1.ops.FilterParams
+	18, // 10: vrooli.image_tools.v1.ops.OpParams.convert:type_name -> vrooli.image_tools.v1.ops.ConvertParams
+	19, // 11: vrooli.image_tools.v1.ops.OpParams.compress:type_name -> vrooli.image_tools.v1.ops.CompressParams
+	20, // 12: vrooli.image_tools.v1.ops.OpParams.overlay:type_name -> vrooli.image_tools.v1.ops.OverlayParams
+	21, // 13: vrooli.image_tools.v1.ops.OpParams.metadata:type_name -> vrooli.image_tools.v1.ops.MetadataParams
+	22, // 14: vrooli.image_tools.v1.ops.OpParams.duotone:type_name -> vrooli.image_tools.v1.ops.DuotoneParams
+	23, // 15: vrooli.image_tools.v1.ops.OpParams.posterize:type_name -> vrooli.image_tools.v1.ops.PosterizeParams
+	24, // 16: vrooli.image_tools.v1.ops.OpParams.halftone:type_name -> vrooli.image_tools.v1.ops.HalftoneParams
+	25, // 17: vrooli.image_tools.v1.ops.OpParams.dither_ordered:type_name -> vrooli.image_tools.v1.ops.DitherParams
+	25, // 18: vrooli.image_tools.v1.ops.OpParams.dither_diffusion:type_name -> vrooli.image_tools.v1.ops.DitherParams
+	26, // 19: vrooli.image_tools.v1.ops.OpParams.grain:type_name -> vrooli.image_tools.v1.ops.GrainParams
+	27, // 20: vrooli.image_tools.v1.ops.OpParams.scrim:type_name -> vrooli.image_tools.v1.ops.ScrimParams
+	28, // 21: vrooli.image_tools.v1.ops.OpParams.line_screen:type_name -> vrooli.image_tools.v1.ops.LineScreenParams
+	29, // 22: vrooli.image_tools.v1.ops.OpParams.stipple:type_name -> vrooli.image_tools.v1.ops.StippleParams
+	30, // 23: vrooli.image_tools.v1.ops.OpParams.engraving:type_name -> vrooli.image_tools.v1.ops.EngravingParams
+	31, // 24: vrooli.image_tools.v1.ops.OpParams.aberration:type_name -> vrooli.image_tools.v1.ops.AberrationParams
+	32, // 25: vrooli.image_tools.v1.ops.OpParams.bloom:type_name -> vrooli.image_tools.v1.ops.BloomParams
+	33, // 26: vrooli.image_tools.v1.ops.OpParams.curve:type_name -> vrooli.image_tools.v1.ops.CurveParams
+	34, // 27: vrooli.image_tools.v1.ops.OpParams.defocus:type_name -> vrooli.image_tools.v1.ops.DefocusParams
+	35, // 28: vrooli.image_tools.v1.ops.OpParams.motion_blur:type_name -> vrooli.image_tools.v1.ops.MotionBlurParams
+	36, // 29: vrooli.image_tools.v1.ops.OpParams.ascii_mosaic:type_name -> vrooli.image_tools.v1.ops.AsciiMosaicParams
+	37, // 30: vrooli.image_tools.v1.ops.OpParams.pixel_sort:type_name -> vrooli.image_tools.v1.ops.PixelSortParams
+	38, // 31: vrooli.image_tools.v1.ops.OpParams.displacement:type_name -> vrooli.image_tools.v1.ops.DisplacementParams
 	5,  // 32: vrooli.image_tools.v1.ops.OpParams.composite:type_name -> vrooli.image_tools.v1.ops.CompositeParams
-	37, // 33: vrooli.image_tools.v1.ops.OpParams.rasterize:type_name -> vrooli.image_tools.v1.ops.RasterizeParams
-	38, // 34: vrooli.image_tools.v1.ops.OpParams.vectorize:type_name -> vrooli.image_tools.v1.ops.VectorizeParams
-	39, // 35: vrooli.image_tools.v1.ops.OpParams.icon_container:type_name -> vrooli.image_tools.v1.ops.IconContainerParams
-	4,  // 36: vrooli.image_tools.v1.ops.OpParams.knockout:type_name -> vrooli.image_tools.v1.ops.Knockout
-	6,  // 37: vrooli.image_tools.v1.ops.CompositeParams.plates:type_name -> vrooli.image_tools.v1.ops.Plate
-	42, // 38: vrooli.image_tools.v1.ops.OpResult.resolved_params:type_name -> vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
-	40, // 39: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
-	1,  // 40: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
-	2,  // 41: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
-	41, // [41:42] is the sub-list for method output_type
-	40, // [40:41] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	39, // 33: vrooli.image_tools.v1.ops.OpParams.rasterize:type_name -> vrooli.image_tools.v1.ops.RasterizeParams
+	40, // 34: vrooli.image_tools.v1.ops.OpParams.vectorize:type_name -> vrooli.image_tools.v1.ops.VectorizeParams
+	41, // 35: vrooli.image_tools.v1.ops.OpParams.icon_container:type_name -> vrooli.image_tools.v1.ops.IconContainerParams
+	7,  // 36: vrooli.image_tools.v1.ops.OpParams.parallax:type_name -> vrooli.image_tools.v1.ops.ParallaxParams
+	4,  // 37: vrooli.image_tools.v1.ops.OpParams.knockout:type_name -> vrooli.image_tools.v1.ops.Knockout
+	8,  // 38: vrooli.image_tools.v1.ops.CompositeParams.plates:type_name -> vrooli.image_tools.v1.ops.Plate
+	6,  // 39: vrooli.image_tools.v1.ops.CompositeParams.camera:type_name -> vrooli.image_tools.v1.ops.LayeredCamera
+	5,  // 40: vrooli.image_tools.v1.ops.ParallaxParams.scene:type_name -> vrooli.image_tools.v1.ops.CompositeParams
+	6,  // 41: vrooli.image_tools.v1.ops.ParallaxParams.start_camera:type_name -> vrooli.image_tools.v1.ops.LayeredCamera
+	6,  // 42: vrooli.image_tools.v1.ops.ParallaxParams.end_camera:type_name -> vrooli.image_tools.v1.ops.LayeredCamera
+	44, // 43: vrooli.image_tools.v1.ops.OpResult.resolved_params:type_name -> vrooli.image_tools.v1.ops.OpResult.ResolvedParamsEntry
+	42, // 44: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
+	1,  // 45: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
+	2,  // 46: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
+	46, // [46:47] is the sub-list for method output_type
+	45, // [45:46] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ops_ops_proto_init() }
@@ -3997,14 +4240,16 @@ func file_image_tools_v1_ops_ops_proto_init() {
 		(*OpParams_Rasterize)(nil),
 		(*OpParams_Vectorize)(nil),
 		(*OpParams_IconContainer)(nil),
+		(*OpParams_Parallax)(nil),
 	}
+	file_image_tools_v1_ops_ops_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_ops_ops_proto_rawDesc), len(file_image_tools_v1_ops_ops_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

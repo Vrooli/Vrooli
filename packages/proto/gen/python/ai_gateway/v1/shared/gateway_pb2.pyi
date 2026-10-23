@@ -15,6 +15,7 @@ class RequestKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REQUEST_KIND_STRUCTURED_EXTRACTION: _ClassVar[RequestKind]
     REQUEST_KIND_IMAGE_GENERATION: _ClassVar[RequestKind]
     REQUEST_KIND_VIDEO_GENERATION: _ClassVar[RequestKind]
+    REQUEST_KIND_DETECT_PII: _ClassVar[RequestKind]
 
 class PrivacyClass(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -63,6 +64,7 @@ REQUEST_KIND_TEXT_EMBEDDING: RequestKind
 REQUEST_KIND_STRUCTURED_EXTRACTION: RequestKind
 REQUEST_KIND_IMAGE_GENERATION: RequestKind
 REQUEST_KIND_VIDEO_GENERATION: RequestKind
+REQUEST_KIND_DETECT_PII: RequestKind
 PRIVACY_CLASS_UNSPECIFIED: PrivacyClass
 PRIVACY_CLASS_PUBLIC: PrivacyClass
 PRIVACY_CLASS_INTERNAL: PrivacyClass

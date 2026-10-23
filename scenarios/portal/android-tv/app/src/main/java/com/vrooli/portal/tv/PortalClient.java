@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Bounded, origin-scoped reads; this client never follows authentication redirects. */
 final class PortalClient {
+    private static final java.util.concurrent.ExecutorService cancellations = java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final String SERVICE = "/vrooli.portal.v1.surfaces.ApplicationCatalogService/";
     final String origin;
     private volatile String cookie;
@@ -21,7 +22,11 @@ final class PortalClient {
     private final boolean allowLocalHttp;
     PortalClient(String origin, boolean allowLocalHttp) { this.origin = origin; this.allowLocalHttp = allowLocalHttp; }
     void setCookie(String value) { cookie = value; }
-    void cancel() { HttpURLConnection previous = active; if (previous != null) previous.disconnect(); }
+    void cancel() {
+        HttpURLConnection previous = active; active = null;
+        // Disconnect can wait on network locks. Never run it in a tab/key handler.
+        if (previous != null) cancellations.execute(previous::disconnect);
+    }
 
     JSONObject rpc(String method, JSONObject request) throws Exception {
         HttpURLConnection connection = open(SERVICE + method);

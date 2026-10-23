@@ -4,17 +4,29 @@ package vrooli.personal_planner.v1.goals;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/goals;goals_v1";
 
+message GoalMeasure {
+  string unit = 1;
+  int64 target_amount_minor = 2;
+  string currency_code = 3;
+  string basis = 4;
+  string recurrence = 5;
+  string period = 6;
+}
+
 message Goal {
   string id = 1;
   string title = 2;
   string purpose = 3;
   string status = 4;
   string progress_method = 5;
-  int64 progress_basis_points = 6;
+  optional int64 progress_basis_points = 6;
   int64 target_basis_points = 7;
   int64 created_at_unix_seconds = 8;
   int64 updated_at_unix_seconds = 9;
   int64 revision = 10;
+  GoalMeasure measure = 11;
+  string target_date = 12;
+  string progress_state = 13;
 }
 
 message Milestone {
@@ -39,6 +51,8 @@ message CreateGoalRequest {
   string purpose = 2;
   string progress_method = 3;
   int64 target_basis_points = 4;
+  GoalMeasure measure = 5;
+  string target_date = 6;
 }
 message CreateGoalResponse { Goal goal = 1; }
 

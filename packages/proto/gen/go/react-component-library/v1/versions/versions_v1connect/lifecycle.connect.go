@@ -69,6 +69,9 @@ const (
 	// VersionLifecycleServiceImportArchiveProcedure is the fully-qualified name of the
 	// VersionLifecycleService's ImportArchive RPC.
 	VersionLifecycleServiceImportArchiveProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ImportArchive"
+	// VersionLifecycleServiceRecoverButton224Procedure is the fully-qualified name of the
+	// VersionLifecycleService's RecoverButton224 RPC.
+	VersionLifecycleServiceRecoverButton224Procedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RecoverButton224"
 	// VersionLifecycleServiceDoctorProcedure is the fully-qualified name of the
 	// VersionLifecycleService's Doctor RPC.
 	VersionLifecycleServiceDoctorProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/Doctor"
@@ -89,6 +92,7 @@ type VersionLifecycleServiceClient interface {
 	ReconcilePresence(context.Context, *connect.Request[versions.ReconcilePresenceRequest]) (*connect.Response[versions.ReconcilePresenceResponse], error)
 	ExportArchive(context.Context, *connect.Request[versions.ArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
 	ImportArchive(context.Context, *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
+	RecoverButton224(context.Context, *connect.Request[versions.RecoverButton224Request]) (*connect.Response[versions.ArchiveResponse], error)
 	Doctor(context.Context, *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error)
 }
 
@@ -176,6 +180,12 @@ func NewVersionLifecycleServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(versionLifecycleServiceMethods.ByName("ImportArchive")),
 			connect.WithClientOptions(opts...),
 		),
+		recoverButton224: connect.NewClient[versions.RecoverButton224Request, versions.ArchiveResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceRecoverButton224Procedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("RecoverButton224")),
+			connect.WithClientOptions(opts...),
+		),
 		doctor: connect.NewClient[versions.DoctorRequest, versions.DoctorResponse](
 			httpClient,
 			baseURL+VersionLifecycleServiceDoctorProcedure,
@@ -199,6 +209,7 @@ type versionLifecycleServiceClient struct {
 	reconcilePresence    *connect.Client[versions.ReconcilePresenceRequest, versions.ReconcilePresenceResponse]
 	exportArchive        *connect.Client[versions.ArchiveRequest, versions.ArchiveResponse]
 	importArchive        *connect.Client[versions.ImportArchiveRequest, versions.ArchiveResponse]
+	recoverButton224     *connect.Client[versions.RecoverButton224Request, versions.ArchiveResponse]
 	doctor               *connect.Client[versions.DoctorRequest, versions.DoctorResponse]
 }
 
@@ -273,6 +284,12 @@ func (c *versionLifecycleServiceClient) ImportArchive(ctx context.Context, req *
 	return c.importArchive.CallUnary(ctx, req)
 }
 
+// RecoverButton224 calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.RecoverButton224.
+func (c *versionLifecycleServiceClient) RecoverButton224(ctx context.Context, req *connect.Request[versions.RecoverButton224Request]) (*connect.Response[versions.ArchiveResponse], error) {
+	return c.recoverButton224.CallUnary(ctx, req)
+}
+
 // Doctor calls vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor.
 func (c *versionLifecycleServiceClient) Doctor(ctx context.Context, req *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error) {
 	return c.doctor.CallUnary(ctx, req)
@@ -293,6 +310,7 @@ type VersionLifecycleServiceHandler interface {
 	ReconcilePresence(context.Context, *connect.Request[versions.ReconcilePresenceRequest]) (*connect.Response[versions.ReconcilePresenceResponse], error)
 	ExportArchive(context.Context, *connect.Request[versions.ArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
 	ImportArchive(context.Context, *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
+	RecoverButton224(context.Context, *connect.Request[versions.RecoverButton224Request]) (*connect.Response[versions.ArchiveResponse], error)
 	Doctor(context.Context, *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error)
 }
 
@@ -375,6 +393,12 @@ func NewVersionLifecycleServiceHandler(svc VersionLifecycleServiceHandler, opts 
 		connect.WithSchema(versionLifecycleServiceMethods.ByName("ImportArchive")),
 		connect.WithHandlerOptions(opts...),
 	)
+	versionLifecycleServiceRecoverButton224Handler := connect.NewUnaryHandler(
+		VersionLifecycleServiceRecoverButton224Procedure,
+		svc.RecoverButton224,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("RecoverButton224")),
+		connect.WithHandlerOptions(opts...),
+	)
 	versionLifecycleServiceDoctorHandler := connect.NewUnaryHandler(
 		VersionLifecycleServiceDoctorProcedure,
 		svc.Doctor,
@@ -407,6 +431,8 @@ func NewVersionLifecycleServiceHandler(svc VersionLifecycleServiceHandler, opts 
 			versionLifecycleServiceExportArchiveHandler.ServeHTTP(w, r)
 		case VersionLifecycleServiceImportArchiveProcedure:
 			versionLifecycleServiceImportArchiveHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceRecoverButton224Procedure:
+			versionLifecycleServiceRecoverButton224Handler.ServeHTTP(w, r)
 		case VersionLifecycleServiceDoctorProcedure:
 			versionLifecycleServiceDoctorHandler.ServeHTTP(w, r)
 		default:
@@ -464,6 +490,10 @@ func (UnimplementedVersionLifecycleServiceHandler) ExportArchive(context.Context
 
 func (UnimplementedVersionLifecycleServiceHandler) ImportArchive(context.Context, *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.ImportArchive is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) RecoverButton224(context.Context, *connect.Request[versions.RecoverButton224Request]) (*connect.Response[versions.ArchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.RecoverButton224 is not implemented"))
 }
 
 func (UnimplementedVersionLifecycleServiceHandler) Doctor(context.Context, *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error) {

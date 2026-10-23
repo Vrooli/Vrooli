@@ -449,7 +449,7 @@ message RunSummary {
   repeated string files_deleted = 4;
 
   // Total tokens consumed (input + output).
-  int32 tokens_used = 5;
+  int64 tokens_used = 5;
 
   // Number of conversation turns.
   int32 turns_used = 6;

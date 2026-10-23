@@ -26,6 +26,12 @@ message AppTarget {
   string context_id = 12 [(buf.validate.field).string.min_len = 1];
   string renderer_url = 13 [(buf.validate.field).string.min_len = 1];
   optional string renderer_title = 14;
+  // Optional owner-discovered private API endpoint for bundled offline runs.
+  // It must be a target-owned loopback bridge and is never a caller URL.
+  string api_url = 15;
+  // Private target-owned writable root for a disposable routed test database.
+  // Set only for isolated bundled validation sessions.
+  string test_database_root = 16;
 }
 
 message ElectronLaunchRequest {

@@ -1,3 +1,4 @@
+from image_tools.v1.selection import selection_pb2 as _selection_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -35,7 +36,7 @@ class ListAIOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[AIOperationInfo, _Mapping]]] = ...) -> None: ...
 
 class AIParams(_message.Message):
-    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware", "consent_affirmed", "adapters", "quality_policy", "fallback_policy", "priority", "allow_reclaim", "openrouter_role")
+    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware", "consent_affirmed", "adapters", "quality_policy", "fallback_policy", "priority", "allow_reclaim", "openrouter_role", "segmentation", "scene_geometry", "image_to_object", "background_repair", "inpaint")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     NEGATIVE_PROMPT_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
@@ -58,6 +59,11 @@ class AIParams(_message.Message):
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     ALLOW_RECLAIM_FIELD_NUMBER: _ClassVar[int]
     OPENROUTER_ROLE_FIELD_NUMBER: _ClassVar[int]
+    SEGMENTATION_FIELD_NUMBER: _ClassVar[int]
+    SCENE_GEOMETRY_FIELD_NUMBER: _ClassVar[int]
+    IMAGE_TO_OBJECT_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_REPAIR_FIELD_NUMBER: _ClassVar[int]
+    INPAINT_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     negative_prompt: str
     seed: int
@@ -80,7 +86,52 @@ class AIParams(_message.Message):
     priority: str
     allow_reclaim: bool
     openrouter_role: str
-    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ..., consent_affirmed: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., priority: _Optional[str] = ..., allow_reclaim: _Optional[bool] = ..., openrouter_role: _Optional[str] = ...) -> None: ...
+    segmentation: SegmentationPrompt
+    scene_geometry: SceneGeometryParams
+    image_to_object: ImageToObjectParams
+    background_repair: BackgroundRepairParams
+    inpaint: InpaintParams
+    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ..., consent_affirmed: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., priority: _Optional[str] = ..., allow_reclaim: _Optional[bool] = ..., openrouter_role: _Optional[str] = ..., segmentation: _Optional[_Union[SegmentationPrompt, _Mapping]] = ..., scene_geometry: _Optional[_Union[SceneGeometryParams, _Mapping]] = ..., image_to_object: _Optional[_Union[ImageToObjectParams, _Mapping]] = ..., background_repair: _Optional[_Union[BackgroundRepairParams, _Mapping]] = ..., inpaint: _Optional[_Union[InpaintParams, _Mapping]] = ...) -> None: ...
+
+class InpaintParams(_message.Message):
+    __slots__ = ("crop_to_mask", "context_pixels", "max_edge_px", "neutralize_masked_pixels")
+    CROP_TO_MASK_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_PIXELS_FIELD_NUMBER: _ClassVar[int]
+    MAX_EDGE_PX_FIELD_NUMBER: _ClassVar[int]
+    NEUTRALIZE_MASKED_PIXELS_FIELD_NUMBER: _ClassVar[int]
+    crop_to_mask: bool
+    context_pixels: int
+    max_edge_px: int
+    neutralize_masked_pixels: bool
+    def __init__(self, crop_to_mask: _Optional[bool] = ..., context_pixels: _Optional[int] = ..., max_edge_px: _Optional[int] = ..., neutralize_masked_pixels: _Optional[bool] = ...) -> None: ...
+
+class BackgroundRepairParams(_message.Message):
+    __slots__ = ("mask_expansion_pixels", "removal_regions")
+    MASK_EXPANSION_PIXELS_FIELD_NUMBER: _ClassVar[int]
+    REMOVAL_REGIONS_FIELD_NUMBER: _ClassVar[int]
+    mask_expansion_pixels: int
+    removal_regions: _containers.RepeatedCompositeFieldContainer[_selection_pb2.Box]
+    def __init__(self, mask_expansion_pixels: _Optional[int] = ..., removal_regions: _Optional[_Iterable[_Union[_selection_pb2.Box, _Mapping]]] = ...) -> None: ...
+
+class SceneGeometryParams(_message.Message):
+    __slots__ = ("support_roi",)
+    SUPPORT_ROI_FIELD_NUMBER: _ClassVar[int]
+    support_roi: _selection_pb2.Box
+    def __init__(self, support_roi: _Optional[_Union[_selection_pb2.Box, _Mapping]] = ...) -> None: ...
+
+class ImageToObjectParams(_message.Message):
+    __slots__ = ("mesh_resolution",)
+    MESH_RESOLUTION_FIELD_NUMBER: _ClassVar[int]
+    mesh_resolution: int
+    def __init__(self, mesh_resolution: _Optional[int] = ...) -> None: ...
+
+class SegmentationPrompt(_message.Message):
+    __slots__ = ("points", "box")
+    POINTS_FIELD_NUMBER: _ClassVar[int]
+    BOX_FIELD_NUMBER: _ClassVar[int]
+    points: _containers.RepeatedCompositeFieldContainer[_selection_pb2.Point]
+    box: _selection_pb2.Box
+    def __init__(self, points: _Optional[_Iterable[_Union[_selection_pb2.Point, _Mapping]]] = ..., box: _Optional[_Union[_selection_pb2.Box, _Mapping]] = ...) -> None: ...
 
 class AdapterRef(_message.Message):
     __slots__ = ("adapter_id", "scale", "conditioning_image_key", "preprocessor_override")
@@ -107,3 +158,17 @@ class SubmitAIResponse(_message.Message):
     tier: str
     warnings: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, job_id: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., model_id: _Optional[str] = ..., tier: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class SubmitStoredAIRequest(_message.Message):
+    __slots__ = ("operation", "params", "input_ref", "mask_ref", "operation_id")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    INPUT_REF_FIELD_NUMBER: _ClassVar[int]
+    MASK_REF_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    params: AIParams
+    input_ref: str
+    mask_ref: str
+    operation_id: str
+    def __init__(self, operation: _Optional[str] = ..., params: _Optional[_Union[AIParams, _Mapping]] = ..., input_ref: _Optional[str] = ..., mask_ref: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...

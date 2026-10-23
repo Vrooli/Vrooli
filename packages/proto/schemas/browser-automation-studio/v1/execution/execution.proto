@@ -422,6 +422,13 @@ message AppTarget {
   string artifact_digest = 7;
   string context_id = 8;
   string cdp_transport = 9;
+  // Private writable directory owned by an offline packaged desktop target.
+  // The attached browser writes downloads here so sandbox policy can remain
+  // read-only everywhere outside the target session root.
+  string download_path = 11;
+  // Private root that owns download_path; the driver requires the download
+  // directory to be its direct `downloads` child.
+  string test_database_root = 12;
 }
 
 // ValidationContext binds one BAS execution to an immutable validation cell

@@ -969,6 +969,50 @@ func (x *ImportArchiveRequest) GetOverwrite() bool {
 	return false
 }
 
+type RecoverButton224Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecoverButton224Request) Reset() {
+	*x = RecoverButton224Request{}
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecoverButton224Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecoverButton224Request) ProtoMessage() {}
+
+func (x *RecoverButton224Request) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecoverButton224Request.ProtoReflect.Descriptor instead.
+func (*RecoverButton224Request) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RecoverButton224Request) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
 type ArchiveResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
@@ -981,7 +1025,7 @@ type ArchiveResponse struct {
 
 func (x *ArchiveResponse) Reset() {
 	*x = ArchiveResponse{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[15]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -993,7 +1037,7 @@ func (x *ArchiveResponse) String() string {
 func (*ArchiveResponse) ProtoMessage() {}
 
 func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[15]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1006,7 +1050,7 @@ func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{15}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ArchiveResponse) GetPath() string {
@@ -1045,7 +1089,7 @@ type DoctorRequest struct {
 
 func (x *DoctorRequest) Reset() {
 	*x = DoctorRequest{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[16]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1057,7 +1101,7 @@ func (x *DoctorRequest) String() string {
 func (*DoctorRequest) ProtoMessage() {}
 
 func (x *DoctorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[16]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1070,24 +1114,29 @@ func (x *DoctorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorRequest.ProtoReflect.Descriptor instead.
 func (*DoctorRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{16}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{17}
 }
 
 type DoctorIssue struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	LibraryId      string                 `protobuf:"bytes,1,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
-	Version        string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	Path           string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	ExpectedSha256 string                 `protobuf:"bytes,4,opt,name=expected_sha256,json=expectedSha256,proto3" json:"expected_sha256,omitempty"`
-	ActualSha256   string                 `protobuf:"bytes,5,opt,name=actual_sha256,json=actualSha256,proto3" json:"actual_sha256,omitempty"`
-	Reason         string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	LibraryId        string                 `protobuf:"bytes,1,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
+	Version          string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Path             string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	ExpectedSha256   string                 `protobuf:"bytes,4,opt,name=expected_sha256,json=expectedSha256,proto3" json:"expected_sha256,omitempty"`
+	ActualSha256     string                 `protobuf:"bytes,5,opt,name=actual_sha256,json=actualSha256,proto3" json:"actual_sha256,omitempty"`
+	Reason           string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	LedgerCreatedAt  *string                `protobuf:"bytes,7,opt,name=ledger_created_at,json=ledgerCreatedAt,proto3,oneof" json:"ledger_created_at,omitempty"`
+	LedgerReleasedAt *string                `protobuf:"bytes,8,opt,name=ledger_released_at,json=ledgerReleasedAt,proto3,oneof" json:"ledger_released_at,omitempty"`
+	LedgerRetiredAt  *string                `protobuf:"bytes,9,opt,name=ledger_retired_at,json=ledgerRetiredAt,proto3,oneof" json:"ledger_retired_at,omitempty"`
+	LedgerLifecycle  *string                `protobuf:"bytes,10,opt,name=ledger_lifecycle,json=ledgerLifecycle,proto3,oneof" json:"ledger_lifecycle,omitempty"`
+	LedgerFileCount  *int32                 `protobuf:"varint,11,opt,name=ledger_file_count,json=ledgerFileCount,proto3,oneof" json:"ledger_file_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *DoctorIssue) Reset() {
 	*x = DoctorIssue{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[17]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1099,7 +1148,7 @@ func (x *DoctorIssue) String() string {
 func (*DoctorIssue) ProtoMessage() {}
 
 func (x *DoctorIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[17]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1112,7 +1161,7 @@ func (x *DoctorIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorIssue.ProtoReflect.Descriptor instead.
 func (*DoctorIssue) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{17}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DoctorIssue) GetLibraryId() string {
@@ -1157,6 +1206,41 @@ func (x *DoctorIssue) GetReason() string {
 	return ""
 }
 
+func (x *DoctorIssue) GetLedgerCreatedAt() string {
+	if x != nil && x.LedgerCreatedAt != nil {
+		return *x.LedgerCreatedAt
+	}
+	return ""
+}
+
+func (x *DoctorIssue) GetLedgerReleasedAt() string {
+	if x != nil && x.LedgerReleasedAt != nil {
+		return *x.LedgerReleasedAt
+	}
+	return ""
+}
+
+func (x *DoctorIssue) GetLedgerRetiredAt() string {
+	if x != nil && x.LedgerRetiredAt != nil {
+		return *x.LedgerRetiredAt
+	}
+	return ""
+}
+
+func (x *DoctorIssue) GetLedgerLifecycle() string {
+	if x != nil && x.LedgerLifecycle != nil {
+		return *x.LedgerLifecycle
+	}
+	return ""
+}
+
+func (x *DoctorIssue) GetLedgerFileCount() int32 {
+	if x != nil && x.LedgerFileCount != nil {
+		return *x.LedgerFileCount
+	}
+	return 0
+}
+
 type DoctorResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Issues        []*DoctorIssue         `protobuf:"bytes,1,rep,name=issues,proto3" json:"issues,omitempty"`
@@ -1166,7 +1250,7 @@ type DoctorResponse struct {
 
 func (x *DoctorResponse) Reset() {
 	*x = DoctorResponse{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[18]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1178,7 +1262,7 @@ func (x *DoctorResponse) String() string {
 func (*DoctorResponse) ProtoMessage() {}
 
 func (x *DoctorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[18]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1191,7 +1275,7 @@ func (x *DoctorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorResponse.ProtoReflect.Descriptor instead.
 func (*DoctorResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{18}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DoctorResponse) GetIssues() []*DoctorIssue {
@@ -1212,7 +1296,7 @@ type CleanupScope struct {
 
 func (x *CleanupScope) Reset() {
 	*x = CleanupScope{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[19]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1224,7 +1308,7 @@ func (x *CleanupScope) String() string {
 func (*CleanupScope) ProtoMessage() {}
 
 func (x *CleanupScope) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[19]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1237,7 +1321,7 @@ func (x *CleanupScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupScope.ProtoReflect.Descriptor instead.
 func (*CleanupScope) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{19}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CleanupScope) GetComponentId() string {
@@ -1276,7 +1360,7 @@ type CleanupItem struct {
 
 func (x *CleanupItem) Reset() {
 	*x = CleanupItem{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[20]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1288,7 +1372,7 @@ func (x *CleanupItem) String() string {
 func (*CleanupItem) ProtoMessage() {}
 
 func (x *CleanupItem) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[20]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1301,7 +1385,7 @@ func (x *CleanupItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupItem.ProtoReflect.Descriptor instead.
 func (*CleanupItem) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{20}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CleanupItem) GetVersion() *RetireCandidate {
@@ -1369,7 +1453,7 @@ type VersionReference struct {
 
 func (x *VersionReference) Reset() {
 	*x = VersionReference{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[21]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1381,7 +1465,7 @@ func (x *VersionReference) String() string {
 func (*VersionReference) ProtoMessage() {}
 
 func (x *VersionReference) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[21]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1394,7 +1478,7 @@ func (x *VersionReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VersionReference.ProtoReflect.Descriptor instead.
 func (*VersionReference) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{21}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *VersionReference) GetKind() string {
@@ -1462,7 +1546,7 @@ type PlanCleanupRequest struct {
 
 func (x *PlanCleanupRequest) Reset() {
 	*x = PlanCleanupRequest{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[22]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1474,7 +1558,7 @@ func (x *PlanCleanupRequest) String() string {
 func (*PlanCleanupRequest) ProtoMessage() {}
 
 func (x *PlanCleanupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[22]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1487,7 +1571,7 @@ func (x *PlanCleanupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanCleanupRequest.ProtoReflect.Descriptor instead.
 func (*PlanCleanupRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{22}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PlanCleanupRequest) GetScope() *CleanupScope {
@@ -1507,7 +1591,7 @@ type PlanCleanupResponse struct {
 
 func (x *PlanCleanupResponse) Reset() {
 	*x = PlanCleanupResponse{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[23]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1519,7 +1603,7 @@ func (x *PlanCleanupResponse) String() string {
 func (*PlanCleanupResponse) ProtoMessage() {}
 
 func (x *PlanCleanupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[23]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1532,7 +1616,7 @@ func (x *PlanCleanupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanCleanupResponse.ProtoReflect.Descriptor instead.
 func (*PlanCleanupResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{23}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PlanCleanupResponse) GetItems() []*CleanupItem {
@@ -1560,7 +1644,7 @@ type CleanupVersionsRequest struct {
 
 func (x *CleanupVersionsRequest) Reset() {
 	*x = CleanupVersionsRequest{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[24]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1656,7 @@ func (x *CleanupVersionsRequest) String() string {
 func (*CleanupVersionsRequest) ProtoMessage() {}
 
 func (x *CleanupVersionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[24]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1669,7 @@ func (x *CleanupVersionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupVersionsRequest.ProtoReflect.Descriptor instead.
 func (*CleanupVersionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{24}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CleanupVersionsRequest) GetScope() *CleanupScope {
@@ -1621,7 +1705,7 @@ type CleanupVersionsResponse struct {
 
 func (x *CleanupVersionsResponse) Reset() {
 	*x = CleanupVersionsResponse{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[25]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1633,7 +1717,7 @@ func (x *CleanupVersionsResponse) String() string {
 func (*CleanupVersionsResponse) ProtoMessage() {}
 
 func (x *CleanupVersionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[25]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1646,7 +1730,7 @@ func (x *CleanupVersionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupVersionsResponse.ProtoReflect.Descriptor instead.
 func (*CleanupVersionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{25}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *CleanupVersionsResponse) GetItems() []*CleanupItem {
@@ -1688,7 +1772,7 @@ type CleanupDraftRequest struct {
 
 func (x *CleanupDraftRequest) Reset() {
 	*x = CleanupDraftRequest{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[26]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1700,7 +1784,7 @@ func (x *CleanupDraftRequest) String() string {
 func (*CleanupDraftRequest) ProtoMessage() {}
 
 func (x *CleanupDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[26]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1713,7 +1797,7 @@ func (x *CleanupDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupDraftRequest.ProtoReflect.Descriptor instead.
 func (*CleanupDraftRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{26}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *CleanupDraftRequest) GetComponentId() string {
@@ -1747,7 +1831,7 @@ type CleanupDraftResponse struct {
 
 func (x *CleanupDraftResponse) Reset() {
 	*x = CleanupDraftResponse{}
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[27]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1759,7 +1843,7 @@ func (x *CleanupDraftResponse) String() string {
 func (*CleanupDraftResponse) ProtoMessage() {}
 
 func (x *CleanupDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[27]
+	mi := &file_react_component_library_v1_versions_lifecycle_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1772,7 +1856,7 @@ func (x *CleanupDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupDraftResponse.ProtoReflect.Descriptor instead.
 func (*CleanupDraftResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{27}
+	return file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CleanupDraftResponse) GetItem() *CleanupItem {
@@ -1870,7 +1954,9 @@ const file_react_component_library_v1_versions_lifecycle_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"H\n" +
 	"\x14ImportArchiveRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1c\n" +
-	"\toverwrite\x18\x02 \x01(\bR\toverwrite\"\x91\x02\n" +
+	"\toverwrite\x18\x02 \x01(\bR\toverwrite\"-\n" +
+	"\x17RecoverButton224Request\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\"\x91\x02\n" +
 	"\x0fArchiveResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12%\n" +
 	"\x0eschema_version\x18\x02 \x01(\x05R\rschemaVersion\x12i\n" +
@@ -1880,7 +1966,7 @@ const file_react_component_library_v1_versions_lifecycle_proto_rawDesc = "" +
 	"\x0eRowCountsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\x0f\n" +
-	"\rDoctorRequest\"\xc0\x01\n" +
+	"\rDoctorRequest\"\xa4\x04\n" +
 	"\vDoctorIssue\x12\x1d\n" +
 	"\n" +
 	"library_id\x18\x01 \x01(\tR\tlibraryId\x12\x18\n" +
@@ -1888,7 +1974,18 @@ const file_react_component_library_v1_versions_lifecycle_proto_rawDesc = "" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12'\n" +
 	"\x0fexpected_sha256\x18\x04 \x01(\tR\x0eexpectedSha256\x12#\n" +
 	"\ractual_sha256\x18\x05 \x01(\tR\factualSha256\x12\x16\n" +
-	"\x06reason\x18\x06 \x01(\tR\x06reason\"a\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\x12/\n" +
+	"\x11ledger_created_at\x18\a \x01(\tH\x00R\x0fledgerCreatedAt\x88\x01\x01\x121\n" +
+	"\x12ledger_released_at\x18\b \x01(\tH\x01R\x10ledgerReleasedAt\x88\x01\x01\x12/\n" +
+	"\x11ledger_retired_at\x18\t \x01(\tH\x02R\x0fledgerRetiredAt\x88\x01\x01\x12.\n" +
+	"\x10ledger_lifecycle\x18\n" +
+	" \x01(\tH\x03R\x0fledgerLifecycle\x88\x01\x01\x12/\n" +
+	"\x11ledger_file_count\x18\v \x01(\x05H\x04R\x0fledgerFileCount\x88\x01\x01B\x14\n" +
+	"\x12_ledger_created_atB\x15\n" +
+	"\x13_ledger_released_atB\x14\n" +
+	"\x12_ledger_retired_atB\x13\n" +
+	"\x11_ledger_lifecycleB\x14\n" +
+	"\x12_ledger_file_count\"a\n" +
 	"\x0eDoctorResponse\x12O\n" +
 	"\x06issues\x18\x01 \x03(\v27.vrooli.react_component_library.v1.versions.DoctorIssueR\x06issues\"x\n" +
 	"\fCleanupScope\x12!\n" +
@@ -1937,7 +2034,7 @@ const file_react_component_library_v1_versions_lifecycle_proto_rawDesc = "" +
 	"\aconfirm\x18\x03 \x01(\bR\aconfirm\"}\n" +
 	"\x14CleanupDraftResponse\x12K\n" +
 	"\x04item\x18\x01 \x01(\v27.vrooli.react_component_library.v1.versions.CleanupItemR\x04item\x12\x18\n" +
-	"\aapplied\x18\x02 \x01(\bR\aapplied2\xeb\x0f\n" +
+	"\aapplied\x18\x02 \x01(\bR\aapplied2\x82\x11\n" +
 	"\x17VersionLifecycleService\x12\xa0\x01\n" +
 	"\x11ListVersionLedger\x12D.vrooli.react_component_library.v1.versions.ListVersionLedgerRequest\x1aE.vrooli.react_component_library.v1.versions.ListVersionLedgerResponse\x12\xa9\x01\n" +
 	"\x14ListRetireCandidates\x12G.vrooli.react_component_library.v1.versions.ListRetireCandidatesRequest\x1aH.vrooli.react_component_library.v1.versions.ListRetireCandidatesResponse\x12\x8e\x01\n" +
@@ -1950,7 +2047,8 @@ const file_react_component_library_v1_versions_lifecycle_proto_rawDesc = "" +
 	"\x12MaterializeVersion\x12E.vrooli.react_component_library.v1.versions.MaterializeVersionRequest\x1aF.vrooli.react_component_library.v1.versions.MaterializeVersionResponse\x12\xa0\x01\n" +
 	"\x11ReconcilePresence\x12D.vrooli.react_component_library.v1.versions.ReconcilePresenceRequest\x1aE.vrooli.react_component_library.v1.versions.ReconcilePresenceResponse\x12\x88\x01\n" +
 	"\rExportArchive\x12:.vrooli.react_component_library.v1.versions.ArchiveRequest\x1a;.vrooli.react_component_library.v1.versions.ArchiveResponse\x12\x8e\x01\n" +
-	"\rImportArchive\x12@.vrooli.react_component_library.v1.versions.ImportArchiveRequest\x1a;.vrooli.react_component_library.v1.versions.ArchiveResponse\x12\x7f\n" +
+	"\rImportArchive\x12@.vrooli.react_component_library.v1.versions.ImportArchiveRequest\x1a;.vrooli.react_component_library.v1.versions.ArchiveResponse\x12\x94\x01\n" +
+	"\x10RecoverButton224\x12C.vrooli.react_component_library.v1.versions.RecoverButton224Request\x1a;.vrooli.react_component_library.v1.versions.ArchiveResponse\x12\x7f\n" +
 	"\x06Doctor\x129.vrooli.react_component_library.v1.versions.DoctorRequest\x1a:.vrooli.react_component_library.v1.versions.DoctorResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions;versions_v1b\x06proto3"
 
 var (
@@ -1965,7 +2063,7 @@ func file_react_component_library_v1_versions_lifecycle_proto_rawDescGZIP() []by
 	return file_react_component_library_v1_versions_lifecycle_proto_rawDescData
 }
 
-var file_react_component_library_v1_versions_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_react_component_library_v1_versions_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_react_component_library_v1_versions_lifecycle_proto_goTypes = []any{
 	(*ListVersionLedgerRequest)(nil),     // 0: vrooli.react_component_library.v1.versions.ListVersionLedgerRequest
 	(*VersionLedgerRow)(nil),             // 1: vrooli.react_component_library.v1.versions.VersionLedgerRow
@@ -1982,20 +2080,21 @@ var file_react_component_library_v1_versions_lifecycle_proto_goTypes = []any{
 	(*ReconcilePresenceResponse)(nil),    // 12: vrooli.react_component_library.v1.versions.ReconcilePresenceResponse
 	(*ArchiveRequest)(nil),               // 13: vrooli.react_component_library.v1.versions.ArchiveRequest
 	(*ImportArchiveRequest)(nil),         // 14: vrooli.react_component_library.v1.versions.ImportArchiveRequest
-	(*ArchiveResponse)(nil),              // 15: vrooli.react_component_library.v1.versions.ArchiveResponse
-	(*DoctorRequest)(nil),                // 16: vrooli.react_component_library.v1.versions.DoctorRequest
-	(*DoctorIssue)(nil),                  // 17: vrooli.react_component_library.v1.versions.DoctorIssue
-	(*DoctorResponse)(nil),               // 18: vrooli.react_component_library.v1.versions.DoctorResponse
-	(*CleanupScope)(nil),                 // 19: vrooli.react_component_library.v1.versions.CleanupScope
-	(*CleanupItem)(nil),                  // 20: vrooli.react_component_library.v1.versions.CleanupItem
-	(*VersionReference)(nil),             // 21: vrooli.react_component_library.v1.versions.VersionReference
-	(*PlanCleanupRequest)(nil),           // 22: vrooli.react_component_library.v1.versions.PlanCleanupRequest
-	(*PlanCleanupResponse)(nil),          // 23: vrooli.react_component_library.v1.versions.PlanCleanupResponse
-	(*CleanupVersionsRequest)(nil),       // 24: vrooli.react_component_library.v1.versions.CleanupVersionsRequest
-	(*CleanupVersionsResponse)(nil),      // 25: vrooli.react_component_library.v1.versions.CleanupVersionsResponse
-	(*CleanupDraftRequest)(nil),          // 26: vrooli.react_component_library.v1.versions.CleanupDraftRequest
-	(*CleanupDraftResponse)(nil),         // 27: vrooli.react_component_library.v1.versions.CleanupDraftResponse
-	nil,                                  // 28: vrooli.react_component_library.v1.versions.ArchiveResponse.RowCountsEntry
+	(*RecoverButton224Request)(nil),      // 15: vrooli.react_component_library.v1.versions.RecoverButton224Request
+	(*ArchiveResponse)(nil),              // 16: vrooli.react_component_library.v1.versions.ArchiveResponse
+	(*DoctorRequest)(nil),                // 17: vrooli.react_component_library.v1.versions.DoctorRequest
+	(*DoctorIssue)(nil),                  // 18: vrooli.react_component_library.v1.versions.DoctorIssue
+	(*DoctorResponse)(nil),               // 19: vrooli.react_component_library.v1.versions.DoctorResponse
+	(*CleanupScope)(nil),                 // 20: vrooli.react_component_library.v1.versions.CleanupScope
+	(*CleanupItem)(nil),                  // 21: vrooli.react_component_library.v1.versions.CleanupItem
+	(*VersionReference)(nil),             // 22: vrooli.react_component_library.v1.versions.VersionReference
+	(*PlanCleanupRequest)(nil),           // 23: vrooli.react_component_library.v1.versions.PlanCleanupRequest
+	(*PlanCleanupResponse)(nil),          // 24: vrooli.react_component_library.v1.versions.PlanCleanupResponse
+	(*CleanupVersionsRequest)(nil),       // 25: vrooli.react_component_library.v1.versions.CleanupVersionsRequest
+	(*CleanupVersionsResponse)(nil),      // 26: vrooli.react_component_library.v1.versions.CleanupVersionsResponse
+	(*CleanupDraftRequest)(nil),          // 27: vrooli.react_component_library.v1.versions.CleanupDraftRequest
+	(*CleanupDraftResponse)(nil),         // 28: vrooli.react_component_library.v1.versions.CleanupDraftResponse
+	nil,                                  // 29: vrooli.react_component_library.v1.versions.ArchiveResponse.RowCountsEntry
 }
 var file_react_component_library_v1_versions_lifecycle_proto_depIdxs = []int32{
 	1,  // 0: vrooli.react_component_library.v1.versions.ListVersionLedgerResponse.rows:type_name -> vrooli.react_component_library.v1.versions.VersionLedgerRow
@@ -2005,20 +2104,20 @@ var file_react_component_library_v1_versions_lifecycle_proto_depIdxs = []int32{
 	4,  // 4: vrooli.react_component_library.v1.versions.ReconcilePresenceResponse.evict:type_name -> vrooli.react_component_library.v1.versions.RetireCandidate
 	4,  // 5: vrooli.react_component_library.v1.versions.ReconcilePresenceResponse.materialize:type_name -> vrooli.react_component_library.v1.versions.RetireCandidate
 	4,  // 6: vrooli.react_component_library.v1.versions.ReconcilePresenceResponse.unchanged:type_name -> vrooli.react_component_library.v1.versions.RetireCandidate
-	28, // 7: vrooli.react_component_library.v1.versions.ArchiveResponse.row_counts:type_name -> vrooli.react_component_library.v1.versions.ArchiveResponse.RowCountsEntry
-	17, // 8: vrooli.react_component_library.v1.versions.DoctorResponse.issues:type_name -> vrooli.react_component_library.v1.versions.DoctorIssue
+	29, // 7: vrooli.react_component_library.v1.versions.ArchiveResponse.row_counts:type_name -> vrooli.react_component_library.v1.versions.ArchiveResponse.RowCountsEntry
+	18, // 8: vrooli.react_component_library.v1.versions.DoctorResponse.issues:type_name -> vrooli.react_component_library.v1.versions.DoctorIssue
 	4,  // 9: vrooli.react_component_library.v1.versions.CleanupItem.version:type_name -> vrooli.react_component_library.v1.versions.RetireCandidate
-	21, // 10: vrooli.react_component_library.v1.versions.CleanupItem.references:type_name -> vrooli.react_component_library.v1.versions.VersionReference
-	19, // 11: vrooli.react_component_library.v1.versions.PlanCleanupRequest.scope:type_name -> vrooli.react_component_library.v1.versions.CleanupScope
-	20, // 12: vrooli.react_component_library.v1.versions.PlanCleanupResponse.items:type_name -> vrooli.react_component_library.v1.versions.CleanupItem
-	19, // 13: vrooli.react_component_library.v1.versions.CleanupVersionsRequest.scope:type_name -> vrooli.react_component_library.v1.versions.CleanupScope
-	20, // 14: vrooli.react_component_library.v1.versions.CleanupVersionsResponse.items:type_name -> vrooli.react_component_library.v1.versions.CleanupItem
-	20, // 15: vrooli.react_component_library.v1.versions.CleanupDraftResponse.item:type_name -> vrooli.react_component_library.v1.versions.CleanupItem
+	22, // 10: vrooli.react_component_library.v1.versions.CleanupItem.references:type_name -> vrooli.react_component_library.v1.versions.VersionReference
+	20, // 11: vrooli.react_component_library.v1.versions.PlanCleanupRequest.scope:type_name -> vrooli.react_component_library.v1.versions.CleanupScope
+	21, // 12: vrooli.react_component_library.v1.versions.PlanCleanupResponse.items:type_name -> vrooli.react_component_library.v1.versions.CleanupItem
+	20, // 13: vrooli.react_component_library.v1.versions.CleanupVersionsRequest.scope:type_name -> vrooli.react_component_library.v1.versions.CleanupScope
+	21, // 14: vrooli.react_component_library.v1.versions.CleanupVersionsResponse.items:type_name -> vrooli.react_component_library.v1.versions.CleanupItem
+	21, // 15: vrooli.react_component_library.v1.versions.CleanupDraftResponse.item:type_name -> vrooli.react_component_library.v1.versions.CleanupItem
 	0,  // 16: vrooli.react_component_library.v1.versions.VersionLifecycleService.ListVersionLedger:input_type -> vrooli.react_component_library.v1.versions.ListVersionLedgerRequest
 	3,  // 17: vrooli.react_component_library.v1.versions.VersionLifecycleService.ListRetireCandidates:input_type -> vrooli.react_component_library.v1.versions.ListRetireCandidatesRequest
-	22, // 18: vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup:input_type -> vrooli.react_component_library.v1.versions.PlanCleanupRequest
-	24, // 19: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions:input_type -> vrooli.react_component_library.v1.versions.CleanupVersionsRequest
-	26, // 20: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft:input_type -> vrooli.react_component_library.v1.versions.CleanupDraftRequest
+	23, // 18: vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup:input_type -> vrooli.react_component_library.v1.versions.PlanCleanupRequest
+	25, // 19: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions:input_type -> vrooli.react_component_library.v1.versions.CleanupVersionsRequest
+	27, // 20: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft:input_type -> vrooli.react_component_library.v1.versions.CleanupDraftRequest
 	6,  // 21: vrooli.react_component_library.v1.versions.VersionLifecycleService.DeprecateVersion:input_type -> vrooli.react_component_library.v1.versions.VersionLifecycleRequest
 	6,  // 22: vrooli.react_component_library.v1.versions.VersionLifecycleService.ArchiveVersion:input_type -> vrooli.react_component_library.v1.versions.VersionLifecycleRequest
 	6,  // 23: vrooli.react_component_library.v1.versions.VersionLifecycleService.RetireVersion:input_type -> vrooli.react_component_library.v1.versions.VersionLifecycleRequest
@@ -2026,22 +2125,24 @@ var file_react_component_library_v1_versions_lifecycle_proto_depIdxs = []int32{
 	11, // 25: vrooli.react_component_library.v1.versions.VersionLifecycleService.ReconcilePresence:input_type -> vrooli.react_component_library.v1.versions.ReconcilePresenceRequest
 	13, // 26: vrooli.react_component_library.v1.versions.VersionLifecycleService.ExportArchive:input_type -> vrooli.react_component_library.v1.versions.ArchiveRequest
 	14, // 27: vrooli.react_component_library.v1.versions.VersionLifecycleService.ImportArchive:input_type -> vrooli.react_component_library.v1.versions.ImportArchiveRequest
-	16, // 28: vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor:input_type -> vrooli.react_component_library.v1.versions.DoctorRequest
-	2,  // 29: vrooli.react_component_library.v1.versions.VersionLifecycleService.ListVersionLedger:output_type -> vrooli.react_component_library.v1.versions.ListVersionLedgerResponse
-	5,  // 30: vrooli.react_component_library.v1.versions.VersionLifecycleService.ListRetireCandidates:output_type -> vrooli.react_component_library.v1.versions.ListRetireCandidatesResponse
-	23, // 31: vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup:output_type -> vrooli.react_component_library.v1.versions.PlanCleanupResponse
-	25, // 32: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions:output_type -> vrooli.react_component_library.v1.versions.CleanupVersionsResponse
-	27, // 33: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft:output_type -> vrooli.react_component_library.v1.versions.CleanupDraftResponse
-	7,  // 34: vrooli.react_component_library.v1.versions.VersionLifecycleService.DeprecateVersion:output_type -> vrooli.react_component_library.v1.versions.VersionLifecycleResponse
-	7,  // 35: vrooli.react_component_library.v1.versions.VersionLifecycleService.ArchiveVersion:output_type -> vrooli.react_component_library.v1.versions.VersionLifecycleResponse
-	7,  // 36: vrooli.react_component_library.v1.versions.VersionLifecycleService.RetireVersion:output_type -> vrooli.react_component_library.v1.versions.VersionLifecycleResponse
-	10, // 37: vrooli.react_component_library.v1.versions.VersionLifecycleService.MaterializeVersion:output_type -> vrooli.react_component_library.v1.versions.MaterializeVersionResponse
-	12, // 38: vrooli.react_component_library.v1.versions.VersionLifecycleService.ReconcilePresence:output_type -> vrooli.react_component_library.v1.versions.ReconcilePresenceResponse
-	15, // 39: vrooli.react_component_library.v1.versions.VersionLifecycleService.ExportArchive:output_type -> vrooli.react_component_library.v1.versions.ArchiveResponse
-	15, // 40: vrooli.react_component_library.v1.versions.VersionLifecycleService.ImportArchive:output_type -> vrooli.react_component_library.v1.versions.ArchiveResponse
-	18, // 41: vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor:output_type -> vrooli.react_component_library.v1.versions.DoctorResponse
-	29, // [29:42] is the sub-list for method output_type
-	16, // [16:29] is the sub-list for method input_type
+	15, // 28: vrooli.react_component_library.v1.versions.VersionLifecycleService.RecoverButton224:input_type -> vrooli.react_component_library.v1.versions.RecoverButton224Request
+	17, // 29: vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor:input_type -> vrooli.react_component_library.v1.versions.DoctorRequest
+	2,  // 30: vrooli.react_component_library.v1.versions.VersionLifecycleService.ListVersionLedger:output_type -> vrooli.react_component_library.v1.versions.ListVersionLedgerResponse
+	5,  // 31: vrooli.react_component_library.v1.versions.VersionLifecycleService.ListRetireCandidates:output_type -> vrooli.react_component_library.v1.versions.ListRetireCandidatesResponse
+	24, // 32: vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup:output_type -> vrooli.react_component_library.v1.versions.PlanCleanupResponse
+	26, // 33: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions:output_type -> vrooli.react_component_library.v1.versions.CleanupVersionsResponse
+	28, // 34: vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft:output_type -> vrooli.react_component_library.v1.versions.CleanupDraftResponse
+	7,  // 35: vrooli.react_component_library.v1.versions.VersionLifecycleService.DeprecateVersion:output_type -> vrooli.react_component_library.v1.versions.VersionLifecycleResponse
+	7,  // 36: vrooli.react_component_library.v1.versions.VersionLifecycleService.ArchiveVersion:output_type -> vrooli.react_component_library.v1.versions.VersionLifecycleResponse
+	7,  // 37: vrooli.react_component_library.v1.versions.VersionLifecycleService.RetireVersion:output_type -> vrooli.react_component_library.v1.versions.VersionLifecycleResponse
+	10, // 38: vrooli.react_component_library.v1.versions.VersionLifecycleService.MaterializeVersion:output_type -> vrooli.react_component_library.v1.versions.MaterializeVersionResponse
+	12, // 39: vrooli.react_component_library.v1.versions.VersionLifecycleService.ReconcilePresence:output_type -> vrooli.react_component_library.v1.versions.ReconcilePresenceResponse
+	16, // 40: vrooli.react_component_library.v1.versions.VersionLifecycleService.ExportArchive:output_type -> vrooli.react_component_library.v1.versions.ArchiveResponse
+	16, // 41: vrooli.react_component_library.v1.versions.VersionLifecycleService.ImportArchive:output_type -> vrooli.react_component_library.v1.versions.ArchiveResponse
+	16, // 42: vrooli.react_component_library.v1.versions.VersionLifecycleService.RecoverButton224:output_type -> vrooli.react_component_library.v1.versions.ArchiveResponse
+	19, // 43: vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor:output_type -> vrooli.react_component_library.v1.versions.DoctorResponse
+	30, // [30:44] is the sub-list for method output_type
+	16, // [16:30] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name
@@ -2052,13 +2153,14 @@ func file_react_component_library_v1_versions_lifecycle_proto_init() {
 	if File_react_component_library_v1_versions_lifecycle_proto != nil {
 		return
 	}
+	file_react_component_library_v1_versions_lifecycle_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_versions_lifecycle_proto_rawDesc), len(file_react_component_library_v1_versions_lifecycle_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

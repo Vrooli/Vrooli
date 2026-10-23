@@ -1468,7 +1468,7 @@ message RunReport {
   int64 duration_ms = 5;
   int64 heartbeat_gap_ms = 6;
   int32 turns = 7;
-  int32 tokens = 8;
+  int64 tokens = 8;
   double cost_usd = 9;
   RunReportResult result = 10;
   map<string, int32> event_counts = 11;
@@ -1488,6 +1488,20 @@ message RunReport {
   RunTimeAccounting time_accounting = 25;
   RunGoalOutcome goal_outcome = 26;
   repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 27;
+  // Retired scalar counts were not presence-aware, so older servers could be
+  // mistaken for measured zero. Keep their wire numbers reserved.
+  reserved 28, 29, 30;
+
+  // Typed subcounts preserve event_counts as raw event-type totals. Message
+  // presence distinguishes an older server from a measured all-zero result.
+  RunReportErrorBreakdown error_breakdown = 31;
+}
+
+// RunReportErrorBreakdown classifies error-typed events by their payload.
+message RunReportErrorBreakdown {
+  int32 execution_errors = 1;
+  int32 rate_limit_observations = 2;
+  int32 unclassified = 3;
 }
 
 // RunGoalOutcome is copied from Codex's rolling external goal store when a
@@ -1763,6 +1777,9 @@ message GetRunEventsRequest {
 
   // Filter by event types.
   repeated RunEventType event_types = 4;
+
+  // Return retained event counts and the latest included sequence, without event payloads.
+  bool summary_only = 5;
 }
 
 // GetRunEventsResponse returns run events.
@@ -1772,6 +1789,18 @@ message GetRunEventsResponse {
 
   // Whether more events are available.
   bool has_more = 2;
+
+  // Present when summary_only was requested.
+  RunEventSummary summary = 3;
+}
+
+// RunEventSummary describes only the retained rows in the selected page.
+message RunEventSummary {
+  // Counts by raw stored event type, including unknown future types.
+  map<string, int64> counts = 1;
+
+  // Highest included sequence; absent when no retained rows matched.
+  optional int64 latest_sequence = 2;
 }
 
 // GetRunDiffRequest retrieves the diff for a run.

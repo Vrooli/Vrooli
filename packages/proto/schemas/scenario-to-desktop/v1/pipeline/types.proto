@@ -50,6 +50,11 @@ message PipelineConfig {
   // with electron-optimized; absent switches remain disabled.
   ElectronOptimizationProfile optimization_profile = 37;
 
+  // Optional finite managed renderer payloads included in the desktop bundle.
+  // Values are blender and ffmpeg-video; selection is separate from generic
+  // host-required tool requirements.
+  repeated string renderer_tool_profiles = 38;
+
   // Target platforms to build for.
   // Empty means current platform only.
   repeated vrooli.scenario_to_desktop.v1.shared.Platform platforms = 2;

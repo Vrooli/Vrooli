@@ -6,13 +6,28 @@ import "ai-gateway/v1/shared/gateway.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
 
-// Usage is the provider-reported accounting for one inference operation.
-// cost_micros is expressed in USD micro-units; local providers report zero
-// when no monetary cost is incurred.
+// Usage preserves legacy numeric accounting and states where each value came
+// from. A zero is an observed zero only with PROVIDER_REPORTED provenance.
+enum UsageProvenance {
+  USAGE_PROVENANCE_UNSPECIFIED = 0;
+  USAGE_PROVENANCE_UNKNOWN = 1;
+  USAGE_PROVENANCE_PROVIDER_REPORTED = 2;
+  USAGE_PROVENANCE_GATEWAY_ESTIMATE = 3;
+  USAGE_PROVENANCE_MIXED = 4;
+}
 message Usage {
   int64 input_tokens = 1;
   int64 output_tokens = 2;
+  // USD micro-units. Provider-specific credits are not USD cost.
   int64 cost_micros = 3;
+  UsageProvenance input_tokens_provenance = 4;
+  UsageProvenance output_tokens_provenance = 5;
+  UsageProvenance cost_provenance = 6;
+  // LPBS credits charged for a metered operation. Presence distinguishes a
+  // known zero from unavailable or pending accounting; credits are not USD.
+  optional int64 credits_charged = 7;
+  // Owner-reported credit reconciliation state; empty means unavailable.
+  string accounting_status = 8;
 }
 
 enum InferenceErrorCode {
@@ -56,6 +71,37 @@ message Turn {
   repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 3;
 }
 
+// SpendLimit is an owner-enforced maximum, not a price estimate or caller
+// supplied quote. It is accepted only by explicitly budgeted remote roles.
+message SpendLimit {
+  int64 max_cost_micros = 1;
+  string operation_id = 2;
+  string input_fingerprint = 3;
+  repeated string reference_sha256 = 4;
+  int32 image_count = 5;
+  string funding_route = 6;
+}
+
+// SpendAuthorization records the hard-cap policy that the provider owner
+// actually applied. It never claims an estimated price or a provider charge.
+message SpendAuthorization {
+  string authorization_id = 1;
+  string status = 2;
+  int64 max_cost_micros = 3;
+  int32 input_tokens_bound = 4;
+  int32 output_tokens_bound = 5;
+  int32 image_count = 6;
+  string context_source = 7;
+  string operation_id = 8;
+  string input_fingerprint = 9;
+  repeated string reference_sha256 = 10;
+  string funding_route = 11;
+  string account_identity = 12;
+  string model = 13;
+  string provider_controls_sha256 = 14;
+  int32 context_window_tokens = 15;
+}
+
 message RunRequest {
   string source = 1;
   string schema_json = 2;
@@ -79,6 +125,15 @@ message RunRequest {
   // @default the resolved resource role's declared cap, else no cap
   // @unit tokens
   int32 max_output_tokens = 9;
+  // max_provider_calls bounds total provider adapter Execute attempts for this Run,
+  // including candidate fallback and schema-repair attempts. Zero preserves
+  // the gateway's existing caller defaults; positive values are validated
+  // against the gateway-wide maximum.
+  // @default legacy gateway policy
+  int32 max_provider_calls = 10;
+  // spend_limit is mandatory for remote device.geometry.* roles and forbidden
+  // for local-only execution. The owner binds it to exact request inputs.
+  SpendLimit spend_limit = 11;
 }
 
 message RunResponse {
@@ -93,6 +148,11 @@ message RunResponse {
   // It is populated on every return path including errors: a refused or
   // truncated call is exactly when a caller needs to know the cap.
   vrooli.ai_gateway.v1.shared.AppliedSettings applied = 7;
+  // provider_calls_made counts provider adapter Execute attempts, including
+  // invocations that returned an error. Candidate resolution and pre-dispatch
+  // refusals are not counted; the number is not a provider HTTP-call receipt.
+  int32 provider_calls_made = 8;
+  SpendAuthorization spend_authorization = 9;
 }
 
 message RunBatchItem {

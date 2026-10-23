@@ -106,6 +106,7 @@ message OpParams {
     RasterizeParams rasterize = 34;
     VectorizeParams vectorize = 35;
     IconContainerParams icon_container = 36;
+    ParallaxParams parallax = 37;
   }
 
   // Space no colour operation may print into, whichever one is selected above.
@@ -192,6 +193,39 @@ message CompositeParams {
   // visible when it is not, rather than silently filling with a colour nobody
   // chose.
   string background = 4;
+  // Optional bounded 2.5D view of prepared, full-canvas depth layers. This does
+  // not infer hidden geometry or fill newly exposed regions. Omit for legacy
+  // flat compositing. Every plate must declare distance when this is present.
+  LayeredCamera camera = 5;
+}
+
+// Camera translation is relative to the canvas at distance 1. Positive x/y
+// moves the camera right/down; positive z moves toward the planes. Angles are
+// degrees. This is a nearby-view pinhole model, not metric reconstruction.
+message LayeredCamera {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double yaw_degrees = 4;
+  double pitch_degrees = 5;
+  // Zero selects canvas width. Otherwise 0.5..4 times canvas width.
+  double focal_length_pixels = 6;
+  // Reject uncovered/translucent output rather than hiding missing scenery.
+  bool require_opaque = 7;
+}
+
+// Lossless RGBA PNG sequence and manifest in a ZIP, suitable for a film owner's
+// encoder. Layers are prepared, not inferred; use depth/segmentation/inpainting
+// operations first when starting from an ordinary photograph. No hidden model
+// download, media egress, frame interpolation or paid fallback occurs here.
+message ParallaxParams {
+  CompositeParams scene = 1;
+  LayeredCamera start_camera = 2;
+  LayeredCamera end_camera = 3;
+  // 2..180 frames; total raster work at most 240 million pixels.
+  uint32 frames = 4;
+  // 24 or 30. Camera uses smoothstep over output ordinals, including endpoints.
+  uint32 frames_per_second = 5;
 }
 
 // Plate is one layer in a composite stack.
@@ -215,6 +249,9 @@ message Plate {
   // opacity scales this plate's contribution, 0..1. Zero means fully
   // transparent; a caller wanting the default must send 1.
   double opacity = 4;
+  // Positive relative camera distance, 0.25..16. Required for layered camera
+  // views. Sorted stack depth must run far-to-near (decreasing distance).
+  optional double distance = 5;
 }
 
 // ResizeParams: width/height in px (0 = derive from aspect). fit is

@@ -297,6 +297,12 @@ type SmokeTestStartRequest struct {
 	// When enabled, the server owns an Xvfb demo recording and runs the
 	// user-visible journey after protocol validation.
 	RecordDesktop *bool `protobuf:"varint,4,opt,name=record_desktop,json=recordDesktop,proto3,oneof" json:"record_desktop,omitempty"`
+	// Explicit runtime target context. Omitted mode retains legacy behavior.
+	DeploymentMode *string `protobuf:"bytes,5,opt,name=deployment_mode,json=deploymentMode,proto3,oneof" json:"deployment_mode,omitempty"`
+	// Optional registered journey override for recorded runs.
+	JourneyId *string `protobuf:"bytes,6,opt,name=journey_id,json=journeyId,proto3,oneof" json:"journey_id,omitempty"`
+	// Required for proxy mode; bundled runs resolve their own runtime target.
+	ProxyUrl      *string `protobuf:"bytes,7,opt,name=proxy_url,json=proxyUrl,proto3,oneof" json:"proxy_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -357,6 +363,27 @@ func (x *SmokeTestStartRequest) GetRecordDesktop() bool {
 		return *x.RecordDesktop
 	}
 	return false
+}
+
+func (x *SmokeTestStartRequest) GetDeploymentMode() string {
+	if x != nil && x.DeploymentMode != nil {
+		return *x.DeploymentMode
+	}
+	return ""
+}
+
+func (x *SmokeTestStartRequest) GetJourneyId() string {
+	if x != nil && x.JourneyId != nil {
+		return *x.JourneyId
+	}
+	return ""
+}
+
+func (x *SmokeTestStartRequest) GetProxyUrl() string {
+	if x != nil && x.ProxyUrl != nil {
+		return *x.ProxyUrl
+	}
+	return ""
 }
 
 // SmokeTestStartResponse is returned when a smoke test is started.
@@ -620,14 +647,22 @@ const file_scenario_to_desktop_v1_domain_build_proto_rawDesc = "" +
 	"\n" +
 	"status_url\x18\x03 \x01(\tR\tstatusUrl\"8\n" +
 	"\x12BuildStatusRequest\x12\"\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abuildId\"\x87\x02\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abuildId\"\xcc\x03\n" +
 	"\x15SmokeTestStartRequest\x12#\n" +
 	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12O\n" +
 	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformH\x00R\bplatform\x88\x01\x01\x12,\n" +
 	"\rartifact_path\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fartifactPath\x12*\n" +
-	"\x0erecord_desktop\x18\x04 \x01(\bH\x01R\rrecordDesktop\x88\x01\x01B\v\n" +
+	"\x0erecord_desktop\x18\x04 \x01(\bH\x01R\rrecordDesktop\x88\x01\x01\x12C\n" +
+	"\x0fdeployment_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\abundledR\x05proxyH\x02R\x0edeploymentMode\x88\x01\x01\x12+\n" +
+	"\n" +
+	"journey_id\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x03R\tjourneyId\x88\x01\x01\x12 \n" +
+	"\tproxy_url\x18\a \x01(\tH\x04R\bproxyUrl\x88\x01\x01B\v\n" +
 	"\t_platformB\x11\n" +
-	"\x0f_record_desktop\"\x87\x03\n" +
+	"\x0f_record_desktopB\x12\n" +
+	"\x10_deployment_modeB\r\n" +
+	"\v_journey_idB\f\n" +
+	"\n" +
+	"_proxy_url\"\x87\x03\n" +
 	"\x16SmokeTestStartResponse\x12\"\n" +
 	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
 	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12J\n" +

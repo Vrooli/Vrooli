@@ -11,6 +11,29 @@ service SurfaceCatalogService {
  rpc List(ListRequest) returns (ListResponse);
  rpc Resolve(ResolveRequest) returns (ResolveResponse);
 }
+// Application inventory is projected from the control plane. Running does not
+// imply TV compatibility or grant authentication to the application.
+service ApplicationCatalogService {
+ rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse);
+ rpc ResolveApplication(ResolveApplicationRequest) returns (ResolveApplicationResponse);
+}
+message ListApplicationsRequest {}
+message Application {
+ string scenario = 1;
+ string label = 2;
+ string description = 3;
+ string runtime_state = 4;
+ string tv_qualification = 5;
+ // Origin-relative Portal artwork endpoint. Empty when no applied PNG exists.
+ string icon_path = 6;
+}
+message ListApplicationsResponse { repeated Application applications = 1; google.protobuf.Timestamp observed_at = 2; }
+message ResolveApplicationRequest {
+ string scenario = 1;
+ // Resolve through Portal's same-origin browser gateway instead of sibling ports.
+ bool use_gateway = 2;
+}
+message ResolveApplicationResponse { Application application = 1; string url = 2; google.protobuf.Timestamp observed_at = 3; }
 // @stability stable
 // Authenticated transport to destination-owned desktop admission. Portal never
 // substitutes its local process identity for a caller's bearer credential.

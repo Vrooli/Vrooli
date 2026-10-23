@@ -1009,6 +1009,8 @@ type GetShoppingPreviewRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId      string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	ExpectedRevision int64                  `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	FromDate         string                 `protobuf:"bytes,3,opt,name=from_date,json=fromDate,proto3" json:"from_date,omitempty"`
+	ToDate           string                 `protobuf:"bytes,4,opt,name=to_date,json=toDate,proto3" json:"to_date,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1055,6 +1057,20 @@ func (x *GetShoppingPreviewRequest) GetExpectedRevision() int64 {
 		return x.ExpectedRevision
 	}
 	return 0
+}
+
+func (x *GetShoppingPreviewRequest) GetFromDate() string {
+	if x != nil {
+		return x.FromDate
+	}
+	return ""
+}
+
+func (x *GetShoppingPreviewRequest) GetToDate() string {
+	if x != nil {
+		return x.ToDate
+	}
+	return ""
 }
 
 type ShoppingLine struct {
@@ -2015,10 +2031,12 @@ const file_nutrition_planner_v1_planning_planning_proto_rawDesc = "" +
 	"candidates\x18\x04 \x03(\v2<.vrooli.nutrition_planner.v1.planning.ExploreRecipeCandidateR\n" +
 	"candidates\x12a\n" +
 	"\x10blocking_reasons\x18\x05 \x03(\v26.vrooli.nutrition_planner.v1.planning.ExploreFitReasonR\x0fblockingReasons\x12,\n" +
-	"\x12saved_recipe_count\x18\x06 \x01(\x05R\x10savedRecipeCount\"k\n" +
+	"\x12saved_recipe_count\x18\x06 \x01(\x05R\x10savedRecipeCount\"\xa1\x01\n" +
 	"\x19GetShoppingPreviewRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12+\n" +
-	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\"\x9d\x04\n" +
+	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\x12\x1b\n" +
+	"\tfrom_date\x18\x03 \x01(\tR\bfromDate\x12\x17\n" +
+	"\ato_date\x18\x04 \x01(\tR\x06toDate\"\x9d\x04\n" +
 	"\fShoppingLine\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x12\n" +

@@ -102,4 +102,9 @@ message HostGPU {
 
   // Data source for this GPU's facts (e.g. "nvidia-smi").
   string source = 5;
+
+  // Stable physical GPU UUID from the host probe; empty when unavailable.
+  // CUDA consumers bind this identity before model loading so reservation and
+  // execution do not accidentally use different devices.
+  string uuid = 6;
 }

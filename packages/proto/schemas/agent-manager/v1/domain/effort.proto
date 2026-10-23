@@ -236,7 +236,7 @@ message EffortCapUsage {
 message EffortGoalHome {
   // Repository-relative goal-home directory.
   string path = 1;
-  // available or unavailable; limitations name why.
+  // available, partial (some facts are unknown), or unavailable; limitations name why.
   string state = 2;
   repeated string limitations = 3;
   string destination_metric = 4;
@@ -279,6 +279,10 @@ message EffortSignal {
   string run_id = 4;
   string detail = 5;
   google.protobuf.Timestamp created_at = 6;
+  // Response-only result of RecordEffortSignal: true when this call inserted
+  // the event, false when its dedupe key already existed. This is never stored
+  // and is absent from ListEffortSignals results. Absent on older responses.
+  optional bool newly_recorded = 7;
 }
 
 message ListEffortSignalsRequest {

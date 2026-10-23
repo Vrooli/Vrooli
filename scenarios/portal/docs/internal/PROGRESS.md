@@ -1,5 +1,35 @@
 # Progress — Portal
 
+## Native interaction polish — 2026-10-23
+
+Implemented cached native tabs, background package/artwork snapshots, idle page
+preparation, freshness-gated catalogue refresh and asynchronous disconnect.
+Explicit tab key handling prevents restored Home focus from changing pages.
+App-return state preserves the originating tab; one centered loading overlay
+spans resolution and WebView startup. Both libraries alphabetize favorites before
+other apps and share a corner star. Removed redundant modes and TV-control copy.
+
+Desired regressions and all four native owner checks pass. Daily29 measured
+Vrooli handler average 1.734 ms / max 1.885 ms versus baseline 165.223 ms / max 199.025 ms.
+TV apps measured 1.558 ms / max 1.869 ms versus 235.397 ms / max 853.489 ms. These are native
+handler samples after startup settling, not end-to-end frame/GPU measurements.
+Physical run da99e57d-a92d-4512-8f54-716678b4d156 returns from SmartTube to
+TV apps. Run 9bd3cca4-5025-4cd3-b5db-aae47bf51c29 captures the single loader,
+unified favorites, and Back to Vrooli with search intact. Status confirms Vrooli,
+browser/loading false, and active Home override. Aquila's child URL error is
+reported as knw-1792728989890967531; child compatibility is not claimed.
+
+Daily27's foreground-only passing flow failed visual tab acceptance; daily28's
+selection guard failed before the native return step. Both receipts are retained.
+Final review repaired the new cache's clear-recents invalidation and removed an
+obsolete focus guard in daily 0.4.12/code30. The signed owner build and four
+independent native checks pass, as do digest and signer continuity. Installed
+artifact `ec96821e680ab8286854373b22a660a508188068d7a98688bd1e99ca12f78772`.
+Final smoke run 9abb1699-4d45-47eb-a2af-9c367e6b2607 passes, showing Nooch content
+and Back to Vrooli. No user history was cleared, no reboot or Home permission
+change occurred, and leases are released. Evidence is in android-tv/README.md
+and interaction-polish-20261023. This does not certify every child-app feature.
+
 ## Setup-managed direct access implementation — 2026-10-22
 
 Implemented optional control-plane `local_service_admission` with typed operator

@@ -12,13 +12,9 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/inference/inference.proto.
  */
 export const file_ai_gateway_v1_inference_inference: GenFile = /*@__PURE__*/
-  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJgCgRUdXJuEgwKBHJvbGUYASABKAkSDAoEdGV4dBgCIAEoCRI8CgthdHRhY2htZW50cxgDIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50ItoCCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSPwoIc2FtcGxpbmcYCCABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scxIZChFtYXhfb3V0cHV0X3Rva2VucxgJIAEoBSKJAgoLUnVuUmVzcG9uc2USEgoKdmFsdWVfanNvbhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCgl2YWxpZGF0ZWQYBCABKAgSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3ISPQoHYXBwbGllZBgHIAEoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BcHBsaWVkU2V0dGluZ3MiHgoMUnVuQmF0Y2hJdGVtEg4KBnNvdXJjZRgBIAEoCSKGAQoPUnVuQmF0Y2hSZXF1ZXN0EjsKBWl0ZW1zGAEgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoSXRlbRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJIoYBChBSdW5CYXRjaFJlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USNAoFdXNhZ2UYAiABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2UibAoMRW1iZWRSZXF1ZXN0Eg0KBXRleHRzGAEgAygJEgwKBHJvbGUYAiABKAkSPwoIc2FtcGxpbmcYAyABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scyL6AQoNRW1iZWRSZXNwb25zZRJACgd2ZWN0b3JzGAEgAygLMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkZGluZ1ZlY3RvchIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCglkaW1lbnNpb24YBCABKAUSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3IiIQoPRW1iZWRkaW5nVmVjdG9yEg4KBnZhbHVlcxgBIAMoASrnAgoSSW5mZXJlbmNlRXJyb3JDb2RlEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5BVkFJTEFCTEUQARIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQAhIrCidJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQ0hFTUEQAxIqCiZJTkZFUkVOQ0VfRVJST1JfQ09ERV9WQUxJREFUSU9OX0ZBSUxFRBAEEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX1BST1ZJREVSX0ZBSUxFRBAFEi0KKUlORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NBTVBMSU5HEAYSKQolSU5GRVJFTkNFX0VSUk9SX0NPREVfQ09OVEVYVF9PVkVSRkxPVxAHMscCChBJbmZlcmVuY2VTZXJ2aWNlEl4KA1J1bhIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXF1ZXN0GisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEm0KCFJ1bkJhdGNoEi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlc3BvbnNlEmQKBUVtYmVkEiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkUmVxdWVzdBotLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9pbmZlcmVuY2U7aW5mZXJlbmNlX3YxYgZwcm90bzM", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSKFAwoFVXNhZ2USFAoMaW5wdXRfdG9rZW5zGAEgASgDEhUKDW91dHB1dF90b2tlbnMYAiABKAMSEwoLY29zdF9taWNyb3MYAyABKAMSUAoXaW5wdXRfdG9rZW5zX3Byb3ZlbmFuY2UYBCABKA4yLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2VQcm92ZW5hbmNlElEKGG91dHB1dF90b2tlbnNfcHJvdmVuYW5jZRgFIAEoDjIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZVByb3ZlbmFuY2USSAoPY29zdF9wcm92ZW5hbmNlGAYgASgOMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlUHJvdmVuYW5jZRIcCg9jcmVkaXRzX2NoYXJnZWQYByABKANIAIgBARIZChFhY2NvdW50aW5nX3N0YXR1cxgIIAEoCUISChBfY3JlZGl0c19jaGFyZ2VkInYKDkluZmVyZW5jZUVycm9yEkAKBGNvZGUYASABKA4yMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEQoJY29uc3RydWN0GAMgASgJImAKBFR1cm4SDAoEcm9sZRgBIAEoCRIMCgR0ZXh0GAIgASgJEjwKC2F0dGFjaG1lbnRzGAMgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQinAEKClNwZW5kTGltaXQSFwoPbWF4X2Nvc3RfbWljcm9zGAEgASgDEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIZChFpbnB1dF9maW5nZXJwcmludBgDIAEoCRIYChByZWZlcmVuY2Vfc2hhMjU2GAQgAygJEhMKC2ltYWdlX2NvdW50GAUgASgFEhUKDWZ1bmRpbmdfcm91dGUYBiABKAkiiQMKElNwZW5kQXV0aG9yaXphdGlvbhIYChBhdXRob3JpemF0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIXCg9tYXhfY29zdF9taWNyb3MYAyABKAMSGgoSaW5wdXRfdG9rZW5zX2JvdW5kGAQgASgFEhsKE291dHB1dF90b2tlbnNfYm91bmQYBSABKAUSEwoLaW1hZ2VfY291bnQYBiABKAUSFgoOY29udGV4dF9zb3VyY2UYByABKAkSFAoMb3BlcmF0aW9uX2lkGAggASgJEhkKEWlucHV0X2ZpbmdlcnByaW50GAkgASgJEhgKEHJlZmVyZW5jZV9zaGEyNTYYCiADKAkSFQoNZnVuZGluZ19yb3V0ZRgLIAEoCRIYChBhY2NvdW50X2lkZW50aXR5GAwgASgJEg0KBW1vZGVsGA0gASgJEiAKGHByb3ZpZGVyX2NvbnRyb2xzX3NoYTI1NhgOIAEoCRIdChVjb250ZXh0X3dpbmRvd190b2tlbnMYDyABKAUitwMKClJ1blJlcXVlc3QSDgoGc291cmNlGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgJEhMKC2luc3RydWN0aW9uGAMgASgJEgwKBHJvbGUYBCABKAkSMwoFdHVybnMYBSADKAsyJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVHVybhI8CgthdHRhY2htZW50cxgGIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50EjUKB3Byb2ZpbGUYByABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZRI/CghzYW1wbGluZxgIIAEoCzItLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5TYW1wbGluZ0NvbnRyb2xzEhkKEW1heF9vdXRwdXRfdG9rZW5zGAkgASgFEhoKEm1heF9wcm92aWRlcl9jYWxscxgKIAEoBRI/CgtzcGVuZF9saW1pdBgLIAEoCzIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5TcGVuZExpbWl0IvcCCgtSdW5SZXNwb25zZRISCgp2YWx1ZV9qc29uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCXZhbGlkYXRlZBgEIAEoCBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvchI9CgdhcHBsaWVkGAcgASgLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkFwcGxpZWRTZXR0aW5ncxIbChNwcm92aWRlcl9jYWxsc19tYWRlGAggASgFEk8KE3NwZW5kX2F1dGhvcml6YXRpb24YCSABKAsyMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuU3BlbmRBdXRob3JpemF0aW9uIh4KDFJ1bkJhdGNoSXRlbRIOCgZzb3VyY2UYASABKAkihgEKD1J1bkJhdGNoUmVxdWVzdBI7CgVpdGVtcxgBIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaEl0ZW0SEwoLc2NoZW1hX2pzb24YAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSDAoEcm9sZRgEIAEoCSKGAQoQUnVuQmF0Y2hSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlImwKDEVtYmVkUmVxdWVzdBINCgV0ZXh0cxgBIAMoCRIMCgRyb2xlGAIgASgJEj8KCHNhbXBsaW5nGAMgASgLMi0udnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlNhbXBsaW5nQ29udHJvbHMi+gEKDUVtYmVkUmVzcG9uc2USQAoHdmVjdG9ycxgBIAMoCzIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZGRpbmdWZWN0b3ISEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEQoJZGltZW5zaW9uGAQgASgFEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yIiEKD0VtYmVkZGluZ1ZlY3RvchIOCgZ2YWx1ZXMYASADKAEqvAEKD1VzYWdlUHJvdmVuYW5jZRIgChxVU0FHRV9QUk9WRU5BTkNFX1VOU1BFQ0lGSUVEEAASHAoYVVNBR0VfUFJPVkVOQU5DRV9VTktOT1dOEAESJgoiVVNBR0VfUFJPVkVOQU5DRV9QUk9WSURFUl9SRVBPUlRFRBACEiUKIVVTQUdFX1BST1ZFTkFOQ0VfR0FURVdBWV9FU1RJTUFURRADEhoKFlVTQUdFX1BST1ZFTkFOQ0VfTUlYRUQQBCrnAgoSSW5mZXJlbmNlRXJyb3JDb2RlEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5BVkFJTEFCTEUQARIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQAhIrCidJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQ0hFTUEQAxIqCiZJTkZFUkVOQ0VfRVJST1JfQ09ERV9WQUxJREFUSU9OX0ZBSUxFRBAEEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX1BST1ZJREVSX0ZBSUxFRBAFEi0KKUlORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NBTVBMSU5HEAYSKQolSU5GRVJFTkNFX0VSUk9SX0NPREVfQ09OVEVYVF9PVkVSRkxPVxAHMscCChBJbmZlcmVuY2VTZXJ2aWNlEl4KA1J1bhIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXF1ZXN0GisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEm0KCFJ1bkJhdGNoEi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlc3BvbnNlEmQKBUVtYmVkEiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkUmVxdWVzdBotLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9pbmZlcmVuY2U7aW5mZXJlbmNlX3YxYgZwcm90bzM", [file_ai_gateway_v1_shared_gateway]);
 
 /**
- * Usage is the provider-reported accounting for one inference operation.
- * cost_micros is expressed in USD micro-units; local providers report zero
- * when no monetary cost is incurred.
- *
  * @generated from message vrooli.ai_gateway.v1.inference.Usage
  */
 export type Usage = Message<"vrooli.ai_gateway.v1.inference.Usage"> & {
@@ -33,9 +29,41 @@ export type Usage = Message<"vrooli.ai_gateway.v1.inference.Usage"> & {
   outputTokens: bigint;
 
   /**
+   * USD micro-units. Provider-specific credits are not USD cost.
+   *
    * @generated from field: int64 cost_micros = 3;
    */
   costMicros: bigint;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.UsageProvenance input_tokens_provenance = 4;
+   */
+  inputTokensProvenance: UsageProvenance;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.UsageProvenance output_tokens_provenance = 5;
+   */
+  outputTokensProvenance: UsageProvenance;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.UsageProvenance cost_provenance = 6;
+   */
+  costProvenance: UsageProvenance;
+
+  /**
+   * LPBS credits charged for a metered operation. Presence distinguishes a
+   * known zero from unavailable or pending accounting; credits are not USD.
+   *
+   * @generated from field: optional int64 credits_charged = 7;
+   */
+  creditsCharged?: bigint | undefined;
+
+  /**
+   * Owner-reported credit reconciliation state; empty means unavailable.
+   *
+   * @generated from field: string accounting_status = 8;
+   */
+  accountingStatus: string;
 };
 
 /**
@@ -110,6 +138,141 @@ export const TurnSchema: GenMessage<Turn> = /*@__PURE__*/
   messageDesc(file_ai_gateway_v1_inference_inference, 2);
 
 /**
+ * SpendLimit is an owner-enforced maximum, not a price estimate or caller
+ * supplied quote. It is accepted only by explicitly budgeted remote roles.
+ *
+ * @generated from message vrooli.ai_gateway.v1.inference.SpendLimit
+ */
+export type SpendLimit = Message<"vrooli.ai_gateway.v1.inference.SpendLimit"> & {
+  /**
+   * @generated from field: int64 max_cost_micros = 1;
+   */
+  maxCostMicros: bigint;
+
+  /**
+   * @generated from field: string operation_id = 2;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string input_fingerprint = 3;
+   */
+  inputFingerprint: string;
+
+  /**
+   * @generated from field: repeated string reference_sha256 = 4;
+   */
+  referenceSha256: string[];
+
+  /**
+   * @generated from field: int32 image_count = 5;
+   */
+  imageCount: number;
+
+  /**
+   * @generated from field: string funding_route = 6;
+   */
+  fundingRoute: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.SpendLimit.
+ * Use `create(SpendLimitSchema)` to create a new message.
+ */
+export const SpendLimitSchema: GenMessage<SpendLimit> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 3);
+
+/**
+ * SpendAuthorization records the hard-cap policy that the provider owner
+ * actually applied. It never claims an estimated price or a provider charge.
+ *
+ * @generated from message vrooli.ai_gateway.v1.inference.SpendAuthorization
+ */
+export type SpendAuthorization = Message<"vrooli.ai_gateway.v1.inference.SpendAuthorization"> & {
+  /**
+   * @generated from field: string authorization_id = 1;
+   */
+  authorizationId: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int64 max_cost_micros = 3;
+   */
+  maxCostMicros: bigint;
+
+  /**
+   * @generated from field: int32 input_tokens_bound = 4;
+   */
+  inputTokensBound: number;
+
+  /**
+   * @generated from field: int32 output_tokens_bound = 5;
+   */
+  outputTokensBound: number;
+
+  /**
+   * @generated from field: int32 image_count = 6;
+   */
+  imageCount: number;
+
+  /**
+   * @generated from field: string context_source = 7;
+   */
+  contextSource: string;
+
+  /**
+   * @generated from field: string operation_id = 8;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string input_fingerprint = 9;
+   */
+  inputFingerprint: string;
+
+  /**
+   * @generated from field: repeated string reference_sha256 = 10;
+   */
+  referenceSha256: string[];
+
+  /**
+   * @generated from field: string funding_route = 11;
+   */
+  fundingRoute: string;
+
+  /**
+   * @generated from field: string account_identity = 12;
+   */
+  accountIdentity: string;
+
+  /**
+   * @generated from field: string model = 13;
+   */
+  model: string;
+
+  /**
+   * @generated from field: string provider_controls_sha256 = 14;
+   */
+  providerControlsSha256: string;
+
+  /**
+   * @generated from field: int32 context_window_tokens = 15;
+   */
+  contextWindowTokens: number;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.SpendAuthorization.
+ * Use `create(SpendAuthorizationSchema)` to create a new message.
+ */
+export const SpendAuthorizationSchema: GenMessage<SpendAuthorization> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 4);
+
+/**
  * @generated from message vrooli.ai_gateway.v1.inference.RunRequest
  */
 export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & {
@@ -173,6 +336,25 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
    * @generated from field: int32 max_output_tokens = 9;
    */
   maxOutputTokens: number;
+
+  /**
+   * max_provider_calls bounds total provider adapter Execute attempts for this Run,
+   * including candidate fallback and schema-repair attempts. Zero preserves
+   * the gateway's existing caller defaults; positive values are validated
+   * against the gateway-wide maximum.
+   * @default legacy gateway policy
+   *
+   * @generated from field: int32 max_provider_calls = 10;
+   */
+  maxProviderCalls: number;
+
+  /**
+   * spend_limit is mandatory for remote device.geometry.* roles and forbidden
+   * for local-only execution. The owner binds it to exact request inputs.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.inference.SpendLimit spend_limit = 11;
+   */
+  spendLimit?: SpendLimit | undefined;
 };
 
 /**
@@ -180,7 +362,7 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
  * Use `create(RunRequestSchema)` to create a new message.
  */
 export const RunRequestSchema: GenMessage<RunRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 3);
+  messageDesc(file_ai_gateway_v1_inference_inference, 5);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunResponse
@@ -225,6 +407,20 @@ export type RunResponse = Message<"vrooli.ai_gateway.v1.inference.RunResponse"> 
    * @generated from field: vrooli.ai_gateway.v1.shared.AppliedSettings applied = 7;
    */
   applied?: AppliedSettings | undefined;
+
+  /**
+   * provider_calls_made counts provider adapter Execute attempts, including
+   * invocations that returned an error. Candidate resolution and pre-dispatch
+   * refusals are not counted; the number is not a provider HTTP-call receipt.
+   *
+   * @generated from field: int32 provider_calls_made = 8;
+   */
+  providerCallsMade: number;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.SpendAuthorization spend_authorization = 9;
+   */
+  spendAuthorization?: SpendAuthorization | undefined;
 };
 
 /**
@@ -232,7 +428,7 @@ export type RunResponse = Message<"vrooli.ai_gateway.v1.inference.RunResponse"> 
  * Use `create(RunResponseSchema)` to create a new message.
  */
 export const RunResponseSchema: GenMessage<RunResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 4);
+  messageDesc(file_ai_gateway_v1_inference_inference, 6);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchItem
@@ -249,7 +445,7 @@ export type RunBatchItem = Message<"vrooli.ai_gateway.v1.inference.RunBatchItem"
  * Use `create(RunBatchItemSchema)` to create a new message.
  */
 export const RunBatchItemSchema: GenMessage<RunBatchItem> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 5);
+  messageDesc(file_ai_gateway_v1_inference_inference, 7);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchRequest
@@ -281,7 +477,7 @@ export type RunBatchRequest = Message<"vrooli.ai_gateway.v1.inference.RunBatchRe
  * Use `create(RunBatchRequestSchema)` to create a new message.
  */
 export const RunBatchRequestSchema: GenMessage<RunBatchRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 6);
+  messageDesc(file_ai_gateway_v1_inference_inference, 8);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.RunBatchResponse
@@ -306,7 +502,7 @@ export type RunBatchResponse = Message<"vrooli.ai_gateway.v1.inference.RunBatchR
  * Use `create(RunBatchResponseSchema)` to create a new message.
  */
 export const RunBatchResponseSchema: GenMessage<RunBatchResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 7);
+  messageDesc(file_ai_gateway_v1_inference_inference, 9);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.EmbedRequest
@@ -335,7 +531,7 @@ export type EmbedRequest = Message<"vrooli.ai_gateway.v1.inference.EmbedRequest"
  * Use `create(EmbedRequestSchema)` to create a new message.
  */
 export const EmbedRequestSchema: GenMessage<EmbedRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 8);
+  messageDesc(file_ai_gateway_v1_inference_inference, 10);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.EmbedResponse
@@ -377,7 +573,7 @@ export type EmbedResponse = Message<"vrooli.ai_gateway.v1.inference.EmbedRespons
  * Use `create(EmbedResponseSchema)` to create a new message.
  */
 export const EmbedResponseSchema: GenMessage<EmbedResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 9);
+  messageDesc(file_ai_gateway_v1_inference_inference, 11);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.EmbeddingVector
@@ -394,7 +590,46 @@ export type EmbeddingVector = Message<"vrooli.ai_gateway.v1.inference.EmbeddingV
  * Use `create(EmbeddingVectorSchema)` to create a new message.
  */
 export const EmbeddingVectorSchema: GenMessage<EmbeddingVector> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_inference_inference, 10);
+  messageDesc(file_ai_gateway_v1_inference_inference, 12);
+
+/**
+ * Usage preserves legacy numeric accounting and states where each value came
+ * from. A zero is an observed zero only with PROVIDER_REPORTED provenance.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.inference.UsageProvenance
+ */
+export enum UsageProvenance {
+  /**
+   * @generated from enum value: USAGE_PROVENANCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: USAGE_PROVENANCE_UNKNOWN = 1;
+   */
+  UNKNOWN = 1,
+
+  /**
+   * @generated from enum value: USAGE_PROVENANCE_PROVIDER_REPORTED = 2;
+   */
+  PROVIDER_REPORTED = 2,
+
+  /**
+   * @generated from enum value: USAGE_PROVENANCE_GATEWAY_ESTIMATE = 3;
+   */
+  GATEWAY_ESTIMATE = 3,
+
+  /**
+   * @generated from enum value: USAGE_PROVENANCE_MIXED = 4;
+   */
+  MIXED = 4,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.inference.UsageProvenance.
+ */
+export const UsageProvenanceSchema: GenEnum<UsageProvenance> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_inference_inference, 0);
 
 /**
  * @generated from enum vrooli.ai_gateway.v1.inference.InferenceErrorCode
@@ -458,7 +693,7 @@ export enum InferenceErrorCode {
  * Describes the enum vrooli.ai_gateway.v1.inference.InferenceErrorCode.
  */
 export const InferenceErrorCodeSchema: GenEnum<InferenceErrorCode> = /*@__PURE__*/
-  enumDesc(file_ai_gateway_v1_inference_inference, 0);
+  enumDesc(file_ai_gateway_v1_inference_inference, 1);
 
 /**
  * @generated from service vrooli.ai_gateway.v1.inference.InferenceService

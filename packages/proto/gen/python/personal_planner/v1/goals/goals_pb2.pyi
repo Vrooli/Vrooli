@@ -6,8 +6,24 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class GoalMeasure(_message.Message):
+    __slots__ = ("unit", "target_amount_minor", "currency_code", "basis", "recurrence", "period")
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    TARGET_AMOUNT_MINOR_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_CODE_FIELD_NUMBER: _ClassVar[int]
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    RECURRENCE_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_FIELD_NUMBER: _ClassVar[int]
+    unit: str
+    target_amount_minor: int
+    currency_code: str
+    basis: str
+    recurrence: str
+    period: str
+    def __init__(self, unit: _Optional[str] = ..., target_amount_minor: _Optional[int] = ..., currency_code: _Optional[str] = ..., basis: _Optional[str] = ..., recurrence: _Optional[str] = ..., period: _Optional[str] = ...) -> None: ...
+
 class Goal(_message.Message):
-    __slots__ = ("id", "title", "purpose", "status", "progress_method", "progress_basis_points", "target_basis_points", "created_at_unix_seconds", "updated_at_unix_seconds", "revision")
+    __slots__ = ("id", "title", "purpose", "status", "progress_method", "progress_basis_points", "target_basis_points", "created_at_unix_seconds", "updated_at_unix_seconds", "revision", "measure", "target_date", "progress_state")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     PURPOSE_FIELD_NUMBER: _ClassVar[int]
@@ -18,6 +34,9 @@ class Goal(_message.Message):
     CREATED_AT_UNIX_SECONDS_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_UNIX_SECONDS_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
+    MEASURE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_DATE_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_STATE_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     purpose: str
@@ -28,7 +47,10 @@ class Goal(_message.Message):
     created_at_unix_seconds: int
     updated_at_unix_seconds: int
     revision: int
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., purpose: _Optional[str] = ..., status: _Optional[str] = ..., progress_method: _Optional[str] = ..., progress_basis_points: _Optional[int] = ..., target_basis_points: _Optional[int] = ..., created_at_unix_seconds: _Optional[int] = ..., updated_at_unix_seconds: _Optional[int] = ..., revision: _Optional[int] = ...) -> None: ...
+    measure: GoalMeasure
+    target_date: str
+    progress_state: str
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., purpose: _Optional[str] = ..., status: _Optional[str] = ..., progress_method: _Optional[str] = ..., progress_basis_points: _Optional[int] = ..., target_basis_points: _Optional[int] = ..., created_at_unix_seconds: _Optional[int] = ..., updated_at_unix_seconds: _Optional[int] = ..., revision: _Optional[int] = ..., measure: _Optional[_Union[GoalMeasure, _Mapping]] = ..., target_date: _Optional[str] = ..., progress_state: _Optional[str] = ...) -> None: ...
 
 class Milestone(_message.Message):
     __slots__ = ("id", "goal_id", "title", "criteria", "due_date", "status", "created_at_unix_seconds", "updated_at_unix_seconds", "revision", "linked_work_item_id", "prerequisite_milestone_ids")
@@ -67,16 +89,20 @@ class ListGoalsResponse(_message.Message):
     def __init__(self, goals: _Optional[_Iterable[_Union[Goal, _Mapping]]] = ...) -> None: ...
 
 class CreateGoalRequest(_message.Message):
-    __slots__ = ("title", "purpose", "progress_method", "target_basis_points")
+    __slots__ = ("title", "purpose", "progress_method", "target_basis_points", "measure", "target_date")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     PURPOSE_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_METHOD_FIELD_NUMBER: _ClassVar[int]
     TARGET_BASIS_POINTS_FIELD_NUMBER: _ClassVar[int]
+    MEASURE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_DATE_FIELD_NUMBER: _ClassVar[int]
     title: str
     purpose: str
     progress_method: str
     target_basis_points: int
-    def __init__(self, title: _Optional[str] = ..., purpose: _Optional[str] = ..., progress_method: _Optional[str] = ..., target_basis_points: _Optional[int] = ...) -> None: ...
+    measure: GoalMeasure
+    target_date: str
+    def __init__(self, title: _Optional[str] = ..., purpose: _Optional[str] = ..., progress_method: _Optional[str] = ..., target_basis_points: _Optional[int] = ..., measure: _Optional[_Union[GoalMeasure, _Mapping]] = ..., target_date: _Optional[str] = ...) -> None: ...
 
 class CreateGoalResponse(_message.Message):
     __slots__ = ("goal",)

@@ -1102,8 +1102,15 @@ type AppTarget struct {
 	ArtifactDigest string `protobuf:"bytes,7,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
 	ContextId      string `protobuf:"bytes,8,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
 	CdpTransport   string `protobuf:"bytes,9,opt,name=cdp_transport,json=cdpTransport,proto3" json:"cdp_transport,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Private writable directory owned by an offline packaged desktop target.
+	// The attached browser writes downloads here so sandbox policy can remain
+	// read-only everywhere outside the target session root.
+	DownloadPath string `protobuf:"bytes,11,opt,name=download_path,json=downloadPath,proto3" json:"download_path,omitempty"`
+	// Private root that owns download_path; the driver requires the download
+	// directory to be its direct `downloads` child.
+	TestDatabaseRoot string `protobuf:"bytes,12,opt,name=test_database_root,json=testDatabaseRoot,proto3" json:"test_database_root,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AppTarget) Reset() {
@@ -1202,6 +1209,20 @@ func (x *AppTarget) GetContextId() string {
 func (x *AppTarget) GetCdpTransport() string {
 	if x != nil {
 		return x.CdpTransport
+	}
+	return ""
+}
+
+func (x *AppTarget) GetDownloadPath() string {
+	if x != nil {
+		return x.DownloadPath
+	}
+	return ""
+}
+
+func (x *AppTarget) GetTestDatabaseRoot() string {
+	if x != nil {
+		return x.TestDatabaseRoot
 	}
 	return ""
 }
@@ -2065,7 +2086,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	" \x01(\v2/.browser_automation_studio.v1.ValidationContextR\x11validationContextB\x1a\n" +
 	"\x18_frame_streaming_qualityB\x16\n" +
 	"\x14_frame_streaming_fpsJ\x04\b\t\x10\n" +
-	"R\x0felectron_target\"\xe9\x02\n" +
+	"R\x0felectron_target\"\xbc\x03\n" +
 	"\tAppTarget\x12\x1f\n" +
 	"\vtarget_kind\x18\n" +
 	" \x01(\tR\n" +
@@ -2080,7 +2101,9 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x0fartifact_digest\x18\a \x01(\tR\x0eartifactDigest\x12\x1d\n" +
 	"\n" +
 	"context_id\x18\b \x01(\tR\tcontextId\x12#\n" +
-	"\rcdp_transport\x18\t \x01(\tR\fcdpTransport\"\x8b\x02\n" +
+	"\rcdp_transport\x18\t \x01(\tR\fcdpTransport\x12#\n" +
+	"\rdownload_path\x18\v \x01(\tR\fdownloadPath\x12,\n" +
+	"\x12test_database_root\x18\f \x01(\tR\x10testDatabaseRoot\"\x8b\x02\n" +
 	"\x11ValidationContext\x12\x1d\n" +
 	"\n" +
 	"context_id\x18\x01 \x01(\tR\tcontextId\x12#\n" +

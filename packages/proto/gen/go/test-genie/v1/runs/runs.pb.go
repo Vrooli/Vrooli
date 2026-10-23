@@ -2589,8 +2589,11 @@ type PhaseInfo struct {
 	FindingsSummary  *PhaseFindingsSummary  `protobuf:"bytes,9,opt,name=findings_summary,json=findingsSummary,proto3" json:"findings_summary,omitempty"`
 	// Provider-owned canonical presentation for new terminal records.
 	PhasePresentation *v1.PhasePresentation `protobuf:"bytes,10,opt,name=phase_presentation,json=phasePresentation,proto3" json:"phase_presentation,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Count-only observation summary. Absent on historical compact records whose
+	// detailed observations were discarded before this field was introduced.
+	ObservationCount *uint32 `protobuf:"varint,11,opt,name=observation_count,json=observationCount,proto3,oneof" json:"observation_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PhaseInfo) Reset() {
@@ -2691,6 +2694,13 @@ func (x *PhaseInfo) GetPhasePresentation() *v1.PhasePresentation {
 		return x.PhasePresentation
 	}
 	return nil
+}
+
+func (x *PhaseInfo) GetObservationCount() uint32 {
+	if x != nil && x.ObservationCount != nil {
+		return *x.ObservationCount
+	}
+	return 0
 }
 
 // PhaseDescriptorPolicy is the descriptor-owned execution policy captured for
@@ -8632,7 +8642,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"north_star\x18\x0e \x01(\tR\tnorthStar\x12\x1d\n" +
 	"\n" +
 	"at_maximum\x18\x0f \x01(\bR\tatMaximum\x12V\n" +
-	"\fcapabilities\x18\x10 \x03(\v22.vrooli.test_genie.v1.runs.PhaseCapabilityStandingR\fcapabilities\"\xf6\x03\n" +
+	"\fcapabilities\x18\x10 \x03(\v22.vrooli.test_genie.v1.runs.PhaseCapabilityStandingR\fcapabilities\"\xbe\x04\n" +
 	"\tPhaseInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12)\n" +
@@ -8646,7 +8656,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x11maturity_standing\x18\b \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
 	"\x10findings_summary\x18\t \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\x12K\n" +
 	"\x12phase_presentation\x18\n" +
-	" \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\"\xf8\x01\n" +
+	" \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\x120\n" +
+	"\x11observation_count\x18\v \x01(\rH\x00R\x10observationCount\x88\x01\x01B\x14\n" +
+	"\x12_observation_count\"\xf8\x01\n" +
 	"\x15PhaseDescriptorPolicy\x12\x1c\n" +
 	"\tselection\x18\x01 \x01(\tR\tselection\x12-\n" +
 	"\x12provider_readiness\x18\x02 \x01(\tR\x11providerReadiness\x12-\n" +
@@ -9452,6 +9464,7 @@ func file_test_genie_v1_runs_runs_proto_init() {
 	if File_test_genie_v1_runs_runs_proto != nil {
 		return
 	}
+	file_test_genie_v1_runs_runs_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -937,23 +937,26 @@ func (x *SmokeTestPerformance) GetDemoPhases() []*PerformancePhase {
 }
 
 type SmokeTestStatusResponse struct {
-	state                protoimpl.MessageState  `protogen:"open.v1"`
-	SmokeTestId          string                  `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
-	ScenarioName         string                  `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
-	Platform             Platform                `protobuf:"varint,3,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
-	Status               SmokeTestStatus         `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus" json:"status,omitempty"`
-	ArtifactPath         *string                 `protobuf:"bytes,5,opt,name=artifact_path,json=artifactPath,proto3,oneof" json:"artifact_path,omitempty"`
-	StartedAt            *timestamppb.Timestamp  `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	CompletedAt          *timestamppb.Timestamp  `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	Logs                 []string                `protobuf:"bytes,8,rep,name=logs,proto3" json:"logs,omitempty"`
-	Error                *string                 `protobuf:"bytes,9,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	TelemetryUploaded    bool                    `protobuf:"varint,10,opt,name=telemetry_uploaded,json=telemetryUploaded,proto3" json:"telemetry_uploaded,omitempty"`
-	TelemetryUploadError *string                 `protobuf:"bytes,11,opt,name=telemetry_upload_error,json=telemetryUploadError,proto3,oneof" json:"telemetry_upload_error,omitempty"`
-	ScreenRecording      *ScreenRecordingSummary `protobuf:"bytes,12,opt,name=screen_recording,json=screenRecording,proto3,oneof" json:"screen_recording,omitempty"`
-	EvidenceReview       *EvidenceReview         `protobuf:"bytes,13,opt,name=evidence_review,json=evidenceReview,proto3,oneof" json:"evidence_review,omitempty"`
-	Performance          *SmokeTestPerformance   `protobuf:"bytes,14,opt,name=performance,proto3,oneof" json:"performance,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                 protoimpl.MessageState  `protogen:"open.v1"`
+	SmokeTestId           string                  `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
+	ScenarioName          string                  `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Platform              Platform                `protobuf:"varint,3,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	Status                SmokeTestStatus         `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus" json:"status,omitempty"`
+	ArtifactPath          *string                 `protobuf:"bytes,5,opt,name=artifact_path,json=artifactPath,proto3,oneof" json:"artifact_path,omitempty"`
+	StartedAt             *timestamppb.Timestamp  `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt           *timestamppb.Timestamp  `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	Logs                  []string                `protobuf:"bytes,8,rep,name=logs,proto3" json:"logs,omitempty"`
+	Error                 *string                 `protobuf:"bytes,9,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	TelemetryUploaded     bool                    `protobuf:"varint,10,opt,name=telemetry_uploaded,json=telemetryUploaded,proto3" json:"telemetry_uploaded,omitempty"`
+	TelemetryUploadError  *string                 `protobuf:"bytes,11,opt,name=telemetry_upload_error,json=telemetryUploadError,proto3,oneof" json:"telemetry_upload_error,omitempty"`
+	ScreenRecording       *ScreenRecordingSummary `protobuf:"bytes,12,opt,name=screen_recording,json=screenRecording,proto3,oneof" json:"screen_recording,omitempty"`
+	EvidenceReview        *EvidenceReview         `protobuf:"bytes,13,opt,name=evidence_review,json=evidenceReview,proto3,oneof" json:"evidence_review,omitempty"`
+	Performance           *SmokeTestPerformance   `protobuf:"bytes,14,opt,name=performance,proto3,oneof" json:"performance,omitempty"`
+	DeploymentMode        *string                 `protobuf:"bytes,15,opt,name=deployment_mode,json=deploymentMode,proto3,oneof" json:"deployment_mode,omitempty"`
+	ScreenContentSource   *string                 `protobuf:"bytes,16,opt,name=screen_content_source,json=screenContentSource,proto3,oneof" json:"screen_content_source,omitempty"`
+	ProcessLifetimeChecks []*ProcessLifetimeCheck `protobuf:"bytes,17,rep,name=process_lifetime_checks,json=processLifetimeChecks,proto3" json:"process_lifetime_checks,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SmokeTestStatusResponse) Reset() {
@@ -1082,6 +1085,105 @@ func (x *SmokeTestStatusResponse) GetPerformance() *SmokeTestPerformance {
 		return x.Performance
 	}
 	return nil
+}
+
+func (x *SmokeTestStatusResponse) GetDeploymentMode() string {
+	if x != nil && x.DeploymentMode != nil {
+		return *x.DeploymentMode
+	}
+	return ""
+}
+
+func (x *SmokeTestStatusResponse) GetScreenContentSource() string {
+	if x != nil && x.ScreenContentSource != nil {
+		return *x.ScreenContentSource
+	}
+	return ""
+}
+
+func (x *SmokeTestStatusResponse) GetProcessLifetimeChecks() []*ProcessLifetimeCheck {
+	if x != nil {
+		return x.ProcessLifetimeChecks
+	}
+	return nil
+}
+
+// Cleanup evidence for one attempted launch stage. A passing check does not
+// imply that the application or journey passed; those outcomes remain separate.
+type ProcessLifetimeCheck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stage         string                 `protobuf:"bytes,1,opt,name=stage,proto3" json:"stage,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Passed        bool                   `protobuf:"varint,3,opt,name=passed,proto3" json:"passed,omitempty"`
+	RemainingPids []int64                `protobuf:"varint,4,rep,packed,name=remaining_pids,json=remainingPids,proto3" json:"remaining_pids,omitempty"`
+	Assertion     *string                `protobuf:"bytes,5,opt,name=assertion,proto3,oneof" json:"assertion,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessLifetimeCheck) Reset() {
+	*x = ProcessLifetimeCheck{}
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessLifetimeCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessLifetimeCheck) ProtoMessage() {}
+
+func (x *ProcessLifetimeCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessLifetimeCheck.ProtoReflect.Descriptor instead.
+func (*ProcessLifetimeCheck) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ProcessLifetimeCheck) GetStage() string {
+	if x != nil {
+		return x.Stage
+	}
+	return ""
+}
+
+func (x *ProcessLifetimeCheck) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ProcessLifetimeCheck) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *ProcessLifetimeCheck) GetRemainingPids() []int64 {
+	if x != nil {
+		return x.RemainingPids
+	}
+	return nil
+}
+
+func (x *ProcessLifetimeCheck) GetAssertion() string {
+	if x != nil && x.Assertion != nil {
+		return *x.Assertion
+	}
+	return ""
 }
 
 var File_scenario_to_desktop_v1_shared_operation_results_proto protoreflect.FileDescriptor
@@ -1213,7 +1315,7 @@ const file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc = "" +
 	"\x0fprotocol_phases\x18\x03 \x03(\v26.vrooli.scenario_to_desktop.v1.shared.PerformancePhaseR\x0eprotocolPhases\x12W\n" +
 	"\vdemo_phases\x18\x04 \x03(\v26.vrooli.scenario_to_desktop.v1.shared.PerformancePhaseR\n" +
 	"demoPhasesB\t\n" +
-	"\a_reason\"\xf5\a\n" +
+	"\a_reason\"\xfe\t\n" +
 	"\x17SmokeTestStatusResponse\x12\"\n" +
 	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
 	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12J\n" +
@@ -1230,14 +1332,28 @@ const file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc = "" +
 	"\x16telemetry_upload_error\x18\v \x01(\tH\x03R\x14telemetryUploadError\x88\x01\x01\x12l\n" +
 	"\x10screen_recording\x18\f \x01(\v2<.vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummaryH\x04R\x0fscreenRecording\x88\x01\x01\x12b\n" +
 	"\x0fevidence_review\x18\r \x01(\v24.vrooli.scenario_to_desktop.v1.shared.EvidenceReviewH\x05R\x0eevidenceReview\x88\x01\x01\x12a\n" +
-	"\vperformance\x18\x0e \x01(\v2:.vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformanceH\x06R\vperformance\x88\x01\x01B\x10\n" +
+	"\vperformance\x18\x0e \x01(\v2:.vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformanceH\x06R\vperformance\x88\x01\x01\x12,\n" +
+	"\x0fdeployment_mode\x18\x0f \x01(\tH\aR\x0edeploymentMode\x88\x01\x01\x127\n" +
+	"\x15screen_content_source\x18\x10 \x01(\tH\bR\x13screenContentSource\x88\x01\x01\x12r\n" +
+	"\x17process_lifetime_checks\x18\x11 \x03(\v2:.vrooli.scenario_to_desktop.v1.shared.ProcessLifetimeCheckR\x15processLifetimeChecksB\x10\n" +
 	"\x0e_artifact_pathB\x0f\n" +
 	"\r_completed_atB\b\n" +
 	"\x06_errorB\x19\n" +
 	"\x17_telemetry_upload_errorB\x13\n" +
 	"\x11_screen_recordingB\x12\n" +
 	"\x10_evidence_reviewB\x0e\n" +
-	"\f_performance*\xc6\x01\n" +
+	"\f_performanceB\x12\n" +
+	"\x10_deployment_modeB\x18\n" +
+	"\x16_screen_content_source\"\xbb\x01\n" +
+	"\x14ProcessLifetimeCheck\x12\x14\n" +
+	"\x05stage\x18\x01 \x01(\tR\x05stage\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x16\n" +
+	"\x06passed\x18\x03 \x01(\bR\x06passed\x12%\n" +
+	"\x0eremaining_pids\x18\x04 \x03(\x03R\rremainingPids\x12!\n" +
+	"\tassertion\x18\x05 \x01(\tH\x00R\tassertion\x88\x01\x01B\f\n" +
+	"\n" +
+	"_assertion*\xc6\x01\n" +
 	"\x13PlatformBuildStatus\x12%\n" +
 	"!PLATFORM_BUILD_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1ePLATFORM_BUILD_STATUS_BUILDING\x10\x01\x12\x1f\n" +
@@ -1263,7 +1379,7 @@ func file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP() []
 }
 
 var file_scenario_to_desktop_v1_shared_operation_results_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_scenario_to_desktop_v1_shared_operation_results_proto_goTypes = []any{
 	(PlatformBuildStatus)(0),        // 0: vrooli.scenario_to_desktop.v1.shared.PlatformBuildStatus
 	(SmokeTestStatus)(0),            // 1: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
@@ -1276,46 +1392,48 @@ var file_scenario_to_desktop_v1_shared_operation_results_proto_goTypes = []any{
 	(*PerformancePhase)(nil),        // 8: vrooli.scenario_to_desktop.v1.shared.PerformancePhase
 	(*SmokeTestPerformance)(nil),    // 9: vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance
 	(*SmokeTestStatusResponse)(nil), // 10: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
-	nil,                             // 11: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
-	nil,                             // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
-	nil,                             // 13: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
-	(Platform)(0),                   // 14: vrooli.scenario_to_desktop.v1.shared.Platform
-	(*timestamppb.Timestamp)(nil),   // 15: google.protobuf.Timestamp
-	(BuildStatus)(0),                // 16: vrooli.scenario_to_desktop.v1.shared.BuildStatus
-	(Framework)(0),                  // 17: vrooli.scenario_to_desktop.v1.shared.Framework
-	(TemplateType)(0),               // 18: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(*ProcessLifetimeCheck)(nil),    // 11: vrooli.scenario_to_desktop.v1.shared.ProcessLifetimeCheck
+	nil,                             // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
+	nil,                             // 13: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
+	nil,                             // 14: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
+	(Platform)(0),                   // 15: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*timestamppb.Timestamp)(nil),   // 16: google.protobuf.Timestamp
+	(BuildStatus)(0),                // 17: vrooli.scenario_to_desktop.v1.shared.BuildStatus
+	(Framework)(0),                  // 18: vrooli.scenario_to_desktop.v1.shared.Framework
+	(TemplateType)(0),               // 19: vrooli.scenario_to_desktop.v1.shared.TemplateType
 }
 var file_scenario_to_desktop_v1_shared_operation_results_proto_depIdxs = []int32{
-	14, // 0: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	15, // 0: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
 	0,  // 1: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.PlatformBuildStatus
-	15, // 2: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.started_at:type_name -> google.protobuf.Timestamp
-	15, // 3: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.completed_at:type_name -> google.protobuf.Timestamp
-	16, // 4: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatus
-	17, // 5: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
-	18, // 6: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
-	14, // 7: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.requested_platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	11, // 8: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.platform_results:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
-	15, // 9: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.created_at:type_name -> google.protobuf.Timestamp
-	15, // 10: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	12, // 11: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.artifacts:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
-	13, // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
+	16, // 2: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.started_at:type_name -> google.protobuf.Timestamp
+	16, // 3: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.completed_at:type_name -> google.protobuf.Timestamp
+	17, // 4: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatus
+	18, // 5: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	19, // 6: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	15, // 7: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.requested_platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	12, // 8: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.platform_results:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
+	16, // 9: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.created_at:type_name -> google.protobuf.Timestamp
+	16, // 10: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	13, // 11: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.artifacts:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
+	14, // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
 	5,  // 13: vrooli.scenario_to_desktop.v1.shared.EvidenceReview.chapters:type_name -> vrooli.scenario_to_desktop.v1.shared.EvidenceChapter
 	7,  // 14: vrooli.scenario_to_desktop.v1.shared.EvidenceReview.capability_selection:type_name -> vrooli.scenario_to_desktop.v1.shared.CapabilitySelection
 	8,  // 15: vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance.protocol_phases:type_name -> vrooli.scenario_to_desktop.v1.shared.PerformancePhase
 	8,  // 16: vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance.demo_phases:type_name -> vrooli.scenario_to_desktop.v1.shared.PerformancePhase
-	14, // 17: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	15, // 17: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
 	1,  // 18: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
-	15, // 19: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	15, // 20: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 19: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	16, // 20: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
 	4,  // 21: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.screen_recording:type_name -> vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummary
 	6,  // 22: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.evidence_review:type_name -> vrooli.scenario_to_desktop.v1.shared.EvidenceReview
 	9,  // 23: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.performance:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance
-	2,  // 24: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry.value:type_name -> vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	11, // 24: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.process_lifetime_checks:type_name -> vrooli.scenario_to_desktop.v1.shared.ProcessLifetimeCheck
+	2,  // 25: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry.value:type_name -> vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult
+	26, // [26:26] is the sub-list for method output_type
+	26, // [26:26] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_shared_operation_results_proto_init() }
@@ -1332,13 +1450,14 @@ func file_scenario_to_desktop_v1_shared_operation_results_proto_init() {
 	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[6].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[7].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[8].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc), len(file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

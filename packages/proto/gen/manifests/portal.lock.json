@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "portal",
-  "input_digest": "sha256:ded127eef3ddb1552b2de9af62e75b9882e278c82b592a8aad948185cc117e0a",
+  "input_digest": "sha256:25711b5ecc9a03c7b999b302ae79bd48fcf37c1228adcb2843f7461f0a2a791d",
   "input_files": [
     "schemas/common/v1/surface.proto",
     "schemas/device-control/v1/desktop/desktop.proto",
@@ -46,8 +46,8 @@
     "gen/go/portal/v1/shared/common.pb.go": "sha256:44b0d60963768613f5bd3650379589b237ea7a96b2e8a09e8f3d61de115c9ea7",
     "gen/go/portal/v1/shared/errors.pb.go": "sha256:2d17e47d80bcf7f701e4930123ac3ce5d4ccee7071bf4e7c79cfbc92d62913b8",
     "gen/go/portal/v1/shared/health.pb.go": "sha256:06459e99f3b8ca23ac7acdf417963405b521cff00e2ab86ef363cc9bde5db868",
-    "gen/go/portal/v1/surfaces/surfaces.pb.go": "sha256:d19164a266e91eaa71daf50d4fb4eb96d3ac3b100576091251b9b7865709e88b",
-    "gen/go/portal/v1/surfaces/surfacesv1connect/surfaces.connect.go": "sha256:e7dd8cfcbb378649800e9f7ca8348fdeb6eca6f974293dbcf534ba593186056e",
+    "gen/go/portal/v1/surfaces/surfaces.pb.go": "sha256:8c29509e11516e9eb50df4c4ce4045d70a722d69dea3d98f6d66f649ffa3805c",
+    "gen/go/portal/v1/surfaces/surfacesv1connect/surfaces.connect.go": "sha256:460b8ca8a73ea1abaf6980b4e810db564474974f0aa12376b6325e0e9042171b",
     "gen/python/portal/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/portal/v1/brief/brief_pb2.py": "sha256:c5253b30612eedc8610a293c743b5684bb6a1b54e39ac6835bd67dda5574b830",
     "gen/python/portal/v1/brief/brief_pb2.pyi": "sha256:1bb6d1a201e05edcb7a2c8b48f60fcd43a20b5faaad17b2d29e0526ea0c53409",
@@ -76,8 +76,8 @@
     "gen/python/portal/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/portal/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/portal/v1/surfaces/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/portal/v1/surfaces/surfaces_pb2.py": "sha256:2441458f3106622bbde90205b31073b90e8cd2118bca8fecf04281507eb73193",
-    "gen/python/portal/v1/surfaces/surfaces_pb2.pyi": "sha256:7065963b42f7a64f2b7325be7e7d2fbd99571286478b6af57b550c0925b8218f",
+    "gen/python/portal/v1/surfaces/surfaces_pb2.py": "sha256:2b975e8deec5fdbefd4ff0fa92aba9bbfa665dff116a88394eaee3f30b772c61",
+    "gen/python/portal/v1/surfaces/surfaces_pb2.pyi": "sha256:f86439d53832b40e3c9a5ba93a66a26640ddcc789ec7036109544bf3f208533c",
     "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/portal/v1/brief/brief_pb.ts": "sha256:e21df7c6ae268a93b7c8439433d3fd221c7fc24a6cddbc26c71fcefcfe8ddf9e",
     "gen/typescript/portal/v1/chat/chat_pb.ts": "sha256:1c6893e5014161e0ded2675ac20750e8c2d96d80b03d72e4fe7e716017579f13",
@@ -88,6 +88,6 @@
     "gen/typescript/portal/v1/shared/common_pb.ts": "sha256:00113e0481eb4761b8d9b58dd3ec99868e9c646ca386601d5000aa6b637db29d",
     "gen/typescript/portal/v1/shared/errors_pb.ts": "sha256:4a9f37f46e88950fda8bb5f8f1c2f30eda9a3cec26fdbff4cc7e1715ed67e6c7",
     "gen/typescript/portal/v1/shared/health_pb.ts": "sha256:af0bee0bbd75e6a180d1207142848e0b54b16a6022b91e618a8bc6bea17056e1",
-    "gen/typescript/portal/v1/surfaces/surfaces_pb.ts": "sha256:93bac39f0b2d32f4645613898c038603611f442bfcf88353ff3c03555a9f8fe6"
+    "gen/typescript/portal/v1/surfaces/surfaces_pb.ts": "sha256:f34f060989d102dc63a26badbdf341838b94d13b3e9a762502cff6c221672f76"
   }
 }
