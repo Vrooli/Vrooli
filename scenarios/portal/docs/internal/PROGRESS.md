@@ -1,5 +1,145 @@
 # Progress — Portal
 
+## Setup-managed direct access implementation — 2026-10-22
+
+Implemented optional control-plane `local_service_admission` with typed operator
+bindings, setup-installed root policy, exact UFW rule management, live runtime UI
+resolution/process checks, stale-rule cleanup and persistent revocation. Added
+Portal's host requirement and focused `vrooli setup broker` so the operator need
+not apply unrelated pending safeguards. Managed `make install` build/vet passed;
+the updated CLI is installed. Saved the TV binding through the existing operator
+state owner; no address or port is compiled into the capability.
+
+Broker/safeguard regressions, registry/schema/configuration checks, setup isolation
+and CLI argument checks pass. A read-only live probe verified Portal UI24965,
+expected process UID/scenario/variant and home interface. Portal dependencies run
+20261023-030047-37a4b222 passes; proto owner freshness passed. An unrelated runtime
+invariant reported agent-session-containment live-test configuration; filed
+Scenario QA knw-1792724261714121445, with no claimed regression attribution.
+
+The initial automated install stopped at terminal-only sudo authentication. The
+operator authenticated setup, then live qualification exposed UFW's need for
+writable temporary storage inside the restricted broker service. Added failing
+regressions for missing TMPDIR and hidden broker failure codes; both pass after
+repair. `TMPDIR=/run/vrooli` reuses the existing writable directory while keeping
+host temporary roots read-only. The operator authenticated the corrected setup
+at 23:18. The live unit matches, persistent UFW configuration changed, and the
+safeguard verifies the exact rule as already present. The operator sees Vrooli
+apps over the daily launcher's saved LAN connection. Automatic endpoint-change
+recovery, trusted HTTPS/certificate/DNS lifecycle and authenticated travel remain
+unqualified. Evidence: android-tv/README.md and setup-admission-20261022.
+
+Daily 0.4.5/code23 fixes the operator-reported P's cutoff: the server returns 128
+apps, but native rendering previously stopped at60. Append batches near the
+scroll/focus boundary without replacing existing cards; filtering searches all
+entries and deep return focus remains reachable. The signed owner build,
+independent policy/navigation/catalogue checks, digest and signer continuity
+pass. Installed artifact
+`5cb4e42989830a489bb03fa4858bd20ed38870514fdd722d180e322e946bb945`;
+physical run 77281ad6-515b-4f71-be9f-80f337708159 crosses the old cutoff and
+visually reaches Workspace Sandbox. The scrolled frames exposed viewport bleed
+over the filter bar. Daily 0.4.6/code24 enabled ScrollView clipping;
+signed owner build and digest/signer checks pass for artifact
+`393f4f0fd2d1be60660f242c7c0831b6d2cc993bd3c0b13f32e9b5ad8d1dcb4d`.
+the physical frame still shows overlap. Its combined run
+30d61961-a5b1-4bd4-8a7a-8ceb7dd2eaa6 reaches the last card and renders Workspace
+Sandbox's child HTML/assets, with a loading indicator still visible. It times
+out during the closing capture after the Home command; overall cancelled,
+not PASS. The Back-return frame shows Home, so deep return is unqualified.
+Separate state confirms native foreground and no leases. After closing the
+five-flow budget, a bounded one-flow visual repair checks parent clipping in
+daily 0.4.7/code25. No reboot or Home permission change is involved.
+
+Daily25 is now installed, artifact
+`9044e6c3dd0811c369ab67d226c8535b9bcae1604eb737b34f375002b92f4920`.
+Signed owner checks and independent digest/signer continuity pass. Physical
+run 69eb4f1e-0b54-43de-b012-5e4ba6e77048 passes: the scrolled viewport no longer
+covers the fixed controls; its closing frame and terminal assertion confirm
+native Home. Sessions are released. The full 128-card traversal remains the
+daily23/24 evidence; daily25's catalogue model is unchanged. No claim of complete
+child API/socket behavior, deep Back restoration, endpoint-change recovery,
+trusted TLS or authenticated travel is made.
+
+## Favorite-first launcher refinement — 2026-10-22
+
+Installed stable signed daily0.4.4/code22, artifact
+`7a00f138603d26878467477d0d580667809250583394419e34e89266720504e9`.
+Favorites now lead Home, with recent use ordering each group. Removed redundant
+TV apps/Vrooli/Inputs copy and reorganized Settings into Home, Portal and
+Preferences panes with a dedicated address dialog. The existing Home integration
+and network preferences were preserved.
+
+The desired-order regression failed before and passed after the fix. The signed
+source's navigation, Home policy/resource and origin checks pass; artifact and
+signer continuity verify. Physical frames confirm cleaner pages, Settings and
+four leading favorites. Actual Netflix launcher use moved it first among those
+favorites. Netflix and SmartTube foreground/Home-return checks pass. The initial
+install/Home check failed on stock Home and required explicit native entry;
+preserve it as an update activation limitation. The interrupted dialog-close
+sequence did not capture Preferences, so it is excluded from Cancel/D-pad
+qualification; a separate closing frame confirms Preferences without clearing
+history. No reboot was performed. Closing Home status is connected and active,
+native Home was left visible, and sessions are released. Passing terminal-assert
+flow `615fa217-4686-44f0-b366-4f0104d4555b` v1 is saved for the exact
+`hisense:api30:daily0.4.4:home-override` context. Private evidence:
+`tv-capabilities-20261022T144942Z/launcher-refinement-20261022`.
+
+Traced setup, host requirement declarations, parameterized safeguards, broker
+policy and existing cloud ingress ownership. Replaced the superseded one-off
+firewall instructions with a concrete comparison and recommended existing-gateway
+HTTPS approach in android-tv/README.md. General local-service admission,
+certificate lifecycle, home DNS, pairing and authenticated travel are proposed,
+not implemented. No host networking or privileged state was changed. Full-reboot
+Home binding remains an earlier open issue; no broad suite readiness claim.
+
+## Daily launcher convenience update — 2026-10-22
+
+Installed stable signed 0.4.3/code21, immutable artifact
+`af5d0cdf41b89fcece739c648a0e6e2dd5b7ed4f46cfd05ab6276b2a0b0999d8`.
+Added app-card long-press/Menu options, persistent favorite stars, exact Android
+app-info/force-stop entry and system-confirmed uninstall entry for non-system
+apps. Existing favorites survive updates. Native page tabs select on focus and
+keep it during asynchronous library refresh. Inputs are sorted icon cards with
+truthful standby/connected/disconnected metadata. Preserved Home override code
+and accessibility capabilities. A scoped ignore exception exposes Java sources
+previously hidden by the root `vrooli` executable-name pattern.
+
+Portal now advertises its lifecycle-selected UI gateway with shared mdns-go.
+Android NSD is bounded to eight seconds/eight services and serial resolution;
+same-host port changes and HTTPS upgrades require a valid catalogue before
+promotion. The UI gateway can serve TLS from configured certificate/key files
+and fails closed on incomplete configuration. The operator explicitly chose
+HTTPS preference with LAN HTTP fallback: a default-off preference permits only
+the selected private IPv4 origin, with native/WebView policy and visible
+unencrypted labeling. No automatic TLS/authentication downgrade or cookie copy.
+Connection drafts survive activity resume, discovery and checkbox rerenders.
+
+The daily app had no saved origin because its preferences are isolated from the
+preview. Configured the operator-approved HTTP fallback and current home origin.
+Fresh direct TV request timed out; host gateway independently returned HTTP200
+with a valid 128-app catalogue. This is consistent with the earlier confirmed
+UFW drop, not a fresh attribution proof or successful connection. Native DNS-SD
+discovery/automatic port recovery, direct trusted local TLS, child pages and
+authenticated travel remain physically unqualified. No firewall rule or ADB
+reverse was applied. The current broker admits only Bridge's fixed port, and
+passwordless sudo is unavailable. The later operator instruction superseded the
+proposed manual administrator rules; see android-tv/README.md for the current
+setup-managed options. Those rules were never applied.
+
+Focused Go application/discovery checks and six UI gateway checks pass. Native
+signed21 snapshot passes navigation, Home policy/resource and route policy
+checks. Dependencies run 20261023-015135-45434432 passes after governed SDA tidy
+repair; failed predecessor 20261023-014708-36075ae6 is retained. No broad unit
+suite green claim. Physical long press, favorite add/remove and exact app info
+were inspected; no force stop, uninstall or input-source switch was performed.
+Final run b87a62f3-751e-4dd6-90e1-526fd18e8932 passed SmartTube entry/Home return.
+Frames confirm focus stays on all three non-Home tabs through refresh, sorted
+input cards and themed menu. The closing frame is native Home. Screensaver
+receipts were retained and excluded from control-success claims; Home restored
+the native form before the final direct connection test. Full reboot binding
+remains the earlier open issue, with no reboot this session. Private receipts:
+vrooli-experiments/tv-capabilities-20261022T144942Z/launcher-polish-20261022.
+
 Lifecycle log for meaningful scenario changes. Future agents read this
 file to understand what changed without reconstructing history from git.
 

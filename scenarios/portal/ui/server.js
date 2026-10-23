@@ -1,5 +1,6 @@
 import { createScenarioServer, proxyToApi } from '@vrooli/api-base/server'
 import { createApplicationProxy } from './server/applicationProxy.js'
+import { createHomeListener } from './server/homeListener.js'
 
 const uiPort = process.env.UI_PORT
 if (!uiPort) throw new Error('UI_PORT is not set. Start Portal through the Vrooli scenario lifecycle.')
@@ -22,8 +23,9 @@ const app = createScenarioServer({
     })
   },
 })
-const server = app.listen(Number(uiPort), '0.0.0.0', () => {
-  console.log(`Portal UI listening on port ${uiPort}`)
+const listener = createHomeListener(app)
+const server = listener.listen(Number(uiPort), '0.0.0.0', () => {
+  console.log(`Portal UI listening on ${listener.secure ? 'HTTPS' : 'HTTP'} port ${uiPort}`)
 })
 server.on('upgrade', (req, socket, head) => {
   applicationProxy.handleUpgrade(req, socket, head).then(handled => {

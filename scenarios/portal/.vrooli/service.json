@@ -1,6 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "hostSafeguards": [
+    {
+      "name": "local_service_admission",
+      "required": false,
+      "reason": "Optional direct home-network access for selected TV and companion clients",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"]
+    }
+  ],
   "authentication": {
     "version": 1,
     "profile": "scenario_authenticator",

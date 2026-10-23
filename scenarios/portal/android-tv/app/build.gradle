@@ -20,7 +20,8 @@ android {
 // No Android test framework or extra dependency is needed for these policies.
 def navigationClasses = layout.buildDirectory.dir('navigation-verification')
 tasks.register('compileNavigationVerification', JavaCompile) {
- source file('src/main/java/com/vrooli/portal/tv/NavigationState.java'), rootProject.file('verification/NavigationStateTest.java'), file('src/main/java/com/vrooli/portal/tv/HomeOverridePolicy.java'), rootProject.file('verification/HomeOverridePolicyTest.java')
+ source file('src/main/java/com/vrooli/portal/tv/NavigationState.java'), rootProject.file('verification/NavigationStateTest.java'), file('src/main/java/com/vrooli/portal/tv/HomeOverridePolicy.java'), rootProject.file('verification/HomeOverridePolicyTest.java'), file('src/main/java/com/vrooli/portal/tv/PortalOrigin.java'), rootProject.file('verification/PortalOriginTest.java')
+ source file('src/main/java/com/vrooli/portal/tv/CatalogueWindow.java'), rootProject.file('verification/CatalogueWindowTest.java')
  classpath = files()
  destinationDirectory = navigationClasses
  sourceCompatibility = '17'; targetCompatibility = '17'
@@ -38,3 +39,15 @@ tasks.register('verifyHomeOverride', JavaExec) {
  systemProperty 'tv.projectRoot', rootProject.projectDir.absolutePath
 }
 tasks.named('preBuild').configure { dependsOn 'verifyHomeOverride' }
+tasks.register('verifyPortalOrigin', JavaExec) {
+ dependsOn 'compileNavigationVerification'
+ classpath = files(navigationClasses)
+ mainClass = 'com.vrooli.portal.tv.PortalOriginTest'
+}
+tasks.named('preBuild').configure { dependsOn 'verifyPortalOrigin' }
+tasks.register('verifyCatalogueWindow', JavaExec) {
+ dependsOn 'compileNavigationVerification'
+ classpath = files(navigationClasses)
+ mainClass = 'com.vrooli.portal.tv.CatalogueWindowTest'
+}
+tasks.named('preBuild').configure { dependsOn 'verifyCatalogueWindow' }

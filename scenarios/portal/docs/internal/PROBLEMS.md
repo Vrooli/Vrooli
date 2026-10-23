@@ -94,8 +94,21 @@ a migration handoff with a planned retirement path back into
 
 **Workaround:** Local native TV shortcuts remain available. The existing HTTPS Portal route may provide an authenticated alternative; it must be qualified independently. No firewall or exposure change was performed.
 
-**Real fix:** Admit the exact trusted TV to the required application gateway through an operator-managed host policy, or qualify an existing authenticated HTTPS route. Then prove catalog loading and an actual application render on the TV. The current privilege broker only supports bridge admission on its fixed port and cloud edge ports; do not repurpose those identities or add a private firewall implementation to Portal/Device Control.
+**Real fix:** Admit the exact trusted TV to the required application gateway through a setup-managed host policy, or qualify an existing authenticated HTTPS route. The operator rejected one-off elevated commands; none were applied. Typed safeguard parameters and scenario/resource host requirement declarations already exist. A general local-service admission broker capability does not yet exist: the current UFW actions cover Bridge's fixed port and cloud edge ports. Do not repurpose those identities or add a private firewall implementation to Portal/Device Control. Trusted direct HTTPS also requires certificate lifecycle, home hostname resolution and application authorization independent of Cloudflare Access. The existing-gateway recommendation and shared-ingress alternative are documented in android-tv/README.md pending operator decision. Then prove catalogue loading and a real child render on the TV, dynamic endpoint recovery and authenticated travel.
 
 **Owner:** Control plane for host admission; Portal for subsequent TV experience qualification.
 
 **Refs:** Private experiment `tv-capabilities-20261022T144942Z/implementation-20261022`, `host-firewall-evidence.txt`, `v4-corrected-library-frame.png`, `v4-corrected-portal-frame.png`.
+
+**Implementation checkpoint:** The operator approved staged direct access. The
+generic local-service safeguard/broker capability is implemented and tested;
+the TV binding is recorded in operator state. The updated CLI is installed.
+The operator authenticated setup and the capability is live. A service TMPDIR
+defect initially allowed live traffic without saving a verified rule. The
+corrected project setup sets TMPDIR to the existing writable broker directory;
+regressions pass. After the operator's 23:18 installation, exact rule readback
+passes and the persistent UFW file has changed. The operator sees the actual TV
+catalogue. The earlier missing-capability and no-authorization statements above
+describe the historical baseline. Dynamic endpoint recovery, trusted local TLS,
+pairing and authenticated travel remain separate qualifications; no application
+session is inferred from firewall or model-test success.

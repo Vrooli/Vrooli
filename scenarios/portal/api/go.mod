@@ -11,6 +11,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/agentbrief-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/mdns-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	github.com/vrooli/vrooli/scenarios/portal/assistantmigration v0.0.0
@@ -33,6 +34,7 @@ require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.72.3 // indirect
@@ -63,3 +65,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/mdns-go => ../../../packages/mdns-go

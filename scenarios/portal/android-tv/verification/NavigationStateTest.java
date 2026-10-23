@@ -23,12 +23,14 @@ public final class NavigationStateTest {
         equal(true, NavigationState.move(order, "c", -1), "Favorite moves left");
         equal(Arrays.asList("a", "c", "b"), order, "Move preserves neighboring order");
         equal(false, NavigationState.move(order, "missing", 1), "Unknown favorite cannot be inserted by reorder");
-        equal(Arrays.asList("c", "b", "a", "d"), NavigationState.homeApps(Arrays.asList("a", "b", "c", "d"), Arrays.asList("gone", "c", "c", "b"), Arrays.asList("b", "a")), "Recent clicks lead, pins follow, all remaining apps stay reachable");
+        equal(Arrays.asList("b", "a", "c", "d"), NavigationState.homeApps(Arrays.asList("a", "b", "c", "d"), Arrays.asList("gone", "c", "c", "b"), Arrays.asList("b", "a")), "All favorites lead; recent use orders each group independently");
         equal(Arrays.asList("b", "a", "c"), NavigationState.homeApps(Arrays.asList("a", "b", "c"), Collections.emptyList(), Arrays.asList("b", "gone")), "Cleared history keeps pins then installed order");
+        equal(Arrays.asList("b", "a", "d", "c", "e"), NavigationState.homeApps(Arrays.asList("a", "b", "c", "d", "e"), Arrays.asList("d", "b", "c", "a", "gone", "b"), Arrays.asList("a", "gone", "b", "b")), "Favorites and other apps each use recency; unavailable and duplicate entries disappear");
+        equal(Arrays.asList("c", "a", "b"), NavigationState.homeApps(Arrays.asList("a", "b", "c"), Arrays.asList("c", "a"), Collections.emptyList()), "Removing every favorite restores normal recent-first order");
         List<String> many = new ArrayList<>(); for (int i = 0; i < 50; i++) many.add("app" + i);
         List<String> shortcuts = NavigationState.homeApps(many, Arrays.asList("app49"), Arrays.asList("app48"));
         equal(12, shortcuts.size(), "Home keeps end destinations reachable with a large installed inventory");
-        equal(Arrays.asList("app49", "app48"), shortcuts.subList(0, 2), "Bounded shortcuts still put recent use and pins first");
+        equal(Arrays.asList("app48", "app49"), shortcuts.subList(0, 2), "A non-favorite cannot displace a favorite even when recently opened");
         for (String previous : Arrays.asList("Home", "Vrooli", "TV apps", "Inputs", "Settings")) {
             state.page = previous; state.libraryReturn = "Settings"; state.settingsReturn = "Vrooli";
             state.systemHome();

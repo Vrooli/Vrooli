@@ -112,6 +112,13 @@ func main() {
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
+	if os.Getenv("PORTAL_MDNS_ADVERTISE") != "false" {
+		stopDiscovery, err := internalsurfaces.StartPortalDiscovery(context.Background(), os.Getenv("UI_PORT"), os.Getenv("PORTAL_HOME_HOST"), os.Getenv("PORTAL_TLS_CERT_FILE") != "" && os.Getenv("PORTAL_TLS_KEY_FILE") != "")
+		if err != nil {
+			runtimeLogger.Printf("Portal LAN discovery unavailable: %v", err)
+		}
+		defer stopDiscovery()
+	}
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler:      handler,

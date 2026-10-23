@@ -1,5 +1,82 @@
 # Decisions — Portal
 
+## Approved staged direct access and host ownership — 2026-10-22
+
+After the visual explanation, the operator approved direct LAN access through
+project setup, then discovery/reconnection and trusted HTTPS. The pending-choice
+language in the earlier research records is historical. The successful localhost
+preview used temporary ADB reverse; daily operation must work independently.
+
+The control plane now owns an optional parameterized local-service safeguard and
+closed broker action family. Installed policy selects a device IP/interface and
+scenario UI listener; callers supply only the binding ID. The broker derives the
+live port and validates the running owner rather than accepting arbitrary ports.
+IP admission is not authenticated device pairing. Portal continues to own its
+catalogue, gateway and connection policy. No root/network repair moves into the
+launcher or Device Control.
+
+Full setup preview exposed unrelated pending host work, so a focused
+`vrooli setup broker` operation reuses the existing project setup elevation
+child. It updates only broker/policy artifacts and preserves other setup state.
+Administrator authentication must occur in an operator terminal. The automated
+attempt failed at that boundary before applying host rules; no replacement
+authorization grant or plaintext password channel is introduced.
+
+## Favorite-first refinement and setup boundary — 2026-10-22
+
+The operator superseded recent-first Home ordering: favorites precede all other
+shortcuts, with recency applied independently within each group. Keep the bounded
+strip and both library destinations. Remove duplicate page headings and control
+instructions. Settings uses a category rail and detail pane; address changes
+belong in a focused dialog. Daily22 implements this scoped refinement without
+changing Home override capabilities.
+
+The operator rejected one-off elevated firewall commands. They were never
+applied and are superseded. Host admission must follow project setup and the
+control-plane safeguard/broker model; machine-specific values belong in typed
+operator configuration. Portal and Device Control do not own host repair.
+Research confirms that safeguards can already be declared by scenarios/resources
+and consume validated operator-state parameters. Existing Bridge and cloud-edge
+firewall identities are not substitutes for local-service admission.
+
+The historical recommendation was trusted HTTPS on Portal's existing gateway with
+setup-managed scoped admission, certificate lifecycle and home hostname
+resolution. A shared stable ingress is an alternative when broader demand
+justifies it. These networking choices, pairing/authentication and travel fallback
+were later approved as staged work; see the current ownership decision above.
+Certificate lifecycle, pairing and authenticated travel remain unqualified.
+The comparison, exact owner paths and acceptance conditions are in
+[`../../android-tv/README.md`](../../android-tv/README.md#portal-host-setup-research--historical-proposal).
+
+## Daily launcher convenience and route discovery — 2026-10-22
+
+Extend the operator-approved Horizon interface with native long-press app
+options, persistent favorite stars, focus-selected tabs and icon input cards.
+Android owns app-info/force-stop and uninstall confirmation. The launcher does
+not gain shell privileges, device-admin privileges or new accessibility powers.
+Keep the native source visible despite the root executable-name ignore rule.
+
+Portal owns the local gateway and DNS-SD projection of its current UI port;
+reuse `mdns-go`, the existing application catalogue and shared child proxy.
+Android NSD supplies bounded endpoint hints. Validate the protocol before route
+promotion, preserve navigation focus during refresh, and never switch an open
+experience's route. Same hostname and successful TLS/catalogue verification
+support automatic HTTPS port updates; DNS-SD alone is not host authentication.
+
+The operator explicitly preferred HTTPS with the simpler LAN approach as a
+fallback. Accordingly, daily21 adds an opt-in RFC1918 IPv4 HTTP route with
+visible unencrypted labeling. This supersedes the earlier daily HTTPS-only
+implementation constraint; it does not supersede HTTPS preference or the
+prohibition on automatic downgrade after certificate/authentication failures.
+Native origin validation and WebView subresource policy bound cleartext use.
+HTTP cannot establish cryptographic host identity or browser voice readiness.
+
+Direct TLS uses configured certificate/key files in the existing UI listener;
+partial or broken TLS configuration fails closed. Certificate issuance, DNS,
+firewall administration and general scenario LAN admission remain host/control-
+plane concerns. The fresh physical LAN timeout is retained; no host firewall
+implementation, root credential, permanent ADB route or VPN lives in Portal.
+
 This document records durable decisions and tradeoffs future agents
 should not accidentally relitigate.
 

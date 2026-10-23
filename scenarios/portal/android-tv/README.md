@@ -1,6 +1,420 @@
 # Portal Android TV launcher
 
-## Daily17 qualification — 22 October 2026
+Current installed daily release: **0.4.7/code25**. The native library reveals
+the full fetched catalogue as you scroll; the fixed filter/status controls stay
+outside the grid viewport. The selected direct LAN connection is working with a
+setup-installed, verified persistent admission rule. Trusted local HTTPS and
+endpoint-change/travel qualification remain separate work.
+
+## Approved connection implementation — 22 October 2026
+
+The operator approved the staged direct-LAN, discovery/reconnection and trusted
+HTTPS work after reviewing the visual explanation. This supersedes the pending
+decision language in the research section below. Use a bounded implementation
+task, with this document as the design and evidence handoff. The first checkpoint
+is a setup-installed local-service admission capability in the control plane;
+Portal remains the existing gateway. Ordinary setup installs the root-owned
+policy from typed operator configuration. Runtime callers select a binding ID,
+not arbitrary addresses, ports or commands. The broker resolves the live UI
+listener from the canonical runtime registry and verifies its owner before
+admission. Match only exact managed firewall rules; preserve unrelated rules.
+Converge listener changes, support revocation, and report unavailable capability
+honestly. Pin the selected TV's current private address and home interface in
+configuration; IP scope is not cryptographic pairing and DHCP reassignment must
+not silently broaden admission.
+
+Harness handoff: Work until the approved direct connection is reproducible via
+project setup, with focused control-plane policy/registry/firewall regressions
+passing and physical catalogue/child-page evidence, then qualify discovery and
+reconnection. Read docs/TESTING.md and this document first. Scope is control-plane
+admission/setup, Portal connection behavior and their maintained documentation;
+reuse existing owners. Run affected Go packages and scoped scenario checks only.
+Keep the current native Home active. Record any missing administrator credential,
+DNS control or certificate provisioning authority after preparing a reviewable
+implementation; do not substitute one-off elevated commands or weaken TLS.
+Checkpoint changed, verified, remaining and unverified here on interruption.
+
+### Setup admission checkpoint — 22 October 2026
+
+Implemented the optional `local_service_admission` safeguard and its broker
+action family in the control plane. Portal declares that optional host
+requirement. Setup installs root-controlled bindings; requests select a binding
+ID only. The broker derives a current live UI claim from the read-only canonical
+runtime registry, checks process ownership/identity and the home interface, then
+uses exact managed UFW rules. Verified replacement precedes stale-rule removal;
+stopped/unverified listeners lose managed admission, revocation survives broker
+restarts, and removed setup bindings lose orphaned rules. The broker converges
+every thirty seconds and records changed/failed operations. This is a scoped
+IPv4/UFW implementation; it does not authenticate an IP as the physical TV.
+
+Added `vrooli setup broker --sudo-mode=ask` because full setup preview included
+unrelated pending host work. The focused project setup command reuses the normal
+installation child and excludes other host requirements, resources, credentials,
+onboarding and global completion state. `make install` completed its managed
+build/vet gates and installed the updated command. The TV/Portal binding is
+persisted through the existing host operator-state owner, not embedded in source.
+
+Focused broker, safeguard, registry/schema, parameter, setup and CLI tests pass.
+The opt-in read-only live listener test verified Portal's actual UI port24965,
+owner UID1000, expected scenario/variant and home interface. It did not contact
+UFW or the broker. Portal Test Genie dependencies run
+`20261023-030047-37a4b222` passes. Proto owner freshness was verified before Go
+consumer checks. An unrelated safeguard environment invariant failed on
+agent-session-containment's live-test input; filed as Scenario QA
+`knw-1792724261714121445` without modifying that file or claiming attribution.
+
+The initial automated installation stopped before root execution because sudo
+requires an operator terminal. The operator subsequently authenticated the
+focused setup command. Live qualification exposed a service configuration bug:
+UFW creates Python temporary files, but the broker kept `/tmp` and `/var/tmp`
+read-only without a writable `TMPDIR`. Installed UFW can acknowledge a kernel
+update without persisting its rules after that failure. Do not equate live TV
+traffic with a saved, verified rule. A regression now requires
+`TMPDIR=/run/vrooli`, using the existing writable broker directory while keeping
+host temporary roots read-only. The safeguard also retains bounded broker
+failure details instead of hiding the actionable result code.
+
+The operator authenticated the corrected setup at 23:18 local time. The live
+unit now has the expected `TMPDIR`; `/etc/ufw/user.rules` was updated, and the
+host safeguard reports `already_present` after exact managed-rule verification.
+The operator sees the native Vrooli catalogue over the saved direct LAN origin.
+HTTPS/certificate/DNS lifecycle, automatic endpoint-change recovery and
+authenticated travel still require separate qualification. No password belongs
+in chat. Private receipts:
+`tv-capabilities-20261022T144942Z/setup-admission-20261022`.
+
+### Catalogue continuation and viewport qualification — 22 October 2026
+
+The operator reported that All apps stopped in the P's. Portal's actual RPC
+returns 128 apps, with Personal Planner at position60 and Workspace Sandbox last.
+The native library discarded cards after60 despite saying more results existed;
+this was a rendering cutoff, not a paginated server response. Daily
+**0.4.5/code23** replaces it with incremental view creation: sixty initial cards,
+then batches of thirty when scrolling or D-pad focus approaches the bottom.
+Append rows in place and update focus links across the old boundary. Search and
+Favorites/TV-ready filters use the full fetched catalogue; deep focus restoration
+materializes the saved card before restoring scroll. The existing 512-entry
+protocol safety bound remains explicit; no unsupported cursor is invented.
+
+Artifact:
+`android-release:5cb4e42989830a489bb03fa4858bd20ed38870514fdd722d180e322e946bb945`.
+The owner build and independent navigation, Home policy/resource, Portal origin
+and catalogue traversal checks pass. Artifact digest and signer continuity
+verify. Installation and explicit native foreground entry pass. Physical run
+`77281ad6-515b-4f71-be9f-80f337708159` uses D-pad input through the old cutoff;
+frames show Personal Prompt Manager beyond Personal Planner and focus on the
+final Workspace Sandbox card. This is manual visual catalogue evidence, with a
+separate terminal native-foreground assertion. A prior duplicated wait-ID flow
+was refused at preflight without device inputs; retain that receipt.
+
+The scrolled frames also exposed cards drawing over the fixed filter/connection
+area. Daily **0.4.6/code24** enabled ScrollView clipping, but the physical frame
+still shows overlap. Retain this failed visual hypothesis. The signed owner
+build and digest/signer checks pass. Artifact:
+`android-release:393f4f0fd2d1be60660f242c7c0831b6d2cc993bd3c0b13f32e9b5ad8d1dcb4d`.
+Physical run `30d61961-a5b1-4bd4-8a7a-8ceb7dd2eaa6` again reaches Workspace
+Sandbox and its real child HTML/assets render through the selected local
+gateway. The child frame still has a loading indicator; it is not evidence for
+full child API/socket or remote operation. The frame named restored-tail shows
+Home, so deep Back restoration is unqualified. The run exceeded its85-second
+limit during the closing capture, after the Home command. Its overall result is
+cancelled; passed chapters do not turn it into a passing journey. A separate
+state read confirms native foreground and no leases remain. No reboot occurred.
+
+The original five-flow budget is closed. A separate bounded known-defect repair
+records one additional short visual check: the grid's parent was also disabling
+child clipping through `TvTheme.column`. Daily **0.4.7/code25** enables parent
+clipping while retaining the focused-card inset. This uses the existing launcher
+polish authority and changes no Home permissions or network configuration.
+Source, build and visual qualification are in `viewport-repair-scope.json` beside
+the retained earlier receipts.
+
+Daily25 is installed from
+`android-release:9044e6c3dd0811c369ab67d226c8535b9bcae1604eb737b34f375002b92f4920`.
+The signed owner build runs all four native checks. Independent artifact digest
+and public signer continuity checks pass. Physical run
+`69eb4f1e-0b54-43de-b012-5e4ba6e77048` passes; its scrolled frame confirms cards
+are clipped below the fixed connection status, and its closing frame shows
+native Home before the terminal foreground assertion. The catalogue batching
+model and filtering logic are unchanged from the fully traversed daily23/24;
+daily25's short physical check qualifies viewport clipping, not a second full
+128-card traversal. No Home permission, selected server or fallback preference
+was changed. All leases are released. The retained child-page frame proves
+HTML/assets rendering, not complete application behavior. Deep Back restoration,
+actual endpoint-change recovery, trusted HTTPS and authenticated travel remain
+unqualified.
+
+## Daily22 refinement target — 22 October 2026
+
+Operator instruction supersedes recent-first Home ordering: show all favorites
+first, ordered by their recent launcher use, followed by other apps ordered by
+their recent launcher use. Unused favorites retain saved order; other unused
+apps retain installed catalogue order. Retain the bounded Home strip and both
+library destinations. Remove repeated page titles/subtitles and control hints.
+Use a two-pane Settings layout with Home, Portal and Preferences categories;
+connection editing belongs in a focused dialog, not a long mixed form.
+
+Portal networking was research-only during this refinement. The operator
+subsequently approved the staged implementation recorded above. One-off elevated
+commands remain rejected; use the project setup/host-owner model. The earlier
+manual UFW commands are superseded and must not be used.
+
+## Daily22 refinement release — 22 October 2026
+
+Daily **0.4.4/code22** is installed using the existing stable signing identity.
+Immutable artifact:
+`android-release:7a00f138603d26878467477d0d580667809250583394419e34e89266720504e9`.
+Home now places every favorite before other shortcuts and orders each group by
+recent launcher use. The strip remains bounded to twelve app shortcuts, followed
+by the two library destinations. TV apps, Vrooli and Inputs omit repeated page
+headings and control hints. Necessary connection/error state remains visible.
+Settings separates Home, Portal and Preferences into a category rail and a
+focused detail pane. Address editing uses a native dialog; only Connect saves.
+The existing Home integration and permissions are unchanged.
+
+The desired-order regression failed against the old implementation and passes
+after the repair. The signed22 source snapshot passes navigation, Home override
+policy/resource and Portal origin checks. The artifact digest and signer
+continuity were independently verified. Physical frames confirm the three
+cleaner pages, all Settings categories and the address dialog. Actual launcher
+entry to Netflix moved it from third to first among the four starred favorites;
+the other favorites still precede non-favorites. Netflix and SmartTube foreground
+assertions and subsequent native Home returns pass. The interrupted dialog-close
+sequence captured Home rather than Preferences; it is not evidence for D-pad
+category navigation or Cancel persistence. A separate final capture confirms
+Preferences without clearing history. No address, fallback, Home permission or
+input source was changed during qualification.
+
+The first install/Home assertion failed on stock Google TV. Explicit native
+launch recovered the screen, and later real app-to-Home checks passed. Preserve
+that failed receipt; this release does not establish unattended activation after
+APK replacement or fix the earlier full-reboot binding issue. Closing app status
+reports requested/allowed/connected/foreground true, pause reason none and
+boot_seen67. No reboot was performed. The final frame is native Home and all
+Device Control leases were released.
+
+Final passing run `f808e63c-e518-4eec-b7a5-95512958c2c8` captures before its
+terminal Home assertion. Device Control saved it as flow
+`615fa217-4686-44f0-b366-4f0104d4555b`, version1, context
+`hisense:api30:daily0.4.4:home-override`. Its initial Settings taps require native
+Home at 1920×1080; it is not a portable Settings navigation test. Private build,
+regression and physical receipts are under
+`vrooli-experiments/tv-capabilities-20261022T144942Z/launcher-refinement-20261022`.
+
+## Portal host setup research — historical proposal
+
+This section is the pre-implementation research baseline. The operator's later
+approval and the current implementation/authentication checkpoint are above.
+
+The one-off UFW proposal did not meet the project's reproducible setup model.
+It was never applied. No firewall, DNS, certificate, VPN or privileged installation
+was changed during this research. Localhost on the TV refers to the TV; ordinary
+home operation should connect directly to the host over the LAN. ADB reverse
+remains an explicit development experiment, not the daily transport.
+
+### Existing owners and gaps
+
+- `internal/setup/setup.go` resolves project, scenario and resource host
+  requirements. It installs the broker before applying the remaining requirements
+  and verifies it again during setup completion. The parent retains the operator
+  session; `--sudo-mode=ask` elevates the fixed broker installation child.
+- `internal/safeguards/<name>/safeguard.json` declares host-state changes; Go
+  handlers register in `internal/runtime/registry.go`. Scenario/resource
+  `hostSafeguards[]` declarations feed that same setup resolver. Tool manifests
+  provide installable prerequisites. A Portal-specific shell installer is not
+  needed. See [host safeguards](../../../docs/configuration/host/safeguards.md).
+- Parameter schemas and operator-state choices already support machine-specific
+  configuration. `internal/hostreq/config.go` merges defaults and recorded values
+  and validates them. Persist policy through the owning onboarding API; do not
+  hand-edit operator state or put this TV's addresses in source code.
+- `internal/privilegebroker` supplies a root-owned Unix-socket service, peer-UID
+  checks, closed action validators, fixed argument construction, verification and
+  audit records. Current UFW families admit Bridge's fixed18767 or public edge
+  ports80/443. Neither is a general local-scenario admission policy. Do not
+  impersonate Bridge or use the public allow-any-source edge action for this TV.
+- `internal/cloudtarget/edge_route.go` already owns managed Caddy snippets,
+  validation/reload and rollback for fenced cloud deployments. Reuse appropriate
+  primitives if a shared local ingress becomes necessary; its deployment
+  authority/profile does not automatically authorize a development-host route.
+- Portal already serves its catalogue, child applications and sockets through
+  one UI gateway, with optional TLS and bounded DNS-SD hints for the current UI
+  port. The scoped owner scan did not find a ready local DNS-01 certificate
+  issuance/renewal workflow. TLS files alone do not provide certificate lifecycle,
+  local name resolution, firewall admission or application authentication.
+
+The broker continues to perform bounded root operations after setup installs it;
+ordinary callers do not run sudo or gain arbitrary root commands. This is the
+existing meaning of the single setup elevation boundary. If the desired policy
+instead forbids all later privileged mutations, use a setup-fixed ingress rule
+and user-owned routing behind it; do not promise automatic dynamic firewall
+changes under that stricter interpretation.
+
+### Options
+
+| Option | Benefit | Remaining work / tradeoff |
+|---|---|---|
+| Scoped LAN HTTP on the existing gateway | Smallest connectivity slice; exercises current discovery and proxy | New setup-managed admission still required; unencrypted, no authenticated host identity or browser microphone secure context. Keep it an explicit fallback. |
+| Trusted HTTPS on the existing gateway — recommended first | Reuses working native/gateway boundaries, supports secure contexts, avoids another proxy | Generic local-service admission safeguard/broker capability; managed certificate renewal; stable home hostname; pairing/authentication and physical qualification. |
+| Shared stable local HTTPS ingress | One listener remains constant while upstream scenario ports move | Larger host capability: local profile of the existing ingress primitives, setup-managed listener/TLS/DNS, lifecycle route reconciliation and rollback. Choose when several clients/services need it, rather than adding it solely to repair this TV. |
+
+For trusted HTTPS, prefer a dedicated hostname under an operator-controlled
+public DNS domain with DNS-01 certificate issuance and a home DNS answer pointing
+to the host's private address. This does not require public router port forwards;
+normal service traffic stays on the LAN. DNS-provider credentials need the
+existing secret owner, limited scope and renewal evidence. The hostname remains
+the TLS identity while DNS-SD supplies the current gateway port. The current TV
+client reads the advertised URL, so DNS-SD's resolved IP alone will not make that
+public hostname resolve privately. Router/resolver capability and Android name
+resolution must be qualified before selecting this provisioning profile.
+
+A private CA is an alternative when public-domain DNS automation is unsuitable,
+but requires deliberate TV/app trust provisioning and rotation. Installing a CA
+on the host does not establish trust on Android. Do not disable certificate
+validation or trust every user CA to avoid that step. A Cloudflare origin-only
+certificate is not a substitute for a certificate the TV can validate directly.
+See [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https) for
+DNS challenge and private-CA distinctions, and [Android trust configuration](https://developer.android.com/privacy-and-security/security-config)
+for app trust anchors.
+
+### Recommended implementation boundary and acceptance
+
+Propose an optional local-service-admission safeguard in the control plane,
+declared by Portal's host requirements. Its typed configuration identifies the
+permitted device binding, home interface/network, scenario and listener name;
+network values are operator configuration. Resolve the current UI listener
+through lifecycle state, not a request-supplied port or port range. Treat a LAN
+IP as firewall scope, not device identity: DHCP changes must be reconciled
+against a verified binding, and pairing must authenticate the application.
+Broker validation must enforce the installed scope independently of a scenario
+request. Give managed rules exact inspect/apply/verify/revoke behavior, preserve
+unrelated rules, remove stale rules after verified port transitions, and support
+revocation. Do not enable UFW, open all scenario ports, or repair host networking
+inside Portal or Device Control. DNS-SD multicast admission, if actually blocked,
+requires its own narrow home-interface policy; opening TCP alone does not prove
+discovery works.
+
+Keep connection selection in Portal: bounded home probe and verified catalogue,
+paired host identity, separate saved secure-domain travel route, visible sign-in
+when required. A missing home route may offer the remote route; certificate or
+authentication failure must not silently downgrade to HTTP. Switching routes
+must not replay an operation or move an open experience. Direct LAN traffic
+bypasses Cloudflare Access, whose policy is enforced at its proxy. Review Portal
+and child application authorization before enabling sensitive sessions; neither
+TLS nor a source-IP firewall rule replaces that authorization. The current
+gateway has no blanket authentication gate, and chat's interceptor permits an
+absent bearer header. This is a qualification requirement, not a claim that all
+Portal operations are anonymous. See [Cloudflare's application boundary](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/).
+
+Accept the host change only after setup reruns converge, invalid policy is
+refused, arbitrary ports/targets cannot be requested, rollback/revocation pass,
+and lifecycle port changes leave only the intended admission. Then prove on the
+TV: discovery, catalogue, a real child page and socket, restart/port recovery,
+no ADB dependency, trusted TLS, blocked invalid certificates, home outage and
+authenticated remote fallback. Keep route/network qualification separate from
+the still-open full-reboot Home activation check. Implementation status is
+recorded in the checkpoint above; use its project setup authentication handoff.
+
+## Launcher convenience target — 22 October 2026
+
+Extend the approved Horizon Home: hold OK (or Menu) on a TV app for favorites,
+Android app info/force stop and system-confirmed uninstall. Show favorite stars
+on cards. Focus alone selects the four page tabs and keeps focus in navigation,
+including asynchronous library refresh. Inputs use the same card grid with
+source icons and connection state. Preserve all Home override behavior.
+
+Portal investigation distinguishes an unset daily connection (preview and daily
+preferences are separate), a stale dynamic endpoint, blocked LAN access and
+remote authentication. Test these separately; port discovery alone cannot fix
+TLS, host firewall or sign-in. Use existing service discovery/port owners; do not
+scan ports, bake this host's port into the APK or depend on ADB for daily access.
+
+## Daily21 convenience release — 22 October 2026
+
+Daily **0.4.3/code21** uses the existing signing identity. Its immutable artifact
+is `android-release:af5d0cdf41b89fcece739c648a0e6e2dd5b7ed4f46cfd05ab6276b2a0b0999d8`.
+Preview remains isolated. The root ignore rule for the `vrooli` executable also
+matched the Java package directory; the native `.gitignore` now explicitly
+retains these sources so they can be reviewed and checked in.
+
+Hold OK on a TV app card for its context menu. Menu is a keyboard/remote
+alternative. Favorites have a star and persist in the existing preferences;
+app info opens Android's exact app page, where Force stop remains a deliberate
+system action. Non-system apps also offer Android's confirmed uninstall flow.
+No app was force-stopped or uninstalled during qualification. Page tabs select
+on focus and retain that focus through content refresh; Down enters the page.
+Inputs use a sorted four-column card grid with HDMI/source vector icons and
+Android's reported connected, standby or disconnected state.
+
+### Portal discovery and transport
+
+Portal advertises `_vrooli-portal._tcp.local` through the existing `mdns-go`
+package. The advertisement uses the lifecycle's current `UI_PORT`, the gateway
+protocol tag and an interface-specific instance name. It does not advertise
+each child app or require separate app ports. Set `PORTAL_MDNS_ADVERTISE=false`
+to disable it. Multicast is optional; manual origin entry remains available.
+
+The native client browses for eight seconds, resolves at most eight services
+sequentially (Android11's resolution limit), and releases its multicast lock.
+Choose a home endpoint in Settings once. Subsequent matching-host port changes
+must return a valid bounded Portal catalogue before they replace the route.
+HTTPS upgrades are preferred when available. Unknown hosts, conflicting
+endpoints, failed TLS, authentication redirects and malformed responses never
+silently replace a connection. An open experience retains its route.
+
+The operator authorized HTTPS preference with a home-LAN HTTP fallback.
+The fallback is an explicit Settings preference, off by default. It accepts
+only a selected RFC1918 IPv4 origin, labels successful connections as
+unencrypted, and rejects other cleartext WebView navigation/subresources.
+Android's static cleartext policy must permit this user-selected dynamic
+origin; PortalClient and WebView enforce the narrower application policy.
+TLS errors never enable the fallback or copy secure-origin cookies to it.
+Plain HTTP cannot provide cryptographic host identity or browser microphone
+secure-context support. A same-IP port update is a hint qualified by the
+catalogue protocol, not proof of host identity.
+
+For direct HTTPS, configure `PORTAL_TLS_CERT_FILE`, `PORTAL_TLS_KEY_FILE` and
+`PORTAL_HOME_HOST` through the existing scenario lifecycle environment. The
+certificate must be valid for that hostname and trusted by the TV, and the
+hostname must resolve to the home gateway. The existing UI gateway then serves
+HTTPS on its assigned `UI_PORT`; pages, catalogue RPCs, assets and child sockets
+share that listener. Missing half of the TLS configuration or invalid files
+fail startup rather than downgrading. No private key belongs in this repository.
+Certificate issuance/local DNS and authenticated travel remain unqualified.
+
+The daily app initially had no saved Portal address: daily and preview use
+separate preferences. The current host gateway returns a valid catalogue
+(128 applications), but the fresh TV-to-LAN request timed out. This is consistent
+with the earlier confirmed UFW rejection and is not a successful Portal
+connection. The approved fallback preference and proposed home origin are saved
+on the daily TV. No ADB reverse route or firewall change was substituted.
+
+The earlier device-specific UFW command proposal is superseded by the
+operator's project-setup requirement. Those commands were never applied and
+must not be used. Research the setup-managed broker/safeguard boundary before
+implementing network admission. Device bindings and lifecycle-resolved ports
+belong in persisted policy, with inspect/apply/verify/revoke behavior owned by
+the control plane. Portal and Device Control must not carry private root setup
+or firewall implementations. The operator will decide after reviewing options.
+
+Focused Portal application/discovery tests and six gateway transport/proxy
+checks pass. Test Genie dependency run `20261023-015135-45434432` passes after
+SDA repaired the newly used Go module's tidy drift; the earlier failed run
+`20261023-014708-36075ae6` is retained. The signed21 source snapshot independently
+passes navigation, Home policy/resource and Portal route policy checks.
+Earlier broad unit-suite failures and the reboot binding gap remain open.
+Final physical run `b87a62f3-751e-4dd6-90e1-526fd18e8932` passed SmartTube
+foreground and Home return. Reviewed frames confirm TV apps, Vrooli and Inputs
+select with focus retained on each tab, including after the asynchronous
+connection/discovery attempt; sorted input icons/state and the themed app menu
+render correctly. Closing frame is native Home with the earlier favorites
+preserved. This is UI/Home evidence, not a Portal network success.
+Library promotion was correctly refused because the run ends with a frame
+capture rather than its outcome assertion. No new replay revision was published;
+the next qualification flow must capture before its terminal Home assertion.
+Private physical receipts and frames are under
+`vrooli-experiments/tv-capabilities-20261022T144942Z/launcher-polish-20261022`.
+
+## Historical Daily17 qualification — 22 October 2026
 
 Daily `com.vrooli.portal.tv.home` 0.3.9 (code 17) is installed through the
 stable signing identity. SmartTube and YouTube entry plus actual Home returns
@@ -296,10 +710,11 @@ source with a higher version code and the same key. Do not clear user data to
 force a downgrade. Update preview independently and verify the daily Home and
 its preferences stay selected before promoting a new daily build.
 
-Portal origin, cookies and catalogue cache are optional. Daily builds use HTTPS;
+Portal origin, cookies and catalogue cache are optional. Daily builds prefer HTTPS;
 the narrowly scoped `ANDROID_PREVIEW_CLEARTEXT_HOST=localhost` switch is for
 debug preview experiments only. It does not implement a paired local-first
-production connection or authenticated travel fallback.
+production connection or authenticated travel fallback. Daily21 adds a separate
+explicit private-LAN HTTP fallback; see its transport policy above.
 
 ## Delivered preview v0.2.1 — 22 October 2026
 
