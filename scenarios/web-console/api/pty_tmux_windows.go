@@ -34,6 +34,7 @@ func (p *tmuxPTY) TerminalEchoState() (session.EchoState, error) {
 func (p *tmuxPTY) SetMouseMode(bool) error        { return pty.ErrUnsupported }
 func (p *tmuxPTY) MouseMode() (bool, error)       { return false, pty.ErrUnsupported }
 func (p *tmuxPTY) Scroll(int) error               { return pty.ErrUnsupported }
+func (p *tmuxPTY) ReturnToLive() error            { return pty.ErrUnsupported }
 func (p *tmuxPTY) PaneInAltScreen() (bool, error) { return false, pty.ErrUnsupported }
 
 func tmuxPTYFactory(pty.LaunchSpec) (pty.PTY, error) { return nil, pty.ErrUnsupported }

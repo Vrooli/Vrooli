@@ -960,6 +960,30 @@ func (p *tmuxPTY) Scroll(lines int) error {
 	return nil
 }
 
+// ReturnToLive cancels any tmux mode (copy-mode / view mode) the pane is
+// stranded in and returns it to the live program, without delivering any
+// keystroke. It is the explicit recovery path for a pane that a scroll
+// gesture parked in copy-mode where the client can no longer type its way
+// out — a follower that holds no input lease, or a mobile gesture layer
+// wedged mid-scroll. Typing already runs exitModeIfAny before every
+// keystroke; this exposes that same cancel as a standalone, side-effect-free
+// action so a plain button can recover a pane that is otherwise unresponsive.
+//
+// It is idempotent: exitModeIfAny is a no-op when the pane is not in a mode,
+// so pressing it on a live pane changes nothing. That is deliberate — the
+// client may offer it generously without needing to know the exact copy-mode
+// state.
+func (p *tmuxPTY) ReturnToLive() error {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return errPTYClosed
+	}
+	sessionName := p.sessionName
+	p.mu.Unlock()
+	return p.exitModeIfAny(sessionName)
+}
+
 // PaneInAltScreen reports whether the program running *inside* the pane is on
 // the alternate screen.
 //

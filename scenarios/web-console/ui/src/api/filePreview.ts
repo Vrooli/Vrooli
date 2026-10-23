@@ -145,6 +145,23 @@ export interface PreviewModel {
   /** Epoch ms at which previewId (and every handle it issued) stops working. */
   expiresMs: number;
   warnings: string[];
+  /** Every filesystem location the input matched; >1 means an ambiguous
+   *  relative path the user should disambiguate. Empty/1 for the common case. */
+  candidates?: PreviewCandidate[];
+  /** True when a relative path matched no base; searchBases carries directories
+   *  to browse instead. The other target fields are empty in this case. */
+  unresolved?: boolean;
+  /** Existing directories (cwd, project root) to browse when unresolved. */
+  searchBases?: PreviewCandidate[];
+}
+
+// PreviewCandidate is one match location or one browseable base directory.
+export interface PreviewCandidate {
+  resolvedPath: string;
+  resolutionBasis: string;
+  kind: PreviewKind;
+  canPreview: boolean;
+  basename: string;
 }
 
 export interface PreviewTextContent {
@@ -239,6 +256,19 @@ function decodeTarget(resp: ResolveResponse): PreviewModel {
     runtimeHref: previewRuntimeHref(resp.blobUrl),
     expiresMs: Number(resp.expiresUnixNano / 1_000_000n),
     warnings: Array.isArray(resp.warnings) ? resp.warnings : [],
+    candidates: resp.candidates.map(decodeCandidate),
+    unresolved: resp.unresolved,
+    searchBases: resp.searchBases.map(decodeCandidate),
+  };
+}
+
+function decodeCandidate(c: ResolveResponse["candidates"][number]): PreviewCandidate {
+  return {
+    resolvedPath: c.resolvedPath,
+    resolutionBasis: c.resolutionBasis,
+    kind: decodeKind(c.previewKind),
+    canPreview: c.canPreview,
+    basename: c.basename,
   };
 }
 

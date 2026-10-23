@@ -52,6 +52,10 @@ type historyScroller interface {
 	Scroll(lines int) error
 }
 
+type copyModeExiter interface {
+	ReturnToLive() error
+}
+
 type altScreenReader interface {
 	PaneInAltScreen() (bool, error)
 }
@@ -391,6 +395,18 @@ func (s *Session) Scroll(lines int) error {
 		return pty.ErrUnsupported
 	}
 	return scroller.Scroll(lines)
+}
+
+// ReturnToLive cancels any mode the backend pane is stranded in (copy-mode)
+// and returns it to the live program without delivering a keystroke. It is
+// idempotent. Backends that cannot be stranded in a mode return the shared
+// unsupported sentinel so callers can hide the recovery control.
+func (s *Session) ReturnToLive() error {
+	exiter, ok := s.currentPTY().(copyModeExiter)
+	if !ok {
+		return pty.ErrUnsupported
+	}
+	return exiter.ReturnToLive()
 }
 
 // MouseMode reports the current backend-owned mouse capture state. The

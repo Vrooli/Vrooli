@@ -421,3 +421,49 @@ describe("useFilePreviewController — directory navigation", () => {
     expect(result.current.state.error).toMatch(/reload the listing/);
   });
 });
+
+describe("useFilePreviewController relative-path resolution", () => {
+  beforeEach(() => {
+    mockResolve.mockReset();
+    mockList.mockReset();
+  });
+
+  it("enters the picker when a relative path matches more than one base", async () => {
+    mockResolve.mockResolvedValue(model({
+      inputPath: "shared.txt",
+      candidates: [
+        { resolvedPath: "/cwd/shared.txt", resolutionBasis: "session_cwd", kind: "text", canPreview: true, basename: "shared.txt" },
+        { resolvedPath: "/root/shared.txt", resolutionBasis: "project_root", kind: "text", canPreview: true, basename: "shared.txt" },
+      ],
+    }));
+
+    const { result } = renderHook(() => useFilePreviewController("s1"));
+    await act(async () => { await result.current.openPreview("shared.txt"); });
+
+    expect(result.current.state.status).toBe("choosing");
+    expect(result.current.state.candidates).toHaveLength(2);
+  });
+
+  it("opens a folder browser and locates the match for an unresolved relative path", async () => {
+    mockResolve.mockImplementation((_sid: string, path: string) => {
+      if (path === "src/App.tsx") {
+        return Promise.resolve(model({
+          inputPath: "src/App.tsx", resolvedPath: "", unresolved: true,
+          searchBases: [{ resolvedPath: "/proj", resolutionBasis: "project_root", kind: "directory", canPreview: true, basename: "proj" }],
+        }));
+      }
+      if (path === "/proj") return Promise.resolve(dirModel("/proj"));
+      if (path === "/proj/src/App.tsx") return Promise.resolve(model({ inputPath: "/proj/src/App.tsx", resolvedPath: "/proj/src/App.tsx" }));
+      return Promise.reject(new Error("not found"));
+    });
+    mockList.mockResolvedValue(listing());
+
+    const { result } = renderHook(() => useFilePreviewController("s1"));
+    await act(async () => { await result.current.openPreview("src/App.tsx"); });
+
+    await waitFor(() => { expect(result.current.state.status).toBe("ready"); });
+    expect(result.current.state.model?.kind).toBe("directory");
+    expect(result.current.state.search?.relPath).toBe("src/App.tsx");
+    await waitFor(() => { expect(result.current.state.search?.foundPath).toBe("/proj/src/App.tsx"); });
+  });
+});

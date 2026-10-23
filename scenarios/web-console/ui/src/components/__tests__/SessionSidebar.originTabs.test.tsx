@@ -63,7 +63,6 @@ function renderSidebar(bucketNav: OriginBucketNavigation[]) {
       onNewTerminal={vi.fn()}
       onOpenLauncher={vi.fn()}
       onNewSessionInGroup={vi.fn()}
-      onOpenAccount={vi.fn()}
       onStartRole={vi.fn()}
       onHandoffToRole={vi.fn()}
       onOpenRoleMenu={vi.fn()}

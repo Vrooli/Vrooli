@@ -1180,9 +1180,11 @@
     },
     "echo": {
       "label": "送信したメッセージ",
-      "sending": "送信中…",
-      "unsubmitted": "ターミナルに入力済み・未送信",
-      "notSeen": "送信済み · 画面に未表示",
+      "staged": "ターミナルに入力済み・未送信",
+      "submitted": "送信済み · エージェントの記録待ち",
+      "queued": "現在のターンの後ろで待機中",
+      "attachments": "添付 +{{count}} 件",
+      "attachments_one": "添付 +{{count}} 件",
       "pressEnter": "Enter を押す ↵",
       "openTerminal": "ターミナルを開く"
     }
@@ -1225,6 +1227,8 @@
     "expandComposerTitle": "コンポーザーを展開",
     "placeholder": "コマンドを入力…",
     "sendTitle": "コマンドを送信",
+    "submitPendingTitle": "送信 — ターミナルで Enter を押す",
+    "enterTitle": "ターミナルで Enter を押す",
     "showUnsentTitle": "未送信入力の詳細を表示",
     "statusFailed": "送信失敗 — 再試行",
     "statusQueued": "キュー済み — 接続が切れています。入力は保持されています。",
@@ -2073,7 +2077,11 @@
     "smaller": "文字を小さく",
     "larger": "文字を大きく",
     "back": "メッセージに戻る",
-    "nextReplyNew": "次の返信（新着 {{count}} 件）"
+    "nextReplyNew": "次の返信（新着 {{count}} 件）",
+    "pendingStaged": "メッセージがターミナルに入力済みで未送信です。",
+    "pendingSubmitted": "送信済み · エージェントの記録待ちです。",
+    "pendingQueued": "現在のターンの後ろで待機中です。",
+    "pendingPressEnter": "Enter を押す ↵"
   },
   "inspectionPreview": {
     "controls": "ソース操作",

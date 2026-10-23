@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BookmarkPlus, History, Library, Loader2, Paperclip, SendHorizontal, Square } from "lucide-react";
+import { BookmarkPlus, CornerDownLeft, History, Library, Loader2, Paperclip, SendHorizontal, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
@@ -10,6 +10,8 @@ import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { composeComposerPayload } from "../lib/composerPayload";
+import { ENTER_KEY } from "../consts/toolbar-keys";
+import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import type { ComposerDraft } from "../hooks/useComposerDraft";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
@@ -214,7 +216,7 @@ export default function FullScreenComposer({
     [onAttachFiles, t],
   );
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(async (pressEnter = false) => {
     if (agentVoiceActive || status === "sending" || status === "uploading") return;
     const text = draft.getValue();
     if (text.length === 0 && !hasAttachments) return;
@@ -255,9 +257,16 @@ export default function FullScreenComposer({
     setStatus("sending");
     const finalizeSuccess = () => {
       draft.reset(sentFrom);
-      // Messages shows the send until the harness records it; this device
-      // keeps it in history.
-      if (sentFrom) useConversationStore.getState().addEcho(sentFrom, payload);
+      // Send-and-Enter submits the message; a plain send leaves it staged at
+      // the agent's prompt. Either way Messages shows it until the harness
+      // records it, and this device keeps it in history.
+      if (pressEnter) onInput(ENTER_KEY.input, "typing");
+      if (sentFrom) {
+        const agentBusy = useSessionActivityStore.getState().activities[sentFrom]?.state === "working";
+        // Store the user's text and the full payload separately so detection
+        // never hunts for an attachment path the agent renders as a chip.
+        useConversationStore.getState().addEcho(sentFrom, { text, payload, attachmentCount: paths.length, submitted: pressEnter, agentBusy });
+      }
       pushHistory(payload);
       setAttachError(null);
       onClearAttachments?.();
@@ -460,10 +469,23 @@ export default function FullScreenComposer({
           )}
           {mic}
           <div className="min-w-0 flex-1" />
+          {!agentVoiceActive && (
+            <button
+              type="button"
+              data-testid="composer-send-and-enter"
+              onClick={() => { void handleSend(true); }}
+              disabled={isBusy}
+              className="inline-flex shrink-0 items-center justify-center rounded border border-wc-default px-3 py-2 text-sm text-wc-text-secondary transition hover:text-wc-text-primary disabled:opacity-60"
+              title={t(strings.sendMenu.sendAndEnter)}
+              aria-label={t(strings.sendMenu.sendAndEnter)}
+            >
+              <CornerDownLeft className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             data-testid="composer-send"
-            onClick={agentVoiceActive ? onEndAgentVoice : handleSend}
+            onClick={agentVoiceActive ? onEndAgentVoice : () => { void handleSend(false); }}
             disabled={agentVoiceActive ? !onEndAgentVoice : !canSend || isBusy}
             className="inline-flex shrink-0 items-center gap-1.5 rounded border border-wc-accent bg-wc-accent/20 px-4 py-2 text-sm font-medium text-wc-text-primary transition active:bg-wc-accent-active disabled:opacity-60"
             title={agentVoiceActive ? t(strings.agentVoice.end) : isBusy ? t(strings.composer.sendingTitle) : t(strings.composer.sendTitle)}
@@ -501,7 +523,7 @@ export default function FullScreenComposer({
             if (result.status !== "sent") return;
             const record = (ok: boolean) => {
               if (!ok) return;
-              if (sentFrom) useConversationStore.getState().addEcho(sentFrom, text);
+              if (sentFrom) useConversationStore.getState().addEcho(sentFrom, { text });
               pushHistory(text);
             };
             if (awaitOffset) awaitOffset(result.offset, record);

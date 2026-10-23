@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { ConversationCursor, ConversationEvent } from "../api/conversation";
 import type { MessageCaptureStatus } from "../api/messageCapture";
 import { UNKNOWN_CAPTURE } from "../api/messageCapture";
-import { echoMatches, type SentEcho } from "../lib/echoMatch";
+import { echoMatches, type OutboxState, type SentEcho } from "../lib/echoMatch";
 
 /**
  * How the last attempt to load this session's history ended. The Messages view
@@ -78,10 +78,56 @@ interface ConversationStoreActions {
   updateEvent: (sessionId: string, eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
   updateCursor: (sessionId: string, cursor: Partial<ConversationCursor>) => void;
   clearSession: (sessionId: string) => void;
-  /** Shows an acknowledged send in Messages until the harness records it. Returns its id. */
-  addEcho: (sessionId: string, text: string) => string;
+  /**
+   * Shows an acknowledged send in Messages until the harness records it, and
+   * drives the composer's "Press Enter" affordance. Returns the affected
+   * entry's id. Consecutive staged sends coalesce into one entry — one input
+   * box holds one unsubmitted message. See {@link OutboxSend}.
+   */
+  addEcho: (sessionId: string, send: OutboxSend) => string;
+  /**
+   * Records that the session's staged send was submitted (the user pressed
+   * Enter, or Send-and-Enter ran). `agentBusy` decides whether it starts a turn
+   * (submitted) or waits behind the current one (queued).
+   */
+  markSubmitted: (sessionId: string, opts: { agentBusy: boolean }) => void;
+  /**
+   * Upgrades a still-staged send to "submitted" once the agent is observed to
+   * start working after it was staged — so a message submitted outside the
+   * console (typed Enter straight into xterm) stops reading as "Press Enter".
+   */
+  reconcileOutboxWithActivity: (sessionId: string, activityState: string, since: string) => void;
   /** Drops an echo that was never matched. */
   expireEcho: (sessionId: string, echoId: string) => void;
+}
+
+/** One send handed to {@link ConversationStoreActions.addEcho}. */
+export interface OutboxSend {
+  /** What the user sees as the message (attachment paths excluded). */
+  text: string;
+  /** The exact bytes sent to the terminal; defaults to `text`. */
+  payload?: string;
+  /** How many attachments `payload` carries; defaults to 0. */
+  attachmentCount?: number;
+  /** True for Send-and-Enter: the send is submitted immediately, not staged. */
+  submitted?: boolean;
+  /** When `submitted`, whether the agent was already working (→ queued). */
+  agentBusy?: boolean;
+}
+
+/** Index of the newest entry still awaiting submission, or -1. */
+function newestStagedIndex(list: readonly SentEcho[] | undefined): number {
+  if (!list) return -1;
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i]?.state === "staged") return i;
+  }
+  return -1;
+}
+
+function joinOutboxText(previous: string, addition: string): string {
+  if (previous === "") return addition;
+  if (addition === "") return previous;
+  return `${previous}\n${addition}`;
 }
 
 const defaultCursor = (): ConversationCursor => ({
@@ -155,7 +201,7 @@ function withoutMatchedEcho(echoes: Record<string, SentEcho[]>, event: Conversat
   return { ...echoes, [event.sessionId]: pending.filter((_, position) => position !== index) };
 }
 
-export const useConversationStore = create<ConversationStoreState & ConversationStoreActions>((set) => ({
+export const useConversationStore = create<ConversationStoreState & ConversationStoreActions>((set, get) => ({
   sessions: {},
   echoes: {},
 
@@ -368,12 +414,71 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     return { sessions, echoes };
   }),
 
-  addEcho: (sessionId, text) => {
+  addEcho: (sessionId, send) => {
+    const payload = send.payload ?? send.text;
+    const attachmentCount = send.attachmentCount ?? 0;
+    const submittedState: OutboxState = send.agentBusy ? "queued" : "submitted";
+    const now = Date.now();
+    const list = get().echoes[sessionId] ?? [];
+    const newestStaged = newestStagedIndex(list);
+
+    // One input box holds one unsubmitted message: a fresh send while a staged
+    // entry already exists folds into it rather than opening a second row. A
+    // Send-and-Enter resolves the coalesced entry in the same step.
+    if (newestStaged >= 0) {
+      const target = list[newestStaged] as SentEcho;
+      const merged: SentEcho = {
+        ...target,
+        text: joinOutboxText(target.text, send.text),
+        payload: joinOutboxText(target.payload, payload),
+        attachmentCount: target.attachmentCount + attachmentCount,
+        sentAt: now,
+        state: send.submitted ? submittedState : "staged",
+      };
+      const next = list.map((entry, index) => (index === newestStaged ? merged : entry));
+      set((state) => ({ echoes: { ...state.echoes, [sessionId]: next } }));
+      return target.id;
+    }
+
     nextEchoSequence += 1;
-    const echo: SentEcho = { id: `echo-${String(Date.now())}-${String(nextEchoSequence)}`, sessionId, text, sentAt: Date.now() };
+    const echo: SentEcho = {
+      id: `echo-${String(now)}-${String(nextEchoSequence)}`,
+      sessionId,
+      text: send.text,
+      payload,
+      attachmentCount,
+      sentAt: now,
+      state: send.submitted ? submittedState : "staged",
+    };
     set((state) => ({ echoes: { ...state.echoes, [sessionId]: [...(state.echoes[sessionId] ?? []), echo] } }));
     return echo.id;
   },
+
+  markSubmitted: (sessionId, { agentBusy }) => set((state) => {
+    const list = state.echoes[sessionId];
+    const index = newestStagedIndex(list);
+    if (!list || index < 0) return state;
+    const next = list.map((entry, position) => (
+      position === index ? { ...entry, state: (agentBusy ? "queued" : "submitted") as OutboxState } : entry
+    ));
+    return { echoes: { ...state.echoes, [sessionId]: next } };
+  }),
+
+  reconcileOutboxWithActivity: (sessionId, activityState, since) => set((state) => {
+    if (activityState !== "working") return state;
+    const list = state.echoes[sessionId];
+    const index = newestStagedIndex(list);
+    if (!list || index < 0) return state;
+    const entry = list[index] as SentEcho;
+    const workingSince = Date.parse(since);
+    // Working that predates the send is the agent still on an earlier turn, not
+    // our message being taken up; only a turn that began after we staged counts.
+    if (Number.isFinite(workingSince) && workingSince < entry.sentAt) return state;
+    const next = list.map((item, position) => (
+      position === index ? { ...item, state: "submitted" as OutboxState } : item
+    ));
+    return { echoes: { ...state.echoes, [sessionId]: next } };
+  }),
 
   expireEcho: (sessionId, echoId) => {
     set((state) => {

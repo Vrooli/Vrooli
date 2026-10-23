@@ -55,6 +55,7 @@ const (
 	MsgTypeEchoState              = wireproto.MsgTypeEchoState
 	MsgTypeMouseMode              = wireproto.MsgTypeMouseMode
 	MsgTypeScroll                 = wireproto.MsgTypeScroll
+	MsgTypeReturnToLive           = wireproto.MsgTypeReturnToLive
 	MsgTypePresence               = wireproto.MsgTypePresence
 	MsgTypeDeviceState            = wireproto.MsgTypeDeviceState
 	StdinIntentTyping             = wireproto.StdinIntentTyping
@@ -1430,6 +1431,51 @@ func TestTerminalWS_ScrollFrameIsAnsweredAndNeverFatal(t *testing.T) {
 			}
 		default:
 			t.Fatalf("scroll reply was neither ok nor typed-unsupported: %+v", msg)
+		}
+		return
+	}
+}
+
+// TestTerminalWS_ReturnToLiveFrameIsAnsweredAndNeverFatal covers the wire
+// contract for the copy-mode recovery action. A `return_to_live` frame is the
+// escape hatch for a pane a scroll gesture stranded in tmux copy-mode where
+// typing can no longer reach the shell. Like `scroll` it must always be
+// answered on the same socket — ok on a backend that can be in a mode, or a
+// typed unsupported otherwise — and must never close the connection. It is
+// idempotent, so answering it on a live pane is still ok.
+func TestTerminalWS_ReturnToLiveFrameIsAnsweredAndNeverFatal(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessionID := createTestSession(t, ts, srv)
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessionID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	skipHistoryEnd(t, conn)
+
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeReturnToLive}); err != nil {
+		t.Fatalf("write return_to_live: %v", err)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		_ = conn.SetReadDeadline(deadline)
+		var msg TerminalMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read return_to_live reply: %v", err)
+		}
+		if msg.Type != MsgTypeReturnToLive {
+			continue
+		}
+		switch {
+		case msg.Ok:
+			// Idempotent recovery acknowledged.
+		case msg.Data == "unsupported":
+			if strings.TrimSpace(msg.Reason) == "" {
+				t.Fatal("unsupported return_to_live reply carried no reason")
+			}
+		default:
+			t.Fatalf("return_to_live reply was neither ok nor typed-unsupported: %+v", msg)
 		}
 		return
 	}

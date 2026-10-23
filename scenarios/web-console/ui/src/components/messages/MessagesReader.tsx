@@ -1,6 +1,7 @@
 import { useDeferredValue, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AArrowDown, AArrowUp, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreHorizontal, Search } from "lucide-react";
+import { AArrowDown, AArrowUp, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CornerDownLeft, MoreHorizontal, Search } from "lucide-react";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Input } from "@vrooli/react-component-library/Input/1";
@@ -13,11 +14,19 @@ import { MessageActionList, useMessageActions } from "./MessageActionList";
 import type { MessageActionContext } from "./messageActions";
 import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
 import { clampMessagesFont, useMessagesTypographyPinch } from "../../hooks/useMessagesTypographyPinch";
+import type { OutboxState, SentEcho } from "../../lib/echoMatch";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-reader
 
 /** The reader's text size range and step, in px. */
 const READER_FONT_STEP = 2;
+
+/** What the pending-send pill says for each outbox state. */
+const READER_PENDING_LABEL: Readonly<Record<OutboxState, string>> = {
+  staged: strings.reader.pendingStaged,
+  submitted: strings.reader.pendingSubmitted,
+  queued: strings.reader.pendingQueued,
+};
 
 interface MessagesReaderProps {
   imageSessionId?: string;
@@ -37,6 +46,10 @@ interface MessagesReaderProps {
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
   onFileReferenceClick: (path: string) => void;
   onMermaidOpen: (code: string) => void;
+  /** The newest unrecorded send, shown as a pending pill so it stays in reach. */
+  pendingOutbox?: SentEcho | null;
+  /** Presses Enter in the session's terminal for a staged send. */
+  onPressEnter?: () => void;
 }
 
 /**
@@ -59,6 +72,8 @@ export function MessagesReader({
   onLinkClick,
   onFileReferenceClick,
   onMermaidOpen,
+  pendingOutbox,
+  onPressEnter,
 }: MessagesReaderProps) {
   const { t, i18n } = useTranslation();
   const { event, isPlaintext } = actionContext;
@@ -228,6 +243,23 @@ export function MessagesReader({
           </div>
         </div>
       </div>
+      {pendingOutbox && (
+        // A send typed into the terminal but not yet recorded stays reachable
+        // here, so the user never has to leave the reply to submit it.
+        <div
+          data-testid="reader-pending"
+          data-state={pendingOutbox.state}
+          className="flex shrink-0 flex-wrap items-center gap-2 border-t border-dashed border-wc-default px-3 py-2 text-xs text-wc-text-secondary"
+        >
+          <span>{t(READER_PENDING_LABEL[pendingOutbox.state] as never)}</span>
+          {pendingOutbox.state === "staged" && onPressEnter && (
+            <Button type="button" size="sm" variant="secondary" data-testid="reader-press-enter" onClick={onPressEnter} className="ms-auto min-h-11 md:min-h-8">
+              <CornerDownLeft aria-hidden className="me-1.5 h-3.5 w-3.5" />
+              {t(strings.reader.pendingPressEnter)}
+            </Button>
+          )}
+        </div>
+      )}
       {!hideFooter && (
         // Its height is a shared token: the playback pill rises by it while a reader is open.
         <footer

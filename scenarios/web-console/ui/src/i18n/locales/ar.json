@@ -1191,9 +1191,11 @@
     },
     "echo": {
       "label": "رسالة مُرسلة",
-      "sending": "جارٍ الإرسال…",
-      "unsubmitted": "كُتبت في الطرفية ولم تُرسل",
-      "notSeen": "أُرسلت · لم تظهر على الشاشة",
+      "staged": "كُتبت في الطرفية ولم تُرسل",
+      "submitted": "تم الإرسال · في انتظار تسجيل الوكيل لها",
+      "queued": "في قائمة الانتظار خلف الدور الحالي",
+      "attachments": "+{{count}} مرفقات",
+      "attachments_one": "+{{count}} مرفق",
       "pressEnter": "اضغط Enter ↵",
       "openTerminal": "افتح الطرفية"
     }
@@ -1236,6 +1238,8 @@
     "expandComposerTitle": "توسيع المُحرِّر",
     "placeholder": "اكتب الأمر…",
     "sendTitle": "إرسال الأمر",
+    "submitPendingTitle": "إرسال — اضغط Enter في الطرفية",
+    "enterTitle": "اضغط Enter في الطرفية",
     "showUnsentTitle": "عرض تفاصيل الإدخال غير المرسل",
     "statusFailed": "فشل الإرسال — أعد المحاولة",
     "statusQueued": "في قائمة الانتظار — انقطع الاتصال. تم حفظ الإدخال.",
@@ -2084,7 +2088,11 @@
     "smaller": "نص أصغر",
     "larger": "نص أكبر",
     "back": "العودة إلى الرسائل",
-    "nextReplyNew": "الرد التالي ({{count}} جديد)"
+    "nextReplyNew": "الرد التالي ({{count}} جديد)",
+    "pendingStaged": "هناك رسالة مكتوبة في الطرفية ولم تُرسل.",
+    "pendingSubmitted": "تم الإرسال · في انتظار تسجيل الوكيل لها.",
+    "pendingQueued": "في قائمة الانتظار خلف الدور الحالي.",
+    "pendingPressEnter": "اضغط Enter ↵"
   },
   "inspectionPreview": {
     "controls": "أدوات المصدر",

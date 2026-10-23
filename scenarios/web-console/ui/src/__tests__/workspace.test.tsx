@@ -841,11 +841,10 @@ describe("Workspace", () => {
 
     expect(screen.queryByTestId("floating-toolbar")).toBeNull();
     // Every action it held now lives on a surface that is still on screen:
-    // the composer bar, or the sidebar header.
+    // the composer bar, or the sidebar header's new-session action. Account and
+    // machines are reached from Settings (gear) rather than header icons.
     expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
     expect(screen.getByTestId("workspace-sidebar-new")).toBeTruthy();
-    expect(screen.getByTestId("workspace-sidebar-profile")).toBeTruthy();
-    expect(screen.getByTestId("workspace-sidebar-machines")).toBeTruthy();
   });
 
   it("keeps the floating bar in sidebar mode while the composer bar is absent", () => {
@@ -882,7 +881,6 @@ describe("Workspace", () => {
     expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
     expect(screen.getByTestId("workspace-sidebar").className).toContain("--wc-safe-top");
     expect(screen.getByTestId("workspace-sidebar-new").parentElement?.className).toContain("border-b");
-    expect(screen.getByTestId("workspace-sidebar-profile").parentElement?.className).toContain("border-b");
 
     fireEvent.click(screen.getByTestId("workspace-sidebar-backdrop"));
     expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();

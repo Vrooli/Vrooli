@@ -35,6 +35,29 @@ describe("MarkdownRenderer local images", () => {
     expect(screen.queryByRole("img")).toBeNull();
   });
 
+  it("resolves a relative image path against the document's own directory", async () => {
+    vi.mocked(resolveFilePreview).mockResolvedValue({ kind: "image", canPreview: true, blobHref: "/api/v1/sessions/session/file-previews/id/blob" } as Awaited<ReturnType<typeof resolveFilePreview>>);
+    render(<MarkdownRenderer content="![Diagram](./assets/diagram.png)" imageSessionId="session" imageBasePath="/home/operator/docs/" />);
+    await waitFor(() => { expect(screen.getByRole("img", { name: "Diagram" })).toHaveAttribute("src", "/api/v1/sessions/session/file-previews/id/blob"); });
+    expect(resolveFilePreview).toHaveBeenCalledWith("session", "/home/operator/docs/./assets/diagram.png", "message_link");
+  });
+
+  it("leaves an absolute image path unchanged even when a base path is present", async () => {
+    vi.mocked(resolveFilePreview).mockResolvedValue({ kind: "image", canPreview: true, blobHref: "/api/v1/sessions/session/file-previews/id/blob" } as Awaited<ReturnType<typeof resolveFilePreview>>);
+    render(<MarkdownRenderer content="![Shot](/home/operator/mockups/shot.png)" imageSessionId="session" imageBasePath="/home/operator/docs/" />);
+    await waitFor(() => { expect(screen.getByRole("img", { name: "Shot" })).toBeInTheDocument(); });
+    expect(resolveFilePreview).toHaveBeenCalledWith("session", "/home/operator/mockups/shot.png", "message_link");
+  });
+
+  it("opens a resolved local image in the full file preview when pressed", async () => {
+    vi.mocked(resolveFilePreview).mockResolvedValue({ kind: "image", canPreview: true, blobHref: "/api/v1/sessions/session/file-previews/id/blob" } as Awaited<ReturnType<typeof resolveFilePreview>>);
+    const open = vi.fn();
+    render(<MarkdownRenderer content="![Project browser](/home/operator/mockups/project.png)" imageSessionId="session" onFileReferenceClick={open} />);
+    const trigger = await screen.findByRole("button", { name: /Project browser/ });
+    fireEvent.click(trigger);
+    expect(open).toHaveBeenCalledWith("/home/operator/mockups/project.png");
+  });
+
   it("keeps external HTTPS images as external images", () => {
     vi.mocked(resolveFilePreview).mockClear();
     render(<MarkdownRenderer content="![Remote](https://example.com/image.png)" imageSessionId="session" />);

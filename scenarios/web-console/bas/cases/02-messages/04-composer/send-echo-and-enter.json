@@ -144,16 +144,16 @@
         }
       },
       {
-        "id": "assert-unsubmitted",
+        "id": "assert-staged",
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "[data-testid=\"msg-echo-row\"][data-state=\"unsubmitted\"]",
-            "failure_message": "Expected the echo to report the line typed into the terminal but not submitted",
+            "selector": "[data-testid=\"msg-echo-row\"][data-state=\"staged\"]",
+            "failure_message": "Expected the echo to report the line staged in the terminal but not submitted",
             "timeout_ms": 8000
           },
           "metadata": {
-            "label": "Verify the echo reports typed-not-submitted"
+            "label": "Verify the echo reports typed-not-submitted (staged)"
           }
         }
       },
@@ -205,6 +205,12 @@
       },
       {
         "id": "e2",
+        "source": "open-workspace",
+        "target": "hydrate-wait",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
         "source": "hydrate-wait",
         "target": "activate-messages-session",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
@@ -242,12 +248,12 @@
       {
         "id": "e9",
         "source": "assert-echo-row",
-        "target": "assert-unsubmitted",
+        "target": "assert-staged",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e10",
-        "source": "assert-unsubmitted",
+        "source": "assert-staged",
         "target": "press-enter",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },

@@ -1001,3 +1001,42 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     expect(textarea.value).toBe("");
   });
 });
+
+describe("MobileToolbar — the Send button shows what a press will do", () => {
+  beforeEach(() => {
+    useConversationStore.setState({ echoes: {} });
+    useSessionActivityStore.setState({ activities: {} });
+  });
+  afterEach(() => { cleanup(); });
+
+  const staged = (text = "hi") => ({
+    id: "x", sessionId: "sess-1", text, payload: text, attachmentCount: 0, sentAt: Date.now(), state: "staged" as const,
+  });
+
+  it("is a muted Enter when the box is empty and nothing is staged", () => {
+    render(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="sess-1" />);
+    const send = screen.getByTestId("mobile-command-submit");
+    expect(send).toHaveAttribute("data-send-mode", "enter");
+    expect(screen.getByTestId("send-mode-enter")).toBeInTheDocument();
+  });
+
+  it("becomes Send once there is text to send", () => {
+    render(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="sess-1" />);
+    fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: "ls" } });
+    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-send-mode", "send");
+  });
+
+  it("becomes Submit when the box is empty but a send is staged", () => {
+    useConversationStore.setState({ echoes: { "sess-1": [staged()] } });
+    render(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="sess-1" />);
+    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-send-mode", "submit");
+  });
+
+  it("an empty-box press submits the staged send", () => {
+    useConversationStore.setState({ echoes: { "sess-1": [staged()] } });
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
+    render(<MobileToolbar onInput={onInput} activeSessionId="sess-1" onFocusTerminal={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    expect(useConversationStore.getState().echoes["sess-1"]?.[0]?.state).toBe("submitted");
+  });
+});

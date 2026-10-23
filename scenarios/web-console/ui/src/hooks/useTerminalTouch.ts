@@ -48,6 +48,14 @@ export interface UseTerminalTouchOptions {
   now?: () => number;
   /** Shows the live pinch preview while the gesture is active. */
   onFontSizePreview?: (size: number | null) => void;
+  /**
+   * A plain tap/click (no drag, no long-press) at these viewport coordinates.
+   * Return true if it landed on a link and was consumed — the gesture layer
+   * then suppresses focus/keyboard so the link action menu can take over.
+   */
+  onLinkActivate?: (clientX: number, clientY: number) => boolean;
+  /** Whether a link sits under these coordinates — drives the hover cursor. */
+  isOverLink?: (clientX: number, clientY: number) => boolean;
 }
 
 export interface UseTerminalTouchReturn {
@@ -207,6 +215,8 @@ export function useTerminalTouch({
   isFollower = false,
   onFontSizeCommit,
   onFontSizePreview,
+  onLinkActivate,
+  isOverLink,
   now = () => performance.now(),
 }: UseTerminalTouchOptions): UseTerminalTouchReturn {
   const [hasSelection, setHasSelection] = useState(false);
@@ -215,6 +225,10 @@ export function useTerminalTouch({
   const momentumRafRef = useRef<number | null>(null);
   const onContextMenuRef = useRef(onContextMenu);
   onContextMenuRef.current = onContextMenu;
+  const onLinkActivateRef = useRef(onLinkActivate);
+  onLinkActivateRef.current = onLinkActivate;
+  const isOverLinkRef = useRef(isOverLink);
+  isOverLinkRef.current = isOverLink;
   const sendControlRef = useRef(sendControl);
   sendControlRef.current = sendControl;
   const scrollByRef = useRef(scrollBy);
@@ -551,6 +565,15 @@ export function useTerminalTouch({
         const elapsed = performance.now() - g.startTime;
 
         if (elapsed < TOUCH_TAP_MAX_MS) {
+          // A tap on a link opens its action menu instead of focusing the
+          // terminal. Suppress focus and the double-tap arm so the keyboard
+          // does not pop and a second tap does not start a word selection.
+          if (onLinkActivateRef.current?.(touch.clientX, touch.clientY)) {
+            doubleTapRef.current = null;
+            e.preventDefault();
+            gestureRef.current = { type: "idle" };
+            return;
+          }
           // Record for potential double-tap
           doubleTapRef.current = {
             time: performance.now(),
@@ -619,8 +642,24 @@ export function useTerminalTouch({
         if (sel) {
           setHasSelection(true);
           onContextMenuRef.current?.(e.clientX, e.clientY);
+          return;
         }
+        // A plain click with no selection may be a link activation.
+        onLinkActivateRef.current?.(e.clientX, e.clientY);
       });
+    }
+
+    // Desktop hover affordance: show a pointer cursor over a link. Recompute
+    // only when the pointer crosses into a new cell to keep this cheap.
+    let lastHoverCol = -1;
+    let lastHoverRow = -1;
+    function onMouseMove(e: MouseEvent) {
+      if (!isOverLinkRef.current) return;
+      const { col, row } = touchToCell(term, container, e.clientX, e.clientY);
+      if (col === lastHoverCol && row === lastHoverRow) return;
+      lastHoverCol = col;
+      lastHoverRow = row;
+      container.style.cursor = isOverLinkRef.current(e.clientX, e.clientY) ? "pointer" : "";
     }
 
     // Sync hasSelection with xterm's native selection state (covers desktop
@@ -640,6 +679,7 @@ export function useTerminalTouch({
     container.addEventListener("touchcancel", onTouchCancel, { capture: true });
     container.addEventListener("contextmenu", onContextMenuEvent);
     container.addEventListener("mouseup", onMouseUp);
+    container.addEventListener("mousemove", onMouseMove);
 
     return () => {
       container.removeEventListener("touchstart", onTouchStart, {
@@ -654,6 +694,8 @@ export function useTerminalTouch({
       });
       container.removeEventListener("contextmenu", onContextMenuEvent);
       container.removeEventListener("mouseup", onMouseUp);
+      container.removeEventListener("mousemove", onMouseMove);
+      container.style.cursor = "";
       selectionDisposable.dispose();
 
       // Clean up touch-action style

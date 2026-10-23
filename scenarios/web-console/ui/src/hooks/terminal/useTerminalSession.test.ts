@@ -191,6 +191,55 @@ describe("scroll no-history hint", () => {
   });
 });
 
+describe("return-to-live recovery state", () => {
+  it("raises scrolledBack on a back-scroll ack and clears it on a keystroke or return_to_live", () => {
+    const socket = new SessionSocket();
+    const terminal = createTerminalStub();
+    // createSocket must be a stable reference: an inline arrow re-runs the
+    // transport effect on every re-render and churns the connection.
+    const createSocket = () => socket as unknown as WebSocket;
+    const { result, unmount } = renderHook(() => useTerminalSession({
+      sessionId: "return-to-live-session",
+      terminal: terminal as never,
+      createSocket,
+    }));
+
+    act(() => {
+      socket.readyState = SessionSocket.OPEN;
+      socket.onopen?.();
+    });
+    const message = (payload: Record<string, unknown>) => act(() => {
+      socket.onmessage?.({ data: JSON.stringify(payload) } as MessageEvent<string>);
+    });
+
+    expect(result.current.scrolledBack).toBe(false);
+
+    // A forward-scroll ack must NOT arm the pill — only a back-scroll parks the
+    // pane in copy-mode.
+    message({ type: "scroll", ok: true, lines: 4 });
+    expect(result.current.scrolledBack).toBe(false);
+
+    // A back-scroll ack means the pane is now parked in backend copy-mode.
+    message({ type: "scroll", ok: true, lines: -3 });
+    expect(result.current.scrolledBack).toBe(true);
+
+    // return_to_live cancels the mode → pill retires.
+    act(() => { result.current.returnToLive(); });
+    expect(socket.sent.map((e) => JSON.parse(e))).toContainEqual({ type: "return_to_live" });
+    message({ type: "return_to_live", ok: true });
+    expect(result.current.scrolledBack).toBe(false);
+
+    // Back in copy-mode, then a keystroke lands: typing runs exitModeIfAny on
+    // the backend, so the pane is live again and the pill clears.
+    message({ type: "scroll", ok: true, lines: -1 });
+    expect(result.current.scrolledBack).toBe(true);
+    message({ type: "stdin_ack", accepted_through: 0, ok: true });
+    expect(result.current.scrolledBack).toBe(false);
+
+    unmount();
+  });
+});
+
 describe("terminal debug output probe", () => {
 	it("marks the native application title when the rendered terminal receives the fixture output", () => {
 		document.title = "Web Console";

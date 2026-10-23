@@ -1,6 +1,6 @@
 import type { ArchiveView, ArchiveEntry } from "../api/filePreview";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, FolderOpen, Loader2, Maximize2, Minimize2, RotateCw, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, FileText, FolderOpen, Loader2, Maximize2, Minimize2, RotateCw, Search, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
@@ -35,11 +35,19 @@ interface MessagesFileViewerProps {
   onNavigateBack: () => void;
   onLoadMore: () => void;
   onListOptionsChange: (options: { sort?: DirectorySort; showHidden?: boolean }) => void;
+  /** Open one of the ambiguous matches shown by the picker. */
+  onChooseCandidate?: (path: string) => void;
+  /** Open the file located during a folder-browse search. */
+  onOpenFoundMatch?: () => void;
+  /** Dismiss the locate banner while staying in the folder browser. */
+  onCancelSearch?: () => void;
   presentation?: "drawer" | "dock";
   focusMode?: boolean;
   onFocus?: () => void;
   onRestore?: () => void;
   onResizeStart?: (event: React.PointerEvent<HTMLDivElement>) => void;
+  /** Session whose local files back relative inline image paths in previews. */
+  imageSessionId?: string;
 }
 
 export default function MessagesFileViewer({
@@ -53,11 +61,15 @@ export default function MessagesFileViewer({
   onNavigateBack,
   onLoadMore,
   onListOptionsChange,
+  onChooseCandidate,
+  onOpenFoundMatch,
+  onCancelSearch,
   presentation = "drawer",
   focusMode = false,
   onFocus,
   onRestore,
   onResizeStart,
+  imageSessionId,
 }: MessagesFileViewerProps) {
   const { t } = useTranslation();
   const { open, status, model, text, listing, error, requestedPath, stack, loadingMore } = state;
@@ -182,8 +194,48 @@ export default function MessagesFileViewer({
         </div>
       )}
 
+      {!isLoading && status === "choosing" && (
+        <div className="h-full overflow-auto px-4 py-4">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-wc-default bg-wc-surface-raised p-4 text-sm">
+            <div className="mb-1 flex items-center gap-2 font-medium text-wc-text-primary"><FolderOpen className="h-4 w-4" /><span>This path matches more than one location</span></div>
+            {requestedPath && <p className="mb-3 break-all text-xs text-wc-text-muted">{requestedPath}</p>}
+            <ul className="flex flex-col gap-2">
+              {(state.candidates ?? []).map((candidate) => (
+                <li key={candidate.resolvedPath}>
+                  <button type="button" onClick={() => onChooseCandidate?.(candidate.resolvedPath)} data-testid="file-preview-candidate"
+                    className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-start transition hover:bg-wc-surface-raised">
+                    <FileText className="h-4 w-4 shrink-0 text-wc-text-muted" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-wc-text-primary" dir="auto">{candidate.resolvedPath}</span>
+                      <span className="block text-xs text-wc-text-muted">{resolutionBasisLabel(candidate.resolutionBasis)}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {!isLoading && (status === "ready" || status === "unsupported" || listingRefreshing) && model && Renderer && (
-        <Renderer archive={state.archive} archiveView={state.archiveView} onArchiveFolder={onArchiveFolder} onArchiveEntry={onArchiveEntry} onArchiveViewChange={onArchiveViewChange} model={model} text={text} listing={listing} listingRefreshing={listingRefreshing} onReopen={onReopen} onError={onRendererError} onNavigate={onNavigate} onLoadMore={onLoadMore} onListOptionsChange={onListOptionsChange} loadingMore={loadingMore} />
+        <div className="flex h-full min-h-0 flex-col">
+          {state.search && (status === "ready" || listingRefreshing) && (
+            <div className="flex shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-raised px-3 py-2 text-xs" data-testid="file-preview-search-banner">
+              {state.search.foundPath ? <>
+                <Check className="h-4 w-4 shrink-0 text-green-400" />
+                <span className="min-w-0 flex-1 truncate text-wc-text-primary" dir="auto">Found <span className="font-medium">{state.search.relPath}</span> here</span>
+                <button type="button" onClick={onOpenFoundMatch} data-testid="file-preview-open-found" className="shrink-0 rounded-lg bg-wc-accent px-2.5 py-1 font-medium text-white">Open</button>
+              </> : <>
+                <Search className="h-4 w-4 shrink-0 text-wc-text-muted" />
+                <span className="min-w-0 flex-1 truncate text-wc-text-muted" dir="auto">Browse to the folder holding <span className="font-medium text-wc-text-secondary">{state.search.relPath}</span></span>
+                <button type="button" onClick={onCancelSearch} data-testid="file-preview-cancel-search" className="shrink-0 rounded-lg border border-wc-default px-2.5 py-1 text-wc-text-secondary">Dismiss</button>
+              </>}
+            </div>
+          )}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <Renderer archive={state.archive} archiveView={state.archiveView} onArchiveFolder={onArchiveFolder} onArchiveEntry={onArchiveEntry} onArchiveViewChange={onArchiveViewChange} model={model} text={text} listing={listing} listingRefreshing={listingRefreshing} onReopen={onReopen} onError={onRendererError} onNavigate={onNavigate} onLoadMore={onLoadMore} onListOptionsChange={onListOptionsChange} loadingMore={loadingMore} imageSessionId={imageSessionId} />
+          </div>
+        </div>
       )}
     </>
   );
@@ -228,6 +280,17 @@ export default function MessagesFileViewer({
   );
 }
 
+
+// resolutionBasisLabel names the base a candidate resolved against, for the
+// ambiguity picker. Unknown bases fall through to the raw value.
+function resolutionBasisLabel(basis: string): string {
+  switch (basis) {
+    case "session_cwd": return "working directory";
+    case "project_root": return "project root";
+    case "absolute": return "absolute path";
+    default: return basis;
+  }
+}
 
 function PreviewBreadcrumbs({ crumbs, onNavigate }: { crumbs: PathCrumb[]; onNavigate: (path: string) => void }) {
   const current = useRef<HTMLSpanElement>(null), path = crumbs.at(-1)?.path;

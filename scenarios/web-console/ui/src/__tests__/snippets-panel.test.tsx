@@ -79,8 +79,8 @@ describe("SnippetsPanel", () => {
   });
 
   it("places snippets between templates and handoff rules in the settings tabs", () => {
-    expect(SETTINGS_TAB_IDS).toHaveLength(12);
-    expect(SETTINGS_TAB_IDS.slice(7, 10)).toEqual(["templates", "snippets", "handoff-rules"]);
+    expect(SETTINGS_TAB_IDS).toHaveLength(13);
+    expect(SETTINGS_TAB_IDS.slice(8, 11)).toEqual(["templates", "snippets", "handoff-rules"]);
   });
 
   it("creates a snippet through the New sheet and adds its row", async () => {

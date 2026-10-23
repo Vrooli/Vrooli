@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { SessionActivityView } from "../api/sessionActivity";
+import { useConversationStore } from "./useConversationStore";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#session-activity-contract
 
@@ -31,6 +32,9 @@ export const useSessionActivityStore = create<SessionActivityStoreState>()((set)
       if (startedBefore(activity, state.activities[sessionId])) return state;
       return { activities: { ...state.activities, [sessionId]: activity } };
     });
+    // A session the agent just started working on may hold a staged send that
+    // was in fact submitted; let the outbox settle it against this reading.
+    useConversationStore.getState().reconcileOutboxWithActivity(sessionId, activity.state, activity.since);
   },
   hydrate: (sessions) => {
     set((state) => {

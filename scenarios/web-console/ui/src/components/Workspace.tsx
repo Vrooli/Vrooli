@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { lazy, Profiler, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { CircleUserRound, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, ShieldCheck, TerminalSquare } from "lucide-react";
+import { Menu, MessageSquareText, Plus, Settings, ShieldCheck, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -2097,8 +2097,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         showNewAction={!isTabLikeMode}
         showComposerActions={!composerBarVisible}
         onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
-        onOpenAccount={() => { openSettingsTab("account"); }}
-        onOpenMachines={openMachines}
         onOpenApprovals={openApprovals}
         approvalsPendingCount={approvalsPendingCount}
         onOpenAi={() => { workspace.setAiModalOpen(true); }}
@@ -2143,19 +2141,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             onStartRole={startRoleFromSurface}
             onOpenRoleMenu={openRoleMenu}
             trailingActions={isMobile ? (
-              <>
-              <Button
-                data-testid="tabbar-machines"
-                variant="ghost"
-                size="icon"
-                shape="square"
-                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
-                onClick={() => { setMachinesOpen(true); }}
-                aria-label={t(strings.fleet.openAriaLabel)}
-                title={t(strings.fleet.openAriaLabel)}
-              >
-                <MonitorSmartphone className="h-4 w-4" />
-              </Button>
               <Button
                 data-testid="tabbar-settings"
                 variant="ghost"
@@ -2167,19 +2152,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               >
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button
-                data-testid="tabbar-account"
-                variant="ghost"
-                size="icon"
-                shape="square"
-                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
-                onClick={() => { openSettingsTab("account"); }}
-                aria-label={t(strings.settings.tabs.account.label)}
-                title={t(strings.settings.tabs.account.label)}
-              >
-                <CircleUserRound className="h-4 w-4" />
-              </Button>
-              </>
             ) : undefined}
           />
           </Profiler>
@@ -2231,18 +2203,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               <Plus className="h-4 w-4" />
             </Button>
             <Button
-              data-testid="workspace-machines"
-              variant="ghost"
-              size="icon"
-              shape="square"
-              className="h-8 w-8"
-              onClick={() => { setMachinesOpen(true); }}
-                aria-label={t(strings.fleet.openAriaLabel)}
-                title={t(strings.fleet.openAriaLabel)}
-            >
-              <MonitorSmartphone className="h-4 w-4" />
-            </Button>
-            <Button
               variant="ghost"
               size="icon"
               shape="square"
@@ -2252,18 +2212,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             >
               <Settings className="h-4 w-4" />
             </Button>
-            {/* Persistent mobile access to the approvals inbox. The banner is
-                the primary entrance and appears ONLY when something is pending;
-                this badged button is the always-available route in the existing
-                overflow cluster, so there is no new always-on top-bar icon
-                beyond this one shared affordance. */}
+            {/* Persistent mobile access to the approvals inbox. It stays on the
+                bar always so history is reachable, but carries weight only when
+                a decision is pending: muted while idle, accent-coloured with a
+                count badge when something needs the operator. */}
             <div className="relative inline-flex">
               <Button
                 data-testid="workspace-approvals"
                 variant="ghost"
                 size="icon"
                 shape="square"
-                className="h-8 w-8"
+                className={cn("h-8 w-8", approvalsPendingCount > 0 ? "text-wc-accent" : "text-wc-text-muted")}
                 onClick={openApprovals}
                 aria-label={approvalsPendingCount > 0 ? t(strings.approvals.badgeAria, { count: approvalsPendingCount }) : t(strings.approvals.toolbarTitle)}
                 title={t(strings.approvals.toolbarTitle)}
@@ -2276,18 +2235,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 </span>
               )}
             </div>
-            <Button
-              data-testid="workspace-sidebar-account"
-              variant="ghost"
-              size="icon"
-              shape="square"
-              className="h-8 w-8"
-              onClick={() => { openSettingsTab("account"); }}
-              aria-label={t(strings.settings.tabs.account.label)}
-              title={t(strings.settings.tabs.account.label)}
-            >
-              <CircleUserRound className="h-4 w-4" />
-            </Button>
           </div>
         )}
       </TopSafeArea>
@@ -2319,8 +2266,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onStartRole={startRoleFromSurface}
           onHandoffToRole={handoffToRole}
           onOpenRoleMenu={openRoleMenu}
-              onOpenAccount={() => { openSettingsTab("account"); }}
-              onOpenMachines={openMachines}
               onOpenArchiveDrawer={(sessionId) => {
                 setMobileSidebarOpen(false);
                 setArchiveInitialSessionId(sessionId ?? null);
@@ -2697,6 +2642,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       <DeferredSurface active={workspace.settingsModalOpen}><SettingsModal
         sessions={sessionPanes}
         onDeleteSession={requestClosePane}
+        onStartSessionForMachine={openLauncherForMachine}
+        onInstallCapability={installCapability}
       /></DeferredSurface>
 
       {/* Appearance Modal */}

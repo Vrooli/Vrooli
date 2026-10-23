@@ -46,11 +46,22 @@ func (a *filePreviewAdapter) Resolve(ctx context.Context, in filePreviewH.Resolv
 		cwd = ""
 	}
 
-	target, err := a.srv.filePreviewResolver.Resolve(cwd, cwdErr, in.Path)
+	resolved, err := a.srv.filePreviewResolver.ResolveDetailed(cwd, cwdErr, in.Path)
 	if err != nil {
 		return filePreviewH.ResolveResult{}, mapFilePreviewError(err)
 	}
 
+	// A relative path that matched nowhere is not an error: the client opens a
+	// folder browser rooted at the returned search bases to locate it manually.
+	if resolved.Unresolved {
+		return filePreviewH.ResolveResult{
+			InputPath:   in.Path,
+			Unresolved:  true,
+			SearchBases: toHandlerCandidates(resolved.SearchBases),
+		}, nil
+	}
+
+	target := resolved.Selected
 	previewID, expiry, issueErr := a.srv.filePreviews.Issue(in.SessionID, target)
 	if issueErr != nil {
 		return filePreviewH.ResolveResult{}, fmt.Errorf("issue preview id: %w", issueErr)
@@ -76,7 +87,27 @@ func (a *filePreviewAdapter) Resolve(ctx context.Context, in filePreviewH.Resolv
 		BlobURL:              filePreviewBlobURL(in.SessionID, previewID),
 		ExpiresUnixNano:      expiry.UnixNano(),
 		Warnings:             target.Warnings,
+		Candidates:           toHandlerCandidates(resolved.Candidates),
 	}, nil
+}
+
+// toHandlerCandidates projects resolver candidates onto the transport-neutral
+// handler shape (Kind as its string form).
+func toHandlerCandidates(in []filepreview.ResolveCandidate) []filePreviewH.ResolveCandidate {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]filePreviewH.ResolveCandidate, 0, len(in))
+	for _, c := range in {
+		out = append(out, filePreviewH.ResolveCandidate{
+			ResolvedPath:    c.ResolvedPath,
+			ResolutionBasis: c.ResolutionBasis,
+			Kind:            string(c.Kind),
+			CanPreview:      c.CanPreview,
+			Basename:        c.Basename,
+		})
+	}
+	return out
 }
 
 // GetTextContent serves bounded UTF-8 content for a previously-resolved text

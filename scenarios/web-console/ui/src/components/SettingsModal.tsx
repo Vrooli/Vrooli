@@ -20,6 +20,9 @@ import TtsSettingsSection from "./settings/TtsSettingsSection";
 import VoiceInputSection from "./settings/VoiceInputSection";
 import WorkspaceSection from "./settings/WorkspaceSection";
 import AccountSection from "./settings/AccountSection";
+import DevicesSection from "./settings/DevicesSection";
+import type { InstallOutcome } from "../api/capabilities";
+import type { Machine } from "../api/machines";
 import {
   DEFAULT_SETTINGS_TAB,
   SETTINGS_TAB_IDS,
@@ -56,10 +59,14 @@ type SettingsSectionComponent = ComponentType<{
   onDeleteSession: (id: string) => void;
   onRequestClose: () => void;
   open: boolean;
+  // Only the Devices section consumes these; other sections ignore them.
+  onStartSessionForMachine?: (machine: Machine) => void;
+  onInstallCapability?: (capabilityID: string, target: Machine["target"]) => Promise<InstallOutcome>;
 }>;
 
 const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
   account: AccountSection as SettingsSectionComponent,
+  devices: DevicesSection as SettingsSectionComponent,
   sessions: SessionManagementSection,
   workspace: WorkspaceSection as SettingsSectionComponent,
   "voice-input": VoiceInputSection as SettingsSectionComponent,
@@ -79,11 +86,16 @@ const settingsTabTestId = (tab: string) => `settings-tab-${tab}`;
 interface SettingsModalProps {
   sessions: Array<{ session: SessionInfo }>;
   onDeleteSession: (id: string) => void;
+  /** Wiring for the Devices tab's "start session on this machine" action. */
+  onStartSessionForMachine?: (machine: Machine) => void;
+  onInstallCapability?: (capabilityID: string, target: Machine["target"]) => Promise<InstallOutcome>;
 }
 
 export default function SettingsModal({
   sessions,
   onDeleteSession,
+  onStartSessionForMachine,
+  onInstallCapability,
 }: SettingsModalProps) {
   const { t } = useTranslation();
   const settingsModalOpen = useWorkspaceStore((state) => state.settingsModalOpen);
@@ -188,6 +200,8 @@ export default function SettingsModal({
             onDeleteSession={onDeleteSession}
             onRequestClose={close}
             open={settingsModalOpen}
+            onStartSessionForMachine={onStartSessionForMachine}
+            onInstallCapability={onInstallCapability}
           />
         </div>
       ) : (
@@ -234,6 +248,8 @@ export default function SettingsModal({
               onDeleteSession={onDeleteSession}
               onRequestClose={close}
               open={settingsModalOpen}
+              onStartSessionForMachine={onStartSessionForMachine}
+              onInstallCapability={onInstallCapability}
             />
           </div>
         </div>

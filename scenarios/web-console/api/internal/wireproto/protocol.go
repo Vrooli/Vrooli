@@ -30,6 +30,7 @@ const (
 	MsgTypeEchoState             = "echo_state"
 	MsgTypeMouseMode             = "mouse_mode"
 	MsgTypeScroll                = "scroll"
+	MsgTypeReturnToLive          = "return_to_live"
 	MsgTypePresence              = "presence"
 	MsgTypeDeviceState           = "device_state"
 	StdinIntentTyping            = "typing"

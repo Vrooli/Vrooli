@@ -1,4 +1,4 @@
-import { Component, createContext, memo, useContext, useEffect, useMemo, useState, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
+import { Component, createContext, memo, useContext, useEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { remarkProsePaths } from "./utils/remarkProsePaths";
@@ -8,6 +8,8 @@ import { MermaidDiagram } from "./components/MermaidDiagram";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 import { isExternalHref } from "../../lib/fileReferences";
 import { resolveFilePreview } from "../../api/filePreview";
+import { splitMarkdownChunks } from "./utils/splitMarkdownChunks";
+import { observeNear } from "./utils/lazyVisibility";
 import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 
@@ -68,22 +70,64 @@ interface MarkdownRendererProps {
   onMermaidOpen?: (code: string) => void;
   /** Session whose local files can be resolved for inline message images. */
   imageSessionId?: string;
+  /**
+   * Directory that relative inline image paths resolve against — the markdown
+   * file's own directory. Without it, a relative `src` like `./diagram.png`
+   * would resolve against the session cwd (wrong for a file preview) instead of
+   * sitting next to the document that references it.
+   */
+  imageBasePath?: string;
+  /**
+   * Render a large document in block-aligned chunks across idle frames instead
+   * of one blocking parse. Use for file previews (whole files arrive at once);
+   * leave off for streaming message bodies, which are small and append live.
+   */
+  progressive?: boolean;
+}
+
+// Resolve a markdown image `src` to the path handed to the preview backend.
+// External URLs pass through untouched; an absolute, home, or file:// path is
+// already addressable; a relative path is joined onto the document's own
+// directory so it resolves next to the file that references it.
+function resolveImageSrc(src: string, baseDir?: string): string {
+  if (!baseDir || /^(\/|~\/|file:\/\/)/.test(src)) return src;
+  const dir = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
+  return `${dir}${src}`;
 }
 
 // Renderer functions are React component types. Keep them stable across parent
 // updates so an in-flight press, focus, and selection keep their DOM nodes.
 // Context delivers the latest callbacks without replacing the rendered links.
-type MarkdownCallbacks = Pick<MarkdownRendererProps, "onLinkClick" | "onFileReferenceClick" | "onMermaidOpen" | "imageSessionId">;
+type MarkdownCallbacks = Pick<MarkdownRendererProps, "onLinkClick" | "onFileReferenceClick" | "onMermaidOpen" | "imageSessionId" | "imageBasePath">;
 const MarkdownCallbacksContext = createContext<MarkdownCallbacks>({});
+
+// A rough height held for an inline image that has never been on screen, so the
+// document starts near its true length instead of collapsing and growing as
+// images stream in. Replaced by each image's real rendered height once known.
+const IMAGE_PLACEHOLDER_HEIGHT = 360;
 
 function MarkdownImage({ src, alt = "", title }: ComponentPropsWithoutRef<"img">) {
   const { t } = useTranslation();
-  const { imageSessionId, onFileReferenceClick } = useContext(MarkdownCallbacksContext);
-  const localPath = imageSessionId && src && !/^https?:\/\//i.test(src) ? src : null;
+  const { imageSessionId, imageBasePath, onFileReferenceClick } = useContext(MarkdownCallbacksContext);
+  const localPath = imageSessionId && src && !/^https?:\/\//i.test(src) ? resolveImageSrc(src, imageBasePath) : null;
   const [image, setImage] = useState<{ path: string; href?: string; failed?: boolean } | null>(null);
+  // Defer resolving + decoding a local image until it first nears the viewport,
+  // then keep it mounted. Resolving all of a large document's images on open
+  // floods the preview API; but unmounting them again on scroll would mutate the
+  // DOM mid-scroll and force the tall document to re-layout (costly on iOS), so
+  // this is a one-shot reveal, not a window.
+  const [seen, setSeen] = useState(false);
+  const holderRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (!localPath || !imageSessionId) return;
+    if (!localPath || seen) return;
+    const holder = holderRef.current;
+    if (!holder) { setSeen(true); return; }
+    return observeNear(holder, (near) => { if (near) setSeen(true); });
+  }, [localPath, seen]);
+
+  useEffect(() => {
+    if (!localPath || !imageSessionId || !seen) return;
     let active = true;
     resolveFilePreview(imageSessionId, localPath, "message_link")
       .then((preview) => {
@@ -96,16 +140,33 @@ function MarkdownImage({ src, alt = "", title }: ComponentPropsWithoutRef<"img">
       })
       .catch(() => { if (active) setImage({ path: localPath, failed: true }); });
     return () => { active = false; };
-  }, [imageSessionId, localPath]);
+  }, [imageSessionId, localPath, seen]);
 
-  if (!localPath) return <img src={src} alt={alt} title={title} className="max-w-full h-auto" />;
+  if (!localPath) return <img src={src} alt={alt} title={title} loading="lazy" decoding="async" className="max-w-full h-auto" />;
+  // Not yet scrolled near: a space-reserving placeholder so the document starts
+  // near its true height instead of growing as images stream in.
+  if (!seen) return <span ref={holderRef} className="block" style={{ minHeight: IMAGE_PLACEHOLDER_HEIGHT }} />;
   if (image?.path === localPath && image.failed) return (
     <button type="button" className="text-wc-accent underline break-all" onClick={() => { onFileReferenceClick?.(localPath); }}>
       {alt || localPath} — {t(strings.messagesFileViewer.unavailable)}
     </button>
   );
-  if (image?.path !== localPath || !image.href) return <span role="status">{t(strings.messagesFileViewer.loadingPreview)} {alt || localPath}</span>;
-  return <img src={image.href} alt={alt} title={title} className="max-w-full h-auto" onError={() => { setImage({ path: localPath, failed: true }); }} />;
+  if (image?.path !== localPath || !image.href) return <span ref={holderRef} role="status" className="block" style={{ minHeight: IMAGE_PLACEHOLDER_HEIGHT }}>{t(strings.messagesFileViewer.loadingPreview)} {alt || localPath}</span>;
+  const resolved = <img src={image.href} alt={alt} title={title} loading="lazy" decoding="async" className="max-w-full h-auto" onError={() => { setImage({ path: localPath, failed: true }); }} />;
+  // A resolved local image opens full-size in the file preview (zoom/pan) on
+  // press. Without a preview handler (e.g. plain message bodies) it stays inert.
+  if (!onFileReferenceClick) return resolved;
+  return (
+    <button
+      type="button"
+      onClick={() => { onFileReferenceClick(localPath); }}
+      title={t(strings.messagesFileViewer.openImage)}
+      aria-label={alt ? `${t(strings.messagesFileViewer.openImage)}: ${alt}` : t(strings.messagesFileViewer.openImage)}
+      className="block max-w-full cursor-zoom-in rounded outline-none focus-visible:ring-2 focus-visible:ring-wc-accent"
+    >
+      {resolved}
+    </button>
+  );
 }
 
 const markdownComponents = {
@@ -211,6 +272,20 @@ const markdownComponents = {
   ),
 };
 
+// One parsed slice of the document. Memoized by its text so that, as later
+// chunks stream in, the chunks already on screen are not re-parsed.
+const MarkdownChunk = memo(function MarkdownChunk({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkProsePaths]}
+      components={markdownComponents}
+      urlTransform={markdownUrlTransform}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+});
+
 /** Renders markdown content with syntax highlighting, mermaid diagrams, and GFM support. */
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
@@ -219,30 +294,40 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   onFileReferenceClick,
   onMermaidOpen,
   imageSessionId,
+  imageBasePath,
+  progressive = false,
 }: MarkdownRendererProps) {
-  const callbacks = useMemo(() => ({ onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId }),
-    [onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId]);
-
-  if (!content) return null;
+  const callbacks = useMemo(() => ({ onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId, imageBasePath }),
+    [onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId, imageBasePath]);
 
   const safeContent = typeof content === "string" ? content : String(content);
 
-  // If search is active, wrap rendered output with highlighting
-  const rendered = (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkProsePaths]}
-      components={markdownComponents}
-      urlTransform={markdownUrlTransform}
-    >
-      {safeContent}
-    </ReactMarkdown>
-  );
+  // In progressive mode a large document is split into block-aligned chunks;
+  // the first renders now and the rest are revealed one per idle frame, turning
+  // a single long parse into several short ones that never freeze the thread.
+  const chunks = useMemo(() => (progressive ? splitMarkdownChunks(safeContent) : [safeContent]), [progressive, safeContent]);
+  const [revealed, setRevealed] = useState(1);
+  useEffect(() => { setRevealed(1); }, [chunks]);
+  useEffect(() => {
+    if (revealed >= chunks.length) return;
+    const advance = () => { setRevealed((shown) => Math.min(chunks.length, shown + 1)); };
+    if (typeof requestIdleCallback === "undefined") {
+      const timer = window.setTimeout(advance, 16);
+      return () => { window.clearTimeout(timer); };
+    }
+    // The timeout guards against a thread that never goes idle (e.g. the user
+    // is scrolling), so the rest of the document still fills in.
+    const handle = requestIdleCallback(advance, { timeout: 250 });
+    return () => { cancelIdleCallback(handle); };
+  }, [revealed, chunks.length]);
+
+  if (!safeContent) return null;
 
   return (
     <MarkdownCallbacksContext.Provider value={callbacks}>
       <MarkdownErrorBoundary content={safeContent}>
         <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
-          {rendered}
+          {chunks.slice(0, revealed).map((chunk, index) => <MarkdownChunk key={index} content={chunk} />)}
         </div>
       </MarkdownErrorBoundary>
     </MarkdownCallbacksContext.Provider>
@@ -255,6 +340,8 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
     prevProps.onMermaidOpen === nextProps.onMermaidOpen
     && prevProps.imageSessionId === nextProps.imageSessionId
+    && prevProps.imageBasePath === nextProps.imageBasePath
+    && prevProps.progressive === nextProps.progressive
   );
 });
 

@@ -220,7 +220,6 @@ const literalSelectors = {
     openRouterKeySave: 'openrouter-key-save',
     openRouterKeyTest: 'openrouter-key-test',
     openRouterKeyRemove: 'openrouter-key-remove',
-    accountButton: 'toolbar-account',
     tunnelManagerAwareness: 'tunnel-manager-awareness',
   },
   toolbar: {

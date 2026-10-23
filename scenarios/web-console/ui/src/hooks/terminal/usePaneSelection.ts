@@ -23,8 +23,12 @@ export function usePaneSelection(options: {
   awaitOffset: (offset: number, cb: InputSettlementCallback) => () => void;
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
   rejectedMessage: string;
+  /** A tap/click landed on a terminal link; returns true if consumed. */
+  onLinkActivate?: (clientX: number, clientY: number) => boolean;
+  /** Whether a link sits under these coordinates (hover cursor). */
+  isOverLink?: (clientX: number, clientY: number) => boolean;
 }) {
-  const { terminal, containerRef, sendControl, scrollBy, fontSize, isFollower, onFontSizeCommit, onFontSizePreview, submitInput, awaitOffset, subscribeInputSettled, rejectedMessage } = options;
+  const { terminal, containerRef, sendControl, scrollBy, fontSize, isFollower, onFontSizeCommit, onFontSizePreview, submitInput, awaitOffset, subscribeInputSettled, rejectedMessage, onLinkActivate, isOverLink } = options;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const selfReportedOffsetsRef = useRef<Set<number>>(new Set());
@@ -38,6 +42,8 @@ export function usePaneSelection(options: {
     onFontSizeCommit,
     onFontSizePreview,
     onContextMenu: useCallback((x: number, y: number) => { setContextMenu({ x, y }); }, []),
+    onLinkActivate,
+    isOverLink,
   });
   useTerminalWheel({ terminal, containerRef, scrollBy });
   useMobileBackspaceRepeat(terminal);

@@ -18,7 +18,11 @@ import { useEffectiveFontSize, useWorkspaceStore, type TerminalPaneStatus } from
 import { TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
 import { useTerminalVoiceShortcut } from "../hooks/useKeyboardListeners";
 import { PaneSelectionLayer } from "./PaneSelectionLayer";
+import TerminalLinkMenu from "./TerminalLinkMenu";
+import { linkAtCell, type TerminalLink, type TerminalLinkActivation } from "../lib/terminalFileLinks";
+import { touchToCell } from "../hooks/useTerminalTouch";
 import { ScrollHistoryHint } from "./ScrollHistoryHint";
+import { ReturnToLivePill } from "./ReturnToLivePill";
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import type { ConversationEvent } from "../api/conversation";
 import { usePaneSpeech, type PaneSpeechPlaybackHandle } from "../hooks/terminal/usePaneSpeech";
@@ -152,7 +156,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 	const [followerMode, setFollowerMode] = useState<FollowerMode>("leader");
     const sendResizeToSession = useCallback((cols: number, rows: number) => { sendResizeRef.current(cols, rows); }, []);
     const getServerSizeFromSession = useCallback(() => serverSizeRef.current, []);
-    const handleOpenFilePreview = useCallback((path: string) => {
+    // A clicked terminal link opens an action menu (Open / Copy) anchored at
+    // the pointer, rather than firing a single silent action on a tiny target.
+    const [linkMenu, setLinkMenu] = useState<TerminalLinkActivation | null>(null);
+    const handleOpenLinkFile = useCallback((path: string) => {
       onOpenFilePreview?.(path, "cli");
     }, [onOpenFilePreview]);
     const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
@@ -167,12 +174,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 	  followerMode,
       renamePaneById,
       syncPaneUpdate,
-      onOpenFileReference: handleOpenFilePreview,
     });
 
     // Delegate all WebSocket protocol handling to the session hook
   const {
-    submitInput, sendControl, setMouseMode, mouseMode, scrollBy, sendResize,
+    submitInput, sendControl, setMouseMode, mouseMode, scrollBy, returnToLive, scrolledBack, sendResize,
 	serverSize, followerMode: sessionFollowerMode, leaderDevice, leaderClass, leaderKbOpen,
     takeLease, setKeyboardOpen, subscribeInputSettled, awaitOffset,
     subscribePendingInput, getPendingInputSnapshot, discardPendingInput,
@@ -283,6 +289,24 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       };
     }, [sessionId, consumePendingInputBuffer, setPendingInputBuffer]);
 
+    // Map a viewport point to the terminal link under it (if any). Skipped when
+    // tmux mouse mode is active, since the running program owns pointer events.
+    const resolveLinkAt = useCallback((clientX: number, clientY: number): TerminalLink | null => {
+      if (!terminal || mouseMode === true) return null;
+      const host = containerRef.current;
+      if (!host) return null;
+      const { col, row } = touchToCell(terminal, host, clientX, clientY);
+      const bufferRow = row + terminal.buffer.active.viewportY;
+      return linkAtCell(terminal, bufferRow, col);
+    }, [terminal, containerRef, mouseMode]);
+    const handleLinkActivate = useCallback((clientX: number, clientY: number): boolean => {
+      const link = resolveLinkAt(clientX, clientY);
+      if (!link) return false;
+      setLinkMenu({ ...link, position: { x: clientX, y: clientY } });
+      return true;
+    }, [resolveLinkAt]);
+    const isOverLink = useCallback((clientX: number, clientY: number): boolean => resolveLinkAt(clientX, clientY) !== null, [resolveLinkAt]);
+
     const selection = usePaneSelection({
       terminal,
       containerRef,
@@ -296,6 +320,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       awaitOffset,
       subscribeInputSettled,
       rejectedMessage: t(strings.terminalPane.inputRejected),
+      onLinkActivate: handleLinkActivate,
+      isOverLink,
     });
 
     // Expose grouped pane operations for the toolbar, launcher and workspace.
@@ -390,6 +416,17 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
             canViewMessages={supportsMessagesView}
             onViewMessages={handleViewMessagesFromHint}
           />
+          <ReturnToLivePill
+            visible={scrolledBack && viewMode === "terminal"}
+            onReturnToLive={returnToLive}
+          />
+          {linkMenu && (
+            <TerminalLinkMenu
+              activation={linkMenu}
+              onOpenFile={handleOpenLinkFile}
+              onClose={() => { setLinkMenu(null); }}
+            />
+          )}
           {appliedFrame && <DeviceFrame
             archetype={appliedFrame.archetype}
             chromeTier={appliedFrame.tier}

@@ -30,9 +30,9 @@ function makeTerminal(options: { mouseTrackingMode: string; onAltBuffer: boolean
   };
   return {
     terminal: terminal as unknown as Terminal,
-    fire: (deltaY: number, deltaMode = 0) => {
+    fire: (deltaY: number, deltaMode = 0, extra: Partial<WheelEvent> = {}) => {
       const preventDefault = vi.fn();
-      const event = { deltaY, deltaMode, preventDefault } as unknown as WheelEvent;
+      const event = { deltaY, deltaMode, preventDefault, ...extra } as unknown as WheelEvent;
       const result = handler?.(event);
       return { result, preventDefault };
     },
@@ -128,6 +128,21 @@ describe("terminal wheel ownership", () => {
     expect(result).toBe(false);
     expect(preventDefault).toHaveBeenCalled();
     expect(scrollBy).not.toHaveBeenCalled();
+  });
+
+  it("swallows a ctrl+wheel pinch-zoom instead of routing it as a scroll", () => {
+    // A trackpad pinch-zoom arrives as a wheel event with ctrlKey set. Routing
+    // it through the server scroll seam would make a desktop pinch enter tmux
+    // copy-mode and strand the pane — the desktop analogue of the mobile
+    // pinch-freeze. It must be swallowed: neither scrolled nor allowed to zoom
+    // the whole page.
+    const { fire, scrollBy } = render({ mouseTrackingMode: "none", onAltBuffer: true });
+
+    const { result, preventDefault } = fire(-60, 0, { ctrlKey: true });
+
+    expect(result).toBe(false); // suppress the browser's page-zoom default
+    expect(preventDefault).toHaveBeenCalled();
+    expect(scrollBy).not.toHaveBeenCalled(); // never reaches the scroll seam
   });
 
   it("hands the wheel back to xterm on unmount", () => {

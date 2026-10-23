@@ -7,7 +7,6 @@ import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playb
 import type { ConversationEvent } from "../api/conversation";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ENTER_KEY } from "../consts/toolbar-keys";
-import { getScreenText } from "../api/terminalScreen";
 import { onProfilerRender } from "../lib/profiler";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
@@ -144,11 +143,9 @@ function WorkspacePaneShell({
     onToggleView(sessionId, viewMode);
   }, [onToggleView, sessionId, viewMode]);
 
-  // For Messages' echo rows: the on-screen check reads the server's decoded
-  // screen (a pane opened in Messages may never have filled its xterm), and
-  // "Press Enter" goes through this pane's typing lane, like the Enter key.
+  // For Messages' echo rows and the reader's pending pill: "Press Enter" goes
+  // through this pane's typing lane, like the Enter key.
   const terminalHandleRef = useRef<TerminalPaneHandle | null>(null);
-  const getTerminalText = useCallback(() => getScreenText(sessionId), [sessionId]);
   const pressEnter = useCallback(() => {
     terminalHandleRef.current?.input.submit(ENTER_KEY.input, "typing");
   }, []);
@@ -255,7 +252,6 @@ function WorkspacePaneShell({
               playbackFocusRequest={playbackFocusRequest}
               toolbarTrailingAction={messagesToolbarTrailingAction}
               onOpenTerminal={handleToggleView}
-              getTerminalText={getTerminalText}
               onPressEnter={pressEnter}
               onOpenFilePreview={(path, source) => { onOpenFilePreview?.(sessionId, path, source); }}
             />

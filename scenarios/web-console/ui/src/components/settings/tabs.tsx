@@ -6,6 +6,7 @@ import {
   Keyboard,
   PlugZap,
   LayoutTemplate,
+  MonitorSmartphone,
   Send,
   Settings2,
   StickyNote,
@@ -19,6 +20,7 @@ import { strings } from "../../consts/strings";
 
 export const SETTINGS_TAB_IDS = [
   "account",
+  "devices",
   "sessions",
   "workspace",
   "voice-input",
@@ -44,6 +46,7 @@ export interface SettingsTabDefinition {
 
 const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
   account: CircleUserRound,
+  devices: MonitorSmartphone,
   sessions: TerminalSquare,
   workspace: Settings2,
   "voice-input": Waves,
@@ -62,6 +65,11 @@ const TAB_STRING_KEYS = {
     label: "settings.tabs.account.label",
     shortLabel: "settings.tabs.account.shortLabel",
     description: "settings.tabs.account.description",
+  },
+  devices: {
+    label: strings.settings.tabs.devices.label,
+    shortLabel: strings.settings.tabs.devices.shortLabel,
+    description: strings.settings.tabs.devices.description,
   },
   sessions: {
     label: strings.settings.tabs.sessions.label,

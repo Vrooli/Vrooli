@@ -2,6 +2,7 @@ import type { PreviewArchive, ArchiveView, ArchiveSource } from "../../api/fileP
 import type {
   DirectoryEntry,
   DirectorySort,
+  PreviewCandidate,
   PreviewKind,
   PreviewListing,
   PreviewModel,
@@ -11,11 +12,23 @@ import type {
 export type {
   DirectoryEntry,
   DirectorySort,
+  PreviewCandidate,
   PreviewKind,
   PreviewListing,
   PreviewModel,
   PreviewTextContent,
 };
+
+// An active "browse to locate a relative path" session. Set when a relative
+// path matched nowhere: the viewer shows a folder browser rooted at a base
+// directory, and foundPath is the resolved file once the user reaches a
+// directory that contains the relative tail.
+export interface PreviewSearch {
+  /** The relative path the user is trying to open. */
+  relPath: string;
+  /** Resolved absolute path once the current directory contains it, else null. */
+  foundPath: string | null;
+}
 
 // PreviewStatus is the viewer state machine. Every open() walks
 // idle → resolving → (loadingText | loadingListing →) ready | unsupported |
@@ -28,6 +41,8 @@ export type PreviewStatus =
   | "loadingListing"
   | "ready"
   | "unsupported"
+  // A relative path matched more than one base; the user picks which to open.
+  | "choosing"
   | "error";
 
 // PreviewFrame is one entry in the navigation history. Walking into a
@@ -59,6 +74,10 @@ export interface PreviewState {
   loadingMore: boolean;
   /** Frames below the current one; empty when this is the first target. */
   stack: PreviewFrame[];
+  /** Ambiguous relative-path matches, present only in the "choosing" status. */
+  candidates?: PreviewCandidate[];
+  /** Active folder-browse-to-locate session for an unresolved relative path. */
+  search?: PreviewSearch | null;
 }
 
 export const IDLE_PREVIEW_STATE: PreviewState = {
@@ -98,6 +117,11 @@ export interface PreviewRendererProps {
   loadingMore: boolean;
   /** Retain the folder and its options while refreshing the current listing. */
   listingRefreshing?: boolean;
+  /**
+   * Session whose local files can be resolved — lets a renderer (e.g. the
+   * markdown reader) turn relative inline image paths into previewable blobs.
+   */
+  imageSessionId?: string;
 }
 
 export type PreviewRenderer = (props: PreviewRendererProps) => JSX.Element;

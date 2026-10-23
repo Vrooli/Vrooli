@@ -92,6 +92,18 @@ describe("messages reader", () => {
     vi.unstubAllGlobals();
   });
 
+  it("keeps a staged send in reach from the reader and submits it from there", () => {
+    const onPressEnter = vi.fn();
+    render(<MessagesPane {...props} onPressEnter={onPressEnter} onOpenTerminal={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    act(() => { useConversationStore.getState().addEcho("sess-1", { text: "do the thing" }); });
+
+    expect(screen.getByTestId("reader-pending")).toHaveAttribute("data-state", "staged");
+    fireEvent.click(screen.getByTestId("reader-press-enter"));
+    expect(onPressEnter).toHaveBeenCalledTimes(1);
+    expect(useConversationStore.getState().echoes["sess-1"]?.[0]?.state).toBe("submitted");
+  });
+
   it("distinguishes captured handoffs from voice-only transcripts and preserves the receipt in the reader", () => {
     seed([
       { ...event("voice", 1, "The quick brown fox"), role: "user", source: "codex_voice" },

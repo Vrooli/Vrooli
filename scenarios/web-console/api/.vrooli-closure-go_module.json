@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "key": "9e936087cfc335cabe64ad423912ca818a5b32742332a6ceb1eb8f3674302eca",
+  "key": "d14cfc70f841ec6e7e76b74ae29f181314f5deb69950d3a97b4b80122002e01d",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -28,6 +28,7 @@
     "internal/hostreqspec",
     "internal/hostsession",
     "internal/logx",
+    "internal/network",
     "internal/operatorcapability",
     "internal/operatorstate",
     "internal/portspec",

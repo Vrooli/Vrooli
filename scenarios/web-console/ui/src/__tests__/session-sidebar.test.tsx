@@ -51,7 +51,6 @@ const baseProps = {
   onNewTerminal: vi.fn(),
   onOpenLauncher: vi.fn(),
   onNewSessionInGroup: vi.fn(),
-  onOpenAccount: vi.fn(),
   onStartRole: vi.fn(),
   onHandoffToRole: vi.fn(),
   onOpenRoleMenu: vi.fn(),
@@ -192,11 +191,9 @@ describe("SessionSidebar", () => {
     const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
     render(<SessionSidebar {...baseProps} onOpenArchiveDrawer={onOpenArchiveDrawer} buckets={asBuckets(items)} />);
     fireEvent.click(screen.getByTestId("sidebar-session-a"));
-    fireEvent.click(screen.getByTestId("workspace-sidebar-profile"));
     fireEvent.pointerDown(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
     fireEvent.pointerUp(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
     expect(baseProps.onActivatePane).toHaveBeenCalledWith("a");
-    expect(baseProps.onOpenAccount).toHaveBeenCalled();
     expect(baseProps.onOpenLauncher).toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("sidebar-archive-footer"));
@@ -427,18 +424,14 @@ describe("SessionSidebar header actions", () => {
     activePane: "a",
   });
 
-  it("opens the machines surface from the header", () => {
-    const onOpenMachines = vi.fn();
-    render(<SessionSidebar {...baseProps} onOpenMachines={onOpenMachines} buckets={asBuckets(items())} />);
-    fireEvent.click(screen.getByTestId("workspace-sidebar-machines"));
-    expect(onOpenMachines).toHaveBeenCalledOnce();
-  });
-
-  // The button is how a layout that has no floating bar still reaches the
-  // fleet surface, so its presence must track the host actually supplying one.
-  it("omits the machines button when no fleet surface is supplied", () => {
+  // The header carries only the new-session action now. Machines moved into
+  // Settings → Devices and the account entry lives on the settings gear, so
+  // neither renders a dedicated header icon anymore.
+  it("keeps the header to the new-session action", () => {
     render(<SessionSidebar {...baseProps} buckets={asBuckets(items())} />);
+    expect(screen.getByTestId("workspace-sidebar-new")).toBeTruthy();
     expect(screen.queryByTestId("workspace-sidebar-machines")).toBeNull();
+    expect(screen.queryByTestId("workspace-sidebar-profile")).toBeNull();
   });
 });
 

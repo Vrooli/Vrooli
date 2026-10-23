@@ -59,6 +59,17 @@ export function useTerminalWheel({
     const accumulator = createWheelLineAccumulator();
 
     const handleWheel = (event: WheelEvent): boolean => {
+      // A trackpad pinch-zoom arrives as a wheel event with ctrlKey set (the
+      // browser's convention). Routing it through the scroll seam would make a
+      // pinch enter tmux copy-mode and strand the pane — the desktop analogue
+      // of the mobile pinch-freeze. Swallow it here: neither scroll nor let the
+      // browser zoom the whole page. Font size is changed through the explicit
+      // stepper / touch pinch, never through a ctrl+wheel gesture.
+      if (event.ctrlKey) {
+        accumulator.reset();
+        event.preventDefault();
+        return false;
+      }
       if (scrollTransportFor(term) !== "server-scroll") {
         // Someone else owns the wheel this frame. Drop the partial line so a
         // later gesture does not inherit a remainder from a different owner.

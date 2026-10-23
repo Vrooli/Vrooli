@@ -1156,6 +1156,7 @@
     "linesSuffix": "{{count}} lines",
     "loadingFile": "Loading file...",
     "loadingPreview": "Loading file preview…",
+    "openImage": "Open image full view",
     "mediaLoadError": "This file could not be loaded in the browser.",
     "openInNewTab": "Open in new tab",
     "pdfFallback": "Your browser can't display this PDF inline.",
@@ -1255,9 +1256,11 @@
     },
     "echo": {
       "label": "Sent message",
-      "sending": "sending…",
-      "unsubmitted": "typed into terminal, not submitted",
-      "notSeen": "sent · not seen on screen",
+      "staged": "typed into terminal, not submitted",
+      "submitted": "submitted · waiting for the agent to record it",
+      "queued": "queued behind the current turn",
+      "attachments": "+{{count}} attachments",
+      "attachments_one": "+{{count}} attachment",
       "pressEnter": "Press Enter ↵",
       "openTerminal": "Open terminal"
     }
@@ -1300,6 +1303,8 @@
     "expandComposerTitle": "Expand composer",
     "placeholder": "Type command…",
     "sendTitle": "Send command",
+    "submitPendingTitle": "Submit — press Enter in the terminal",
+    "enterTitle": "Press Enter in the terminal",
     "showUnsentTitle": "Show unsent input details",
     "statusFailed": "Send failed — retry",
     "statusQueued": "Queued — connection lost. Input preserved.",
@@ -1500,6 +1505,11 @@
         "description": "Subscription identity, credits, and private provider keys.",
         "label": "Account",
         "shortLabel": "Account"
+      },
+      "devices": {
+        "description": "Computers you can run terminals on, and the screens this console is open from.",
+        "label": "Devices",
+        "shortLabel": "Devices"
       },
       "integrations": {
         "description": "Connected services and provider configuration.",
@@ -2077,7 +2087,9 @@
     "inputRejected": "That input was rejected — it never reached the terminal.",
     "uploadingImage": "Uploading image…",
     "noScrollbackHint": "Terminal history is limited",
-    "noScrollbackViewMessages": "Full history in Messages"
+    "noScrollbackViewMessages": "Full history in Messages",
+    "returnToLiveLabel": "Scrolled back",
+    "returnToLiveAction": "Jump to live"
   },
   "undo": {
     "dismiss": "Dismiss",
@@ -2153,7 +2165,11 @@
     "smaller": "Smaller text",
     "larger": "Larger text",
     "back": "Back to messages",
-    "nextReplyNew": "Next reply ({{count}} new)"
+    "nextReplyNew": "Next reply ({{count}} new)",
+    "pendingStaged": "A message is staged in the terminal, not submitted.",
+    "pendingSubmitted": "Submitted — waiting for the agent to record it.",
+    "pendingQueued": "Queued behind the current turn.",
+    "pendingPressEnter": "Press Enter ↵"
   },
   "inspectionPreview": {
     "controls": "Source controls",

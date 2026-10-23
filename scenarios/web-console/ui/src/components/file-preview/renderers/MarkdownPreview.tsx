@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useResizeObserver } from "@vrooli/react-component-library/useResizeObserver";
 import { BookOpen, ChevronLeft, ChevronRight, Code2, Copy, List, Search, Settings2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -9,18 +9,28 @@ import { looksLikeFileReference } from "../../../lib/fileReferences";
 import { formatBytes } from "../format";
 import { useMarkdownReader } from "../useMarkdownReader";
 import { usePreviewClipboard } from "../usePreviewClipboard";
+import { useMessagesViewStore } from "../../../stores/useMessagesViewStore";
+import { useMessagesTypographyPinch, clampMessagesFont } from "../../../hooks/useMessagesTypographyPinch";
 import type { PreviewRendererProps } from "../types";
 import { ArtifactFooter, ArtifactFrame, PreviewButton, PreviewToolbar, previewSelectClass, previewTextButtonClass } from "./ArtifactChrome";
 import { CodeLinePreview } from "./TextRenderers";
 import { PreviewNotice } from "./shared";
 
 export function MarkdownPreview(props: PreviewRendererProps) { return <MarkdownReader key={props.model.previewId} {...props} />; }
-function MarkdownReader({ model, text, onNavigate }: PreviewRendererProps) {
+function MarkdownReader({ model, text, onNavigate, imageSessionId }: PreviewRendererProps) {
   const { t } = useTranslation(), c = strings.readerPreview;
   const content = text?.content ?? "";
   const [source, setSource] = useState(!!model.line), [outline, setOutline] = useState(false), [search, setSearch] = useState(false);
-  const [query, setQuery] = useState(""), [font, setFont] = useState(16);
-  const input = useRef<HTMLInputElement>(null), frame = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState("");
+  // One reading size shared with the Messages view, so a size chosen there (or
+  // by pinch here) carries across both. Pinch previews the size live and only
+  // commits the final value to the shared store on release.
+  const font = clampMessagesFont(useMessagesViewStore((state) => state.messagesFontSize));
+  const setFont = useMessagesViewStore((state) => state.setMessagesFontSize);
+  const input = useRef<HTMLInputElement>(null), frame = useRef<HTMLDivElement>(null), readingPane = useRef<HTMLDivElement>(null);
+  const pinchFont = useMessagesTypographyPinch(readingPane, font, setFont);
+  const displayFont = pinchFont ?? font;
+  const imageBasePath = useMemo(() => model.resolvedPath.slice(0, model.resolvedPath.lastIndexOf("/") + 1), [model.resolvedPath]);
   const [pendingHeading, setPendingHeading] = useState<string | null>(null);
   const { ref, rect } = useResizeObserver<HTMLDivElement>();
   const wide = (rect?.width ?? 0) >= 760;
@@ -81,9 +91,9 @@ function MarkdownReader({ model, text, onNavigate }: PreviewRendererProps) {
       {text?.truncated && <PreviewNotice message={t(strings.messagesFileViewer.truncatedNotice)} tone="info" />}
       {source ? <div className="min-h-0 flex-1"><CodeLinePreview content={content} path={model.resolvedPath} highlightLine={model.line ?? null} truncated={text?.truncated} /></div> : <div className="flex min-h-0 flex-1">
         {outline && <aside className={wide ? "flex w-52 shrink-0 flex-col border-e border-wc-default" : "flex min-w-0 flex-1 flex-col"}>{contents}</aside>}
-        <div className={`min-h-0 min-w-0 flex-1 overflow-auto ${outline && !wide ? "hidden" : ""}`} data-testid={selectors.readerPreview.readingPane}>
-          <div ref={reader.articleRef} className="wc-markdown-reader mx-auto max-w-[72ch] px-4 py-5 sm:px-6" style={{ fontSize: font }}>
-            {content.trim() ? <MarkdownRenderer content={content} onLinkClick={link} onFileReferenceClick={navigate} /> : <p data-testid="file-preview-empty" className="text-sm text-wc-text-muted">{t(strings.messagesFileViewer.emptyFile)}</p>}
+        <div ref={readingPane} className={`min-h-0 min-w-0 flex-1 overflow-auto ${outline && !wide ? "hidden" : ""}`} data-testid={selectors.readerPreview.readingPane}>
+          <div ref={reader.articleRef} className="wc-markdown-reader mx-auto max-w-[72ch] px-4 py-5 sm:px-6" style={{ fontSize: displayFont }}>
+            {content.trim() ? <MarkdownRenderer content={content} onLinkClick={link} onFileReferenceClick={navigate} imageSessionId={imageSessionId} imageBasePath={imageBasePath} progressive /> : <p data-testid="file-preview-empty" className="text-sm text-wc-text-muted">{t(strings.messagesFileViewer.emptyFile)}</p>}
           </div>
         </div>
       </div>}

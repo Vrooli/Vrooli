@@ -441,3 +441,60 @@ func mustMkdir(t *testing.T, path string) {
 		t.Fatalf("mkdir: %v", err)
 	}
 }
+
+func TestResolveDetailedAmbiguousReportsAllCandidates(t *testing.T) {
+	root := t.TempDir()
+	cwd := t.TempDir()
+	mustWrite(t, filepath.Join(root, "shared.txt"), "root")
+	mustWrite(t, filepath.Join(cwd, "shared.txt"), "cwd")
+
+	res, err := newResolver(root).ResolveDetailed(cwd, nil, "shared.txt")
+	if err != nil {
+		t.Fatalf("resolve detailed: %v", err)
+	}
+	if res.Unresolved {
+		t.Fatalf("unexpected unresolved")
+	}
+	if len(res.Candidates) != 2 {
+		t.Fatalf("candidates=%d want 2", len(res.Candidates))
+	}
+	if res.Candidates[0].ResolutionBasis != "session_cwd" || res.Candidates[1].ResolutionBasis != "project_root" {
+		t.Fatalf("bases=%q,%q", res.Candidates[0].ResolutionBasis, res.Candidates[1].ResolutionBasis)
+	}
+	if res.Selected == nil || res.Selected.ResolutionBasis != "session_cwd" {
+		t.Fatalf("selected basis mismatch: %+v", res.Selected)
+	}
+}
+
+func TestResolveDetailedUnresolvedRelativeOffersSearchBases(t *testing.T) {
+	root := t.TempDir()
+	cwd := t.TempDir()
+
+	res, err := newResolver(root).ResolveDetailed(cwd, nil, "missing/nope.txt")
+	if err != nil {
+		t.Fatalf("resolve detailed: %v", err)
+	}
+	if !res.Unresolved {
+		t.Fatalf("want unresolved")
+	}
+	if len(res.SearchBases) != 2 {
+		t.Fatalf("search bases=%d want 2", len(res.SearchBases))
+	}
+	bases := map[string]string{}
+	for _, b := range res.SearchBases {
+		bases[b.ResolutionBasis] = b.ResolvedPath
+		if b.Kind != KindDirectory || !b.CanPreview {
+			t.Fatalf("base %q kind=%q canPreview=%v", b.ResolutionBasis, b.Kind, b.CanPreview)
+		}
+	}
+	if bases["session_cwd"] != cwd || bases["project_root"] != root {
+		t.Fatalf("bases=%v", bases)
+	}
+}
+
+func TestResolveDetailedAbsoluteMissStillErrors(t *testing.T) {
+	root := t.TempDir()
+	if _, err := newResolver(root).ResolveDetailed("", nil, filepath.Join(root, "nope.txt")); err == nil {
+		t.Fatalf("want error for absolute miss")
+	}
+}

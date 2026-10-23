@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone, CircleUserRound, ShieldCheck } from "lucide-react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
@@ -49,9 +49,6 @@ interface FloatingToolbarProps {
   /** Bottom of reserved navigation chrome, in viewport coordinates. */
   topInset?: number;
   onOpenSettings: () => void;
-  onOpenAccount: () => void;
-  /** Opens the machines surface, which owns linking a computer and its permissions. */
-  onOpenMachines: () => void;
   /** Opens the approvals inbox (the desktop persistent entry). */
   onOpenApprovals?: () => void;
   /** Count of pending approvals; drives the inbox button's badge. 0 hides it. */
@@ -103,8 +100,6 @@ interface FloatingToolbarProps {
 export default function FloatingToolbar({
   topInset = 48,
   onOpenSettings,
-  onOpenAccount,
-  onOpenMachines,
   onOpenApprovals,
   approvalsPendingCount = 0,
   onOpenAi,
@@ -287,18 +282,6 @@ export default function FloatingToolbar({
       aria-hidden={!!docked}
     >
       <Button
-        data-testid="toolbar-account"
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 md:h-8 md:w-8"
-        onClick={onOpenAccount}
-        title={t(strings.settings.tabs.account.label)}
-        aria-label={t(strings.settings.tabs.account.label)}
-        tabIndex={docked ? -1 : undefined}
-      >
-        <CircleUserRound className="h-4 w-4" />
-      </Button>
-      <Button
         data-testid="toolbar-settings"
         variant="ghost"
         size="icon"
@@ -308,21 +291,6 @@ export default function FloatingToolbar({
         tabIndex={docked ? -1 : undefined}
       >
         <Settings className="h-4 w-4" />
-      </Button>
-      {/* Machines sit in the persistent control cluster rather than inside the
-          launcher, because linking a computer is something the installation
-          owns — not a step in starting one terminal. */}
-      <Button
-        data-testid="toolbar-machines"
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 md:h-8 md:w-8"
-        onClick={onOpenMachines}
-        aria-label={t(strings.fleet.openAriaLabel)}
-        title={t(strings.fleet.openAriaLabel)}
-        tabIndex={docked ? -1 : undefined}
-      >
-        <MonitorSmartphone className="h-4 w-4" />
       </Button>
       {/* Approvals inbox — the desktop persistent entry. It is the one toolbar
           control that stays keyboard-reachable even while the bar is docked
@@ -336,7 +304,7 @@ export default function FloatingToolbar({
             data-testid="toolbar-approvals"
             variant="ghost"
             size="icon"
-            className="h-11 w-11 md:h-8 md:w-8"
+            className={`h-11 w-11 md:h-8 md:w-8 ${approvalsPendingCount > 0 ? "text-wc-accent" : "text-wc-text-muted"}`}
             onClick={onOpenApprovals}
             aria-label={approvalsPendingCount > 0 ? t(strings.approvals.badgeAria, { count: approvalsPendingCount }) : t(strings.approvals.toolbarTitle)}
             title={t(strings.approvals.toolbarTitle)}

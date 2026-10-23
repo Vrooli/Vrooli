@@ -44,6 +44,23 @@ func (h *handlers) resolve(ctx cliapp.RunContext) error {
 	}
 
 	m := resp.Msg
+	// A relative path that matched nowhere is reported with the directories the
+	// server tried, so an operator can see where to look rather than a bare miss.
+	if m.GetUnresolved() {
+		rows := []string{fmt.Sprintf("input:      %s", m.GetInputPath()), "resolved:   (not found)"}
+		for _, b := range m.GetSearchBases() {
+			rows = append(rows, fmt.Sprintf("search:     %s (%s)", b.GetResolvedPath(), b.GetResolutionBasis()))
+		}
+		report := cliapp.ListReport{
+			Summary:        []string{"Unresolved relative path"},
+			ResultsHeading: "Searched",
+			Results:        rows,
+		}
+		if ctx.JSON() {
+			return cliapp.PrintReportJSON(ctx.Stdout(), report)
+		}
+		return cliapp.RenderListReport(ctx.Stdout(), report)
+	}
 	rows := []string{
 		fmt.Sprintf("input:      %s", m.GetInputPath()),
 		fmt.Sprintf("resolved:   %s", m.GetResolvedPath()),

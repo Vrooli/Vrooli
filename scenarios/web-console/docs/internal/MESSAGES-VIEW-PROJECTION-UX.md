@@ -107,16 +107,21 @@ On touch the reader takes focus itself, so opening it never raises the keyboard;
 
 ## Echo rows and history
 
-Send types the draft verbatim and never presses Enter. After a send is acknowledged, Messages shows a dimmed echo row for it:
+Send types the draft verbatim and never presses Enter. For a coding agent that leaves two stages — the draft lands in the agent's input, and a second Enter submits it — so an acknowledged send becomes an **outbox entry** whose state is read from authoritative signals, not guessed from the terminal screen:
 
-| Condition | Label |
-|---|---|
-| Just acknowledged | "sending…" |
-| Text still visible on the terminal screen (a line the terminal soft-wrapped counts), no matching user event | "typed into terminal, not submitted", with "Press Enter ↵" and "Open terminal" |
-| Matching user event arrives (normalised text, same session, 60 s) | The echo is replaced by the real row |
-| Neither within 60 s | "sent · not seen on screen" |
+| State | Meaning | Label |
+|---|---|---|
+| `staged` | Acknowledged and sitting in the agent's input, unsubmitted | "typed into terminal, not submitted", with "Press Enter ↵" and "Open terminal" |
+| `submitted` | The user pressed Enter, or the agent was observed to start working after the send was staged | "submitted · waiting for the agent to record it" |
+| `queued` | Submitted while the agent was already working, so it waits behind the current turn | "queued behind the current turn" |
 
-Echo rows are transient and local; they are never persisted or merged into events. The pane no longer flips to the terminal after a send. A long-press on Send offers "Send and press Enter" as an explicit secondary action. The composer shows a session state chip that never disables Send. History keeps the last 50 sends per device (localStorage) with Insert and Resend, reachable from the toolbar and the expanded composer.
+Transitions are driven by the send acknowledgement (→ `staged`), the user pressing Enter (→ `submitted`/`queued`, decided by the current `useSessionActivityStore` state), the activity stream reporting the agent began working after the send (→ `submitted`, so a submit made outside the console still clears "Press Enter"), and the harness recording the matching user turn (the entry is removed). An entry that is never recorded expires after five minutes.
+
+**Coalescing:** one input box holds one unsubmitted message, so consecutive `staged` sends fold into a single entry (joined by newline), never two rows for two line-sends.
+
+**Attachments:** the entry stores the user's text and the full payload (resolved paths) separately, and the harness match aligns on either — so a send the agent renders as a chip ("[Image #1]", "+1 attachment") still clears instead of stranding a phantom "Press Enter". The entry also shows a "+N attachment" hint.
+
+Echo rows are transient and local; they are never persisted or merged into events. The pane no longer flips to the terminal after a send. The Send button reflects what a press will do — **send** when there is text, **submit** (an Enter glyph) when the box is empty and a staged send is waiting, a muted **enter** otherwise — and a long-press (toolbar) or a dedicated button (full-screen composer) offers "Send and press Enter". The expanded reader carries the same pending pill so a staged send stays submittable without leaving the reply. The composer shows a session state chip that never disables Send. History keeps the last 50 sends per device (localStorage) with Insert and Resend, reachable from the toolbar and the expanded composer.
 
 In Messages the composer bar shows on every device, not only on touch: it is the one composer, with the same draft as the expanded composer. On a desktop it takes the focus the terminal would take, dictation lands in it for review, and a send keeps focus in it. "Send to composer" inserts the message into the bar and focuses it (inside the tap, so a phone's keyboard rises); the expanded composer opens only where the bar is not on screen.
 
@@ -159,13 +164,13 @@ Playback is one floating pill over the list that takes no layout height. Collaps
 - **D8 — Actions hidden at rest:** Hover or focus reveals up to three inline actions on fine pointers; long-press opens a sheet on coarse pointers; hit targets stay 44 px.
 - **D9 — Send never presses Enter:** Enter stays a separate, visible action; no setting changes the default.
 - **D10 — Sends are never blocked and never routed:** The composer labels state and outcome; it does not gate or redirect bytes.
-- **D11 — Echo rows are transient and local:** They resolve against the harness's own user event by normalised text within 60 s.
+- **D11 — Echo rows are an authoritative, transient outbox:** State comes from the send acknowledgement, the session activity stream, and the user's own Enter — not from matching the terminal screen. They resolve against the harness's own user event (text or payload, same session, within the match window) or expire. They are never persisted or merged into events.
 - **D12 — No post-send view flip.**
 - **D13 — History is per device:** 50 entries in localStorage, no server sync.
 - **D14 — One search path on FTS5:** Bounded server-side regex over FTS candidates.
 - **D15 — Playback is a floating pill that stops when dismissed.**
 - **D16 — Transport by events, not polling.**
-- **D17 — Prompt detection is server-side.** The client's xterm buffer is read only for the echo row's "still on screen" check.
+- **D17 — Prompt and activity detection are server-side.** The console consumes the session activity stream (`working`/`idle`/`waiting`) rather than reading the client's xterm buffer; the old screen-scrape "still on screen" check for echo rows has been removed.
 - **D18 — Activity is pushed on the existing SSE hub** as kind `session_activity`.
 - **D19 — Pill, reader, and state slot are scenario-local;** recorded in `docs/reference/component-library-gaps.md`.
 - **D20 — The prior plan `web-console-messages-view-open-reliably-at-thousands-of` is superseded.**

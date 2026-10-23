@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
 import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties } from "react";
-import { Loader2, Maximize2, SendHorizontal, Square } from "lucide-react";
+import { CornerDownLeft, Loader2, Maximize2, SendHorizontal, Square } from "lucide-react";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { usePressGesture } from "../hooks/usePressGesture";
@@ -14,6 +14,7 @@ import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useConversationStore } from "../stores/useConversationStore";
+import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import { ComposerStateChip } from "./toolbar/ComposerStateChip";
 import { SentHistorySheet } from "./composer/SentHistorySheet";
 import { useCommandHistory } from "../hooks/useCommandHistory";
@@ -254,6 +255,22 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerGroupRef = useRef<HTMLDivElement>(null);
 
+  // Whether the input is empty flips rarely — only at the first and last
+  // character — so mirroring just that one boolean into state lets the Send
+  // button change what it shows without reinstating the per-keystroke re-render
+  // the uncontrolled textarea exists to avoid (setState bails on an equal bool).
+  const [draftEmpty, setDraftEmpty] = useState(() => draft.getValue().length === 0);
+  useEffect(() => {
+    setDraftEmpty(draft.getValue().length === 0);
+    return draft.subscribe((change) => { setDraftEmpty(change.value.length === 0); });
+  }, [draft]);
+  // A staged (typed-but-unsubmitted) send is what an empty-box press submits;
+  // the button says so. Re-renders only when this boolean flips.
+  const hasStagedSend = useConversationStore((state) => {
+    const list = activeSessionId ? state.echoes[activeSessionId] : undefined;
+    return list != null && list.length > 0 && list[list.length - 1]?.state === "staged";
+  });
+
   // The textarea is UNCONTROLLED: the DOM owns the live value and the shared
   // draft mirrors it. Typing therefore never calls setState, so a keystroke
   // doesn't re-render the toolbar — that controlled round-trip was the main
@@ -433,7 +450,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     const fromDraft = resendText === undefined;
     const draftText = resendText ?? draft.getValue();
     if (draftText.length === 0) {
+      // Empty box: a press is an Enter. If a staged send is sitting in the
+      // terminal, submit it (queued when the agent is already working).
+      const sentFrom = draft.getSessionId();
       onInput(ENTER_KEY.input, "typing");
+      if (sentFrom) {
+        const agentBusy = useSessionActivityStore.getState().activities[sentFrom]?.state === "working";
+        useConversationStore.getState().markSubmitted(sentFrom, { agentBusy });
+      }
       onFocusTerminal?.();
       return;
     }
@@ -503,7 +527,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // Messages shows the send until the harness records it, and this device
       // keeps it in history. A modifier combo is a keystroke, not a message.
       if (!hasModifier) {
-        if (sentFrom) useConversationStore.getState().addEcho(sentFrom, draftText);
+        if (sentFrom) {
+          const agentBusy = useSessionActivityStore.getState().activities[sentFrom]?.state === "working";
+          // Send-and-Enter submits immediately; a plain send stays staged.
+          useConversationStore.getState().addEcho(sentFrom, { text: draftText, submitted: pressEnter, agentBusy });
+        }
         pushHistory(draftText);
       }
     };
@@ -677,6 +705,24 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     [activeSessionId],
   );
   if (!visible) return null;
+
+  // What a Send press will do right now, so the button can show it rather than
+  // leaving the two-stage "tap to type, tap to submit" behaviour invisible.
+  //   send   — there is text; it goes to the terminal.
+  //   submit — the box is empty and a staged send is waiting; Enter submits it.
+  //   enter  — the box is empty with nothing staged; Enter still fires, muted.
+  const sendMode: "voice" | "sending" | "send" | "submit" | "enter" =
+    liveAgent ? "voice"
+      : sendStatus === "sending" ? "sending"
+        : !draftEmpty ? "send"
+          : hasStagedSend ? "submit"
+            : "enter";
+  const sendLabel =
+    sendMode === "voice" ? t(strings.agentVoice.end)
+      : sendMode === "sending" ? t(strings.mobileToolbar.statusSending)
+        : sendMode === "submit" ? t(strings.mobileToolbar.submitPendingTitle)
+          : sendMode === "enter" ? t(strings.mobileToolbar.enterTitle)
+            : t(strings.mobileToolbar.sendTitle);
 
   return (
     <div
@@ -883,12 +929,17 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 ref={sendButtonRef}
                 type="button"
                 data-testid="mobile-command-submit"
-                aria-label={liveAgent ? t(strings.agentVoice.end) : sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
-                title={liveAgent ? t(strings.agentVoice.end) : sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                data-send-mode={sendMode}
+                aria-label={sendLabel}
+                title={sendLabel}
                 tabIndex={-1}
                 shape="circle"
                 surface="solid"
                 size="sm"
+                // Muted only in "enter": the box is empty and nothing is known
+                // to be staged, so a press still fires Enter but makes no claim
+                // that there is a message to submit.
+                className={cn(sendMode === "enter" && "opacity-60")}
                 onPointerDown={(e) => {
                   e.preventDefault();
                   if (!liveAgent) sendGesture.onPointerDown(e);
@@ -901,11 +952,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                     rather than a label below the textarea — the label changed
                     the toolbar's height on every send, forcing a costly
                     terminal resize/reflow. */}
-                {liveAgent ? <Square aria-hidden className="h-4 w-4" /> : sendStatus === "sending" ? (
-                  <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
-                ) : (
-                  <SendHorizontal aria-hidden className="h-4 w-4" />
-                )}
+                {sendMode === "voice" ? <Square aria-hidden className="h-4 w-4" />
+                  : sendMode === "sending" ? <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
+                    : sendMode === "send" ? <SendHorizontal aria-hidden className="h-4 w-4" />
+                      : <CornerDownLeft data-testid="send-mode-enter" aria-hidden className="h-4 w-4" />}
               </IconButton>
             </InputGroup.Action>
           </InputGroup>

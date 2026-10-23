@@ -24,10 +24,13 @@ import (
 // preferences (see scenarios/web-console/.vrooli/notifications.json) — no
 // per-scenario code in the hub.
 //
-// Only two transitions notify, both reliable signals the activity detector
-// already derives (session/activity.go): a session becoming "waiting" (a
-// permission prompt / question is up) and a working-or-waiting session going
-// "idle" (a turn ended). Per-message chatter is deliberately NOT a producer.
+// Only reliable signals the activity detector already derives notify
+// (session/activity.go): a session becoming "waiting" and a working-or-waiting
+// session going "idle" (a turn ended). A "waiting" transition splits by prompt
+// kind — a resumable provider interruption (the agent was stopped by a
+// retryable condition such as model-at-capacity) notifies as "agent
+// interrupted", everything else as "input needed". Per-message chatter is
+// deliberately NOT a producer.
 //
 // Two guards keep this from spamming the operator (the detector is noisy — it
 // reads a session as "idle" after ~1.5s of quiet, so an agent that pauses
@@ -57,8 +60,16 @@ const (
 	// Notification categories. These MUST match the category keys declared in
 	// scenarios/web-console/.vrooli/notifications.json so the operator's
 	// catalog preferences apply.
-	categoryInputNeeded   = "session.input_needed"
-	categoryTurnCompleted = "session.turn_completed"
+	categoryInputNeeded      = "session.input_needed"
+	categoryTurnCompleted    = "session.turn_completed"
+	categoryAgentInterrupted = "session.agent_interrupted"
+
+	// promptKindResumableInterruption is the prompt kind the activity detector
+	// (session/activity.go) stamps on a session that a provider condition
+	// stopped — model-at-capacity and similar retryable failures. It is a
+	// stalled-agent signal, not an operator question, so it notifies under its
+	// own category.
+	promptKindResumableInterruption = "resumable_interruption"
 
 	// Settle windows a transition must persist before it notifies. A prompt the
 	// operator clears within inputNeededDwell, or a turn-end that the agent
@@ -198,6 +209,23 @@ func (n *sessionNotifier) observe(sessionID string, a session.Activity) {
 func decideNotice(sessionID string, prev session.ActivityState, a session.Activity) (sessionNotice, bool) {
 	switch a.State {
 	case session.ActivityWaiting:
+		// A resumable provider interruption (model at capacity and similar
+		// retryable conditions) reaches "waiting" the same way an operator
+		// question does, but it is not a question — the agent was stopped and
+		// needs a recovery command. Messages already renders it as its own
+		// "temporarily unavailable" card; give the operator notification a
+		// matching category and title so a stalled agent reads differently from
+		// "the agent is asking you something".
+		if a.Prompt != nil && a.Prompt.Kind == promptKindResumableInterruption {
+			return sessionNotice{
+				SessionID: sessionID,
+				Category:  categoryAgentInterrupted,
+				Urgency:   "high",
+				Title:     "Agent interrupted — needs recovery",
+				Body:      interruptedBody(a),
+				DedupeKey: sessionID + ":interrupted:" + backend.PromptHash(a.Prompt),
+			}, true
+		}
 		dedupe := sessionID + ":input_needed"
 		if a.Prompt != nil {
 			dedupe += ":" + backend.PromptHash(a.Prompt)
@@ -271,6 +299,24 @@ func inputNeededBody(a session.Activity) string {
 		}
 	}
 	return "An agent session is waiting for your response."
+}
+
+// interruptedBody names the retryable condition that stopped the agent and
+// points the operator at the recovery controls. It prefers the detector's
+// interruption message (for example "selected model is at capacity").
+func interruptedBody(a session.Activity) string {
+	reason := ""
+	if a.Prompt != nil {
+		reason = strings.TrimSpace(a.Prompt.Text)
+	}
+	if reason == "" {
+		return "The agent was stopped by a temporary provider condition. Open the session to continue or resume the goal."
+	}
+	const max = 180
+	if len(reason) > max {
+		reason = reason[:max] + "…"
+	}
+	return "The agent was interrupted: " + reason + ". Open the session to continue or resume the goal."
 }
 
 // deliver resolves the session deep link and publishes the notification event.

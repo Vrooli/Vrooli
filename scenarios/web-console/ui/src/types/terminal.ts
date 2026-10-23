@@ -33,6 +33,7 @@ export interface TerminalMessage {
     | "echo_state"
     | "mouse_mode"
     | "scroll"
+    | "return_to_live"
     | "presence"
     | "device_state";
 

@@ -35,7 +35,6 @@ vi.mock("../hooks/useLongPress", () => ({
 
 describe("FloatingToolbar", () => {
   const onOpenSettings = vi.fn();
-  const onOpenAccount = vi.fn();
   const onOpenAi = vi.fn();
   const onNewTerminal = vi.fn();
   const onOpenLauncher = vi.fn();
@@ -46,14 +45,11 @@ describe("FloatingToolbar", () => {
   });
 
   const onExpandComposer = vi.fn();
-  const onOpenMachines = vi.fn();
 
   function renderToolbar(isCreating = false) {
     return render(
       <FloatingToolbar
         onOpenSettings={onOpenSettings}
-        onOpenAccount={onOpenAccount}
-        onOpenMachines={onOpenMachines}
         onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
@@ -67,7 +63,6 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     expect(screen.getByTestId("floating-toolbar")).toBeTruthy();
     expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
-    expect(screen.getByTestId("toolbar-account")).toBeTruthy();
     expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
     expect(screen.getByTestId("toolbar-new")).toBeTruthy();
     expect(screen.getByTestId("toolbar-settings")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
@@ -78,12 +73,6 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     fireEvent.click(screen.getByTestId("toolbar-settings"));
     expect(onOpenSettings).toHaveBeenCalledOnce();
-  });
-
-  it("calls onOpenAccount when the profile button is clicked", () => {
-    renderToolbar();
-    fireEvent.click(screen.getByTestId("toolbar-account"));
-    expect(onOpenAccount).toHaveBeenCalledOnce();
   });
 
   it("opens the composer when the expand-composer button is clicked", () => {
@@ -130,28 +119,29 @@ describe("FloatingToolbar", () => {
   });
 });
 
-describe("FloatingToolbar machines control", () => {
-  it("opens the machines surface from the persistent control cluster", () => {
+describe("FloatingToolbar approvals control", () => {
+  it("mutes the approvals shield while idle and accents it when pending", () => {
     const handlers = {
       onOpenSettings: vi.fn(),
-      onOpenAccount: vi.fn(),
-      onOpenMachines: vi.fn(),
+      onOpenApprovals: vi.fn(),
       onOpenAi: vi.fn(),
       onNewTerminal: vi.fn(),
       onOpenLauncher: vi.fn(),
       onExpandComposer: vi.fn(),
     };
-    render(<FloatingToolbar {...handlers} isCreating={false} />);
-    fireEvent.click(screen.getByTestId("toolbar-machines"));
-    expect(handlers.onOpenMachines).toHaveBeenCalledTimes(1);
+    const { rerender } = render(<FloatingToolbar {...handlers} isCreating={false} />);
+    expect(screen.getByTestId("toolbar-approvals")).toHaveClass("text-wc-text-muted");
+    expect(screen.queryByTestId("toolbar-approvals-badge")).toBeNull();
+
+    rerender(<FloatingToolbar {...handlers} isCreating={false} approvalsPendingCount={3} />);
+    expect(screen.getByTestId("toolbar-approvals")).toHaveClass("text-wc-accent");
+    expect(screen.getByTestId("toolbar-approvals-badge").textContent).toBe("3");
   });
 });
 
 describe("FloatingToolbar trimming", () => {
   const handlers = {
     onOpenSettings: vi.fn(),
-    onOpenAccount: vi.fn(),
-    onOpenMachines: vi.fn(),
     onOpenAi: vi.fn(),
     onNewTerminal: vi.fn(),
     onOpenLauncher: vi.fn(),
@@ -173,7 +163,6 @@ describe("FloatingToolbar trimming", () => {
     expect(screen.queryByTestId("toolbar-new")).toBeNull();
     // The global controls are the remainder and must survive the trim.
     expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
-    expect(screen.getByTestId("toolbar-machines")).toBeTruthy();
   });
 
   it("drops composer actions when the composer bar already shows them", () => {

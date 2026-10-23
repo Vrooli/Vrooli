@@ -305,7 +305,27 @@ func resolveToProto(res ResolveResult) *filepreviewv1.ResolveResponse {
 		BlobUrl:              res.BlobURL,
 		ExpiresUnixNano:      res.ExpiresUnixNano,
 		Warnings:             append([]string(nil), res.Warnings...),
+		Candidates:           candidatesToProto(res.Candidates),
+		Unresolved:           res.Unresolved,
+		SearchBases:          candidatesToProto(res.SearchBases),
 	}
+}
+
+func candidatesToProto(in []ResolveCandidate) []*filepreviewv1.ResolveCandidate {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*filepreviewv1.ResolveCandidate, 0, len(in))
+	for _, c := range in {
+		out = append(out, &filepreviewv1.ResolveCandidate{
+			ResolvedPath:    c.ResolvedPath,
+			ResolutionBasis: c.ResolutionBasis,
+			PreviewKind:     kindToProto(c.Kind),
+			CanPreview:      c.CanPreview,
+			Basename:        c.Basename,
+		})
+	}
+	return out
 }
 
 func (h *connectHandler) ListArchive(ctx context.Context, req *connect.Request[filepreviewv1.ListArchiveRequest]) (*connect.Response[filepreviewv1.ListArchiveResponse], error) {

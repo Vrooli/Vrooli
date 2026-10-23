@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -213,6 +214,37 @@ func TestObserveInputNeededUsesPromptText(t *testing.T) {
 	}
 	if notice.DedupeKey == "sess-1:input_needed" {
 		t.Fatalf("expected prompt hash in dedupe key, got %q", notice.DedupeKey)
+	}
+}
+
+func TestObserveResumableInterruptionNotifiesItsOwnCategory(t *testing.T) {
+	// A model-at-capacity stall reaches "waiting" with a resumable_interruption
+	// prompt (session/activity.go). It must notify as "agent interrupted", not
+	// as a generic "input needed" question, so the operator can tell a stalled
+	// agent apart from one asking them something.
+	prompt := &backend.PendingPrompt{Kind: "resumable_interruption", Text: "selected model is at capacity"}
+	notice, ok := decideNotice("sess-1", session.ActivityWorking, session.Activity{State: session.ActivityWaiting, Prompt: prompt})
+	if !ok {
+		t.Fatalf("expected a notice for a resumable interruption")
+	}
+	if notice.Category != categoryAgentInterrupted {
+		t.Fatalf("category = %q, want %q", notice.Category, categoryAgentInterrupted)
+	}
+	if notice.Urgency != "high" {
+		t.Fatalf("a stalled agent must be high urgency, got %q", notice.Urgency)
+	}
+	if !strings.Contains(notice.Body, "selected model is at capacity") {
+		t.Fatalf("body should carry the interruption reason, got %q", notice.Body)
+	}
+	if !strings.HasPrefix(notice.DedupeKey, "sess-1:interrupted:") {
+		t.Fatalf("dedupe key should be the interrupted shape, got %q", notice.DedupeKey)
+	}
+
+	// A real operator question at the same state stays "input needed".
+	q := &backend.PendingPrompt{Kind: "permission", Text: "Allow?"}
+	other, _ := decideNotice("sess-1", session.ActivityWorking, session.Activity{State: session.ActivityWaiting, Prompt: q})
+	if other.Category != categoryInputNeeded {
+		t.Fatalf("a non-interruption prompt must stay %q, got %q", categoryInputNeeded, other.Category)
 	}
 }
 

@@ -184,6 +184,21 @@ func (s *Server) dispatchInputMessage(
 		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
 			Type: wireproto.MsgTypeScroll, Lines: msg.Lines, Ok: true,
 		})
+	case wireproto.MsgTypeReturnToLive:
+		// Explicit view recovery: cancel any tmux mode (copy-mode) the pane is
+		// stranded in and return it to the live program, without delivering a
+		// keystroke. Like `scroll` it is best-effort and carries no offset. It
+		// is idempotent on the backend, so it is not lease-gated — any viewer
+		// of a pane wedged in copy-mode must be able to free it.
+		if err := sess.ReturnToLive(); err != nil {
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+				Type: wireproto.MsgTypeReturnToLive, Data: "unsupported", Reason: err.Error(),
+			})
+			break
+		}
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+			Type: wireproto.MsgTypeReturnToLive, Ok: true,
+		})
 	case wireproto.MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {
 			sess.DeclareSize(client, uint16(msg.Cols), uint16(msg.Rows))

@@ -80,6 +80,10 @@ export default function WorkspaceFilePreview({
     onNavigateBack: controller.navigateBack,
     onLoadMore: controller.loadMore,
     onListOptionsChange: controller.setListOptions,
+    onChooseCandidate: controller.chooseCandidate,
+    onOpenFoundMatch: controller.openFoundMatch,
+    onCancelSearch: controller.cancelSearch,
+    imageSessionId: sessionId,
   };
 
   if (mobile) return <MessagesFileViewer {...viewerProps} />;

@@ -59,6 +59,23 @@ type ResolveResult struct {
 	BlobURL              string
 	ExpiresUnixNano      int64
 	Warnings             []string
+	// Candidates lists every filesystem location the input matched (len > 1
+	// means a relative path is ambiguous across bases). Unresolved is true when
+	// a relative path matched nowhere, in which case SearchBases carries the
+	// directories a client may browse to locate it.
+	Candidates  []ResolveCandidate
+	Unresolved  bool
+	SearchBases []ResolveCandidate
+}
+
+// ResolveCandidate is one match location or one browseable base directory. Kind
+// is the string form of filepreview.Kind.
+type ResolveCandidate struct {
+	ResolvedPath    string
+	ResolutionBasis string
+	Kind            string
+	CanPreview      bool
+	Basename        string
 }
 
 // TextResult is the bounded text-content result.

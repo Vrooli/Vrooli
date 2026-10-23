@@ -725,10 +725,6 @@
       "testId": "openrouter-key-remove",
       "selector": "[data-testid=\"openrouter-key-remove\"]"
     },
-    "settings.accountButton": {
-      "testId": "toolbar-account",
-      "selector": "[data-testid=\"toolbar-account\"]"
-    },
     "settings.tunnelManagerAwareness": {
       "testId": "tunnel-manager-awareness",
       "selector": "[data-testid=\"tunnel-manager-awareness\"]"
@@ -1912,6 +1908,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "7fbb6bcdf526de6533f9d28d47bfb541a053b4fd793c1834696a13ad41fff1f8",
-    "ui/src/consts/selectors.ts": "d6e2cc54625968139e4e3e7632d281de92d5a7a8d4d6f938bf8dfbe191381c67"
+    "ui/src/consts/selectors.ts": "29df6b6f4a27384358df1b6e02ef4a15044d66855b4316b1038cfc6b8de2987b"
   }
 }

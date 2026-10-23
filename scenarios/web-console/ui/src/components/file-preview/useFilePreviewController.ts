@@ -15,7 +15,7 @@ import {
 import { archiveStatusKey } from "./archiveData";
 import { APIError } from "../../lib/errors";
 import { strings } from "../../consts/strings";
-import { IDLE_PREVIEW_STATE, type PreviewFrame, type PreviewState } from "./types";
+import { IDLE_PREVIEW_STATE, type PreviewFrame, type PreviewSearch, type PreviewState } from "./types";
 
 // MAX_STACK_DEPTH bounds the navigation history. A long walk keeps working;
 // the oldest frame is dropped rather than growing without limit.
@@ -69,6 +69,22 @@ export function useFilePreviewController(sessionId: string) {
     [t],
   );
 
+  // probeMatch asks whether `dir` contains the relative path the user is trying
+  // to locate, returning the resolved absolute path when it does. It drives the
+  // "Found <relpath> → Open" affordance as the operator browses folders.
+  const probeMatch = useCallback(
+    async (dir: string, relPath: string): Promise<string | null> => {
+      const joined = `${dir.replace(/\/+$/, "")}/${relPath.replace(/^[.]?\/+/, "")}`;
+      try {
+        const model = await resolveFilePreview(sessionId, joined);
+        return model.unresolved ? null : model.resolvedPath;
+      } catch {
+        return null;
+      }
+    },
+    [sessionId],
+  );
+
   // load resolves `path` and fetches whatever its kind needs. `stack` is the
   // history the new target should sit on top of, so the same routine serves a
   // fresh open (empty stack), a navigation (current frame pushed), and a Back
@@ -81,6 +97,10 @@ export function useFilePreviewController(sessionId: string) {
       listOptions?: { sort: DirectorySort; showHidden: boolean; },
       archiveSource?: ArchiveSource,
       archiveView?: ArchiveView,
+      // When set, the open is part of a "browse to locate a relative path"
+      // session: every directory that lands is probed for relPath and the
+      // search banner stays visible until the file is opened or search cleared.
+      searchCtx?: { relPath: string } | null,
     ) => {
       requestAbortRef.current?.abort();
       const request = new AbortController();
@@ -100,6 +120,27 @@ export function useFilePreviewController(sessionId: string) {
         const model = opened?.target ?? await resolveFilePreview(sessionId, path, source);
         if (reqId !== reqIdRef.current) return;
 
+        // A relative path that matched nowhere: drop into a folder browser
+        // rooted at a base directory (prefer the project root) so the operator
+        // can navigate to where the file actually lives.
+        if (model.unresolved && !searchCtx) {
+          const bases = model.searchBases ?? [];
+          const base = bases.find((b) => b.resolutionBasis === "project_root") ?? bases[0];
+          if (!base) {
+            apply((s) => ({ ...s, status: "error", error: messageFromError(new Error(t(strings.messagesPane.fileOpenFailed))) }));
+            return;
+          }
+          void load(base.resolvedPath, [], undefined, listOptions, undefined, undefined, { relPath: model.inputPath });
+          return;
+        }
+
+        // A relative path that matched more than one base: let the user choose
+        // which location to open rather than silently picking the first.
+        if (!searchCtx && (model.candidates?.length ?? 0) > 1) {
+          apply((s) => ({ ...s, status: "choosing", model, candidates: model.candidates, search: null }));
+          return;
+        }
+
         if (model.kind === "archive") {
           apply(s => ({ ...s, status: "loadingListing", model }));
           const archive = await listArchive(sessionId, model.previewId, request.signal);
@@ -113,7 +154,13 @@ export function useFilePreviewController(sessionId: string) {
           const showHidden = listOptions?.showHidden ?? false;
           const listing = await listDirectory(sessionId, model.previewId, { sort, showHidden });
           if (reqId !== reqIdRef.current) return;
-          apply((s) => ({ ...s, status: "ready", model, listing }));
+          let search: PreviewSearch | null = null;
+          if (searchCtx) {
+            const foundPath = await probeMatch(model.resolvedPath, searchCtx.relPath);
+            if (reqId !== reqIdRef.current) return;
+            search = { relPath: searchCtx.relPath, foundPath };
+          }
+          apply((s) => ({ ...s, status: "ready", model, listing, search }));
           return;
         }
 
@@ -144,7 +191,7 @@ export function useFilePreviewController(sessionId: string) {
         apply((s) => ({ ...s, status: "error", error: messageFromError(err) }));
       }
     },
-    [apply, messageFromError, sessionId, t],
+    [apply, messageFromError, probeMatch, sessionId, t],
   );
 
   // openPreview starts a fresh viewing session from a message link or chip.
@@ -161,10 +208,24 @@ export function useFilePreviewController(sessionId: string) {
       const current = stateRef.current;
       const frame = frameFrom(current);
       const stack = frame ? [...current.stack, frame].slice(-MAX_STACK_DEPTH) : current.stack;
-      void load(path, stack);
+      // Stay in search mode while browsing so each new directory is re-probed.
+      const searchCtx = current.search ? { relPath: current.search.relPath } : null;
+      void load(path, stack, undefined, undefined, undefined, undefined, searchCtx);
     },
     [load],
   );
+
+  // chooseCandidate opens one of the ambiguous matches the picker offered.
+  const chooseCandidate = useCallback((path: string) => { void load(path, []); }, [load]);
+
+  // openFoundMatch opens the file located during a folder-browse search.
+  const openFoundMatch = useCallback(() => {
+    const found = stateRef.current.search?.foundPath;
+    if (found) void load(found, []);
+  }, [load]);
+
+  // cancelSearch keeps the folder browser open but dismisses the locate banner.
+  const cancelSearch = useCallback(() => { apply((s) => ({ ...s, search: null })); }, [apply]);
 
   // navigateBack pops one frame. The restored frame is reused as-is while its
   // preview id is still live; once expired the path is re-resolved so Back
@@ -315,6 +376,9 @@ export function useFilePreviewController(sessionId: string) {
     reopen,
     reportError,
     close,
+    chooseCandidate,
+    openFoundMatch,
+    cancelSearch,
   };
 }
 

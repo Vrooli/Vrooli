@@ -106,6 +106,20 @@ export interface UseTerminalSessionResult {
   setMouseMode: (enabled: boolean) => boolean;
   mouseMode: boolean | null;
   scrollBy: (lines: number, source: "touch" | "wheel" | "programmatic") => void;
+  /**
+   * Cancel a stranded backend copy-mode and return the pane to the live
+   * program without delivering a keystroke. Idempotent and best-effort: safe
+   * to call on a live pane. This is the recovery path for a pane a scroll
+   * gesture parked in copy-mode where typing can no longer reach the shell
+   * (a follower with no lease, or a wedged mobile gesture layer).
+   */
+  returnToLive: () => boolean;
+  /**
+   * True once a back-scroll has been acknowledged and the pane has not since
+   * returned to live (via a keystroke or returnToLive). Drives the visible
+   * "Jump to live" recovery control.
+   */
+  scrolledBack: boolean;
   gate: TerminalInputGate;
   sendResize: (cols: number, rows: number) => void;
 	getServerSize: () => { cols: number; rows: number } | null;
@@ -204,6 +218,10 @@ export function useTerminalSession({
 	const leaseRequestInFlightRef = useRef(false);
   const [serverSize, setServerSize] = useState<{ cols: number; rows: number } | null>(null);
 	const [mouseMode, setMouseMode] = useState<boolean | null>(null);
+	// True while the pane is parked in backend copy-mode (scrolled back). Set
+	// when a back-scroll is acknowledged, cleared when a keystroke lands or the
+	// pane is explicitly returned to live. Drives the recovery pill.
+	const [scrolledBack, setScrolledBack] = useState(false);
 	const [leaseState, setLeaseState] = useState(() => protocolStateRef.current);
 
   const onExitRef = useRef(onExit);
@@ -361,6 +379,14 @@ export function useTerminalSession({
   const sendScrollRef = useRef(sendScroll);
   sendScrollRef.current = sendScroll;
 
+  // Cancel a stranded copy-mode on the backend pane. Best-effort like
+  // `scroll`/`control`: it carries no offset and is never replayed. Idempotent
+  // server-side, so it is always safe to send regardless of the pane's state.
+  const returnToLive = useCallback(
+    (): boolean => transport.sendJson({ type: "return_to_live" }),
+    [transport],
+  );
+
   const scrollControllerRef = useRef<ReturnType<typeof createScrollController> | null>(null);
   if (scrollControllerRef.current === null) {
     scrollControllerRef.current = createScrollController(() => terminalRef.current, sendControl, {
@@ -473,6 +499,9 @@ export function useTerminalSession({
             }
           }
           stdin.acknowledge(msg.accepted_through ?? 0, msg.ok === true, msg.reason);
+          // A keystroke that lands runs exitModeIfAny on the backend before
+          // delivery, so the pane is live again — retire the recovery pill.
+          if (msg.ok === true) setScrolledBack(false);
 		  if (msg.ok) {
 			const active = terminalRef.current?.buffer.active;
 			predictionOverlayRef.current?.retireThrough(
@@ -533,7 +562,20 @@ export function useTerminalSession({
 				// Messages, where the complete history lives.
 				scrollController.notifyScroll();
 				onScrollNoHistoryRef.current?.();
-			} else if (msg.ok === true) scrollController.notifyScroll();
+			} else if (msg.ok === true) {
+				scrollController.notifyScroll();
+				// A back-scroll just landed: the pane is now parked in backend
+				// copy-mode. Surface the recovery pill. Forward scrolls and
+				// non-negative acks leave the flag alone — returning to live is
+				// owned by a keystroke landing or an explicit returnToLive.
+				if (typeof msg.lines === "number" && msg.lines < 0) setScrolledBack(true);
+			}
+			break;
+		}
+		case "return_to_live": {
+			// The pane was cancelled out of copy-mode (or was never in it).
+			// Either way it is live now, so retire the recovery pill.
+			if (msg.ok === true) setScrolledBack(false);
 			break;
 		}
         case "stdout": {
@@ -742,6 +784,8 @@ export function useTerminalSession({
     setMouseMode: requestMouseMode,
     mouseMode,
 		scrollBy: guardedScrollBy,
+		returnToLive,
+		scrolledBack,
     gate,
 		sendResize,
 		getServerSize,

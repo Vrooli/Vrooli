@@ -1,6 +1,19 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 export interface ReaderHeading { id: string; label: string; level: number; slug: string }
+
+// The outline is re-derived whenever the article's DOM mutates — which, in a
+// document with many lazily-resolved images, happens repeatedly as each image
+// swaps in. Returning the previous array when nothing changed keeps those
+// mutations from re-rendering the reader chrome on every image load.
+function sameHeadings(a: ReaderHeading[], b: ReaderHeading[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((heading, index) => {
+    const other = b[index];
+    return other !== undefined && heading.id === other.id && heading.label === other.label && heading.level === other.level && heading.slug === other.slug;
+  });
+}
+
 export function useMarkdownReader(content: string, query: string, source: boolean, preserveIds = false) {
   const articleRef = useRef<HTMLDivElement>(null);
   const [headings, setHeadings] = useState<ReaderHeading[]>([]);
@@ -24,7 +37,7 @@ export function useMarkdownReader(content: string, query: string, source: boolea
         element.tabIndex = -1;
         return { id, label, level: Number(element.tagName.slice(1)), slug: `${base}${count ? `-${String(count)}` : ""}` };
       });
-      setHeadings(outline);
+      setHeadings((previous) => sameHeadings(previous, outline) ? previous : outline);
       const ranges: Range[] = [];
       if (query.trim()) {
         const segments: { text: Text; start: number; end: number }[] = [];

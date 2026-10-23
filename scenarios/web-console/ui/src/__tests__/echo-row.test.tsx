@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
 import { i18n } from "../i18n";
-import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
+import { useConversationStore, createConversationSessionState, type OutboxSend } from "../stores/useConversationStore";
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import { useSessionActivityStore } from "../stores/useSessionActivityStore";
+import type { SessionActivityView } from "../api/sessionActivity";
 import type { ConversationEvent } from "../api/conversation";
 
 vi.mock("../hooks/useConversationSession", () => ({
@@ -47,8 +48,13 @@ const props = {
   playbackFocusRequest: null,
 };
 
-function addEcho(text = "run the tests") {
-  act(() => { useConversationStore.getState().addEcho("sess-1", text); });
+function addEcho(send: OutboxSend | string = "run the tests") {
+  const payload: OutboxSend = typeof send === "string" ? { text: send } : send;
+  act(() => { useConversationStore.getState().addEcho("sess-1", payload); });
+}
+
+function workingSince(iso: string): SessionActivityView {
+  return { state: "working", source: "screen", confidence: 1, since: iso, harness: "claude" };
 }
 
 describe("echo rows", () => {
@@ -72,51 +78,79 @@ describe("echo rows", () => {
     vi.useRealTimers();
   });
 
-  it("[REQ:P0-017f] shows a dimmed echo the moment a send is acknowledged, never as an event", () => {
-    render(<MessagesPane {...props} getTerminalText={() => Promise.resolve(null)} />);
+  it("[REQ:P0-017f] shows a staged send the moment it is acknowledged, never as an event", () => {
+    render(<MessagesPane {...props} />);
     addEcho();
 
     const row = screen.getByTestId("msg-echo-row");
-    expect(row).toHaveAttribute("data-state", "sending");
+    expect(row).toHaveAttribute("data-state", "staged");
     expect(row).toHaveTextContent("run the tests");
-    expect(row).toHaveTextContent("sending…");
+    expect(row).toHaveTextContent("typed into terminal, not submitted");
     expect(row.closest("[data-event-id]")).toBeNull();
     const events = useConversationStore.getState().sessions["sess-1"]?.events ?? [];
     expect(events.some((e) => e.text === "run the tests")).toBe(false);
   });
 
-  it("[REQ:P0-017f] offers Enter and the terminal when the text sits unsubmitted on screen", async () => {
+  it("[REQ:P0-017f] a staged send offers Enter and the terminal, and Enter marks it submitted", () => {
     const onPressEnter = vi.fn();
     const onOpenTerminal = vi.fn();
-    render(<MessagesPane {...props} getTerminalText={() => Promise.resolve("❯ run the tests")} onPressEnter={onPressEnter} onOpenTerminal={onOpenTerminal} />);
+    render(<MessagesPane {...props} onPressEnter={onPressEnter} onOpenTerminal={onOpenTerminal} />);
     addEcho();
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-
     const row = screen.getByTestId("msg-echo-row");
-    expect(row).toHaveAttribute("data-state", "unsubmitted");
-    expect(row).toHaveTextContent("typed into terminal, not submitted");
-    fireEvent.click(screen.getByTestId("msg-echo-enter"));
-    expect(onPressEnter).toHaveBeenCalledTimes(1);
+    expect(row).toHaveAttribute("data-state", "staged");
     fireEvent.click(screen.getByTestId("msg-echo-open-terminal"));
     expect(onOpenTerminal).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId("msg-echo-enter"));
+    expect(onPressEnter).toHaveBeenCalledTimes(1);
+    // Pressing Enter resolves the staged state locally — no more "Press Enter".
+    expect(screen.getByTestId("msg-echo-row")).toHaveAttribute("data-state", "submitted");
+    expect(screen.queryByTestId("msg-echo-enter")).toBeNull();
   });
 
-  it("[REQ:P0-017f] finds a send the terminal soft-wrapped across screen rows", async () => {
-    // A phone pane is 43 columns wide: after the prompt, the line wraps
-    // mid-word (seen live on a throwaway session).
-    const wrapped = "matthalloran8@swarminator:~/Vrooli$ echo wc\n-echo-probe\n\n[wc-eab735,0] \"swarminator\" 08:49 11-Sep-26";
-    render(<MessagesPane {...props} getTerminalText={() => Promise.resolve(wrapped)} onPressEnter={vi.fn()} />);
-    addEcho("echo wc-echo-probe");
+  it("coalesces two staged sends into one row — a two-line message, not two", () => {
+    render(<MessagesPane {...props} />);
+    addEcho("line one");
+    addEcho("line two");
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    const rows = screen.getAllByTestId("msg-echo-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("line one");
+    expect(rows[0]).toHaveTextContent("line two");
+  });
 
-    expect(screen.getByTestId("msg-echo-row")).toHaveAttribute("data-state", "unsubmitted");
-    expect(screen.getByTestId("msg-echo-enter")).toBeInTheDocument();
+  it("shows an attachment count without hunting for the path on screen", () => {
+    render(<MessagesPane {...props} />);
+    addEcho({ text: "describe this", payload: "describe this /tmp/u.png /tmp/v.png", attachmentCount: 2 });
+
+    expect(screen.getByTestId("msg-echo-attachments")).toHaveTextContent("+2 attachments");
+    expect(screen.getByTestId("msg-echo-row")).toHaveAttribute("data-state", "staged");
+  });
+
+  it("stops saying 'Press Enter' once the agent is seen to start working", () => {
+    render(<MessagesPane {...props} />);
+    addEcho();
+    expect(screen.getByTestId("msg-echo-row")).toHaveAttribute("data-state", "staged");
+
+    // The agent began a turn after the send was staged → it was submitted.
+    act(() => { useSessionActivityStore.getState().apply("sess-1", workingSince("2026-09-11T08:00:05Z")); });
+
+    expect(screen.getByTestId("msg-echo-row")).toHaveAttribute("data-state", "submitted");
+    expect(screen.queryByTestId("msg-echo-enter")).toBeNull();
+  });
+
+  it("shows a send submitted while the agent was already working as queued", () => {
+    render(<MessagesPane {...props} />);
+    addEcho({ text: "next thing", submitted: true, agentBusy: true });
+
+    const row = screen.getByTestId("msg-echo-row");
+    expect(row).toHaveAttribute("data-state", "queued");
+    expect(row).toHaveTextContent("queued behind the current turn");
   });
 
   it("[REQ:P0-017f] is replaced by the real row when the harness records the user turn", () => {
-    render(<MessagesPane {...props} getTerminalText={() => Promise.resolve(null)} />);
+    render(<MessagesPane {...props} />);
     addEcho();
 
     act(() => {
@@ -127,8 +161,19 @@ describe("echo rows", () => {
     expect(useConversationStore.getState().echoes["sess-1"] ?? []).toHaveLength(0);
   });
 
+  it("clears an attachment send even though the harness recorded a chip, not the path", () => {
+    render(<MessagesPane {...props} />);
+    addEcho({ text: "describe this screenshot", payload: "describe this screenshot /tmp/u.png", attachmentCount: 1 });
+
+    act(() => {
+      useConversationStore.getState().appendEvent(event(3, { id: "u3", role: "user", text: "describe this screenshot [Image #1]", createdAt: "2026-09-11T08:00:04Z" }));
+    });
+
+    expect(screen.queryByTestId("msg-echo-row")).toBeNull();
+  });
+
   it("[REQ:P0-017f] a merged page carrying the user turn also resolves the echo", () => {
-    render(<MessagesPane {...props} getTerminalText={() => Promise.resolve(null)} />);
+    render(<MessagesPane {...props} />);
     addEcho();
 
     act(() => {
@@ -136,18 +181,5 @@ describe("echo rows", () => {
     });
 
     expect(screen.queryByTestId("msg-echo-row")).toBeNull();
-  });
-
-  it("[REQ:P0-017f] says the send was not seen when neither happens within 60 s", async () => {
-    render(<MessagesPane {...props} getTerminalText={() => Promise.resolve("unrelated output")} onOpenTerminal={vi.fn()} />);
-    addEcho();
-
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-
-    const row = screen.getByTestId("msg-echo-row");
-    expect(row).toHaveAttribute("data-state", "not-seen");
-    expect(row).toHaveTextContent("sent · not seen on screen");
-    expect(screen.getByTestId("msg-echo-open-terminal")).toBeInTheDocument();
-    expect(screen.queryByTestId("msg-echo-enter")).toBeNull();
   });
 });

@@ -448,6 +448,22 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   contain-intrinsic-size: auto 120px;
 }
 
+/* ── File-preview markdown: give the reader its own scroll layer ──
+ * On iOS WebKit the file viewer is a position:fixed, transform-animated drawer.
+ * A very tall overflow:auto area inside that composited/clipped ancestor is
+ * scrolled by repainting the whole area synchronously, so scrolling a long
+ * document janks in proportion to its height — acutely on the image-heavy
+ * atlas, which is ~150,000px tall. Promoting the reading pane to its own
+ * compositing layer moves it onto WebKit's tiled async-scrolling path, where
+ * only the visible tiles are rasterized. Desktop Blink already scrolls this
+ * smoothly (measured), so the hint is inert there; `contain: paint` keeps the
+ * promoted layer's work bounded to the pane. */
+[data-testid="reader-reading-pane"] {
+  transform: translateZ(0);
+  will-change: transform;
+  contain: paint;
+}
+
 /* ── Reduced motion ──
  * Users who request reduced motion (often for vestibular sensitivity) should
  * not receive non-essential animation/transition. We neutralize durations

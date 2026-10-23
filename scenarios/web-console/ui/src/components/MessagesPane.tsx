@@ -80,8 +80,6 @@ interface MessagesPaneProps {
   onSendToComposer?: (text: string) => void;
   /** Switches this pane to its terminal (the state slot's "Open terminal"). */
   onOpenTerminal?: () => void;
-  /** This session's current terminal screen as text (read from the server), or null. */
-  getTerminalText?: () => Promise<string | null>;
   /** Presses Enter in this pane's terminal (an echo row's "Press Enter"). */
   onPressEnter?: () => void;
   /** Opens a preview in the workspace-level viewer host. */
@@ -131,7 +129,6 @@ export default function MessagesPane({
   focusSequence = null,
   onSendToComposer,
   onOpenTerminal,
-  getTerminalText,
   onPressEnter,
   onOpenFilePreview,
 }: MessagesPaneProps) {
@@ -248,7 +245,7 @@ export default function MessagesPane({
     if (stateSlot?.kind !== "waiting-answerable") return;
     const promptHash = stateSlot.prompt.hash ?? "";
     const result = await answerPrompt(sessionId, optionKey === null ? { promptHash, cancel: true } : { optionKey, promptHash, cancel: false });
-    if (result.answer) useConversationStore.getState().addEcho(sessionId, result.answer);
+    if (result.answer) useConversationStore.getState().addEcho(sessionId, { text: result.answer });
   }, [sessionId, stateSlot]);
   // Changes when the slot appears, goes, or changes shape — the follow rule
   // treats that like new content.
@@ -260,6 +257,15 @@ export default function MessagesPane({
   const expireEcho = useCallback((echoId: string) => {
     useConversationStore.getState().expireEcho(sessionId, echoId);
   }, [sessionId]);
+  // Pressing Enter from an echo row (or the reader) both submits in the
+  // terminal and records the optimistic submit so the row stops offering Enter
+  // immediately — queued when the agent is already working.
+  const handlePressEnter = useCallback(() => {
+    useConversationStore.getState().markSubmitted(sessionId, { agentBusy: activity?.state === "working" });
+    onPressEnter?.();
+  }, [sessionId, activity?.state, onPressEnter]);
+  // The newest unrecorded send drives the reader's pending pill.
+  const pendingOutbox = echoes.length > 0 ? echoes[echoes.length - 1] : null;
 
   const setFollow = useCallback((next: boolean) => {
     followRef.current = next;
@@ -955,8 +961,7 @@ export default function MessagesPane({
           <EchoRow
             key={echo.id}
             echo={echo}
-            getTerminalText={getTerminalText}
-            onPressEnter={onPressEnter}
+            onPressEnter={handlePressEnter}
             onOpenTerminal={onOpenTerminal}
             onExpire={expireEcho}
           />
@@ -1068,6 +1073,8 @@ export default function MessagesPane({
           onLinkClick={handleMarkdownLinkClick}
           onFileReferenceClick={handleInlineCodeFileClick}
           onMermaidOpen={handleMermaidOpen}
+          pendingOutbox={pendingOutbox}
+          onPressEnter={pendingOutbox ? handlePressEnter : undefined}
         />
       )}
 
