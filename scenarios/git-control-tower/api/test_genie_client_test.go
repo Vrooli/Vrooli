@@ -3,7 +3,14 @@ package main
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 
 	"github.com/vrooli/api-core/discovery"
 	httpx "github.com/vrooli/api-core/servertest"
@@ -85,78 +92,48 @@ func TestTestGenieClient_ExecuteSuite_ServerError(t *testing.T) {
 	}
 }
 
-func TestTestGenieClient_ListExecutions(t *testing.T) {
-	t.Parallel()
-
-	server := httpx.NewServer(t, map[string]http.HandlerFunc{
-		"/api/v1/executions": func(w http.ResponseWriter, r *http.Request) {
-			httpx.AssertMethod(t, r, http.MethodGet)
-			scenario := r.URL.Query().Get("scenario")
-			if scenario != "git-control-tower" {
-				t.Errorf("expected scenario=git-control-tower, got %s", scenario)
-			}
-			httpx.WriteJSON(t, w, http.StatusOK, TestExecutionListResponse{
-				Items: []TestExecutionResult{
-					{ExecutionID: "exec-001", ScenarioName: scenario, Success: true},
-					{ExecutionID: "exec-002", ScenarioName: scenario, Success: false},
-				},
-				Count: 2,
-			})
-		},
-	})
-
-	client := &TestGenieClient{
-		BaseClient: BaseClient{
-			httpClient:  httpx.TestClient(),
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "test-genie",
-		},
-	}
-
-	result, err := client.ListExecutions(context.Background(), "git-control-tower", 10)
-	if err != nil {
-		t.Fatalf("ListExecutions returned error: %v", err)
-	}
-	if result.Count != 2 {
-		t.Errorf("expected count 2, got %d", result.Count)
-	}
-	if len(result.Items) != 2 {
-		t.Errorf("expected 2 items, got %d", len(result.Items))
-	}
+type reviewRunHistoryFixture struct {
+	runs_v1connect.UnimplementedRunsServiceHandler
+	lists int
 }
 
-func TestTestGenieClient_GetExecution(t *testing.T) {
-	t.Parallel()
-
-	server := httpx.NewServer(t, map[string]http.HandlerFunc{
-		"/api/v1/executions/exec-001": func(w http.ResponseWriter, r *http.Request) {
-			httpx.AssertMethod(t, r, http.MethodGet)
-			httpx.WriteJSON(t, w, http.StatusOK, TestExecutionResult{
-				ExecutionID:  "exec-001",
-				ScenarioName: "git-control-tower",
-				Success:      true,
-				StartedAt:    "2026-03-10T12:00:00Z",
-				PhaseSummary: TestPhaseSummary{Total: 3, Passed: 3, DurationSeconds: 120},
-			})
-		},
-	})
-
-	client := &TestGenieClient{
-		BaseClient: BaseClient{
-			httpClient:  httpx.TestClient(),
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "test-genie",
-		},
+func (f *reviewRunHistoryFixture) ListRuns(_ context.Context, r *connect.Request[runspb.ListRunsRequest]) (*connect.Response[runspb.ListRunsResponse], error) {
+	if r.Msg.Target != "scenario-to-desktop" || r.Msg.Limit != 1 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
+	f.lists++
+	return connect.NewResponse(&runspb.ListRunsResponse{Runs: []*runspb.RunInfo{reviewHistoryRun()}}), nil
+}
 
-	result, err := client.GetExecution(context.Background(), "exec-001")
-	if err != nil {
-		t.Fatalf("GetExecution returned error: %v", err)
+func (f *reviewRunHistoryFixture) GetRun(_ context.Context, r *connect.Request[runspb.GetRunRequest]) (*connect.Response[runspb.GetRunResponse], error) {
+	if r.Msg.Target != "scenario-to-desktop" || r.Msg.RunId != "20261022-175755-c2fccb14" {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
-	if result.ExecutionID != "exec-001" {
-		t.Errorf("expected execution ID exec-001, got %s", result.ExecutionID)
+	return connect.NewResponse(&runspb.GetRunResponse{Run: reviewHistoryRun()}), nil
+}
+
+func reviewHistoryRun() *runspb.RunInfo {
+	return &runspb.RunInfo{RunId: "20261022-175755-c2fccb14", Target: "scenario-to-desktop", Status: "failed", CompletedAt: "2026-10-22T18:04:00Z", Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "passed"}, {Name: "dependencies", Status: "error"}, {Name: "integration", Status: "failed"}}}
+}
+
+func TestReviewTestsUseCanonicalNativeRunHistory(t *testing.T) {
+	fixture := &reviewRunHistoryFixture{}
+	_, handler := runs_v1connect.NewRunsServiceHandler(fixture)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client := &TestGenieClient{BaseClient: BaseClient{httpClient: server.Client(), resolver: discovery.NewStaticResolver(server.URL), serviceName: "test-genie"}}
+	srv := &Server{testGenieClient: client, capabilities: NewCapabilityRegistry([]CapabilityDef{{ID: "test-genie", DependencySlug: "test-genie"}}, map[string]StatusChecker{"test-genie": &FakeStatusChecker{Status: StatusAvailable}}, time.Minute)}
+	for _, id := range []string{"", "20261022-175755-c2fccb14"} {
+		dim, available := srv.fetchTestsDimension(context.Background(), "scenario-to-desktop", id, 1)
+		if !available || dim == nil || dim.Total != 3 || dim.PassedCount != 1 || dim.FailedCount != 2 || dim.Passed || dim.LastRun == "" || len(dim.Failures) != 1 || dim.Failures[0].Phase != "dependencies" {
+			t.Fatalf("review omitted or misrepresented native run %q: %+v", id, dim)
+		}
 	}
-	if result.PhaseSummary.Total != 3 {
-		t.Errorf("expected 3 total phases, got %d", result.PhaseSummary.Total)
+	before := fixture.lists
+	if _, err := client.ReadRun(context.Background(), "scenario-to-desktop", "missing-exact-run"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing exact run: %v", err)
+	}
+	if fixture.lists != before {
+		t.Fatal("missing exact run silently fell back to latest")
 	}
 }

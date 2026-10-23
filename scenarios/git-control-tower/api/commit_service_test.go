@@ -203,6 +203,22 @@ func TestValidateConventionalCommit_ValidFormats(t *testing.T) {
 	}
 }
 
+func TestValidateConventionalCommit_MultilineDescriptionAndTrailers(t *testing.T) {
+	for _, message := range []string{
+		"fix: preserve selected changes\n\nKeep unrelated staged files (including binaries).\n\nUnknown-Reference: keep-me",
+		"feat(api)!: return exact sources\r\n\r\nDescription with arbitrary (parentheses): allowed.\r\n\r\nBREAKING CHANGE: new response",
+	} {
+		if errs := ValidateConventionalCommit(message); len(errs) != 0 {
+			t.Errorf("multiline conventional message rejected: %v", errs)
+		}
+	}
+	for _, message := range []string{"ordinary title\n\nfix: body is not the title", "unknown: title\n\nA valid-looking (body).", "fix: \n\nDescription"} {
+		if errs := ValidateConventionalCommit(message); len(errs) == 0 {
+			t.Errorf("invalid title accepted: %q", message)
+		}
+	}
+}
+
 func TestValidateConventionalCommit_InvalidFormats(t *testing.T) {
 	invalidMessages := []string{
 		"",                       // Empty

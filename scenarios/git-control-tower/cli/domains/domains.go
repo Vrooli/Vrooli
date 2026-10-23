@@ -13,6 +13,7 @@ import (
 	"git-control-tower/cli/domains/audit"
 	"git-control-tower/cli/domains/baseline"
 	"git-control-tower/cli/domains/branch"
+	"git-control-tower/cli/domains/message"
 	"git-control-tower/cli/domains/proposal"
 	"git-control-tower/cli/domains/repo"
 	"git-control-tower/cli/domains/review"
@@ -31,6 +32,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.
 	if err != nil {
 		return nil, err
 	}
+	msg, err := message.Register(core, manifestBytes)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		repo.Register(core),
 		branch.Register(core),
@@ -39,5 +44,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.
 		audit.Register(core),
 		baseline.Register(core),
 		proposal.Register(core),
+		msg,
 	}, nil
 }

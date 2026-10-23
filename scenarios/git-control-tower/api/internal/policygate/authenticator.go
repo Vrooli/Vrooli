@@ -81,6 +81,7 @@ func (p SharedAuthenticatorProvider) VerifyRequest(ctx context.Context, req *htt
 		Realm: principal.Realm, Roles: append([]string(nil), principal.Roles...),
 		Scopes: append([]string(nil), principal.Scopes...), Verified: principal.Verified,
 		Source: p.Source(), Sources: []identity.AuthSource{p.Source()}, Issuer: principal.Issuer,
+		ExpiresAt: principal.ExpiresAt,
 	}, nil
 }
 
@@ -231,14 +232,16 @@ func (v *JWTVerifier) Verify(ctx context.Context, raw string) (Principal, error)
 		realm = v.cfg.Realm
 	}
 	principal := Principal{
-		Kind:     cliutil.CallerKindHuman,
-		Subject:  shared.Subject,
-		Email:    shared.Email,
-		Realm:    realm,
-		Roles:    append([]string(nil), shared.Roles...),
-		Scopes:   append([]string(nil), shared.Scopes...),
-		Verified: shared.Verified,
-		Issuer:   shared.Issuer,
+		Kind:       cliutil.CallerKindHuman,
+		Subject:    shared.Subject,
+		Email:      shared.Email,
+		Realm:      realm,
+		Roles:      append([]string(nil), shared.Roles...),
+		Scopes:     append([]string(nil), shared.Scopes...),
+		Verified:   shared.Verified,
+		Issuer:     shared.Issuer,
+		ExpiresAt:  shared.ExpiresAt,
+		AuthSource: string(identity.SourceScenarioAuthenticator),
 	}
 	if v.cfg.Validate == nil {
 		return principal, nil
@@ -259,6 +262,11 @@ func (v *JWTVerifier) Verify(ctx context.Context, raw string) (Principal, error)
 	if validated.Realm == "" {
 		validated.Realm = v.cfg.Realm
 	}
+	// A live revocation check must not discard or widen the signed lifetime.
+	if validated.ExpiresAt.IsZero() || validated.ExpiresAt.After(shared.ExpiresAt) {
+		validated.ExpiresAt = shared.ExpiresAt
+	}
+	validated.AuthSource = string(identity.SourceScenarioAuthenticator)
 	return validated, nil
 }
 
@@ -285,7 +293,8 @@ func Middleware(verifier PrincipalVerifier) func(http.Handler) http.Handler {
 			if token := extractAccessToken(r); token != "" && verifier != nil {
 				principal, err := verifier.Verify(ctx, token)
 				if err == nil {
-					next.ServeHTTP(w, r.WithContext(WithPrincipal(ctx, principal)))
+					ctx = WithPrincipal(ctx, principal)
+					next.ServeHTTP(w, r.WithContext(WithVerifiedOwnerProof(ctx, r.Header)))
 					return
 				}
 				ctx = WithAuthFailure(ctx, err)

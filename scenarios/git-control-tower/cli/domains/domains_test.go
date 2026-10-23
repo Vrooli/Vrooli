@@ -15,8 +15,8 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubcommandGroups: %v", err)
 	}
-	if len(groups) != 7 {
-		t.Fatalf("SubcommandGroups() returned %d groups, want 7", len(groups))
+	if len(groups) != 8 {
+		t.Fatalf("SubcommandGroups() returned %d groups, want 8", len(groups))
 	}
 
 	got := make(map[string]int, len(groups))
@@ -28,12 +28,13 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 	}
 
 	want := map[string]int{
-		"repo":     11,
+		"repo":     13,
 		"branch":   4,
 		"worktree": 8,
 		"review":   3,
 		"audit":    1,
 		"baseline": 15, // 6 record/lifecycle verbs + collection/path evidence + 7 engagement verbs
+		"message":  7, // collection/check, drafting lifecycle and paged immutable evidence
 	}
 	for name, count := range want {
 		if got[name] != count {

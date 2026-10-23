@@ -69,7 +69,6 @@ export interface PanelDeps {
   // Commit state
   commitMessage: string;
   commitError: string | undefined;
-  canUseApprovedMessage: boolean;
   canAmend: boolean;
   amendDisabledReason: string | undefined;
   pushTargetRef: string | undefined;
@@ -81,7 +80,6 @@ export interface PanelDeps {
   isIgnoring: boolean;
   isCommitting: boolean;
   isPushing: boolean;
-  isUsingApprovedMessage: boolean;
   isDeleting: boolean;
   isSavingFile: boolean;
   confirmingDiscard: string | null;
@@ -115,7 +113,6 @@ export interface PanelDeps {
   onContinueCommit: (message: string) => void;
   onCommit: (message: string, options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }) => void;
   onCommitMessageChange: (msg: string) => void;
-  onUseApprovedMessage: () => void;
   onPush: () => void;
   onLoadMoreHistory: () => void;
   onViewModeChange: (mode: ViewMode) => void;
@@ -294,9 +291,6 @@ export function renderPanel(
           stagedCount={deps.statusData?.summary.staged ?? 0}
           commitMessage={deps.commitMessage}
           onCommitMessageChange={deps.onCommitMessageChange}
-          canUseApprovedMessage={deps.canUseApprovedMessage}
-          onUseApprovedMessage={deps.onUseApprovedMessage}
-          isUsingApprovedMessage={deps.isUsingApprovedMessage}
           onCommit={deps.onCommit}
           isCommitting={deps.isCommitting}
           commitError={deps.commitError}

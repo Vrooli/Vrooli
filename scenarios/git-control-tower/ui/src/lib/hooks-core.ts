@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient, useIsMutating, useMutationState, type QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./hooks-query-keys";
+import { captureMessageSession, retireCommittedMessageSession } from "../features/commit-message/messageSession";
 import {
   fetchHealth,
   fetchRepoStatus,
@@ -12,7 +13,6 @@ import {
   fetchDiff,
   fetchSyncStatus,
   fetchApprovedChanges,
-  fetchApprovedChangesPreview,
   fetchProvenance,
   fetchBlame,
   stageFiles,
@@ -51,7 +51,6 @@ import type {
   CreateBranchRequest,
   SwitchBranchRequest,
   PublishBranchRequest,
-  ApprovedChangesPreviewRequest,
   FileTreeResponse,
   RelatedFilesResponse,
   DirListResponse,
@@ -308,13 +307,16 @@ export function useCommit(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: CommitRequest) => createCommit(request, repoId ?? undefined),
-    onSuccess: (result) => {
+    onMutate: () => ({ repo: repoId, session: captureMessageSession(queryClient, repoId ?? "") }),
+    onSuccess: (result, _request, context) => {
       if (!result.success) return;
-      void queryClient.invalidateQueries({ queryKey: ["repo", "history", repoId ?? "default"] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.provenance(repoId) });
+      const committedRepo = context ? context.repo : repoId;
+      if (result.hash && context) retireCommittedMessageSession(queryClient, context.repo ?? "", context.session);
+      void queryClient.invalidateQueries({ queryKey: ["repo", "history", committedRepo ?? "default"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(committedRepo) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(committedRepo) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(committedRepo) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.provenance(committedRepo) });
     }
   });
 }
@@ -483,13 +485,6 @@ export function useApprovedChanges(repoId?: string | null) {
     queryFn: () => fetchApprovedChanges(repoId ?? undefined),
     refetchInterval: 15_000,
     staleTime: 5_000,
-  });
-}
-
-export function useApprovedChangesPreview(repoId?: string | null) {
-  return useMutation({
-    mutationFn: (request: ApprovedChangesPreviewRequest) =>
-      fetchApprovedChangesPreview(request, repoId ?? undefined)
   });
 }
 

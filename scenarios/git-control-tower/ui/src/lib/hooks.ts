@@ -25,7 +25,6 @@ export {
   useSaveFileContent,
   usePull,
   useApprovedChanges,
-  useApprovedChangesPreview,
   useProvenance,
   useBlame,
   useBranches,

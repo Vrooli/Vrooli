@@ -68,6 +68,9 @@ func (s *ReviewJobStore) hydrate(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, durable := range jobs {
+		if durable.Operation != "" && durable.Operation != "review" {
+			continue
+		}
 		checks := make(map[string]CheckStatus, len(durable.Checks))
 		for _, check := range durable.Checks {
 			status := CheckStatus(check.Verdict)

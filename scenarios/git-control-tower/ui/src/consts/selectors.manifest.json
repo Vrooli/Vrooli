@@ -149,6 +149,78 @@
       "testId": "proposal-version-help",
       "selector": "[data-testid=\"proposal-version-help\"]"
     },
+    "commitMessage.primary": {
+      "testId": "commit-message-primary",
+      "selector": "[data-testid=\"commit-message-primary\"]"
+    },
+    "commitMessage.actions": {
+      "testId": "commit-message-actions",
+      "selector": "[data-testid=\"commit-message-actions\"]"
+    },
+    "commitMessage.investigate": {
+      "testId": "commit-message-investigate",
+      "selector": "[data-testid=\"commit-message-investigate\"]"
+    },
+    "commitMessage.previousDraft": {
+      "testId": "commit-message-previous-draft",
+      "selector": "[data-testid=\"commit-message-previous-draft\"]"
+    },
+    "commitMessage.stage": {
+      "testId": "commit-message-stage",
+      "selector": "[data-testid=\"commit-message-stage\"]"
+    },
+    "commitMessage.panel": {
+      "testId": "commit-panel",
+      "selector": "[data-testid=\"commit-panel\"]"
+    },
+    "commitMessage.composer": {
+      "testId": "commit-message-composer",
+      "selector": "[data-testid=\"commit-message-composer\"]"
+    },
+    "commitMessage.title": {
+      "testId": "commit-message-input",
+      "selector": "[data-testid=\"commit-message-input\"]"
+    },
+    "commitMessage.description": {
+      "testId": "commit-message-description",
+      "selector": "[data-testid=\"commit-message-description\"]"
+    },
+    "commitMessage.trailers": {
+      "testId": "commit-message-trailers",
+      "selector": "[data-testid=\"commit-message-trailers\"]"
+    },
+    "commitMessage.suggest": {
+      "testId": "suggest-commit-message",
+      "selector": "[data-testid=\"suggest-commit-message\"]"
+    },
+    "commitMessage.suggestions": {
+      "testId": "commit-message-suggestions",
+      "selector": "[data-testid=\"commit-message-suggestions\"]"
+    },
+    "commitMessage.standing": {
+      "testId": "commit-suggestion-standing",
+      "selector": "[data-testid=\"commit-suggestion-standing\"]"
+    },
+    "commitMessage.suggestion": {
+      "testId": "commit-message-suggestion",
+      "selector": "[data-testid=\"commit-message-suggestion\"]"
+    },
+    "commitMessage.partialCoverage": {
+      "testId": "commit-message-partial-coverage",
+      "selector": "[data-testid=\"commit-message-partial-coverage\"]"
+    },
+    "commitMessage.stale": {
+      "testId": "commit-message-stale",
+      "selector": "[data-testid=\"commit-message-stale\"]"
+    },
+    "commitMessage.progress": {
+      "testId": "commit-drafting-progress",
+      "selector": "[data-testid=\"commit-drafting-progress\"]"
+    },
+    "commitMessage.mobileNav": {
+      "testId": "mobile-nav-commit",
+      "selector": "[data-testid=\"mobile-nav-commit\"]"
+    },
     "errorToast": {
       "testId": "error-toast",
       "selector": "[data-testid=\"error-toast\"]"
@@ -293,6 +365,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0a9333cceea22496c793687e3a716cd8ac51d5abc56d9bf9ca1704db075f0b10",
-    "ui/src/consts/selectors.ts": "e06657612d138cb1a04718f025a27c575405dfb004513670caea8d10f4d33822"
+    "ui/src/consts/selectors.ts": "20a4c7a61fe82db0dcbb1ef1c59b0600f22f8ae33d919e4d93c177107c3aa6ce"
   }
 }

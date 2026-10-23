@@ -9,6 +9,7 @@ Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI
 ## What This Scenario Provides
 - **Git advisory and human-control API + CLI**: status, diff, history, blame, content search, and explicit operator controls — structured for bounded invocation (`git-control-tower --help`). Agents may read and draft; stage/unstage, commit, branch/worktree, discard, push, pull, and merge actions require verified human intent.
 - **Web UI**: Changes tab (optimistic staging, commit panel), diff viewer, history/blame, branch selector, file search.
+- **Commit messages**: separate title and description fields, evidence collection for up to 4,096 staged files, disclosed reusable suggestions, and an explicitly started drafting agent with bounded representative context. See [advisory operations](docs/operations/ADVISORY-OPERATIONS.md#staged-commit-messages).
 - **Baselines**: the primary review primitive — see below.
 - **Scenario review panel**: readiness reviews per scenario (`git-control-tower review {run,summary,status}`) running test-genie phases plus standards/tidiness/auditor dimensions.
 - **Managed pre-commit hook**: configurable hook kinds (none/gct/user/framework) running exactly one command (default `vrooli hygiene`), with one-shot skip.
@@ -51,3 +52,5 @@ Use the scenario Makefile:
 - `make stop`
 - `make logs`
 - `make test`
+
+Review test summaries read Test Genie's canonical run history, including scoped native runs. An exact requested run is never replaced by a newer run. Phase counts and failed/error outcomes come from that run; a scoped passing run is evidence for its selected phases and does not certify the entire scenario. Fresh review test execution retains the canonical run ID for its follow-up read.

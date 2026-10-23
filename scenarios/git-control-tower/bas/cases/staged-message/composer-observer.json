@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "name": "Staged message composer observer",
+    "description": "Given an unchanged repository, when the Commit panel opens, then separate title and description fields and an explicit suggestion action are visible.",
+    "requirement": "GCT-OT-P1-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "safety": "observer"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewportWidth": 1440,
+    "viewportHeight": 900
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destinationType": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "git-control-tower",
+          "scenarioPath": "/?primary=commit",
+          "waitUntil": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeoutMs": 30000
+        }
+      }
+    },
+    {
+      "id": "composer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/commitMessage.composer",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "title",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/commitMessage.title",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "description",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/commitMessage.description",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "suggest",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/commitMessage.suggest",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "diff",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/diffViewer.root",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "fullPage": false
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "open",
+      "target": "composer"
+    },
+    {
+      "id": "edge-2",
+      "source": "composer",
+      "target": "title"
+    },
+    {
+      "id": "edge-3",
+      "source": "title",
+      "target": "description"
+    },
+    {
+      "id": "edge-4",
+      "source": "description",
+      "target": "suggest"
+    },
+    {
+      "id": "edge-5",
+      "source": "suggest",
+      "target": "diff"
+    },
+    {
+      "id": "edge-6",
+      "source": "diff",
+      "target": "capture"
+    }
+  ]
+}

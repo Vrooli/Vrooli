@@ -1,7 +1,7 @@
 // Package testutil contains shared test infrastructure for the
 // git-control-tower API: canonical fakes (mocks/), domain fixtures
-// (fixtures/), HTTP/client harnesses (httpx/), test database helpers
-// (db/), and assertion helpers (assertx/).
+// (fixtures/), HTTP/client harnesses (httpx/), and test database helpers (db/).
+// String assertions use the canonical api-core/apihttptest owner directly.
 //
 // No production code may import internal/testutil/...; that contract is
 // enforced by no_prod_import_test.go. Keeping this package test-only lets

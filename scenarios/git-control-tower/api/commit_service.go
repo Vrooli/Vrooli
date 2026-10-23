@@ -163,19 +163,23 @@ var conventionalCommitRegex = regexp.MustCompile(`^([a-z]+)(\([a-z0-9-]+\))?!?: 
 // Based on https://www.conventionalcommits.org/en/v1.0.0/
 func ValidateConventionalCommit(message string) []string {
 	var errors []string
+	// Conventional syntax describes the title. Description and trailers are
+	// independent paragraphs and may contain arbitrary punctuation/newlines.
+	title, _, _ := strings.Cut(strings.ReplaceAll(message, "\r\n", "\n"), "\n")
+	title = strings.TrimSpace(title)
 
 	// Check basic format
-	if !conventionalCommitRegex.MatchString(message) {
+	if !conventionalCommitRegex.MatchString(title) {
 		errors = append(errors, "message must match format: type(scope): description or type: description")
 		return errors
 	}
 
 	// Extract the type (everything before the first ( or :)
-	typePart := message
-	if idx := strings.Index(message, "("); idx != -1 {
-		typePart = message[:idx]
-	} else if idx := strings.Index(message, ":"); idx != -1 {
-		typePart = message[:idx]
+	typePart := title
+	if idx := strings.Index(title, "("); idx != -1 {
+		typePart = title[:idx]
+	} else if idx := strings.Index(title, ":"); idx != -1 {
+		typePart = title[:idx]
 	}
 	// Remove trailing ! for breaking changes
 	typePart = strings.TrimSuffix(typePart, "!")

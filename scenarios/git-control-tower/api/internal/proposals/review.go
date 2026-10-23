@@ -127,7 +127,11 @@ func (s *Service) Combine(ctx context.Context, repo Repo, req CombineRequest) (V
 	for _, f := range byPath {
 		files = append(files, f)
 	}
-	if size, err := s.store.captureSize(ctx, files); err != nil { return View{}, err } else if size > MaxCaptureBytes { return View{}, fmt.Errorf("%w: combined capture exceeds 64 MiB; split the package", ErrInvalid) }
+	if size, err := s.store.captureSize(ctx, files); err != nil {
+		return View{}, err
+	} else if size > MaxCaptureBytes {
+		return View{}, fmt.Errorf("%w: combined capture exceeds 64 MiB; split the package", ErrInvalid)
+	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	now := s.now()
 	p := Proposal{ID: s.newID("gctp-"), RepositoryID: repo.ID, State: StateOpen, Revision: 1, CreatedBy: req.Actor, BaseHead: sources[0].BaseHead, Branch: sources[0].Branch, Files: files, Folds: folds, CreatedAt: now, UpdatedAt: now}
@@ -185,9 +189,22 @@ func UncertainPaths(p Proposal) []string {
 	return result
 }
 
-func (s *Service) AvailableRevisions(ctx context.Context, repo Repo, id string) ([]int,error) {
-	p,err:=s.store.Get(ctx,id)
-	if err!=nil {return nil,err}
-	if p.RepositoryID != repo.ID {return nil,ErrNotFound}
-	return s.store.AvailableRevisions(ctx,id)
+func (s *Service) AvailableRevisions(ctx context.Context, repo Repo, id string) ([]int, error) {
+	p, err := s.store.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if p.RepositoryID != repo.ID {
+		return nil, ErrNotFound
+	}
+	return s.store.AvailableRevisions(ctx, id)
+}
+
+// RetainedCandidates returns bounded owner records without adopting live bytes
+// or computing worktree freshness. Consumers must retain source revision IDs.
+func (s *Service) RetainedCandidates(ctx context.Context, repositoryID string, limit int) ([]Proposal, error) {
+	if limit < 1 || limit > 100 {
+		limit = 100
+	}
+	return s.store.List(ctx, ListFilter{RepositoryID: repositoryID, States: []State{StateOpen, StateWithdrawn, StateSuperseded, StateCommitted}, Limit: limit, NewestFirst: true})
 }

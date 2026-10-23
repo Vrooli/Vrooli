@@ -102,3 +102,14 @@ it("refreshes commit history immediately after confirmed success", async () => {
  await act(async()=>{await result.current.mutateAsync({message:"refused"});});
  expect(invalidate).not.toHaveBeenCalled();
 });
+
+
+it.each([undefined, null, ""])("keeps the existing Git cache keys when committing with repository %s", async repo => {
+  mockCommit.mockResolvedValue({ success: true, hash: "confirmed" });
+  const { result, queryClient } = renderHookWithQueryClient(() => useCommit(repo));
+  const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+  await act(async () => { await result.current.mutateAsync({ message: "source change" }); });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.repoStatus(repo) });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.syncStatus(repo) });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ["repo", "history", repo ?? "default"] });
+});

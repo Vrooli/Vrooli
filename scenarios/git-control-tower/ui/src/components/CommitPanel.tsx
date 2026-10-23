@@ -16,6 +16,8 @@ import { Button } from "./ui/button";
 import type { AuthorityStatus, CommitCheckRun, PrecommitRunResult, RepoHistoryEntry } from "../lib/api";
 import { XCircle } from "lucide-react";
 import { AuthenticatorSignIn } from "./AuthenticatorSignIn";
+import { CommitMessageComposer } from "../features/commit-message/CommitMessageComposer";
+import { parseMessage } from "../features/commit-message/message";
 
 export interface CommitPanelPrecommitProgress {
   running: boolean;
@@ -44,12 +46,11 @@ function formatElapsedShort(ms: number): string {
 }
 
 interface CommitPanelProps {
+  repoId?: string | null;
+  statusVersion?: number;
   stagedCount: number;
   commitMessage: string;
   onCommitMessageChange: (value: string) => void;
-  canUseApprovedMessage?: boolean;
-  onUseApprovedMessage?: () => void;
-  isUsingApprovedMessage?: boolean;
   onCommit: (
     message: string,
     options: { conventional: boolean; amend: boolean; skipHooks: boolean; authorName?: string; authorEmail?: string }
@@ -204,12 +205,11 @@ function CommitChecksContent({ commit }: { commit?: CommitPanelProps["historyCom
 }
 
 export function CommitPanel({
+  repoId,
+  statusVersion = 0,
   stagedCount,
   commitMessage,
   onCommitMessageChange,
-  canUseApprovedMessage = false,
-  onUseApprovedMessage,
-  isUsingApprovedMessage = false,
   onCommit,
   isCommitting,
   isUpdatingIndex = false,
@@ -247,7 +247,8 @@ export function CommitPanel({
   const [amendLast, setAmendLast] = useState(false);
 
   const trimmedMessage = commitMessage.trim();
-  const canCommit = stagedCount > 0 && !isCommitting && !isUpdatingIndex && (trimmedMessage.length > 0 || amendLast) &&
+  const hasTitle = Boolean(parseMessage(commitMessage).title.trim());
+  const canCommit = stagedCount > 0 && !isCommitting && !isUpdatingIndex && (hasTitle || (amendLast && !trimmedMessage)) &&
     (!authorityStatus || authorityStatus.canMutate);
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
@@ -313,24 +314,23 @@ export function CommitPanel({
       </CardHeader>
 
       {!collapsed && (
-        <CardContent className="flex-1 min-h-0 min-w-0 pt-2 pb-3 overflow-y-auto overflow-x-hidden">
+        <CardContent data-gct-scroll-owner="commit" className="flex-1 min-h-0 min-w-0 pt-2 pb-3 overflow-y-auto overflow-x-hidden">
         {isHistoryMode ? (
           <CommitChecksContent commit={historyCommit} />
         ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           {stagedCount > 0 && <StagedSafetyNotice />}
-          <div>
-          <textarea
-              value={commitMessage}
-              onChange={(e) => onCommitMessageChange(e.target.value)}
-              placeholder={
-                amendLast ? "Commit message (leave empty to keep previous)..." : "Commit message..."
-              }
-              className="w-full h-20 px-3 py-2 text-sm bg-slate-800/50 border border-slate-700 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
-              disabled={isCommitting}
-              data-testid="commit-message-input"
-            />
-          </div>
+          <CommitMessageComposer
+            key={repoId ?? "default"}
+            repoId={repoId ?? ""}
+            statusVersion={statusVersion}
+            value={commitMessage}
+            onChange={onCommitMessageChange}
+            stagedCount={stagedCount}
+            updatingIndex={isUpdatingIndex}
+            disabled={isCommitting}
+            amend={amendLast}
+          />
 
           {authorityStatus && !authorityStatus.canMutate && (
             <div
@@ -385,27 +385,6 @@ export function CommitPanel({
                 </>
               )}
             </div>
-          )}
-
-          {canUseApprovedMessage && onUseApprovedMessage && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onUseApprovedMessage}
-              disabled={isUsingApprovedMessage}
-              className="h-7 px-2"
-              data-testid="use-approved-message-button"
-            >
-              {isUsingApprovedMessage ? (
-                <span className="flex items-center">
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Loading...
-                </span>
-              ) : (
-                "Use approved message"
-              )}
-            </Button>
           )}
 
           <div className="flex items-center justify-between gap-2 min-w-0">
@@ -528,7 +507,7 @@ export function CommitPanel({
                       setAuthorTouched(true);
                     }}
                     placeholder="Author name"
-                    className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
+                    className="w-full px-3 py-2 gct-commit-input gct-commit-input-compact bg-slate-800/50 border border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
                     disabled={isCommitting}
                   />
                   <input
@@ -538,7 +517,7 @@ export function CommitPanel({
                       setAuthorTouched(true);
                     }}
                     placeholder="Author email"
-                    className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
+                    className="w-full px-3 py-2 gct-commit-input gct-commit-input-compact bg-slate-800/50 border border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
                     disabled={isCommitting}
                   />
                 </div>

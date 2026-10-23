@@ -59,6 +59,22 @@ body {
   background: var(--gct-app-color);
 }
 
+/* Native iOS focus zoom can pan the fixed app shell out of view. Keep commit
+   editors readable on touch devices, including landscape phones and tablets. */
+.gct-commit-input {
+  font-size: max(16px, 1rem);
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .gct-commit-input {
+    font-size: 0.875rem;
+  }
+
+  .gct-commit-input.gct-commit-input-compact {
+    font-size: 0.75rem;
+  }
+}
+
 /* The bottom tab bar sits on the app canvas. Match its background to the content
    so the safe-area band below the tabs blends with the shell. The RCL top hairline
    separates it from the content above. (Attribute+class beats the RCL

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"testing"
 	"time"
 )
@@ -34,23 +35,19 @@ func (m *mockTidinessClient) TriggerLightScan(_ context.Context, _ TidinessLight
 }
 
 type mockTestGenieClient struct {
-	listRes   *TestExecutionListResponse
+	runRes    *runspb.RunInfo
 	listErr   error
 	execRes   *TestExecutionResult
 	execErr   error
 	execCalls int
 }
 
-func (m *mockTestGenieClient) ListExecutions(_ context.Context, _ string, _ int) (*TestExecutionListResponse, error) {
-	return m.listRes, m.listErr
+func (m *mockTestGenieClient) ReadRun(_ context.Context, _, _ string) (*runspb.RunInfo, error) {
+	return m.runRes, m.listErr
 }
 
 func (m *mockTestGenieClient) ExecuteSuite(_ context.Context, _ TestExecutionRequest) (*TestExecutionResult, error) {
 	m.execCalls++
-	return m.execRes, m.execErr
-}
-
-func (m *mockTestGenieClient) GetExecution(_ context.Context, _ string) (*TestExecutionResult, error) {
 	return m.execRes, m.execErr
 }
 

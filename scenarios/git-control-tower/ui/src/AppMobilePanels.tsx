@@ -136,9 +136,6 @@ export function renderMobilePanel(
           stagedCount={deps.statusData?.summary.staged ?? 0}
           commitMessage={deps.commitMessage}
           onCommitMessageChange={deps.onCommitMessageChange}
-          canUseApprovedMessage={deps.canUseApprovedMessage}
-          onUseApprovedMessage={deps.onUseApprovedMessage}
-          isUsingApprovedMessage={deps.isUsingApprovedMessage}
           onCommit={deps.onCommit}
           isCommitting={deps.isCommitting}
           commitError={deps.commitError}

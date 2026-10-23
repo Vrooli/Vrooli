@@ -315,7 +315,10 @@ func (s *Server) dispatchCheck(ctx context.Context, check, scenarioName string) 
 		if result == nil {
 			return "", err
 		}
-		return result.ExecutionID, err
+		if err == nil && result.RunID == "" {
+			return "", fmt.Errorf("test-genie returned no canonical run ID")
+		}
+		return result.RunID, err
 	case "rules":
 		if !s.capabilities.IsAvailable(ctx, "scenario-auditor") {
 			return "", errCheckSkipped

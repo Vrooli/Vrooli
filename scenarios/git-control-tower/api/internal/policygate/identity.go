@@ -26,6 +26,7 @@ type Principal struct {
 	Issuer       string
 	AuthSource   string
 	AuthSources  []string
+	ExpiresAt    time.Time
 	RepositoryID string
 	Intent       *HumanIntent
 }
@@ -82,6 +83,7 @@ func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 		Scopes: append([]string(nil), shared.Scopes...), Verified: shared.Verified,
 		Issuer: shared.Issuer, AuthSource: string(shared.Source),
 		AuthSources: authSources(shared.Sources),
+		ExpiresAt:   shared.ExpiresAt,
 	}, true
 }
 

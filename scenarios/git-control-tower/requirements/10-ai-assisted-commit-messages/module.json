@@ -1,22 +1,52 @@
 {
   "_metadata": {
     "description": "OT-P1-002 AI-assisted commit messages",
-    "last_validated_at": "2026-09-06T14:54:24-04:00",
+    "last_validated_at": "2026-10-22T03:47:16Z",
     "module": "ai-assisted-commit-messages"
   },
   "requirements": [
     {
       "id": "GCT-OT-P1-002",
       "title": "AI-assisted commit messages",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "operational_target.p1",
-      "description": "Generate commit message suggestions using Ollama/OpenRouter with rule-based fallback",
+      "description": "When an operator requests a commit message, the system SHOULD collect exact staged evidence, offer full or disclosed partial reusable suggestions, and start a durable cancellable read-only drafting agent only on explicit request; accepting a suggestion SHOULD preserve operator edits and MUST NOT stage or commit files.",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "Provider-backed AI commit message generation remains an explicitly planned capability; deterministic advisory drafting is covered by the maturity modules."
+          "type": "test",
+          "ref": "api/internal/stagedmessages/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Race-enabled domain/store/proposal suites passed 60 top-level tests. Includes no-agent collection, durable same-key admission, lost acknowledgments, cancellation races, immutable input bounds, stale selection and strict result rejection. Related snapshot/matching tests prove index versus working bytes and conservative retained subsets."
+        },
+        {
+          "type": "test",
+          "ref": "api/staged_message_connect_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Typed Connect and fake execution-owner lifecycle tests passed with isolated Git fixtures; real repository index and history were not modified."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/commit-message/CommitMessageComposer.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Final full UI execution passed 566 tests across 67 files, including explicit start, partial accept without inference, cancellation, reconnect, staged applicability races and human edit/trailer preservation. Global coverage gate remains below its unchanged 85% target; this is not scenario certification."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/message/register_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Full CLI tests passed across 12 packages; typed collect/check/start/status/wait/cancel and generated primitive-evidence freshness verified."
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/staged-message/composer-observer.json",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Final selected browser run f263360d-9b16-4e82-9557-bd8fef239adc passed desktop and companion mobile observer cases. Actual screenshots inspected. Feature interaction is covered by component and API fixtures; no live paid model qualification was performed. AM unit/contracts run 20261022-032302-b40db304 passed; final workflow/profile hashes were read back after lifecycle activation. Implementation is delivered; formal requirement status remains in_progress because the broader GCT suite is not green and no run-coupled requirements-sync snapshot earns complete status."
         }
       ]
     }

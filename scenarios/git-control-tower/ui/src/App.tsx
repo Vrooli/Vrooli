@@ -44,7 +44,7 @@ import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
-import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
+import { computeNextSelection, selectStackSlots, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
 
 import type { SyncActivity } from "./App.types";
@@ -62,7 +62,6 @@ import {
   useSyncStatus,
   useApprovedChanges,
   useProvenance,
-  useApprovedChangesPreview,
   useStageFiles,
   useUnstageFiles,
   useCommit,
@@ -375,6 +374,7 @@ export default function App() {
     if (state.primary) {
       if (isLayoutSection(state.primary)) {
         setPrimaryPanel(state.primary);
+        setMobileActivePanel(state.primary);
       }
     } else {
       setPrimaryPanel("diff");
@@ -466,22 +466,7 @@ export default function App() {
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
-  const stackPanels = useMemo(
-    () => primaryPanel === "review" ? layoutOrder : layoutOrder.filter((section) => section !== primaryPanel),
-    [primaryPanel]
-  );
-  const stackSlots = useMemo(() => {
-    const remaining = new Set(stackPanels);
-    const fallbackPanel: LayoutSection = "diff";
-    const middle = remaining.has("history") ? "history" : stackPanels[0] ?? fallbackPanel;
-    remaining.delete(middle);
-    const bottom = remaining.has("commit")
-      ? "commit"
-      : stackPanels[1] ?? stackPanels[0] ?? fallbackPanel;
-    remaining.delete(bottom);
-    const top = Array.from(remaining)[0] ?? middle;
-    return { top, middle, bottom };
-  }, [stackPanels]);
+  const stackSlots = useMemo(() => selectStackSlots(primaryPanel), [primaryPanel]);
   const collapsedBySection = useMemo(
     () => ({
       changes: changesCollapsed,
@@ -567,7 +552,6 @@ export default function App() {
   const pushMutation = usePush(repoId);
   const pullMutation = usePull(repoId);
   const saveFileContentMutation = useSaveFileContent(repoId);
-  const approvedPreviewMutation = useApprovedChangesPreview(repoId);
   const branchesQuery = useBranches(repoId);
   const createBranchMutation = useCreateBranch(repoId);
   const switchBranchMutation = useSwitchBranch(repoId);
@@ -792,18 +776,6 @@ export default function App() {
     ];
   }, [statusQuery.data?.files]);
 
-  const approvedPendingPaths = useMemo(() => {
-    const files = approvedChangesQuery.data?.files ?? [];
-    return files
-      .filter((file) => file.status === "pending" && file.relativePath)
-      .map((file) => file.relativePath);
-  }, [approvedChangesQuery.data?.files]);
-
-  const approvedPendingSet = useMemo(
-    () => new Set(approvedPendingPaths),
-    [approvedPendingPaths]
-  );
-
   const normalizeGroupingRules = useCallback(
     (rawRules: GroupingRuleLike[]): GroupingRule[] => {
       return rawRules
@@ -856,15 +828,6 @@ export default function App() {
       return "flat";
     });
   }, [groupingAvailable]);
-
-  const approvedStagedPaths = useMemo(() => {
-    const staged = statusQuery.data?.files?.staged ?? [];
-    return staged.filter((path) => approvedPendingSet.has(path));
-  }, [approvedPendingSet, statusQuery.data?.files?.staged]);
-
-  const canUseApprovedMessage =
-    approvedStagedPaths.length > 0 &&
-    approvedStagedPaths.length === (statusQuery.data?.files?.staged ?? []).length;
 
   const orderedKeys = useMemo(() => orderedFiles.map((entry) => selectionKey(entry)), [orderedFiles, selectionKey]);
   const orderedKeyToEntry = useMemo(
@@ -1542,21 +1505,6 @@ export default function App() {
     runPrecommitMutation.isPending,
     savePrecommitConfigMutation.isPending,
   ]);
-
-  const handleUseApprovedMessage = useCallback(() => {
-    if (!canUseApprovedMessage) return;
-
-    approvedPreviewMutation.mutate(
-      { paths: approvedStagedPaths },
-      {
-        onSuccess: (result) => {
-          if (result.available && result.suggestedMessage) {
-            setCommitMessage(result.suggestedMessage);
-          }
-        }
-      }
-    );
-  }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
 
   const [pushSafetyOpen, setPushSafetyOpen] = useState(false);
   const [pushSafetyFocus, setPushSafetyFocus] = useState<"staged" | "outgoing">("outgoing");
@@ -2535,12 +2483,11 @@ export default function App() {
             onOpen={handleOpenProposal}
           >
             <CommitPanel
+              repoId={repoId}
+              statusVersion={statusQuery.dataUpdatedAt}
               stagedCount={statusQuery.data?.summary.staged ?? 0}
               commitMessage={commitMessage}
               onCommitMessageChange={setCommitMessage}
-              canUseApprovedMessage={canUseApprovedMessage}
-              onUseApprovedMessage={handleUseApprovedMessage}
-              isUsingApprovedMessage={approvedPreviewMutation.isPending}
               onCommit={handleCommit}
               isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
               isUpdatingIndex={isStaging}
@@ -2801,12 +2748,11 @@ export default function App() {
             onOpen={handleOpenProposal}
           >
             <CommitPanel
+              repoId={repoId}
+              statusVersion={statusQuery.dataUpdatedAt}
               stagedCount={statusQuery.data?.summary.staged ?? 0}
               commitMessage={commitMessage}
               onCommitMessageChange={setCommitMessage}
-              canUseApprovedMessage={canUseApprovedMessage}
-              onUseApprovedMessage={handleUseApprovedMessage}
-              isUsingApprovedMessage={approvedPreviewMutation.isPending}
               onCommit={handleCommit}
               isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
               isUpdatingIndex={isStaging}

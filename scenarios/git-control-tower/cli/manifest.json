@@ -1092,6 +1092,350 @@
           }
         }
       ]
+    },
+    {
+      "name": "message",
+      "description": "Evidence-first staged commit messages and explicit read-only drafting jobs",
+      "commands": [
+        {
+          "name": "collect",
+          "description": "Collect immutable staged evidence and retained suggestions; never starts an agent",
+          "flags": [
+            {
+              "name": "repo-id",
+              "required": false,
+              "bind": {
+                "field": "repository_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "CollectStagedMessage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "check",
+          "description": "Check whether an exact staged snapshot still applies",
+          "flags": [
+            {
+              "name": "repo-id",
+              "required": false,
+              "bind": {
+                "field": "repository_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "bind": {
+                "field": "snapshot_digest"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "CheckStagedMessage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "start",
+          "description": "Explicitly start a read-only message drafting job; never stages or commits",
+          "flags": [
+            {
+              "name": "repo-id",
+              "required": false,
+              "bind": {
+                "field": "repository_id"
+              }
+            },
+            {
+              "name": "collection",
+              "required": false,
+              "bind": {
+                "field": "collection_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "bind": {
+                "field": "snapshot_digest"
+              }
+            },
+            {
+              "name": "request-key",
+              "required": true
+            },
+            {
+              "name": "context-id",
+              "required": false,
+              "bind": {
+                "field": "selected_context_ids"
+              },
+              "repeatable": true
+            },
+            {
+              "name": "note",
+              "required": false,
+              "bind": {
+                "field": "operator_note"
+              }
+            },
+            {
+              "name": "continue-from",
+              "description": "Existing successful partial job to investigate further; preserves its immutable staged subject and context",
+              "bind": {
+                "field": "continuation_of_job_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "StartStagedMessage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Read the same drafting job; reconnect by job ID or request key",
+          "flags": [
+            {
+              "name": "repo-id",
+              "required": false,
+              "bind": {
+                "field": "repository_id"
+              }
+            },
+            {
+              "name": "request-key",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "GetStagedMessageJob"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "positionals": [
+            {
+              "name": "job",
+              "description": "Existing job ID; omit only with --request-key",
+              "bind": {
+                "field": "job_id"
+              }
+            }
+          ]
+        },
+        {
+          "name": "wait",
+          "description": "Wait once on the same owner job; timeout 1 through 55 seconds, without polling",
+          "flags": [
+            {
+              "name": "repo-id",
+              "required": false,
+              "bind": {
+                "field": "repository_id"
+              }
+            },
+            {
+              "name": "request-key",
+              "required": false
+            },
+            {
+              "name": "timeout",
+              "required": false,
+              "bind": {
+                "field": "timeout_seconds"
+              },
+              "default": "45"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "WaitStagedMessageJob"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "positionals": [
+            {
+              "name": "job",
+              "description": "Existing job ID; omit only with --request-key",
+              "bind": {
+                "field": "job_id"
+              }
+            }
+          ]
+        },
+        {
+          "name": "cancel",
+          "description": "Request cancellation; owner-confirmed disposition remains authoritative",
+          "flags": [
+            {
+              "name": "repo-id",
+              "required": false,
+              "bind": {
+                "field": "repository_id"
+              }
+            },
+            {
+              "name": "request-key",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "CancelStagedMessageJob"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "positionals": [
+            {
+              "name": "job",
+              "description": "Existing job ID; omit only with --request-key",
+              "bind": {
+                "field": "job_id"
+              }
+            }
+          ]
+        },
+        {
+          "name": "evidence",
+          "description": "Read one bounded page of immutable staged evidence for a deeper investigation; never starts an agent",
+          "flags": [
+            {
+              "name": "repo-id",
+              "bind": {
+                "field": "repository_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "bind": {
+                "field": "snapshot_digest"
+              }
+            },
+            {
+              "name": "cursor",
+              "default": "0",
+              "description": "Zero-based manifest position from the previous page",
+              "bind": {
+                "field": "cursor"
+              }
+            },
+            {
+              "name": "max-bytes",
+              "default": "24576",
+              "description": "Response byte budget per page, 1024 through 49152",
+              "bind": {
+                "field": "max_bytes"
+              }
+            },
+            {
+              "name": "inventory",
+              "type": "bool",
+              "description": "Read immutable selection metadata without patches or Git blob reads",
+              "bind": {
+                "field": "inventory_only"
+              }
+            },
+            {
+              "name": "file-id",
+              "repeatable": true,
+              "description": "Target an immutable patch by stable ID; repeat at most 64 times, retry IDs absent from a bounded page directly without cursor",
+              "bind": {
+                "field": "file_ids"
+              }
+            }
+          ],
+          "positionals": [
+            {
+              "name": "job",
+              "required": true,
+              "description": "Existing investigation job ID",
+              "bind": {
+                "field": "job_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "ReadStagedMessageEvidence"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        }
+      ]
     }
   ],
   "omitted": [

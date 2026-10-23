@@ -39,6 +39,286 @@ edits. Trailer chips distinguish owner-resolved, legacy, ambiguous, and
 unresolved references. A draft button cannot stage, commit, checkout, fetch,
 push, publish, or grant authority.
 
+## Staged commit messages — approved 2026-10-21
+
+### Authority, work shape and ownership
+
+The operator approved full implementation, validation and a dedicated subsequent
+refactoring/debt-reduction pass after reviewing the evidence-first mobile
+composer concept. This is a bounded delivery. This section owns the target and
+acceptance; `docs/internal/PROBLEMS.md` owns checkpoints and validation receipts.
+Native sub-agents implement separate boundaries and independently review them.
+Do not stage, commit, push, reset or rewrite the real shared repository while
+implementing or validating this feature. Tests use isolated fixtures and routed
+test storage. Existing unrelated dirty files belong to their current authors.
+
+The source mockups are the approved `flow.html`/`flow-storyboard.png` concept in
+`/home/matthalloran8/.codex/artifacts/gct-staged-context-design/`. They illustrate
+the interaction, not a backend or a promise about production latency.
+
+### Desired behavior
+
+1. Ordinary manual staging is the primary input. A staged selection may contain
+   zero, many or partial proposals/runs and changes without agent evidence.
+   The feature MUST work without proposal membership or known authorship.
+2. The Commit panel MUST expose Title, optional Description and an optional
+   trailer disclosure. The sparkle Suggest button MUST have an accessible name.
+   Existing message text and unknown trailers MUST survive parsing, navigation,
+   regeneration and comparison. Conventional validation MUST inspect the title
+   separately from the body/trailers. Commit authority remains unchanged.
+3. Suggest MUST first collect bounded evidence programmatically with no model
+   or agent call. The UI MUST show gathering state and allow cancellation.
+   The collector MUST read staged Git objects, never substitute working files.
+4. Suitable retained messages MAY be reused or combined deterministically only
+   for supported staged scope. Partial suggestions MUST disclose unmatched
+   edits/files and MAY use a broad suffix such as "and related updates".
+   Selecting a partial suggestion MUST NOT force agent invocation.
+5. When no reusable message exists, the UI MUST say so and offer Start drafting
+   agent and Cancel. Related context without a reusable message is not a ready
+   suggestion. No stage of collection MAY automatically start an agent.
+6. Starting an agent is explicit. Its job MUST be message-only/read-only, bounded
+   to the immutable staged subject plus authorized context, and MUST NOT create
+   a commit proposal, stage files, commit, publish or alter agent grants.
+7. Queued/running jobs MUST show authoritative status, elapsed time and Cancel
+   agent. Hiding a panel or reconnecting MUST retain the same job. Cancellation
+   MUST remain pending until the execution owner confirms its disposition.
+8. A completed result MUST appear as a suggestion with Use and Discard actions.
+   Arrival MUST NOT overwrite human text. Concurrent edits require comparison.
+   Accepting a suggestion fills editor fields only; commit is a separate action.
+   A confirmed successful UI commit retires that repository's completed suggestion session
+   and saved recovery handle, including when the composer is closed. Failed or
+   refused commits preserve the draft. Late reads or launch replies from a retired
+   session MUST NOT restore it. Newer sessions and unresolved/active job handles
+   remain available for reconnect/cancellation. Durable server job history remains unchanged.
+9. Staged-content drift MUST retain existing text/results and mark applicability
+   stale. Working-tree-only edits MUST NOT stale a staged-content draft. Changed
+   staging MUST NOT silently restart inference or adopt a new input subject.
+10. Empty staging, partial/unavailable evidence, failed/cancelled agent jobs,
+    binary/large-file omissions and source privacy MUST have truthful states.
+
+### Content and context contracts
+
+The staged subject identifies repository, base HEAD and sorted changed index
+entries (old/new paths, modes and blob IDs). Read object bytes by immutable IDs;
+check index/base identity before and after capture and before applying a result.
+Unmerged entries are explicit errors. Every bounded omission carries a reason.
+
+Context relationships are many-to-many and scoped to matching edits. Preserve
+content correspondence, relevance and authorship as separate facts. Path overlap,
+matching text, timestamps and an operator-selected explanation MUST NOT become
+automatic authorship claims or inferred attribution trailers. Retained proposal
+before/after content can support partial matching; a final digest alone cannot
+prove a subset. Missing/legacy captures remain explicit.
+
+Collect current filesystem mtime and nonzero cached index-stat mtime as labeled
+hints, with content comparison to the staged version. Partial staging, deletion,
+touches, refresh, preserved timestamps and multiple edits can invalidate or omit
+these hints. Search retained message/tool activity in bounded nearby windows;
+do not use staging time or treat a resumed session's full lifetime as activity.
+Use paths, rare changed identifiers and patch fragments to narrow/strengthen
+candidates. Preserve native versus synthesized/import timestamps and unknown
+scope/freshness. No matches in available evidence does not prove no agent work.
+
+Agent Manager owns policy-filtered session/event search and execution. Improve
+imported scope/timestamp/freshness at that owner where required for this path;
+do not bypass its visibility/authentication boundary with raw transcript scans.
+Code Facts already owns file observation infrastructure; a new general historical
+filesystem journal is not required to deliver the approved staged composer.
+
+### Large staged selections — correction approved 2026-10-22
+
+The operator reported that 256 files excludes most real commits and requested
+8–16 times that capacity. Support 4,096 changed index entries. This corrects the
+existing staged-message behavior without changing commit authority.
+
+- The complete sorted index manifest MUST remain the immutable subject. Every
+  accepted file participates in its digest and drift check, even when detailed
+  bytes are omitted. Never narrow the commit or silently ignore tail entries.
+- Manifest/storage limits and model-context limits MUST be separate. A valid
+  4,096-file subject MUST NOT subsequently fail merely because full paths, blob
+  IDs, coverage arrays or repeated source metadata exceed the old prompt bound.
+- Collect representative detail with bounded subprocess and byte work. Prefer
+  breadth across affected scopes and meaningful source over generated/lockfile
+  volume. Exact retained blob/mode correspondence does not require patch sampling.
+- The agent MAY receive scope summaries, stable file references and selected
+  patches rather than thousands of full paths. Actual AM workflow input MUST
+  remain below its existing 64 KiB structured-value ceiling; full evidence stays
+  with GCT's existing durable job owner. No generic owner limit expansion.
+- Detailed inspection MUST map back to the complete canonical manifest.
+  Unexamined files remain uninspected; summaries and sampling MUST NOT imply
+  full detailed review. Message scope is separate: a whole-selection synthesis
+  may use inventory and selected patches. Do not echo thousands of file names.
+- Existing jobs/results and request keys MUST remain interpretable across a
+  workflow revision. Collection and recovery MUST NOT silently launch new work.
+- UI counts MUST describe the whole selection. Large evidence lists MUST render
+  bounded previews with deliberate expansion. Evidence detail never filters the
+  files being committed.
+
+Acceptance covers 4,096-file collection/admission/results with realistic long
+paths, bounded representative work/prompt/output, a clear 4,097-file limit,
+omitted-tail drift, exact retained matches without sampled patches, legacy jobs,
+strict coverage and responsive large lists. Use isolated Git/fake-owner fixtures;
+preserve the operator's real staging, drafts and jobs during activation.
+
+### Commit drawer follow-up — operator feedback 2026-10-22
+
+IMG_1829.png shows a dense mobile drawer and a failed workflow admission
+(`unauthenticated: 401 Unauthorized`). The operator reports that pressing Start
+appears to do nothing and asks for polish, testing and cleanup. This is a bounded
+correction to the existing utility drawer, under the authorized implementation.
+
+Use a focused drafting workspace: compact staged-selection summary, prominent
+current step and result, optional context, then one clear next action. Put
+low-level evidence counts and technical explanations behind a single evidence
+drill-in. Keep full selection and partial coverage honest without repeating
+warnings. Desktop may expose the supporting evidence beside the draft; mobile
+prioritizes progress/result and keeps the primary action in its footer.
+
+Admission begins with immediate visible feedback before the network resolves.
+Queued, running, cancellation, reattachment and failure must each have explicit
+copy and actions. A failed launch must say whether an owner job exists; do not
+claim an agent ran when admission failed. Elapsed time and last reported phase
+remain visible for active work. Preserve request-key recovery and staged-content
+identity. Errors belong next to the status and primary action, not beneath
+several evidence sections. Show actionable human wording with technical detail
+available separately. No raw credential disclosure or authorization widening.
+
+Trace the 401 through browser → GCT → Agent Manager using existing actor/grant
+propagation. Repair that owner boundary when defective; do not bypass it with
+anonymous retries, fabricated tokens, or broader permissions. Confirm the real
+launch failure before changing authorization behavior. Validate regressions,
+desktop/mobile captures and asynchronous launch states; then independently review
+correctness and simplify the touched code.
+
+### Partial drafting follow-up — operator feedback 2026-10-22
+
+An agent-produced partial message must offer an explicit action to investigate
+the remaining staged changes. Repeating the same representative sample is not
+that investigation. Reuse the existing durable drafting owner and immutable
+staged subject; expand access to staged evidence in bounded chunks and preserve
+coverage honesty. Keep the previous draft available if further investigation
+fails, is cancelled, or remains partial. Never promise complete coverage before
+the evidence supports it. New work starts only on an explicit operator action,
+with visible progress and the existing cancellation/reconnect behavior.
+
+The primary result action and the further-investigation action must be easy to
+find together on mobile. Add consistent, meaningful icons beside primary and
+text actions in the commit drafting surface, retaining visible text and
+accessible names. Explain the distinction between unavailable related-run
+context and staged-diff evidence; no related run does not mean no evidence.
+
+Deep investigation is one explicit durable Agent Manager workflow. Its compact
+input references the existing GCT job and immutable subject. Typed advisory reads
+supply bounded inventory and selected patches from recorded Git blob identities;
+current checkout/index content cannot substitute for that evidence. Persist
+bounded supplied-file receipts with the existing job owner, independently of
+admission and cancellation revision claims. Validate stable-ID detailed inspection
+against supplied complete patches. Inventory and representative evidence can
+support a whole-selection synthesis without exhaustive inspection. Keep the
+provider's existing structured-input ceiling and avoid a private multi-run orchestrator.
+The continuation request binds its successful partial parent, subject and new
+request key; ambiguous retries preserve that exact new request. Prior durable
+job references provide fallback without copying megabytes into browser storage.
+
+### Whole-selection synthesis correction — operator feedback 2026-10-22
+
+A useful draft for the complete selection must not require reading every file
+or every complete patch. Per-file coverage measures detailed evidence inspection,
+not commit-message scope. Do not exhaust patch pages as a prerequisite to writing
+a whole-selection message. Preserve truthful inspected-file accounting separately.
+
+Give investigation a bounded inventory of the complete immutable selection and
+let it choose important, representative and high-change details. Provide targeted
+immutable evidence access rather than a mandatory sequential full-patch crawl.
+A draft may summarize every affected theme from inventory and selected evidence
+without claiming every file was read. Distinguish whole-selection synthesis,
+limited synthesis with substantive unknown themes, and detailed inspection counts.
+Missing full patches alone must not force a partial-message warning; actual
+unsupported themes and uncertainty must remain visible. Legacy results keep their
+old meaning. A continuation must improve the previous draft using new evidence
+or clearly explain why investigation could not progress, rather than silently
+presenting an unchanged sampled result as a successful deeper investigation.
+
+Acceptance: trace the reported retained execution, prove whole-selection input
+and selective immutable reads for a large selection, preserve honest inspection
+counts, support legacy/retry/cancel behavior, and validate actual provider/tool
+boundaries as well as drawer presentation. Preserve staging and existing drafts.
+
+### Scope wording and workflow identity correction — 2026-10-22
+
+Use a neutral "Staged selection: N files" heading for the pinned subject. Only
+an explicitly supported whole-selection draft may claim to summarize the whole
+selection. A LIMITED result after an evidence access failure must explain that
+investigation made no progress and preserve the previous draft.
+
+Verify the real workflow child identity end to end: workflow-created run,
+canonical identity issuance, CLI transport, provenance verification and exact
+GCT evidence binding. Workflow ownership coordinates must come from verified
+issuer metadata, not caller headers or a prompt-supplied execution ID. Validate
+the cross-owner issuance path, not only a fabricated verified-claims fixture.
+
+### Completed child and workflow acceptance correction — 2026-10-22
+
+A completed agent child is not yet an accepted message. Validate the complete
+path through workflow budget settlement, structured-result binding and GCT
+normalization before declaring the feature fixed. Replay retained production
+failure data through these owners; browser fixtures prove presentation only.
+Keep genuine budget failures authoritative and visible, including when the
+structured terminal reason has no free-text message. Display the failure before
+the preserved previous draft, with an explicit fallback if no cause was supplied.
+
+Size the bounded investigation for cumulative model usage across tool calls,
+not context-window size. Preserve time, charge, call and child limits. Selected
+context source IDs and immutable file IDs are distinct namespaces; the prompt
+and result schema must explain that source_ids is empty when no related context
+was selected. Keep strict result validation and truthful evidence receipts.
+
+### Durable execution and interfaces
+
+Use typed protobuf/Connect contracts for browser and inter-scenario operations.
+Reuse/extend the existing advisory-job owner rather than creating competing job
+or proposal persistence. Persist exact input identity, idempotency key, operation
+kind, execution handle, status and structured result. Bind selected context to
+source revisions. Persist admission before dispatch and reconcile after restart.
+
+Use Agent Manager's existing configured runners and generic workflow execution
+with schema-validated title/body/trailers/coverage/source output. No new provider
+SDK or API-key configuration belongs in this delivery. Preserve canonical caller
+authority and explicitly read-only tool/workspace restrictions. Reuse stable
+Start/Get/Wait/Cancel/result operations; never parse a transcript for completion.
+Cancellation and result adoption require terminal-state/race guards. A provider
+outage/authentication failure remains explicit and must not trigger another run.
+
+The backend lane owns GCT domain/transport/schema/generated contracts and startup
+wiring. The Agent Manager lane owns context/execution adapters, workflow assets
+and necessary AM fixes. The UI lane owns feature hooks/composer/shared message
+formatting and App integration. Publish narrow shared interfaces before coding
+across these boundaries. Do not add independent REST writers or duplicate hooks.
+
+### Validation, review and cleanup
+
+Required focused evidence includes staged-versus-working bytes, partial matches,
+mtime missing/refresh cases, bounded context and omissions, deterministic no-agent
+collection, durable idempotent dispatch, cancel/result races, restart/reconnect,
+structured-result rejection, stale selection, human-edit preservation, multiline
+conventional messages, unknown trailers and mobile keyboard/safe-area behavior.
+Use fake/replay providers for deterministic tests. Any live model smoke must be
+tiny, bounded, use the supported execution owner and preserve real repository
+content/index. Do not provision credentials or launch broad paid evaluations.
+
+Run the generated owner verifier and governed scoped generation when needed;
+focused API/CLI/UI tests; UI lint/type-check/build; applicable Test Genie phases;
+and desktop/mobile observer checks against the approved interaction. Use routed
+test storage for browser mutations and wait once on server-owned test runs.
+
+After functional validation, dedicate independent review to refactoring and
+related debt. Remove superseded message paths, duplicated serialization/state,
+unnecessary abstractions and dead code; retain protective checks. Revalidate
+affected behavior after changes. Completion requires the approved flow, passing
+focused evidence, truthful scoped suite results, independent review and a final
+checkpoint/work record. Compilation, screenshots or a single passing fixture
+alone do not establish acceptance.
+
 ## Proposal review delivery specification — approved 2026-10-08
 
 ### Authority and durable context

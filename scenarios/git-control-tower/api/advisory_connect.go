@@ -13,7 +13,7 @@ import (
 
 var _ advisoryconnect.AdvisoryServiceHandler = (*advisoryConnectServer)(nil)
 
-type advisoryConnectServer struct{}
+type advisoryConnectServer struct{ server *Server }
 
 func (advisoryConnectServer) Draft(_ context.Context, req *connect.Request[advisoryv1.DraftRequest]) (*connect.Response[advisoryv1.DraftResponse], error) {
 	if req == nil || req.Msg == nil {

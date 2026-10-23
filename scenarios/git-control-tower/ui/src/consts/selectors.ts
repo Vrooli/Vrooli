@@ -61,6 +61,27 @@ const literalSelectors = {
     versionHelp: "proposal-version-help"
   },
 
+  commitMessage: {
+    primary: "commit-message-primary",
+    actions: "commit-message-actions",
+    investigate: "commit-message-investigate",
+    previousDraft: "commit-message-previous-draft",
+    stage: "commit-message-stage",
+    panel: "commit-panel",
+    composer: "commit-message-composer",
+    title: "commit-message-input",
+    description: "commit-message-description",
+    trailers: "commit-message-trailers",
+    suggest: "suggest-commit-message",
+    suggestions: "commit-message-suggestions",
+    standing: "commit-suggestion-standing",
+    suggestion: "commit-message-suggestion",
+    partialCoverage: "commit-message-partial-coverage",
+    stale: "commit-message-stale",
+    progress: "commit-drafting-progress",
+    mobileNav: "mobile-nav-commit",
+  },
+
   // Toast/notifications
   errorToast: "error-toast"
 } as const;

@@ -15,6 +15,7 @@ import (
 	"git-control-tower/internal/config"
 	"git-control-tower/internal/policygate"
 	"git-control-tower/internal/proposals"
+	"git-control-tower/internal/stagedmessages"
 	"git-control-tower/ssh"
 
 	gorillahandlers "github.com/gorilla/handlers"
@@ -75,6 +76,7 @@ type Server struct {
 	authConfig           authn.Config
 	intentService        *policygate.IntentService
 	proposalService      *proposals.Service
+	stagedMessages       *stagedmessages.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -273,6 +275,7 @@ func (s *Server) initServices() {
 		s.reviewJobStore = durableReviewStore
 	}
 	s.initProposalService()
+	s.initStagedMessages()
 	s.startBaselineCollectionReconciler()
 	s.startProposalDigest()
 	s.reviewJobStore.StartCleanup(10 * time.Minute)
@@ -434,12 +437,12 @@ func buildAuthenticationConfig(local policygate.PrincipalVerifier) (authn.Config
 	providers := make([]authn.Provider, 0, 1+len(shared.Providers))
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_AUTH_MODE")), "personal_local") {
 		providers = append(providers, policygate.NewPersonalLocalProvider())
-	} else {
-		providers = append(providers, policygate.NewSharedAuthenticatorProvider(local))
 	}
+	// Personal-local authority cannot cross a scenario boundary. Keep explicit
+	// browser credentials verifiable in that mode so the execution owner can
+	// independently authenticate the same immediate caller.
+	providers = append(providers, policygate.NewSharedAuthenticatorProvider(local))
 	providers = append(providers, shared.Providers...)
-	return authn.Config{
-		Providers:   providers,
-		RecoveryURL: shared.RecoveryURL,
-	}, nil
+	shared.Providers = providers
+	return shared.WithManagedCloudflare("git-control-tower"), nil
 }

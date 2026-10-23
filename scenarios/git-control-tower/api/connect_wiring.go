@@ -143,7 +143,7 @@ func (s *Server) mountConnectHandlers() {
 		Runs: newEvidenceRunsClient(30 * time.Second),
 	}, policyOpt)
 	humanControlPath, humanControlHandler := humancontrolconnect.NewHumanControlServiceHandler(s, policyOpt)
-	advisoryPath, advisoryHandler := advisoryconnect.NewAdvisoryServiceHandler(advisoryConnectServer{}, policyOpt)
+	advisoryPath, advisoryHandler := advisoryconnect.NewAdvisoryServiceHandler(advisoryConnectServer{server: s}, policyOpt)
 	auditorPath, auditorHandler := auditorconnect.NewAuditorServiceHandler(auditorConnectServer{server: s}, policyOpt)
 	reviewPath, reviewHandler := reviewconnect.NewReviewServiceHandler(reviewConnectServer{server: s}, policyOpt)
 	authPath, authHandler := authconnect.NewAuthServiceHandler(authConnectServer{}, policyOpt)

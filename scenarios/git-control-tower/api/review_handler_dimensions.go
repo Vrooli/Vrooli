@@ -40,33 +40,23 @@ func (s *Server) fetchTestsDimension(ctx context.Context, scenarioName, executio
 	}
 
 	dim := &TestsDimension{Available: true}
-	var latest TestExecutionResult
-	var err error
-	if executionID != "" {
-		result, getErr := s.testGenieClient.GetExecution(ctx, executionID)
-		err = getErr
-		if result != nil {
-			latest = *result
-		}
-	} else {
-		list, listErr := s.testGenieClient.ListExecutions(ctx, scenarioName, 1)
-		err = listErr
-		if list != nil && len(list.Items) > 0 {
-			latest = list.Items[0]
-		}
-	}
-	if err != nil || latest.ExecutionID == "" {
+	latest, err := s.testGenieClient.ReadRun(ctx, scenarioName, executionID)
+	if err != nil || latest.GetRunId() == "" {
 		return dim, true
 	}
-	dim.Passed = latest.Success
-	dim.Total = latest.PhaseSummary.Total
-	dim.PassedCount = latest.PhaseSummary.Passed
-	dim.FailedCount = latest.PhaseSummary.Failed
-	if latest.CompletedAt != "" {
-		dim.LastRun = latest.CompletedAt
-	}
-	if detailCount > 0 {
-		dim.Failures = buildTestFailures(latest.Phases, detailCount)
+	dim.Passed = latest.GetStatus() == "passed" && len(latest.GetPhases()) > 0
+	dim.LastRun = latest.GetCompletedAt()
+	dim.Total = len(latest.GetPhases())
+	for _, phase := range latest.GetPhases() {
+		switch phase.GetStatus() {
+		case "passed":
+			dim.PassedCount++
+		case "failed", "error", "aborted":
+			dim.FailedCount++
+			if len(dim.Failures) < detailCount {
+				dim.Failures = append(dim.Failures, TestFailure{Phase: phase.GetName()})
+			}
+		}
 	}
 	return dim, true
 }
@@ -181,26 +171,6 @@ func buildCodeQualityIssues(bd *TidinessBreakdown, limit int) []CodeQualityIssue
 		issues = issues[:limit]
 	}
 	return issues
-}
-
-// buildTestFailures extracts failed phases from a test execution, capped at limit.
-func buildTestFailures(phases []TestPhaseResult, limit int) []TestFailure {
-	var failures []TestFailure
-	for _, p := range phases {
-		if p.Status != "failed" {
-			continue
-		}
-		failures = append(failures, TestFailure{
-			Phase:          p.Name,
-			Error:          p.Error,
-			Classification: p.Classification,
-			Remediation:    p.Remediation,
-		})
-		if len(failures) >= limit {
-			break
-		}
-	}
-	return failures
 }
 
 // severityOrder maps severity strings to sort priority (lower = more severe).

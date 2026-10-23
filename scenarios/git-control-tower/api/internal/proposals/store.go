@@ -229,6 +229,7 @@ func (s *Store) Get(ctx context.Context, id string) (Proposal, error) {
 
 // ListFilter selects proposals. Empty States means open only.
 type ListFilter struct {
+	NewestFirst  bool
 	RepositoryID string
 	States       []State
 	EffortRef    string
@@ -262,7 +263,11 @@ func (s *Store) List(ctx context.Context, filter ListFilter) ([]Proposal, error)
 	if limit > 200 {
 		limit = 200
 	}
-	query += ` ORDER BY created_at ASC LIMIT ?`
+	if filter.NewestFirst {
+		query += ` ORDER BY created_at DESC,id DESC LIMIT ?`
+	} else {
+		query += ` ORDER BY created_at ASC LIMIT ?`
+	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

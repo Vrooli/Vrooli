@@ -129,6 +129,7 @@ type interceptor struct {
 
 func (i *interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		ctx = WithVerifiedOwnerProof(ctx, req.Header())
 		procedure := req.Spec().Procedure
 		effect, genericIntent := MutatingProcedures[procedure]
 		handlerEffect, handlerManaged := HandlerManagedIntentProcedures[procedure]

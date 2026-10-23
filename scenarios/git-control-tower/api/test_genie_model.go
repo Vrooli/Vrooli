@@ -56,9 +56,3 @@ type TestObservation struct {
 	Section string `json:"section,omitempty"`
 	Text    string `json:"text"`
 }
-
-// TestExecutionListResponse wraps a list of test executions.
-type TestExecutionListResponse struct {
-	Items []TestExecutionResult `json:"items"`
-	Count int                   `json:"count"`
-}

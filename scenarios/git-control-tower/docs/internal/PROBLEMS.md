@@ -2,6 +2,962 @@
 
 Known issues, tech debt, and deferred work for the git-control-tower scenario.
 
+## Corrected — committed suggestion retained for the next staged selection (2026-10-22)
+
+Operator feedback: “I accepted its proposal and committed with that. But then the
+next staged suggestion still showed it there.” Screenshot: IMG_1836.jpeg.
+
+- Rung: localized W3 session lifecycle defect under DESIGN.md's staged-message
+  acceptance/commit contract. No maturity or unrelated contract gate claimed.
+- Recall found related staged-message work; no evidence this repeats the prior
+  budget/auth failures. Search run reranking and source-ledger recall degraded.
+- H1 confirmed: UI commit success clears the editor but never retires the
+  indefinitely cached suggestion session or browser job handle. The next Suggest
+  reopens it; its staged-drift warning is correct. H2 (server returning an old
+  result to a fresh collection) rejected for this path: hasWork bypasses Collect.
+- Desired behavior: acceptance remains editable; confirmed UI success plus hash
+  retires the completed session. Refusal, transport uncertainty, missing hash and
+  ordinary staged drift preserve it. Active/unknown execution handles remain for
+  cancellation/reconnect; server job history is not deleted or rewritten.
+- Shared session ownership extracted from useMessageSuggestions into
+  messageSession.ts. useCommit captures repository/session generation at dispatch,
+  and retires only that generation. Both ordinary and skip-precommit commit paths
+  already use this hook. New collection/reset generations guard late evidence,
+  verification, adoption and persistence writes; retiring closes the drawer.
+- RED: accepted owner result -> confirmed commit still displays suggestion
+  standing, `/tmp/gct-1836-red.log`. Final focused regression covers navigation,
+  fresh-client reload, failed/uncertain commits, unmounted composer, other repo,
+  deferred collection/verification, newer collection and active/unknown handles.
+- Independent review identified a pending-mutation repository-switch race and
+  a default repository key normalization error. Fixed by capturing the original
+  raw repository ID alongside the session, using it for cache invalidation and
+  only normalizing at the feature session boundary. Added a deferred switch test
+  and undefined/null/empty-ID table. Independent final review found no further
+  material issue or justified additional refactor. The shared extraction removes
+  duplicate session/storage ownership without a new persistence format.
+- Final focused 122 tests pass across five affected files; lint, type-check,
+  build and proto freshness pass. Evidence:
+  `/tmp/gct-1836-final-focused.log`, `/tmp/gct-1836-{lint,types,build,proto-freshness}.log`.
+- Scoped Test Genie unit `20261023-002435-524db039` remains failed at the existing
+  global coverage threshold: lines/statements 64.79%, functions 61.37%, branches
+  70.17% versus 85%. Owner evidence reports 68 test files / 641 tests passed;
+  that summary alone is not a complete execution receipt. Findings payload
+  `/tmp/gct-1836-unit-findings.json` is 925240 bytes, sha256
+  `6b797a142d305a30ec7b6d9499f2cfee37d7dffdb1ce0a8bce289b5d7e7802ce`.
+  The focused final checks include the last normalization correction; the shared
+  checkout suite is not claimed to certify an isolated exact source snapshot.
+- Activated with canonical make restart; API healthy/readiness true and UI
+  serves index-CxE6pYqi.js. `/tmp/gct-1836-restart.log` and served HTML retain
+  activation evidence. Index before/after comparison is unchanged. No real
+  commit, model execution, staging or historical job mutation used for testing.
+- Limits: this browser's successful UI commit lifecycle; external commits and
+  cross-tab synchronization are not added. No new browser/BAS certification
+  claimed for this state-only fix; regression uses the real composer and mutation
+  hook with mocked owner responses.
+
+## Corrected — completed investigation rejected without a visible cause (2026-10-22)
+
+Operator reports repeated manual verification after IMG_1835.jpeg shows "No
+completed suggestion" and the previous limited draft without a visible reason.
+This is a scoped W3 correction under DESIGN.md's completed-child acceptance
+target. Earlier isolated owner and mocked browser tests did not prove the whole
+budget-settlement and message-acceptance path.
+
+- Recall reused the previous identity correction; search-hub returned related
+  staged-message skills/docs, with run reranking and source-ledger degraded.
+- H1: the previous authorization failure recurred. Rejected by 15 real evidence
+  receipts: complete 285-file inventory and 10 additional complete patches.
+- H2: the workflow rejected an otherwise completed child. Confirmed: job
+  `message-136f0b281360289d0b281031e9ed10c1`, execution
+  `03731f67-87aa-4f77-be8d-c0b06011dce6`, child
+  `2b6fbc48-d6f2-4e67-beaf-56611778c87f`. Child completed in ~73s;
+  workflow reports budget_exhausted(tokens), 523731 > 262144.
+- H3: failure diagnostics were lost. Confirmed: AM terminal reason contains
+  code and budget_name but no message; GCT copied only message. Drawer puts
+  diagnostics below the lengthy previous draft and uses generic failure copy.
+- Secondary acceptance defect: completed output cites numeric file IDs as
+  source_ids despite empty selected contexts. Strict decoding must continue to
+  reject unsupported references; fix the generating contract, not the validator.
+- Evidence: `/tmp/gct-third-failure-{execution,runs,trace,run,events}.json`.
+  Backend, presentation and independent validation lanes own reproduction,
+  fixes and cross-owner acceptance. Preserve staging, existing jobs and authority.
+- Canonical accounting confirms 523731 = 94163 non-cache + 429568 cache-read
+  tokens, versus 86988 context tokens; accounting is correct. Quick observed
+  usage was 26563. The fixed declarations are quick 2.0.1 / 262144 tokens and
+  deep 1.1.1 / 2000000 tokens. Existing $1/$2, time, call and child caps stay.
+  No claim that every possible 4096-file investigation fits this finite budget.
+- Independent predeployment catalog validation rejected an initially proposed
+  4 Mi token ceiling with the unchanged $2 cap (`charge_budget_ratio`). Corrected
+  to 2M within the existing charge ceiling. The new behavioral regression now
+  resolves the real skill and calls the actual catalog validator before using
+  a test-owned revision, so the engine helper cannot conceal this boundary.
+- Budget regression failed on real completion behavior before the fix, then
+  accepted observed usage and bounded followups while preserving genuine token
+  exhaustion and complete typed end output. Terminal projection regression
+  failed on the empty message and now preserves owner messages or typed budget
+  meaning, including missing reason. Logs: `/tmp/gct-1835-budget-behavior-red.log`,
+  `/tmp/gct-1835-reason-{red,green}.log`, and
+  `/tmp/gct-1835-independent-final-owner-contracts.log`.
+- Both generating skills and result schemas explicitly separate selected
+  `contexts[].id` from stable integer file IDs and require empty source_ids when
+  no context was selected. Strict normalization is unchanged. Added a permanent
+  sanitized 285-file regression retaining the actual 26 prior / 10 newly read /
+  29 claimed ID sets. Invalid source references, missing inventory and invented
+  inspection fail; valid source-free whole synthesis passes with 29/285 detailed
+  inspection. Exact retained replay found no further acceptance defect. Logs:
+  `/tmp/gct-1835-retained-replay.log`,
+  `/tmp/gct-1835-independent-final-replay-reason.log`.
+- Cleanup deliberately removed a proposed redundant source-ID projection and
+  feature flag. Existing contexts remain the single allowlist; retained input
+  and lost-ack retry byte shape stay unchanged. Semantic JSON assertions replace
+  string-format fallback logic. Two independent source reviews found no further
+  justified production refactor. Prompt instructions are not model guarantees.
+- UI has 81 focused passing tests and full lint/types/build. Served bundle is
+  `index-B0CsW0IY.js`. Failure cause and technical detail now precede long prior
+  drafts, with truthful failed/cancelled copy and an explicit legacy no-reason
+  fallback. Mobile first fixture exposed its own missing successful-parent
+  snapshot; restored the real owner response shape and enabled native fail-fast
+  node settings, preserving all earlier checks. Corrected selected run
+  `37b33751-22d1-40d4-bd67-ad40e860166f`, BAS
+  `42824e2c-1c72-4cd0-b92b-b81f7c24a37f`, passed all 110 steps. SQL/file lease
+  cleared with empty installation/heartbeat/cleanup errors and all four routing
+  counters zero. Actual pixels reviewed. Browser transport remains fully mocked.
+- Full affected GCT API/domain/policy checks passed; final full AM
+  workflowruntime/catalog packages passed. Proto verifier passed. Scoped Test
+  Genie unit `20261022-225532-8bbd164b` retains the existing UI test:coverage
+  failure, 64.7% versus 85%; no full unit-green claim. Receipts:
+  `/tmp/gct-1835-{gct-full,final-owner-packages,proto-freshness,unit-owner}.log`.
+- Live model validation cannot be launched from this session: canonical own
+  identity renewal reports identity_refresh_unavailable, its retained attached
+  root is needs_review with expired owner proof, and identity-binding returns
+  lease_unavailable. No credentials borrowed or stripped. Separate defect filed
+  as `knw-1792709401363861686`; no authority-model change belongs in this fix.
+- GCT canonical restart activated the API/UI, but independent readback correctly
+  found old AM revisions and stale prompts. Supported explicit reconciliation
+  returned 401 verified agent caller required. After a bounded owner read showed
+  zero pending/starting/running children, canonical AM restart was chosen to run
+  its existing startup declaration reconciliation. Final independent readback
+  at 23:02:07 UTC confirms quick 2.0.1 / 262144 and deep 1.1.1 / 2000000,
+  unchanged $1/$2 caps, exact source hashes and prompt_stale=false. Both APIs
+  report healthy/readiness=true and UI serves B0CsW0IY. Receipt:
+  `/tmp/gct-1835-final-live-activation-receipt.json`. AM also reports a startup
+  workflow_accounting context deadline timeout while remaining ready; this is
+  separate from successful declaration activation and must not be hidden behind
+  the lifecycle's optional-resource warning. The same observable signature is
+  already recorded in `docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/am-workflow-accounting-timeout-20261020/README.md`;
+  that is not proof of identical cause or completed recovery. Staged fingerprint
+  is unchanged.
+  No fresh live model output was obtained; that validation gap remains explicit.
+
+## Resolved correction — missing workflow identity and misleading selection heading (2026-10-22)
+
+Operator feedback (verbatim): 'It says "For all 285 staged files" at the top,
+but then gives conflicting info later' (IMG_1832.jpeg).
+
+- Screenshot explicitly reports evidence denied because it requires the owning
+  verified workflow child. No new evidence; prior draft retained as LIMITED.
+  This is a second real execution boundary failure, not merely count wording.
+- H1: signed child identity lacks workflow_execution_id despite the run being
+  workflow-owned. Trace latest retained execution, identity issuance metadata,
+  request projection and exact evidence denial before changing security.
+- H2: CLI transport omits or substitutes the correct verified child token.
+  Compare retained invocation/environment ownership without printing secrets.
+- H3: 'For all N staged files' is an unconditional selection label mistaken for
+  verified draft scope. Reproduce LIMITED/blocked state and make selection
+  heading neutral; preserve distinct whole/limited result standing.
+- Expected: the actual owning child can read only its immutable inventory and
+  selected patches. Unsigned/foreign/insufficient identities remain denied.
+  No policy widening, fake execution coordinates, or borrowed credentials.
+- H1 confirmed: latest job `message-dd3a5652f20602ebb1da2ee813d343dc`,
+  execution `1e4ea155-75dd-476a-85d2-3890fa102dc5`, child
+  `53c57a31-7ea0-4035-8681-6c9b81d152f6`, attempt
+  `da4539e9-5528-42b5-9ecf-53ca2cd7f441`. The inventory command failed at
+  21:35:09 UTC with the screenshot's exact child-identity denial; zero receipts.
+  Saved child environment has the correct workflow coordinates. H2 rejected:
+  verified read capability reached the handler, and issuer/REST/CLI metadata
+  retain the coordinates. The shared provenance layer alone expected snake_case
+  while canonical AM issuance uses workflowExecutionId/workflowNodeId.
+- Validation gap: positive GCT fixtures fabricated the expected snake_case
+  verified-claims map, while separate AM tests asserted camelCase issuance.
+  Neither exercised their join. The new regression starts a real workflow,
+  captures its issued runner credential, crosses owner verification HTTP and
+  CLIUtilVerifier, then checks downstream verified provenance and read capability.
+- Related trust repair is necessary at that same boundary: public VROOLI_
+  environment labels previously entered signed workflow metadata without a
+  durable membership check. Verification must reject unproven workflow ownership
+  while preserving valid base authority. A private, persisted admission binding
+  covers the first tool call before launch acknowledgement; historical genuine
+  children use the retained attempt's exact run identity. No new persistence
+  owner or authority policy is introduced.
+- UI header is neutral and LIMITED reason prominent; 79 focused cases,
+  lint/types/build pass. Browser desktop passed; first updated mobile fixture
+  reached the correct limited state but retained an obsolete footer expectation
+  from its earlier failed-job variant. Corrected to adopt the explicit previous
+  draft button; mobile rerun `211c0d7e-2ac1-45f2-9ce5-a055b2eabb88`
+  passed (BAS execution `097a3cfd-28f2-40b5-ac5c-c088922973b3`). This was a
+  fixture expectation, not product failure. Both SQL/file test leases clear
+  cleanly. Actual mobile pixels show the neutral heading, 26/285 detailed
+  inspection, clear limited reason and reachable footer together.
+- Identity correction passes real issuance→SQLite persistence→owner HTTP
+  verification→CLIUtilVerifier→provenance under race. A genuine workflow child
+  is admitted before launcher acknowledgement; missing/wrong private receipt,
+  task, key, attempt and execution are denied. Historical foreign signed labels
+  retain base read authority without workflow ownership. Acknowledged historical
+  children and the actual continuation mint path remain accepted. Baseline and
+  legacy grant verification use the same membership projection.
+- Broad AM orchestration/domain run initially exposed two fixture assumptions:
+  delegation asserted unbound labels in verified ownership, and a maintenance
+  fence fixture used now-reserved workflow environment input. Updated fixtures
+  preserve raw child-versus-parent label isolation, verified-proof requirements,
+  Force rejection, scope/expiry/revocation, and the closed maintenance fence.
+  Final full owner run passes (91.151s/.012s). No production workaround or
+  weakened fence was introduced.
+- Late pre-handle review found a second adapter mismatch: ordinary AM Get
+  intentionally omits Input, but GCT used it to bind the immutable job before
+  saving the execution handle. GCT now uses the existing explicit payload RPC,
+  which supports running executions and the same narrow child read route.
+  Corrected fake metadata responses reproduce this defect before the fix.
+  Actual handler/routing tests and exact owner/key/input/digest binding checks
+  pass. No additional API, scope, profile or persistence owner was added.
+- Full final GCT API/domain checks pass; shared provenance/authn/identity and
+  independent configured GCT authentication tests pass. Exact receipts:
+  `/tmp/gct-workflow-identity-{race,full-owner-final,gct-final}.log`,
+  `/tmp/gct-child-independent-realjoin.log`,
+  `/tmp/gct-child-independent-prehandle-payload.log`, and
+  `/tmp/gct-child-independent-actual-payload-handler.log`.
+- Scoped Test Genie: GCT `20261022-214907-8c8ca6c7` dependencies passed; unit
+  retains the same existing UI coverage failure (64.7% versus 85%). AM
+  `20261022-214936-93c71af8` dependencies passed. No full-scenario green claim.
+- Source is frozen after independent review and cleanup. Canonical AM and GCT
+  restarts completed; both health endpoints report healthy. UI serves
+  `index-CiM8-mRS.js`; deep workflow 1.1.0 remains active with matching source
+  hash and current resolved prompt. AM's optional-resource degraded summary is
+  pre-existing and separate from these healthy API/readiness checks.
+- Final staging fingerprint is unchanged. Existing jobs and prior drafts remain
+  intact. No new paid/live model invocation was made. Validation establishes
+  real issuance, verified ownership and payload-access boundaries through joined
+  and actual-handler tests; it does not claim new model semantic output.
+
+## Resolved correction — whole-selection synthesis versus inspection (2026-10-22)
+
+Operator feedback (verbatim): "I'm confused. I pressed the button to investigate the remaining changes and it looks like it just made an investigation that is the same number of files so like it shows the previous suggestion and then a new one and like I can see the mirror Rita showing like you know previous suggestions for the same you know staged files but it didn't actually like investigate the rest. It looks like an investigated either the same amount or you know like the same number of files but that doesn't make any sense.  And it says like 26 out of like however like 200 or something Files I'm red so it definitely looks like an agent didn't you figure out what's going on with the whole thing like I wanted to but also I don't want to necessarily be required to read all the files. We should be smart about how it's prompted like for example you know we could just give it you know the commands to see what files or stage or whatever but we can tell it to try to be smart about it and like you know like not you look at the whole thing if it's like over a certain size you know like if it you know, just look at the important files or you know things like that or like files a lot of changes or whatever you know that that could be like a strategy there I don't I don't think we need to be too prescriptive here but like like if it had to read all the changes every time you know that would be a lot of tokens. I'm gonna take a lot of time so I definitely want to be able to create. You know the suggestion for the whole thing which it still seems to be bugged about it even though I've been pushing you like a few times to get this working but at the same time, I still wanna emphasize that it you know has to be smart about this."
+
+- Scope: bounded W3 correction under existing staged-message target; DESIGN.md
+  whole-selection synthesis correction is authoritative for this feedback.
+- Prior art: related implementation is present; search-hub returned advisory docs,
+  deep skill and programs. Run reranking/source-ledger retrieval degraded.
+- H1: the recent deep run's evidence tool failed or never obtained new evidence.
+  Test retained job/execution/tool events rather than mocked results.
+- H2: complete-patch inspection is incorrectly required for whole-selection
+  message scope. Test prompt, result normalization and drawer semantics.
+- H3: deep input hides full inventory and only offers sequential patch traversal.
+  Test compact input and targeted access on large immutable fixtures.
+- H1 confirmed from retained job `message-06cd680d8eb96b2a5c863fc39b0a12af`,
+  execution `01cf8825-9fe2-4f86-9544-5aad6ab249b3`, child run
+  `199a2e27-549a-4d21-a6a6-fe6b3ae82c9b`: the exact evidence CLI failed
+  `permission_denied: verified staged-evidence read capability required`.
+  Zero receipts, no new patches, prior title/body and 26 IDs repeated. Saved
+  owner/profile scope ceilings included GCT read before the run; no scope
+  expansion is required. Retained evidence: `/tmp/gct-reported-deep-*`.
+- Root cause: PersonalLocalProvider rejected verified agent provenance with
+  FailureInvalid. Shared authn intentionally projects agent authority only when
+  human providers abstain with FailureMissing. The earlier transport fixture
+  supplied a synthetic human provider that abstained and missed this deployed
+  chain. Actual buildAuthenticationConfig plus typed evidence transport now
+  reproduces the exact failure before the fix (`/tmp/gct-whole-auth-red.log`).
+  The provider now abstains for verified agents; OS-human authority is never
+  supplied to an agent. Invalid credentials, missing capability, unsigned
+  workflow coordinates and foreign executions remain rejected.
+- H2/H3 confirmed in source: whole-patch inspection was required for full
+  message coverage, while deep input omitted the full inventory and forced
+  sequential whole-patch retrieval. These are product and evidence-access
+  defects independent of the live authentication failure.
+- Implementation and activation complete. The configured-provider regression
+  passes under race (`/tmp/gct-whole-auth-final.log`); invalid browser proof
+  cannot be bypassed by a valid child. UI has 76 focused passing cases and
+  full lint/typecheck/build; served bundle is `index-C1lfIoRa.js`.
+- Canonical lifecycle restarts activated the matching deep workflow 1.1.0,
+  active source hash matches the declaration and prompt_stale=false. AM's
+  asynchronous scenario sweep completed without failed declarations; its
+  pre-existing optional resource degraded standing remains separate.
+- Selected Workflow Health run `8c4e7ac0-b3bd-4e08-a05e-7d8977b2d5f6`
+  passed 2/2 served-browser fixtures, including whole-selection message scope
+  with 34/285 detailed inspection, a mocked eight-file read count, no partial-message
+  warning and explicit adoption. Desktop and mobile cancellation/failure/prior
+  fallback remain covered. SQL/file lease cleared cleanly with all four routing
+  counters zero (transport fully mocked). Actual desktop result pixels reviewed.
+- Scoped Test Genie run `20261022-212147-ebd6b8c5`: dependencies passed; unit
+  still fails its existing UI test:coverage threshold (64.7% versus 85%).
+  This is not a green full-scenario unit gate. Evidence:
+  `/tmp/gct-whole-testgenie-wait.json`, `/tmp/gct-whole-unit-owner.log`.
+- Constrained 390×450 served-browser execution
+  `b106b258-0c72-44ac-883f-9a0b308c8ba9` completed all 82 entries. Actual
+  780×900 pixels confirm the footer action remains reachable while content
+  scrolls; no native physical-keyboard claim. Its separate paired lease cleared
+  with zero routed writes/primary bypasses and no heartbeat errors. The first
+  attempt stopped before BAS admission because CLI rebuild was denied by the
+  host memory PSI gate; after the canonical CLI refresh completed, this run
+  passed. Evidence: `/tmp/gct-whole-keyboard-{execution,isolation,timeline}.json`.
+- Final independent acceptance found no remaining scoped source or layout
+  issue. Staged identity stayed unchanged. No new paid/model execution was
+  launched. The original live failure was traced, while corrected authorization
+  and provider contracts are proved in regression tests; semantic message
+  quality is not certified by transport receipts or mocked browser results.
+
+- Backend format 4 separates typed whole-selection/limited message scope from
+  detailed inspection coverage. Whole scope requires complete immutable
+  inventory delivery to the exact owning execution; it never requires all
+  patches. Legacy formats 0/2/3 and retained same-key retries keep their meaning.
+- The existing evidence RPC/CLI supports metadata-only inventory and targeted
+  stable-ID patches. Inventory omits blob IDs and patches, performs no blob
+  reads, and permits up to 256 entries within the requested byte bound. Absent
+  or zero edit counts mean unmeasured. Patch requests remain at most 64 IDs,
+  permit important inherited-ID rereads and retry only unreturned target IDs.
+- Regression first: the prior format-3 continuation failed selective synthesis.
+  Passing 285/4,096-file fixtures now use 2/18 inventory pages, maximum
+  16,307/16,346 bytes, and exactly two targeted patch reads. Whole-message scope
+  coexists with truthful 28-file inspection (26 inherited). Missing inventory,
+  invented patch inspection and invalid targets are rejected. No-progress
+  limited explanations preserve previous text; bounded target retries and
+  persisted format-3 admission retries pass.
+- Full API/domain/store tests pass (11.032s/6.744s/0.017s), final focused cases
+  and full CLI tests pass, and CLI primitive evidence was owner-regenerated.
+  Proto verifier passes artifact
+  `bc6a6825b471a3bf6d2cc2cddaa12100adc155ac4da4f7fbecb0fa6109fbf8b6`.
+  Receipts: `/tmp/gct-synthesis-final-focused.log`,
+  `/tmp/gct-synthesis-final-api-domain.log`, `/tmp/gct-synthesis-final-cli.log`,
+  `/tmp/gct-synthesis-final-proto-verifier.log`.
+- Separate post-green functional and maintainability reviews corrected unknown
+  edit counts, target completion semantics, neutral inspection facts appearing
+  as uncertainty, and exact supported-format validation. Independent frozen
+  backend review found no remaining material finding. Receipts prove delivery,
+  not model understanding or message quality. No paid execution or lifecycle
+  mutation was performed by this lane; root owns deployment/browser acceptance.
+
+## Prior correction — partial result continuation and action icons (2026-10-22)
+
+Operator feedback (verbatim): "Thanks this is definitely better. So from what I
+saw, it said there wasn’t any evidence gathered so I pressed the thing to spawn
+the agent and it looked like the agent was going for a little bit and then it
+gave me this partial result. But there’s no course of action for getting a full
+result. I can either just accept the partial result or discarded. I guess I don’t
+see why it doesn’t let me spawn an agent to get the full result. Am I missing
+something? Also, it looks like the primary buttons and all the text buttons and
+stuff. They probably should have icons with them to just make it easier at a
+glance to you understand what they do."
+
+- Scoped W3 correction under GCT-OT-P1-002; target is the partial drafting
+  follow-up in DESIGN.md. IMG_1831.png shows an agent draft covering only
+  26/285 staged files with a single Use partial suggestion primary action.
+- Prior art: reuse this session's bounded large-selection implementation and
+  drawer acceptance. Search-hub found the staged-message workflow/skill and
+  advisory operations; agent-run retrieval remains degraded, not proof of no
+  prior runs. Preserve staging, existing drafts and durable jobs.
+- H1: the UI hides continuation for successful agent results. Reproduce with
+  a succeeded partial job; reject if a visible action starts expanded work.
+- H2: representative input and compact output enforce a permanent partial
+  ceiling. Inspect evidence packaging, skill decision table and schema; reject
+  if all staged patches can be reached and fully covered in the current run.
+- H3: no related source is being mistaken for no staged evidence. Compare
+  collection copy with snapshot details; staged diffs remain primary evidence.
+- H1/H2 confirmed in source and failing regressions: successful agent output
+  hides the completion action; quick packaging and workflow output cap complete
+  coverage at 64 file IDs. The initial 26/285 draft is not evidence that all
+  remaining changes were investigated. A second identical Start reuses the
+  original sampled admission rather than providing deeper evidence.
+- Design choice: explicit parent-linked deep workflow and typed paged immutable
+  evidence reads through the existing advisory owner. No new multi-run job
+  orchestrator, unbounded prompt, coverage inflation or paid validation run.
+- Independent hook review found empty-collection continuation reloads could
+  lose frozen retry intent, and an unknown child status could allow a new run.
+  Both require regressions before acceptance; retain original parent and exact
+  continuation key while admission remains uncertain.
+- CLI integration: parent-only `message start --continue-from` requires an
+  explicit new key and snapshot; contradictory collection/context/note overrides
+  are rejected before transport. `message evidence` returns one bounded typed
+  page without following its cursor or launching work. Six focused HTTP tests
+  and the complete CLI module pass. Primitive evidence regenerated through its
+  existing owning test, never edited by hand.
+- CLI review A checked explicit launch authority, frozen parent/digest/key,
+  invalid argument rejection and typed caller transport. Review B checked
+  bounded cursor/byte parsing, complete-page versus complete-patch semantics,
+  JSON receipts and absence of automatic follow-up requests. No remaining
+  material finding; the domain's stale expected command count was updated for
+  the new evidence operation after the broader CLI suite exposed it.
+
+- Backend continuation inherits the original note/context and full immutable
+  subject. A new format-3 workflow pages recorded old/new Git objects through
+  the existing Advisory owner. Its prior job remains independently usable.
+  Whole-patch receipts are bounded checks in the same job row, atomically added
+  without changing the lifecycle revision or invalidating Start's handle CAS.
+- Agent reads require `git-control-tower:read` and the exact owning verified
+  workflow. Before the execution handle is saved, AM's retained execution must
+  match the owner, deep workflow key, original idempotency key, job and input
+  digest. Human inspection creates no agent coverage receipts. Deep result
+  coverage accepts only inherited verified IDs or whole patches supplied to
+  that exact execution; binary, oversized, unissued or truncated content remains
+  uncovered. Existing format-0/2 inputs and quick workflow remain unchanged.
+- Fake-runner integration supplied 259/4,070 new whole patches for 285/4,096-file
+  subjects before Start returned; same-key retries start one execution and old
+  note/context/draft survive. Real scratch-Git regression changes staging after
+  pinning old/new OIDs, returns the original patch and preserves the index.
+  Binary, oversized-page and mode/rename metadata cases are covered.
+- Full GCT API/domain/store tests passed (11.959s/5.711s/0.021s), plus independent
+  evidence authorization transport under `-race`. Actual AM catalog/profile
+  parsers and narrow-child read gate passed. Its real structured-value validator
+  accepted the 4,096-ID maximum ASCII-field output at 38,933 bytes. Receipts:
+  `/tmp/gct-deep-final-api-domain-store.log`,
+  `/tmp/gct-deep-am-owner-validation.log`, and
+  `/tmp/gct-partial-evidence-auth-test.log`.
+- Post-green review tightened exact source-set comparison, original-note
+  inheritance, final page-completion byte accounting, typed denial codes and
+  exact lifecycle response handles. The deep contract skill now starts with
+  16 KiB pages and requires smaller same-cursor retries after tool truncation.
+  A server receipt proves CLI delivery, not model visibility or understanding.
+  Ninety-six calls and token/time/cost bounds may still leave changes partial.
+- The deep profile retains protected empty workspace writes and no autoapply;
+  its only declared API scope is GCT read. Native localhost networking remains
+  advisory where the existing runner lacks loopback enforcement. Live policy
+  inspection found the configured AM Cloudflare owner has AM write but no GCT
+  read in its delegated scope ceiling; canonical identity issuance would strip
+  the new child read scope. Activation must resolve that owner-policy boundary;
+  no ambient token substitution, grant widening or live paid run was performed
+  by this lane.
+- Root deployment correction: the existing exact Cloudflare operator binding
+  scoped to `resources=["agent-manager"]` now also contains
+  `git-control-tower:read` (16→17 capabilities). All subjects, resources, other
+  scopes and other bindings remain unchanged; no write capability or audience
+  was added. This necessary feature deployment is covered by the operator's
+  authorization for GCT/AM changes. A private 0600 preimage backup was retained,
+  and the candidate and installed policy passed `authn.FromEnvironment` and
+  canonical scope resolution before lifecycle reload. Human-only consent
+  issuance remains untouched. Post-restart serving-process configuration confirms
+  its sole selected Cloudflare owner can delegate the evidence read.
+- Final UI acceptance: 72 focused cases, full UI lint/typecheck/build pass.
+  Bundle `index-CcsuLl4Z.js` is served. Workflow Health selected run
+  `3af65b3f-2d7a-49c0-aa96-1989929ecfea` passed both cases: desktop 81 entries,
+  mobile 92 entries, every entry successful. These prove adjacent partial-use
+  and investigation actions, distinct parent-linked admission keys, full result
+  adoption, cancellation/failure fallback, and safe previous-draft adoption.
+  Actual partial/footer, cancelled/previous and desktop full-result captures
+  were inspected. Executions: `93c24821-e2b3-4d6d-8e77-ef6b3d973e31` and
+  `1e33b865-9111-4f2d-aa11-a2cc693fc7bf`. SQL/file isolation installed,
+  heartbeated and cleared without error; all four counters zero because all
+  POSTs are fail-closed mocked. No real drafting request reached either owner.
+- The first browser attempt failed because repeated mock registrations are
+  intentionally idempotent, retaining the earlier failed response. Distinct
+  equivalent patterns fixed fixture setup without weakening assertions or
+  changing product behavior. Whole-catalog workflow schema/observer-label debt
+  remains separate from the passing selected execution.
+- Scoped Test Genie `20261022-202944-dac1a5cb`: dependencies passed; unit failed
+  on the existing UI coverage command (64.7% against 85%). Focused feature,
+  API/domain/store, CLI and race checks pass; the full scenario gate is not
+  represented as green. No threshold was weakened.
+- Canonical AM and GCT restarts completed. The active deep workflow is 1.0.0,
+  source hash `d36833a8efbed025e98080fc9b736670a45c9d934a77187e3a666d717c30ad6d`,
+  matching the authored declaration. AM's startup owner scan performed activation;
+  a direct declarations CLI attempt correctly rejected this session's expired
+  identity. No borrowed credential, private signer or owner-session substitution
+  was used. No live paid model execution or physical-phone qualification is claimed.
+- First constrained-height Chromium run `207089c5-2e6e-4710-942c-8cd392c96d39`
+  proved both footer actions fit at 390×450, but one asynchronous fixture wait
+  missed the brief Stopping state after cancellation had already completed;
+  91/92 entries passed. The fixture now holds nonterminal responses until the
+  acknowledged Stopping check, then releases the terminal response. Assertions
+  were retained, the registry regenerated, and no product code changed.
+- Live post-restart reads also confirm the declared deep profile's source hash,
+  sole GCT read scope, protected/noapply settings and resolved 16 KiB-page prompt
+  match the authored assets. Runtime policy inspection verifies the reloaded
+  exact owner binding's delegated read capability; it does not stand in for a
+  paid live child-run or physical-phone execution.
+- Corrected constrained-height run
+  `5b5fdb0a-b8f3-44e0-ad0c-218ac411eb86` completed all 93 entries successfully
+  at 390×450. Captures are 780×900 at scale 2; both primary and investigation
+  buttons remain reachable while content scrolls. The fresh paired lease
+  installed, heartbeated and cleared successfully with all counters zero.
+  This also executes the final mobile fixture's acknowledgement-controlled
+  cancellation sequence. Source UI/production bundle is unchanged from the
+  passing desktop/390×844 runs; no physical keyboard claim is made.
+- Closing independent review after browser acceptance found no remaining
+  material UI/adoption/identity/coverage issue. Source formatting and scoped
+  whitespace checks pass. The real raw staged-index identity is unchanged across
+  all browser checks and lifecycle activation. All browser model responses are
+  fixtures; no paid drafting execution or repository mutation was used.
+
+## Active correction — drawer clarity and drafting admission (2026-10-22)
+
+Operator feedback (verbatim): "The new drawer doesn’t look that great I feel like
+it could look a lot more professional and polished right now it’s a bit messy.
+Also I pressed the button to spawn an agent and it looks like I didn’t do anything
+or if it did do something there is no indication of that from the UI. So seems
+like you know just needs more polishing and testing and cleanup and stuff."
+
+- Evidence: IMG_1829.png shows the 285-file subject, repeated explanatory blocks,
+  531 ungrouped omission records, and a failed terminal job with
+  `start message workflow: unauthenticated: 401 Unauthorized`. The image proves
+  admission failed, not that a drafting agent ran. Prior work explicitly did not
+  exercise live admission; this is a newly observed boundary failure.
+- Scoped W3 correction under GCT-OT-P1-002, target in DESIGN.md. Work shape:
+  bounded convergence task. Preserve real staging, message drafts, owner jobs and
+  request keys; do not broaden grants or bypass authentication.
+- H1: outbound GCT service credentials are stale or fail renewal. Test: trace the
+  actual owner client and runtime identity standing, then an expired-credential
+  fixture through the canonical refresh path. Reject if valid identity reaches AM.
+- H2: browser operator authority is dropped or confused with service identity.
+  Test: capture safe actor/grant metadata at GCT→AM boundaries and owner denial;
+  compare an authorized browser launch with fixture propagation. Reject if owner
+  receives and accepts the expected actor/covered grant.
+- H3: launch progress is below evidence content or absent while Start awaits.
+  Test: hold Start unresolved in a component/browser fixture and require immediate
+  visible admission status, then queued/running/failure/cancel recovery. A green
+  request alone does not prove visible feedback.
+- Related prior art: large-selection checkpoint below; search-hub recall found
+  staged-message docs and skills. Agent-run and memory corpora were degraded by
+  open reranker circuits, so search did not establish complete historical absence.
+- Root coordinates integration/docs/lifecycle; backend lane owns authentication;
+  UI lane owns composition; independent interaction lane owns hook regressions
+  and post-green review. Final acceptance requires desktop/mobile captures and
+  explicit asynchronous states, followed by cleanup and two fresh review passes.
+- Confirmed trace: GCT Start returned a durable job at 15:11:37 EDT while the
+  corresponding AM StartWorkflowExecution returned 401 immediately. A context
+  search at 15:11:28 also returned 401. No AM execution was admitted. Runtime
+  log paths had been deleted; registry-owned process output descriptors retained
+  the relevant logs. Normal logs CLI and scenario-triage both reported unavailable
+  logs, not an absent or disconnected scenario.
+- H2 confirmed as a configuration defect: personal-local configuration replaced
+  shared configuration (dropping OwnerBindings) and omitted GCT's managed
+  Cloudflare provider. Explicit browser credentials could be replaced by a local
+  OS principal, which has no portable proof to forward. Tunnel Manager's typed
+  authentication binding read confirms GCT and AM use the same team/audience;
+  audience expansion is unnecessary. Signed-credential regression fixtures
+  reproduce and cover the boundary; the actual phone credential was not inspected.
+- Direct local OS identity is intentionally not a cross-service bearer. Do not
+  reuse Bridge-only OS1 enrollment/session keys. Portable signed browser proof
+  remains required at AM. A future direct-local delegation service belongs in
+  the control plane with short-lived, target-bound issuance, not a private GCT
+  key or an ambient loopback-human bypass.
+- UI review finding: point-in-time Get NotFound after an ambiguous Start is not
+  proof the original admission cannot complete. Preserve its key and frozen
+  intent; reconnect or retry that same request instead of allowing a new key.
+  This is part of the launch-state correction, not an extra workflow.
+- Live negative reproduction: the old served GetAuthorityStatus returned HTTP
+  200, authenticated personal_local, even with an explicit invalid Cloudflare
+  assertion. `/tmp/gct-drawer-invalid-proof-before.json` records this read-only
+  probe. After activation the same probe must reject the credential rather than
+  silently substituting OS identity.
+- Authentication repair tests now exercise configured GCT middleware, actual
+  Advisory Collect/Start, durable store and typed AM HTTP transport. The test AM
+  independently checks signed human identity and its required capability. Valid
+  proof reaches an execution handle; expired/wrong-audience proof and missing
+  destination capability are rejected. Agent proof is never upgraded to human.
+  Proofless local starts receive a precise sign-in precondition before contacting
+  AM; no new private signer, enrollment-key reuse or ambient server token.
+- Recovery cleanup uses one frozen admission request (collection, digest,
+  selected IDs, note, key), persisted before Start. Nine focused hook cases
+  pass, including late admission after 404, immutable retries, reload recovery
+  and cancellation races.
+- Post-green review caught and closed two more races. An old Wait cannot revive
+  a cancelled job or clear acknowledged cancellation. A lost owner acknowledgement
+  followed by a new authentication denial retains the original nonterminal job.
+  Every handle-less dispatch now takes an exact CAS claim receipt; a concurrent
+  retry invalidates an older refusal's response update. No new schema, lock
+  registry or replacement execution API was introduced. Domain/store suites and
+  focused race regressions pass, including deterministic first-refusal/retry
+  interleaving. First definitive refusal remains terminal when uncontested.
+- UI final feature checks: 55 focused cases pass; lint/typecheck/build pass.
+  Final copy-only regression rerun passes all 41 composer cases. Build is
+  `index-jHprPPCD.js`. Mockup and two source review passes are retained in
+  `docs/mockups/commit-drawer.html`. Browser fit remains an acceptance check,
+  not a claim from the mockup alone.
+- Live owner-policy read: one configured AM Cloudflare owner binding exists and
+  authorizes agent-manager:write. Same team/audience and owner policy are verified
+  without exposing subjects or credentials. The phone's exact credential channel
+  remains unobserved. Generic native-password GCT sign-in is not proven to be an
+  AM audience; no AM audience policy was widened.
+- Scoped Test Genie unit receipt `20261022-193842-886b986d` remains failed on
+  the UI coverage command: 64.6% against the existing 85% threshold. Focused
+  feature checks and backend/race regressions pass; the scenario gate is not
+  represented as green and no coverage threshold was weakened.
+- Canonical lifecycle activation completed healthy. The served entry is
+  `index-jHprPPCD.js`. The invalid-proof live probe now reports an unauthenticated
+  Cloudflare error instead of authenticated personal-local fallback. The passive
+  authority-status endpoint intentionally returns HTTP 200 for this observation.
+  Signed HTTP integration fixtures prove positive forwarding and destination
+  capability checks; no paid live agent or physical-phone positive start was used.
+- Served-browser acceptance: Workflow Health run
+  `aa51503e-ccf9-4dc8-917d-2f8fd0278cf5` executed both selected drawer cases,
+  passed 2/2, with all 56 timeline entries successful in each case. Desktop
+  1440×900 and mobile 390×844 cover immediate starting, queued, running,
+  immediate cancellation, stopping, cancelled, and a second failed launch.
+  Actual running/prelaunch/failure screenshots were visually inspected. BAS
+  executions are `16817bf6-1647-4fe2-840d-d62a7607782f` and
+  `b9d5c84d-2060-4062-bd68-4be97d270fbd`. All POSTs are intercepted behind a
+  fail-closed catchall; no real drafting, stage or commit request is sent.
+  Routed database/file lease installed, heartbeated and cleared without errors;
+  all four owner routing/write counters are zero, as expected for these mocks.
+- Earlier browser attempts exposed assertion timing mistakes: BAS assertion
+  timeout waits for the element, not its eventual text. Explicit heading waits
+  now precede asynchronous assertions; immediate-feedback checks still follow
+  clicks directly. One earlier run was interrupted by an unrelated lifecycle
+  restart and is not counted as acceptance; its stale runtime lease was cleared
+  through the shared owner. The final run completed without that interruption.
+- Whole-catalog Workflow Health remains failed on existing legacy schema and
+  observer-label findings, plus `/health` bootstrap route declaration findings.
+  Selected execution success above is separate from whole-catalog certification.
+  These Chromium fixtures do not qualify physical iOS keyboard behavior.
+- Constrained-height acceptance: reused the original mobile flow with an
+  ExecutionParameters fingerprint override of 390×450. BAS
+  `cb5f6199-7962-45d9-8363-fcedd814e2ff` completed all 56 entries successfully;
+  780×900 captures at device scale 2 confirm the override took effect. Inspected
+  prelaunch and failure captures: content scrolls while the primary footer stays
+  reachable. A fresh shared-owner paired lease was confirmed before execution,
+  heartbeated and cleared successfully with zero routing/write counters. Only
+  its own temporary database directory was removed after confirmed clearance.
+  This proves constrained Chromium geometry, not a physical keyboard interaction.
+- Closing hygiene: scoped whitespace check passes and the raw staged-index hash
+  is unchanged across browser acceptance. No real commit, staging, paid model
+  execution, grant expansion or Agent Manager production change was required.
+
+## Active correction — large staged selections (2026-10-22)
+
+- Rung: scoped W3 under GCT-OT-P1-002. Operator screenshot IMG_1818.png shows
+  `[failed_precondition] staged selection exceeds 256 files; narrow selection`.
+  The operator frequently stages more and authorized 8–16 times the capacity
+  with intelligent bounded agent evidence. Target: 4,096 complete staged files.
+- Spec: DESIGN.md large-selection correction. Backend owns full manifests,
+  representative capture, retained matching and persistence; adapter owns
+  compact prompt/output and job compatibility; UI owns whole-selection
+  disclosure and bounded lists. Parent owns integration and validation.
+- Initial bottlenecks: maxFiles256, durable draft192KiB, collection2MiB,
+  workflow coverage arrays256 and repeated full-path output. Capture performs
+  per-file Git calls for all entries. Actual AM structured input is capped at
+  64KiB, so merely widening the advertised prompt budget would still fail.
+- Decision: full subject stays in existing GCT durable storage, bounded compact
+  AM input stays below the existing owner ceiling; private provider reads can
+  receive the already-loaded canonical input for strict result expansion.
+- Preserve real staging, commit history, proposals and existing jobs. Tests
+  use scratch repositories and fake owners; no model launch is needed.
+- Implemented: 4,096 full identities; 64 scope-balanced detail candidates;
+  fair raw reads and 96 KiB of complete patches. Canonical collection/draft
+  storage has independent 16 MiB bounds. The workflow receives at most 48 KiB
+  context/56 KiB envelope and returns compact stable IDs. Unspecified files
+  remain uncovered. Older jobs retain their subject and owner key.
+- Review cleanup: whole-patch-first packing avoids clipping every medium patch;
+  large lexical edge files cannot exclude all useful detail. Removed the obsolete
+  runtime 192 KiB cap, made collection excerpt clipping UTF-8 safe, and changed
+  coverage copy to count fully described files rather than implying known hunk
+  counts for omitted details. Long UI lists use expandable previews.
+- Deterministic evidence: actual 4,096-file scratch Git snapshot, 4,097 rejection,
+  omitted-tail drift, exact retained identities without blob reads, long-path
+  collection/admission/result expansion, legacy retry and strict coverage pass.
+  Typed Connect exercised collect/start/get/wait with 64 covered/4,032 uncovered.
+  Snapshot capture used 199 Git processes rather than work proportional to all
+  4,096 file contents. Domain race suite passed. Final UI checks: 34 focused
+  tests, lint and typecheck pass. Adapter tests and real AM structured-value
+  validation preserve its existing 64 KiB ceiling.
+- Scoped Test Genie unit receipt `20261022-171506-eaa2f9e2`: failed UI coverage
+  command; UI coverage remains 64.6% against the existing 85% threshold. The
+  scenario gate is not green. Shared generated owner preflight was fresh
+  (`b1eeee66291d79e13690be22d7a15b79e1a194938b628781f359a70531bd9197`).
+- Real-selection acceptance: the previously rejected 285-file staged index now
+  collects successfully in 3.938 seconds with 39 complete patch details. Raw
+  index identity was identical before and after collection. No drafting agent
+  was started. Served UI is `index-D8GhTTJm.js`; canonical GCT restart completed
+  healthy. AM startup's noncritical declaration sweep activated the new workflow
+  at 17:21:51 UTC. Final read-only owner GET confirms version 2.0.0, revision
+  `a76f1f14-63d8-4084-9796-f41449416a02`, and source hash
+  `85b2334b11336b508068c4f1569861da5dfc838fa5b413ca196a7573f788483c`
+  matching the declaration. The pinned prompt contains the new compact-ID
+  contract and conservative coverage rules; its content hash is
+  `sha256:c975af0840607d0e6fdb6c3e57d35646fa99e1a1e4ea327dcf8db08fecb6d92c`.
+  Numeric skill provenance remains revision 1 and is not a file revision counter.
+  Live Check confirms the collected snapshot still applies. Paid live drafting
+  was not exercised; fake-owner and real owner schema checks cover that boundary.
+- Work-record append was attempted with `vrooli-memory journal note --kind
+  work-record`; the owner returned `unavailable: unexpected EOF`. Outcome is
+  unknown, so the immutable append was not repeated. This checkpoint retains
+  the trigger, approach, evidence and outcome independently of that outage.
+
+## iOS focused editor displacement repair (2026-10-22)
+
+- Follow-up `IMG_1817.png` at 12:35 EDT falsified the first repair's
+  end-to-end conclusion. Native observations confirm build `index-DPblYM-6.js`
+  loaded and scale now stays 1, but document focus scrolling still moves the
+  app upward. Observation `0cbdd54cffe21b1b77fbb3250b7b8d4a` reports
+  inner/visual height 449, scroll/offset 344, shell top -344 and bottom 105.
+  A second sample (`e77e1e13925605ddedbe59c1483d8ac4`) has the keyboard
+  established and still leaves the shell at -213..236. This rejects stale
+  client code and remaining zoom as explanations for this follow-up.
+  Owner response and bounded diagnosis:
+  `/tmp/gct-ios-observations-20261022-followup.json` and
+  `/tmp/gct-ios-diagnosis-20261022-1235.md`.
+- The first fix's editing exemption was wrong for this internally scrolling
+  app: native document focus panning must be recovered while unzoomed, even
+  during editing. Its tests asserted positive shell height and no forced
+  scroll without asserting shell position or focused-field visibility. The
+  displaced native shell satisfied those weak checks. A new served-browser
+  replay models the measured WebKit displacement using actual document scroll
+  and reproduces shell -344..105 on the first repair build. Position, nav,
+  keyboard establishment and subsequent document-only scroll checks fail:
+  `/tmp/gct-ios-recurrence/before.json`. This is a synthetic WebKit geometry
+  model in Chromium, not a post-repair physical iPhone observation.
+- Follow-up correction observes actual window scroll as well as shared viewport
+  changes, coalesces recovery per animation frame, and restores the document
+  origin at scale 1 even while editing. Visual offset alone is not sufficient
+  to issue a scroll reset; current native scale protects zoom before shared
+  state publication. CommitPanel explicitly marks its scroll owner, allowing
+  focused controls to be revealed with bounded inner `scrollTop` changes after
+  page recovery and keyboard resize. This avoids scrolling ancestor pages or
+  moving an already visible field. A separate post-green review simplified the
+  reveal branches without adding another abstraction or viewport owner.
+- Scoped owner run `uh-20261022-164256-9a363c9e201cda44232cee2a7f484018`
+  executed all 578 UI tests across 67 files and typecheck successfully with
+  zero blocking findings. After the readability cleanup, all 61 focused tests
+  (15 viewport, 26 composer, 20 CommitPanel), lint with zero warnings and
+  typecheck passed again: `/tmp/gct-ios2-{focused,lint,types}-final.log`.
+  Aggregate status is degraded because the Code Facts database was locked
+  (`SQLITE_BUSY`); this is not a passing scenario-wide certification. Raw
+  response: `/tmp/gct-ios-recurrence/unit-workspace.json`.
+- The related UI Health detection gap (a keyboard-visible shell at -213..236
+  produced no finding) was filed separately through report-bug as
+  `knw-1792687347225213154`; no analyzer implementation changed here.
+- Closing follow-up production build `index-DJtw-_Wh.js` passed
+  (`/tmp/gct-ios2-build-final.log`). The served-browser replay now restores
+  scroll 344 to 0, shell 0..449, nav 398..449 and trailer 323..389 within
+  its owned scroller 171..397. Title, description and trailer focus changes
+  each keep the entire field visible and document at zero. A later
+  document-only scroll of 213 is recovered, pinch pan of 120 is preserved,
+  and keyboard dismissal restores the 852px canvas. All assertions pass;
+  `/tmp/gct-ios-recurrence/after.json`, `after.png` and `replay.py` retain
+  the evidence, including synthetic/native limitations and blocked server
+  mutation requests. Both before/after screenshots were inspected. Physical
+  iPhone confirmation of this second repair remains pending.
+- Trigger: native recording `ScreenRecording_10-22-2026_09-09-18_1.mp4`
+  shows the app disappear when References and trailers receives focus. This is
+  scoped W3: editing must retain a visible application above the keyboard.
+- Prior-art lookup found related viewport/overlay work, including swarm record
+  `rec-d89e886c90d70b1c`; that record concerns overlay variable ownership and does
+  not establish the cause of this full-shell symptom. Shared RCL stays unchanged.
+- Competing hypotheses were input zoom plus forced pan recovery, a zero-height
+  keyboard canvas, and an overlay-only fault. Native observation
+  `b22c8546f82a9b8966331b8b542883d3` at 2026-10-22T13:09:22Z on build
+  `index-D426SCUO.js` reports scale 1.33333337, viewport offset top 443.75/left
+  31.25 and document scroll 444/31. Shell/body top -444, height 408, bottom -36
+  establish displacement above the visible viewport, rather than zero height.
+  No dialog was open. The 4/3 scale also matches the trailer's 12px font zooming
+  to 16px; title/description were 14px. Owner response retained at
+  `/tmp/gct-ios-observations-20261022.json`.
+- Separate Chromium viewport replay confirmed the GCT hook forced `scrollTo(0,0)`
+  during focused, zoomed viewport panning. Focused tests reproduced that override
+  and the same conflict during scale-one keyboard reveal before the repair.
+- Repair: commit text fields, optional agent note/select and related author
+  inputs use at least 16px, including landscape phones and tablets. A scoped
+  compact override requires width at least 768px, hover and a fine pointer.
+  GCT recovers page overscroll only while unzoomed and no editable field has
+  focus. Browser focus/pinch panning remains browser-owned. Normal established
+  keyboard height, installed frame restoration and idle overscroll recovery
+  remain covered; no guessed minimum-height or disabled user zoom was added.
+- Focused receipt: 53 passing tests across 3 files (7 viewport, 26 composer,
+  20 CommitPanel), `/tmp/gct-ios-focused-final.log`. The two earlier regression
+  failures are retained in `/tmp/gct-ios-viewport-red.log` and
+  `/tmp/gct-ios-focused-pan-red.log`. Lint, typecheck and production build pass
+  (`/tmp/gct-ios-{lint,types,build}.log`, build `index-DPblYM-6.js`).
+- Closing browser replay uses the served build: portrait 393px, touch landscape
+  852px and touch tablet 820px compute all three editor fields at 16px; 1280px
+  fine-pointer desktop retains 14/14/12px. Each focused zoom trace now records
+  zero forced scroll resets, compared with one before repair. The portrait
+  integration trace establishes keyboard height 449px and dismissal restoration
+  to 852px. Replay inputs are synthetic visual-viewport events, not native OS
+  keyboard pixels; potentially mutating server requests are blocked in the
+  isolated contexts. Initial wider replay assertions incorrectly assumed the
+  mobile-only shell existed at desktop breakpoints; the harness now measures the
+  actual application root and waits for initial navigation requests to settle.
+  Receipts: `/tmp/gct-keyboard-video/*-replay.json` and `replay.py`.
+- Scoped Unit Health UI execution
+  `uh-20261022-131928-d6cea519933ca885bc1b53063ccc34c0` passed all 570 tests
+  across 67 files plus typecheck, with zero blocking findings. This used the
+  documented `--workspace ui --execution --fast-test-only` iteration path;
+  coverage and scenario-wide certification were not rerun or represented as
+  passing. Independent final CSS/viewport review found no remaining issue.
+- BAS production mobile capture `065a4b3f-9c92-4bd4-a93f-c228abc1d033` reached
+  explicit editor readiness; screenshot inspected. It proves served layout,
+  while replay/tests prove the repaired code paths. A fresh physical iPhone
+  interaction on the repaired build remains unverified; the native observations
+  cited above establish the original failure, not a post-fix device verdict.
+
+## Active delivery — staged commit messages (2026-10-21)
+
+- Authority: operator approved the evidence-first composer and full implementation,
+  validation, orchestration through sub-agents and a dedicated post-validation
+  refactoring/debt pass. Related GCT/Agent Manager/shared contract changes are
+  authorized. No real repository stage/commit/push is part of this delivery.
+- Shape: bounded delivery; target and acceptance live in
+  `../../DESIGN.md#staged-commit-messages--approved-2026-10-21`.
+- Rung: scoped W3 under OT-P1-002 and existing advisory/human-authority targets;
+  existing planned requirement will be reconciled with concrete passing evidence.
+- Initial evidence: deterministic draft formatter has no generation; proposal
+  capture retains bytes; ordinary composer is a single multiline text field;
+  conventional validator incorrectly applies a single-line pattern to all text;
+  staged full-content display may read worktree bytes; AM time-window message/tool
+  search and durable generic workflows exist. Research and approved mockups are
+  in the conversation and the local artifact directory referenced by DESIGN.
+- Preflight: `cd packages/proto && make verify-committed-gen` passed before edits.
+- Work lanes: GCT domain/typed transport/persistence; AM context/execution owner
+  and adapters; UI composer/feature state. Orchestrator owns integration,
+  validation receipts, independent review/refactoring and final checkpoint.
+- Status: scoped feature implemented, activated and reviewed. Functional proofs,
+  final browser checks and the dedicated subsequent cleanup pass are complete.
+  Broader scenario certification remains failed on the coverage and existing
+  contract issues recorded below. Earlier checkpoint counts are historical.
+- Integration decisions: shared immutable input budget, complete index manifest
+  with explicit patch omissions; lost admission acknowledgments reconcile through
+  the original request key; cancellation races retain authoritative standing;
+  trusted registered repository roots reach the generic AM workflow boundary.
+  Existing native-command/outer-model-network separation preserves configured
+  model access while protected execution cannot publish repository changes.
+- Generated consumer refresh: canonical proto owner generation completed; stale
+  UI file dependency refreshed through SDA `deps install` (approved, installed),
+  after which UI typecheck passed. Dependency validation passed in advisory mode
+  with existing scenario-wide warnings; no new external dependency was added.
+- UI lane functional and separate cleanup checkpoint (2026-10-21): feature-owned
+  `ui/src/features/commit-message/` now owns title/description/raw unknown-trailer
+  editing, typed deterministic collection, retained-source defaults, optional
+  explicit agent start, durable job/request-key reconnect, owner Wait/cancellation,
+  elapsed/last-known standing, staged applicability checks and edit comparison.
+  Applying only fills the editor. Existing human commit authorization is retained.
+  Both actual CommitPanel mounts share this composer; `primary=commit` now reaches
+  the mobile Commit tab. Late applicability responses cannot modify another repo's
+  editor. Immediate unchanged Wait replies are paced; transient observer failures
+  stop until explicit reconnect. Speculative/session sources remain unchecked;
+  only first-suggestion verified retained sources are selected by default, at most 20,
+  and operators can clear them. No attribution trailers are inferred.
+- UI cleanup removed the old all-approved-message button/App/hook wiring, restored
+  canonical scaffold/generated coverage exclusions and declared 85% thresholds
+  without relaxing policy, and moved unique sidebar-slot allocation into existing
+  `AppSelection.ts`. Commit-primary now keeps Changes/History/Diff rather than
+  duplicating History; five primary-panel layout regressions preserve default order.
+  Canonical selectors use `commitMessage.*`, generated via selector:manifest.
+- UI focused receipts: 66 passing tests/5 files (26 composer journeys, 5 message
+  serialization, 20 CommitPanel, 6 AppPanels, 9 AppSelection); full output at
+  `/tmp/gct-message-ui-final-tests.log`. Final lint/typecheck, selector owner
+  generation/check and production build passed after retained-source defaults
+  and layout cleanup. The build retains the existing large-chunk warning.
+  Conventional title-only validation plus multiline/body/trailer/invalid-title
+  Go regressions passed; only the title is validated as conventional syntax.
+  Parent owns integrated suites/live observers and final receipts; no live agent,
+  real staging, commits, pushes or proposal writes were exercised by this lane.
+- Final applicability review reproduced a delayed accepted Check crossing a
+  complete stage/unstage cycle. Acceptance now binds repository, staged digest,
+  status/index generation and newer rejected standing through editor adoption;
+  one bounded fresh check permits worktree-only refreshes. Both regressions were
+  observed failing before the fix. Final full UI execution passed all 566 tests
+  across 67 files; the coverage gate remains failed against the restored 85%
+  thresholds (lines/statements 64.46%, branches 68.02%, functions 60.35%). This is
+  a scenario-wide coverage limitation, not a passing certification; no baseline
+  attribution of the entire deficit was established. New commit-message files
+  measured 94.61% lines/statements, 85.39% branches, 76.78% functions. The first
+  full run retained one new regression failure (565 passed), corrected before
+  the final run. Full receipt: `/tmp/gct-message-ui-full-coverage-final.log`.
+  Final lint (zero warnings), typecheck and production build passed, with logs
+  `/tmp/gct-message-ui-{lint,types,build}-final.log`; existing bundle-size and
+  Browserslist-age build warnings remain. No coverage threshold was reduced.
+- Browser gates: added desktop/mobile composer observer cases and regenerated
+  `bas/registry.json` through `test-genie registry build`. Initial selected run
+  `8f9108b9-9d2c-4f78-841f-a4d9b2915680` executed both cases and failed composer
+  visibility assertions before the final UI build/lifecycle refresh (capture
+  still shows the Changes panel).
+  Retain this failure, then rerun after deployment. Broader catalog reports
+  existing legacy schema/observer-safety defects outside these two cases.
+- Browser follow-up: selected run `28b12b1a-8f82-43b0-b3af-1f5d37cdfbe3`
+  executed and passed both new observer cases after the UI build (BAS mobile
+  `5bf1d070-26c8-4e42-b8a0-7a93b4b8eb16`, desktop
+  `c68390de-47d6-4329-85c3-84d5c6d5d015`). Orchestrator inspected the actual
+  screenshots. Aggregate workflow verdict still fails on legacy catalog defects;
+  the selected browser execution count is 2 passed, 0 failed. Desktop capture
+  exposed an existing duplicate History stack selection when Commit is primary;
+  that related layout helper is being corrected and revalidated.
+- Cleanup checkpoint: UI focused suite grew to 53 passing tests; lint,
+  type-check and build passed. Removed obsolete approved-message App wiring;
+  restored canonical coverage exclusions/85% thresholds. Independent static
+  `unit-health validate scenario git-control-tower --workspace ui` now passes
+  with zero findings. Backend removed recursive reconciliation/projection paths,
+  made cancellation monotonic against persisted state, bounded Git subprocess
+  output while streaming, and limited unreferenced collection retention. AM
+  full workflowcatalog/workflowruntime/orchestration package tests passed.
+- Final proto owner `make verify-committed-gen` passed after schema generation.
+  AM API source is stable; canonical lifecycle restart is in progress. CLI parity,
+  final scoped suites, remaining independent review fixes and final receipts are
+  still required before completion.
+- Checkpoint rule: append concrete decisions, files, proofs, failures and remaining
+  work here before compaction or handoff. Preserve prior delivery entries.
+
+### Final staged-message delivery checkpoint — 2026-10-22 UTC
+
+- Delivered: exact-index collection and conservative retained-edit matching;
+  bounded path/text/file-mtime event retrieval; independently disclosed context
+  relevance and source limitations; separate title/description/trailer editor;
+  full/partial/no-message suggestions; explicit protected drafting; durable
+  request-key admission and reconnect; confirmed cancellation; strict structured
+  result validation; stale-selection and concurrent-editor adoption guards;
+  typed browser/AM contracts and CLI collect/check/start/status/wait/cancel.
+- Independent review fixed two result-size limits (20 KiB decoder and implicit
+  16 KiB workflow terminal binding), preserved independently verified credential
+  channels, and reproduced/fixed a completed staging cycle crossing an awaited
+  applicability check. Review found no remaining blocker in the feature scope.
+- Dedicated post-validation cleanup removed obsolete approved-message plumbing,
+  recursive backend reconcile/projection paths and an unused duplicate test
+  companion. It centralized cancellation in monotonic SQL, bounded streaming
+  Git output and collection retention, restored declared UI coverage policy,
+  and fixed duplicate sidebar History allocation when Commit is primary.
+- Passing evidence: 566 UI tests/67 files, 66 focused UI tests/5 files, UI lint,
+  typecheck, selector checks and production build; 60 race-enabled backend
+  domain/store/proposal tests plus 8 race-enabled typed transport/adapter tests;
+  all 12 CLI packages and generated primitive evidence; full AM workflowcatalog,
+  workflowruntime and orchestration packages; full policygate; actual resolved
+  workflow declaration; canonical proto generated-artifact verifier.
+- Test Genie AM `20261022-032302-b40db304`: unit and contracts both PASS,
+  152 observations. GCT `20261022-033856-aba7b7e1`: structure/API PASS;
+  unit/proto/contracts FAIL. Follow-up GCT `20261022-034528-27f18d37` confirms
+  only UI test:coverage execution and the existing duplicate CLI binding remain
+  blocking in unit/contracts after cleanup; the duplicate helper error is gone.
+  All 566 UI assertions pass, but aggregate coverage is below the unchanged 85%
+  gate (64.46% lines/statements, 68.02% branches, 60.35% functions).
+- Existing contract findings were verified in HEAD
+  `150768340d31687e4c982091b83a167ad38ecdfb`: repo reuses
+  `proposals.ProposalTrailer`, and repo/diff plus proposal/diff truthfully share
+  `RepoService.GetRepoDiff`. No nonexistent proposal RPC or false binding was
+  invented. Shared-type failure reported through the report-bug skill as
+  `knw-1792640659199380661`. Broader legacy BAS catalog failures remain; neither
+  selected browser passing nor generated-artifact freshness is full certification.
+- Final browser run `f263360d-9b16-4e82-9557-bd8fef239adc`: 2 executed,
+  2 passed, 0 failed. BAS mobile `c6d1c90f-1a70-4854-978b-655bce0752d0`
+  and desktop `e39530ee-9f38-4ede-9520-d5b29e83db3a` screenshots were inspected.
+  Desktop additionally asserts the retained Diff panel after the layout fix.
+  These are browser observations, not physical-device or paid-model evidence.
+- AM and GCT were restarted through canonical lifecycle and returned healthy
+  durable start verdicts. Supported owner GETs verified active workflow revision
+  `5b613828-3c8b-45e0-8baf-2e92a83dba07`, digest
+  `sha256:57b70fa2415c2d51f72d900072afb5df5973db0a3f26c025ed25e8be439425e3`,
+  and final profile `7beaa052-7716-4366-8139-09ee13f9e426` with source/applied
+  hashes matching the files. Final workflow uses explicit 256 KiB terminal
+  output, trusted registered-root binding, protected empty write policy, no
+  autoapply, no API scopes and separated model/command network settings.
+- Limits: no live paid/native runner qualification. This session's expired
+  agent credential cannot refresh; live workflow validation/start is denied.
+  No credentials, identities or grants were substituted. Context retrieval is
+  policy-filtered but global; recorded/unknown repository scope and import
+  freshness remain visible retrieval-quality limitations. No source match is
+  an authorship claim. No real repository staging, commit, push or proposal
+  mutation was performed.
+- Requirement GCT-OT-P1-002 now records concrete passing validation references.
+  Its formal status remains in_progress and the PRD box remains unchecked:
+  business-health requires a run-coupled requirements-sync snapshot to earn
+  complete status. A broad sync would rewrite unrelated requirements; that
+  certification migration is outside this bounded feature delivery. Feature
+  implementation and the scoped validation results above are delivered.
+- Final work record: `8bf4d742-413f-442a-835b-fb5fc59eb264` (trigger, approach,
+  evidence and outcome). Final scoped whitespace checks passed.
+
 ## Active delivery — proposal review (2026-10-08)
 
 Current status: delivered and feature acceptance verified. Final API/UI/CLI checks,

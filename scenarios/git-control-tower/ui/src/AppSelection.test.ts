@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { computeNextSelection, type SelectionEntry } from "./AppSelection";
+import { computeNextSelection, selectStackSlots, type SelectionEntry } from "./AppSelection";
+
+describe("workspace stack slots", () => {
+  it.each([
+    ["diff", { top: "changes", middle: "history", bottom: "commit" }],
+    ["commit", { top: "changes", middle: "history", bottom: "diff" }],
+    ["history", { top: "changes", middle: "diff", bottom: "commit" }],
+    ["changes", { top: "diff", middle: "history", bottom: "commit" }],
+    ["review", { top: "changes", middle: "history", bottom: "commit" }],
+  ] as const)("keeps three unique panels when %s is primary", (primary, expected) => {
+    const slots = selectStackSlots(primary);
+    expect(slots).toEqual(expected);
+    expect(new Set(Object.values(slots)).size).toBe(3);
+    expect(Object.values(slots)).not.toContain(primary);
+  });
+});
 
 const selectionKey = (entry: SelectionEntry) => `${entry.staged ? "1" : "0"}:${entry.path}`;
 

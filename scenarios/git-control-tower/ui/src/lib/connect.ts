@@ -23,6 +23,7 @@ import { HumanControlService } from "@vrooli/proto-types/git-control-tower/v1/hu
 import { ProposalService } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 import { RepoService } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { ReviewService } from "@vrooli/proto-types/git-control-tower/v1/review/review_pb";
+import { AdvisoryService } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 
 // Bare origin (no "/api/v1" suffix): Connect appends the full procedure path.
 export const transport = createScenarioConnectTransport({ baseUrl: resolveApiBase() });
@@ -67,6 +68,9 @@ export const repoClient: Client<typeof RepoService> = createClient(RepoService, 
 
 /** Typed advisory review lifecycle client. */
 export const reviewClient: Client<typeof ReviewService> = createClient(ReviewService, transport);
+
+/** Evidence collection and explicitly requested message-only drafting. */
+export const advisoryClient: Client<typeof AdvisoryService> = createClient(AdvisoryService, transport);
 
 // Same-origin intake only; UI Health owns retained browser layout evidence.
 import { VisualHealthService } from "@vrooli/proto-types/ui-health/v1/visualhealth/visualhealth_pb";

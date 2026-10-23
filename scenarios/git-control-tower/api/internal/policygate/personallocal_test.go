@@ -2,6 +2,7 @@ package policygate
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"os/user"
 	"testing"
@@ -26,7 +27,7 @@ func TestPersonalLocalProviderBindsLoopbackToCurrentOSUser(t *testing.T) {
 	}
 }
 
-func TestPersonalLocalProviderRejectsRemoteAndAgentRequests(t *testing.T) {
+func TestPersonalLocalProviderRejectsRemoteAndDefersVerifiedAgentRequests(t *testing.T) {
 	provider := PersonalLocalProvider{currentUser: func() (*user.User, error) {
 		return &user.User{Uid: "1001"}, nil
 	}}
@@ -41,7 +42,25 @@ func TestPersonalLocalProviderRejectsRemoteAndAgentRequests(t *testing.T) {
 	agent.RemoteAddr = "127.0.0.1:44000"
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
 	_, err = provider.VerifyRequest(ctx, agent)
-	if err == nil {
-		t.Fatal("agent request unexpectedly authenticated")
+	if failure, ok := identity.FailureFromError(err); !ok || failure.Class != identity.FailureMissing {
+		t.Fatalf("human provider must defer verified agent authority to shared middleware: %v", err)
+	}
+}
+
+func TestPersonalLocalProviderDefersEveryOfferedBrowserCredential(t *testing.T) {
+	provider := PersonalLocalProvider{currentUser: func() (*user.User, error) { t.Fatal("offered proof reached OS authority"); return nil, nil }}
+	for _, headers := range []http.Header{
+		{"Authorization": []string{"malformed"}},
+		{"Cf-Access-Jwt-Assertion": []string{""}},
+		{"Cookie": []string{"gct_access_token="}},
+		{"Cookie": []string{"access_token=expired"}},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/start", nil)
+		req.Header = headers
+		req.RemoteAddr = "127.0.0.1:44000"
+		_, err := provider.VerifyRequest(t.Context(), req)
+		if failure, ok := identity.FailureFromError(err); !ok || failure.Class != identity.FailureMissing {
+			t.Fatalf("offered proof was replaced or vetoed: %v", err)
+		}
 	}
 }

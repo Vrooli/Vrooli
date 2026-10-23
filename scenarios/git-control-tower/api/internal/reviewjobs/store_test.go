@@ -118,3 +118,90 @@ func TestTransitionRequiresExpectedSourceAndPreservesFailedCheck(t *testing.T) {
 		t.Fatal("invalid source transition accepted")
 	}
 }
+
+func TestCollectionRetentionPreservesReferencedEvidence(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	base := time.Now().Add(-time.Hour)
+	for i, name := range []string{"old-referenced", "old-unreferenced", "newest"} {
+		if _, _, e := s.Create(ctx, Job{ID: name, IdempotencyKey: name, InputDigest: name, Operation: "staged-message-collection", RepositoryID: "repo", State: Succeeded, CreatedAt: base.Add(time.Duration(i) * time.Minute)}); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if _, _, e := s.Create(ctx, Job{ID: "active", IdempotencyKey: "active", InputDigest: "input", Operation: "staged-message", RepositoryID: "repo", State: Running, ResultRef: "old-referenced"}); e != nil {
+		t.Fatal(e)
+	}
+	if e := s.PruneAdvisoryCollections(ctx, "repo", 1); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := s.Get(ctx, "old-referenced"); e != nil {
+		t.Fatal("referenced evidence pruned", e)
+	}
+	if _, e := s.Get(ctx, "newest"); e != nil {
+		t.Fatal("newest collection pruned", e)
+	}
+	if _, e := s.Get(ctx, "old-unreferenced"); e != sql.ErrNoRows {
+		t.Fatal("unreferenced collection not pruned", e)
+	}
+}
+
+// [REQ:GCT-OT-P1-002]
+func TestCancelRequestSurvivesStaleQueuedReadDuringDispatch(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	stale, _, e := s.Create(ctx, Job{ID: "cancel-dispatch", IdempotencyKey: "cancel-dispatch", InputDigest: "input", Operation: "staged-message", RepositoryID: "repo", State: Queued})
+	if e != nil {
+		t.Fatal(e)
+	}
+	running := stale
+	running.State = Running
+	if changed, e := s.UpdateAdvisory(ctx, stale, running); e != nil || !changed {
+		t.Fatal("dispatch transition", changed, e)
+	}
+	// Cancellation was requested from the stale queued view. The persisted
+	// dispatch transition must not make that request disappear.
+	if e := s.RequestAdvisoryCancel(ctx, stale.ID, "repo"); e != nil {
+		t.Fatal(e)
+	}
+	got, e := s.Get(ctx, stale.ID)
+	if e != nil || !got.CancelRequested || got.State != State("cancelling") {
+		t.Fatalf("lost cancellation %#v %v", got, e)
+	}
+	// An old provider completion cannot clear the monotonic request.
+	running.State = Succeeded
+	if changed, e := s.UpdateAdvisory(ctx, stale, running); e != nil || changed {
+		t.Fatal("stale result overwrote cancel", changed, e)
+	}
+}
+
+func TestAdmissionClaimReceiptCannotBorrowLaterRetryOrCancellationRevision(t *testing.T) {
+	s := testStore(t)
+	ctx := t.Context()
+	queued, _, err := s.Create(ctx, Job{ID: "claim-revision", IdempotencyKey: "claim-revision", InputDigest: "input", Operation: "staged-message", RepositoryID: "repo", State: Queued})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, changed, err := s.ClaimAdvisoryDispatch(ctx, queued)
+	if err != nil || !changed || first.State != Running {
+		t.Fatalf("first claim: %v %v", changed, err)
+	}
+	second, changed, err := s.ClaimAdvisoryDispatch(ctx, first)
+	if err != nil || !changed || !second.UpdatedAt.After(first.UpdatedAt) {
+		t.Fatalf("retry did not obtain distinct receipt: %v %v", changed, err)
+	}
+	rejected := first
+	rejected.State = Failed
+	if changed, err := s.UpdateAdvisory(ctx, first, rejected); err != nil || changed {
+		t.Fatalf("old refusal overwrote retry: %v %v", changed, err)
+	}
+	if err := s.RequestAdvisoryCancel(ctx, second.ID, "repo"); err != nil {
+		t.Fatal(err)
+	}
+	if _, changed, err := s.ClaimAdvisoryDispatch(ctx, second); err != nil || changed {
+		t.Fatalf("stale dispatch overwrote cancellation: %v %v", changed, err)
+	}
+	got, err := s.Get(ctx, second.ID)
+	if err != nil || !got.CancelRequested || got.State != State("cancelling") {
+		t.Fatalf("cancellation lost: %v %v", got, err)
+	}
+}

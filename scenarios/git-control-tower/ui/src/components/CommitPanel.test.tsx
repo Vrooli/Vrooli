@@ -6,6 +6,10 @@ import { CommitPanel } from "./CommitPanel";
 import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 describe("CommitPanel", () => {
+  it("requires a title when only an optional description is present", () => {
+    renderWithProviders(<CommitPanel stagedCount={1} commitMessage={"\n\nDescription without a title"} onCommitMessageChange={() => {}} onCommit={vi.fn()} isCommitting={false} />);
+    expect(screen.getByTestId("commit-button")).toBeDisabled();
+  });
   it("shows push action when ahead even without a new commit", () => {
     renderWithProviders(
       <CommitPanel
