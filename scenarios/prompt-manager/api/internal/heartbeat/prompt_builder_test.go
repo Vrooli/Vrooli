@@ -71,6 +71,68 @@ func TestPromptBuilderUsesConfiguredRepositoryForScenarioDocuments(t *testing.T)
 	}
 }
 
+func TestPromptBuilderSelectsTheDeclaredDeliveryWorkModel(t *testing.T) {
+	for _, tc := range []struct {
+		name, purpose, lifetime, home string
+		finite                        bool
+	}{
+		{"product delivery", teamconfig.PurposeDelivery, teamconfig.LifetimeFinite, ".vrooli/work/delivery/team-1", true},
+		{"managed finite work", teamconfig.PurposeDelivery, teamconfig.LifetimeFinite, "", true},
+		{"standing delivery", teamconfig.PurposeDelivery, teamconfig.LifetimeStanding, ".vrooli/work/delivery/team-1", false},
+		{"domain stewardship", teamconfig.PurposeDomainStewardship, teamconfig.LifetimeStanding, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			roots := paths.RootsForTest(t)
+			files := newFileStore(t, roots)
+			agents := files.Agents().(*store.FileAgentStore)
+			teams := files.Teams().(*store.FileTeamStore)
+			if err := agents.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Leader", Status: store.AgentStatusActive}); err != nil {
+				t.Fatal(err)
+			}
+			team := newIndependentTestTeam("team-1", "A delivery")
+			team.Purpose, team.Lifetime, team.HomePath = tc.purpose, tc.lifetime, tc.home
+			team.Mission = "Deliver the selected owner decision experience."
+			if err := teams.Create(ctx, team); err != nil {
+				t.Fatal(err)
+			}
+			builder := NewPromptBuilder(teams, agents)
+			for _, build := range []func(context.Context, PromptBuildRequest) (string, error){builder.Build, builder.BuildContext} {
+				prompt, err := build(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: "agent-1"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(prompt, "Write surfaces and safety-critical rules bind the task") {
+					t.Fatal("work-model selection dropped the authority boundary")
+				}
+				if !tc.finite {
+					if !strings.Contains(prompt, "Your team is a control loop") || !strings.Contains(prompt, "canonical `plan_ref`") {
+						t.Fatal("standing work lost its instrument and work-disposition guidance")
+					}
+					continue
+				}
+				for _, want := range []string{"## Finite delivery", "whole approved destination", "in-boundary delivery", "does not activate", team.Mission} {
+					if !strings.Contains(prompt, want) {
+						t.Errorf("finite delivery context does not explain %q", want)
+					}
+				}
+				for _, conflict := range []string{"Your team is a control loop", "If your team declares no instrument", "canonical `plan_ref`"} {
+					if strings.Contains(prompt, conflict) {
+						t.Errorf("finite delivery received conflicting standing-work instruction %q", conflict)
+					}
+				}
+				if tc.home != "" {
+					if !strings.Contains(prompt, tc.home+"/CHARTER.md") || !strings.Contains(prompt, "STATUS.md") {
+						t.Fatal("product delivery did not receive its current destination and allocation home")
+					}
+				} else if strings.Contains(prompt, "STATUS.md") {
+					t.Fatal("managed finite work was forced into the product-home model")
+				}
+			}
+		})
+	}
+}
+
 func TestRenderTeamContextWakeSectionDisclosesTruncation(t *testing.T) {
 	section := renderTeamContextWakeSection("marketing-crew", sourceledger.WakeResult{
 		Overflow: true,
@@ -335,10 +397,91 @@ func TestBuildStructuredMatchesRenderedPromptContract(t *testing.T) {
 	if got := strings.Count(prompt, "Record durable continuity in your declared Source Ledger topics"); got != 1 {
 		t.Fatalf("task decision guidance rendered %d times, want once", got)
 	}
-	for _, want := range []string{"When scenario work needs improvement", "canonical `plan_ref`", "adaptive-improvement", "Autonomous effort exception", "do not use Swarm Manager backlog"} {
+	for _, want := range []string{"When scenario work needs improvement", "canonical `plan_ref`", "adaptive-improvement"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("shared improvement decision tree missing %q", want)
 		}
+	}
+}
+
+func TestBundledProductLeadersReceiveTheirCurrentDestination(t *testing.T) {
+	ctx := context.Background()
+	files := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../../store"))
+	teams := files.Teams().(*store.FileTeamStore)
+	builder := NewPromptBuilder(teams, files.Agents().(*store.FileAgentStore))
+	all, err := teams.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, team := range all {
+		if team.Purpose != teamconfig.PurposeDelivery || team.Lifetime != teamconfig.LifetimeFinite || team.HomePath == "" {
+			continue
+		}
+		t.Run(team.ID, func(t *testing.T) {
+			sections, err := builder.BuildStructured(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: team.Coordination.LeadAgentID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var agentText strings.Builder
+			for _, section := range sections {
+				if section.Kind == promptSectionKindAgentFile {
+					agentText.WriteString(section.Content)
+				}
+			}
+			if !strings.Contains(agentText.String(), team.HomePath) || !strings.Contains(agentText.String(), team.Mission) {
+				t.Fatal("leader standing guidance lost the declared current home or product mission")
+			}
+			rules := promptSectionContent(sections, promptSectionKindSharedDoctrine)
+			if !strings.Contains(rules, team.HomePath+"/CHARTER.md") || !strings.Contains(rules, "whole approved destination") {
+				t.Fatal("runtime context lost the current destination or whole-product responsibility")
+			}
+			checked++
+		})
+	}
+	if checked == 0 {
+		t.Fatal("no bundled product delivery leaders were checked")
+	}
+}
+
+func TestBundledManagedFiniteLeadersReceiveSpecificOwnerInstructions(t *testing.T) {
+	ctx := context.Background()
+	files := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../../store"))
+	teams := files.Teams().(*store.FileTeamStore)
+	builder := NewPromptBuilder(teams, files.Agents().(*store.FileAgentStore))
+	all, err := teams.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, team := range all {
+		if team.Purpose != teamconfig.PurposeDelivery || team.Lifetime != teamconfig.LifetimeFinite || team.HomePath != "" || team.Archived {
+			continue
+		}
+		t.Run(team.ID, func(t *testing.T) {
+			if err := teamconfig.Validate(team.Contract()); err != nil {
+				t.Fatalf("managed team's declared runtime must be valid: %v", err)
+			}
+			sections, err := builder.BuildStructured(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: team.Coordination.LeadAgentID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rules := promptSectionContent(sections, promptSectionKindSharedDoctrine)
+			if !strings.Contains(rules, "Keep its plan, family, qualification or investigation model") {
+				t.Fatal("managed work lost its owner model")
+			}
+			task := promptSectionContent(sections, promptSectionKindHeartbeatTask)
+			if !strings.Contains(task, team.Mission) || strings.Contains(task, "No specific heartbeat instructions") {
+				t.Fatal("managed leader needs a mission-specific heartbeat task")
+			}
+			if !strings.Contains(promptSectionContent(sections, promptSectionKindResponsibilities), team.Mission) {
+				t.Fatal("managed leader needs actual member duties")
+			}
+			checked++
+		})
+	}
+	if checked == 0 {
+		t.Fatal("no bundled managed finite leaders were checked")
 	}
 }
 
@@ -395,7 +538,7 @@ func TestMemberWriteCommandVisibilityStillFollowsContract(t *testing.T) {
 	if !policy.CanWriteKnowledge || !policy.CanWriteTask {
 		t.Fatal("fixture member policy lost declared write permissions")
 	}
-	if strings.Contains(buildSharedDoctrineSection(true), "HANDOFF") {
+	if strings.Contains(buildSharedDoctrineSection(true, nil), "HANDOFF") {
 		t.Fatal("standing rules still contain handoff instructions")
 	}
 }

@@ -188,6 +188,36 @@ func TestGenerateJSONOutput(t *testing.T) {
 	}
 }
 
+func TestGenerateRequireLoopbackUsesVerifiedClient(t *testing.T) {
+	var generated bool
+	client := &fakeClient{generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+		generated = true
+		return ensure.GenerateResponse{Response: "{}"}, nil
+	}}
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	h.NewLoopbackClient = func() (Client, error) { return client, nil }
+	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hello", "--require-loopback"}); err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if !generated {
+		t.Fatal("verified loopback client was not used for generation")
+	}
+}
+
+func TestGenerateRequireLoopbackRefusesBeforeNormalClient(t *testing.T) {
+	var normalClientUsed bool
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	h.NewClient = func() Client { normalClientUsed = true; return &fakeClient{} }
+	h.NewLoopbackClient = func() (Client, error) { return nil, errors.New("local-only endpoint must use a literal loopback IP") }
+	err := h.Generate([]string{"--role", "chat.default", "--prompt", "hello", "--require-loopback"})
+	if err == nil || !strings.Contains(err.Error(), "literal loopback IP") {
+		t.Fatalf("Generate() error = %v, want locality refusal", err)
+	}
+	if normalClientUsed {
+		t.Fatal("normal client was used after loopback verification failed")
+	}
+}
+
 func TestGenerateRoleResolvesModel(t *testing.T) {
 	client := &fakeClient{
 		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {

@@ -9,9 +9,9 @@ metadata:
   tags: ["experiment", "benchmark", "capacity", "reproducibility", "local"]
   icon: "flask-conical"
   status: "active"
-  revision: 4
+  revision: 5
   createdAt: "2026-10-20T00:00:00Z"
-  updatedAt: "2026-10-21T00:00:00Z"
+  updatedAt: "2026-10-23T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "scenario-dependency-analyzer"]
     commands: ["vrooli capacity", "scenario-dependency-analyzer deps", "search-hub query"]
@@ -46,7 +46,7 @@ For adaptive optimization or copied production code, read [adaptive and external
 
 **Entry:** The record is fixed and no conflicting writer owns the same effect. Apply acquisition and capacity checks when that route needs them; a lightweight check does not require a new lease or installation.
 
-1. Pin the inputs and dependency identities needed for reproducibility. Record unknown identities and local/cloud behavior.
+1. Pin the inputs and dependency identities needed for reproducibility. Record unknown identities and local/cloud behavior. For remote sources or credentials, use the [source access check](references/adaptive.md#check-source-access).
 2. Route acquisitions and dependency previews through Scenario Dependency Analyzer or the existing resource/model owner. Record terms, expanded bytes, install/cache ownership, and simultaneous storage demand before acquiring.
 3. Use the capacity owner's current observations and admission contract for governed execution. Record effective enforcement mode and result. An advisory warning, recorded claim, enforced refusal, and caller safety hold have different meanings; do not reinterpret them in a private policy.
 4. Compare peak demand plus headroom with fresh available capacity. Obtain and retain any required owner lease across the heavy lifetime. A passive observation is not a reservation. Unknown demand or missing required admission means `not_tested`.

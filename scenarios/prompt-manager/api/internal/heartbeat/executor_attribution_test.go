@@ -46,7 +46,7 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	}
 
 	mockClient := newMockAgentClient().
-		WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:test", TargetRevision: "revision-7"}).
+		WithEffortEnrollment(&domainpb.EffortEnrollment{Delivery: runningTestDelivery(), EffortRef: "effort:test", TargetRevision: "revision-7"}).
 		WithCreateTaskResponse(&Task{ID: "task-100", Title: "test"}).
 		WithCreateRunResponse(&Run{ID: "run-200", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-200", Status: "RUN_STATUS_COMPLETE"})
@@ -156,7 +156,7 @@ func TestOrchestratorWorkReferencesLeaveUnknownAndMismatchedIdentityUnlinked(t *
 	if err := teamStore.Update(context.Background(), "team-1", team); err != nil {
 		t.Fatal(err)
 	}
-	client := newMockAgentClient().WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:test", TargetRevision: "revision-7"})
+	client := newMockAgentClient().WithEffortEnrollment(&domainpb.EffortEnrollment{Delivery: runningTestDelivery(), EffortRef: "effort:test", TargetRevision: "revision-7"})
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 	config := &store.HeartbeatConfig{ProfileKey: "leader-profile"}
 
@@ -171,7 +171,7 @@ func TestOrchestratorWorkReferencesLeaveUnknownAndMismatchedIdentityUnlinked(t *
 	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "other-profile", config); err == nil || len(refs) != 0 {
 		t.Fatalf("mismatched configured profile linked: %+v", refs)
 	}
-	client.effortEnrollment = &domainpb.EffortEnrollment{EffortRef: "effort:test", TargetRevision: "revision-7", Withdrawn: true}
+	client.effortEnrollment = &domainpb.EffortEnrollment{Delivery: runningTestDelivery(), EffortRef: "effort:test", TargetRevision: "revision-7", Withdrawn: true}
 	if refs, err := executor.orchestratorWorkReferences(context.Background(), team, "agent-1", "leader-profile", config); err == nil || len(refs) != 0 {
 		t.Fatalf("withdrawn enrollment linked: %+v", refs)
 	}

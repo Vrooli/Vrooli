@@ -715,6 +715,14 @@ func (e *Executor) orchestratorWorkReferences(ctx context.Context, team *store.T
 	if strings.TrimSpace(enrollment.GetTargetRevision()) == "" {
 		return nil, fmt.Errorf("Agent Manager enrollment %q has no target revision", effortRef)
 	}
+	// Product homes use the native delivery clock. Managed finite plans,
+	// families and investigations retain their existing owner admission. An
+	// existing commission remains binding even if the home hint is removed.
+	if delivery := enrollment.GetDelivery(); strings.TrimSpace(team.HomePath) != "" || delivery != nil {
+		if delivery == nil || delivery.GetState() != "running" || delivery.GetStartedAt() == nil || delivery.GetBudgetSeconds() <= 0 {
+			return nil, fmt.Errorf("finite delivery %q requires a running owner commission; commission or resume it through Agent Manager before enabling the heartbeat", effortRef)
+		}
+	}
 	return []*eventpb.WorkReference{{
 		Kind:         "effort",
 		Id:           enrollment.GetEffortRef(),

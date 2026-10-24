@@ -28,7 +28,7 @@
   "homePath": ".vrooli/work/delivery/personal-planner-delivery",
   "kind": "team",
   "lifetime": "finite",
-  "mission": "Deliver owner-approved I18 integrated private calendar, outcomes, actuals, forecasting, learning, CLI parity and R1 read-only ingestion through native epochs.",
+  "mission": "Deliver calendar through goals, projects, accepted plans, actuals, capacity forecasting and honest review across UI, CLI and API, preserving Observatory and the approved read-only ingestion boundary.",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {},
@@ -145,7 +145,7 @@
         }
       },
       "personal-planner-delivery-orchestrator": {
-        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
+        "lane": "Own the whole product destination, technical strategy, evolving outcome allocation and independent acceptance. Delegate substantial independent implementation to workers; coordinate shared components, API contracts and dependencies within native limits.",
         "allowedWrites": [
           {
             "kind": "handoff"
@@ -191,10 +191,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 4,
+  "revision": 5,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-21T03:26:06Z"
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
 }

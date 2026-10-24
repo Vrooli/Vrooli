@@ -367,3 +367,195 @@ func TestOllamaBaseURL(t *testing.T) {
 		}
 	}
 }
+
+func TestRender_ProjectsExtraOllamaModels(t *testing.T) {
+	op := sampleOllama()
+	op.ExtraModels = []LocalModel{{
+		Model:     "chat:9b",
+		NumCtx:    8192,
+		MaxOutput: 1024,
+		Sampling:  Sampling{Temperature: fptr(0.7), TopP: fptr(0.95)},
+	}}
+	out, err := Render(nil, Inputs{Provider: "openrouter", ChatModel: "x", CompletionModel: "x", Ollama: op})
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	entry, ok := models["chat:9b"].(map[string]any)
+	if !ok {
+		t.Fatalf("extra model missing from provider block: %v", models)
+	}
+	inner := entry["options"].(map[string]any)["options"].(map[string]any)
+	if inner["num_ctx"].(float64) != 8192 || inner["temperature"].(float64) != 0.7 || inner["top_p"].(float64) != 0.95 {
+		t.Errorf("extra model options = %v", inner)
+	}
+	limit := entry["limit"].(map[string]any)
+	if limit["context"].(float64) != 8192 || limit["output"].(float64) != 1024 {
+		t.Errorf("extra model limit = %v", limit)
+	}
+	if _, ok := models["gemma4:12b"]; !ok {
+		t.Error("default local model must still be present")
+	}
+}
+
+func TestRender_ExtraModelPreservesOperatorName(t *testing.T) {
+	existing := []byte(`{"provider":{"ollama":{"models":{"chat:9b":{"name":"Operator Name","custom":true}}}}}`)
+	op := sampleOllama()
+	op.ExtraModels = []LocalModel{{Model: "chat:9b"}}
+	out, err := Render(existing, Inputs{Provider: "openrouter", ChatModel: "x", CompletionModel: "x", Ollama: op})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)["chat:9b"].(map[string]any)
+	if entry["name"] != "Operator Name" || entry["custom"] != true {
+		t.Errorf("unmanaged keys not preserved: %v", entry)
+	}
+}
+
+func TestParseLocalModelsFiltersAndRanks(t *testing.T) {
+	raw := []byte(`{"roles":[
+	  {"role":"chat.default","model":"model-a","preference":30,"capabilities":["generate","chat","summarize"],"context_window_tokens":32768,"sampling":{"temperature":0.7,"top_p":0.95,"has_temperature":true,"has_top_p":true}},
+	  {"role":"summarize.default","model":"model-a","preference":40,"capabilities":["generate","chat"],"context_window_tokens":32768,"sampling":{"temperature":0.3,"has_temperature":true}},
+	  {"role":"embedding.default","model":"model-b","preference":10,"capabilities":["embedding"],"context_window_tokens":8192},
+	  {"role":"chat.missing","model":"model-c","preference":20,"capabilities":["chat"],"context_window_tokens":32768},
+	  {"role":"chat.uncensored","model":"model-d","preference":80,"capabilities":["generate","chat"],"context_window_tokens":32768,"max_tokens":2048,"sampling":{"temperature":0.7,"has_temperature":true}}
+	]}`)
+	got, err := parseLocalModels(raw, []string{"model-a", "model-b", "model-d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Model != "model-a" || got[1].Model != "model-d" {
+		t.Fatalf("models = %+v, want model-a then model-d", got)
+	}
+	if got[0].Sampling.Temperature == nil || *got[0].Sampling.Temperature != 0.7 {
+		t.Errorf("model-a should inherit chat.default sampling, got %+v", got[0].Sampling)
+	}
+	if got[0].NumCtx != 32768 || got[1].NumCtx != 32768 {
+		t.Errorf("projected context = %d/%d, want 32768", got[0].NumCtx, got[1].NumCtx)
+	}
+	if got[1].MaxOutput != 2048 {
+		t.Errorf("model-d max output = %d, want 2048", got[1].MaxOutput)
+	}
+}
+
+func TestRender_CapsProjectedContext(t *testing.T) {
+	op := sampleOllama()
+	op.ExtraModels = []LocalModel{{Model: "chat:9b", NumCtx: 262144}}
+	out, err := Render(nil, Inputs{Provider: "openrouter", ChatModel: "x", CompletionModel: "x", Ollama: op})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)["chat:9b"].(map[string]any)
+	if entry["limit"].(map[string]any)["context"].(float64) != maxProjectedContext {
+		t.Errorf("projected context not capped: %v", entry["limit"])
+	}
+}
+
+type listingResolver struct {
+	fakeResolver
+	extras []LocalModel
+}
+
+func (r listingResolver) LocalModels(context.Context, []string) ([]LocalModel, error) {
+	return r.extras, nil
+}
+
+func TestEnsure_ProjectsPolicyModelsIntoProviderBlock(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     path,
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenRouter: true,
+		Resolver: listingResolver{
+			fakeResolver: fakeResolver{installed: []string{"gemma4:12b", "chat:9b"}, role: RoleResolution{Model: "gemma4:12b"}},
+			extras:       []LocalModel{{Model: "chat:9b", MaxOutput: 2048, Sampling: Sampling{Temperature: fptr(0.7)}}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := parse(t, mustRead(t, path))["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["chat:9b"]; !ok {
+		t.Fatalf("policy model not projected into provider block: %v", models)
+	}
+}
+
+func TestEnsure_ProjectionFailureIsNonFatal(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     path,
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenRouter: true,
+		Resolver:       failingLister{fakeResolver: fakeResolver{installed: []string{"gemma4:12b"}, role: RoleResolution{Model: "gemma4:12b"}}},
+	})
+	if err != nil {
+		t.Fatalf("projection failure must not fail ensure: %v", err)
+	}
+	if _, ok := parse(t, mustRead(t, path))["provider"].(map[string]any)["ollama"]; !ok {
+		t.Error("ollama block should still be written")
+	}
+}
+
+type failingLister struct{ fakeResolver }
+
+func (f failingLister) LocalModels(context.Context, []string) ([]LocalModel, error) {
+	return nil, errors.New("policy unavailable")
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := readFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func TestEnsure_CloudProviderKeepsLocalModelInOllamaBlock(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     path,
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenRouter: true,
+		Resolver:       fakeResolver{installed: []string{"gemma4:12b"}, role: RoleResolution{Model: "gemma4:12b"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, mustRead(t, path))
+	if m["model"] != "openrouter/deepseek/deepseek-v4-flash" {
+		t.Errorf("cloud provider should stay active, got %v", m["model"])
+	}
+	models := m["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["gemma4:12b"]; !ok {
+		t.Errorf("local model missing from ollama block: %v", models)
+	}
+	if _, ok := models["deepseek-v4.1-flash"]; ok {
+		t.Errorf("cloud model must not be advertised as a local Ollama model: %v", models)
+	}
+}
+
+func TestEnsure_OpenCodeGoKeepsLocalModelInOllamaBlock(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     path,
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenCodeGo: true,
+		Resolver:       fakeResolver{installed: []string{"gemma4:12b"}, role: RoleResolution{Model: "gemma4:12b"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, mustRead(t, path))
+	if m["model"] != "opencode-go/deepseek-v4.1-flash" {
+		t.Errorf("OpenCode Go should stay active, got %v", m["model"])
+	}
+	models := m["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["gemma4:12b"]; !ok {
+		t.Errorf("local model missing from ollama block: %v", models)
+	}
+}

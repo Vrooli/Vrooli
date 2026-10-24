@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "external-knowledge-orchestrator",
   "displayName": "External Knowledge Orchestrator",
-  "description": "Lead external-knowledge-delivery through native epochs; own the goal home and independent acceptance, preserve Drive-first priority, coordinate existing domain owners, and never implement product code. Remain undispatched during preparation.",
+  "description": "Product-delivery orchestrator for external-knowledge-delivery; current home: .vrooli/work/delivery/external-knowledge-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
   "status": "active",
   "appearance": {
     "body": "#3B82F6",
@@ -18,7 +18,7 @@
   "fileOrder": [
     "AGENT.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-10-14T14:31:09Z",
-  "updatedAt": "2026-10-14T14:31:09Z"
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
 }

@@ -24,6 +24,7 @@ import (
 
 type kernelProcess struct {
 	command           *exec.Cmd
+	stderr            *kernelDiagnostics
 	stdin             *bufio.Writer
 	stdout            *bufio.Reader
 	bindingPath       string
@@ -31,6 +32,24 @@ type kernelProcess struct {
 	workingDir        string
 	cleanupWorkingDir bool
 	mu                sync.Mutex
+}
+
+// Keep a bounded tail so a kernel boot failure is diagnosable without retaining
+// an unbounded child stream. Read only after Wait has joined the stderr copier.
+type kernelDiagnostics struct{ tail []byte }
+
+func (d *kernelDiagnostics) Write(p []byte) (int, error) {
+	n := len(p)
+	const limit = 4096
+	if len(p) >= limit {
+		d.tail = append(d.tail[:0], p[len(p)-limit:]...)
+		return n, nil
+	}
+	if overflow := len(d.tail) + len(p) - limit; overflow > 0 {
+		d.tail = d.tail[overflow:]
+	}
+	d.tail = append(d.tail, p...)
+	return n, nil
 }
 
 type Invocation struct {
@@ -215,6 +234,8 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		return nil, err
 	}
 	cmd := exec.Command(python, "-I", "-u", r.path)
+	diagnostics := &kernelDiagnostics{}
+	cmd.Stderr = diagnostics
 	workingDir := r.workspaces[sessionID]
 	cleanupWorkingDir := false
 	if workingDir == "" {
@@ -331,7 +352,7 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		_ = cmd.Wait()
 		return nil, err
 	}
-	p := &kernelProcess{command: cmd, stdin: bufio.NewWriter(stdin), stdout: bufio.NewReader(stdout), bindingPath: bindingPath, libraryPath: libraryPath, workingDir: workingDir, cleanupWorkingDir: cleanupWorkingDir}
+	p := &kernelProcess{command: cmd, stderr: diagnostics, stdin: bufio.NewWriter(stdin), stdout: bufio.NewReader(stdout), bindingPath: bindingPath, libraryPath: libraryPath, workingDir: workingDir, cleanupWorkingDir: cleanupWorkingDir}
 	r.processes[sessionID] = p
 	return p, nil
 }
@@ -397,11 +418,11 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 	}
 	if err := json.NewEncoder(p.stdin).Encode(request); err != nil {
 		r.killProcess(sessionID, p)
-		return Result{}, fmt.Errorf("write program: %w", err)
+		return Result{}, kernelFailure("write program", err, p)
 	}
 	if err := p.stdin.Flush(); err != nil {
 		r.killProcess(sessionID, p)
-		return Result{}, fmt.Errorf("flush program: %w", err)
+		return Result{}, kernelFailure("flush program", err, p)
 	}
 	type kernelResponse struct {
 		Type             string       `json:"type"`
@@ -439,7 +460,7 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 		case decoded := <-responses:
 			if decoded.err != nil {
 				r.killProcess(sessionID, p)
-				return Result{}, fmt.Errorf("read kernel response: %w", decoded.err)
+				return Result{}, kernelFailure("read kernel response", decoded.err, p)
 			}
 			result := Result{Stdout: decoded.response.Stdout, ContextBytes: decoded.response.ContextBytes, AgentBytes: decoded.response.AgentBytes, OutputLimitBytes: decoded.response.OutputLimitBytes, Invocations: decoded.response.Invocations, LearningJSON: compactLearningJSON(decoded.response.Learning)}
 			if decoded.response.Type == "progress" {
@@ -457,6 +478,10 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 			return Result{}, ctx.Err()
 		}
 	}
+}
+
+func kernelFailure(phase string, err error, p *kernelProcess) error {
+	return fmt.Errorf("%s: %w (exit: %v; stderr: %s)", phase, err, p.command.ProcessState, strings.TrimSpace(string(p.stderr.tail)))
 }
 
 func (r *SubprocessRunner) KillSession(sessionID string) {

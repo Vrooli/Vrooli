@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -72,14 +73,22 @@ type Resolver interface {
 	LocalRole(ctx context.Context, role string) (RoleResolution, error)
 }
 
+// LocalModelLister is an optional Resolver extension. When implemented, every
+// installed model that serves a chat/generate policy role is projected into
+// OpenCode's provider block, so the picker follows the Ollama policy instead
+// of a hand-maintained list. Fakes and older resolvers simply omit it.
+type LocalModelLister interface {
+	LocalModels(ctx context.Context, installed []string) ([]LocalModel, error)
+}
+
 // EnsureOptions configures Ensure.
 type EnsureOptions struct {
-	ConfigPath      string
-	Defaults        Defaults
-	HaveOpenCodeGo  bool
-	HaveOpenRouter  bool
-	Resolver        Resolver
-	Logf            func(format string, args ...any)
+	ConfigPath     string
+	Defaults       Defaults
+	HaveOpenCodeGo bool
+	HaveOpenRouter bool
+	Resolver       Resolver
+	Logf           func(format string, args ...any)
 }
 
 // Ensure decides the provider (OpenCode Go → OpenRouter → local Ollama),
@@ -96,12 +105,12 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	ollamaReachable := listErr == nil && len(installed) > 0
 
 	var (
-		provider       string
-		chatModel      string
+		provider        string
+		chatModel       string
 		completionModel string
-		useOllama      bool
-		useOpenCodeGo  bool
-		useOpenRouter  bool
+		useOllama       bool
+		useOpenCodeGo   bool
+		useOpenRouter   bool
 	)
 
 	// Tier 1: OpenCode Go subscription (cheapest, subscription-billed)
@@ -147,15 +156,29 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		logf("Self-healed to local Ollama (provider=%s, model=%s)", provider, chatModel)
 	}
 
+	localModel := d.OllamaDefaultModel
 	var sampling Sampling
 	if ollamaReachable {
 		if rr, err := opts.Resolver.LocalRole(ctx, d.LocalRole); err == nil {
 			sampling = rr.Sampling
 			if rr.Model != "" && containsModel(installed, rr.Model) {
+				localModel = rr.Model
 				if useOllama {
 					chatModel = rr.Model
 					completionModel = rr.Model
 				}
+			}
+		}
+	}
+
+	var extras []LocalModel
+	if ollamaReachable {
+		if lister, ok := opts.Resolver.(LocalModelLister); ok {
+			models, err := lister.LocalModels(ctx, installed)
+			if err != nil {
+				logf("WARNING: could not project Ollama policy models into OpenCode config: %v", err)
+			} else {
+				extras = models
 			}
 		}
 	}
@@ -197,19 +220,21 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	}
 	if ollamaReachable {
 		in.Ollama = &OllamaProvider{
-			BaseURL:    ollamaBaseURL(os.Getenv) + "/api",
-			ChatModel:  chatModel,
-			SmallModel: completionModel,
-			NumCtx:     d.NumCtx,
-			Sampling:   sampling,
+			BaseURL:     ollamaBaseURL(os.Getenv) + "/api",
+			ChatModel:   localModel,
+			SmallModel:  localModel,
+			NumCtx:      d.NumCtx,
+			Sampling:    sampling,
+			ExtraModels: extras,
 		}
 	} else if !freshFile && hasOllamaBlock(existing) {
 		in.Ollama = &OllamaProvider{
-			BaseURL:    ollamaBaseURL(os.Getenv) + "/api",
-			ChatModel:  d.OllamaDefaultModel,
-			SmallModel: d.OllamaDefaultModel,
-			NumCtx:     d.NumCtx,
-			Sampling:   sampling,
+			BaseURL:     ollamaBaseURL(os.Getenv) + "/api",
+			ChatModel:   d.OllamaDefaultModel,
+			SmallModel:  d.OllamaDefaultModel,
+			NumCtx:      d.NumCtx,
+			Sampling:    sampling,
+			ExtraModels: extras,
 		}
 	}
 
@@ -401,4 +426,91 @@ func (r ExecResolver) LocalRole(ctx context.Context, role string) (RoleResolutio
 		}
 	}
 	return rr, nil
+}
+
+// LocalModels projects the installed, policy-declared chat/generate models so
+// OpenCode's picker follows the Ollama policy rather than a manual list.
+func (r ExecResolver) LocalModels(ctx context.Context, installed []string) ([]LocalModel, error) {
+	out, err := exec.CommandContext(ctx, r.bin(), "policy", "roles", "--json").Output()
+	if err != nil {
+		return nil, err
+	}
+	return parseLocalModels(out, installed)
+}
+
+type policyRolesPayload struct {
+	Roles []policyRole `json:"roles"`
+}
+
+type policyRole struct {
+	Role                string   `json:"role"`
+	Model               string   `json:"model"`
+	Preference          int      `json:"preference"`
+	Capabilities        []string `json:"capabilities"`
+	ContextWindowTokens int      `json:"context_window_tokens"`
+	MaxTokens           *int     `json:"max_tokens"`
+	Sampling            *struct {
+		Temperature    float64 `json:"temperature"`
+		TopP           float64 `json:"top_p"`
+		TopK           int     `json:"top_k"`
+		HasTemperature bool    `json:"has_temperature"`
+		HasTopP        bool    `json:"has_top_p"`
+		HasTopK        bool    `json:"has_top_k"`
+	} `json:"sampling"`
+}
+
+func parseLocalModels(raw []byte, installed []string) ([]LocalModel, error) {
+	var payload policyRolesPayload
+	if err := json.Unmarshal(bytes.TrimSpace(raw), &payload); err != nil {
+		return nil, fmt.Errorf("decode ollama policy roles: %w", err)
+	}
+	byModel := map[string]LocalModel{}
+	rank := map[string]int{}
+	for _, role := range payload.Roles {
+		model := strings.TrimSpace(role.Model)
+		if model == "" || !containsModel(installed, model) || !servesChat(role.Capabilities) {
+			continue
+		}
+		// One entry per model. The most preferred role (lowest policy
+		// preference) owns its sampling stance.
+		if previous, ok := rank[model]; ok && previous > 0 && (role.Preference == 0 || previous <= role.Preference) {
+			continue
+		}
+		entry := LocalModel{Model: model, NumCtx: role.ContextWindowTokens}
+		if role.MaxTokens != nil {
+			entry.MaxOutput = *role.MaxTokens
+		}
+		if role.Sampling != nil {
+			if role.Sampling.HasTemperature {
+				value := role.Sampling.Temperature
+				entry.Sampling.Temperature = &value
+			}
+			if role.Sampling.HasTopP {
+				value := role.Sampling.TopP
+				entry.Sampling.TopP = &value
+			}
+			if role.Sampling.HasTopK {
+				value := role.Sampling.TopK
+				entry.Sampling.TopK = &value
+			}
+		}
+		byModel[model] = entry
+		rank[model] = role.Preference
+	}
+	models := make([]LocalModel, 0, len(byModel))
+	for _, model := range byModel {
+		models = append(models, model)
+	}
+	sort.Slice(models, func(i, j int) bool { return models[i].Model < models[j].Model })
+	return models, nil
+}
+
+func servesChat(capabilities []string) bool {
+	for _, capability := range capabilities {
+		switch strings.ToLower(strings.TrimSpace(capability)) {
+		case "chat", "generate":
+			return true
+		}
+	}
+	return false
 }

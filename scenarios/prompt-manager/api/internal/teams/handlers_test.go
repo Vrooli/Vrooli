@@ -19,6 +19,8 @@ import (
 	"prompt-manager/internal/teamconfig"
 
 	"github.com/gorilla/mux"
+	teamspb "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // MockTeamStore implements store.TeamStore for testing.
@@ -1773,5 +1775,30 @@ func TestListTeamMessages(t *testing.T) {
 	}
 	if len(response.Messages) != 1 || response.Messages[0].ID != "msg-1" {
 		t.Errorf("Expected 1 message, got %+v", response.Messages)
+	}
+}
+
+func TestTeamResponseIncludesCentralHome(t *testing.T) {
+	st := NewMockTeamStore()
+	team := &store.Team{ID: "delivery", HomePath: ".vrooli/work/delivery/delivery"}
+	st.teams[team.ID] = team
+	h := &Handlers{teamStore: st}
+	body, err := json.Marshal(h.toResponse(context.Background(), team))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result map[string]interface{}
+	if err = json.Unmarshal(body, &result); err != nil {
+		t.Fatal(err)
+	}
+	wire := &teamspb.Team{}
+	if err := protojson.Unmarshal(body, wire); err != nil {
+		t.Fatal("Connect response lost the typed home path", err)
+	}
+	if wire.HomePath != team.HomePath {
+		t.Fatal("Connect response omitted home path")
+	}
+	if result["homePath"] != team.HomePath {
+		t.Fatalf("team API discarded the central home: %s", body)
 	}
 }

@@ -1,0 +1,12 @@
+/cli/cli
+/cli/cli.exe
+/cli/*.test
+/cli/coverage.out
+/cli/*.out
+/cli/*.prof
+/cli/*.manifest.json
+/cli/*.build.meta
+/server/dist/
+/server/*.test
+/server/resource-pii-detector-server
+/server/resource-pii-detector-server.exe

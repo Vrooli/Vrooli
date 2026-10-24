@@ -56,8 +56,15 @@ syncs the OpenRouter key into `auth.json`.
   authority and written to `auth.json`.
 - **Ollama** is auto-configured as a keyless local provider
   (OpenAI-compatible, `http://localhost:11434/v1`) when a local daemon is
-  reachable and no OpenRouter key is present. Target a local model
-  explicitly with `-m ollama/<model>`.
+  reachable and no OpenRouter key is present. `resource-opencode ensure`
+  projects every installed model that serves a `chat` or `generate` role in
+  `resources/ollama/model-policy.json` into the provider block, so OpenCode's
+  model picker follows the Ollama policy instead of a hand-maintained list.
+  Operator-added entries and their display names are preserved. Projected
+  entries follow the policy model's `context_window_tokens` (capped at 32768);
+  the coding default still uses `OPENCODE_OLLAMA_NUM_CTX` (default 16384).
+  Role `max_tokens` becomes the output limit. Target a model outside the
+  policy explicitly with `-m ollama/<model>`.
 
 ## Coding-role policy
 

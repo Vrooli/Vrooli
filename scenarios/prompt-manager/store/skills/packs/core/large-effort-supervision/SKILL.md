@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 39
+  revision: 40
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-10-20T20:14:03Z"
+  updatedAt: "2026-10-23T00:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager]
     commands: [agent-manager, prompt-manager skill read]
@@ -39,10 +39,10 @@ Sol; hand any repair that takes more than a few commands to a bounded Luna run
 |---|---|---|
 | Daily check | Supervisor team heartbeat, once a day | §2 for every active goal: read and report only, no gate reruns. |
 | Audit | An orchestrator's trigger after every 3rd acceptance | Audit that epoch (§4). |
-| Step-back | An orchestrator's trigger after a `STEP_BACK` or park/switch/shrink entry in `QUEUE.md` | Audit it (§4). |
-| Repeated workaround | The same `WORKAROUNDS.md` failure logged twice, or by two goals | Repair it (§3). |
+| Step-back | An orchestrator's trigger after a `STEP_BACK` or park/switch/shrink entry in `STATUS.md` | Audit it (§4). |
+| Repeated workaround | The same `STATUS.md` failure logged twice, or by two goals | Repair it (§3). |
 | Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause; steer or repair. |
-| Planning finding | An orchestrator's trigger after a planning finding in the `QUEUE.md` Forecast | Audit the plan (§4). |
+| Planning finding | An orchestrator's trigger after a planning finding in the `STATUS.md` Forecast | Audit the plan (§4). |
 
 Event wakes arrive through the existing trigger routes. After the trusted
 effort-signal dispatcher is qualified and adopted, an eligible signal record may
@@ -55,6 +55,15 @@ park again if it is still waiting. Never wake on unchanged state, and never
 start a judgment while your previous run is still live. A wake with no open
 workaround and nothing due records a one-line quiet disposition and ends. With
 no active goal, stay idle.
+
+### 1.1 Delivery pressure
+
+Agent Manager's native effort owner computes deliveryPressure and enforces the persisted operator
+commission. The rare judgment supervisor reads that same signal; it does not run a second clock,
+reset a budget, manufacture surface acceptance or replace timed stopping with another checklist.
+At a timed handback, audit the frozen delivery outcome and actual decision publication separately.
+An unassessed surface or unpublished question remains unverified. Real team activation remains a
+deliberate owner action after source/route qualification and retained-owner reconciliation.
 
 ### 2. Daily check
 
@@ -87,8 +96,8 @@ For each selected goal home:
 1. Compare the current row with the latest exact-owner assessment in context;
    match effort reference and retained run IDs. If absent, make at most one exact
    assessment lookup for this daily run. If no matching baseline exists, keep it
-   unknown. Read the `QUEUE.md` Forecast, `## Handoff`, `## Needs operator`,
-   active epoch's last 20 slice-log lines, new `WORKAROUNDS.md` entries or latest
+   unknown. Read the `STATUS.md` Forecast, `## Handoff`, `## Needs operator`,
+   active epoch's last 20 slice-log lines, new `STATUS.md` entries or latest
    qualification only when that field changed, evidence is missing/stale/partial,
    or an existing event/audit/repair return condition is due. Do not read full
    transcripts or rerun gates daily. For a due run return, start with
@@ -121,14 +130,14 @@ For each selected goal home:
    orchestrator's own tokens with its children's only when a current complete
    whole-effort denominator exists: an orchestrator above about 25% of measured
    goal spend is an overhead target for wake count, park timeout, or gate reruns.
-   Check the `QUEUE.md` Forecast: missing or
+   Check the `STATUS.md` Forecast: missing or
    older than the last acceptance, or a scaled queue that cannot close the gap
    with no planning under way, is a steering entry (§5).
 4. Confirm the orchestrator is running or parked. A repeated heartbeat relaunch
    within a day is a repair target, not a reason to relaunch again. A goal with
    no accepted epoch and no live worker for 24 hours is stalled. Write a steering
    entry that names the cause and plans against the destination metric in
-   `GOAL.md`. Consider redesign only when measured ownership or coupling gaps
+   `CHARTER.md`. Consider redesign only when measured ownership or coupling gaps
    make it a suitable way to close that metric. Keep remainders that wait on
    others open while other admissible work continues. If a live worker is active
    but remaining destination slices are not ordered and estimated, ask the
@@ -136,7 +145,7 @@ For each selected goal home:
    the child to return. Keep proposed slices unadmitted until the effort/team
    concurrency and resource policy permits dispatch.
    Treat board `nextAction=observe` as advisory; it does not clear due work. When
-   no worker is active, reconcile current `GOAL.md`/`QUEUE.md` obligations and
+   no worker is active, reconcile current `CHARTER.md`/`STATUS.md` obligations and
    retained owner state before ending the check or treating the goal as quiet.
    Before keeping a temporary coordinator resource hold, check the native
    capacity/admission or lease owner and name the active work and owner it
@@ -227,7 +236,7 @@ inputs, missing, stale or partial evidence, or unresolved material risk, using
 `path:docs/TESTING.md`. Run every check required by explicit certification.
 Check that the gates match those set at admission (or each amendment
 has a recorded reason), the deletion list names concrete items from the
-`QUEUE.md` slice and each reached its end state (a slice marked done on partial
+`STATUS.md` slice and each reached its end state (a slice marked done on partial
 work is a failed audit: its remainder goes back to the queue), the growth budget
 holds, test changes
 follow `path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`
@@ -244,7 +253,7 @@ Stay out of product work and epoch files. Steer an orchestrator only through a
 into directives. A failed audit becomes such an entry. It reopens the epoch
 when an exit gate fails; when a slice was marked done with deletion-list items
 left, the entry names those items and tells the orchestrator to put them back at
-the top of `QUEUE.md` as a remainder slice. A qualification failure becomes a `QUEUE.md`
+the top of `STATUS.md` as a remainder slice. A qualification failure becomes a `STATUS.md`
 item through the orchestrator.
 
 ### 6. Completion

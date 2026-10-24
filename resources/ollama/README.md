@@ -63,11 +63,15 @@ instead of hard-coding concrete model names:
 | Role | Current model | Purpose |
 |---|---|---|
 | `embedding.default` | `nomic-embed-text:latest` | semantic search embeddings |
-| `chat.small` | `llama3.2:3b` | low-memory local generation |
-| `chat.default` | `qwen3:4b` | default local chat/synthesis |
-| `summarize.default` | `qwen3:4b` | text distillation and summaries |
-| `rerank.llm_fallback` | `qwen3:4b` | fallback reranking when the reranker resource is unavailable |
+| `chat.small` | `qwen3.5:4b` | low-memory local generation |
+| `chat.default` | `qwen3.5:9b` | default local chat/synthesis |
+| `summarize.default` | `qwen3.5:9b` | text distillation and summaries |
+| `rerank.llm_fallback` | `qwen3.5:4b` | fallback reranking when the reranker resource is unavailable |
+| `classify.routing` | `qwen3.5:4b` | structured routing and classification |
 | `code.local` | `gemma4:12b` | local code-specialized generation (tool-calling capable) |
+| `write.default` | `gemma4:12b` | local prose and editorial writing |
+| `vision.default` | `qwen3-vl:4b` | local visual understanding |
+| `chat.uncensored` | `huihui_ai/granite4.1-abliterated:8b` | explicit-only unrestricted local chat; never a default target |
 
 The catalog includes static capacity estimates today. Each estimate carries
 provenance and confidence so later `/api/show`, `/api/ps`, and measured-profile

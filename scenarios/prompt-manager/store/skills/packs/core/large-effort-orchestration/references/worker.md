@@ -1,179 +1,94 @@
-# Epoch worker card
+# Delivery worker card
 
-You deliver one epoch of an orchestrated goal. Your assignment prompt carries
-the applicable directive IDs, authority, gates, source references, owner/run
-identity and resume set. Read this card and that assignment first. Read the
-epoch sections and evidence needed to understand or verify those requirements;
-read older history or the full epoch when a requirement depends on it. The epoch
-file remains the complete worker execution record and `epoch-check` always checks
-that full file. Your prompt names the epoch file, the orchestrator run ID and the
-applicable resume set.
+Deliver the substantial product outcome in your assignment. Understand the team's mission,
+open its exact governing sources and selected original images, and own implementation,
+focused self-validation and handoff. The orchestrator owns independent acceptance.
 
-**Resume set.** The admitted brief (header fields, modules and
-budgets, deletion list, exit gate, non-goals), applicable directives named in
-the assignment, the last ~20 slice-log lines, and the scenario docs the brief
-names. Read earlier slice-log entries or other epoch sections when they contain
-evidence needed for the assigned work or a gate; do not reload historical
-sections by default.
+Reference links below resolve beside this card in the repository's
+`scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/`.
 
-**Before the first write.** Retain a bounded byte snapshot and hash manifest of
-the exact admitted source paths through the owner's existing artifact route,
-including untracked files and explicit absence for files you will create. Record
-the artifact identity and capture time in the slice log. Capture generated
-owner outputs before a permitted generator/materializer can replace them. If
-this attempt resumes, preserve its original baseline and add a dated checkpoint;
-never relabel later bytes as the original pre-run state. At handoff, lead with
-this run ID, its final result, and its final source/evidence references. Compare
-this attempt's allowed write set with its preserved baseline; name concurrent or
-unknown attribution and validation side effects. Label older attempt tables as
-historical. A hash of a handoff Markdown file identifies that document, not the
-product files it describes. If final source identities are unavailable, say so
-and preserve unknown attribution; do not create extra capture requirements.
-Do not restore over another writer or claim a whole dirty checkout diff is your
-contribution. This is evidence inside the existing admission, not a new product
-or parent-release gate.
-Keep the surviving baseline in durable goal/owner artifact storage through acceptance and handoff; use `/tmp` only for staging. Record the compared source revision and date. After source inputs change, label the earlier measurement historical until it can be recomputed from the preserved baseline.
+## Start
 
-When the admitted directive permits a same-task local fallback, use that route
-without retrying an opaque managed-artifact request. Put one exact repository-
-relative file path per line in a task-local `prewrite.paths`; include untracked
-files, intended new files, and the generated owner outputs that may change.
-Expand admitted directories to files explicitly. Do not snapshot the whole tree.
-Run this recipe with a new task-local baseline directory:
+Read your assignment and its named brief, applicable directives, current evidence and
+relevant scenario docs. Your prompt must name the product mission, assigned outcome,
+allowed ownership, sources, verification, parent run and completion predicate. Reconcile
+missing or conflicting assignment scope with that owner before affected work. Read older
+history only when it is needed to satisfy a requirement or verify a claim. Workers receive
+applicable feedback as directives; do not read the team's full FEEDBACK or orchestrator skill.
 
-```bash
-python3 - /absolute/task/prewrite.paths /absolute/task/baseline-original <<'PY'
-import datetime, hashlib, json, pathlib, sys
-root = pathlib.Path.cwd().resolve()
-paths = pathlib.Path(sys.argv[1]).read_text().splitlines()
-out = pathlib.Path(sys.argv[2])
-out.mkdir(parents=True, exist_ok=False)
-rows = []
-for name in paths:
-    rel = pathlib.Path(name)
-    if not name or rel.is_absolute() or '..' in rel.parts:
-        raise SystemExit(f'Expected exact relative file path: {name!r}')
-    source = root / rel
-    if source.resolve().is_relative_to(root) is False or source.is_symlink():
-        raise SystemExit(f'Unsafe snapshot path: {name}')
-    row = {'path': name, 'observed_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    if not source.exists():
-        row['absent'] = True
-    else:
-        before = source.stat()
-        data = source.read_bytes()
-        after = source.stat()
-        if (before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_ino, after.st_size, after.st_mtime_ns):
-            raise SystemExit(f'Concurrent change; retain partial snapshot: {name}')
-        target = out / 'bytes' / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
-        row.update(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
-    rows.append(row)
-    (out / 'manifest.json').write_text(json.dumps(rows, indent=2) + '\n')
-print(out / 'manifest.json')
-PY
+Before the first source write, follow the [source-capture reference](source-capture.md).
+Preserve this attempt's original bounded baseline, including untracked files and intended
+absences. Reuse that baseline on continuation; never overwrite another writer's changes
+or attribute the whole dirty checkout to your run.
+
+## Implement and verify
+
+1. Open the assigned originals; compare the current product with their matching state,
+   theme and viewport. Read the required behavior, including nonvisual requirements.
+2. Implement meaningful steps toward the outcome. Use suitable shared components through
+   their owner routes. Refactor touched ownership and remove superseded code. Preserve
+   data, existing consumers, accessibility, recovery and unique test protection.
+3. Include necessary in-scope UI, API, test and integration work. A file count is not an
+   assignment boundary. If an enabling change exceeds your actual scope, return its exact
+   owner/dependency or request an amendment; keep other independent in-scope work moving.
+4. Run focused checks after meaningful changes. Do not create extra source-only/test-only
+   assignments or stretch work to hit a time/token target. Compare the actual served build
+   with the selected originals where the brief requires visual proof. A passing test or
+   existing screenshot is not proof of current visual fidelity.
+5. Append a short slice-log line and acknowledge new applicable directives. Follow the
+   progress format and step-back rule below; do not invent new quotas.
+
+When progress stalls, diagnose the obstacle and report why. Step back to a smaller coherent
+outcome, an enabling change or a real wait through the orchestrator. Do not repeat unchanged
+failed operations. Required proof stays open if no authorized equivalent is available.
+An infrastructure failure does not block unrelated implementation. Record its return
+condition through the existing workaround route; preserve actual native denials.
+
+## Progress and step-back
+
+After a meaningful checked change, append this line to the brief's Slice log:
+
+```text
+<RFC3339 time> | <change> | exit metric=<value> | net runtime lines=<signed delta> | net test lines=<signed delta> | ack=<directive IDs or ->
 ```
 
-Run from the admitted checkout root. Record the manifest path/hash and capture
-time in the slice log. A capture error leaves partial evidence, not a baseline;
-reconcile it before a source write. Keep the original directory on continuation.
-This recipe records bytes and absences; it neither proves exclusive ownership
-nor removes a separate managed-tool recovery hold.
+Use this attempt's preserved inventory. Moved/extracted code is not removal. Reconcile
+applicable Directives against the assignment; ask the orchestrator to synchronize an
+unclear scope amendment before affected work. Then run:
 
-**Coherent worker scope.** For an implementation assignment, define the goal
-around the smallest meaningful behavior and include focused self-validation and
-handoff when those checks are authorized and available. Keep independent review
-separate. Do not split one change into source-only and test-only worker goals
-solely to create another dispatch.
+```bash
+agent-manager effort epoch-check <repo-relative-brief> --runs <your-run> --wake-key <parent-run>
+```
 
-A parent-owned review or acceptance is not a child prerequisite once the
-assigned work and worker-owned checks are complete. Return the bounded result,
-evidence, and pending parent gate through the normal terminal handoff; the
-completion watcher delivers it, and the parent retains epoch acceptance. Do not keep a completed task open or wake/continue the parent solely
-to request review. This does not waive required worker self-validation: a failed
-check remains failed and an unavailable check remains unverified. Repair it
-within scope, or hand off the exact finding, remaining check, and needed owner
-dependency or scope amendment; never mark it passed. If a retained summary
-conflicts with current authoritative run or await fields, current owner fields
-win. Report a lost wait to the orchestrator or supervisor; do not wake the
-parent based on a stale summary.
+Add `--effort <exact-ref>` when the brief names one. This signals a fired step-back only;
+normal terminal results arrive through the completion watcher. Do not repeatedly wake
+or continue the parent to ask for review. On exit 3, record the cause and recommend
+park, enabling work or smaller coherent scope; the orchestrator records the disposition.
 
-Do not stretch work to meet a runtime or token target.
+Existing growth budgets: refactor closure requires cumulative net runtime lines <= 0;
+feature work stays within 1.5 times Expected size. Existing triggers: 10 unchanged metric
+entries; work units above twice the estimate; refactor growth above +300 or feature growth
+above 1.5 times expected size; calibrated spend; 24h epoch REVIEW. Native commission HARD
+STOP separately enforces stopping. Do not stretch work to reach a count or duration.
 
-**Owner-issued IDs.** Use returned IDs, not predicted suffixes. Preserve a verified
-handle for the admitted owner and asset; ask the orchestrator to reconcile
-derived references in this goal instead of creating another. Stop before writes
-only on owner, asset or scope mismatch, or an unverified identity.
+## Return
 
-**Loop.**
-1. Make one change and run its focused checks. A change whose checks pass is a
-   work unit. Size units as meaningful steps (a module, an owner or a whole
-   pattern across a package), not single edits; the overrun trigger counts them.
-2. Append one line to `## Slice log`:
-   `<RFC3339 timestamp with seconds and timezone, e.g. 2026-10-20T11:30:00Z> | <what changed> | exit metric=<value> | net runtime lines=<±n> | net test lines=<±n> | ack=<directive IDs or ->`
-   Net lines are the unit's delta from before/after inventory snapshots of the
-   epoch scope. Never use git. Moved or extracted code is not removal.
-3. Reconcile the current IDs in `## Directives` with the assignment and prior
-   acknowledgements in `## Slice log`. Read and act on each new applicable
-   directive, and acknowledge its ID in your next slice-log line. If a new
-   applicable directive is not synchronized with the assignment, or its scope
-   or authority is unclear, use the existing amendment route with the
-   orchestrator before affected work. Read other directive text when an
-   assigned requirement depends on it.
-4. Run `agent-manager effort epoch-check <repository-relative epoch file path> --runs <your run ID> --wake-key <orchestrator run ID>`.
-   Use the full repository-relative epoch path and orchestrator run ID from your
-   assignment. If the admitted brief names an active effort reference, pass its
-   exact value with `--effort <ref>`; omit `--effort` otherwise. The completion
-   watcher delivers your terminal result to the parent.
-   `--wake-key` signals only a fired step-back. Do not call `run continue` on the
-   parent or request global-management authority to deliver your result.
+Complete the assigned work and its worker-owned checks, then return:
 
-**Growth budget.** `refactor` epochs close at cumulative net runtime lines ≤ 0.
-`feature` epochs stay within 1.5× `Expected size`. Tests follow
-`path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`.
+- **Changed:** user-visible behavior and source paths/identities for this attempt.
+- **Verified:** exact commands, operated journeys, served-build/original comparisons and evidence.
+- **Remaining:** specific gaps, dependencies and corrections inside the full outcome.
+- **Unverified:** held checks, unavailable targets, concurrent/unknown attribution and return conditions.
 
-**Step-back.** `epoch-check` exits 3 with `STEP_BACK <reason>` when a trigger fires:
+For a full epoch, run the assigned exit gates before reporting it delivered. For an explicitly
+bounded slice, run its assigned checks and list unrun parent gates. A completed task does not
+accept its parent epoch or product surface. Return a failed or held gate honestly; never mark
+it passed. Do not remain running solely to await parent review. The completion watcher delivers
+your result. Use the step-back signal above only for its actual condition, not repeated parent wakes.
 
-| Trigger | Signal | Default |
-|---|---|---|
-| Flatline | exit metric unchanged across the last K lines | K = 10 |
-| Overrun | log lines above the estimate | 2× |
-| Growth | refactor: cumulative net runtime lines; feature: above expected size | > +300; > 1.5× |
-| Spend | weighted non-cache tokens of the epoch's workers | set after 3 epochs |
-| Wall clock | now minus `Started` | 24 h; prints `REVIEW`, never forces a stop |
-
-Then stop adding more of the same. Write about 10 lines under the slice log: why
-the epoch is stuck, what change elsewhere would make it tractable, and whether to
-**park**, **switch** to an enabling slice, or **shrink** the scope. Continue only
-inside a shrunk scope; the orchestrator records the choice in `STATUS.md` `## Next`.
-
-**Broken infrastructure** (sandbox, shadow, Test Genie, Program Runtime, bridge)
-does not block other implementation work. Append a `STATUS.md` `## Workarounds` entry (what
-failed, the fallback, when to retry), continue unsandboxed in the shared tree or
-restart in a quiet window, and stop retrying that tool. A fallback does not waive
-required proof: use equivalent authorized evidence for the required behavior or
-report the unmet gate and return condition. Do not mark the epoch complete while
-a required gate remains unmet; the orchestrator keeps the affected slice open
-while other admissible work continues.
-
-**Blocked** means a decision, credential or approval you lack. Name it in a slice-log
-line. Friction you can diagnose is not blocked.
-
-**Never:** write `ACCEPTED` or directives, edit the brief's gates, read
-`FEEDBACK.md`, install a tool outside the project (request it in a slice-log line),
-or stop at a compaction, a green test or a status request.
-
-**Exit.** Follow the scope named in your admitted assignment.
-
-- **Full epoch:** Run every exit-gate command in the epoch brief. When all pass,
-  log a final line with their results, mark your native goal complete, and end
-  with changed, verified, remaining, and unverified. If any gate fails, report
-  the failing command and remaining holds; do not mark the epoch complete.
-- **Bounded task or slice:** If the orchestrator explicitly assigns a bounded
-  unit and excludes epoch gates or acceptance, do not run the full epoch exit
-  gates. When the assigned work and required handoff evidence are complete, mark
-  only the task's native goal complete. End with changed, verified, remaining,
-  and unverified, including unrun epoch gates and other unresolved holds. This
-  closes only the assigned task; it never records or implies epoch acceptance.
-  The orchestrator retains responsibility for epoch acceptance.
+Never write ACCEPTED, change gates/directives, install external tools without the authorized
+owner, or weaken the product to make checks pass. Use returned owner/asset IDs and preserve
+native identity, permissions, generated-output and dependency routes. Read
+`path:docs/TESTING.md` for validation scope. At native HARD STOP, checkpoint the current result
+and return; time does not establish acceptance. For a lost run or allowance/refusal, use
+[recovery](recovery.md). Blocked means a missing decision, credential or approval; name it.

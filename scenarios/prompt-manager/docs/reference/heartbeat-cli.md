@@ -69,11 +69,18 @@ Pause is separate from member heartbeat `enabled`. A paused team can still have 
 
 Prompt Manager does not have finite-leader bind, amend, retire, completion, reopen, or restart commands. Configure a delivery team through the existing team contract: `EffortRefs` identifies the effort, `Coordination.LeadAgentID` identifies its leader, the operating contract carries member and plan-of-record/source paths, and the leader member heartbeat selects its Agent Manager `ProfileKey`. Keep the team and heartbeat disabled during preparation.
 
-Before enablement, follow the reusable receiver-qualification procedure in the canonical [`large-effort-orchestration` skill](../../store/skills/packs/core/large-effort-orchestration/SKILL.md#61-commission-an-accurate-accessible-handoff) (§6.1). Qualify this effort's actual member/profile/owner route and selected sources at their repository-relative paths; record opened materials, coverage, hashes, and limits in that effort's canonical goal-home receipt. Do not copy another effort's source list or create a second source-reference store.
+Before enablement, follow the reusable [product receiver-qualification procedure](../../store/skills/packs/core/large-effort-orchestration/references/commissioning.md) when the team declares a product home. Qualify its actual member/profile/owner route and selected sources; retain the receipt in that home. Managed finite plans, families, qualifications and investigations instead retain their declared owner and existing handoff. Verify the same actual identity/source boundary there, without creating a product home or copying another effort's source list.
 
 The ordinary member heartbeat route (`team heartbeat-enable`, `team heartbeat-trigger`) creates and dispatches the task/run. For the configured finite delivery lead, Prompt Manager requires a valid team contract, declared leader, active member, matching profile, and exact current Agent Manager enrollment before creating a task or run. It adds the enrollment's non-withdrawn `TargetRevision` as a public, verified `orchestrator` WorkReference to the immutable CreateRun request; it does not derive verification from environment labels or accept a locally supplied revision. A missing, unavailable, or mismatched identity fails admission. If a prior run ID exists, PM preserves that exact owner obligation as uncertain until it can be verified and does not launch competing work. Active/parked verified owners are watched through the existing owner path; a verified terminal owner permits a fresh dispatch using current configuration. Finite non-lead members and ordinary standing/non-delivery heartbeats remain supported without orchestrator association. WorkReferences describe work; they do not grant authority.
 
 Use the existing Agent Manager effort enrollment and run identity as canonical state. A terminal run does not accept the effort, and the normal parked orchestrator/child-watch route remains the qualified continuation model. Event check-ins are proposed and unavailable in Prompt Manager.
+
+A declared product home requires a running Agent Manager delivery commission before leader
+dispatch. An enrollment that already has a commission remains subject to its running state,
+start timestamp and budget even without a home hint. Managed finite work with neither keeps
+its own owner admission and stopping model; it still needs the exact enrollment/revision,
+active member, matching profile, qualified caller and current authority. Preparing member
+instructions or registering `team:<id>` in Source Ledger does not enable scheduling or runs.
 
 ### Effort supervisor heartbeat
 

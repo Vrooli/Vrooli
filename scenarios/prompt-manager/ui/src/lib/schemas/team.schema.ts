@@ -160,6 +160,10 @@ export const TeamSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   mission: z.string().optional(),
+  // Advisory link to the team's central delivery home
+  // (.vrooli/work/delivery/<id>/). The agent-manager enrollment
+  // destination_ref remains the authority the supervisor reads.
+  homePath: z.string().optional(),
   ...TeamClassificationFields,
   objectivesServed: z.array(ObjectiveReferenceSchema).nullish(),
   enabled: z.boolean().optional().default(false),

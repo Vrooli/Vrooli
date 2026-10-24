@@ -13,10 +13,15 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
 )
+
+func runningTestDelivery() *domainpb.EffortDelivery {
+	return &domainpb.EffortDelivery{CommissionId: "test", State: "running", BudgetSeconds: 86400, MaxWorkers: 2, StartedAt: timestamppb.Now()}
+}
 
 func finiteEffortCoordinatorFixture(t *testing.T) (*store.FileTeamStore, *store.FileAgentStore, store.RelationStore, string) {
 	t.Helper()
@@ -31,6 +36,7 @@ func finiteEffortCoordinatorFixture(t *testing.T) (*store.FileTeamStore, *store.
 	team.Lifetime = teamconfig.LifetimeFinite
 	team.LifetimeSet = true
 	team.EffortRefs = []string{"effort:delivery"}
+	team.HomePath = ".vrooli/work/delivery/team-1"
 	team.Runtime.Mode = "single-process"
 	team.Coordination.Pattern = teamconfig.CoordinationPatternLeaderLed
 	team.Coordination.LeadAgentID = "agent-1"
@@ -57,6 +63,43 @@ func finiteEffortCoordinatorFixture(t *testing.T) (*store.FileTeamStore, *store.
 	return teamStore, agentStore, relations, profile
 }
 
+func TestManagedFiniteCoordinatorKeepsOwnerAdmissionWithoutProductCommission(t *testing.T) {
+	ctx := context.Background()
+	teams, agents, _, profile := finiteEffortCoordinatorFixture(t)
+	team, err := teams.Get(ctx, "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	team.HomePath = ""
+	if err := teams.Update(ctx, team.ID, team); err != nil {
+		t.Fatal(err)
+	}
+	client := newMockAgentClient().WithEffortEnrollment(&domainpb.EffortEnrollment{
+		EffortRef: "effort:delivery", TargetRevision: "accepted-managed-1",
+		WorkShape: "phased-plan-with-bounded-prerequisites",
+	})
+	executor := newTestExecutor(t, teams, agents, client, t.TempDir(), nil, nil)
+	config := &store.HeartbeatConfig{ProfileKey: profile}
+	refs, err := executor.orchestratorWorkReferences(ctx, team, "agent-1", profile, config)
+	if err != nil || len(refs) != 1 || refs[0].GetRevision() != "accepted-managed-1" {
+		t.Fatalf("managed owner identity should not require a product commission: refs=%v err=%v", refs, err)
+	}
+	// A commission that does exist remains binding even without a product-home hint.
+	client.effortEnrollment.Delivery = runningTestDelivery()
+	client.effortEnrollment.Delivery.State = "stopped"
+	if _, err := executor.orchestratorWorkReferences(ctx, team, "agent-1", profile, config); err == nil {
+		t.Fatal("managed work must not escape an existing stopped commission")
+	}
+	client.effortEnrollment.Delivery = nil
+	client.effortEnrollment.Withdrawn = true
+	if _, err := executor.orchestratorWorkReferences(ctx, team, "agent-1", profile, config); err == nil {
+		t.Fatal("managed work must retain the withdrawn-enrollment fence")
+	}
+	if len(client.createTaskCalls) != 0 || len(client.createRunCalls) != 0 {
+		t.Fatal("identity qualification must not dispatch work")
+	}
+}
+
 func TestConfiguredFiniteEffortLeaderRefusesUnconfirmedIdentityBeforeTaskOrRun(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -68,6 +111,15 @@ func TestConfiguredFiniteEffortLeaderRefusesUnconfirmedIdentityBeforeTaskOrRun(t
 			if err := relations.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1", Status: "inactive"}); err != nil {
 				t.Fatal(err)
 			}
+		}},
+		{name: "uncommissioned", mutate: func(_ *store.FileTeamStore, _ store.RelationStore, c *mockAgentClient) {
+			c.effortEnrollment.Delivery = nil
+		}},
+		{name: "hard stopped", mutate: func(_ *store.FileTeamStore, _ store.RelationStore, c *mockAgentClient) {
+			c.effortEnrollment.Delivery.State = "stopped"
+		}},
+		{name: "paused commission", mutate: func(_ *store.FileTeamStore, _ store.RelationStore, c *mockAgentClient) {
+			c.effortEnrollment.Delivery.State = "paused"
 		}},
 		{name: "enrollment unavailable", mutate: func(_ *store.FileTeamStore, _ store.RelationStore, client *mockAgentClient) {
 			client.effortEnrollmentErr = errors.New("owner read unavailable")
@@ -108,7 +160,7 @@ func TestConfiguredFiniteEffortLeaderRefusesUnconfirmedIdentityBeforeTaskOrRun(t
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			teamStore, agentStore, relations, profile := finiteEffortCoordinatorFixture(t)
-			client := newMockAgentClient().WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:delivery", TargetRevision: "accepted-1"})
+			client := newMockAgentClient().WithEffortEnrollment(&domainpb.EffortEnrollment{Delivery: runningTestDelivery(), EffortRef: "effort:delivery", TargetRevision: "accepted-1"})
 			if tc.mutate != nil {
 				tc.mutate(teamStore, relations, client)
 			}
@@ -224,7 +276,7 @@ func TestFiniteEffortLeadReclaimsExactPriorOwnerBeforeFreshDispatch(t *testing.T
 			}
 			run := &Run{ID: priorRunID, TaskID: priorTaskID, ProfileID: tc.ownerProfileID, Status: tc.status, StartedAt: "2026-10-19T12:00:00Z", WorkReferences: runRefs}
 			client := newMockAgentClient().
-				WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:delivery", TargetRevision: tc.currentRevision}).
+				WithEffortEnrollment(&domainpb.EffortEnrollment{Delivery: runningTestDelivery(), EffortRef: "effort:delivery", TargetRevision: tc.currentRevision}).
 				WithResolvedProfile(&AgentProfile{Id: tc.ownerProfileID, ProfileKey: tc.ownerProfileKey}).
 				WithGetRunResponse(priorRunID, run).
 				WithWaitRunError(errors.New("keep recovered owner observable"))
@@ -322,7 +374,7 @@ func TestExecuteFreezesAndReplaysCanonicalEffortReference(t *testing.T) {
 	}
 	dir := t.TempDir()
 	base := newMockAgentClient().
-		WithEffortEnrollment(&domainpb.EffortEnrollment{EffortRef: "effort:delivery", TargetRevision: "accepted-2026-10-19"}).
+		WithEffortEnrollment(&domainpb.EffortEnrollment{Delivery: runningTestDelivery(), EffortRef: "effort:delivery", TargetRevision: "accepted-2026-10-19"}).
 		WithCreateRunResponse(&Run{ID: "run-effort-replay", Status: "RUN_STATUS_RUNNING", StartedAt: "2026-10-19T12:00:00Z"}).
 		WithEchoRunIdentity()
 	client := &lostTaskCreateResponseClient{mockAgentClient: base}

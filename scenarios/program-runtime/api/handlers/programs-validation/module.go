@@ -566,8 +566,16 @@ func matchesExpectation(actual, expected any) bool {
 		}
 		return true
 	case []any:
-		if _, ok := actual.([]any); ok {
-			return reflect.DeepEqual(actual, expected)
+		if got, ok := actual.([]any); ok {
+			if len(got) != len(want) {
+				return false
+			}
+			for i := range want {
+				if !matchesExpectation(got[i], want[i]) {
+					return false
+				}
+			}
+			return true
 		}
 		for _, value := range want {
 			if reflect.DeepEqual(actual, value) {

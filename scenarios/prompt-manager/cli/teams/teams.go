@@ -30,6 +30,7 @@ type Team struct {
 	Purpose          string                            `json:"purpose,omitempty"`
 	Lifetime         string                            `json:"lifetime,omitempty"`
 	EffortRefs       []string                          `json:"effortRefs,omitempty"`
+	HomePath         string                            `json:"homePath,omitempty"`
 	ObjectivesServed []teamconfig.ObjectiveDeclaration `json:"objectivesServed,omitempty"`
 
 	ID                string                          `json:"id"`
@@ -247,6 +248,7 @@ type CreateTeamRequest struct {
 	Purpose    string   `json:"purpose,omitempty"`
 	Lifetime   string   `json:"lifetime,omitempty"`
 	EffortRefs []string `json:"effortRefs,omitempty"`
+	HomePath   string   `json:"homePath,omitempty"`
 
 	ID                string                          `json:"id,omitempty"`
 	DisplayName       string                          `json:"displayName"`
@@ -262,6 +264,7 @@ type UpdateTeamRequest struct {
 	Purpose    *string   `json:"purpose,omitempty"`
 	Lifetime   *string   `json:"lifetime,omitempty"`
 	EffortRefs *[]string `json:"effortRefs,omitempty"`
+	HomePath   *string   `json:"homePath,omitempty"`
 
 	DisplayName       *string                         `json:"displayName,omitempty"`
 	Mission           *string                         `json:"mission,omitempty"`
@@ -275,11 +278,12 @@ type UpdateTeamRequest struct {
 
 // Descriptive metadata is independent of execution configuration.
 type teamMetadataFlags struct {
-	purpose, lifetime, effortRefs *string
+	purpose, lifetime, effortRefs, homePath *string
 }
 
 func registerTeamMetadataFlags(fs *flag.FlagSet) teamMetadataFlags {
 	return teamMetadataFlags{
+		homePath:   fs.String("home-path", "", "Repo-relative delivery home; empty clears"),
 		purpose:    fs.String("purpose", "", "Team purpose (domain-stewardship|delivery|supervision; empty clears)"),
 		lifetime:   fs.String("lifetime", "", "Team lifetime (standing|finite; empty clears)"),
 		effortRefs: fs.String("effort-refs", "", "Comma-separated canonical effort references; empty clears"),
@@ -867,6 +871,9 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	fmt.Printf("Name: %s\n", team.DisplayName)
 	fmt.Printf("ID: %s\n", team.ID)
 	fmt.Printf("Purpose: %s\nLifetime: %s\n", metadataLabel(team.Purpose), metadataLabel(team.Lifetime))
+	if team.HomePath != "" {
+		fmt.Printf("Home: %s\n", team.HomePath)
+	}
 	if len(team.EffortRefs) > 0 {
 		fmt.Printf("Efforts: %s\n", strings.Join(team.EffortRefs, ", "))
 	}
@@ -962,7 +969,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 		return err
 	}
 	req := CreateTeamRequest{
-		Purpose: *metadata.purpose, Lifetime: *metadata.lifetime, EffortRefs: metadata.refs(),
+		Purpose: *metadata.purpose, Lifetime: *metadata.lifetime, EffortRefs: metadata.refs(), HomePath: *metadata.homePath,
 		DisplayName:       name,
 		Mission:           *mission,
 		Runtime:           runtime,
@@ -1018,6 +1025,8 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 	fs.Visit(func(f *flag.Flag) {
 		switch f.Name {
+		case "home-path":
+			req.HomePath = metadata.homePath
 		case "purpose":
 			req.Purpose = metadata.purpose
 		case "lifetime":

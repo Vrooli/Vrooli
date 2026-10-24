@@ -21,6 +21,7 @@ type Response struct {
 	Purpose    string   `json:"purpose,omitempty"`
 	Lifetime   string   `json:"lifetime,omitempty"`
 	EffortRefs []string `json:"effortRefs,omitempty"`
+	HomePath   string   `json:"homePath,omitempty"`
 	// ObjectivesServed is the team's authored declaration from team.json. It is
 	// an import and drift-comparison input, not the current-state authority;
 	// internal/objectives owns current objective state.
@@ -93,6 +94,7 @@ type CreateRequest struct {
 	Purpose    string   `json:"purpose,omitempty"`
 	Lifetime   string   `json:"lifetime,omitempty"`
 	EffortRefs []string `json:"effortRefs,omitempty"`
+	HomePath   string   `json:"homePath,omitempty"`
 
 	ID                string                          `json:"id,omitempty"`
 	DisplayName       string                          `json:"displayName"`
@@ -109,6 +111,7 @@ type UpdateRequest struct {
 	Purpose    *string   `json:"purpose,omitempty"`
 	Lifetime   *string   `json:"lifetime,omitempty"`
 	EffortRefs *[]string `json:"effortRefs,omitempty"`
+	HomePath   *string   `json:"homePath,omitempty"`
 
 	DisplayName       *string                         `json:"displayName,omitempty"`
 	Mission           *string                         `json:"mission,omitempty"`

@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -371,15 +373,17 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var (
-		role           string
-		model          string
-		promptFlag     string
-		promptFile     string
-		jsonOutput     bool
-		temperature    float64
-		maxTokens      int
-		responseFormat string
-		inputJSONStdin bool
+		role                                                          string
+		model                                                         string
+		promptFlag                                                    string
+		promptFile                                                    string
+		jsonOutput                                                    bool
+		temperature                                                   float64
+		maxTokens                                                     int
+		responseFormat                                                string
+		inputJSONStdin                                                bool
+		maxCostMicros                                                 int64
+		operationID, inputFingerprint, fundingRoute, referenceDigests string
 	)
 	fs.StringVar(&role, "role", "", "OpenRouter policy role to resolve (e.g. chat.default)")
 	fs.StringVar(&model, "model", "", "Concrete OpenRouter model slug (advanced override; prefer --role)")
@@ -394,6 +398,11 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs.IntVar(&maxTokens, "max-tokens", 0, "Maximum completion tokens; omitted when <= 0 and the role declares no default")
 	fs.StringVar(&responseFormat, "response-format", "", "OpenAI-compatible response_format JSON object")
 	fs.BoolVar(&inputJSONStdin, "input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
+	fs.Int64Var(&maxCostMicros, "max-cost-micros", 0, "Enforce an explicit total USD micro-ceiling for this single operation")
+	fs.StringVar(&operationID, "operation-id", "", "Immutable operation attempt ID bound to the spend authorization")
+	fs.StringVar(&inputFingerprint, "input-fingerprint", "", "Immutable request fingerprint bound to the spend authorization")
+	fs.StringVar(&fundingRoute, "funding-route", "", "Explicit funding route for the spend authorization")
+	fs.StringVar(&referenceDigests, "reference-sha256", "", "Comma-separated selected image SHA-256 values bound to the authorization")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			printGenerateUsage(stdout)
@@ -452,7 +461,45 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	// output cap. Applying them here — not only in validation — is what makes a
 	// declared per-role temperature real on the generate path.
 	effectiveTemperature, effectiveMaxTokens := resolvedPolicy.RequestDefaults.ResolveGenerate(temperature, maxTokens)
-	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, effectiveTemperature, effectiveMaxTokens, responseFormatJSON, images)
+	var body []byte
+	if maxCostMicros != 0 || operationID != "" || inputFingerprint != "" || fundingRoute != "" || referenceDigests != "" {
+		refs := []string{}
+		if strings.TrimSpace(referenceDigests) != "" {
+			refs = strings.Split(referenceDigests, ",")
+		}
+		binding := health.SpendBinding{MaxCostMicros: maxCostMicros, OperationID: operationID, InputFingerprint: inputFingerprint, ReferenceSHA256: refs, FundingRoute: fundingRoute, AccountIdentity: "vrooli/openrouter"}
+		if len(images) != len(refs) {
+			return fmt.Errorf("spend cap reference count does not match attached image count")
+		}
+		for i, image := range images {
+			decoded, decodeErr := base64.StdEncoding.DecodeString(image.DataB64)
+			if decodeErr != nil {
+				return fmt.Errorf("decode image %d for spend binding: %w", i, decodeErr)
+			}
+			digest := sha256.Sum256(decoded)
+			if hex.EncodeToString(digest[:]) != strings.ToLower(strings.TrimSpace(refs[i])) {
+				return fmt.Errorf("image %d digest does not match spend binding", i)
+			}
+		}
+		var authorization health.SpendAuthorization
+		body, authorization, err = health.GenerateWithSpendCap(context.Background(), http.DefaultClient, runtime, creds, model, prompt, effectiveTemperature, effectiveMaxTokens, responseFormatJSON, images, binding, resolvedPolicy.Endpoints)
+		if err == nil {
+			var response map[string]json.RawMessage
+			if decodeErr := json.Unmarshal(body, &response); decodeErr != nil {
+				err = fmt.Errorf("decode provider response for spend evidence: %w", decodeErr)
+			} else {
+				authorizationJSON, marshalErr := json.Marshal(authorization)
+				if marshalErr != nil {
+					err = marshalErr
+				} else {
+					response["vrooli_spend_authorization"] = authorizationJSON
+					body, err = json.Marshal(response)
+				}
+			}
+		}
+	} else {
+		body, err = health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, effectiveTemperature, effectiveMaxTokens, responseFormatJSON, images)
+	}
 	if err != nil {
 		return err
 	}

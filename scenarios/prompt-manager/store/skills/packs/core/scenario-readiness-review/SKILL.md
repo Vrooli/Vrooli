@@ -9,12 +9,12 @@ metadata:
   tags: ["review","quality","git","assessment","readiness"]
   icon: "clipboard-check"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-03-20T00:00:00Z"
-  updatedAt: "2026-03-24T00:00:00Z"
+  updatedAt: "2026-10-22T00:00:00Z"
   requires:
     scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "test-genie", "vrooli"]
-    commands: ["git-control-tower", "git-control-tower needs", "git-control-tower unified", "prompt-manager decision", "prompt-manager when", "swarm-manager", "swarm-manager backlog", "test-genie", "vrooli scenario"]
+    commands: ["git-control-tower", "swarm-manager", "vrooli scenario"]
   origin:
     kind: "authored"
 ---
@@ -79,17 +79,22 @@ Phase 4: Act            → Recommend commit or delegate remediation
 
 #### Phase 1: Code Health (unified review endpoint)
 
-Trigger a fresh review run with detail items:
+Read existing evidence first:
 
-```
-POST /api/v1/review/run
-Body: {"scenarioName": "{{SCENARIO}}", "details": 5}
+```bash
+git-control-tower review summary {{SCENARIO}} --details=5
 ```
 
-Poll until complete:
+Request fresh checks only when needed. Select validation scope under
+`path:docs/TESTING.md`; do not rerun unchanged suites for a greener review.
+The owner command waits for its admitted job:
+
+```bash
+git-control-tower review run {{SCENARIO}} --checks=tidiness,rules --details=5
 ```
-GET /api/v1/review/run/{jobId}
-```
+
+Retain the job ID on attachment loss. Use `review status <job-id>` to inspect
+that job; do not submit a duplicate. Run affected tests through Test Genie.
 
 When `status` is `"completed"`, the response includes a `summary` with:
 - **`readiness`**: `"green"` | `"yellow"` | `"red"` — the server-authoritative classification
@@ -101,29 +106,29 @@ When `status` is `"completed"`, the response includes a `summary` with:
   - `provenance`: traced file count, `untracedFiles` (files with no provenance)
 - **`capabilities`**: which integrations were available
 
-For a quick read without triggering new checks:
-```
-GET /api/v1/review/summary?scenarioName={{SCENARIO}}&details=5
-```
-
 **Use the `readiness` field as the authoritative starting classification.** Do not recompute readiness from raw signals — the server applies the canonical formula.
 
 #### Phase 2: Git State (change review)
 
 Regardless of readiness, review what actually changed:
 
-```
-GET /api/v1/repo/status?scenario={{SCENARIO}}
+```bash
+git-control-tower repo status
+git-control-tower repo groups
 ```
 
 If no changes exist (no staged, unstaged, or untracked files), stop — there is nothing to review.
 
-```
-GET /api/v1/repo/diff?scenario={{SCENARIO}}
-GET /api/v1/repo/history?scenario={{SCENARIO}}&limit=20
+Select the scenario's changed paths from the owner groups. Inspect each relevant
+file through the current CLI; the repository REST routes are not the contract:
+
+```bash
+git-control-tower repo diff --path=scenarios/{{SCENARIO}}/<changed-file>
 ```
 
-Key signals: file count, change scope (how many distinct areas are touched), whether changes are coherent or sprawling.
+Include `--staged` when needed. Treat untracked file contents and retained
+preimages separately; a missing tracked diff does not prove no change.
+Report unrelated shared-checkout changes separately from the reviewed patch.
 
 #### Phase 3: Synthesize readiness assessment
 

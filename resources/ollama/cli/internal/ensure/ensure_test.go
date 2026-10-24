@@ -290,6 +290,52 @@ func TestResolveBaseURL_Defaults(t *testing.T) {
 	}
 }
 
+func TestValidateLoopbackBaseURL(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		url  string
+		ok   bool
+	}{
+		{name: "IPv4 loopback", url: "http://127.0.0.9:11434", ok: true},
+		{name: "IPv6 loopback", url: "https://[::1]:11434/", ok: true},
+		{name: "localhost", url: "http://localhost:11434", ok: true},
+		{name: "other DNS hostname", url: "http://ollama.example:11434"},
+		{name: "remote IP", url: "http://192.0.2.10:11434"},
+		{name: "credentials", url: "http://user:secret@127.0.0.1:11434"},
+		{name: "path escape", url: "http://127.0.0.1:11434/api"},
+		{name: "query", url: "http://127.0.0.1:11434/?target=remote"},
+		{name: "malformed", url: "://127.0.0.1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := validateLoopbackBaseURL(tc.url)
+			if tc.ok {
+				if err != nil || got == "" {
+					t.Fatalf("validateLoopbackBaseURL(%q) = %q, %v", tc.url, got, err)
+				}
+				return
+			}
+			if err == nil || got != "" {
+				t.Fatalf("validateLoopbackBaseURL(%q) = %q, %v, want refusal", tc.url, got, err)
+			}
+		})
+	}
+}
+
+func TestNewLoopbackClientDisablesProxyAndRedirectFollowing(t *testing.T) {
+	t.Setenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+	client, err := NewLoopbackClient()
+	if err != nil {
+		t.Fatalf("NewLoopbackClient() error = %v", err)
+	}
+	transport, ok := client.HTTP.Transport.(*http.Transport)
+	if !ok || transport.Proxy != nil {
+		t.Fatalf("loopback transport = %#v, want direct transport with no proxy", client.HTTP.Transport)
+	}
+	if err := client.HTTP.CheckRedirect(&http.Request{}, nil); err != http.ErrUseLastResponse {
+		t.Fatalf("redirect policy = %v, want ErrUseLastResponse", err)
+	}
+}
+
 func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	var got struct {
 		Model   string         `json:"model"`

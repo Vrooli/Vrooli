@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -27,6 +29,73 @@ func NewClient() *Client {
 		BaseURL: resolveBaseURL(),
 		HTTP:    &http.Client{Timeout: 0}, // streaming; timeout via ctx
 	}
+}
+
+// NewLoopbackClient resolves the effective endpoint once and returns a client
+// that cannot use a proxy or follow a redirect away from that endpoint.
+// Callers must use this constructor for operations that promise local-only
+// transport. URL values are intentionally omitted from errors because they may
+// contain operator-supplied connection details.
+func NewLoopbackClient() (*Client, error) {
+	client := NewClient()
+	return newLoopbackClient(client.BaseURL, net.DefaultResolver.LookupIP)
+}
+
+type loopbackIPLookup func(context.Context, string, string) ([]net.IP, error)
+
+func newLoopbackClient(raw string, lookup loopbackIPLookup) (*Client, error) {
+	endpoint, err := validateLoopbackBaseURLWithLookup(raw, lookup)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{BaseURL: endpoint, HTTP: &http.Client{
+		Timeout:       0,
+		Transport:     &http.Transport{Proxy: nil},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}, nil
+}
+
+func validateLoopbackBaseURL(raw string) (string, error) {
+	return validateLoopbackBaseURLWithLookup(raw, net.DefaultResolver.LookupIP)
+}
+
+func validateLoopbackBaseURLWithLookup(raw string, lookup loopbackIPLookup) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.Host == "" ||
+		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("local-only endpoint must be a credential-free HTTP(S) root URL")
+	}
+	host := u.Hostname()
+	ip := net.ParseIP(host)
+	if ip == nil {
+		if !strings.EqualFold(host, "localhost") || lookup == nil {
+			return "", fmt.Errorf("local-only endpoint must use a literal loopback IP or localhost")
+		}
+		ips, lookupErr := lookup(context.Background(), "ip", host)
+		if lookupErr != nil || len(ips) == 0 {
+			return "", fmt.Errorf("local-only localhost endpoint did not resolve to loopback addresses")
+		}
+		for _, resolved := range ips {
+			if resolved == nil || !resolved.IsLoopback() {
+				return "", fmt.Errorf("local-only localhost endpoint did not resolve exclusively to loopback addresses")
+			}
+			if ip == nil || (ip.To4() == nil && resolved.To4() != nil) {
+				ip = resolved
+			}
+		}
+		if u.Port() == "" {
+			if ip.To4() == nil {
+				u.Host = "[" + ip.String() + "]"
+			} else {
+				u.Host = ip.String()
+			}
+		} else {
+			u.Host = net.JoinHostPort(ip.String(), u.Port())
+		}
+	} else if !ip.IsLoopback() {
+		return "", fmt.Errorf("local-only endpoint must use a loopback IP")
+	}
+	return strings.TrimRight(u.String(), "/"), nil
 }
 
 func resolveBaseURL() string {

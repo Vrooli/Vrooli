@@ -366,6 +366,9 @@ type ResolvedPolicyModel struct {
 	MaxTokens       *int                            `json:"max_tokens,omitempty"`
 	RoleProvenance  *Provenance                     `json:"role_provenance,omitempty"`
 	Provenance      map[string]Provenance           `json:"provenance,omitempty"`
+	// Preference is the role's policy ranking. It is zero for a direct model
+	// reference, which has no role to rank.
+	Preference int `json:"preference,omitempty"`
 }
 
 func LoadFile(path string) (Policy, error) {
@@ -535,6 +538,7 @@ func (p Policy) ResolveRole(roleName string) (ResolvedPolicyModel, error) {
 	}
 	resolved := p.resolvedPolicyModel("role", role.Model, model)
 	resolved.Role = roleName
+	resolved.Preference = role.Preference
 	resolved.Fallbacks = append([]string{}, role.Fallbacks...)
 	resolved.RequiredCapabilities = append([]string{}, role.RequiredCapabilities...)
 	resolved.SamplingDefaults = role.SamplingDefaults

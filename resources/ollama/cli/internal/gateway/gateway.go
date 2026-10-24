@@ -77,12 +77,13 @@ type Client interface {
 
 // Handlers owns the runtime dependencies for the gateway subcommand group.
 type Handlers struct {
-	NewClient func() Client
-	Sem       *hostsem.Semaphore
-	GetEnv    func(string) string
-	Stdin     io.Reader
-	Stdout    io.Writer
-	Stderr    io.Writer
+	NewClient         func() Client
+	NewLoopbackClient func() (Client, error)
+	Sem               *hostsem.Semaphore
+	GetEnv            func(string) string
+	Stdin             io.Reader
+	Stdout            io.Writer
+	Stderr            io.Writer
 }
 
 // Default returns Handlers wired to the real upstream client and a flock-based
@@ -96,6 +97,7 @@ func Default() *Handlers {
 		Stderr: os.Stderr,
 	}
 	h.NewClient = func() Client { return ensure.NewClient() }
+	h.NewLoopbackClient = func() (Client, error) { return ensure.NewLoopbackClient() }
 	return h
 }
 
@@ -117,7 +119,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
 				Run:         h.Generate,
 			},
 			{
@@ -185,6 +187,7 @@ func (h *Handlers) Generate(args []string) error {
 	prompt := fs.String("prompt", "", "Inline prompt text")
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
 	inputJSONStdin := fs.Bool("input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
+	requireLoopback := fs.Bool("require-loopback", false, "Refuse unless the effective Ollama endpoint is a direct literal loopback URL")
 	cpuOnly := fs.Bool("cpu-only", false, "Force Ollama to run this request without GPU layers")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
@@ -195,6 +198,19 @@ func (h *Handlers) Generate(args []string) error {
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	var client Client
+	var err error
+	if *requireLoopback {
+		if h.NewLoopbackClient == nil {
+			return fmt.Errorf("local-only endpoint verification is unavailable")
+		}
+		client, err = h.NewLoopbackClient()
+		if err != nil {
+			return err
+		}
+	} else {
+		client = h.NewClient()
 	}
 	selected, err := h.resolveModelSelection(*model, *role, "generate")
 	if err != nil {
@@ -256,7 +272,7 @@ func (h *Handlers) Generate(args []string) error {
 	req.NumCtx = controls.NumCtx
 	req.NumThread = controls.NumThread
 	req.NumBatch = controls.NumBatch
-	out, err := h.NewClient().Generate(ctx, req)
+	out, err := client.Generate(ctx, req)
 	if err != nil {
 		return err
 	}

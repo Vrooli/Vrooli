@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "desktop-packaging-orchestrator",
   "displayName": "Desktop Packaging Orchestrator",
-  "description": "Long-lived orchestrator of the native-feel desktop packaging goal: admits and accepts epochs, spawns and steers one Luna epoch worker per epoch, parks between check-ins, and owns the goal home.",
+  "description": "Product-delivery orchestrator for desktop-packaging-delivery; current home: .vrooli/work/delivery/desktop-packaging-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
   "status": "active",
   "appearance": {
     "body": "#3B82F6",
@@ -19,7 +19,7 @@
   "fileOrder": [
     "AGENT.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-10-06T20:11:53Z",
-  "updatedAt": "2026-10-06T20:11:53Z"
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
 }

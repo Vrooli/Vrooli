@@ -488,16 +488,22 @@ func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Operator decision 2026-10-23 relocated delivery goal homes to the central
+	// work root (.vrooli/work/delivery/<team-id>/) so a team spanning several
+	// scenarios no longer squats in one product tree. The goal-home working
+	// registers now live there; scenario-specific docs (PROBLEMS, DECISIONS)
+	// still stay canonical in the scenario. State is still never copied into PM.
+	const deliveryHome = ".vrooli/work/delivery/browser-automation-studio-delivery/"
 	wantPaths := map[string]bool{
-		scenarioDocs + "internal/goal/QUEUE.md":       false,
-		scenarioDocs + "internal/goal/FEEDBACK.md":    false,
-		scenarioDocs + "internal/goal/WORKAROUNDS.md": false,
-		scenarioDocs + "PROBLEMS.md":                  false,
-		scenarioDocs + "internal/DECISIONS.md":        false,
+		deliveryHome + "STATUS.md":   false,
+		deliveryHome + "LOG.md":      false,
+		deliveryHome + "FEEDBACK.md": false,
 	}
 	for _, doc := range team.OperatingContract.Documents.SharedState {
-		if doc.Path.Base != BaseRepoRoot || !strings.HasPrefix(doc.Path.Path, scenarioDocs) {
-			t.Fatalf("scenario state must not be relocated or copied to PM: %+v", doc)
+		underDelivery := strings.HasPrefix(doc.Path.Path, deliveryHome)
+		underScenario := strings.HasPrefix(doc.Path.Path, scenarioDocs)
+		if doc.Path.Base != BaseRepoRoot || !(underDelivery || underScenario) {
+			t.Fatalf("delivery state must live in the central delivery home or the scenario, got: %+v", doc)
 		}
 		if _, wanted := wantPaths[doc.Path.Path]; wanted {
 			wantPaths[doc.Path.Path] = true
@@ -511,14 +517,15 @@ func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T)
 	// The orchestrator returns owner handoffs and maintains its own goal home —
 	// the established delivery-team pattern (nooch/personal-planner/desktop/rcl
 	// all declare the same goal-home write). Operator decision 2026-10-12
-	// aligned this guard with that pattern. It still must not gain write access
-	// to control surfaces outside its own goal home.
-	goalHome := scenarioDocs + "internal/goal"
+	// aligned this guard with that pattern; operator decision 2026-10-23
+	// relocated the goal home to the central delivery root. It still must not
+	// gain write access to control surfaces outside its own goal home.
+	goalHome := strings.TrimSuffix(deliveryHome, "/")
 	for _, write := range team.OperatingContract.Members[memberID].AllowedWrites {
 		switch {
 		case write.Base == "" && (write.Kind == "knowledge" || write.Kind == "handoff"):
 			// Owner-visible handoff / knowledge return path.
-		case write.Base == BaseRepoRoot && write.Path == goalHome:
+		case write.Base == BaseRepoRoot && (write.Path == goalHome+"/STATUS.md" || write.Path == goalHome+"/LOG.md" || write.Path == goalHome+"/FEEDBACK.md" || write.Path == goalHome+"/epochs" || write.Path == goalHome+"/evidence" || write.Path == goalHome+"/archive"):
 			// The team's own goal home, the single shared ledger it maintains.
 		default:
 			t.Fatalf("orchestrator declaration widens control writes: %+v", write)

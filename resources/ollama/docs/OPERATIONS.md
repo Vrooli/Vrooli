@@ -31,6 +31,12 @@ Do not turn `cli/main.go` into the implementation surface. If the resource needs
 - If `start` fails on a port conflict, another host process owns `:11434`; the
   driver's preflight prints the remediation. Stop that process, then retry.
 
+Local-only `ensure` operations accept literal loopback addresses and the exact
+hostname `localhost`. For `localhost`, the client resolves once, requires every
+resolved address to be loopback, and pins the selected loopback IP into the
+endpoint. It still disables proxies and refuses redirects; other DNS names,
+remote addresses, credentials, and non-root URL paths are rejected.
+
 ## GPU access and processor diagnosis
 
 `vrooli resource status ollama --json --no-stale-check` includes

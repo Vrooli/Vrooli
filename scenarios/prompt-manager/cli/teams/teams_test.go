@@ -469,7 +469,7 @@ func TestUsageDescribesMemberContextAsTaskless(t *testing.T) {
 func TestTeamMetadataCLIChangesAndClearsAreExplicit(t *testing.T) {
 	ctx := &fakeContext{t: t, response: TeamDetails{Team: Team{ID: "aquila"}}}
 	_, err := captureTeamStdout(t, func() error {
-		return cmdCreate(ctx, []string{"Aquila", "--purpose=delivery", "--lifetime=finite", "--effort-refs=effort:aquila,effort:launch"})
+		return cmdCreate(ctx, []string{"Aquila", "--purpose=delivery", "--lifetime=finite", "--effort-refs=effort:aquila,effort:launch", "--home-path=.vrooli/work/delivery/aquila"})
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -478,10 +478,12 @@ func TestTeamMetadataCLIChangesAndClearsAreExplicit(t *testing.T) {
 	if err := json.Unmarshal(ctx.gotPayload, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload["purpose"] != "delivery" || payload["lifetime"] != "finite" || len(payload["effortRefs"].([]any)) != 2 {
+	if payload["purpose"] != "delivery" || payload["homePath"] != ".vrooli/work/delivery/aquila" || payload["lifetime"] != "finite" || len(payload["effortRefs"].([]any)) != 2 {
 		t.Fatalf("metadata create payload: %s", ctx.gotPayload)
 	}
-	_, err = captureTeamStdout(t, func() error { return cmdUpdate(ctx, []string{"aquila", "--purpose=", "--effort-refs="}) })
+	_, err = captureTeamStdout(t, func() error {
+		return cmdUpdate(ctx, []string{"aquila", "--purpose=", "--effort-refs=", "--home-path="})
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,6 +496,9 @@ func TestTeamMetadataCLIChangesAndClearsAreExplicit(t *testing.T) {
 	}
 	if value, ok := payload["effortRefs"]; !ok || len(value.([]any)) != 0 {
 		t.Fatalf("reference clear missing: %s", ctx.gotPayload)
+	}
+	if value, ok := payload["homePath"]; !ok || value != "" {
+		t.Fatalf("home path clear missing: %s", ctx.gotPayload)
 	}
 	if _, ok := payload["lifetime"]; ok {
 		t.Fatal("omitted lifetime must not be changed")
@@ -575,7 +580,7 @@ func TestTeamUpdateRejectsMalformedOperatingContractBeforeRequest(t *testing.T) 
 func TestTeamMetadataCLIListFiltersAndRetainsObjectiveRecords(t *testing.T) {
 	ctx := &fakeContext{t: t, response: []Team{
 		{ID: "marketing", Purpose: "domain-stewardship", Lifetime: "standing"},
-		{ID: "supervisor", Purpose: "supervision", Lifetime: "standing", ObjectivesServed: []teamconfig.ObjectiveDeclaration{{ID: "T1", AcknowledgedRevision: "r3"}}},
+		{ID: "supervisor", Purpose: "supervision", Lifetime: "standing", HomePath: ".vrooli/work/delivery/aquila", ObjectivesServed: []teamconfig.ObjectiveDeclaration{{ID: "T1", AcknowledgedRevision: "r3"}}},
 		{ID: "aquila", Purpose: "delivery", Lifetime: "finite"},
 		{ID: "legacy"},
 	}}
@@ -587,7 +592,7 @@ func TestTeamMetadataCLIListFiltersAndRetainsObjectiveRecords(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &teams); err != nil {
 		t.Fatal(err)
 	}
-	if len(teams) != 1 || teams[0].ID != "supervisor" || teams[0].ObjectivesServed[0].AcknowledgedRevision != "r3" {
+	if len(teams) != 1 || teams[0].ID != "supervisor" || teams[0].HomePath != ".vrooli/work/delivery/aquila" || teams[0].ObjectivesServed[0].AcknowledgedRevision != "r3" {
 		t.Fatalf("filter/read metadata lost: %s", output)
 	}
 	output, err = captureTeamStdout(t, func() error { return cmdList(ctx, []string{"--lifetime=unspecified", "--json"}) })

@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "fleet-storage-disk-health-coordinator",
   "displayName": "fleet-storage-disk-health-coordinator",
-  "description": "Coordinator for the finite fleet storage and disk-health effort (effort:001573d5-e40f-4b34-bd1f-57d56146c9a0): disk-wear monitoring in system-monitor, prompt-manager write amplification, over-budget scenario data, stale binaries, memory leaks, backup coverage, SQLite reclaim substrate, AM vector copies and tests.",
+  "description": "Make portable disk-wear monitoring truthful, demonstrate the required alert-before-repair sequence, fix write amplification, and address the remaining recorded storage/host-health obligations through their owning scenarios and control plane.",
   "status": "active",
   "appearance": {
     "body": "#3B82F6",
@@ -19,7 +19,7 @@
   "fileOrder": [
     "AGENT.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-09-14T13:08:33Z",
-  "updatedAt": "2026-09-14T13:08:33Z"
+  "updatedAt": "2026-10-24T11:52:50Z"
 }

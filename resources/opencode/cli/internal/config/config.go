@@ -44,6 +44,11 @@ const (
 	// retiredOllamaModelSubstr is dropped from the provider block: its family
 	// narrates tool calls as text instead of emitting structured tool_calls.
 	retiredOllamaModelSubstr = "qwen2.5-coder"
+
+	// maxProjectedContext caps a policy-declared model context when it is
+	// projected into OpenCode, so a large policy value cannot force a local
+	// runtime past the host-fit ceiling.
+	maxProjectedContext = 32768
 )
 
 // Sampling carries the resolved, clamped sampling triple for the local model.
@@ -63,6 +68,18 @@ type OllamaProvider struct {
 	SmallModel string
 	NumCtx     int
 	Sampling   Sampling
+	// ExtraModels are installed, policy-declared local models that should be
+	// selectable in OpenCode's model picker even though they are not the
+	// coding default. ensure.go derives them from the Ollama policy SSOT.
+	ExtraModels []LocalModel
+}
+
+// LocalModel is one non-default local model projected into the provider block.
+type LocalModel struct {
+	Model     string
+	NumCtx    int
+	MaxOutput int
+	Sampling  Sampling
 }
 
 // Inputs is the fully-decided render request (decisions made in ensure.go).
@@ -204,10 +221,25 @@ func writeOllamaProvider(top map[string]json.RawMessage, op *OllamaProvider) err
 			delete(modelsMap, k)
 		}
 	}
-	entry := ollamaModelEntry(op)
+	entry := ollamaModelEntry(op.NumCtx, op.Sampling, 0)
 	modelsMap[op.ChatModel] = entry
 	if op.SmallModel != "" {
 		modelsMap[op.SmallModel] = entry
+	}
+	for _, extra := range op.ExtraModels {
+		model := strings.TrimSpace(extra.Model)
+		if model == "" || model == op.ChatModel || model == op.SmallModel {
+			continue
+		}
+		numCtx := extra.NumCtx
+		if numCtx <= 0 {
+			numCtx = op.NumCtx
+		}
+		if numCtx > maxProjectedContext {
+			numCtx = maxProjectedContext
+		}
+		generated := ollamaModelEntry(numCtx, extra.Sampling, extra.MaxOutput)
+		modelsMap[model] = mergeModelEntry(modelsMap[model], generated)
 	}
 	ollama["models"] = mustRaw(modelsMap)
 
@@ -249,25 +281,51 @@ func writeGoProvider(top map[string]json.RawMessage) error {
 // ollamaModelEntry builds one models[<model>] entry: nested
 // options.options.{num_ctx,sampling} (the native provider reads
 // providerOptions.ollama.options.*) plus a matching limit budget.
-func ollamaModelEntry(op *OllamaProvider) json.RawMessage {
+func ollamaModelEntry(numCtx int, sampling Sampling, maxOutput int) json.RawMessage {
 	inner := map[string]json.RawMessage{
-		"num_ctx": mustRaw(op.NumCtx),
+		"num_ctx": mustRaw(numCtx),
 	}
-	if op.Sampling.Temperature != nil {
-		inner["temperature"] = mustRaw(*op.Sampling.Temperature)
+	if sampling.Temperature != nil {
+		inner["temperature"] = mustRaw(*sampling.Temperature)
 	}
-	if op.Sampling.TopP != nil {
-		inner["top_p"] = mustRaw(*op.Sampling.TopP)
+	if sampling.TopP != nil {
+		inner["top_p"] = mustRaw(*sampling.TopP)
 	}
-	if op.Sampling.TopK != nil {
-		inner["top_k"] = mustRaw(*op.Sampling.TopK)
+	if sampling.TopK != nil {
+		inner["top_k"] = mustRaw(*sampling.TopK)
 	}
-	out := op.NumCtx / 2
+	half := numCtx / 2
+	if maxOutput <= 0 || maxOutput > half {
+		maxOutput = half
+	}
+	if maxOutput < 1 {
+		maxOutput = 1
+	}
 	entry := map[string]json.RawMessage{
 		"options": mustRaw(map[string]json.RawMessage{"options": mustRaw(inner)}),
-		"limit":   mustRaw(map[string]int{"context": op.NumCtx, "output": out}),
+		"limit":   mustRaw(map[string]int{"context": numCtx, "output": maxOutput}),
 	}
 	return mustRaw(entry)
+}
+
+// mergeModelEntry preserves unmanaged keys (for example an operator-supplied
+// display name) while replacing the fields this writer owns.
+func mergeModelEntry(existing, generated json.RawMessage) json.RawMessage {
+	if len(existing) == 0 {
+		return generated
+	}
+	var merged map[string]json.RawMessage
+	if err := json.Unmarshal(existing, &merged); err != nil {
+		return generated
+	}
+	var generatedMap map[string]json.RawMessage
+	if err := json.Unmarshal(generated, &generatedMap); err != nil {
+		return generated
+	}
+	for key, value := range generatedMap {
+		merged[key] = value
+	}
+	return mustRaw(merged)
 }
 
 // DefaultPayload renders a fresh config (no existing file). Mirrors the former

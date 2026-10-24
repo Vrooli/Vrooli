@@ -215,8 +215,8 @@
       "OLLAMA_HOST": "127.0.0.1:${RESOURCE_PORT_UPSTREAM}",
       "OLLAMA_MODELS": "${RESOURCE_DATA_DIR}/models",
       "OLLAMA_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/lib/ollama",
-      "OLLAMA_NUM_PARALLEL": "2",
-      "OLLAMA_MAX_LOADED_MODELS": "3",
+      "OLLAMA_NUM_PARALLEL": "1",
+      "OLLAMA_MAX_LOADED_MODELS": "2",
       "OLLAMA_FLASH_ATTENTION": "1",
       "OLLAMA_KEEP_ALIVE": "5m",
       "OLLAMA_CONTEXT_LENGTH": "8192",
@@ -260,8 +260,10 @@
         },
         "windows": {
           "support": "conditional",
-      "mode": "manual",
-          "architectures": ["amd64"],
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
           "requires": [],
           "limitations": [
             "The checksum-pinned standalone Windows server archive is staged for amd64; no real Windows host smoke run has been performed, so this remains build-verified."
@@ -285,7 +287,9 @@
     {
       "name": "activity-edge",
       "command": "resource-ollama",
-      "args": ["activity-edge"],
+      "args": [
+        "activity-edge"
+      ],
       "port": 11434,
       "required": true
     }
@@ -304,7 +308,14 @@
         "device": "metal"
       }
     },
-    "cpu": {},
+    "cpu": {
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "-1",
+        "ROCR_VISIBLE_DEVICES": "-1",
+        "GGML_VK_VISIBLE_DEVICES": "-1",
+        "OLLAMA_VULKAN": "0"
+      }
+    },
     "capacity": {
       "tunables": [
         {
@@ -313,7 +324,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 8,
-          "default": 2,
+          "default": 1,
           "description": "Maximum number of requests Ollama evaluates concurrently.",
           "scales_footprint": true
         }
@@ -333,6 +344,10 @@
           {
             "label": "gemma4:12b",
             "default_amount_bytes": 12884901888
+          },
+          {
+            "label": "huihui_ai/granite4.1-abliterated:8b",
+            "default_amount_bytes": 11918534246
           },
           {
             "label": "qwen3.5:9b",

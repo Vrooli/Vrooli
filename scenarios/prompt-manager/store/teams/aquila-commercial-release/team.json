@@ -18,7 +18,7 @@
     "pattern": "leader-led",
     "leadAgentId": "aquila-launch-coordinator",
     "reportingMode": "leader",
-    "messagingMode": "in-session",
+    "messagingMode": "disabled",
     "capabilities": {
       "showOrgContext": true,
       "injectInbox": false,
@@ -73,7 +73,7 @@
     },
     "members": {
       "aquila-launch-coordinator": {
-        "lane": "Coordinate the finite commercial release from its protected workspace across desktop lifecycle, LPBS deployment, commercial reconciliation and independent acceptance; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure.",
+        "lane": "Reconcile release identity and desktop lifecycle, LPBS deployment/download delivery, commercial paid journeys, and operational acceptance. Allocate independent prerequisites together; join their evidence for the final release decision. Authoritative entry: /home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/README.md.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -96,7 +96,7 @@
       }
     }
   },
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-09-14T14:57:30Z",
-  "updatedAt": "2026-09-14T14:57:30Z"
+  "updatedAt": "2026-10-24T11:52:50Z"
 }

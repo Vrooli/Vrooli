@@ -314,6 +314,9 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.DisplayName != "" {
 		team.DisplayName = updates.DisplayName
 	}
+	if updates.HomePathSet {
+		team.HomePath = updates.HomePath
+	}
 	if updates.Mission != "" {
 		team.Mission = updates.Mission
 	}
@@ -389,6 +392,9 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	}
 	if updates.DisplayName != "" {
 		fields["displayName"] = team.DisplayName
+	}
+	if updates.HomePathSet {
+		fields["homePath"] = team.HomePath
 	}
 	if updates.Mission != "" {
 		fields["mission"] = team.Mission

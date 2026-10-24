@@ -175,7 +175,7 @@ func (h *Handlers) CreateTeam(ctx context.Context, req CreateRequest) (TeamDetai
 	}
 
 	team := &store.Team{
-		Purpose: req.Purpose, Lifetime: req.Lifetime, EffortRefs: req.EffortRefs,
+		Purpose: req.Purpose, Lifetime: req.Lifetime, EffortRefs: req.EffortRefs, HomePath: req.HomePath,
 		ID:                id,
 		DisplayName:       req.DisplayName,
 		Mission:           req.Mission,
@@ -312,6 +312,10 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		updates.EffortRefs = append([]string{}, (*req.EffortRefs)...)
 	}
 
+	if req.HomePath != nil {
+		updates.HomePath = *req.HomePath
+		updates.HomePathSet = true
+	}
 	if req.DisplayName != nil {
 		updates.DisplayName = *req.DisplayName
 	}
@@ -1298,7 +1302,7 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 
 	managed, managedBy := h.teamRelationshipIDs(ctx, t.ID)
 	return Response{
-		Purpose: t.Purpose, Lifetime: t.Lifetime, EffortRefs: t.EffortRefs, ObjectivesServed: t.ObjectivesServed,
+		Purpose: t.Purpose, Lifetime: t.Lifetime, EffortRefs: t.EffortRefs, HomePath: t.HomePath, ObjectivesServed: t.ObjectivesServed,
 		ID:                 t.ID,
 		DisplayName:        t.DisplayName,
 		Mission:            t.Mission,

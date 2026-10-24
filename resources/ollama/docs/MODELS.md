@@ -32,6 +32,38 @@ resource-ollama models inventory --json        # named sizes/digests + policy re
 - Use the Ollama API for ad-hoc local experimentation; anything a scenario
   depends on belongs in the policy.
 
+### Explicit-only roles and content posture
+
+A role normally describes a capability, not an alignment posture. The
+`chat.uncensored` role is the deliberate exception: it resolves to an
+abliterated community build whose refusal behaviour was reduced by a weight
+edit. It exists so a caller can ask for unrestricted local generation by name.
+
+- It is **explicit-only**. `default_eligible` is false, it sits last in
+  `role_preference_order`, and no other role falls back to it.
+- It requires only `generate`, `chat`, and `summarize`. The selected model
+  advertises tool calling but no vision; the role does not guarantee tool use,
+  so probe a model build before relying on it.
+- Sampling is pinned to `temperature 0.2` / `top_p 0.9` with a 4096-token
+  output cap for instruction-following and agent work. Raise temperature at
+  the call site when the task needs creative variation.
+- The declared 20480-token context is the measured host fit: 11.13 GiB VRAM
+  with no CPU offload and ~99 tok/s. 24K needs CPU offload and previously
+  caused a CUDA OOM under the old `OLLAMA_NUM_PARALLEL=2` default, so the
+  resource now runs with `OLLAMA_NUM_PARALLEL=1` and
+  `OLLAMA_MAX_LOADED_MODELS=2`.
+- The default was chosen by the 2026-10-21 abliterated bake-off: Granite 4.1
+  8B scored 13/14 on instruction, formatting, and arithmetic checks, with a
+  live tool smoke pass and ~99 tok/s at 20K. The Qwen3.5-9B, Hermes-9B,
+  MiMo-9B, Qwen3-14B, and Qwen3.6-27B candidates scored lower or did not fit
+  the host budget.
+- Its footprint is a first-class capacity rung. Adding a role that names a new
+  model without materializing the matching `acceleration.claim.profile` step
+  makes resource loading fail.
+- Outputs are unreviewed. Keep this role out of customer-facing scenarios and
+  default routing; a fallback to a safety-tuned model would silently change
+  behaviour, so the role declares no fallbacks.
+
 ### Role-owned request levers
 
 Besides the model, a role may declare three request levers. All are optional and

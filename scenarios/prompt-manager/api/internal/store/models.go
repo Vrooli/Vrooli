@@ -256,9 +256,16 @@ type Team struct {
 	LifetimeSet      bool                              `json:"-"`
 
 	BaseEntity
-	ID                string                          `json:"id"`
-	DisplayName       string                          `json:"displayName"`
-	Mission           string                          `json:"mission,omitempty"`
+	ID          string `json:"id"`
+	DisplayName string `json:"displayName"`
+	Mission     string `json:"mission,omitempty"`
+	// HomePath is the repo-relative directory of this team's delivery home
+	// (e.g. .vrooli/work/delivery/<id>/) when the team keeps its working
+	// ledger in the central work root instead of nested in a product
+	// scenario. Advisory link only: the agent-manager effort enrollment's
+	// destination_ref remains the authority the supervisor actually reads.
+	HomePathSet       bool                            `json:"-"`
+	HomePath          string                          `json:"homePath,omitempty"`
 	Enabled           bool                            `json:"enabled"`
 	EnabledSet        bool                            `json:"-"`
 	Archived          bool                            `json:"archived"`

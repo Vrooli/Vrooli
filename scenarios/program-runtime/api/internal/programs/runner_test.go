@@ -35,6 +35,22 @@ for line in sys.stdin:
 	return path
 }
 
+func TestSubprocessRunnerRetainsBoundedBootFailureDiagnostics(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "broken-kernel.py")
+	if err := os.WriteFile(path, []byte("import sys\nsys.stderr.write('x'*10000 + 'specific boot failure')\nsys.exit(17)\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewSubprocessRunner(path)
+	defer runner.Close()
+	_, err := runner.Execute(context.Background(), "sess_boot_failure", "print(1)", false)
+	if err == nil || !strings.Contains(err.Error(), "specific boot failure") || !strings.Contains(err.Error(), "exit status 17") || len(err.Error()) > 4300 {
+		t.Fatalf("missing or unbounded kernel diagnostics: %v", err)
+	}
+	if _, alive := runner.MemoryBytes("sess_boot_failure"); alive {
+		t.Fatal("failed kernel retained")
+	}
+}
+
 func TestSubprocessRunnerPersistsProgressCallback(t *testing.T) {
 	runner := NewSubprocessRunner(writeTestKernel(t))
 	defer runner.Close()

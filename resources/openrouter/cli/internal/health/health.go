@@ -92,12 +92,31 @@ func Probe(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, 
 // apply its own default; a non-nil pointer to 0 is an explicit deterministic
 // request and is serialised.
 func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature *float64, maxTokens int, responseFormat json.RawMessage, images []ImageInput) ([]byte, error) {
+	body, _, err := generate(ctx, client, runtime, creds, model, prompt, temperature, maxTokens, responseFormat, images, nil)
+	return body, err
+}
+
+// GenerateWithSpendCap resolves current endpoint metadata, attaches the
+// enforceable provider limits, and only then dispatches the chat request.
+func GenerateWithSpendCap(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature *float64, maxTokens int, responseFormat json.RawMessage, images []ImageInput, binding SpendBinding, allowedEndpoints []string) ([]byte, SpendAuthorization, error) {
+	policy, authorization, err := AuthorizeSpendCap(ctx, client, runtime, creds, model, allowedEndpoints, maxTokens, len(images), binding)
+	if err != nil {
+		return nil, SpendAuthorization{}, err
+	}
+	body, _, err := generate(ctx, client, runtime, creds, model, prompt, temperature, maxTokens, responseFormat, images, &policy)
+	if err != nil {
+		return nil, SpendAuthorization{}, err
+	}
+	return body, authorization, nil
+}
+
+func generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature *float64, maxTokens int, responseFormat json.RawMessage, images []ImageInput, spend *ProviderSpendPolicy) ([]byte, SpendAuthorization, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
 	endpoint := config.ChatCompletionsEndpoint(runtime.APIBaseURL)
 	if endpoint == "" {
-		return nil, fmt.Errorf("OpenRouter chat completions endpoint is required")
+		return nil, SpendAuthorization{}, fmt.Errorf("OpenRouter chat completions endpoint is required")
 	}
 	payload := struct {
 		Model    string `json:"model"`
@@ -105,14 +124,16 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 			Role    string `json:"role"`
 			Content any    `json:"content"`
 		} `json:"messages"`
-		Temperature    *float64        `json:"temperature,omitempty"`
-		MaxTokens      int             `json:"max_tokens,omitempty"`
-		ResponseFormat json.RawMessage `json:"response_format,omitempty"`
+		Temperature    *float64             `json:"temperature,omitempty"`
+		MaxTokens      int                  `json:"max_tokens,omitempty"`
+		ResponseFormat json.RawMessage      `json:"response_format,omitempty"`
+		Provider       *ProviderSpendPolicy `json:"provider,omitempty"`
 	}{
 		Model:          model,
 		Temperature:    temperature,
 		MaxTokens:      maxTokens,
 		ResponseFormat: responseFormat,
+		Provider:       spend,
 	}
 	content := any(prompt)
 	if len(images) > 0 {
@@ -135,18 +156,18 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return nil, SpendAuthorization{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, SpendAuthorization{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+creds.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, &ProviderError{Code: CodeUnreachable, Message: "OpenRouter request failed before a response", Err: err}
+		return nil, SpendAuthorization{}, &ProviderError{Code: CodeUnreachable, Message: "OpenRouter request failed before a response", Err: err}
 	}
 	defer resp.Body.Close()
 	responseBody, err := io.ReadAll(resp.Body)
@@ -154,7 +175,7 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 		// A body that fails mid-read after a 2xx is a transient stream failure,
 		// not a policy or request error. Preserve the observed status so the
 		// caller can retry on the provider's own window rather than a generic one.
-		return nil, &ProviderError{
+		return nil, SpendAuthorization{}, &ProviderError{
 			Code:       CodeStreamFailed,
 			HTTPStatus: resp.StatusCode,
 			Message:    fmt.Sprintf("OpenRouter response stream failed after HTTP %d", resp.StatusCode),
@@ -171,9 +192,9 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 		if json.Unmarshal(responseBody, &failure) == nil {
 			detail = strings.TrimSpace(failure.Error.Message)
 		}
-		return nil, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), detail)
+		return nil, SpendAuthorization{}, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), detail)
 	}
-	return responseBody, nil
+	return responseBody, SpendAuthorization{}, nil
 }
 
 // GenerateImage performs the resource-owned OpenRouter image request. Callers

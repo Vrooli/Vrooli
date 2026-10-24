@@ -1,0 +1,307 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "pii-detector",
+  "storage": {
+    "entries": {
+      "model_cache": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/pii-detector/model-cache",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/pii-detector/model-cache",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/pii-detector/model-cache"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "container"
+        },
+        "rationale": "The ONNX token-classification model + tokenizer are downloaded/acquired into this bind-mounted cache; re-acquirable from the pinned source.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "PII Detector",
+  "description": "Managed CPU ONNX-Runtime service that detects personally-identifiable information in text. Combines a deterministic regex+checksum pass (email, phone, SSN, credit-card via Luhn, IBAN via mod-97) with an NER token-classification model; exposes POST /detect. Consumed via ai-gateway (REQUEST_KIND_DETECT_PII / detect.pii.default) and, as a follow-up, by agent-manager's redact action.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-pii-detector",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-pii-detector_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-pii-detector"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "server/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/dist/resource-pii-detector-server",
+      "version": "0.1.0",
+      "layout": "dir",
+      "entry_path": "server/dist/resource-pii-detector-server",
+      "bundle_artifact": "pii_detector_${os}_${arch}",
+      "sha256_by_platform": {
+        "linux-amd64": "cab40e16f5247d7b81dc3fd5c7fab33966dd7e0eec816ffc71e8a6ac8852c36f"
+      }
+    },
+    "acquisition": {
+      "kind": "none",
+      "license": "Apache-2.0 (gravitee-io/bert-small-pii-detection; ab-ai/pii_model_based_on_distilbert); Vrooli adapter release artifact",
+      "note": "The serving binary is built from server/ (Go, reproducible -trimpath build). The pinned linux-amd64 sha256 is the DEFAULT (stub-engine, regex-only) build produced by `make build-server`; it serves the deterministic regex/checksum pass. REAL NER inference is implemented behind the `pii_onnx` build tag (server/engine_onnx.go) and uses the now-APPROVED governed dependency go/github.com/yalue/onnxruntime_go v1.25.0 (CGO-free dlopen; loads libonnxruntime.so at runtime). TWO token-classification tiers are served by the SAME engine (model-agnostic: reads graph I/O, id2label, and do_lower_case at load): the small tier (gravitee-io/bert-small-pii-detection, INT8, prebuilt ONNX from the Hub) and the large tier (ab-ai/pii_model_based_on_distilbert, DistilBERT, 65 labels; its ONNX is produced deterministically from the Hub safetensors by scripts/export_large_model.py). Both are checksum-pinned in model-policy.json models.*.artifact.files. Validated end-to-end: small TestRealModelDetectsPII + TestPIIEval (recall 13/13); large TestLargeModelDetectsPII + TestLargePIIEval (recall 11/12) — all green against ONNX Runtime 1.23.0 (ORT_API_VERSION 23, matching the v1.25.0 binding). Re-pin this binary sha when a `pii_onnx` release artifact (server + bundled libonnxruntime.so, sherpa-style) is published. The GLiNER zero-shot tiers from the original plan were deliberately not shipped (see docs/ZERO_SHOT_DECISION.md).",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "unsupported": "TODO(acquire): the regex-only serving binary has a qualified local build, but a signed release artifact + a staged, checksum-pinned ONNX model are not published yet; NER inference is additionally gated on a governed onnxruntime Go-binding dependency approval."
+        }
+      ]
+    },
+    "attach_health_path": "/health",
+    "arguments": [],
+    "environment_file": "active.env",
+    "environment": {
+      "RESOURCE_LISTEN_ADDR": "127.0.0.1:${RESOURCE_PORT_UPSTREAM}",
+      "PII_DETECTOR_MODEL": "gravitee-io/bert-small-pii-detection",
+      "PII_DETECTOR_MODEL_CACHE": "${RESOURCE_DATA_DIR}/model-cache"
+    },
+    "environment_notes": "The pii_onnx build additionally reads: PII_DETECTOR_MODEL_DIR (explicit model dir; else resolved under PII_DETECTOR_MODEL_CACHE/<model-id>), PII_DETECTOR_ONNX_FILE (default model.quant.onnx), PII_DETECTOR_ONNXRUNTIME_LIB (path to libonnxruntime.so; else <bin>/../lib/libonnxruntime.so, the sherpa-style bundle layout), and the capacity ladder's PII_DETECTOR_LOAD_MODEL=on|off (off pins the server to the regex-only rung and releases the NER model's RAM). The default stub build ignores all of these."
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 120,
+    "stop_timeout_seconds": 30
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "TODO(acquire): no pinned ONNX model artifact or smoke evidence yet. The regex/checksum pass is CPU-pure Go and bundles cleanly, but the NER tier needs a staged ONNX model + the onnxruntime Go binding (governed dependency approval pending)."
+          ],
+          "evidence": [],
+          "reason": "Desktop bundling remains unsupported until a pinned model artifact and target smoke evidence are published."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "TODO(acquire): native macOS bundle + staged model pending."
+          ],
+          "evidence": [],
+          "reason": "Native macOS delivery pending artifact and smoke evidence."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "TODO(acquire): native Windows bundle + staged model pending."
+          ],
+          "evidence": [],
+          "reason": "Native Windows delivery pending artifact and smoke evidence."
+        }
+      }
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cpu"
+    ],
+    "require": "none",
+    "cpu": {},
+    "claim": {
+      "resource_kind": "ram",
+      "default_preferred_bytes": 134217728,
+      "floor_bytes": 0,
+      "default_priority": "service",
+      "confidence": "estimated",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "model",
+            "default_amount_bytes": 134217728
+          },
+          {
+            "label": "regex-only",
+            "default_amount_bytes": 0
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": true
+      }
+    }
+  },
+  "companions": [
+    {
+      "name": "capacity-sync",
+      "command": "resource-pii-detector",
+      "args": [
+        "capacity-sync"
+      ]
+    },
+    {
+      "name": "activity-edge",
+      "command": "resource-pii-detector",
+      "args": ["activity-edge"],
+      "port": 11460,
+      "required": true
+    }
+  ],
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 1024,
+    "cpu_cores": 2,
+    "network": "optional",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 11460,
+      "host": 11460
+    },
+    {
+      "name": "upstream",
+      "container": 21460,
+      "host": 21460
+    }
+  ],
+  "orchestration": {
+    "startup_order": 567,
+    "startup_timeout_seconds": 120,
+    "startup_time_estimate": "warm start <5s (regex-only); model load adds seconds once the ONNX artifact is staged",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "PII_DETECTOR_HOST": "localhost"
+    },
+    "from_ports": {
+      "PII_DETECTOR_PORT": "http"
+    },
+    "derived": {
+      "PII_DETECTOR_URL": {
+        "template": "http://${PII_DETECTOR_HOST}:${PII_DETECTOR_PORT}"
+      },
+      "PII_DETECTOR_BASE_URL": {
+        "template": "${PII_DETECTOR_URL}"
+      },
+      "PII_DETECTOR_DETECT_ENDPOINT": {
+        "template": "${PII_DETECTOR_URL}/detect"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

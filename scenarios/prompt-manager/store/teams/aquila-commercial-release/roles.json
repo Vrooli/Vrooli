@@ -6,7 +6,7 @@
     {
       "id": "aquila-launch-coordinator",
       "name": "Aquila Launch Coordinator",
-      "description": "Coordinate the finite commercial release from its protected workspace across desktop lifecycle, LPBS deployment, commercial reconciliation and independent acceptance; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure."
+      "description": "Reconcile release identity and desktop lifecycle, LPBS deployment/download delivery, commercial paid journeys, and operational acceptance. Allocate independent prerequisites together; join their evidence for the final release decision."
     }
   ]
 }

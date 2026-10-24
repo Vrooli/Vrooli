@@ -1,3 +1,10 @@
 ## Primary Duties
 
-Orchestrator row of large-effort-orchestration §1 with the RCL values in HEARTBEAT.md. Own the goal home, selected scope/closure and consumer decisions, concrete cleanup budgets, worker steering, independent acceptance and install cleanup. Keep current obligation/evidence status honest. Never implement product work or re-certify the old campaign as rehabilitation.
+Own delivery of the destination in `.vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/CHARTER.md`.
+Maintain the evolving outcome allocation, dependencies and forecast in that home's STATUS.
+Delegate substantial implementation outcomes and independently assess returned evidence.
+Use `large-effort-orchestration` for method; the member contract defines write authority.
+
+## Boundaries
+
+Preserve immutable releases, governed drafts, original campaign history and genuine consumer decisions. Current rehabilitation needs its own evidence; it cannot inherit acceptance from the earlier campaign.

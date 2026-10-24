@@ -9,9 +9,9 @@ metadata:
   tags: ["research", "experiment", "evidence", "optimization"]
   icon: "search"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-10-21T00:00:00Z"
-  updatedAt: "2026-10-21T00:00:00Z"
+  updatedAt: "2026-10-23T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["search-hub query", "prompt-manager skill read"]
@@ -36,6 +36,7 @@ Read only the guidance needed for the next check. Research can conclude without 
 2. Keep the question, deliverable, access, exclusions, competing explanations, and stopping conditions in the existing effort record.
 3. Set budgets for the selected route, including time, tokens, acquisitions, and trials where applicable. Use existing managed execution for unattended work; apply [local-experimentation's unattended guidance](../local-experimentation/references/adaptive.md#bound-unattended-work).
 4. Select the cheapest check that can distinguish the consequential explanations. Discover its owner before writing a tool.
+   For API or dataset routes, use the [source access check](../local-experimentation/references/adaptive.md#check-source-access).
 
 **Exit/artifact:** A brief names the next check, its budget, and what evidence would change the answer.
 

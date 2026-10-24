@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "experience-quality-orchestrator",
   "displayName": "Experience Quality Orchestrator",
-  "description": "Coordinate the finite experience-quality-delivery effort through measured epochs and independent acceptance. Preserve Dot cloud continuity, native access, shared evidence and debt reduction. Preparation stays disabled.",
+  "description": "Product-delivery orchestrator for experience-quality-delivery; current home: .vrooli/work/delivery/experience-quality-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
   "status": "active",
   "appearance": {
     "body": "#3B82F6",
@@ -18,7 +18,7 @@
   "fileOrder": [
     "AGENT.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-10-16T15:39:22Z",
-  "updatedAt": "2026-10-16T15:39:22Z"
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
 }

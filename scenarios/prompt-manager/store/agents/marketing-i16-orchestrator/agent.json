@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "marketing-i16-orchestrator",
   "displayName": "Marketing I16 delivery orchestrator",
-  "description": "Finite accepted Marketing I16 coordinator; team and heartbeat remain disabled. Canonical goal: scenarios/content-desk/docs/internal/goal/GOAL.md",
+  "description": "Product-delivery orchestrator for marketing-i16-delivery; current home: .vrooli/work/delivery/marketing-i16-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
   "status": "active",
   "tags": [
     "marketing-I16",
@@ -12,7 +12,7 @@
   "fileOrder": [
     "AGENT.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-10-04T22:08:55Z",
-  "updatedAt": "2026-10-04T22:08:55Z"
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
 }

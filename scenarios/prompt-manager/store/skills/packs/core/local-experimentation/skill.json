@@ -24,7 +24,7 @@
       "scenario-dependency-analyzer"
     ]
   },
-  "revision": 4,
+  "revision": 5,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -34,5 +34,5 @@
     "reproducibility",
     "local"
   ],
-  "updatedAt": "2026-10-21T00:00:00Z"
+  "updatedAt": "2026-10-23T00:00:00Z"
 }

@@ -252,6 +252,7 @@ func TestTeamMetadataConnectCRUDPreservesRecordsAndExplicitClears(t *testing.T) 
 	fixture.Purpose = "delivery"
 	fixture.Lifetime = "finite"
 	fixture.EffortRefs = []string{"effort:aquila"}
+	fixture.HomePath = ".vrooli/work/delivery/aquila"
 	raw, err := json.Marshal(fixture)
 	if err != nil {
 		t.Fatal(err)
@@ -264,7 +265,7 @@ func TestTeamMetadataConnectCRUDPreservesRecordsAndExplicitClears(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.Msg.Purpose != "delivery" || created.Msg.Lifetime != "finite" || len(created.Msg.EffortRefs) != 1 || created.Msg.Enabled {
+	if created.Msg.Purpose != "delivery" || created.Msg.Lifetime != "finite" || len(created.Msg.EffortRefs) != 1 || created.Msg.HomePath != fixture.HomePath || created.Msg.Enabled {
 		t.Fatalf("create metadata: %+v", created.Msg)
 	}
 	teamPath := filepath.Join(root, "teams", "aquila", "team.json")
@@ -282,13 +283,13 @@ func TestTeamMetadataConnectCRUDPreservesRecordsAndExplicitClears(t *testing.T) 
 		t.Fatal(err)
 	}
 	updated, err := client.UpdateTeam(ctx, connect.NewRequest(&teamsv1.UpdateTeamRequest{
-		Id: "aquila", Team: &teamsv1.TeamInput{DisplayName: "Aquila launch", Lifetime: "standing"},
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "lifetime"}},
+		Id: "aquila", Team: &teamsv1.TeamInput{DisplayName: "Aquila launch", Lifetime: "standing", HomePath: ".vrooli/work/delivery/aquila-current"},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "lifetime", "home_path"}},
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Msg.Purpose != "delivery" || updated.Msg.Lifetime != "standing" || len(updated.Msg.EffortRefs) != 1 || updated.Msg.Enabled {
+	if updated.Msg.Purpose != "delivery" || updated.Msg.Lifetime != "standing" || len(updated.Msg.EffortRefs) != 1 || updated.Msg.HomePath != ".vrooli/work/delivery/aquila-current" || updated.Msg.Enabled {
 		t.Fatalf("independent update: %+v", updated.Msg)
 	}
 	if len(updated.Msg.ObjectivesServed) != 1 || updated.Msg.ObjectivesServed[0].AcknowledgedRevision != "rev3" {
@@ -318,12 +319,12 @@ func TestTeamMetadataConnectCRUDPreservesRecordsAndExplicitClears(t *testing.T) 
 	}
 	cleared, err := client.UpdateTeam(ctx, connect.NewRequest(&teamsv1.UpdateTeamRequest{
 		Id: "aquila", Team: &teamsv1.TeamInput{},
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"purpose", "lifetime", "effort_refs", "enabled"}},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"purpose", "lifetime", "effort_refs", "enabled", "home_path"}},
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cleared.Msg.Purpose != "" || cleared.Msg.Lifetime != "" || len(cleared.Msg.EffortRefs) != 0 || cleared.Msg.Enabled {
+	if cleared.Msg.Purpose != "" || cleared.Msg.Lifetime != "" || len(cleared.Msg.EffortRefs) != 0 || cleared.Msg.HomePath != "" || cleared.Msg.Enabled {
 		t.Fatalf("explicit clears lost at Connect boundary: %+v", cleared.Msg)
 	}
 	_, err = client.UpdateTeam(ctx, connect.NewRequest(&teamsv1.UpdateTeamRequest{

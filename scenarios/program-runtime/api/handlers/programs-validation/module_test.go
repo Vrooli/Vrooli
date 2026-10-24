@@ -157,6 +157,22 @@ func TestFixtureExpectationChecksNestedSignals(t *testing.T) {
 	}
 }
 
+func TestFixtureExpectationChecksPartialObjectsWithinArrays(t *testing.T) {
+	actual := map[string]any{"errors": []any{map[string]any{"class": "invalid_input", "detail": "missing source", "where": "validate"}}}
+	if !matchesExpectation(actual, map[string]any{"errors": []any{map[string]any{"class": "invalid_input"}}}) {
+		t.Fatal("partial error assertion rejected additional diagnostic fields")
+	}
+	for _, expected := range []any{
+		map[string]any{"errors": []any{map[string]any{"class": "remote_error"}}},
+		map[string]any{"errors": []any{}},
+		map[string]any{"errors": []any{map[string]any{"class": "invalid_input"}, map[string]any{"class": "invalid_input"}}},
+	} {
+		if matchesExpectation(actual, expected) {
+			t.Fatalf("incorrect error class/count passed: %#v", expected)
+		}
+	}
+}
+
 func TestPortfolioFindingsCoverMaturityGaps(t *testing.T) { // [REQ:PRT-P0-009]
 	bad := contracts.Contract{
 		ID: "demo.bad", Scenario: "demo", SourceMissing: true, WallMS: 100,

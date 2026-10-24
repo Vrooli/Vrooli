@@ -184,6 +184,13 @@ stamps the phase scope generation. Scope expansion requires reviewing the
 assessment, not rerunning every check. Completion stores these assessments and
 the policy in the durable handoff; it does not rewrite validation verdicts.
 
+An unperformed required outcome, including an explicitly required live witness,
+belongs in `unmet_outcomes`. Recording it only in `limitations` does not make the
+outcome optional. Use `limitations` for evidence boundaries that do not leave a
+required outcome unmet, or record an authorized scope amendment that changes the
+requirement. A green source suite cannot replace a required receiver or serving
+build witness. Preserve honest partial handoffs until the missing proof exists.
+
 Unspecified policy on existing plans resolves to advisory. Older clients that
 omit policy while updating an explicitly certified plan preserve certification;
 changing it requires an explicit `advisory` mode. Historical completed handoffs

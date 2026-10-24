@@ -163,7 +163,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		// Emit in volatility order. The stable team band must stay ahead of all
 		// member and live-run material; otherwise one member's task or one live
 		// ledger entry destroys the cache prefix for everyone behind it.
-		sections = append(sections, newPromptSection(promptSectionKindSharedDoctrine, "", buildSharedDoctrineSection(includeHeartbeat)))
+		sections = append(sections, newPromptSection(promptSectionKindSharedDoctrine, "", buildSharedDoctrineSection(includeHeartbeat, team)))
 
 		teamPolicy, err := b.buildOperatingPolicyTeamSection(team, teamCharter)
 		if err != nil {
@@ -329,33 +329,9 @@ func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string
 	return RenderTopicContract(in)
 }
 
-// buildSharedDoctrineSection renders the standing rules every member gets.
-//
-// It is emitted first and is byte-identical for every member in a given build
-// mode. Keep it constant: one member-specific byte here destroys the shared
-// prefix this section exists to create.
-//
-// includeHeartbeat is the only permitted variation: naming the heartbeat
-// section in the precedence list when the build omits it would rank a heading
-// the reader cannot find. All heartbeat builds still share one prefix.
-// sharedDoctrineTargetModel is the reference every member is measured against.
-//
-// It exists because of a specific hole: before it, the only universal-scope
-// prompt section taught mechanics and precedence — where to write things and
-// who wins when sources disagree — and nothing anywhere told a member what a
-// well-formed team looks like. A member could execute its lane perfectly and
-// remain structurally unable to notice that its own team had no instrument,
-// four addresses, or an obligation list that no longer followed from its
-// objective, because it had never been given a reference to compare against.
-//
-// The detector and the router for those reports already existed
-// (`report-friction` is universal-source; friction-curator drains it). This
-// block is only the reference they compare against, which is why it is prose
-// here rather than a new channel.
-//
-// It is deliberately short. Universal scope means every member of every team
-// pays for it on every heartbeat, so it carries the model and points at
-// `docs/agent-system/TARGET_MODEL.md` for everything the model implies.
+// Shared guidance stays identical across members of the same team and build
+// mode. Finite delivery uses its declared work owner; recurring stewardship
+// uses the instrument model. Neither presentation changes execution authority.
 const sharedDoctrineTargetModel = "## The target model\n\n" +
 	"Your team is a control loop: it regulates one domain against a setpoint it does not own, reads one instrument that does not decide for it, and should get *simpler* as the system around it gets more capable. Canon: `docs/agent-system/TARGET_MODEL.md`.\n\n" +
 	"- **One address.** A team reads one instrument scenario for the state of its domain and what to do next. Members read different rows of one board, never different boards.\n" +
@@ -367,24 +343,28 @@ const sharedDoctrineTargetModel = "## The target model\n\n" +
 	"**A deviation from this model is error, and reporting one is inside your lane.** If your team declares no instrument, or you were told to call more than one domain scenario to learn your own team's state, or a document asks you to hand-maintain records that carry a status and a lifecycle, or a rule says something *must* happen with nothing able to refuse when it does not, or a skill is long because the scenario behind it is thin — file it with `prompt-manager skill read report-friction`. One typed observation, no decision requested. The full catalogue is `TARGET_MODEL.md` §9.\n\n" +
 	"If your team's instrument is unavailable, say so in your continuity record and fall back to the manual path. Never silently skip the board.\n\n"
 
-func buildSharedDoctrineSection(includeHeartbeat bool) string {
+func buildSharedDoctrineSection(includeHeartbeat bool, team *store.Team) string {
 	var section strings.Builder
 	section.WriteString(promptHeading(promptSectionKindSharedDoctrine) + "\n\n")
-	section.WriteString("## Where things go\n\n")
-	section.WriteString("Use persistent storage only when information must survive this run.\n\n")
-	section.WriteString("| To record | Use | Notes |\n|---|---|---|\n")
-	section.WriteString("| Continuity for your next run | declared Source Ledger topic | Durable context, not a self-reported completion claim |\n")
-	section.WriteString("| Evidence, measurements, findings | `source-ledger journal note` in scope `team:<id>` | Typed-topic registry: `docs/agent-system/TOPICS.md` |\n")
-	section.WriteString("| Broken code or scenario behavior | `prompt-manager skill read report-bug` | Writes `bug-inbox/*` on `scenario-qa` |\n")
-	section.WriteString("| Something missing, confusing, or repeatedly worked around | `prompt-manager skill read report-friction` | Writes `friction-inbox/*` on `meta-optimization` |\n")
-	section.WriteString("| A raw observation for ordinary human-directed work | `swarm-manager captures create` | Read dispositions with `swarm-manager backlog list --actor-id=<verified-profile-key>` |\n")
-	section.WriteString("| A shaped outcome for ordinary human-directed work | `swarm-manager backlog create` | Same disposition read path |\n")
-	section.WriteString("| Live team objects you maintain | team working state | Only the files named in your operating contract |\n\n")
-	section.WriteString("Record what a later run needs in your declared Source Ledger topics. Confirm writes from `X-Vrooli-Attribution` receipts; do not treat your final response as proof that a write happened.\n\n")
-	section.WriteString("## When scenario work needs improvement\n\n")
-	section.WriteString("Use the smallest durable disposition supported by evidence:\n\n")
-	section.WriteString("1. A broken behavior or defect: read `prompt-manager skill read report-bug` and file the typed bug report.\n2. Missing, confusing, or repeated process friction: read `prompt-manager skill read report-friction`.\n3. A raw observation in ordinary human-directed work whose outcome is not shaped: use `swarm-manager captures create`; do not turn every observation into implementation work.\n4. A bounded, evidenced outcome in ordinary human-directed work: create or update one Swarm backlog item with the outcome, acceptance criteria, allowed paths, evidence source, and suggested owner skills.\n5. Material scenario development in ordinary human-directed work: shape the backlog item through `implementation-plan-authoring`/Plan Manager, bind its canonical `plan_ref`, and accept the current plan revision before asking for an adaptive grant.\n6. Successive repairs under one approved plan: propose the `adaptive-improvement` execution strategy. Swarm retains the reviewed grant and checkpoint; Agent Manager runs `scenario-improvement-campaign` only after operator approval. A goal states the outcome and points to the work package; it does not replace the plan.\n\nAutonomous effort exception: when the heartbeat is an enabled finite delivery coordinator with an accepted effort revision, do not use Swarm Manager backlog, captures, queue, or Plan Workshop as a delivery step and do not wait for human plan acceptance. Spawn or manage the next bounded child through Agent Manager, or invoke Plan Manager's autonomous owner route only when the selected work shape truly requires a plan. The accepted effort activation already authorizes ordinary in-boundary delivery.\n\n")
-	section.WriteString(sharedDoctrineTargetModel)
+	if team != nil && team.Purpose == teamconfig.PurposeDelivery && team.Lifetime == teamconfig.LifetimeFinite {
+		section.WriteString(buildFiniteDeliveryGuidance(team))
+	} else {
+		section.WriteString("## Where things go\n\n")
+		section.WriteString("Use persistent storage only when information must survive this run.\n\n")
+		section.WriteString("| To record | Use | Notes |\n|---|---|---|\n")
+		section.WriteString("| Continuity for your next run | declared Source Ledger topic | Durable context, not a self-reported completion claim |\n")
+		section.WriteString("| Evidence, measurements, findings | `source-ledger journal note` in scope `team:<id>` | Typed-topic registry: `docs/agent-system/TOPICS.md` |\n")
+		section.WriteString("| Broken code or scenario behavior | `prompt-manager skill read report-bug` | Writes `bug-inbox/*` on `scenario-qa` |\n")
+		section.WriteString("| Something missing, confusing, or repeatedly worked around | `prompt-manager skill read report-friction` | Writes `friction-inbox/*` on `meta-optimization` |\n")
+		section.WriteString("| A raw observation for ordinary human-directed work | `swarm-manager captures create` | Read dispositions with `swarm-manager backlog list --actor-id=<verified-profile-key>` |\n")
+		section.WriteString("| A shaped outcome for ordinary human-directed work | `swarm-manager backlog create` | Same disposition read path |\n")
+		section.WriteString("| Live team objects you maintain | team working state | Only the files named in your operating contract |\n\n")
+		section.WriteString("Record what a later run needs in your declared Source Ledger topics. Confirm writes from `X-Vrooli-Attribution` receipts; do not treat your final response as proof that a write happened.\n\n")
+		section.WriteString("## When scenario work needs improvement\n\n")
+		section.WriteString("Use the smallest durable disposition supported by evidence:\n\n")
+		section.WriteString("1. A broken behavior or defect: read `prompt-manager skill read report-bug` and file the typed bug report.\n2. Missing, confusing, or repeated process friction: read `prompt-manager skill read report-friction`.\n3. A raw observation in ordinary human-directed work whose outcome is not shaped: use `swarm-manager captures create`; do not turn every observation into implementation work.\n4. A bounded, evidenced outcome in ordinary human-directed work: create or update one Swarm backlog item with the outcome, acceptance criteria, allowed paths, evidence source, and suggested owner skills.\n5. Material scenario development in ordinary human-directed work: shape the backlog item through `implementation-plan-authoring`/Plan Manager, bind its canonical `plan_ref`, and accept the current plan revision before asking for an adaptive grant.\n6. Successive repairs under one approved plan: propose the `adaptive-improvement` execution strategy. Swarm retains the reviewed grant and checkpoint; Agent Manager runs `scenario-improvement-campaign` only after operator approval. A goal states the outcome and points to the work package; it does not replace the plan.\n\n")
+		section.WriteString(sharedDoctrineTargetModel)
+	}
 	section.WriteString("## Authority order — the world\n\n")
 	section.WriteString("When sources disagree about what is true or accepted:\n\n")
 	section.WriteString("1. Operator instruction in the current run\n2. Accepted plan-of-record docs\n3. Accepted work dispositions\n4. Team working state\n5. Source Ledger evidence\n\n")
@@ -402,6 +382,27 @@ func buildSharedDoctrineSection(includeHeartbeat bool) string {
 	}
 	writeRank("`" + promptElement(promptSectionKindResponsibilities) + "` and `" + promptElement(promptSectionKindAgentFile) + "` — standing guidance that a task may override")
 	return strings.TrimRight(section.String(), "\n")
+}
+
+// buildFiniteDeliveryGuidance describes work ownership without granting execution.
+// Managed finite work keeps its existing model; a declared product home selects
+// the charter/status delivery model. Both share the same authority order below.
+func buildFiniteDeliveryGuidance(team *store.Team) string {
+	var section strings.Builder
+	section.WriteString("## Finite delivery\n\n")
+	if mission := strings.TrimSpace(team.Mission); mission != "" {
+		fmt.Fprintf(&section, "Product mission: %s\n\n", mission)
+	}
+	section.WriteString("Deliver the whole approved destination. The leader owns technical strategy, dependencies, substantial worker assignments and independent acceptance. Implementation workers implement and verify their assigned outcomes. Current source, selected designs and required behavior determine the remaining work.\n\n")
+	if home := strings.TrimRight(strings.TrimSpace(team.HomePath), "/"); home != "" {
+		fmt.Fprintf(&section, "Read `%s/CHARTER.md` for the destination and `%s/STATUS.md` for the evolving allocation, active units, dependencies and forecast. Keep accepted outcomes in LOG.md and operator directions in FEEDBACK.md under that home. Use `prompt-manager skill read large-effort-orchestration` for this work model.\n\n", home, home)
+	} else {
+		section.WriteString("Use the managed work owner and destination declared in the operating contract. Keep its plan, family, qualification or investigation model; do not create a product home or parallel delivery ledger merely because the team is finite.\n\n")
+	}
+	section.WriteString("Use the current native effort owner for admission, retained runs and any commission clock. Metadata or prompt text does not activate a team, approve a commission or widen permissions. A disabled or uncommissioned product team stays idle; parked owners remain retained.\n\n")
+	section.WriteString("Approved in-boundary delivery stays with this owner. Do not insert Swarm backlog, Plan Workshop or human plan acceptance into ordinary outcome selection. Use a separate plan only when that work shape requires one. Work outside the approved destination follows the existing disposition route. Preserve genuine human decisions and native safeguards.\n\n")
+	section.WriteString("## Where things go\n\nKeep current work and continuity with the declared work owner. Keep reusable evidence and learning in Source Ledger; do not duplicate the live allocation there. Use `prompt-manager skill read report-bug` for defects and `prompt-manager skill read report-friction` for recurring process friction. Report a failed native operation and its real return condition; do not treat a missing recurring instrument as a delivery-team defect.\n\n")
+	return section.String()
 }
 
 type memberStoragePolicy struct {

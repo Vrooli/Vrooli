@@ -41,7 +41,7 @@
   },
   "kind": "team",
   "lifetime": "finite",
-  "mission": "Deliver the native-feel desktop packaging goal through orchestrated epochs: a long-lived Luna-high orchestrator admits, steers and accepts epochs while one Luna-medium goal worker implements each; the goal home in scenario-to-desktop is the only ledger.",
+  "mission": "Deliver selectable packaging strategies, one packaged-launch.v1 measurement contract and evidence-based automatic selection across the approved reference scenarios.",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {},
@@ -167,7 +167,7 @@
     "knowledgeTopics": {},
     "members": {
       "desktop-packaging-orchestrator": {
-        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
+        "lane": "Own the whole product destination, technical strategy, evolving outcome allocation and independent acceptance. Delegate substantial independent implementation to workers; coordinate shared components, API contracts and dependencies within native limits.",
         "allowedWrites": [
           {
             "kind": "handoff"
@@ -217,10 +217,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 4,
+  "revision": 5,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-21T03:26:32Z"
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
 }
