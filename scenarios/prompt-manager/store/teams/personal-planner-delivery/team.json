@@ -21,10 +21,11 @@
   ],
   "enabled": false,
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "id": "personal-planner-delivery",
+  "homePath": ".vrooli/work/delivery/personal-planner-delivery",
   "kind": "team",
   "lifetime": "finite",
   "mission": "Deliver owner-approved I18 integrated private calendar, outcomes, actuals, forecasting, learning, CLI parity and R1 read-only ingestion through native epochs.",
@@ -37,20 +38,20 @@
           "id": "planner-I18-goal",
           "hub": {
             "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/GOAL.md"
+            "path": ".vrooli/work/delivery/personal-planner-delivery/CHARTER.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "scenarios/personal-planner/docs/internal/goal/GOAL.md"
+              "path": ".vrooli/work/delivery/personal-planner-delivery/CHARTER.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/personal-planner/docs/internal/goal/AUTHORIZATION.md"
+              "path": ".vrooli/work/delivery/personal-planner-delivery/AUTHORIZATION.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/personal-planner/docs/internal/goal/TARGETS.md"
+              "path": ".vrooli/work/delivery/personal-planner-delivery/archive/v1/TARGETS.md"
             }
           ],
           "writePolicy": "Orchestrator maintains goal home; accepted owner amendments change destination.",
@@ -64,20 +65,20 @@
           "id": "planner-I18-contract",
           "hub": {
             "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/CONTRACT.md"
+            "path": ".vrooli/work/delivery/personal-planner-delivery/CONTRACT.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "scenarios/personal-planner/docs/internal/goal/CONTRACT.md"
+              "path": ".vrooli/work/delivery/personal-planner-delivery/CONTRACT.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/personal-planner/docs/internal/goal/ACCEPTANCE.md"
+              "path": ".vrooli/work/delivery/personal-planner-delivery/archive/v1/ACCEPTANCE.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/personal-planner/docs/internal/goal/receipts/source-manifest.json"
+              "path": ".vrooli/work/delivery/personal-planner-delivery/receipts/source-manifest.json"
             }
           ],
           "writePolicy": "Preserve source snapshot and exact approval; native owner amendment only.",
@@ -92,39 +93,30 @@
       ],
       "sharedState": [
         {
-          "id": "planner-queue",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/QUEUE.md"
+            "path": ".vrooli/work/delivery/personal-planner-delivery/STATUS.md"
           },
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "planner-feedback",
+          "id": "delivery-log",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/personal-planner-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/personal-planner-delivery/FEEDBACK.md"
           },
           "kind": "operator-input",
-          "required": true
-        },
-        {
-          "id": "planner-workarounds",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/WORKAROUNDS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "planner-installs",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/INSTALLS.md"
-          },
-          "kind": "working-register",
           "required": true
         }
       ]
@@ -139,7 +131,7 @@
           },
           {
             "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal/receipts"
+            "path": ".vrooli/work/delivery/personal-planner-delivery/receipts"
           }
         ],
         "safetyCriticalRules": [
@@ -153,22 +145,43 @@
         }
       },
       "personal-planner-delivery-orchestrator": {
-        "lane": "Orchestrate approved Planner I18 in native epochs; admit measured briefs, spawn one implementation worker, park, steer, independently review and mechanically accept; maintain goal home.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/personal-planner/docs/internal/goal"
+            "path": ".vrooli/work/delivery/personal-planner-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/personal-planner-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/personal-planner-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/personal-planner-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/personal-planner-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/personal-planner-delivery/archive"
           }
         ],
         "safetyCriticalRules": [
           "Use large-effort-orchestration; never implement product work.",
           "Native profiles, role/budget/permission controls and action-specific confirmations govern; never weaken them or inherit investigation constraints.",
           "Preserve accepted product scope and unrelated work/user data; R1 provider reads do not authorize R3 writeback.",
-          "One implementation worker per epoch, independent acceptance then mechanical gate; retain every failed step.",
-          "Park through native children producer; no polling or uncertain dispatch replay."
+          "Park through native children producer; no polling or uncertain dispatch replay.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,

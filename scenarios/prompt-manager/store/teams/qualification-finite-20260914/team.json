@@ -69,5 +69,6 @@
     "mode": "single-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-09-14T04:48:02Z"
+  "updatedAt": "2026-09-14T04:48:02Z",
+  "archived": true
 }

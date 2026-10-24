@@ -71,7 +71,7 @@ func (a *App) effortPark(args []string) error {
 	if targetRun.Id != runID {
 		return fmt.Errorf("get park target run %s returned mismatched run ID %q", runID, targetRun.Id)
 	}
-	queue, err := os.ReadFile(filepath.Join(dir, goalHomeSectionsFile(dir)))
+	queue, err := os.ReadFile(filepath.Join(dir, goalhome.StatusFile))
 	if err != nil {
 		return fmt.Errorf("goal home %s: %w", dir, err)
 	}

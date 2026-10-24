@@ -25,5 +25,5 @@ slice-log line is a step-back signal, not a reason to respawn again.
 control-plane coding-agent launcher or a direct harness run is a fallback only
 when the goal explicitly authorizes its weaker guarantees. The epoch and its gate
 do not change; record the lost guarantees (telemetry, sandbox tracking, native
-goal support) as a `WORKAROUNDS.md` entry. There is no universal `--goal` flag;
+goal support) as a `STATUS.md` `## Workarounds` entry. There is no universal `--goal` flag;
 check the runner's contract.

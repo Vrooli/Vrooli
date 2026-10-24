@@ -46,7 +46,9 @@
             }
           ],
           "writePolicy": "Plan Manager owner-authorized; team members read and propose only.",
-          "consumers": ["aquila-launch-coordinator"],
+          "consumers": [
+            "aquila-launch-coordinator"
+          ],
           "rationale": "Canonical requirements for the finite Aquila marketing and capability-maturity effort."
         }
       ],
@@ -72,7 +74,14 @@
     "members": {
       "aquila-launch-coordinator": {
         "lane": "Coordinate the finite marketing and capability-maturity effort; commission owner workflows, preserve asset provenance and stop at approval gates, blockers or accepted closure.",
-        "allowedWrites": [{"kind":"knowledge"},{"kind":"handoff"}],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
         "safetyCriticalRules": [
           "The effort reference is attribution, not publication or spend authority.",
           "Content Desk owns editorial state; Channel Manager owns distribution and metrics; Offer Desk owns commercial truth.",
@@ -80,7 +89,10 @@
           "Claims and assets remain candidate until release identity, provenance, accessibility and approval are verified.",
           "Retain exact effort, plan, run, task, revision and evidence references in every handoff."
         ],
-        "readOnlyModeBehavior": {"stillWriteKnowledge":true,"stillWriteHandoff":true}
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
       }
     }
   },

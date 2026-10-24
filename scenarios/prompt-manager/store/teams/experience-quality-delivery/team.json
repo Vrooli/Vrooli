@@ -13,6 +13,7 @@
   "kind": "team",
   "schemaVersion": 1,
   "id": "experience-quality-delivery",
+  "homePath": ".vrooli/work/delivery/experience-quality-delivery",
   "displayName": "Experience Quality Delivery",
   "mission": "Deliver shared visual and temporal experience capture, review, repair and required release evidence; preserve Dot cloud workflows and outage fallbacks, enable native agents without Google connectors, and consolidate existing ownership/debt. Preparation remains disabled.",
   "enabled": false,
@@ -35,8 +36,8 @@
     }
   },
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "operatingContract": {
     "schemaVersion": 1,
@@ -67,12 +68,12 @@
           "id": "experience-quality-entry",
           "hub": {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/README.md"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/README.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/internal/experience-quality-delivery/README.md"
+              "path": ".vrooli/work/delivery/experience-quality-delivery/README.md"
             }
           ],
           "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
@@ -87,12 +88,12 @@
           "id": "experience-quality-goal",
           "hub": {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/GOAL.md"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/CHARTER.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/internal/experience-quality-delivery/GOAL.md"
+              "path": ".vrooli/work/delivery/experience-quality-delivery/CHARTER.md"
             }
           ],
           "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
@@ -107,12 +108,12 @@
           "id": "experience-quality-validation",
           "hub": {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/VALIDATION.md"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/VALIDATION.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/internal/experience-quality-delivery/VALIDATION.md"
+              "path": ".vrooli/work/delivery/experience-quality-delivery/VALIDATION.md"
             }
           ],
           "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
@@ -127,12 +128,12 @@
           "id": "experience-quality-setup",
           "hub": {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/SETUP.md"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/SETUP.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/internal/experience-quality-delivery/SETUP.md"
+              "path": ".vrooli/work/delivery/experience-quality-delivery/SETUP.md"
             }
           ],
           "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
@@ -146,84 +147,30 @@
       ],
       "sharedState": [
         {
-          "id": "eq-queue",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/QUEUE.md"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/STATUS.md"
           },
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "eq-feedback",
+          "id": "delivery-log",
           "path": {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/experience-quality-delivery/FEEDBACK.md"
           },
           "kind": "operator-input",
-          "required": true
-        },
-        {
-          "id": "eq-workarounds",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/WORKAROUNDS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "eq-installs",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/INSTALLS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "eq-targets",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/TARGETS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "eq-research",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/RESEARCH.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "eq-gaps",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/GAPS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "eq-decisions",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/DECISIONS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "eq-sources",
-          "path": {
-            "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery/sources.json"
-          },
-          "kind": "working-register",
           "required": true
         }
       ]
@@ -231,14 +178,34 @@
     "knowledgeTopics": {},
     "members": {
       "experience-quality-orchestrator": {
-        "lane": "Coordinate substantial experience-quality epochs and independently accept evidence; maintain the goal home. Never implement product code. Preparation is disabled and undispatched.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
           },
           {
             "base": "repo-root",
-            "path": "docs/internal/experience-quality-delivery"
+            "path": ".vrooli/work/delivery/experience-quality-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/experience-quality-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/experience-quality-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/experience-quality-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/experience-quality-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/experience-quality-delivery/archive"
           }
         ],
         "safetyCriticalRules": [
@@ -249,7 +216,9 @@
           "Required shared schema/proto/generated work remains in whole-outcome scope despite child exclusions. Use governed owner generation/verification and dependency installation.",
           "Preserve unrelated authored changes and user data; coordinate actual overlap with existing teams. No publication, credentials/account setup or new paid spend is authorized.",
           "Native identity, permissions, budgets and safeguards govern later execution. No anonymous retry, principal substitution, runtime-store edit or shadow finite scheduler.",
-          "Follow large-effort-orchestration; use existing qualified delivery profiles and Agent Manager epochs after explicit activation; no Swarm or Plan Manager dispatch."
+          "Follow large-effort-orchestration; use existing qualified delivery profiles and Agent Manager epochs after explicit activation; no Swarm or Plan Manager dispatch.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,

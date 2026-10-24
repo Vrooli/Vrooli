@@ -4,7 +4,7 @@
 
 Run only when the Planner orchestrator assigns a bounded independent review after
 the implementation worker ends. Read the exact review brief and original
-ACCEPTANCE.md, then inspect the admitted source/evidence boundary. Execute the
+.vrooli/work/delivery/personal-planner-delivery/archive/v1/ACCEPTANCE.md, then inspect the admitted source/evidence boundary. Execute the
 named scoped checks only when the assignment authorizes them. Preserve historical
 failures, refusals, unknown source attribution and manual-review lifecycle holds.
 

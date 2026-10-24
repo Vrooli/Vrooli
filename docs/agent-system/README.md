@@ -1,5 +1,8 @@
 # Agent System
 
+For task/plan/mandate/delivery selection, current team homes and finite commissioning,
+start at the [work entry point](../../.vrooli/work/README.md).
+
 Plan-of-record for the prompt-manager self-improvement framework: how skills, agents, teams, plans, Source Ledger topics, actions, and CLIs fit together.
 
 This folder is **canon**, owned by `meta-optimization`. Apply the authority rules in

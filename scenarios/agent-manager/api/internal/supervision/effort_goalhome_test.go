@@ -75,7 +75,7 @@ func goalHomeTree(t *testing.T, root string, edits map[string]func(string) strin
 
 func migrateGoalHomeFixture(t *testing.T, home string) {
 	t.Helper()
-	v1, err := goalhome.Load(os.DirFS(home))
+	v1, err := goalhome.LoadLegacy(os.DirFS(home))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func migrateGoalHomeFixture(t *testing.T, home string) {
 		t.Fatal(conv.Divergence)
 	}
 	for name, body := range map[string][]byte{goalhome.CharterFile: conv.Charter, goalhome.StatusFile: conv.Status, goalhome.LogFile: conv.Log} {
-		if err := os.WriteFile(filepath.Join(home, name), body, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(home, name), body, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -356,7 +356,7 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 	logPath := filepath.Join(home, goalhome.LogFile)
 	logBytes, _ := os.ReadFile(logPath)
 	logBytes = append(logBytes, []byte("\n"+epoch)...)
-	if err := os.WriteFile(logPath, logBytes, 0644); err != nil {
+	if err := os.WriteFile(logPath, logBytes, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

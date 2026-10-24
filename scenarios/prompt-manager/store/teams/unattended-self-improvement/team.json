@@ -32,7 +32,17 @@
     "governance": {},
     "documents": {
       "planOfRecord": [],
-      "sharedState": []
+      "sharedState": [
+        {
+          "id": "managed-effort-home",
+          "path": {
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/README.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
     },
     "knowledgeTopics": {
       "effort-wake/*": {

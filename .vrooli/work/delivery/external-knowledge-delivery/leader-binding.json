@@ -1,0 +1,23 @@
+{
+  "schedule": "*/30 * * * *",
+  "profileKey": "prompt-manager/delivery-orchestrator",
+  "finiteLeader": {
+    "acceptedRevision": "preparation-v3:sha256:bb83b14c81c539919a0f0b3f55affbc2616d2f76fa9f597fea2295f4c4fb82fb",
+    "checkin": {
+      "mode": "parked"
+    },
+    "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+    "effortRef": "effort:external-knowledge-search",
+    "keepAlive": true,
+    "sourceRefs": [
+      "path:docs/architecture/external-knowledge-search.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-ACCEPTANCE-AMENDMENT.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/email-acceptance-v1.1.1/spec.txt"
+    ]
+  }
+}

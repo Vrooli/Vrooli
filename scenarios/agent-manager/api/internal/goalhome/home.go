@@ -1,11 +1,7 @@
 package goalhome
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"io/fs"
-	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -16,11 +12,8 @@ import (
 
 // Goal-home file names (large-effort-orchestration §3).
 const (
-	GoalFile        = "GOAL.md"
-	QueueFile       = "QUEUE.md"
-	FeedbackFile    = "FEEDBACK.md"
-	WorkaroundsFile = "WORKAROUNDS.md"
-	EpochsDir       = "epochs"
+	FeedbackFile = "FEEDBACK.md"
+	EpochsDir    = "epochs"
 	// DefaultBoardFileBytes is the supervisor board's default per-file safe-read cap.
 	// Board configuration may override it; goal-home lint uses it only as an advisory baseline.
 	DefaultBoardFileBytes = 128 * 1024
@@ -50,16 +43,13 @@ type Home struct {
 	// delivery surface. Empty for a v1 home, which has no scoreboard.
 	Scoreboard       []SurfaceProgress
 	WorkaroundsKnown bool
-	// V2 is true when this home was read from the Phase-2 file set
-	// (CHARTER/STATUS/LOG). It lets format-aware consumers (lint labels, the CLI
-	// section writers) name CHARTER/STATUS instead of GOAL/QUEUE. The flag is
-	// durable: the v1 parser stays as migration tooling (`effort migrate` reads
-	// an un-migrated home through it), so a home can still read as v1.
+	// V2 distinguishes current runtime facts from explicit legacy import facts.
+	// Ordinary readers and writers use v2; import verification retains old anchors.
 	V2 bool
 }
 
 // SurfaceProgress is one row of the STATUS.md "## Scoreboard" gradient: a
-// delivery surface, its target label, its state (queued|rough|close|accepted)
+// delivery surface, its target label, its state (unassessed|queued|rough|close|accepted)
 // and the active owner run UUID driving it (empty when none).
 type SurfaceProgress struct {
 	Surface  string `json:"surface"`
@@ -176,7 +166,7 @@ func (f FeedbackEntry) Steering() bool {
 	return source == "" || strings.Contains(source, "operator") || strings.Contains(source, "supervisor")
 }
 
-// Workarounds is WORKAROUNDS.md. An entry is open when its last " · " field
+// Workarounds holds STATUS.md workaround entries (WORKAROUNDS.md during import). An entry is open when its last " · " field
 // starts with "open"; entries after a "## Resolved" heading are closed.
 type Workarounds struct {
 	OpenBytes int
@@ -197,89 +187,6 @@ var (
 	feedbackSource     = regexp.MustCompile(`\(([^()]*)\)\s*$`)
 )
 
-// Load reads a goal home from fsys, whose root is the goal-home directory.
-// Only read failures other than a missing file are errors.
-func Load(fsys fs.FS) (*Home, error) {
-	return load(fsys, false)
-}
-
-// LoadBoardProjection is the legacy tolerant projection used by import fixtures.
-// Production supervision uses LoadBoardProjectionV2 exclusively.
-// It retains valid top-level goal, queue, feedback and workaround facts when
-// an epoch is unavailable, while marking the entire epoch set incomplete.
-// Callers must not infer active/accepted epoch facts from the readable subset.
-func LoadBoardProjection(fsys fs.FS) (*Home, error) {
-	return load(fsys, true)
-}
-
-func load(fsys fs.FS, tolerateEpochGaps bool) (*Home, error) {
-	home := &Home{FileBytes: make(map[string]int), EpochsComplete: true}
-	read := func(name string) ([]byte, error) {
-		data, err := fs.ReadFile(fsys, name)
-		if errors.Is(err, fs.ErrNotExist) {
-			home.Missing = append(home.Missing, name)
-			return nil, nil
-		}
-		if err == nil {
-			home.FileBytes[name] = len(data)
-		}
-		return data, err
-	}
-	goal, err := read(GoalFile)
-	if err != nil {
-		return nil, err
-	}
-	home.Goal = ParseGoal(goal)
-	if home.QueueData, err = read(QueueFile); err != nil {
-		return nil, err
-	}
-	home.Queue = ParseQueue(home.QueueData)
-	feedback, err := read(FeedbackFile)
-	if err != nil {
-		return nil, err
-	}
-	home.Feedback = ParseFeedback(feedback)
-	workarounds, err := read(WorkaroundsFile)
-	if err != nil {
-		return nil, err
-	}
-	home.Workarounds = ParseWorkarounds(workarounds)
-	entries, err := fs.ReadDir(fsys, EpochsDir)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
-	}
-	for _, entry := range entries {
-		m := epochNamePattern.FindStringSubmatch(entry.Name())
-		if m == nil || entry.IsDir() {
-			continue
-		}
-		data, err := fs.ReadFile(fsys, path.Join(EpochsDir, entry.Name()))
-		if err != nil {
-			if tolerateEpochGaps {
-				home.EpochsComplete = false
-				home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, path.Join(EpochsDir, entry.Name()))
-				continue
-			}
-			return nil, err
-		}
-		home.FileBytes[path.Join(EpochsDir, entry.Name())] = len(data)
-		epoch, err := ParseEpoch(bytes.NewReader(data))
-		if err != nil {
-			if tolerateEpochGaps {
-				home.EpochsComplete = false
-				home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, path.Join(EpochsDir, entry.Name()))
-				continue
-			}
-			home.Warnings = append(home.Warnings, Finding{Code: "epoch-unreadable", File: path.Join(EpochsDir, entry.Name()), Detail: err.Error()})
-			continue
-		}
-		number, _ := strconv.Atoi(m[1])
-		home.Epochs = append(home.Epochs, EpochFile{Name: entry.Name(), Number: number, Epoch: epoch})
-	}
-	sort.Slice(home.Epochs, func(i, j int) bool { return home.Epochs[i].Number < home.Epochs[j].Number })
-	return home, nil
-}
-
 // EpochHome returns the goal home of an epoch file at <home>/epochs/E<n>.md.
 func EpochHome(epochPath string) (string, bool) {
 	dir := filepath.Dir(epochPath)
@@ -287,29 +194,6 @@ func EpochHome(epochPath string) (string, bool) {
 		return "", false
 	}
 	return filepath.Dir(dir), true
-}
-
-// ParseGoal reads GOAL.md.
-func ParseGoal(data []byte) Goal {
-	doc := parseDocument(data)
-	goal := Goal{Bytes: len(data), Fields: doc.fields()}
-	if m := destinationPattern.FindStringSubmatch(goal.Fields["destination"]); m != nil {
-		target, _, _ := ParseNumber(m[3])
-		goal.Destination = &Destination{Metric: strings.TrimSpace(m[1]), Op: m[2], Target: target}
-	}
-	if raw := goal.Fields["current"]; raw != "" {
-		if value, rest, ok := ParseNumber(raw); ok {
-			current := &Measurement{Value: value}
-			if _, when, found := strings.Cut(rest, "@"); found {
-				if fields := strings.Fields(when); len(fields) > 0 {
-					current.At, _ = parseWhen(fields[0])
-				}
-			}
-			goal.Current = current
-		}
-	}
-	goal.DestinationSet, _ = parseWhen(goal.Fields["destination set"])
-	return goal
 }
 
 // ParseQueue reads QUEUE.md.

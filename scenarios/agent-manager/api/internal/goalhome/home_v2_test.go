@@ -1,58 +1,19 @@
 package goalhome
 
 import (
-	"io/fs"
-	"os"
-	"path/filepath"
+	"fmt"
 	"strings"
 	"testing"
 	"testing/fstest"
 )
 
-// v2Home returns the v2-bas goal home with files replaced by edits (an edit on
-// a missing name creates it; returning "" deletes it).
 func v2Home(t *testing.T, edits map[string]func(string) string) *Home {
 	t.Helper()
-	files := fstest.MapFS{}
-	err := fs.WalkDir(os.DirFS("testdata/v2-bas"), ".", func(name string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err
-		}
-		data, err := os.ReadFile(filepath.Join("testdata", "v2-bas", name))
-		files[name] = &fstest.MapFile{Data: data}
-		return err
-	})
+	home, err := LoadV2(fixtureFiles(t, "v2-bas", edits))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, edit := range edits {
-		text := ""
-		if file, ok := files[name]; ok {
-			text = string(file.Data)
-		}
-		out := edit(text)
-		if out == "" {
-			delete(files, name)
-			continue
-		}
-		files[name] = &fstest.MapFile{Data: []byte(out)}
-	}
-	home, err := LoadV2(files)
-	if err != nil {
-		t.Fatalf("LoadV2: %v", err)
-	}
 	return home
-}
-
-// activeEpoch returns the single non-accepted epoch the board would select, or
-// nil. It mirrors the board's newest-last, non-accepted scan.
-func activeEpoch(home *Home) *Epoch {
-	for i := len(home.Epochs) - 1; i >= 0; i-- {
-		if !home.Epochs[i].Epoch.IsAccepted() {
-			return home.Epochs[i].Epoch
-		}
-	}
-	return nil
 }
 
 func acceptedEpochs(home *Home) []*Epoch {
@@ -76,6 +37,27 @@ func TestLoadV2Destination(t *testing.T) {
 	}
 	if home.Goal.Current == nil || home.Goal.Current.Value != 253452 || home.Goal.Current.At.IsZero() {
 		t.Fatalf("current = %+v", home.Goal.Current)
+	}
+}
+
+func TestV2ResumeBudgetCountsStatusWorkaroundsOnce(t *testing.T) {
+	for _, size := range []int{ResumeBudgetBytes, ResumeBudgetBytes + 1} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			charter, feedback := "# Charter\n", "# Feedback\n"
+			status := "## Handoff\n\nContinue.\n\n## Next\n\n- [ready] History\n\n## Workarounds\n\n- infra · open · "
+			status += strings.Repeat("x", size-len(charter)-len(feedback)-len(status))
+			home, err := LoadV2(fstest.MapFS{CharterFile: {Data: []byte(charter)}, StatusFile: {Data: []byte(status)}, FeedbackFile: {Data: []byte(feedback)}, LogFile: {}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			report := Lint(home)
+			if report.ResumeSet.Total != size {
+				t.Fatalf("resume bytes = %d, want actual input bytes %d", report.ResumeSet.Total, size)
+			}
+			if got := strings.Contains(blockingCodes(report), "resume-budget"); got != (size > ResumeBudgetBytes) {
+				t.Fatalf("budget refusal = %t for %d bytes", got, size)
+			}
+		})
 	}
 }
 
@@ -103,10 +85,7 @@ func TestLoadV2ActiveUnitAndWorkers(t *testing.T) {
 	if got := home.Epochs[len(home.Epochs)-1].Number; got != 26 {
 		t.Fatalf("active unit identity = E%d, want E26", got)
 	}
-	active := activeEpoch(home)
-	if active == nil {
-		t.Fatal("no active epoch resolved from STATUS ## Active")
-	}
+	active := unitByID(t, home, "E26")
 	if got := active.Fields["status"]; got != "acceptance review (BAS-FB-064 gate amendment)" {
 		t.Fatalf("active status = %q", got)
 	}
@@ -173,15 +152,7 @@ func TestLoadV2ReopenedOverridesAccepted(t *testing.T) {
 			return s[:len(s)-len("(none)\n")] + "- E25 | 2026-10-07T02:00:00Z | coordinator reopened the timeline controller\n"
 		},
 	})
-	var e25 *Epoch
-	for _, e := range home.Epochs {
-		if acc := e.Epoch.LastAcceptance(); acc != nil && !acc.At.IsZero() && acc.At.Format("15:04") == "01:28" {
-			e25 = e.Epoch
-		}
-	}
-	if e25 == nil {
-		t.Fatal("E25 not found")
-	}
+	e25 := unitByID(t, home, "E25")
 	if e25.IsAccepted() {
 		t.Fatal("E25 reopened after acceptance must not count as accepted")
 	}
@@ -191,6 +162,17 @@ func TestLoadV2ReopenedOverridesAccepted(t *testing.T) {
 	if n := len(acceptedEpochs(home)); n != 2 {
 		t.Fatalf("accepted after reopen = %d, want 2", n)
 	}
+}
+
+func unitByID(t *testing.T, home *Home, id string) *Epoch {
+	t.Helper()
+	for _, unit := range home.Epochs {
+		if unit.ID() == id {
+			return unit.Epoch
+		}
+	}
+	t.Fatalf("work unit %s not found", id)
+	return nil
 }
 
 func TestLoadV2ReopenBeforeAcceptanceIgnored(t *testing.T) {
@@ -230,8 +212,8 @@ func TestLoadV2MissingFileIsUnknownNotZero(t *testing.T) {
 	home = v2Home(t, map[string]func(string) string{
 		StatusFile: func(string) string { return "" },
 	})
-	if activeEpoch(home) != nil {
-		t.Fatalf("missing STATUS must leave active epoch unknown")
+	if len(home.Epochs) != 3 || len(acceptedEpochs(home)) != 3 {
+		t.Fatal("missing STATUS must retain only the three LOG acceptances, without inventing active work")
 	}
 }
 

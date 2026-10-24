@@ -1,0 +1,95 @@
+{
+  "changes": [
+    [
+      "Version 1.0 • 14 October 2026 • Design deliverable, not implemented-product acceptance",
+      "Version 1.1 • 14 October 2026 • Owner-selected multi-account amendment; design deliverable, not implemented-product acceptance"
+    ],
+    [
+      "Gmail is the first provider behind a provider-neutral email scenario. The current working route remains",
+      "The first release supports multiple Gmail accounts, an All inboxes combined view and account-specific filtering/switching behind a minimal provider-neutral email scenario. The current working route remains"
+    ],
+    [
+      "R01 — Familiar mail: account-aware Inbox, All mail, Sent, Drafts, labels, unread/read state, thread reading, archive and reversible organization.",
+      "R01 — Familiar mail: first-release multi-Gmail Inbox, All inboxes, account-specific Inbox, All mail, Sent, Drafts, labels, unread/read state, thread reading, archive and reversible organization."
+    ],
+    [
+      "Unified accounts: include an optional unified view with an account chip on every item and explicit sender in compose. Default to the last used account, never silently change identity. Cost: cross-account sorting, duplicate identity handling and stronger authorization tests.",
+      "Unified accounts: owner-selected first-release requirement as of 14 October 2026 20:59 UTC. Connect multiple Gmail accounts, show a combined All inboxes view and switch/filter to a specific account. First-run default is All inboxes; afterward preserve the user’s explicitly selected viewing scope. Viewing scope is not sending identity. Every unified row identifies its owning account; each account retains independent sync, errors, grants and capabilities. Cost: account-aware queries, partial-result handling and stronger isolation/recovery tests. This supersedes v1.0’s optional-unified design choice."
+    ],
+    [
+      "Slice A — Foundation and read-only client. Qualify integration-hub’s Google capability first; implement account setup, bounded full/incremental sync,",
+      "Slice A — Foundation and read-only client. Qualify integration-hub’s Google capability first; implement multiple Gmail account setup, combined and account-specific views, independent bounded full/incremental sync,"
+    ],
+    [
+      "Each row shows sender or participants, subject, a useful original-body snippet, time, unread marker, attachment cue and restrained classification hints. Account identity appears in unified views.",
+      "Each row shows sender or participants, subject, a useful original-body snippet, time, unread marker, attachment cue and restrained classification hints. Account identity is persistent on every unified row and accessible label. A thread belongs to exactly one account; identical subjects, participants, RFC Message-ID values or provider IDs across accounts never merge conversations or grants."
+    ],
+    [
+      "Compose shows the sending account prominently before recipient entry.",
+      "Compose shows the sending account prominently before recipient entry. Reply/reply-all is bound to the source mailbox and its verified receiving identity/alias; a global last-used account never overrides it. New compose in a specific-account view uses that account visibly. New compose from All inboxes asks for a sending account unless the user deliberately chose an explicit default; do not infer one from sync order, recent background activity or the last message read. Switching the viewing scope leaves an open draft’s account unchanged."
+    ],
+    [
+      "A local draft ID maps separately to the stable provider draft ID and each replaceable provider message ID.",
+      "A local draft is owned by one account_id and maps separately to that account’s stable provider draft ID and each replaceable provider message ID. Draft lookup, autosave and recovery always carry account_id; identical provider IDs in other accounts cannot collide."
+    ],
+    [
+      "Any change to sender or alias, To/Cc/Bcc, subject, body or attachments after approval invalidates that approval.",
+      "Approval binds provider_id, account_id, connection/binding identity, sender/alias, exact recipients, subject, body, attachment identities and target revision. Any change to those fields or the chosen account after approval invalidates that approval."
+    ],
+    [
+      "Search accepts ordinary text and explicit filters for account, sender, recipient, subject, date range, provider label, local project, unread/read, attachment presence/type and sort.",
+      "Search accepts ordinary text and explicit filters for All accounts or one selected account, sender, recipient, subject, date range, provider label, local project, unread/read, attachment presence/type and sort. The visible account scope is carried into exact and semantic requests, pagination, citations and result counts; switching account invalidates old result/cache scope. Provider label filters are namespaced by account and never equate same-named labels across accounts without an explicit user-level mapping."
+    ],
+    [
+      "Account has local identity, provider identity, connection reference, capabilities, selected scopes, status and freshness. Message has provider account/message/thread IDs, immutable or versioned source body/header identity, dates, recipients, labels and source links. Thread is a provider-aware grouping, not a synthetic overwrite of message history.",
+      "Account has stable local account_id, provider_id, provider account identity, Integration Hub connection/binding reference, capabilities, selected scopes, status and freshness. Message and thread keys include provider_id and account_id plus opaque provider IDs; each message, thread, MIME part, attachment, label, draft, classification, proposal, command, receipt, sync cursor, index document and grant carries its owning account_id. Cursor/checkpoint and idempotency scope never cross accounts. Thread is a grouping within one account, not a synthetic cross-account merge or overwrite of message history."
+    ],
+    [
+      "Canonical provider IDs remain opaque strings. Message versions, draft identities and thread identities are not interchangeable.",
+      "Canonical provider IDs remain opaque strings, namespaced by provider_id and account_id. A same-named label, reused cursor token or identical provider thread/message ID in a different account is a different resource. Message versions, draft identities and thread identities are not interchangeable."
+    ],
+    [
+      "D02 — Provider-neutral, Gmail-first. Fixed architecture. Keep provider IDs/capabilities explicit so a Gmail-specific affordance does not contaminate the general model. Tradeoff: additional adapter and contract work; no second-provider build is implied.",
+      "D02 — Minimal provider-neutral, Gmail-first boundary. Fixed architecture, reaffirmed by the owner at 20:59 UTC. Multiple Gmail accounts ship first. Reuse Integration Hub and a small email-owned adapter contract; preserve Gmail-specific label/thread/history/draft semantics behind capability extensions. Future providers can be added without another token store or premature universal connector framework. No non-Gmail provider ships in this release."
+    ],
+    [
+      "D11 — Optional unified inbox. Designer selected. Valuable for everyday use; account badges and explicit sender are mandatory. Default remains last selected scope. No cross-account permission inference.",
+      "D11 — Multiple Gmail accounts and unified Inbox. Owner-selected first-release requirement, 14 October 2026 20:59 UTC, superseding v1.0’s optional-unified designer recommendation. First run opens All inboxes; preserve an explicitly selected account/view thereafter. Unified rows keep account identity; replies bind to the receiving account; new messages choose an explicit sender/default. Per-account authorization, sync and partial results remain independent."
+    ],
+    [
+      "EM09 Accounts — first setup, provider selection, read-only scope, requested capability explanation, consent canceled, connecting, capture progress, complete, unsupported provider and multiple-account identity.",
+      "EM09 Accounts — manage multiple Gmail accounts, first/additional setup, provider selection, read-only scope, requested capability explanation, consent canceled, connecting, per-account capture progress, complete, unsupported provider, account-specific identity/capabilities and removal impact."
+    ],
+    [
+      "A01 — Account boundary. With two accounts and a revoked grant, demonstrate",
+      "A01 — Account boundary. With at least two Gmail accounts, deliberately colliding provider/thread/message/label IDs and a revoked grant, demonstrate"
+    ],
+    [
+      "A15 — Preferred-route cutover. Complete read/search/compose/send/organize/attachment/agent/Planner journeys on a real authorized account, document gaps and fallback.",
+      "A15 — Preferred-route cutover. Complete read/search/compose/send/organize/attachment/agent/Planner journeys on at least two real authorized Gmail accounts, including unified and account-specific routes; document gaps and fallback. A single-account build or read-only foundation slice cannot satisfy first-release full-client acceptance."
+    ],
+    [
+      "Change history: v1.0 establishes the complete design, selected decisions, screen/state requirements, phased build boundaries and acceptance contract. No native implementation, account connection, team enablement or live mailbox mutation is claimed.",
+      "Change history: v1.0 established the complete design, selected decisions, screen/state requirements, phased build boundaries and acceptance contract. v1.1 records the owner’s 20:59 UTC review: the overall design was liked, and multiple Gmail accounts, combined Inbox, explicit account switching/filtering and future-provider extensibility are now explicit first-release requirements. D11’s optional-unified recommendation is superseded; v1.0 artifacts are retained in History. No native implementation, account connection, team enablement or live mailbox mutation is claimed."
+    ]
+  ],
+  "insertions": [
+    {
+      "before": "4. Information architecture and navigation",
+      "text": "3.4 First-release multi-account contract\nR08 — Multiple Gmail accounts are a first-release requirement. All inboxes is a projection across the owner’s permitted connected mailboxes, not a new mailbox, data owner or merged grant. Account-specific Inbox/search/navigation remains available on desktop and mobile. The account chooser lists account identity, selected scope, relevant health and Add account; first run uses All inboxes, then restores the owner’s deliberate last scope.\nA unified list retains a durable account chip/name for every thread. Search results, badges, counts, notification links, reply actions and opened attachments resolve that same owning account. Switching the account filter preserves explicit context and invalidates incompatible search pagination/selection; it never moves messages or drafts. Two copies of the same email in different accounts remain separate account-owned records. Optional related-conversation links can be added later without merging records or authority.\nEach account owns sync cursor, capture/index watermarks, local retention policy, cached content, capabilities and error/reconnect state. Unified results can be partial: name only visible accounts, show which are current, stale, reconnecting or unavailable and which result counts are incomplete. Continue showing authorized cached mail with its timestamp where policy permits. A successful Work sync does not mark Personal current, and one failed account does not blank healthy accounts. When revocation is observed or locally requested, immediately block new access and withdraw that account’s protected content and derived results under policy; do not present cached content as a workaround. Provider revocation can take time to propagate, so show confirmed, pending or unknown status honestly.\nBulk actions over multiple accounts show target groups and per-account supported/authorized actions. The command pipeline splits by owning account, rechecks grants and records per-account receipts and failures. Same-named provider labels are not a universal label; unsupported or denied account actions remain explicit. Retry targets only unresolved eligible items; undo reflects each provider/account’s actual outcome. One account’s success never masks another account’s failure.\nNew account connection is provider-neutral in the interface but offers only Gmail as supported now. Choosing an already connected Google identity updates/renews the existing binding rather than creating a duplicate mailbox. Renewal never broadens scopes automatically; any access expansion follows explicit Integration Hub consent. Adding a different identity creates a new account after explicit identity/capability/mailbox-scope confirmation. Removing or reconnecting one account explains its own local data, drafts, source access and any broader Google-project revocation impact. Unified view does not grant an agent access to every account; each agent request retains its allowed account_ids and collection/object grants.\n"
+    },
+    {
+      "before": "11. Sync, offline behavior and failure recovery",
+      "text": "10.3 Minimal provider-neutral seam\nReuse the existing Integration Hub connection/capability owner and one email-owned provider adapter interface. The adapter covers account identity, advertised capabilities, message/thread/label reads, bounded full/incremental sync, attachment retrieval, and qualified draft/modify/send commands with receipts. Each operation receives an explicit account/connection context and returns provider-native identifiers plus normalized domain records. Do not add a separate connector registry, token store or generic workflow framework solely to anticipate a second provider.\nThe shared model defines only stable mail concepts and the UI’s needed capabilities. Preserve provider extensions for Gmail label unions, history cursors, draft replacement and send uncertainty. A later provider may use folders, different conversation grouping, cursor formats or operation constraints; expose capabilities and clear unsupported states rather than pretending every provider behaves like Gmail. Provider-neutral does not mean lowest-common-denominator rendering or a promise of exact behavioral parity. Future non-Gmail adapters remain out of first-release scope.\nAuthorization keys, search partitions, cache keys, deep links, background jobs and action receipts include provider_id plus account_id and the current grants/revision. No ambient global active account is allowed in the service contract. The visible account chooser is presentation state; it is never authority for a previously created command or draft.\n"
+    },
+    {
+      "before": "16. Acceptance plan and evidence requirements",
+      "text": "MA01 Account chooser — All inboxes, a selected Gmail account, searchable chooser, selected account indicator, readable account health, keyboard/touch selection and restored viewing scope.\nMA02 Add account — generic connection entry with Gmail available now, non-Gmail providers clearly future/unsupported, existing-identity renewal versus new account, consent/callback confirmation and explicit mailbox binding.\nMA03 Account-specific Inbox — selected account header/chip, filtered list/counts/search, account-owned labels/drafts, explicit scoped new-compose sender and return to unified view.\nMA04 Partial unified Inbox — healthy account plus stale/offline/reconnect-required account, per-account freshness, partial counts/results, authorized cached content and grant-withdrawal behavior.\nMA05 New message without a sender — unified compose with Choose sending account, deliberate default setting, account-specific validated selection and no inferred sender from background activity or last-read mail.\n"
+    },
+    {
+      "before": "16.1 Quality targets to qualify",
+      "text": "A16 — Unified/account switching. Connect two Gmail accounts and independently populate Inbox, Sent, Drafts and labels. Verify first-run All inboxes, persisted explicit account filter, correct counts, account badges and desktop/mobile Back restoration. Deliberately reuse provider IDs and subjects; no cross-account thread, label or draft merge is allowed. Search, links and pagination retain the chosen account scope.\nA17 — Partial unified results and recovery. Put one account offline, throttled, stale, reconnect-required and revoked in separate tests. Healthy account mail remains usable; authorized cached stale mail is timestamped; protected revoked content is withdrawn. Unified counts and search coverage disclose incompleteness. Reconnect, remove and duplicate-account detection affect only the intended binding except explicitly disclosed provider-project effects.\nA18 — Sender and multi-account actions. Reply from each source account despite a different global viewing/default account. Start new compose from All inboxes without a default and require account choice; preserve draft identity when switching views. Change account after review and prove approval invalidation. Bulk-label/archive actions split by account, preserve differing labels/capabilities and report partial failure/undo accurately. A send retry or receipt can never target another account.\n"
+    }
+  ],
+  "final_clarification": "Unassigned new-compose text may be recoverably saved locally, without provider draft mapping, send capability or implied account/agent access. Normal account-owned draft rules apply after explicit assignment."
+}

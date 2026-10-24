@@ -4,10 +4,10 @@
     "pattern": "leader-led",
     "leadAgentId": "notification-hub-delivery-orchestrator",
     "reportingMode": "leader",
-    "messagingMode": "in-session",
+    "messagingMode": "async-inbox",
     "capabilities": {
       "showOrgContext": true,
-      "injectInbox": false,
+      "injectInbox": true,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": true,
       "showKnowledgeLogGuidance": true,
@@ -25,12 +25,13 @@
   "effortRefs": [
     "effort:notification-hub-redesign"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "id": "notification-hub-delivery",
+  "homePath": ".vrooli/work/delivery/notification-hub-delivery",
   "kind": "team",
   "lifetime": "finite",
   "mission": "Deliver and independently validate the full selected Notification Hub redesign.",
@@ -40,23 +41,24 @@
     "documents": {
       "planOfRecord": [
         {
-          "id": "notification-hub-benchmark",
+          "id": "product-charter",
           "hub": {
             "base": "repo-root",
-            "path": "docs/internal/delivery-reliability-research/follow-through/BENCHMARK.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/CHARTER.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/internal/delivery-reliability-research/follow-through/BENCHMARK.md"
+              "path": ".vrooli/work/delivery/notification-hub-delivery/CHARTER.md"
             }
           ],
-          "writePolicy": "Owner-approved scope; native team records benchmark evidence without altering acceptance.",
+          "writePolicy": "Operator-owned product intent; retain independent acceptance and source precedence.",
           "consumers": [
             "notification-hub-delivery",
             "effort-supervision"
           ],
-          "useFor": "Complete scope, source precedence, clock and independent acceptance."
+          "useFor": "Product destination, governing sources and commissioning defaults.",
+          "required": true
         },
         {
           "id": "notification-hub-selected-design",
@@ -89,63 +91,30 @@
       ],
       "sharedState": [
         {
-          "id": "hub-goal",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/GOAL.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/STATUS.md"
           },
-          "ownerMemberId": "notification-hub-delivery-orchestrator",
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "hub-queue",
+          "id": "delivery-log",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/QUEUE.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/LOG.md"
           },
-          "ownerMemberId": "notification-hub-delivery-orchestrator",
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "hub-feedback",
+          "id": "delivery-feedback",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/FEEDBACK.md"
           },
-          "ownerMemberId": "notification-hub-delivery-orchestrator",
           "kind": "operator-input",
-          "required": true
-        },
-        {
-          "id": "hub-workarounds",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/WORKAROUNDS.md"
-          },
-          "ownerMemberId": "notification-hub-delivery-orchestrator",
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "hub-installs",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/INSTALLS.md"
-          },
-          "ownerMemberId": "notification-hub-delivery-orchestrator",
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "hub-targets",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/TARGETS.md"
-          },
-          "ownerMemberId": "notification-hub-delivery-orchestrator",
-          "kind": "working-register",
           "required": true
         }
       ]
@@ -153,64 +122,45 @@
     "knowledgeTopics": {},
     "members": {
       "notification-hub-delivery-orchestrator": {
-        "lane": "Own the full Notification Hub delivery through coherent native epochs, independent acceptance and truthful closure; do not implement product work.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/GOAL.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/STATUS.md"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/QUEUE.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/LOG.md"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/FEEDBACK.md"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/WORKAROUNDS.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/epochs"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/INSTALLS.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/evidence"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/TARGETS.md"
-          },
-          {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/epochs/"
-          },
-          {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/archive/"
-          },
-          {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/evidence/"
-          },
-          {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/COVERAGE.md"
-          },
-          {
-            "base": "repo-root",
-            "path": "scenarios/notification-hub/docs/internal/goal/ACCEPTANCE.md"
+            "path": ".vrooli/work/delivery/notification-hub-delivery/archive"
           }
         ],
         "safetyCriticalRules": [
-          "Preserve all BENCHMARK.md requirements and later owner authority rules.",
           "Product implementation belongs to properly admitted native workers; root repair agents must not implement the UX.",
           "Do not accept your own worker output without independent evidence; do not silently lower gates.",
           "Remove superseded owners and duplicated mechanisms where safe; explain necessary additions and retained debt.",
           "Preserve real data, existing consumers, unique test protection and overlapping authored work.",
           "Use governed dependency/generated-artifact/lifecycle routes; actual human-only approvals remain human.",
-          "No identity stripping, grant widening, unauthorized paid services or external publication."
+          "No identity stripping, grant widening, unauthorized paid services or external publication.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,
@@ -220,10 +170,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 3,
+  "revision": 4,
   "runtime": {
-    "mode": "single-process"
+    "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-20T13:25:35Z"
+  "updatedAt": "2026-10-22T14:25:03Z"
 }

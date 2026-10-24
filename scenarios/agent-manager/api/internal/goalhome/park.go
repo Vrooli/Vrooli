@@ -49,7 +49,7 @@ func DecidePark(liveChildren []string, queue Queue, requested time.Duration) Par
 	case len(ready) > 0:
 		return ParkDecision{Rule: ParkRuleAdmissible, Reason: fmt.Sprintf("Admissible-slice rule: %d [ready] slice(s) remain under ## Next; continue independent work before parking on ## Needs operator", len(ready))}
 	case len(queue.NeedsOperator) > 0:
-		decision = ParkDecision{Rule: ParkRuleNeedsOperator, Max: DecisionWait, Reason: fmt.Sprintf("%d item(s) under ## Needs operator, first at QUEUE.md line %d; an answered decision or an explicit wake can resume the run sooner", len(queue.NeedsOperator), queue.NeedsOperator[0].Line)}
+		decision = ParkDecision{Rule: ParkRuleNeedsOperator, Max: DecisionWait, Reason: fmt.Sprintf("%d item(s) under ## Needs operator, first at line %d; an answered decision or an explicit wake can resume the run sooner", len(queue.NeedsOperator), queue.NeedsOperator[0].Line)}
 	default:
 		return ParkDecision{Rule: ParkRuleAdmissible, Reason: "no live direct child and nothing under ## Needs operator. Admissible-slice rule: admit the next [ready] slice (or plan one), or record a decision with options under ## Needs operator, then park"}
 	}

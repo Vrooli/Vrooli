@@ -1,0 +1,204 @@
+{
+  "effortRef": "effort:3132d75d-c3b7-42fd-9441-ba0a0a9e2887",
+  "displayName": "rcl-prompt-manager-ux-design-campaign",
+  "destinationRef": "workspace:rcl-prompt-manager-ux-design-campaign/README.md#outcome",
+  "targetRevision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+  "sourceRevision": "84deff946cb07a1235f44b0de469a0e4378aff5d5e496e26d7926fd3a32dfbc7",
+  "authorityRef": "conversation:user-authorized-team-start-2026-09-14",
+  "subjects": [
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "98aa8564-1b2f-4b22-8e9c-58531edd4cd0",
+      "runId": "98aa8564-1b2f-4b22-8e9c-58531edd4cd0",
+      "role": "orchestrator",
+      "assignment": "Corrected finite-effort wake; owner metadata reconciled and next bounded action must be selected"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "4dcd71e3-d073-4f20-a4cc-f53860dd4c82",
+      "runId": "4dcd71e3-d073-4f20-a4cc-f53860dd4c82",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "b5b0aa1c-9f2d-479b-b317-17af986e0dca",
+      "runId": "b5b0aa1c-9f2d-479b-b317-17af986e0dca",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "392df6e2-bf63-40fe-ab00-cb74e58f65a0",
+      "runId": "392df6e2-bf63-40fe-ab00-cb74e58f65a0",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "279a42e6-fd69-4260-be04-eeeb578533f8",
+      "runId": "279a42e6-fd69-4260-be04-eeeb578533f8",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "e9afc70a-5d43-4320-9d50-09571e948f59",
+      "runId": "e9afc70a-5d43-4320-9d50-09571e948f59",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "e53043c3-15ae-4c06-aadb-5a028b8d9e09",
+      "runId": "e53043c3-15ae-4c06-aadb-5a028b8d9e09",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "f3f7e791-417f-4579-88fe-d74a75bdc048",
+      "runId": "f3f7e791-417f-4579-88fe-d74a75bdc048",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "b6f7c723-973e-4845-82a4-cc0ad89fe2fa",
+      "runId": "b6f7c723-973e-4845-82a4-cc0ad89fe2fa",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "bde9d64c-f3b7-4c5f-a0de-bc1635d026af",
+      "runId": "bde9d64c-f3b7-4c5f-a0de-bc1635d026af",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "7ff5be99-cb43-4599-b8eb-b94c494ee1aa",
+      "runId": "7ff5be99-cb43-4599-b8eb-b94c494ee1aa",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "752bff44-130e-4791-8362-586f58afb828",
+      "runId": "752bff44-130e-4791-8362-586f58afb828",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "ae9f689d-5ac7-495f-9e4c-dd8152454d44",
+      "runId": "ae9f689d-5ac7-495f-9e4c-dd8152454d44",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "83f53acd-753b-4db8-a487-fe1cd1fc1847",
+      "runId": "83f53acd-753b-4db8-a487-fe1cd1fc1847",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "ae1250a6-9bce-4ab2-8d88-526f4ba4bd1e",
+      "runId": "ae1250a6-9bce-4ab2-8d88-526f4ba4bd1e",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "dbc43a27-3af1-4f19-8b00-c12cd48ca054",
+      "runId": "dbc43a27-3af1-4f19-8b00-c12cd48ca054",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "bc1d3756-49b1-4ec1-bb76-3debd56a8a7b",
+      "runId": "bc1d3756-49b1-4ec1-bb76-3debd56a8a7b",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "553d3e27-43da-447b-8846-a4420d9d6ee2",
+      "runId": "553d3e27-43da-447b-8846-a4420d9d6ee2",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "5f50a353-198f-47f1-ba44-517de610c5b9",
+      "runId": "5f50a353-198f-47f1-ba44-517de610c5b9",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "4ed5e880-c4ea-45b3-b2b9-f288a986bec6",
+      "runId": "4ed5e880-c4ea-45b3-b2b9-f288a986bec6",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "2bcefe37-1868-4fcc-bca6-c4f4a71a9904",
+      "runId": "2bcefe37-1868-4fcc-bca6-c4f4a71a9904",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "f281d4ec-c899-47b6-a1d4-1351f4181c02",
+      "runId": "f281d4ec-c899-47b6-a1d4-1351f4181c02",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "4810774d-2743-4c2c-857f-76c2e099cc7e",
+      "runId": "4810774d-2743-4c2c-857f-76c2e099cc7e",
+      "role": "supervisor"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "26670618-f21c-424b-b9ee-5438a3c098f4",
+      "runId": "26670618-f21c-424b-b9ee-5438a3c098f4",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "a7ebd9c4-f01a-4010-91f5-eb0031ffeb9a",
+      "runId": "a7ebd9c4-f01a-4010-91f5-eb0031ffeb9a",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "269214bd-d88f-4820-99e7-099d96f26d31",
+      "runId": "269214bd-d88f-4820-99e7-099d96f26d31",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "agent-manager",
+      "kind": "run",
+      "reference": "8a8185d9-a53e-48e3-ac39-65ab2a4640ed",
+      "runId": "8a8185d9-a53e-48e3-ac39-65ab2a4640ed",
+      "role": "orchestrator"
+    }
+  ],
+  "revision": "383",
+  "workspace": "rcl-prompt-manager-ux-design-campaign",
+  "workShape": "bounded_task",
+  "updatedAt": "2026-09-17T05:30:21.862480965Z"
+}

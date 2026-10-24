@@ -40,13 +40,6 @@ func goalHomeIsV2(dir string) bool {
 	return err == nil
 }
 
-// goalHomeSectionsFile is the file that holds the queue-style sections
-// (## Needs operator / ## Handoff / ## Next / ## Workarounds / ## Censuses):
-// STATUS.md in the canonical runtime format. Legacy QUEUE parsing is import-only.
-func goalHomeSectionsFile(dir string) string {
-	return goalhome.StatusFile
-}
-
 // goalHomeArg splits the leading goal-home path from the flags.
 func goalHomeArg(args []string) (string, []string) {
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -155,7 +148,7 @@ func (a *App) effortMigrate(args []string) error {
 		return printMigrate(result, *jsonOut, "recovered interrupted migration")
 	}
 
-	v1, err := goalhome.Load(os.DirFS(dir))
+	v1, err := goalhome.LoadLegacy(os.DirFS(dir))
 	if err != nil {
 		return fmt.Errorf("goal home %s: %w", dir, err)
 	}
@@ -322,7 +315,11 @@ func printLintReport(dir string, report *goalhome.LintReport) {
 	if report.V2 {
 		goalLabel, queueLabel = goalhome.CharterFile, goalhome.StatusFile
 	}
-	fmt.Printf("Goal home %s: resume set %d of %d bytes (%s %d, %s %d, open FEEDBACK %d, open WORKAROUNDS %d)\n", dir, r.Total, r.Budget, goalLabel, r.Goal, queueLabel, r.Queue, r.OpenFeedback, r.OpenWorkarounds)
+	parts := fmt.Sprintf("%s %d, %s %d, open FEEDBACK %d", goalLabel, r.Goal, queueLabel, r.Queue, r.OpenFeedback)
+	if !report.V2 {
+		parts += fmt.Sprintf(", open WORKAROUNDS %d", r.OpenWorkarounds)
+	}
+	fmt.Printf("Goal home %s: resume set %d of %d bytes (%s)\n", dir, r.Total, r.Budget, parts)
 	for _, finding := range report.Findings {
 		label := "WARN"
 		if finding.Blocking {
@@ -378,7 +375,7 @@ func (a *App) effortHandoff(args []string) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(dir, goalHomeSectionsFile(dir))
+	path := filepath.Join(dir, goalhome.StatusFile)
 	original, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("goal home %s: %w", dir, err)

@@ -1,0 +1,7 @@
+Email scope amendment · 14 October 2026, 20:59 UTC: the owner endorsed the visual direction and selected multiple Gmail accounts for the first full-client release, with a unified All inboxes view and specific-account filtering/switching. Keep the email domain provider-neutral through the existing Integration Hub connection boundary and a minimal provider adapter; only Gmail ships first. Account identity, sync health, permissions, drafts and actions remain isolated, with partial unified coverage visible. Current v1.1 design: Email project entry, specification and visual atlas. The prior v1.0 delivery remains in project history. This amendment records design scope; local import, team activation and live email qualification are not established.
+
+Source map: https://docs.google.com/document/d/1_f-6wZSetVj_AawGdtSdGJet6pvF6dtAflTfyjcs0-0/edit
+Entry: https://docs.google.com/document/d/1bAOrWfuDLas4VABUzXC8H3DOGtGeRdNgvQwfdkV52E4/edit
+Specification: https://docs.google.com/document/d/1b-XsCToyltcrFWZuHQIo-M6DQVOASP6pjafOpPk9nbY/edit
+Atlas: https://docs.google.com/document/d/1FGEwJtpi67XDCfqpzb4FwkL4isVEXRDNhlsC3Q7FtjU/edit
+v1.0 history: https://drive.google.com/drive/folders/1UScrIfcGb9VzlPH6ZsWUffnO2ToYwnEK

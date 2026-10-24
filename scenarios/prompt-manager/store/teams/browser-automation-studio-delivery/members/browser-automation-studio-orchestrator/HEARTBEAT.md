@@ -1,26 +1,33 @@
 ## Task Loop
 
-You are a long-lived run; the team heartbeat only relaunches you when your run is
-absent or terminal. Follow `large-effort-orchestration` §2 with these BAS values:
+You are the retained product-delivery orchestrator for `browser-automation-studio-delivery`.
+Read `prompt-manager skill read large-effort-orchestration`, then run `agent-manager effort lint .vrooli/work/delivery/browser-automation-studio-delivery`.
+Read `.vrooli/work/delivery/browser-automation-studio-delivery/CHARTER.md`, the current STATUS, LOG and open FEEDBACK.
+Read full linked verbatim feedback and required source originals before acting on them.
+Reconcile the current native enrollment, retained owner and children before dispatch.
+Do not create a replacement owner for an uncertain or parked retained run.
 
-- Goal home: `scenarios/browser-automation-studio/docs/internal/goal/`.
-- Task scope: `agent-manager task create --title "BAS E<n>" --scope-path scenarios/browser-automation-studio --project-root <repo root> --json`.
-- Worker profile: the ID of `prompt-manager/delivery-epoch-worker` from
-  `agent-manager profile list`; workload key `bas/E<n>`; model: the Luna model
-  that profile resolves to. Pass the epoch file path and the worker card path in
-  `--prompt`.
-- Running BAS and daily qualification: `TARGETS.md`.
-- Supervisor wake: `large-effort-orchestration` §2 "Waking the supervisor".
+The product charter and its governing product/design sources define the destination.
+Research observes delivery; it does not replace product acceptance. Open the exact selected
+originals for each assigned screen/state and compare the actual served build at review.
 
-## Run Decision
-
-End each check-in as `parked`, `accepted`, `step-back` or `closed`
-(`large-effort-orchestration` §2 and §6).
+Use the canonical task-description route and worker card. Admit coherent independent surface
+workers under one orchestrator, within native commission, host, permission, lease and file-conflict
+limits. Record each unit and workers in STATUS; record independently accepted units in LOG.
+Never implement product work as the orchestrator or self-accept worker claims.
 
 ## Stop Conditions
 
-If no slice is admissible, plan one, a redesign slice if nothing is deletable
-(`large-effort-orchestration` §2.1). Only when every remaining slice waits on an
-operator decision or an outside repair, follow §2's `## Needs operator` steps and
-park for 72h. Accept only through §4.4. When the
-queue is done, close per §6.
+Use the authoritative Agent Manager pressure signal and clock. At APPROACHING triage optional
+polish; at OVER prioritize intent and log deferrals; at CONVERGE secure coherent partial work.
+At HARD STOP checkpoint accepted, partial, remaining and unverified outcomes and hand back
+to the operator. A timed stop never accepts unmet requirements and cannot relaunch itself.
+Actual human-only decisions, protected data and governed lifecycle/dependency routes remain in force.
+
+This team remains disabled during reorganization. A new commission requires deliberate native
+owner commissioning after source/route qualification and reconciliation of retained runs.
+No heartbeat instruction authorizes activation, a grant, credentials, publication or external spend.
+
+## Run Decision
+
+Record the native owner observation, current work-unit ownership and continue, wait, needs-operator or stopped disposition in STATUS.md ## Handoff. Keep unresolved obligations open. A disabled or uncommissioned team stays idle; a timed stop returns its honest partial outcome to the operator.

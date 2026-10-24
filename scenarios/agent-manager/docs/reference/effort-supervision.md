@@ -133,11 +133,50 @@ as `worker` whose parent held E as `orchestrator`. So a check-in can steer the
 workers an earlier check-in started. A child inherits its parent's verified
 effort references as `worker`; `ParentRunID` stays the provenance link.
 
+## Native delivery commission
+
+The existing enrollment owns `delivery`; `effort delivery` composes its revision-checked
+operator mutation rather than creating another store or authorization path.
+
+```bash
+agent-manager effort delivery start --effort-ref <ref> --commission <new-id> --budget 24h --workers 2
+agent-manager effort delivery pause --effort-ref <ref> --reason "named hold"
+agent-manager effort delivery resume --effort-ref <ref>
+agent-manager effort delivery stop --effort-ref <ref> --reason "operator handback"
+agent-manager effort board --effort-ref <ref> --json
+```
+
+Use the existing verified operator path; `--local-owner` is only for an eligible
+local human shell. Metadata reconciliation cannot change a commission. New commissions
+require terminal retained owners; source edits and heartbeat enablement start no clock.
+Pause requires a reason and parked/terminal owners. Disabling heartbeat alone pauses
+neither retained execution nor time. Blocked time counts unless explicitly paused.
+
+| Budget consumed | Native pressure | Behavior |
+| --- | --- | --- |
+| <75% | ON TRACK | Deliver full acceptance intent |
+| 75% | APPROACHING | Stop optional polish; prioritize remaining value |
+| 100% | OVER | Prioritize intent; explicitly defer optional work |
+| 150% | CONVERGE | Secure coherent partial delivery; admit no new scope |
+| 200% | HARD STOP | Fence admission/queued execution; checkpoint and hand back |
+
+The clock survives service restarts and accounts for explicit pauses. A 24h target
+has a 48h hard deadline. The native owner gives two minutes from actual stop
+observation for checkpointing, including late observation after restart, then stops
+remaining commissioned runs and verifies terminal readback before freezing outcomes.
+The decision offers accept-partial, recommission or rescope. Publication, answer and
+acceptance remain distinct facts; no time threshold accepts a product or lowers gates.
+A stopped commission cannot be resumed by heartbeat or a new continuation.
+
+The Efforts UI reads the same board: live surface states and active units,
+commission/pressure, and frozen terminal outcome with its operator decision ID.
+Missing observations remain unknown. A frozen outcome is separate from later live edits.
+
 ## Delivery orchestration commands
 
 These commands serve the epoch model (`large-effort-orchestration`): one
-long-lived orchestrator run per goal that parks between check-ins and starts one
-epoch worker at a time.
+long-lived orchestrator per goal. Independent units may execute concurrently within
+the native commission limit; team heartbeat concurrency is a separate boundary.
 
 | Command | Contract |
 | --- | --- |
@@ -147,7 +186,7 @@ epoch worker at a time.
 | `run tokens <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (default Sol 10, Luna 1; an unknown model weighs 1). Usage that is not final is listed, never counted as zero. |
 | `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 when a step-back fires; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
 | `effort lint <goal home>` | Checks the goal-home rules the orchestrator owns; exit 4 on a failing rule. |
-| `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `QUEUE.md`; exit 4 when refused. |
+| `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `STATUS.md`; exit 4 when refused. |
 | `effort park <goal home> [--run <id>] [--timeout D] [--json]` | Parks the verified calling orchestrator for as long as goal state allows; an explicit run must match its verified identity. Inspect the JSON park status and await handle; exit 4 when refused. |
 
 **Parked-session compaction.** A wake re-sends the parked conversation, and the
@@ -173,12 +212,15 @@ the parent's execution restrictions.
 ## Goal-home commands
 
 `epoch-check`, `lint`, `handoff set` and `park` read a delivery goal home
-(`large-effort-orchestration` §3) through one shared parser,
-`api/internal/goalhome`. `lint` and `handoff set` read and write files only and
+(`large-effort-orchestration` §3) through `api/internal/goalhome`'s current-format
+reader. Runtime operations require CHARTER/STATUS/LOG/FEEDBACK; they do not fall
+back to legacy registers. `effort migrate` is the explicit recoverable legacy import.
+Working epoch briefs remain in `epochs/`; accepted-unit identity and worker
+attribution live in LOG. Start with the [work entry point](../../../../.vrooli/work/README.md). `lint` and `handoff set` read and write files only and
 run without the API. Exit codes: 3 is a worker step-back; 4 is an orchestrator
 refusal (unmet acceptance, failing lint, refused handoff, refused park).
 
-**Acceptance.** An epoch is accepted when its slice log has an `ACCEPTED` line
+**Worker gate check.** A brief reports acceptance when its slice log has an `ACCEPTED` line
 and no directive is dated after that line. Its fired triggers are listed as
 "reported only"; it never exits 3 and never wakes. An open acknowledgement or a
 malformed log line never reopens it. The orchestrator writes:
@@ -190,6 +232,12 @@ ACCEPTED <ISO time> | yield=<±n> <unit> | gates=G1,G3 | <summary>
 `yield=` is the measured result; `gates=` names gates the orchestrator re-ran
 itself. A legacy `ACCEPTED <time> — <summary>` line is still accepted; its
 yield is unknown.
+
+This brief record supports the worker gate check; it is not the product scoreboard.
+After independent acceptance, the orchestrator appends the stable work-unit ID,
+worker UUIDs, timestamp, yield and gates to `LOG.md`. A later LOG reopening retains
+that ID. STATUS lists every independent active unit; a selected summary is not
+an inventory of all workers. Unassessed surfaces stay unassessed until evidenced.
 
 **Typed exit gates.** Items under `## Exit gate`:
 
@@ -235,8 +283,8 @@ remains that sum, for the growth trigger. The estimate is the brief header
 
 | Code | Rule |
 | --- | --- |
-| `resume-budget` | GOAL.md + QUEUE.md + open FEEDBACK (before `## Resolved`) + open WORKAROUNDS exceed 30,000 bytes. A WORKAROUNDS entry is open when its last ` · ` field starts with `open`, or everything before a `## Resolved` heading. |
-| `handoff-count` | QUEUE.md does not have exactly one handoff (any `##`/`###` heading naming a handoff); each one is named with its line. |
+| `resume-budget` | CHARTER.md + STATUS.md + open FEEDBACK (before `## Resolved`) exceed 30,000 bytes. Workarounds are already included in STATUS and counted once; an entry is open when its last ` · ` field starts with `open`, or everything before a resolved heading. |
+| `handoff-count` | STATUS.md does not have exactly one handoff (any `##`/`###` heading naming a handoff); each one is named with its line. |
 | `handoff-size` | The handoff exceeds 4 KB. |
 | `idle-queue` | No `## Next` item has `[ready]` on its first line and `## Needs operator` has no list item or subheading (prose such as "(none; …)" is empty). |
 | `feedback-unacknowledged` | A FEEDBACK `### <ID> — … (<date>, <source>)` entry with `Status: open` from the operator or the supervisor (including supervisor audits), or with no source, is not named in the handoff (in full or without the goal prefix, such as `FB-063`). Entries from other sources are not checked. |
@@ -244,12 +292,12 @@ remains that sum, for the growth trigger. The estimate is the brief header
 
 It does not run inside `epoch-check`, so goal-home state never fails a worker.
 
-**Diminishing returns.** Over the epochs accepted since GOAL.md's
+**Diminishing returns.** Over the units accepted since CHARTER.md's
 `- Destination set: <ISO time>` (all, when absent), the finding fires when:
 - the last 3 accepted epochs each delivered under 25% of their yield estimate;
 - the last 2 entries under `## Censuses`
   (`- <ISO time> | <scope> | admissible=<slice>|none`) found nothing admissible;
-- the gap from `- Current: <n> @ <date>` to `- Destination: <metric> <op> <n>`
+- the gap from STATUS `## Current: <n> @ <date>` to CHARTER `- Destination: <metric> <op> <n>`
   needs more than 30 epochs at the mean yield of the last 3 accepted epochs
   (yields in the destination metric only).
 
@@ -262,7 +310,7 @@ section (temporary file and rename, keeping the mode) and creates it after
 `## Needs operator` when missing. Unchanged text writes nothing. It refuses
 text over 4 KB, text with its own `#`/`##` or handoff heading, a queue with
 more than one handoff (move old ones to `archive/` first; it never deletes
-them), and a QUEUE.md that changed between read and write.
+them), and a STATUS.md that changed between read and write.
 
 **Park.** `effort park <goal home> --json` defaults to the verified calling run; omit `--run`. An explicit `--run` must match that verified identity. Inspect the returned park status and await handle; preserve a nonzero exit or refusal instead of masking it. The command lists the run's direct children and reads `## Needs operator`:
 - a live (non-terminal) child allows up to 1h, a backstop for a hung worker;
@@ -288,6 +336,7 @@ restarts. Kinds:
 | `cap_stop` | Agent Manager: a run of the effort stopped with `stop_reason=token_cap`. |
 | `operator_answer` | Agent Manager: a decision was answered, defaulted, or answered late. |
 | `step_back` | `effort epoch-check --effort <ref>` on STEP_BACK. |
+| `delivery_pressure` | Agent Manager: one native threshold notice per commission/phase; never an acceptance record. |
 | `feedback` | Whoever writes an operator or supervisor FEEDBACK.md entry: `effort signal <ref> --kind feedback --detail "FB-070 …"`. |
 
 `effort signals <ref> [--after N] [--limit 100] [--json]` reads the log after a
@@ -319,20 +368,14 @@ the decision recorded; it is idempotent. `effort decision answer <home> <id>
 `effort decision list` lists them. `--home-ref` names the repository-relative
 goal home when the directory is a copy.
 
-**Board (DL-9).** Register a goal home with `destination_ref =
-"path:<repo-relative goal home>/GOAL.md"` (through `reconcile-metadata`). The
-board then carries a typed `goal_home`: destination and current value, active
-epoch and workers, last acceptance and yield, `## Needs operator` items, open
-workarounds and feedback, unrecorded decisions, mean weighted tokens of the
-last accepted epochs whose workers are all metered, cap usage of active runs,
-and blocking lint codes. A fact that cannot be read is absent and printed
-"unknown", never zero. Active epoch and latest accepted epoch are independent:
-the board gives a reopened epoch (an `ACCEPTED` record followed by a later
-directive) the same active priority as `in-progress`, `parked` or legacy
-`active`, even if its status text still says accepted. The highest-numbered
-epoch wins among those active candidates; next comes one marked `admitted`, then
-the highest-numbered remaining unaccepted epoch. Acceptance is grounded in the
-epoch's `ACCEPTED` record and later-directive rule, not its status text.
+**Board (DL-9).** Register `destination_ref =
+"path:<repo-relative goal home>/CHARTER.md"` through revision-checked metadata
+reconciliation. The board projects destination/current measurement, all active units
+and worker sets, last accepted unit/yield, surface scoreboard, operator decisions,
+open feedback/workarounds, usage/caps, lint and native delivery pressure. Missing
+facts remain unknown. The selected active-unit summary is independent of last
+acceptance and does not replace `active_units`. LOG acceptance and later reopening
+retain stable authored IDs; status text alone never establishes acceptance.
 
 **Token caps (DL-8).** A profile's `maxWeightedTokens` sets an observed-usage
 stop threshold for each of its runs;

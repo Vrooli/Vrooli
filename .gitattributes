@@ -33,3 +33,6 @@
 # relative to `buf build` output (and `git diff`-based drift gates can't see
 # it, since the clean filter applies to both sides).
 *.binpb binary
+# Delivery homes retain original source/feedback bytes and hash-addressed packets.
+# Normalize application code normally; do not rewrite imported evidence on checkout.
+/.vrooli/work/delivery/** -text

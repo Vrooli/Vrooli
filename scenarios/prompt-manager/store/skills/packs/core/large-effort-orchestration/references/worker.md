@@ -5,7 +5,7 @@ the applicable directive IDs, authority, gates, source references, owner/run
 identity and resume set. Read this card and that assignment first. Read the
 epoch sections and evidence needed to understand or verify those requirements;
 read older history or the full epoch when a requirement depends on it. The epoch
-file remains the complete authoritative ledger and `epoch-check` always checks
+file remains the complete worker execution record and `epoch-check` always checks
 that full file. Your prompt names the epoch file, the orchestrator run ID and the
 applicable resume set.
 
@@ -146,10 +146,10 @@ only on owner, asset or scope mismatch, or an unverified identity.
 Then stop adding more of the same. Write about 10 lines under the slice log: why
 the epoch is stuck, what change elsewhere would make it tractable, and whether to
 **park**, **switch** to an enabling slice, or **shrink** the scope. Continue only
-inside a shrunk scope; the orchestrator records the choice in `QUEUE.md`.
+inside a shrunk scope; the orchestrator records the choice in `STATUS.md` `## Next`.
 
 **Broken infrastructure** (sandbox, shadow, Test Genie, Program Runtime, bridge)
-does not block other implementation work. Append a `WORKAROUNDS.md` entry (what
+does not block other implementation work. Append a `STATUS.md` `## Workarounds` entry (what
 failed, the fallback, when to retry), continue unsandboxed in the shared tree or
 restart in a quiet window, and stop retrying that tool. A fallback does not waive
 required proof: use equivalent authorized evidence for the required behavior or

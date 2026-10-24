@@ -20,10 +20,11 @@
   ],
   "enabled": false,
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "id": "rcl-prompt-manager-ux-design-campaign",
+  "homePath": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign",
   "kind": "team",
   "lifetime": "finite",
   "mission": "Deliver a dependable selected React core, intuitive complete design studio and safe adoption/evolution in two real consumers through orchestrated epochs; replace and delete duplicated runtime ownership and operational machinery. The scenario goal home is the only live delivery ledger.",
@@ -36,20 +37,20 @@
           "id": "rcl-goal",
           "hub": {
             "base": "repo-root",
-            "path": "scenarios/react-component-library/docs/internal/goal/GOAL.md"
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/CHARTER.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "scenarios/react-component-library/docs/internal/goal/GOAL.md"
+              "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/CHARTER.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/react-component-library/docs/internal/goal/TARGETS.md"
+              "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/archive/v1/TARGETS.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/react-component-library/docs/internal/goal/HISTORY.md"
+              "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/HISTORY.md"
             }
           ],
           "writePolicy": "Orchestrator maintains the goal home; operator amendments change the destination.",
@@ -113,39 +114,30 @@
       ],
       "sharedState": [
         {
-          "id": "rcl-queue",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/react-component-library/docs/internal/goal/QUEUE.md"
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/STATUS.md"
           },
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "rcl-feedback",
+          "id": "delivery-log",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/react-component-library/docs/internal/goal/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/FEEDBACK.md"
           },
           "kind": "operator-input",
-          "required": true
-        },
-        {
-          "id": "rcl-workarounds",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/react-component-library/docs/internal/goal/WORKAROUNDS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "rcl-installs",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/react-component-library/docs/internal/goal/INSTALLS.md"
-          },
-          "kind": "working-register",
           "required": true
         }
       ]
@@ -164,21 +156,47 @@
         }
       },
       "rcl-delivery-orchestrator": {
-        "lane": "Orchestrate the RCL rehabilitation goal through large-effort-orchestration epochs; own the goal home, admit one outcome or replace-and-delete slice, steer one worker and rerun the acceptance gate.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/archive"
           }
         ],
         "safetyCriticalRules": [
           "Never implement product work; spawn an epoch worker on prompt-manager/delivery-epoch-worker (Luna medium) with run create --until.",
           "Accept an epoch only through the mechanical gate (large-effort-orchestration \u00a74.4); never silently lower a gate so a worker can pass.",
           "Park with --producer children between check-ins; never poll children in a loop or claim to be parked from prompt text.",
-          "Infrastructure never blocks: record a WORKAROUNDS.md entry, use the fallback and stop retrying the broken tool.",
-          "Only the orchestrator authorizes external installs and records them in INSTALLS.md; dependency installs go through Scenario Dependency Analyzer.",
+          "Infrastructure never blocks: record a STATUS.md entry, use the fallback and stop retrying the broken tool.",
+          "Only the orchestrator authorizes external installs and records them in STATUS.md; dependency installs go through Scenario Dependency Analyzer.",
           "Do not use Swarm Manager or Plan Manager, do not run git, and preserve user data and other agents' changes.",
           "Preserve authored designs, saved user data and active consumers; use isolated validation before disruptive restarts. Assets use governed drafts, never release-directory edits.",
-          "Operator execution authorization was granted 2026-10-01 for this exact revision; dispatch governed epochs within its scope. Historical UX acceptance is not rehabilitation acceptance."
+          "Operator execution authorization was granted 2026-10-01 for this exact revision; dispatch governed epochs within its scope. Historical UX acceptance is not rehabilitation acceptance.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,

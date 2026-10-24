@@ -39,7 +39,7 @@ type Rule struct {
 }
 
 // Forecast is the goal-level diminishing-returns check over the epochs
-// accepted since GOAL.md's "Destination set" time.
+// accepted since the charter's "Destination set" time.
 type Forecast struct {
 	Accepted []EpochYield `json:"accepted"`
 	Rules    []Rule       `json:"rules"`
@@ -162,7 +162,7 @@ func emptyCensusRule(censuses []Census) Rule {
 func gapHorizonRule(goal Goal, accepted []EpochYield) Rule {
 	rule := Rule{Name: "gap-horizon"}
 	if goal.Destination == nil || goal.Current == nil {
-		rule.Detail = "not evaluated: GOAL.md needs \"- Destination: <metric> <op> <n>\" and \"- Current: <n> @ <date>\""
+		rule.Detail = "not evaluated: the destination and current measurement are required: \"- Destination: <metric> <op> <n>\" and \"- Current: <n> @ <date>\""
 		return rule
 	}
 	destination := goal.Destination

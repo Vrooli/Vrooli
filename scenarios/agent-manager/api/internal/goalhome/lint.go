@@ -7,7 +7,7 @@ import (
 )
 
 // ResumeBudgetBytes caps the files an orchestrator reads on every resume:
-// GOAL.md, QUEUE.md, open FEEDBACK and open WORKAROUNDS (decision P-06).
+// CHARTER.md, STATUS.md and open FEEDBACK (legacy import counts WORKAROUNDS separately).
 const ResumeBudgetBytes = 30000
 
 // ResumeSet reports the resume-set sizes in bytes.
@@ -66,6 +66,10 @@ func Lint(home *Home) *LintReport {
 	}
 
 	resume := ResumeSet{Goal: home.Goal.Bytes, Queue: home.Queue.Bytes, OpenFeedback: home.Feedback.OpenBytes, OpenWorkarounds: home.Workarounds.OpenBytes, Budget: ResumeBudgetBytes}
+	if home.V2 {
+		// STATUS already includes its workaround section; count each byte once.
+		resume.OpenWorkarounds = 0
+	}
 	resume.Total = resume.Goal + resume.Queue + resume.OpenFeedback + resume.OpenWorkarounds
 	report.ResumeSet = resume
 	if resume.Total > ResumeBudgetBytes {

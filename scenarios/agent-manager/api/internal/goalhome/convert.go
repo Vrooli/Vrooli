@@ -27,30 +27,21 @@ type ConvertResult struct {
 }
 
 // ConvertHome builds the v2 files from a v1 home's raw GOAL.md/QUEUE.md/
-// WORKAROUNDS.md bytes and its parsed *Home (from Load), then self-verifies.
+// WORKAROUNDS.md bytes and its parsed *Home (from LoadLegacy), then self-verifies.
 func ConvertHome(v1 *Home, goalRaw, queueRaw, workaroundsRaw []byte) ConvertResult {
 	charter := buildCharter(goalRaw)
 	status := buildStatus(v1, queueRaw, workaroundsRaw)
 	logData := buildLog(v1)
 
-	v2 := &Home{FileBytes: map[string]int{}, EpochsComplete: true, V2: true}
-	v2.Goal = ParseCharter(charter)
-	st := parseStatus(status)
-	v2.Queue, v2.QueueData, v2.Workarounds, v2.Scoreboard = st.queue, status, st.workarounds, st.scoreboard
-	v2.WorkaroundsKnown = statusWorkaroundsKnown(status)
-	if st.current != nil {
-		v2.Goal.Current = st.current
-	}
-	v2.Feedback = v1.Feedback // FEEDBACK.md is carried unchanged.
-	epochs, ok := parseLog(logData)
-	epochs = mergeActiveUnits(epochs, st.active)
-	v2.Epochs = epochs
-
 	result := ConvertResult{Charter: charter, Status: status, Log: logData}
-	if !ok {
-		result.Divergence = "built LOG.md did not reparse"
+	// Use the same parser as runtime reads, without a second home assembler.
+	v2, err := parseV2(&Home{V2: true, EpochsComplete: true}, charter, status, nil, logData, false)
+	if err != nil {
+		result.Divergence = err.Error()
 		return result
 	}
+	// FEEDBACK.md is carried unchanged, not transformed by conversion.
+	v2.Feedback = v1.Feedback
 	if diff := diffBoardFacts(projectFacts(v1), projectFacts(v2)); diff != "" {
 		result.Divergence = diff
 		return result

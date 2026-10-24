@@ -140,7 +140,7 @@ func (a *App) decisionRaise(args []string) error {
 	if err != nil {
 		return err
 	}
-	queuePath := filepath.Join(dir, goalHomeSectionsFile(dir))
+	queuePath := filepath.Join(dir, goalhome.StatusFile)
 	queue, err := os.ReadFile(queuePath)
 	if err != nil {
 		return fmt.Errorf("goal home %s: %w", dir, err)
@@ -412,7 +412,7 @@ func (a *App) decisionSync(args []string) error {
 		Detail   string `json:"detail,omitempty"`
 	}
 	var results []synced
-	feedbackPath, queuePath := filepath.Join(dir, goalhome.FeedbackFile), filepath.Join(dir, goalHomeSectionsFile(dir))
+	feedbackPath, queuePath := filepath.Join(dir, goalhome.FeedbackFile), filepath.Join(dir, goalhome.StatusFile)
 	// Oldest first, so FEEDBACK.md lists answers newest on top.
 	decisions := response.GetDecisions()
 	for i := len(decisions) - 1; i >= 0; i-- {

@@ -82,7 +82,8 @@ history; it is not a second prose enforcement catalog.
 
 ## Allowed `.vrooli/` Surface
 
-Project-level `.vrooli/` is reserved for repo-owned metadata and one local build output directory.
+Project-level `.vrooli/` holds repo-owned metadata, local build output, and the
+explicit delivery-authoring surface below.
 
 Allowed tracked entries:
 
@@ -90,6 +91,12 @@ Allowed tracked entries:
 - `.vrooli/service.json`
 - `.vrooli/schemas/**`
 - `.vrooli/resources/**`
+- `.vrooli/work/delivery/**` — product charters, feedback and authoritative source
+  references; its allowlist entry is `layout.project_config_allowlist: work`.
+  STATUS, LOG, receipts and raw evidence remain local and Git-ignored. This
+  approved hybrid authoring home does not permit native owner databases, host
+  lifecycle markers or commission clocks in project configuration. Those stay
+  with their runtime owners. See the [work entry point](../.vrooli/work/README.md).
 
 Allowed local-only entry:
 

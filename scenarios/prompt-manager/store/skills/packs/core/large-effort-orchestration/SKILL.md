@@ -1,6 +1,6 @@
 ---
 name: large-effort-orchestration
-description: Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs through a mechanical gate. Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.
+description: Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs by recording the accepted unit in the goal home's LOG.md. State lives in the v2 goal home (CHARTER.md destination, STATUS.md scoreboard and queue, LOG.md accepted units, FEEDBACK.md). Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.
 license: CC-BY-4.0
 metadata:
   kind: skill
@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 56
+  revision: 58
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-21T02:00:07Z"
+  updatedAt: "2026-10-23T00:00:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -58,10 +58,11 @@ goal home, with backoff and a cap, when it has ended.
 
 1. **Resume.** Run `agent-manager effort lint <goal home>` first. Each open
    FEEDBACK entry it names is new steering, and it outranks the handoff: act on
-   it this check-in. Then read `GOAL.md`, `QUEUE.md`, the active epoch file and
-   `WORKAROUNDS.md`. Your run ID is `.claims.run_id` in
+   it this check-in. Then read `CHARTER.md`, `STATUS.md` (its `## Workarounds`
+   section included), `LOG.md` (the last accepted units for the Forecast) and the
+   active epoch file. Your run ID is `.claims.run_id` in
    `agent-manager run identity --json`.
-2. **Admit.** When no epoch is active, take the next `QUEUE.md` slice, write its
+2. **Admit.** When an independent worker slot is available, take the next `STATUS.md` slice, write its
    brief (§4.2) and set its gates. If an epoch has a live worker, do not replace
    or broaden its admitted scope to plan future slices. Use §2.1 to prepare
    remaining work during a due or changed check-in.
@@ -77,7 +78,7 @@ goal home, with backoff and a cap, when it has ended.
    destination, plan first (§2.1).
 Before dispatch, recheck the cited failure and relevant source hash; reconcile fixes already present, and refresh the brief so it names only work still required.
 
-3. **Spawn.** If the active epoch has no live worker:
+3. **Spawn.** If an admitted independent unit has no live worker and native commission capacity is available:
    Put the complete worker prompt in the task description. This CLI accepts
    `--description` as a string and has no file flags for task descriptions or
    run prompts. From Bash, read the brief file into one quoted argument:
@@ -148,7 +149,7 @@ Before dispatch, recheck the cited failure and relevant source hash; reconcile f
    home rather than relying on memory, and keep check-ins short, because each
    wake costs a re-orientation. Never claim to be parked from prompt text.
 5. **On wake.** Treat every wake as a resume: repeat step 1 and reconcile open FEEDBACK entries,
-   `QUEUE.md`/handoff, and parked-slice return conditions against current native child and
+   `STATUS.md`/handoff, and parked-slice return conditions against current native child and
    external-owner state before choosing an action; a timer wake with no change writes nothing
    and parks again. Before assessing source drift, select the exact admitted worker run from
    current Agent Manager state and read its terminal return. Compare that attempt's final source
@@ -160,13 +161,13 @@ Before dispatch, recheck the cited failure and relevant source hash; reconcile f
    idle worker that has handed off but still shows as running
    (`agent-manager run stop <id>`). Then do exactly one of: park again, write a
    directive, direct a step-back, spawn a successor, or accept (§4.4).
-6. After acceptance, move the slice to done in `QUEUE.md`, update the Forecast
+6. After acceptance, move the slice to done in `STATUS.md`, update the Forecast
    (§2.1) and go to step 2.
 
 #### 2.1 Forecast and planning
 
-The queue serves the destination in `GOAL.md`; an empty queue is not a finished
-goal. Keep one `## Forecast` section at the top of `QUEUE.md`, rewritten at every
+The queue serves the destination in `CHARTER.md`; an empty queue is not a finished
+goal. Keep one `## Forecast` section at the top of `STATUS.md`, rewritten at every
 acceptance:
 - the destination metric now, its target and the gap;
 - per accepted epoch of the last five: actual result against the brief's estimate;
@@ -175,7 +176,7 @@ acceptance:
 
 Plan new slices when the scaled queue cannot close the gap or fewer than two
 admissible slices remain. Measure progress against the destination metric in
-`GOAL.md`; measure module budgets and start with the largest gaps. For goals that
+`CHARTER.md`; measure module budgets and start with the largest gaps. For goals that
 target simplification or debt reduction, prefer removing whole features, files,
 duplicate surfaces or unnecessary ownership over moving ownership alone. Every
 slice names its intended end state, a deletion list with an explicit reason when
@@ -188,7 +189,7 @@ Do not defer remaining-scope planning until a live worker returns. If the
 remaining destination has no ordered, estimated path, use a due or changed
 check-in and current goal, queue, benchmark and owner evidence to plan coherent
 remaining slices and their critical path. Record proposed slices and estimates
-in `QUEUE.md` as unadmitted work. Preserve the active brief and gates. Do not
+in `STATUS.md` as unadmitted work. Preserve the active brief and gates. Do not
 repeat unchanged reads or checks. Reconcile the active worker's actual return
 before dispatching a prepared slice, and obey the configured concurrency and
 resource policy.
@@ -218,8 +219,8 @@ validation scope, and expected delivery benefit. Select the strongest justified
 change; do not limit the search to the current diff or invent a framework to meet
 a deletion target. Research is decision input, not completed debt reduction.
 
-Route parallel implementation and research through the current epoch worker's
-permitted delegation and admitted scope. This does not authorize an additional
+Within one epoch, route parallel implementation and research through that worker's
+permitted delegation and admitted scope. Independent epochs may run concurrently within the commissioned bound; every commissioned descendant counts toward it. This does not authorize an additional
 goal worker for the same epoch or a second effort leader. Work outside that brief
 needs the normal scope amendment or admission as a later slice/epoch. Independent
 acceptance remains a separate review; the implementer cannot accept its own work.
@@ -231,7 +232,7 @@ cleanup bounded so useful delivery continues; the orchestrator retains acceptanc
 
 An outside-owner dependency may delay its required check or affected slice, not
 other admissible work. Keep the check and slice open under `## Waiting on others`
-in `QUEUE.md`, with the unmet gate and return condition. Continue other admissible
+in `STATUS.md`, with the unmet gate and return condition. Continue other admissible
 slices, then resume the remainder when that condition changes. Do not accept the
 epoch or mark its slice done until its required gates and assigned outcome pass.
 Scope changes use the authorized amendment route and preserve the approved
@@ -259,13 +260,13 @@ or external return remains, park on its real condition. Do not keep the
 orchestrator live for future work or repeat unchanged planning. Only when every
 remaining slice really waits on an operator decision or an outside repair:
 1. Put the decisions needed, with options and your recommendation, under
-   `## Needs operator` at the top of `QUEUE.md`.
+   `## Needs operator` at the top of `STATUS.md`.
 2. For each genuine operator choice that blocks the outcome, use the native
    `agent-manager effort decision raise` route described in
    `path:scenarios/agent-manager/docs/reference/effort-supervision.md` under
    Decisions (DL-5). Use a stable unique ID, factual question and viable options;
    keep any recommendation tied to evidence. Record the returned ID, pending
-   state and event-publication status. An item in `QUEUE.md` alone is not a
+   state and event-publication status. An item in `STATUS.md` alone is not a
    notified decision; if publication is pending or failed, retain that state and
    follow the owner contract. Do not raise decisions for plain status notes or
    waits on an external repair, repeat a decision to send another notification,
@@ -278,7 +279,7 @@ remaining slice really waits on an operator decision or an outside repair:
 
 Never poll children in a loop.
 
-**Handoff.** `QUEUE.md` holds one `## Handoff` section (what changed, what was
+**Handoff.** `STATUS.md` holds one `## Handoff` section (what changed, what was
 verified, what remains, the exact next action). Replace it only with
 `agent-manager effort handoff set <goal home> --file <path>` at each check-in
 that changed something; name every open FEEDBACK entry in it. A timer wake that finds no
@@ -321,27 +322,73 @@ a parked run. An existing authorized caller may run
 `agent-manager run wake --key <orchestrator run ID>` for an immediate resume;
 otherwise the run resumes through its normal producer or deadline wake.
 
+### 2.2 Parallel delivery and the owner clock
+
+Agent Manager owns the operator-commissioned budget, active time, pause reason and worker limit.
+Read `agent-manager effort board --effort-ref <ref> --json`; use its deliveryPressure, not an
+elapsed-time claim in STATUS. The clock and policy survive service restarts. The operator uses
+`agent-manager effort delivery start|pause|resume|stop`; metadata reconciliation cannot reset them.
+A team enablement alone does not commission delivery. Reconcile retained owners before a new
+commission. Keep one orchestrator; admit independent whole-surface workers within native capacity.
+The team member queue and the native child-worker bound are separate controls.
+
+Record every independent active unit as its own `- unit: ... status: ... workers: ...` line under
+STATUS `## Active`; preserve its stable ID. Keep file, lease and host conflicts serialized. A
+worker's completion does not accept its surface; an independent reviewer records evidence first.
+Use the per-surface states unassessed, queued, rough, close and accepted. An unknown assessment
+remains unassessed, and accepted units do not automatically accept whole surfaces.
+
+The native pressure signal is ON TRACK before 75%, APPROACHING at 75%, OVER at 100%, CONVERGE
+at 150%, and HARD STOP at 200%. Triage optional polish, then prioritize intent, then secure a
+coherent partial result. Log optional deferrals; never relabel an unmet requirement as accepted.
+At HARD STOP admit no new work and checkpoint accepted, partial, remaining and unverified outcomes.
+The native owner allows two minutes after it first observes the stop for checkpointing, including after a restart. The original hard deadline still refuses new and queued product work. It stops remaining commissioned runs, records
+an immutable outcome snapshot and the terminal STATUS observation, and raises the existing operator
+decision. The operator can accept the evidenced partial result, recommission or change scope.
+A stopped commission cannot relaunch through heartbeat or continuation. Time does not accept work.
+Pausing requires a reason and parked/terminal retained owners; a disabled heartbeat alone does not
+pause active execution. Stop and finalize before withdrawing an enrollment. Read the current producer state after any neutral pressure check-in.
+
 ### 3. Goal home
 
-Scenario goals live in `scenarios/<scenario>/docs/internal/goal/`; other goals in
-one dedicated folder. The goal home is the only ledger for the effort.
+Delivery-team goal homes live in the central work root,
+`.vrooli/work/delivery/<team-id>/` (operator decision 2026-10-23), so an effort
+spanning several scenarios no longer squats in one product tree. The team record
+in the Prompt Manager store links to it via `homePath`, and the Agent Manager
+enrollment's `destination_ref` is the authority the supervisor reads. The work entry point (`path:.vrooli/work/README.md`) lists retained managed plans and
+historical fixtures separately; do not convert their work model just because the team
+is finite. The goal home is the product ledger; the enrollment owns the clock.
+Current charters and commissions supersede historical scheduling/benchmark directions,
+while retained product constraints and human decisions remain operative. Archived research
+benchmarks observe delivery; their process gates do not become product acceptance gates.
+
+The v2 goal home has four board-state files the supervisor reads, plus one
+working file per active epoch. `CHARTER.md`, `STATUS.md` and `LOG.md` replace the
+retired `GOAL.md`/`QUEUE.md`/`WORKAROUNDS.md`/`INSTALLS.md`/`TARGETS.md` registers.
 
 ```
 goal/
-  GOAL.md          destination, stakes, constraints, links (≤ 2 KB)
-  QUEUE.md         ordered next slices, parked slices with return conditions, done list
-  epochs/E<n>.md   brief + Directives + Slice log (one file per epoch)
+  CHARTER.md       destination metric, time budget, acceptance intent, constraints,
+                   non-goals, links (operator-owned goal definition; ≤ 2 KB)
+  STATUS.md        the live board: ## Scoreboard, ## Current, ## Active, ## Forecast,
+                   ## Needs operator, ## Handoff, ## Next, ## Waiting on others,
+                   ## Workarounds, ## Validation targets, ## Installs
+  LOG.md           append-only accepted-unit ledger: ## Accepted units (one line per
+                   accepted epoch, with its run UUIDs, yield and gates) and ## Reopened
   FEEDBACK.md      operator and supervisor feedback verbatim (orchestrator-owned)
-  WORKAROUNDS.md   broken-infrastructure log for the supervisor
-  INSTALLS.md      external tools installed for the goal, with cleanup rule
-  TARGETS.md       validation targets and tiers
+  epochs/E<n>.md   one working file per epoch: brief + Directives + Slice log
 ```
 
-Keep the files you read on every resume (`GOAL.md`, `QUEUE.md`, open
-`FEEDBACK.md`, open `WORKAROUNDS.md`) under 30 KB together. When they grow past
-that, move done slices, resolved entries and census evidence to
-`goal/archive/`, leaving a one-line pointer. Archive history; never delete a
-ledger.
+`STATUS.md` absorbs the old queue, workarounds, installs and validation-target
+registers as named sections. `LOG.md` is the authority for anything
+billing-adjacent: cost per accepted unit is read from its `## Accepted units`
+worker UUIDs, so a unit's acceptance is recorded there, not in the epoch file.
+The epoch file stays the worker's working ledger for `epoch-check`.
+
+Keep the files you read on every resume (`CHARTER.md`, `STATUS.md`, open
+`FEEDBACK.md`) under 30 KB together. When they grow past that, move done slices,
+resolved entries and census evidence to `goal/archive/`, leaving a one-line
+pointer. Archive history; never delete a ledger.
 
 ### 4. The epoch standard
 
@@ -381,23 +428,25 @@ append-only sections.
 
 ## Modules and budgets
 ## Deletion list        (refactor: each concrete file, symbol or pattern from the
-                        QUEUE slice with its end state: deleted, generated, or ≤ N lines)
+                        STATUS ## Next slice with its end state: deleted, generated, or ≤ N lines)
 ## Exit gate            (exact commands, affected journeys, growth budget)
 ## Non-goals
 ## Directives
 ## Slice log
 ```
 
-Only the orchestrator writes the brief, Directives and the `ACCEPTED` line; only
-the worker writes other slice-log lines. Work units, the slice-log line, the
+The epoch file is the worker's working ledger; its acceptance is recorded in
+`LOG.md`, not in this file. Only the orchestrator writes the brief and Directives;
+only the worker writes slice-log lines. Work units, the slice-log line, the
 growth budget and the step-back triggers are defined once, in the worker card.
-Terms: a **slice** is a `QUEUE.md` entry that becomes an epoch; a **work unit**
-is one checked change, logged as one slice-log line.
+Terms: a **slice** is a `STATUS.md` `## Next` entry that becomes an epoch; a
+**work unit** is one checked change, logged as one slice-log line; an **accepted
+unit** is an accepted epoch, recorded as one `LOG.md` `## Accepted units` line.
 
 #### 4.3 Step-back backstop
 
 If a worker misses a fired trigger, write the step-back as a directive. Record
-every park, switch or shrink in `QUEUE.md` with its reason and return condition.
+every park, switch or shrink in `STATUS.md` with its reason and return condition.
 Calibrate K and the spend threshold from the first three epochs' logs. Never stop
 the goal; park instead.
 
@@ -430,26 +479,36 @@ Independently inspect retained owner artifacts, source applicability and actual
 proof for each gate; a worker's report alone is not evidence. Rerun gates only
 when inputs changed or evidence is missing, stale, partial or leaves material
 risk unresolved, following `path:docs/TESTING.md`; reuse valid owner evidence for
-unchanged inputs. The `QUEUE.md` slice is done only when its full assigned
+unchanged inputs. The `STATUS.md` slice is done only when its full assigned
 outcome and deletion list pass. If work must
 be repartitioned, use the authorized amendment route and put the unfinished
-remainder at the top of `QUEUE.md` with its unmet gates and return condition.
+remainder at the top of `STATUS.md` with its unmet gates and return condition.
 Keep the original outcome open until every partition passes; do not claim the
 original outcome accepted or mark its slice done on partial work. Then run
 `git-control-tower proposal create --effort effort:<slug> --epoch E<n>
 --subject '<scenario>: <outcome> (E<n>)' --body-file <body> --path <file>…
 --run <worker run> --run <your run> --json`. The body states the outcome, the
-deletion-list result, the gates and the metric delta. Record
-`ACCEPTED <time> <summary>` as the final log line and cite the returned
-`gctp-…` ID; the operator approves the proposal in Git Control Tower. That line is the denominator for
-cost per accepted epoch.
+deletion-list result, the gates and the metric delta. Then append one accepted-unit
+line to `LOG.md` `## Accepted units`:
+
+```
+- E<n> | ACCEPTED <ISO time> | workers=<run UUID[,run UUID]> | yield=<±n> <unit> | gates=G1,G2 | <summary>
+```
+
+Cite the returned `gctp-…` ID in the summary; the operator approves the proposal
+in Git Control Tower. The `workers=` UUIDs are the denominator for cost per
+accepted unit, so they must be the exact worker run IDs. If an accepted unit is
+later reopened, add a `LOG.md` `## Reopened` line (`- E<n> | <ISO time>`) dated
+after its acceptance; the board then treats it as active again. Set the epoch's
+`## Active` entry in `STATUS.md` while it is in progress and clear it on
+acceptance.
 
 Gates are set at admission. Amend one only with a recorded reason (too strict,
 incorrect, or requiring a different proof route); never lower a gate so a worker
 can pass. When a tool is unavailable, use equivalent authorized evidence that
 proves the same required behavior when available. If no equivalent proof is
 available, keep the gate and affected outcome open, log the tool and return
-condition in `WORKAROUNDS.md` and `QUEUE.md`, and continue other admissible work.
+condition in `STATUS.md` `## Workarounds`, and continue other admissible work.
 Tool availability can change the proof route; it does not waive required proof
 or the approved outcome.
 
@@ -462,20 +521,21 @@ is per-run change tracking, not containment.
 
 **External tools.** Only the orchestrator authorizes an install outside the
 project's scenarios and resources, and records the tool, size, reason and cleanup
-rule in `INSTALLS.md`. Dependency installs still go through Scenario Dependency
-Analyzer. Before the goal completes, stop everything it started outside the
-project and uninstall large goal-only installs.
+rule under `STATUS.md` `## Installs`. Dependency installs still go through Scenario
+Dependency Analyzer. Before the goal completes, stop everything it started outside
+the project and uninstall large goal-only installs.
 
 **Validation targets.** At goal start, find which platforms and builds can
-realistically be validated. Record each in `TARGETS.md` as `required`,
-`occasional` or `unavailable`, and change tiers on new evidence. An unavailable
-target does not block other admissible work. If it prevents proof of a required
-outcome and no equivalent authorized evidence is available, keep that outcome
-open with its return condition; log it for the supervisor.
+realistically be validated. Record each under `STATUS.md` `## Validation targets`
+as `required`, `occasional` or `unavailable`, and change tiers on new evidence. An
+unavailable target does not block other admissible work. If it prevents proof of a
+required outcome and no equivalent authorized evidence is available, keep that
+outcome open with its return condition; log it for the supervisor.
 
 **Daily qualification.** Once a day, run the goal's qualification command from
-`TARGETS.md` against the goal's shadow copy and record the result in the active
-epoch's log. A new failure becomes a `QUEUE.md` item. If it shows that current
+`STATUS.md` `## Validation targets` against the goal's shadow copy and record the
+result in the active epoch's log. A new failure becomes a `STATUS.md` `## Next`
+item. If it shows that current
 evidence for an accepted outcome is invalid or no longer applies, reopen that
 affected claim through the existing route and keep it unverified until current
 proof passes. Preserve historical receipts and accepted snapshots.
@@ -517,7 +577,7 @@ member heartbeat remain disabled:
 1. **Integrate the target.** Reconcile the applicable canonical PRD, requirements,
    experience and design records with authorized selections. Preserve source
    precedence; distinguish desired from implemented state, selected from candidate
-   references, and historical observations from current facts. Write `GOAL.md`
+   references, and historical observations from current facts. Write `CHARTER.md`
    with the destination, constraints and decisions linked to these canonical
    sources; it must not become a competing specification.
 2. **Deliver the materials.** Make every required image and other reference file
@@ -587,7 +647,7 @@ that the product contract does not set.
 
 For an active team, send a source/material correction through short verbatim
 `FEEDBACK.md` (§2), with changed versions, requirement/acceptance impact and the
-receipt. The leader reconciles `QUEUE.md` and epoch directives; use the supported
+receipt. The leader reconciles `STATUS.md` and epoch directives; use the supported
 native wake when parked and retain its acknowledgment. Keep the existing owner
 and native safeguards. Do not stop, restart or replace a team to deliver materials.
 
@@ -600,7 +660,7 @@ does not require recovering the author's cloud conversation.
 For a lost run, runner exhaustion or an uncertain dispatch, read the recovery
 reference. A terminal orchestrator run is not goal completion.
 
-Close only when the destination in `GOAL.md` is met, or every remaining gap is
+Successful product closure requires the destination in `CHARTER.md`. A native timed stop is a truthful partial handback, not successful product closure. Outside a timed stop, close only when the destination is met or every remaining gap is
 parked on an operator decision with the Forecast saying so; an empty queue with an
 open gap means plan (§2.1), not close. On close: stop external
 processes, clean up installs, list open workarounds and unverified targets, disable

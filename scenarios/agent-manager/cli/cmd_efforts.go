@@ -122,31 +122,44 @@ func (a *App) cmdEffort(args []string) error {
 			return fmt.Errorf("decode effort request: %w", err)
 		}
 	}
-	service := a.services.Watches
-	if *localOwner {
-		if !mutation && command != "discover" {
-			return fmt.Errorf("--local-owner is only for explicit operator mutations")
-		}
-		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
-			return fmt.Errorf("--local-owner is unavailable inside an identified agent run; drop --local-owner and use the run's granted authority (an interactive session can ask the owner: vrooli agent authorize <session> --policy effort-metadata --target agent-manager:effort/<name>)")
-		}
-		if scoped, ok := request.(interface{ GetAuthority() pb.WatchAuthority }); ok && scoped.GetAuthority() != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
-			return fmt.Errorf("--local-owner requires operator authority")
-		}
-		if err := cliutil.ConfirmLocalOwnerEligible(context.Background()); err != nil {
-			return fmt.Errorf("local owner caller authority unavailable: %w", err)
-		}
-		login, err := authn.ExchangeLocalMachinePrincipal(context.Background())
-		if err != nil {
-			return fmt.Errorf("local owner exchange unavailable: %w", err)
-		}
-		service = &WatchService{api: service.api.WithToken(login.Tokens.AccessToken)}
+	if *localOwner && !mutation && command != "discover" {
+		return fmt.Errorf("--local-owner is only for explicit operator mutations")
+	}
+	service, err := a.effortService(*localOwner, request)
+	if err != nil {
+		return err
 	}
 	body, err := service.call(path, request, response)
 	if err != nil {
 		return apiError(body, err)
 	}
-	if *jsonOut {
+	return printEffortResponse(command, *jsonOut, response, body)
+}
+
+// effortService retains the same operator exchange and ambient agent credentials.
+func (a *App) effortService(localOwner bool, request proto.Message) (*WatchService, error) {
+	service := a.services.Watches
+	if localOwner {
+		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+			return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use this operation's supported owner or granted-agent path")
+		}
+		if scoped, ok := request.(interface{ GetAuthority() pb.WatchAuthority }); ok && scoped.GetAuthority() != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
+			return nil, fmt.Errorf("--local-owner requires operator authority")
+		}
+		if err := cliutil.ConfirmLocalOwnerEligible(context.Background()); err != nil {
+			return nil, fmt.Errorf("local owner caller authority unavailable: %w", err)
+		}
+		login, err := authn.ExchangeLocalMachinePrincipal(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("local owner exchange unavailable: %w", err)
+		}
+		service = &WatchService{api: service.api.WithToken(login.Tokens.AccessToken)}
+	}
+	return service, nil
+}
+
+func printEffortResponse(command string, jsonOut bool, response proto.Message, body []byte) error {
+	if jsonOut {
 		cliutil.PrintJSON(body)
 		return nil
 	}
@@ -204,16 +217,12 @@ func (a *App) effortDelivery(args []string) error {
 	if (action == "pause" || action == "stop") && strings.TrimSpace(*reason) == "" {
 		return errors.New("pause and stop require --reason")
 	}
-	if *localOwner {
-		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
-			return errors.New("--local-owner is unavailable inside an identified agent run")
-		}
-		if err := cliutil.ConfirmLocalOwnerEligible(context.Background()); err != nil {
-			return err
-		}
+	service, err := a.effortService(*localOwner, &pb.EnrollEffortRequest{})
+	if err != nil {
+		return err
 	}
 	board := &pb.EffortBoard{}
-	if _, err := a.services.Watches.call(apiconnect.AgentManagerServiceGetEffortBoardProcedure, &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: 1}, board); err != nil {
+	if _, err := service.call(apiconnect.AgentManagerServiceGetEffortBoardProcedure, &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: 1}, board); err != nil {
 		return err
 	}
 	if len(board.Rows) != 1 || board.Rows[0].GetEnrollment().GetEffortRef() != *ref {
@@ -240,30 +249,13 @@ func (a *App) effortDelivery(args []string) error {
 	if *key == "" {
 		*key = fmt.Sprintf("delivery:%s:%s:%s:%d", *ref, e.Delivery.CommissionId, action, e.Revision)
 	}
-	body, err := protojson.Marshal(&pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: *key})
+	request := &pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: *key}
+	response := &pb.EffortEnrollment{}
+	body, err := service.call(apiconnect.AgentManagerServiceEnrollEffortProcedure, request, response)
 	if err != nil {
-		return err
+		return apiError(body, err)
 	}
-	f, err := os.CreateTemp("", "delivery-enrollment-*.json")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err := f.Write(body); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	next := []string{"enroll", "--request-file", f.Name()}
-	if *localOwner {
-		next = append(next, "--local-owner")
-	}
-	if *jsonOut {
-		next = append(next, "--json")
-	}
-	return a.cmdEffort(next)
+	return printEffortResponse("enroll", *jsonOut, response, body)
 }
 
 func printDeliveryPressure(p *pb.EffortDeliveryPressure) {
@@ -454,7 +446,6 @@ func printGoalHome(g *pb.EffortGoalHome) {
 	for _, unit := range g.ActiveUnits {
 		fmt.Printf("      Unit %s: %s workers=%s\n", unit.UnitId, unit.Status, effortKnown(strings.Join(unit.Workers, ",")))
 	}
-
 }
 
 func effortKnown(value string) string {

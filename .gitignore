@@ -591,3 +591,92 @@ scenarios/react-component-library/ui/.catalog-conformance-*/
 /docs/internal/delivery-operations/*/sources/execution-evidence/
 /docs/internal/external-knowledge-delivery/email-design-v1.1/visual-originals/renders/
 /docs/internal/external-knowledge-delivery/email-design-v1.1/visual-originals/boards/
+
+# Delivery research keeps authored findings and compact follow-through
+# manifests in Git. Raw source archives, run outputs, source-byte snapshots, and
+# duplicate patch artifacts remain local. GCT path snapshots are metadata-only
+# by default and expire under their bounded lease; estimate a small exact subset.
+/docs/internal/delivery-reliability-research/sources/**
+!/docs/internal/delivery-reliability-research/sources/**/
+!/docs/internal/delivery-reliability-research/sources/**/*.md
+!/docs/internal/delivery-reliability-research/sources/**/SHA256SUMS*
+!/docs/internal/delivery-reliability-research/sources/**/*sha256sum*.txt
+!/docs/internal/delivery-reliability-research/sources/**/*.sha256
+
+# Historical capture directories are raw work products, including their copied
+# Markdown receipts. Curated findings remain at sources/*.md and in follow-through.
+/docs/internal/delivery-reliability-research/sources/*logs/
+
+/docs/internal/delivery-reliability-research/follow-through/evidence/**
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/*.md
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/manifest.json
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/source-map.json
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/SHA256SUMS*
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/*sha256sum*.txt
+!/docs/internal/delivery-reliability-research/follow-through/evidence/**/*.sha256
+
+# Markdown copied into source archives and evidence preimage trees is still a
+# snapshot, not authored findings. Root status-file copies are likewise local;
+# the current canonical GOAL/QUEUE/ACCEPTANCE/RESUME files remain visible above.
+/docs/internal/delivery-reliability-research/sources/**/preimage/
+/docs/internal/delivery-reliability-research/sources/**/preimages/
+/docs/internal/delivery-reliability-research/sources/**/candidate/
+/docs/internal/delivery-reliability-research/sources/**/candidates/
+/docs/internal/delivery-reliability-research/sources/**/snapshot/
+/docs/internal/delivery-reliability-research/sources/**/snapshots/
+/docs/internal/delivery-reliability-research/sources/**/src/
+/docs/internal/delivery-reliability-research/sources/**/source/
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/preimage/
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/preimages/
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/root-doc-preimages/
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/source-before.sha256
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/source-after.sha256
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/GOAL.md
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/QUEUE.md
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/ACCEPTANCE.md
+/docs/internal/delivery-reliability-research/follow-through/evidence/**/RESUME.md
+
+# Delivery goals retain copied source baselines locally, across scenarios.
+# Keep their manifests visible; ignore only copied bytes and log snapshots.
+/scenarios/*/docs/internal/goal/**/bytes/
+/scenarios/*/docs/internal/goal/evidence/**/preimage/
+/scenarios/*/docs/internal/goal/evidence/**/*.patch
+/scenarios/*/docs/internal/goal/**/epoch-ledger-prewrite/
+/scenarios/*/docs/internal/goal/receipts/**/*epoch-check*.txt
+/scenarios/*/docs/internal/goal/receipts/**/*epoch-check*.json
+/scenarios/*/docs/internal/goal/receipts/**/*.stdout
+
+# Delivery-team homes relocated to the central work root (.vrooli/work/delivery/<team-id>/).
+# Durable intent, feedback, source maps and acceptance references are tracked.
+# Native working state, captures and operational status snapshots are local.
+/.vrooli/work/delivery/*/STATUS.md
+/.vrooli/work/delivery/*/LOG.md
+/.vrooli/work/delivery/*/evidence/
+/.vrooli/work/delivery/*/archive/**/STATUS.md
+/.vrooli/work/delivery/*/.migration-*
+/.vrooli/work/delivery/*/.delivery-outcome-*
+/.vrooli/work/delivery/*/**/bytes/
+/.vrooli/work/delivery/*/evidence/**/preimage/
+/.vrooli/work/delivery/*/evidence/**/*.patch
+/.vrooli/work/delivery/*/**/epoch-ledger-prewrite/
+/.vrooli/work/delivery/*/receipts/**/*epoch-check*.txt
+/.vrooli/work/delivery/*/receipts/**/*epoch-check*.json
+/.vrooli/work/delivery/*/receipts/**/*.stdout
+# Operational receipts and imported visual bundles remain with their runtime owner.
+# Keep product intent, source/acceptance maps and authored briefs eligible for Git.
+/.vrooli/work/delivery/*/receipts/
+/.vrooli/work/delivery/*/materials/
+/.vrooli/work/delivery/*/**/visual-originals/
+/.vrooli/work/delivery/**/*.png
+/.vrooli/work/delivery/**/*.jpg
+/.vrooli/work/delivery/**/*.pdf
+/.vrooli/work/delivery/**/*.zip
+/.vrooli/work/delivery/**/*.ttf
+/.vrooli/work/delivery/**/*.woff2
+/.vrooli/work/delivery/**/*.stderr
+/.vrooli/work/delivery/**/*.jsonl
+
+# Two small, acceptance-relevant owner receipts are linked from current docs.
+!/docs/internal/delivery-reliability-research/follow-through/evidence/owner-ui-speed-feedback-20261020/ui-served-comparison-20261020.json
+!/docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/known-team-return-20261020/bas-author-flow-parameters/native-consumer-receiving-readback-20261020.json

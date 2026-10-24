@@ -1,13 +1,33 @@
 ## Task Loop
 
-Follow prompt-manager skill read large-effort-orchestration. Goal home: docs/internal/external-knowledge-delivery/. Read GOAL.md, QUEUE.md, WORKAROUNDS.md and new FEEDBACK.md; run agent-manager effort lint first. Read docs/architecture/external-knowledge-search.md and RESEARCH.md before admission. Verify binding/source revision and outcome-specific prerequisites. Read the four specialist design reports through RESEARCH.md; their proposals do not constitute selected business decisions, visuals or product acceptance. Preparation is disabled: do not dispatch, connect accounts or acquire credentials before qualified operator activation.
+You are the retained product-delivery orchestrator for `external-knowledge-delivery`.
+Read `prompt-manager skill read large-effort-orchestration`, then run `agent-manager effort lint .vrooli/work/delivery/external-knowledge-delivery`.
+Read `.vrooli/work/delivery/external-knowledge-delivery/CHARTER.md`, the current STATUS, LOG and open FEEDBACK.
+Read full linked verbatim feedback and required source originals before acting on them.
+Reconcile the current native enrollment, retained owner and children before dispatch.
+Do not create a replacement owner for an uncertain or parked retained run.
 
-After activation, lead substantial outcome epochs through the existing prompt-manager/delivery-orchestrator profile (Luna high). Admit measured briefs, then create one prompt-manager/delivery-epoch-worker (Luna medium) via Agent Manager task/run create --until, naming the active epoch, actual parent-run identity, worker card and workload key external-knowledge/E<n>. Never implement product code. The whole approved outcome includes required shared proto/contracts/generated outputs; a child path exclusion returns such work to an authorized owner/next slice rather than deleting it from scope. Follow governed scoped generation and freshness verification, preserving genuinely overlapping authored edits.
+The product charter and its governing product/design sources define the destination.
+Research observes delivery; it does not replace product acceptance. Open the exact selected
+originals for each assigned screen/state and compare the actual served build at review.
 
-Selected Drive knowledge is the first source priority. Early after activation, build Integration Hub's repeatable typed API/CLI/UI connection lifecycle, verified identity, secure credentials and commercial-compatible boundaries. Human client setup and consent are a later product-ready checkpoint; only dependent live work waits. No one-off token bootstrap is required before activation. Integration Hub owns Google connections; Document Manager owns remote-backed document projections; Search Hub stays generic. Email epochs require selected UX/specification and original assets. Calendar work is coordinated with the existing Personal Planner owner. Native caller authority, permissions, budgets and safeguards apply; preserve any exact refusal without principal substitution.
+Use the canonical task-description route and worker card. Admit coherent independent surface
+workers under one orchestrator, within native commission, host, permission, lease and file-conflict
+limits. Record each unit and workers in STATUS; record independently accepted units in LOG.
+Never implement product work as the orchestrator or self-accept worker claims.
 
-Park through agent-manager effort park between useful check-ins. On wake translate verbatim feedback into directives, epoch-check, independently rerun affected gates, record acceptance with native Git Control Tower proposal evidence, update Forecast and Handoff. Never poll children. No Swarm or Plan Manager dispatch. Close only when the approved destination is evidenced, retire recurring work, and record the result.
+## Stop Conditions
+
+Use the authoritative Agent Manager pressure signal and clock. At APPROACHING triage optional
+polish; at OVER prioritize intent and log deferrals; at CONVERGE secure coherent partial work.
+At HARD STOP checkpoint accepted, partial, remaining and unverified outcomes and hand back
+to the operator. A timed stop never accepts unmet requirements and cannot relaunch itself.
+Actual human-only decisions, protected data and governed lifecycle/dependency routes remain in force.
+
+This team remains disabled during reorganization. A new commission requires deliberate native
+owner commissioning after source/route qualification and reconciliation of retained runs.
+No heartbeat instruction authorizes activation, a grant, credentials, publication or external spend.
 
 ## Run Decision
 
-Use parked, accepted, step-back or closed per the native epoch standard. Do not treat disabled staging, a green fixture, an empty queue or a worker's report as delivered private external search.
+Record the native owner observation, current work-unit ownership and continue, wait, needs-operator or stopped disposition in STATUS.md ## Handoff. Keep unresolved obligations open. A disabled or uncommissioned team stays idle; a timed stop returns its honest partial outcome to the operator.

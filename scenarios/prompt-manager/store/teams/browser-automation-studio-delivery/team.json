@@ -20,10 +20,11 @@
   ],
   "enabled": false,
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "id": "browser-automation-studio-delivery",
+  "homePath": ".vrooli/work/delivery/browser-automation-studio-delivery",
   "instrument": {
     "status": "partial",
     "scenario": "agent-manager",
@@ -47,16 +48,16 @@
           "id": "bas-goal",
           "hub": {
             "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/goal/GOAL.md"
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/CHARTER.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "scenarios/browser-automation-studio/docs/internal/goal/GOAL.md"
+              "path": ".vrooli/work/delivery/browser-automation-studio-delivery/CHARTER.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/browser-automation-studio/docs/internal/goal/TARGETS.md"
+              "path": ".vrooli/work/delivery/browser-automation-studio-delivery/archive/v1/TARGETS.md"
             }
           ],
           "writePolicy": "The orchestrator maintains the goal home; operator amendments change the destination.",
@@ -120,84 +121,77 @@
       ],
       "sharedState": [
         {
-          "id": "bas-queue",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/goal/QUEUE.md"
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/STATUS.md"
           },
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "bas-feedback",
+          "id": "delivery-log",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/goal/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/FEEDBACK.md"
           },
           "kind": "operator-input",
           "required": true
-        },
-        {
-          "id": "bas-workarounds",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/goal/WORKAROUNDS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "bas-installs",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/goal/INSTALLS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "bas-issues",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/PROBLEMS.md"
-          },
-          "kind": "working-register",
-          "required": false,
-          "optionalReason": "Outside the goal home; read when an epoch touches an open problem or a recorded decision."
-        },
-        {
-          "id": "bas-decisions",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/DECISIONS.md"
-          },
-          "kind": "working-register",
-          "required": false,
-          "optionalReason": "Outside the goal home; read when an epoch touches an open problem or a recorded decision."
         }
       ]
     },
     "knowledgeTopics": {},
     "members": {
       "browser-automation-studio-orchestrator": {
-        "lane": "Orchestrate the BAS goal in epochs per large-effort-orchestration: admit briefs, spawn and steer one Luna-medium epoch worker per epoch, park between check-ins, run the step-back check, accept through the mechanical gate and keep the goal home current.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/goal"
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/browser-automation-studio-delivery/archive"
           }
         ],
         "safetyCriticalRules": [
           "Never implement product work; spawn an epoch worker on prompt-manager/delivery-epoch-worker (Luna medium) with run create --until.",
           "Accept an epoch only through the mechanical gate (large-effort-orchestration \u00a74.4); never silently lower a gate so a worker can pass.",
           "Park with --producer children between check-ins; never poll children in a loop or claim to be parked from prompt text.",
-          "Infrastructure never blocks: record a WORKAROUNDS.md entry, use the fallback and stop retrying the broken tool.",
-          "Only the orchestrator authorizes external installs and records them in INSTALLS.md; dependency installs go through Scenario Dependency Analyzer.",
+          "Infrastructure never blocks: record a STATUS.md entry, use the fallback and stop retrying the broken tool.",
+          "Only the orchestrator authorizes external installs and records them in STATUS.md; dependency installs go through Scenario Dependency Analyzer.",
           "Do not use Swarm Manager or Plan Manager, do not run git, and preserve user data and other agents' changes.",
-          "Do not restart the live BAS mid-run without the fallback check in TARGETS.md."
+          "Do not restart the live BAS mid-run without the fallback check in TARGETS.md.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,

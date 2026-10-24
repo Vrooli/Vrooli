@@ -12,29 +12,39 @@ import (
 	"time"
 )
 
-// basHome returns the trimmed real BAS goal home with files replaced by edits.
-func basHome(t *testing.T, edits map[string]func(string) string) *Home {
+// fixtureFiles copies the selected home fixture and applies text edits in memory.
+// An empty edit removes a file, allowing missing-file cases without another fake FS.
+func fixtureFiles(t *testing.T, name string, edits map[string]func(string) string) fstest.MapFS {
 	t.Helper()
 	files := fstest.MapFS{}
-	err := fs.WalkDir(os.DirFS("testdata/bas"), ".", func(name string, entry fs.DirEntry, err error) error {
+	root := os.DirFS(filepath.Join("testdata", name))
+	if err := fs.WalkDir(root, ".", func(name string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return err
 		}
-		data, err := os.ReadFile(filepath.Join("testdata", "bas", name))
+		data, err := fs.ReadFile(root, name)
 		files[name] = &fstest.MapFile{Data: data}
 		return err
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 	for name, edit := range edits {
-		text := ""
-		if file, ok := files[name]; ok {
-			text = string(file.Data)
+		var before string
+		if f := files[name]; f != nil {
+			before = string(f.Data)
 		}
-		files[name] = &fstest.MapFile{Data: []byte(edit(text))}
+		if after := edit(before); after != "" {
+			files[name] = &fstest.MapFile{Data: []byte(after)}
+		} else {
+			delete(files, name)
+		}
 	}
-	home, err := Load(files)
+	return files
+}
+
+func basHome(t *testing.T, edits map[string]func(string) string) *Home {
+	t.Helper()
+	home, err := LoadLegacy(fixtureFiles(t, "bas", edits))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +311,7 @@ func forecastHome(t *testing.T, goal, queue string, epochs ...string) *Home {
 		}
 		files[fmt.Sprintf("epochs/E%d.md", i+1)] = &fstest.MapFile{Data: []byte(fmt.Sprintf("# E%d\n\n- Kind: refactor\n%s\n## Slice log\n%s | accepted\n", i+1, header, accepted))}
 	}
-	home, err := Load(files)
+	home, err := LoadLegacy(files)
 	if err != nil {
 		t.Fatal(err)
 	}

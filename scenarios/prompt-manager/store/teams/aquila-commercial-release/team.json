@@ -46,7 +46,9 @@
             }
           ],
           "writePolicy": "Plan Manager owner-authorized; team members read and propose only.",
-          "consumers": ["aquila-launch-coordinator"],
+          "consumers": [
+            "aquila-launch-coordinator"
+          ],
           "rationale": "Canonical requirements for the finite Aquila commercial release effort."
         }
       ],
@@ -72,7 +74,14 @@
     "members": {
       "aquila-launch-coordinator": {
         "lane": "Coordinate the finite commercial release from its protected workspace across desktop lifecycle, LPBS deployment, commercial reconciliation and independent acceptance; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure.",
-        "allowedWrites": [{"kind":"knowledge"},{"kind":"handoff"}],
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
         "safetyCriticalRules": [
           "The effort reference is attribution, not execution authority.",
           "Do not publish, spend, mutate production or grant dispatch without explicit owner approval.",
@@ -80,7 +89,10 @@
           "Treat stale facts, build output and incomplete suites as unverified until current evidence exists.",
           "Retain exact effort, plan, run, task, revision and evidence references in every handoff."
         ],
-        "readOnlyModeBehavior": {"stillWriteKnowledge":true,"stillWriteHandoff":true}
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
       }
     }
   },

@@ -15,7 +15,7 @@ import (
 const HandoffMaxBytes = 4096
 
 // ErrConcurrentChange means the file changed between read and write.
-var ErrConcurrentChange = errors.New("QUEUE.md changed while the handoff was being written; read it again and retry")
+var ErrConcurrentChange = errors.New("goal-home file changed while it was being written; read it again and retry")
 
 // HandoffError is a refused handoff replacement.
 type HandoffError struct {
@@ -61,7 +61,7 @@ func SetHandoff(queue []byte, body string) ([]byte, bool, error) {
 		for _, s := range handoffs {
 			described = append(described, HandoffSection{Title: s.Title, Level: s.Level, Line: s.Line})
 		}
-		return nil, false, &HandoffError{Code: "handoff-count", Detail: "QUEUE.md has " + fmt.Sprint(len(handoffs)) + " handoff sections: " + describeHandoffs(described) + ". Move the old ones to archive/ first"}
+		return nil, false, &HandoffError{Code: "handoff-count", Detail: "the document has " + fmt.Sprint(len(handoffs)) + " handoff sections: " + describeHandoffs(described) + ". Move the old ones to archive/ first"}
 	case len(handoffs) == 1 && handoffs[0].Level != 2:
 		return nil, false, &HandoffError{Code: "handoff-count", Detail: fmt.Sprintf("the only handoff is the level-%d heading %q (line %d); move it to archive/ first", handoffs[0].Level, handoffs[0].Title, handoffs[0].Line)}
 	case len(handoffs) == 1:

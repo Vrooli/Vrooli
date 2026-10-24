@@ -14,7 +14,7 @@
     }
   },
   "createdAt": "2026-09-14T13:08:47Z",
-  "displayName": "Fleet Storage \u0026 Disk Health",
+  "displayName": "Fleet Storage & Disk Health",
   "effortRefs": [
     "effort:001573d5-e40f-4b34-bd1f-57d56146c9a0"
   ],
@@ -32,7 +32,17 @@
     "governance": {},
     "documents": {
       "planOfRecord": [],
-      "sharedState": []
+      "sharedState": [
+        {
+          "id": "managed-effort-home",
+          "path": {
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/README.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
     },
     "knowledgeTopics": {
       "effort-wake/*": {

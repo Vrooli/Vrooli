@@ -21,10 +21,11 @@
   ],
   "enabled": false,
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "id": "desktop-packaging-delivery",
+  "homePath": ".vrooli/work/delivery/desktop-packaging-delivery",
   "instrument": {
     "status": "partial",
     "scenario": "agent-manager",
@@ -36,7 +37,7 @@
       "performance-health",
       "code-facts"
     ],
-    "gapMarker": "2026-10-06 — commissioned for orchestrated epochs (large-effort-orchestration): leader desktop-packaging-orchestrator on prompt-manager/delivery-orchestrator; team stays disabled until the operator says go."
+    "gapMarker": "2026-10-06 \u2014 commissioned for orchestrated epochs (large-effort-orchestration): leader desktop-packaging-orchestrator on prompt-manager/delivery-orchestrator; team stays disabled until the operator says go."
   },
   "kind": "team",
   "lifetime": "finite",
@@ -50,16 +51,16 @@
           "id": "desktop-packaging-goal",
           "hub": {
             "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/goal/GOAL.md"
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/CHARTER.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "scenarios/scenario-to-desktop/docs/internal/goal/GOAL.md"
+              "path": ".vrooli/work/delivery/desktop-packaging-delivery/CHARTER.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/scenario-to-desktop/docs/internal/goal/TARGETS.md"
+              "path": ".vrooli/work/delivery/desktop-packaging-delivery/archive/v1/TARGETS.md"
             },
             {
               "base": "repo-root",
@@ -135,79 +136,78 @@
       ],
       "sharedState": [
         {
-          "id": "desktop-packaging-queue",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/goal/QUEUE.md"
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/STATUS.md"
           },
           "kind": "working-register",
           "required": true
         },
         {
-          "id": "desktop-packaging-feedback",
+          "id": "delivery-log",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/goal/FEEDBACK.md"
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/FEEDBACK.md"
           },
           "kind": "operator-input",
           "required": true
-        },
-        {
-          "id": "desktop-packaging-workarounds",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/goal/WORKAROUNDS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "desktop-packaging-installs",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/goal/INSTALLS.md"
-          },
-          "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "scenario-to-desktop-problems",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/PROBLEMS.md"
-          },
-          "kind": "working-register",
-          "required": false,
-          "optionalReason": "Outside the goal home; read when an epoch touches an open problem."
         }
       ]
     },
     "knowledgeTopics": {},
     "members": {
       "desktop-packaging-orchestrator": {
-        "lane": "Orchestrate the desktop packaging goal in epochs per large-effort-orchestration: admit briefs, spawn and steer one Luna-medium epoch worker per epoch, park between check-ins, run the step-back check, accept through the mechanical gate and keep the goal home current.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/scenario-to-desktop/docs/internal/goal"
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/STATUS.md"
           },
           {
             "base": "repo-root",
-            "path": "docs/architecture/packaging-strategies.md"
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/archive"
           }
         ],
         "safetyCriticalRules": [
           "Never implement product work; spawn an epoch worker on prompt-manager/delivery-epoch-worker (Luna medium) with run create --until and the interactive substrate.",
-          "Accept an epoch only through the mechanical gate (large-effort-orchestration §4.4); never silently lower a gate so a worker can pass.",
+          "Accept an epoch only through the mechanical gate (large-effort-orchestration \u00a74.4); never silently lower a gate so a worker can pass.",
           "Park with --producer children between check-ins; never poll children in a loop or claim to be parked from prompt text.",
-          "Infrastructure never blocks: record a WORKAROUNDS.md entry, use the fallback and stop retrying the broken tool.",
-          "Only the orchestrator authorizes external installs and records them in INSTALLS.md; dependency installs go through Scenario Dependency Analyzer; privileged host packages only through tool.json plus the operator's sudo vrooli setup (a Needs operator item).",
+          "Infrastructure never blocks: record a STATUS.md entry, use the fallback and stop retrying the broken tool.",
+          "Only the orchestrator authorizes external installs and records them in STATUS.md; dependency installs go through Scenario Dependency Analyzer; privileged host packages only through tool.json plus the operator's sudo vrooli setup (a Needs operator item).",
           "Do not use Swarm Manager or Plan Manager, do not run git or sudo, and preserve user data and other agents' changes.",
           "Never restart live BAS; request BAS changes through the BAS goal FEEDBACK.md.",
-          "Keep shared delivery-ramp-go types mobile-ready and every working packaging strategy selectable (GOAL.md)."
+          "Keep shared delivery-ramp-go types mobile-ready and every working packaging strategy selectable (CHARTER.md).",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,

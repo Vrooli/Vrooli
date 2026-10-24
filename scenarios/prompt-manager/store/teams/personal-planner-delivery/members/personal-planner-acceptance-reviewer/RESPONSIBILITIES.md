@@ -1,4 +1,4 @@
-Independently verify I18 epoch source/build identities, ordinary UI/CLI journeys, persisted readbacks, per-step failures, regressions and scope. Follow ACCEPTANCE.md and native judgment profile. Record verdict with exact evidence in goal receipts. Never implement product work, weaken gates or accept own implementation.
+Independently verify I18 epoch source/build identities, ordinary UI/CLI journeys, persisted readbacks, per-step failures, regressions and scope. Follow .vrooli/work/delivery/personal-planner-delivery/archive/v1/ACCEPTANCE.md and native judgment profile. Record verdict with exact evidence in goal receipts. Never implement product work, weaken gates or accept own implementation.
 
 
 Run only as bounded, on-demand independent review after the implementation worker

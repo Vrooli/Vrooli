@@ -26,9 +26,9 @@ code −0.4%.
 **Gates.** Acceptance follows `large-effort-orchestration` §4.4 and the worker
 card's growth budget. Daily qualification and quality bands are in TARGETS.md.
 
-**Links.** [QUEUE.md](QUEUE.md) · [TARGETS.md](TARGETS.md) ·
-[WORKAROUNDS.md](WORKAROUNDS.md) · [INSTALLS.md](INSTALLS.md) ·
+**Links.** [QUEUE.md](QUEUE.md) · `TARGETS.md` (original context; not included in this trimmed fixture) ·
+[WORKAROUNDS.md](WORKAROUNDS.md) · `INSTALLS.md` (original context; not included) ·
 [FEEDBACK.md](FEEDBACK.md) · [epochs/](epochs/) · Verification:
-[TESTING.md](../TESTING.md) · Defects: [PROBLEMS.md](../../PROBLEMS.md) · History:
+`../TESTING.md` (original context; not included) · Defects: `../../PROBLEMS.md` (original context; not included) · History:
 `~/.vrooli/plan-artifacts/epoch-based-delivery-orchestration-and-bas-rehabilitation/evidence/archive/bas-rehabilitation/` · Design: plan artifact
 `epoch-based-delivery-orchestration-and-bas-rehabilitation/source/TARGET_MODEL.md`.

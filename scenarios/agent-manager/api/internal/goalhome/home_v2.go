@@ -14,7 +14,7 @@ import (
 // reader produces the same internal Home/Goal/Epoch structs the supervision
 // board already consumes, so the proto/board layer is untouched: an accepted
 // unit in LOG.md becomes a synthetic accepted Epoch, STATUS's ## Active becomes
-// one active Epoch, and a ## Reopened entry becomes a reopening Directive.
+// independent active units, and a ## Reopened entry becomes a reopening Directive.
 // FEEDBACK.md is unchanged from v1 and read through the existing FeedbackFile.
 const (
 	CharterFile = "CHARTER.md"
@@ -34,7 +34,7 @@ var (
 
 // LoadV2 reads a Phase-2 goal home (CHARTER.md/STATUS.md/LOG.md/FEEDBACK.md)
 // from fsys, whose root is the goal-home directory, into the same *Home the v1
-// Load produces. Only read failures other than a missing file are errors.
+// LoadLegacy produces. Only read failures other than a missing file are errors.
 func LoadV2(fsys fs.FS) (*Home, error) {
 	return loadV2(fsys, false)
 }
@@ -49,28 +49,37 @@ func LoadBoardProjectionV2(fsys fs.FS) (*Home, error) {
 
 func loadV2(fsys fs.FS, tolerateLogGaps bool) (*Home, error) {
 	home := &Home{FileBytes: make(map[string]int), EpochsComplete: true, V2: true}
-	read := func(name string) ([]byte, error) {
-		data, err := fs.ReadFile(fsys, name)
-		if errors.Is(err, fs.ErrNotExist) {
-			home.Missing = append(home.Missing, name)
-			return nil, nil
-		}
-		if err == nil {
-			home.FileBytes[name] = len(data)
-		}
-		return data, err
-	}
 
-	charter, err := read(CharterFile)
+	charter, err := home.read(fsys, CharterFile)
 	if err != nil {
 		return nil, err
 	}
+
+	status, err := home.read(fsys, StatusFile)
+	if err != nil {
+		return nil, err
+	}
+
+	feedback, err := home.read(fsys, FeedbackFile)
+	if err != nil {
+		return nil, err
+	}
+
+	logData, err := home.read(fsys, LogFile)
+	if err != nil {
+		if !tolerateLogGaps {
+			return nil, err
+		}
+		home.EpochsComplete = false
+		home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, LogFile)
+	}
+	return parseV2(home, charter, status, feedback, logData, tolerateLogGaps)
+}
+
+// parseV2 is shared by filesystem reads and the importer's losslessness check.
+func parseV2(home *Home, charter, status, feedback, logData []byte, tolerateLogGaps bool) (*Home, error) {
 	home.Goal = ParseCharter(charter)
-
-	status, err := read(StatusFile)
-	if err != nil {
-		return nil, err
-	}
+	home.Feedback = ParseFeedback(feedback)
 	// STATUS supplies the live Current reading, the gradient scoreboard, and the
 	// queue/workaround/park inputs that QUEUE.md + WORKAROUNDS.md carried in v1.
 	st := parseStatus(status)
@@ -83,20 +92,6 @@ func loadV2(fsys fs.FS, tolerateLogGaps bool) (*Home, error) {
 		home.Goal.Current = st.current
 	}
 
-	feedback, err := read(FeedbackFile)
-	if err != nil {
-		return nil, err
-	}
-	home.Feedback = ParseFeedback(feedback)
-
-	logData, err := read(LogFile)
-	if err != nil {
-		if !tolerateLogGaps {
-			return nil, err
-		}
-		home.EpochsComplete = false
-		home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, LogFile)
-	}
 	if missingName(home, LogFile) || missingName(home, StatusFile) {
 		home.EpochsComplete = false
 		home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, LogFile)
@@ -112,8 +107,8 @@ func loadV2(fsys fs.FS, tolerateLogGaps bool) (*Home, error) {
 			return nil, &MalformedLogError{Detail: "LOG.md ## Accepted units line could not be parsed"}
 		}
 	}
-	// The active unit (from STATUS ## Active) sorts after the accepted units so
-	// the board's newest-last scan finds it as the one active epoch.
+	// Active units follow accepted units so the selected summary remains
+	// newest-last while preserving all independent worker sets.
 	epochs = mergeActiveUnits(epochs, st.active)
 	home.Epochs = epochs
 	return home, nil
@@ -124,6 +119,20 @@ func loadV2(fsys fs.FS, tolerateLogGaps bool) (*Home, error) {
 type MalformedLogError struct{ Detail string }
 
 func (e *MalformedLogError) Error() string { return e.Detail }
+
+// read accounts for every file through the same missing/error semantics in
+// runtime parsing and legacy import.
+func (h *Home) read(fsys fs.FS, name string) ([]byte, error) {
+	data, err := fs.ReadFile(fsys, name)
+	if errors.Is(err, fs.ErrNotExist) {
+		h.Missing = append(h.Missing, name)
+		return nil, nil
+	}
+	if err == nil {
+		h.FileBytes[name] = len(data)
+	}
+	return data, err
+}
 
 // ParseCharter reads CHARTER.md. "- Destination:" maps to the goal destination
 // with the same regex v1 uses, and "- Budget:" maps to the new BudgetSeconds
@@ -297,8 +306,8 @@ func parseStatusCurrent(doc *document) *Measurement {
 	return current
 }
 
-// parseActive reads "## Active" into one non-accepted Epoch whose Fields hold
-// "status" and "workers", so the board's active_epoch/active_status/
+// parseActive reads "## Active" into independent non-accepted units whose Fields hold
+// "status" and "workers", so the board's active_units and selected active_unit/active_status/
 // active_workers resolve exactly as from a v1 active epoch file. The section
 // body is a list of "unit: <id>  status: <text>  workers: <uuids>" cells.
 func parseActive(doc *document) []EpochFile {

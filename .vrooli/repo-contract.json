@@ -55,7 +55,8 @@
       "test-companions.json",
       "canonical-seams.json",
       "portability-lint-allowlist.json",
-      "testing.json"
+      "testing.json",
+      "work"
     ]
   },
   "targets": {

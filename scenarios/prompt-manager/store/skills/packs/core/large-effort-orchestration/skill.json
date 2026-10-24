@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-10T00:00:00Z",
-  "description": "Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs through a mechanical gate. Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.",
+  "description": "Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs by recording the accepted unit in the goal home's LOG.md. State lives in the v2 goal home (CHARTER.md destination, STATUS.md scoreboard and queue, LOG.md accepted units, FEEDBACK.md). Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.",
   "entry": "SKILL.md",
   "icon": "network",
   "id": "large-effort-orchestration",
@@ -23,7 +23,7 @@
       "agent-manager"
     ]
   },
-  "revision": 56,
+  "revision": 58,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -34,5 +34,5 @@
     "continuity",
     "recovery"
   ],
-  "updatedAt": "2026-10-21T02:00:07Z"
+  "updatedAt": "2026-10-23T00:00:00Z"
 }

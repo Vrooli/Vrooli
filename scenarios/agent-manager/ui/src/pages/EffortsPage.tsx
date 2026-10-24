@@ -5,6 +5,7 @@ import {
   EffortFreshness,
   type EffortBoardRow,
   type EffortEnrollment,
+  type EffortGoalHome,
   type EffortUsage,
 } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
 import { useEffortBoard } from "../features/efforts/api";
@@ -40,6 +41,61 @@ function Usage({ usage }: { usage?: EffortUsage }) {
   </div>;
 }
 
+function RunLink({ id }: { id: string }) {
+  return <Link className="text-primary underline" to={`/runs/${encodeURIComponent(id)}`}>Run {id}</Link>;
+}
+
+function SurfaceTable({ home, caption }: { home?: EffortGoalHome; caption: string }) {
+  if (!home?.surfaceScoreboard.length) return <p className="text-sm">Surface assessment unavailable.</p>;
+  return <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+    <caption className="mb-2 text-left font-semibold">{caption}</caption>
+    <thead><tr>{["Surface", "Target", "State", "Owner"].map(label => <th key={label} scope="col" className="p-2">{label}</th>)}</tr></thead>
+    <tbody>{home.surfaceScoreboard.map((surface, i) => <tr key={`${surface.surface}-${i}`} className="border-t border-border">
+      <th scope="row" className="p-2">{surface.surface || "unknown"}</th><td className="p-2">{surface.target || "unknown"}</td>
+      <td className="p-2">{surface.state || "unknown"}</td><td className="p-2">{surface.ownerRun ? <RunLink id={surface.ownerRun} /> : "unknown"}</td>
+    </tr>)}</tbody>
+  </table></div>;
+}
+
+const duration = (seconds: bigint) => seconds % 3600n === 0n && seconds > 0n ? `${seconds / 3600n}h` : `${seconds}s`;
+
+function Delivery({ row }: { row: EffortBoardRow }) {
+  const commission = row.enrollment?.delivery;
+  const pressure = row.deliveryPressure?.phase && row.deliveryPressure.budgetSeconds > 0n ? row.deliveryPressure : undefined;
+  const home = row.goalHome;
+  if (!commission && !home) return null;
+  return <>
+    <section aria-label="Delivery commission" className="space-y-2 rounded border border-border p-3 text-sm">
+      <h3 className="font-semibold">Delivery commission</h3>
+      {!commission ? <p>{row.enrollment ? "No commission has been started." : "Commission unavailable."}</p> : <>
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div><dt className="text-muted-foreground">Commission</dt><dd>{commission.commissionId} · {commission.state || "unknown"}</dd></div>
+          <div><dt className="text-muted-foreground">Pressure</dt><dd>{pressure?.phase || "Pressure unavailable"}</dd></div>
+          <div><dt className="text-muted-foreground">Elapsed / target</dt><dd>{pressure ? `${duration(pressure.elapsedSeconds)} / ${duration(pressure.budgetSeconds)}` : "unknown"}</dd></div>
+          <div><dt className="text-muted-foreground">Worker limit</dt><dd>{commission.maxWorkers || "unknown"}</dd></div>
+          <div><dt className="text-muted-foreground">Hard stop</dt><dd>{when(pressure?.hardStopAt)}</dd></div>
+          <div><dt className="text-muted-foreground">Paused time</dt><dd>{pressure ? duration(pressure.pausedSeconds) : "unavailable"}</dd></div>
+        </dl>
+        {commission.reason ? <p>{commission.reason}</p> : null}
+        {pressure?.instruction ? <p>{pressure.instruction}</p> : null}
+        {commission.decisionId ? <p>Operator decision: <span>{commission.decisionId}</span>; publication and answer remain owner facts.</p> : null}
+        {commission.outcome ? <SurfaceTable home={commission.outcome} caption="Frozen delivery outcome" /> : null}
+      </>}
+      <p className="text-muted-foreground">Time does not establish product acceptance. Pausing the commission and disabling team heartbeat are separate operations.</p>
+    </section>
+    {home ? <section aria-label="Product progress" className="space-y-3 text-sm">
+      <h3 className="font-semibold">Product progress</h3>
+      <p className="break-all text-xs text-muted-foreground">{home.path} · {home.state || "unknown"}</p>
+      <SurfaceTable home={home} caption="Current surface assessment" />
+      {home.activeUnits.length ? <ul className="space-y-2">{home.activeUnits.map(unit => <li key={unit.unitId}>
+        <span>{unit.unitId} · {unit.status || "unknown"}</span>
+        {unit.workers.length ? <ul className="pl-4">{unit.workers.map(id => <li key={id}><RunLink id={id} /></li>)}</ul> : <span> · worker attribution unavailable</span>}
+      </li>)}</ul> : <p>No active units reported; runtime assignments remain separate.</p>}
+      {home.needsOperator.length ? <References values={home.needsOperator} /> : null}
+    </section> : null}
+  </>;
+}
+
 function EffortDetail({ row }: { row: EffortBoardRow }) {
   const enrollment = row.enrollment;
   return <article className="space-y-5 rounded-md border border-border bg-card p-4" aria-label={`Effort ${enrollment?.effortRef} details`}>
@@ -54,6 +110,7 @@ function EffortDetail({ row }: { row: EffortBoardRow }) {
       <div><dt className="text-muted-foreground">Enrollment owner</dt><dd><Ownership enrollment={enrollment} /></dd></div>
       {enrollment?.authorityRef ? <div><dt className="text-muted-foreground">Authority reference</dt><dd className="break-all">{enrollment.authorityRef}</dd></div> : null}
     </dl>
+    <Delivery row={row} />
     <section><h3 className="mb-1 font-semibold">Next action and rationale</h3><p className="text-sm">{row.nextAction || "No next action reported."}</p><p className="text-sm text-muted-foreground">{row.rationale || "No rationale reported."}</p></section>
     <section><h3 className="mb-1 font-semibold">Blockers</h3><References values={row.blockers} /></section>
     <section><h3 className="mb-1 font-semibold">Pending owner operations</h3><References values={row.pendingOperations} /></section>
@@ -62,7 +119,7 @@ function EffortDetail({ row }: { row: EffortBoardRow }) {
       <p className="mb-2 text-xs text-muted-foreground">These are owner assignments, separate from a Prompt Manager team’s registered members. Role and model settings grant no authority.</p>
       {row.assignments.length ? <div className="space-y-3">{row.assignments.map((assignment, i) => <div key={`${assignment.subject?.reference}-${i}`} className="space-y-2 rounded bg-muted/30 p-3 text-xs">
         <p>{assignment.subject?.role || "role unknown"} · {assignment.runtimeState || "runtime unknown"} · {assignment.subject?.assignment || "assignment unknown"}</p>
-        {assignment.subject?.runId ? <Link className="text-primary underline" to={`/runs/${encodeURIComponent(assignment.subject.runId)}`}>Run {assignment.subject.runId}</Link> : <p className="break-all">{assignment.subject?.reference || "No owner run reference"}</p>}
+        {assignment.subject?.runId ? <RunLink id={assignment.subject.runId} /> : <p className="break-all">{assignment.subject?.reference || "No owner run reference"}</p>}
         <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th scope="col">Setting</th><th scope="col">Requested</th><th scope="col">Effective</th></tr></thead><tbody>
           <tr><th scope="row">Model</th><td>{assignment.requestedModel || "unknown"}</td><td>{assignment.effectiveModel || "unknown"}</td></tr>
           <tr><th scope="row">Runner</th><td>{assignment.requestedRunner || "unknown"}</td><td>{assignment.effectiveRunner || "unknown"}</td></tr>

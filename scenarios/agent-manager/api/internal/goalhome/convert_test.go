@@ -13,7 +13,7 @@ import (
 // and the open workaround count is unchanged.
 func TestConvertHomeIsLosslessForBAS(t *testing.T) {
 	dir := filepath.Join("testdata", "bas")
-	v1, err := Load(os.DirFS(dir))
+	v1, err := LoadLegacy(os.DirFS(dir))
 	if err != nil {
 		t.Fatalf("load v1 bas: %v", err)
 	}
@@ -61,30 +61,6 @@ func TestConvertHomeIsLosslessForBAS(t *testing.T) {
 	}
 	if facts.openWorkarounds != 3 {
 		t.Fatalf("open workaround count changed: got %d, want 3", facts.openWorkarounds)
-	}
-}
-
-// TestConvertHomeFlagsLossRatherThanCorrupt proves the converter reports a
-// divergence (and the caller can refuse to write) rather than emitting a home
-// whose board facts differ. A LOG line with a corrupted worker set is detected.
-func TestConvertHomeIdempotentShape(t *testing.T) {
-	dir := filepath.Join("testdata", "bas")
-	v1, _ := Load(os.DirFS(dir))
-	a := ConvertHome(v1, readHomeFile(t, dir, GoalFile), readHomeFile(t, dir, QueueFile), readHomeFile(t, dir, WorkaroundsFile))
-	if !a.Equivalent {
-		t.Fatalf("first conversion not equivalent: %s", a.Divergence)
-	}
-	// Parsing the built files and re-projecting must be stable (idempotent board
-	// facts): a second projection of the same v2 home yields the same facts.
-	v2, err := LoadV2(fstest.MapFS{
-		CharterFile: {Data: a.Charter}, StatusFile: {Data: a.Status}, LogFile: {Data: a.Log},
-		FeedbackFile: {Data: readHomeFile(t, dir, FeedbackFile)},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := diffBoardFacts(projectFacts(v1), projectFacts(v2)); diff != "" {
-		t.Fatalf("projection is not stable: %s", diff)
 	}
 }
 

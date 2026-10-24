@@ -101,7 +101,7 @@ func copyBASGoalHome(t *testing.T, edits map[string]func(string) string) string 
 func copyRuntimeBASGoalHome(t *testing.T, edits map[string]func(string) string) string {
 	t.Helper()
 	home := copyBASGoalHome(t, edits)
-	v1, err := goalhome.Load(os.DirFS(home))
+	v1, err := goalhome.LoadLegacy(os.DirFS(home))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +234,7 @@ func TestEffortLintV2HomeUsesStatusAnchors(t *testing.T) {
 
 func TestEffortMigrationResumesPublicationAndArchivesOnce(t *testing.T) {
 	home := copyBASGoalHome(t, nil)
-	v1, err := goalhome.Load(os.DirFS(home))
+	v1, err := goalhome.LoadLegacy(os.DirFS(home))
 	if err != nil {
 		t.Fatal(err)
 	}

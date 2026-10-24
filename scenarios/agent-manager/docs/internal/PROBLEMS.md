@@ -647,3 +647,25 @@ Original Nooch E30 and Desktop E3 native admissions failed before worker prompt/
 A team-preparation browser confirmation reached the issuer but failed because the existing verified owner's Agent Manager capability binding omitted prompt-manager:read/write. The pending request remained unapproved. Browser approval GET previously offered Confirm without checking those prerequisites, and POST returned only “required capability not granted.”
 
 The same reviewed-policy scope check now powers a read-only browser preflight and the final issuer error. GET lists missing capabilities and withholds confirmation until eligible; reviewed-policy scope failures retain ErrCapability and name the missing delegated scopes. The early base agent-manager:write gate keeps its existing refusal, while GET preflight also lists that base prerequisite. Independent human/provider, expiry, exact process, frozen ceilings and reviewed target checks are unchanged. Focused regression failed before repair and passes after repair; current race checks include successful eligible fixture approval, no authority on denied approval, browser guidance, origin/agent-header refusal and existing policy/supersession cases. Real remote consent remains a separate human operation.
+
+## Cleanup History
+
+### Delivery consolidation — 2026-10-23
+
+W3 cleanup: isolated explicit legacy import, removed the unused tolerant legacy reader and
+constant filename/reader adapters, and shared runtime parsing with conversion verification.
+Tests share one fixture editor; overlapping conversion assertions were removed while actual
+interrupted/repeated import coverage remains. STATUS workaround bytes count once in the
+30,000-byte resume budget, protected by exact-boundary regressions. The existing Efforts UI
+now reads native surface/unit/clock/frozen-outcome facts without another store.
+
+Evidence and limits: scoped Agent Manager Test Genie `20261024-011539-50913eb0` passed unit
+and structure; docs initially retained ten historical/other-reference errors. The fixture-link
+correction and packet relocation reduced the latest docs run
+`20261024-013357-37daaad1` to five absolute-path errors outside this guide. Prompt Manager
+`20261024-011538-a9ea00e4` passed structure and retained 109 broader docs errors, including
+manifest schema debt. Focused goalhome/supervision and full CLI suites pass; UI tests and
+TypeScript pass. Current entry point: `path:.vrooli/work/README.md`. Source/test counts and
+receipts: `~/.vrooli/plan-artifacts/delivery-consolidation-20261023/`. No team activation or
+product acceptance is implied. Knowledge Observatory's docs-append operation refused this
+problems entry with HTTP 400; the operator-authorized source edit preserves the observation.

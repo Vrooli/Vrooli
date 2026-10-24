@@ -154,12 +154,7 @@ func (s *EffortService) loadGoalHome(home string) (*goalhome.Home, error) {
 		at = next
 	}
 	defer at.Close()
-	return loadGoalHomeProjection(safeGoalHomeFS{root: at, limit: s.config.FileBytes})
-}
-
-// Runtime has one format. Legacy files are read only by explicit import.
-func loadGoalHomeProjection(fsys fs.FS) (*goalhome.Home, error) {
-	return goalhome.LoadBoardProjectionV2(fsys)
+	return goalhome.LoadBoardProjectionV2(safeGoalHomeFS{root: at, limit: s.config.FileBytes})
 }
 
 // GoalHomeForOrchestrator returns the goal home of the enrolled effort the run

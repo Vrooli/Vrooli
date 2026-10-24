@@ -21,10 +21,11 @@
   ],
   "enabled": false,
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
   "id": "nooch-delivery",
+  "homePath": ".vrooli/work/delivery/nooch-delivery",
   "kind": "team",
   "lifetime": "finite",
   "mission": "Finish and independently verify the whole owner-approved selected Nooch product through substantial native epochs.",
@@ -33,6 +34,26 @@
     "governance": {},
     "documents": {
       "planOfRecord": [
+        {
+          "id": "product-charter",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/nooch-delivery/CHARTER.md"
+            }
+          ],
+          "writePolicy": "Operator-owned product intent; retain independent acceptance and source precedence.",
+          "consumers": [
+            "nooch-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "Product destination, governing sources and commissioning defaults.",
+          "required": true
+        },
         {
           "id": "nooch-final-target",
           "paths": [
@@ -50,12 +71,30 @@
       ],
       "sharedState": [
         {
-          "id": "nooch-goal-home",
+          "id": "delivery-status",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/nutrition-planner/docs/internal/goal"
+            "path": ".vrooli/work/delivery/nooch-delivery/STATUS.md"
           },
-          "kind": "rolling-snapshot",
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-log",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/FEEDBACK.md"
+          },
+          "kind": "operator-input",
           "required": true
         }
       ]
@@ -63,14 +102,34 @@
     "knowledgeTopics": {},
     "members": {
       "nooch-delivery-orchestrator": {
-        "lane": "Own Nooch goal home, admit and independently accept epochs under large-effort-orchestration; never implement product work.",
+        "lane": "Own product delivery through coherent independent surface workers, native bounded admission, independent acceptance and the external delivery clock. Preserve retained owners; never implement product work as orchestrator.",
         "allowedWrites": [
           {
             "kind": "handoff"
           },
           {
             "base": "repo-root",
-            "path": "scenarios/nutrition-planner/docs/internal/goal"
+            "path": ".vrooli/work/delivery/nooch-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/nooch-delivery/archive"
           }
         ],
         "safetyCriticalRules": [
@@ -78,7 +137,9 @@
           "No Plan Manager or Swarm dispatch; no product implementation by orchestrator.",
           "Use registered native delivery profiles/permissions/budgets/safeguards; do not inherit investigation-only restrictions.",
           "Preserve user data and other agents changes; do not steer or alter planner/BAS teams.",
-          "Accept only through native mechanical gates; no silent gate lowering."
+          "Accept only through native mechanical gates; no silent gate lowering.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,

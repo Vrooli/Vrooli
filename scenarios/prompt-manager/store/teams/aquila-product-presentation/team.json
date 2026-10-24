@@ -37,7 +37,17 @@
     "governance": {},
     "documents": {
       "planOfRecord": null,
-      "sharedState": null
+      "sharedState": [
+        {
+          "id": "managed-effort-home",
+          "path": {
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/README.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
     },
     "knowledgeTopics": {
       "heartbeat-note": {

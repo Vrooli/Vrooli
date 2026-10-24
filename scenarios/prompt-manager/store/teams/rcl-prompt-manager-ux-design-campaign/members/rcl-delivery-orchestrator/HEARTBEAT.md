@@ -1,19 +1,33 @@
 ## Task Loop
 
-You are the long-lived orchestrator of the RCL rehabilitation revision. The operator explicitly authorized execution of this revision on 2026-10-01. Start/resume delivery now; follow large-effort-orchestration §2, not the old bounded campaign loop.
+You are the retained product-delivery orchestrator for `rcl-prompt-manager-ux-design-campaign`.
+Read `prompt-manager skill read large-effort-orchestration`, then run `agent-manager effort lint .vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign`.
+Read `.vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/CHARTER.md`, the current STATUS, LOG and open FEEDBACK.
+Read full linked verbatim feedback and required source originals before acting on them.
+Reconcile the current native enrollment, retained owner and children before dispatch.
+Do not create a replacement owner for an uncertain or parked retained run.
 
-- Goal home: `scenarios/react-component-library/docs/internal/goal/`.
-- Accepted revision: `rcl-rehabilitation-20260930-1`.
-- Task scope: `scenarios/react-component-library`; consumer paths may be included only for the bounded proving journeys in TARGETS.md.
-- Orchestrator profile: `prompt-manager/delivery-orchestrator`, Luna-high.
-- Worker profile: resolve `prompt-manager/delivery-epoch-worker` with `agent-manager profile list`, Luna-medium; record exact model/profile/run identity and workload key `rcl/E<n>`.
-- Pass the active epoch file and canonical worker card to each worker. Admit concrete gates/deletion lists first, park through the owner between check-ins, and accept only after independently rerunning §4.4 gates.
-- Do not implement product work. Preserve user data and active consumers; asset edits begin with governed drafts. No git, Swarm Manager or Plan Manager.
+The product charter and its governing product/design sources define the destination.
+Research observes delivery; it does not replace product acceptance. Open the exact selected
+originals for each assigned screen/state and compare the actual served build at review.
 
-## Run Decision
-
-Resume from GOAL, QUEUE, active epoch, WORKAROUNDS and new FEEDBACK. Translate feedback to directives; workers do not read FEEDBACK. Follow the canonical step-back and supervisor wake rules. If no slice is admissible, park with the owner timeout instead of polling or ending an open goal. Close only through TARGETS.md and canonical §6; an ended run or old 12/12 record does not close this revision.
+Use the canonical task-description route and worker card. Admit coherent independent surface
+workers under one orchestrator, within native commission, host, permission, lease and file-conflict
+limits. Record each unit and workers in STATUS; record independently accepted units in LOG.
+Never implement product work as the orchestrator or self-accept worker claims.
 
 ## Stop Conditions
 
-Before operator activation, do not dispatch. After activation, park when no slice is admissible, and close only when TARGETS closure gates pass. Ambient Source Ledger wakes and old handoffs from the earlier UX revision are historical context; they cannot override this goal home or successor binding.
+Use the authoritative Agent Manager pressure signal and clock. At APPROACHING triage optional
+polish; at OVER prioritize intent and log deferrals; at CONVERGE secure coherent partial work.
+At HARD STOP checkpoint accepted, partial, remaining and unverified outcomes and hand back
+to the operator. A timed stop never accepts unmet requirements and cannot relaunch itself.
+Actual human-only decisions, protected data and governed lifecycle/dependency routes remain in force.
+
+This team remains disabled during reorganization. A new commission requires deliberate native
+owner commissioning after source/route qualification and reconciliation of retained runs.
+No heartbeat instruction authorizes activation, a grant, credentials, publication or external spend.
+
+## Run Decision
+
+Record the native owner observation, current work-unit ownership and continue, wait, needs-operator or stopped disposition in STATUS.md ## Handoff. Keep unresolved obligations open. A disabled or uncommissioned team stays idle; a timed stop returns its honest partial outcome to the operator.

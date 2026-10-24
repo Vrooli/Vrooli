@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
-import { EffortBoardSchema, EffortFreshness } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
+import { EffortBoardRowSchema, EffortBoardSchema, EffortFreshness } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
 import { EffortsPage } from "./EffortsPage";
 import { renderWithProviders } from "../test-utils";
 
@@ -98,4 +98,70 @@ test("an empty observation retains coverage and makes no global no-work claim", 
   expect(screen.getByText(/Check discovery coverage before concluding/)).toBeTruthy();
   expect(screen.getByText("Discovery coverage unknown")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+});
+
+test("delivery progress preserves independent units and unassessed surfaces", () => {
+  const data = board();
+  data.rows[0] = create(EffortBoardRowSchema, {
+    enrollment: { effortRef: "delivery" },
+    goalHome: {
+      path: ".vrooli/work/delivery/example", state: "present",
+      surfaceScoreboard: [
+        { surface: "History", target: "Selected atlas", state: "close" },
+        { surface: "Settings", target: "Selected atlas", state: "unassessed" },
+      ],
+      activeUnits: [{ unitId: "history", status: "review", workers: ["run-history"] }, { unitId: "settings", status: "in-progress", workers: ["run-settings"] }],
+    },
+  });
+  owner.data = data;
+  renderWithProviders(<EffortsPage />);
+  const progress = within(screen.getByRole("region", { name: "Product progress" }));
+  expect(progress.getByRole("row", { name: /History.*Selected atlas.*close/ })).toBeInTheDocument();
+  expect(progress.getByRole("row", { name: /Settings.*Selected atlas.*unassessed/ })).toBeInTheDocument();
+  expect(progress.getByRole("link", { name: "Run run-history" })).toHaveAttribute("href", "/runs/run-history");
+  expect(progress.getByRole("link", { name: "Run run-settings" })).toBeInTheDocument();
+  expect(screen.getByText("No commission has been started.")).toBeInTheDocument();
+});
+
+test.each(["ON TRACK", "APPROACHING", "OVER", "CONVERGE", "HARD STOP", "PAUSED"])("delivery displays the owner pressure %s without accepting work", phase => {
+  const data = board();
+  data.rows[0] = create(EffortBoardRowSchema, {
+    enrollment: { effortRef: "delivery", delivery: { commissionId: "c1", state: phase === "PAUSED" ? "paused" : "running", budgetSeconds: 86400n, maxWorkers: 2 } },
+    deliveryPressure: { phase, elapsedSeconds: 0n, budgetSeconds: 86400n, pausedSeconds: 0n, instruction: "Owner instruction" },
+  });
+  owner.data = data;
+  renderWithProviders(<EffortsPage />);
+  const commission = within(screen.getByRole("region", { name: "Delivery commission" }));
+  expect(commission.getByText(phase)).toBeInTheDocument();
+  expect(commission.getByText("0s / 24h")).toBeInTheDocument();
+  expect(commission.getByText("Owner instruction")).toBeInTheDocument();
+  expect(commission.getByText(/Time does not establish product acceptance/)).toBeInTheDocument();
+});
+
+test("a stopped commission retains its frozen partial result and missing pressure is unknown", () => {
+  const data = board();
+  data.rows[0] = create(EffortBoardRowSchema, {
+    enrollment: { effortRef: "delivery", delivery: {
+      commissionId: "c1", state: "stopped", decisionId: "delivery-c1", reason: "Budget reached",
+      outcome: { surfaceScoreboard: [{ surface: "Settings", state: "unassessed" }] },
+    } },
+  });
+  owner.data = data;
+  renderWithProviders(<EffortsPage />);
+  const commission = within(screen.getByRole("region", { name: "Delivery commission" }));
+  expect(commission.getByText("Pressure unavailable")).toBeInTheDocument();
+  expect(commission.getByText("Elapsed / target").parentElement).toHaveTextContent("unknown");
+  expect(commission.getByText("delivery-c1")).toBeInTheDocument();
+  expect(commission.getByRole("table", { name: "Frozen delivery outcome" })).toHaveTextContent("unassessed");
+  expect(commission.getByText(/publication and answer remain owner facts/)).toBeInTheDocument();
+});
+
+test("a partial owner row does not invent commission, assessment or ownership state", () => {
+  const data = board();
+  data.rows[0] = create(EffortBoardRowSchema, { goalHome: { surfaceScoreboard: [{ surface: "History" }] } });
+  owner.data = data;
+  renderWithProviders(<EffortsPage />);
+  expect(screen.getByText("Commission unavailable.")).toBeInTheDocument();
+  expect(screen.getByRole("row", { name: /History unknown unknown unknown/ })).toBeInTheDocument();
+  expect(screen.queryByText("No commission has been started.")).toBeNull();
 });

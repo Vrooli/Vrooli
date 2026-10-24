@@ -1,7 +1,6 @@
 package main
 
 import (
-	"agent-manager/internal/goalhome"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"agent-manager/internal/goalhome"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
@@ -130,7 +131,7 @@ func TestEpochCheckDiminishingReturnsFailsOnlyTheOrchestrator(t *testing.T) {
 	writeFile(t, filepath.Join(home, "epochs", "E23.md"), readGoalhomeFixture(t, "bas", "epochs", "E23.md"))
 	writeFile(t, filepath.Join(home, "epochs", "E24.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E24.md"), "ACCEPTED 2026-10-07T00:42:30Z —", "ACCEPTED 2026-10-07T00:42:30Z | yield=-66 runtime lines |", 1))
 	worker := writeFile(t, filepath.Join(home, "epochs", "E25.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E25.md"), "ACCEPTED 2026-10-07T01:28:54Z —", "", 1))
-	legacy, err := goalhome.Load(os.DirFS(home))
+	legacy, err := goalhome.LoadLegacy(os.DirFS(home))
 	if err != nil {
 		t.Fatal(err)
 	}
