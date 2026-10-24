@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
+
 	"github.com/google/uuid"
 )
 
@@ -101,6 +103,8 @@ type MockRunner struct {
 	ExecuteFunc  func(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
 	ContinueFunc func(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
 	StopFunc     func(ctx context.Context, runID uuid.UUID) error
+	ProbeFunc    func(ctx context.Context, modelID string) error
+	ClassifyFunc func(stderr string, exitCode int) *fallback.ClassifiedError
 }
 
 // NewMockRunner creates a new mock runner.
@@ -158,9 +162,31 @@ func (m *MockRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	return nil
 }
 
+// ProbeModel delegates to ProbeFunc when set; otherwise reports healthy.
+// Tests can inject failures via ProbeFunc to drive health-store behavior.
+func (m *MockRunner) ProbeModel(ctx context.Context, modelID string) error {
+	if m.ProbeFunc != nil {
+		return m.ProbeFunc(ctx, modelID)
+	}
+	return nil
+}
+
 // IsAvailable checks if this runner is currently available.
 func (m *MockRunner) IsAvailable(ctx context.Context) (bool, string) {
 	return m.available, m.message
+}
+
+// Classify delegates to ClassifyFunc when set; otherwise uses the
+// residual TextClassifier so tests get sensible default behavior.
+func (m *MockRunner) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if m.ClassifyFunc != nil {
+		return m.ClassifyFunc(stderr, exitCode)
+	}
+	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+		RunnerType: string(m.runnerType),
+		Stderr:     stderr,
+		ExitCode:   exitCode,
+	})
 }
 
 // SetAvailable sets the availability state for testing.
@@ -276,6 +302,20 @@ func (s *StubRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 
 func (s *StubRunner) IsAvailable(ctx context.Context) (bool, string) {
 	return false, s.message
+}
+
+// ProbeModel reports the stub's unavailability reason so health probes can capture it.
+func (s *StubRunner) ProbeModel(ctx context.Context, modelID string) error {
+	return errors.New(s.message)
+}
+
+// Classify reports the stub's binary-missing condition so callers see
+// a typed reason on the runner-rejected error path.
+func (s *StubRunner) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if stderr == "" && exitCode == 0 {
+		return nil
+	}
+	return fallback.New(fallback.ReasonBinaryMissing, s.message, nil)
 }
 
 // Continue is not supported for stub runners.

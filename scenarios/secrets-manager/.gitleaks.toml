@@ -1,0 +1,14 @@
+# These files contain public test vectors, UI field names, and a catalogued
+# development fixture. They do not contain deployable credential material.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed Secrets Manager test and UI false positives"
+paths = [
+  '''^api/password_manager_test\.go$''',
+  '''^platforms/electron/bundle/catalog/scenarios/api-library/\.vrooli/service\.json$''',
+  '''^ui/src/PasswordManagerApp\.tsx$''',
+  '''^ui/src/app/routes\.tsx$''',
+  '''^ui/src/lib/passwordManagerApi\.test\.ts$''',
+]

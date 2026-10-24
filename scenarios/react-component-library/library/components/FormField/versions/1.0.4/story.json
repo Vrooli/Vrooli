@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace name",
+          "role": "textbox"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default field",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Required",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Email address",
+          "role": "textbox"
+        }
+      ],
+      "id": "required",
+      "mode": "live",
+      "name": "Required field",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Project slug",
+          "role": "textbox"
+        },
+        {
+          "attribute": "aria-invalid",
+          "kind": "attribute",
+          "selector": "[data-rcl-form-field-control]",
+          "value": "true"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "id": "error",
+      "mode": "live",
+      "name": "Validation error",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Billing plan",
+          "role": "textbox"
+        }
+      ],
+      "id": "disabled",
+      "mode": "live",
+      "name": "Disabled field",
+      "role": "boundary"
+    },
+    {"id":"empty","name":"Empty field","args":{"value":""},"expect":[{"kind":"role","role":"textbox"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long field label","args":{"label":"Workspace name with a deliberately long explanatory label that must wrap cleanly"},"expect":[{"kind":"role","role":"textbox"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "FormField"
+}

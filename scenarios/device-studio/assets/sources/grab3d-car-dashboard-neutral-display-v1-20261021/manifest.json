@@ -1,0 +1,65 @@
+{
+  "id": "generic-vehicle-dashboard-display-v1",
+  "source": {
+    "name": "Grab3D Car Dashboard",
+    "url": "https://grab3d.com/models/vehicles/car-dashboard/",
+    "download_url": "https://grab3d.com/dl/car-dashboard/car-dashboard.glb",
+    "license_claim": "CC0-1.0, stated by source package LICENSE.txt and source manifest",
+    "license_reference": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source_file": "source/car-dashboard-source-original.glb",
+    "source_bytes": 1719512,
+    "source_sha256": "17a5c6a762c5eeeaa7941ee385f2bba0bec453fb3a9b208c4eb39d0d643a8baf",
+    "original_preserved_byte_for_byte": true,
+    "acquired_at": "2026-10-21",
+    "license_verification": {
+      "verified_against": "retained package LICENSE.txt and source manifest.json both state CC0 1.0 Universal / CC0-1.0",
+      "status": "package-claim verified; not an independent legal determination",
+      "uncertainty": "No contradictory license text observed in retained package; source-page legal terms were not separately adjudicated."
+    }
+  },
+  "derived_file": "generic-vehicle-dashboard-display-v1.glb",
+  "derived_bytes": 1741092,
+  "derived_sha256": "4f7dee2ca8790baab3c8f115f21e582af710e0ed2f16d976058a56814b431b26",
+  "generator": "derive_vehicle_host.py (Python standard library only)",
+  "geometry": {
+    "units": "meters (source-reported nominal real scale)",
+    "axis": "Y up; front screen normal points +Y,+Z",
+    "root_node_index": 5,
+    "display_node_index": 3,
+    "display_node_name": "vehicle-display-assembly",
+    "mesh_index": 3,
+    "active_display_primitive_index": 0,
+    "active_display_material_index": 10,
+    "bezel_primitive_index": 1,
+    "bezel_material_index": 11,
+    "uv_origin": "upper-left; U increases right, V increases downward",
+    "active_plane_local_bounds_m": {
+      "x": [
+        -0.123,
+        0.123
+      ],
+      "y": [
+        0.54115,
+        0.66915
+      ],
+      "z_approx": [
+        0.105,
+        0.12
+      ]
+    },
+    "support_frame_node_index": 0,
+    "support_frame": "dashboard body; approximate world-space Y=0 contact plane; no stability/contact qualification"
+  },
+  "changes": [
+    "Retained dashboard body, ambient trim, instrument cluster and steering wheel geometry.",
+    "Removed all four original screen/map/routing overlay primitives and installed one clean rounded active plane with a separate satin bezel.",
+    "Removed mint emissive colors; set dashboard and wheel to dark neutral matte PBR, and cluster details to restrained analog colors.",
+    "Dropped source base-color maps only on body and steering wheel to avoid their mint stylization; retained source roughness/metallic and normal maps."
+  ],
+  "limitations": [
+    "Generic host adaptation; no OEM identity or CarPlay integration claim.",
+    "Display proportions and placement are a bounded derivative of the source screen envelope; these are not a manufacturer dimensional specification.",
+    "Source preview and GLB geometry were reviewed, but no native renderer acceptance claim is made here.",
+    "The generated support plane is an inferred asset bound, not proof of physical stability."
+  ]
+}

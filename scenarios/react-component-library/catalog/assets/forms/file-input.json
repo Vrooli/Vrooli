@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.file-input",
+    "name": "FileInput",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The file-selection field with a native fallback, type and size validation, previews, count limits, accessible status, and compatibility with the upload adapter.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "forms.form-field",
+        "reason": "Label, description, and error relationships are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "upload-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "validation-error",
+    "request-error"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "module": "post-launch",
+    "description": "P1/P2 traceability placeholders for planned Code Facts expansions.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CF-P1-001",
+      "title": "Report provider extraction cost",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "analyzer",
+      "criticality": "P1",
+      "description": "Distinguish provider extraction cost from Code Facts include filtering in reports and diagnostics.",
+      "tags": ["analyzer", "performance"],
+      "validation": [{ "type": "unit", "status": "planned", "notes": "Report metadata tests cover full-provider-extraction with filtered response output." }]
+    },
+    {
+      "id": "CF-P1-002",
+      "title": "Expose additional proof families",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "proof",
+      "criticality": "P1",
+      "description": "Expose CLI proof and UI widget proof families through the same evidence status model when consumers are ready.",
+      "tags": ["proof", "cli", "ui"],
+      "validation": [{ "type": "integration", "status": "planned", "notes": "Future proof-family fixtures cover CLI and UI widget consumers." }]
+    },
+    {
+      "id": "CF-P1-003",
+      "title": "Diff report snapshots",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "facts",
+      "criticality": "P1",
+      "description": "Compare two Code Facts reports and explain changed evidence after a refactor.",
+      "tags": ["diff", "diagnostics"],
+      "validation": [{ "type": "unit", "status": "planned", "notes": "Snapshot diff tests cover added, removed, and changed evidence." }]
+    },
+    {
+      "id": "CF-P1-004",
+      "title": "Export compact adoption summaries",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "facts",
+      "criticality": "P1",
+      "description": "Allow downstream validators to persist compact fact summaries for baseline diffs without storing full graphs.",
+      "tags": ["export", "baseline"],
+      "validation": [{ "type": "contracts", "status": "planned", "notes": "Export contract tests verify stable summary shapes." }]
+    }
+  ]
+}

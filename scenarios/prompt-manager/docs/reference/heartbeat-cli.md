@@ -7,11 +7,87 @@ CLI commands for managing heartbeat configurations, execution, and member docume
 Heartbeat commands are subcommands of `prompt-manager team`. They manage:
 - Heartbeat configuration (schedule, enabled state)
 - Manual triggering and execution logs
+- Bounded per-member dispatch-attempt history
 - Member documents (RESPONSIBILITIES.md, HEARTBEAT.md)
 
 ---
 
+## Heartbeat Auto-Pause Control
+
+### prompt-manager heartbeat-control status
+
+Show global heartbeat control state and per-team summaries.
+
+```bash
+prompt-manager heartbeat-control status [--json]
+```
+
+### prompt-manager heartbeat-control pause
+
+Manually pause future heartbeat starts globally.
+
+```bash
+prompt-manager heartbeat-control pause [--reason "quiet period"] [--json]
+```
+
+### prompt-manager heartbeat-control resume
+
+Resume global heartbeat scheduling and reschedule enabled heartbeat configs for enabled teams.
+
+```bash
+prompt-manager heartbeat-control resume [--json]
+```
+
+### prompt-manager heartbeat-control policy
+
+Show or update the global auto-pause policy.
+
+```bash
+prompt-manager heartbeat-control policy show [--json]
+prompt-manager heartbeat-control policy set --enabled=true --pause-after=14d --warning-after=10d --resume-mode=manual [--json]
+```
+
+### prompt-manager team heartbeat-control
+
+Show or update one team's control state.
+
+```bash
+prompt-manager team heartbeat-control <team-id> status [--json]
+prompt-manager team heartbeat-control <team-id> pause [--reason "quiet period"] [--json]
+prompt-manager team heartbeat-control <team-id> resume [--json]
+prompt-manager team heartbeat-control <team-id> policy show [--json]
+prompt-manager team heartbeat-control <team-id> policy set --mode=inherit|disabled|custom --pause-after=21d --warning-after=14d [--json]
+```
+
+Pause is separate from member heartbeat `enabled`. A paused team can still have enabled heartbeat configs; they simply will not start until resumed.
+
+---
+
 ## Heartbeat Configuration
+
+### Native delivery team commissioning
+
+Prompt Manager does not have finite-leader bind, amend, retire, completion, reopen, or restart commands. Configure a delivery team through the existing team contract: `EffortRefs` identifies the effort, `Coordination.LeadAgentID` identifies its leader, the operating contract carries member and plan-of-record/source paths, and the leader member heartbeat selects its Agent Manager `ProfileKey`. Keep the team and heartbeat disabled during preparation.
+
+Before enablement, follow the reusable [product receiver-qualification procedure](../../store/skills/packs/core/large-effort-orchestration/references/commissioning.md) when the team declares a product home. Qualify its actual member/profile/owner route and selected sources; retain the receipt in that home. Managed finite plans, families, qualifications and investigations instead retain their declared owner and existing handoff. Verify the same actual identity/source boundary there, without creating a product home or copying another effort's source list.
+
+The ordinary member heartbeat route (`team heartbeat-enable`, `team heartbeat-trigger`) creates and dispatches the task/run. For the configured finite delivery lead, Prompt Manager requires a valid team contract, declared leader, active member, matching profile, and exact current Agent Manager enrollment before creating a task or run. It adds the enrollment's non-withdrawn `TargetRevision` as a public, verified `orchestrator` WorkReference to the immutable CreateRun request; it does not derive verification from environment labels or accept a locally supplied revision. A missing, unavailable, or mismatched identity fails admission. If a prior run ID exists, PM preserves that exact owner obligation as uncertain until it can be verified and does not launch competing work. Active/parked verified owners are watched through the existing owner path; a verified terminal owner permits a fresh dispatch using current configuration. Finite non-lead members and ordinary standing/non-delivery heartbeats remain supported without orchestrator association. WorkReferences describe work; they do not grant authority.
+
+Use the existing Agent Manager effort enrollment and run identity as canonical state. A terminal run does not accept the effort, and the normal parked orchestrator/child-watch route remains the qualified continuation model. Event check-ins are proposed and unavailable in Prompt Manager.
+
+A declared product home requires a running Agent Manager delivery commission before leader
+dispatch. An enrollment that already has a commission remains subject to its running state,
+start timestamp and budget even without a home hint. Managed finite work with neither keeps
+its own owner admission and stopping model; it still needs the exact enrollment/revision,
+active member, matching profile, qualified caller and current authority. Preparing member
+instructions or registering `team:<id>` in Source Ledger does not enable scheduling or runs.
+
+### Effort supervisor heartbeat
+
+The bundled team `effort-supervision` is disabled. Its `effort-supervisor`
+member is an ordinary heartbeat (daily schedule, `--wake-admission=on-change
+--wake-sources=team,member,inbox`) on `prompt-manager/delivery-review`;
+orchestrators wake it with `team message-send` plus `team heartbeat-trigger`.
 
 ### prompt-manager team heartbeat-list
 
@@ -37,6 +113,18 @@ prompt-manager team heartbeat-list my-team
 
 ---
 
+### prompt-manager team heartbeat-fleet-health
+
+Report the rolling 24-hour success aggregate across enabled heartbeat members of enabled teams.
+
+```bash
+prompt-manager team heartbeat-fleet-health [--json]
+```
+
+The numerator uses each heartbeat record's durable `lastSuccessfulExecution`. Starting a new run therefore does not erase that member's earlier completion from the rolling window, and the aggregate does not depend on event-history retention. The JSON response includes `successPercent`, `thresholdPercent`, and the integer-arithmetic `meetsThreshold` verdict; consumers should use that verdict instead of rounding the percentage. `membersWithTwoFailures` reports the number of enabled members whose consecutive-failure streak is at least two.
+
+---
+
 ### prompt-manager team heartbeat
 
 Get heartbeat configuration for a specific member.
@@ -52,7 +140,7 @@ prompt-manager team heartbeat my-team agent-1
 # Heartbeat for my-team/agent-1:
 #   Enabled:  true
 #   Schedule: 0 */6 * * * (every 6 hours)
-#   Profile:  prompt-manager-heartbeat
+#   Profile:  prompt-manager/heartbeat
 #   Last Run: 2026-02-01T10:00:00Z (completed)
 #   Next Run: 2026-02-01T16:00:00Z
 ```
@@ -64,14 +152,16 @@ prompt-manager team heartbeat my-team agent-1
 Enable or create a heartbeat configuration for a member.
 
 ```bash
-prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--profile=<key>] [--json]
+prompt-manager team heartbeat-enable <team-id> <agent-id> [--schedule=<cron>] [--profile=<key>] [--wake-admission=always|on-change] [--wake-sources=team,inbox] [--json]
 ```
 
 **Options:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--schedule` | Yes | Cron expression for execution schedule |
-| `--profile` | No | Agent-manager profile key override. Defaults to `prompt-manager-heartbeat` for multi-process teams and `prompt-manager-heartbeat-cc` for single-process teams |
+| `--schedule` | No | Cron expression for execution schedule; new heartbeats default to `0 */6 * * *`, while updates preserve the existing schedule unless this flag is supplied |
+| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat-judgment` (declared in `.vrooli/agent-manager/heartbeat.json`; role `code.economy.judgment`) for multi-process teams and `prompt-manager/heartbeat-inspection` (declared in `.vrooli/agent-manager/heartbeat-single-process.json`; role `code.flatrate`) for single-process teams. The runner, model, and effort come from the resource-owned role policy, not this document or the profile name; resolve them from the live catalog before changing a route. |
+| `--wake-admission` | No | `always` (default) runs on every schedule; `on-change` admits only when a selected bounded source identity changes. |
+| `--wake-sources` | No | Comma-separated `team`, `member`, `inbox`, or `corpus` sources required with `--wake-admission=on-change`. |
 | `--json` | No | Output as JSON |
 
 **Schedule Examples:**
@@ -111,6 +201,12 @@ prompt-manager team heartbeat-disable my-team agent-1
 
 Manually trigger a heartbeat execution.
 
+For a caller carrying an operation grant or request-operation authority, the exact
+member-trigger route checks the existing `run.create` operation on `agent-manager:*`
+with `agent-manager:write`. Team configuration uses its separate `team.manage`
+contract. The trigger still enters the existing caller, membership, pause and
+queue-deduplication checks; AUTH-01 retains its declared caller-proof mode.
+
 ```bash
 prompt-manager team heartbeat-trigger <team-id> <agent-id> [--json]
 ```
@@ -144,6 +240,23 @@ prompt-manager team heartbeat-logs my-team agent-1
 #   2026-02-01T04-00-00Z.log (completed)
 #   2026-01-31T22-00-00Z.log (failed)
 ```
+
+### prompt-manager team heartbeat-attempts
+
+Read a bounded newest-first page of dispatch attempts for exactly one team
+member. The default limit is 20; values from 1 through 200 are accepted. If
+the newest 1,000 event records do not exhaust the source, `total` is a lower
+bound, `totalExact` is false, and `hasMore` remains true. `--offset` pages the
+currently observed recent window; it does not continue through all retained
+history or guarantee a stable snapshot. JSON output retains the complete API
+response. An API or identity error is returned to the caller.
+
+```bash
+prompt-manager team heartbeat-attempts <team-id> <agent-id> [--limit 1..200] [--offset N] [--json]
+```
+
+Use `--json` for a machine-readable record set. This command does not trigger a
+heartbeat or change scheduling state.
 
 ---
 
@@ -276,11 +389,35 @@ prompt-manager agent soul agent-1 --file=soul.md
 
 ---
 
-## Member Context
+## Prompt Preview and Member Context
+
+### prompt-manager team prompt-preview
+
+Preview the full runtime heartbeat prompt for a member. This includes the active `HEARTBEAT.md` task and should be used when auditing exactly what a heartbeat run receives.
+
+```bash
+prompt-manager team prompt-preview <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team prompt-preview-structured
+
+Preview the same runtime prompt as backend-ordered sections. This is the CLI equivalent of the UI's prompt pipeline surface.
+
+```bash
+prompt-manager team prompt-preview-structured <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team prompt-matrix
+
+Show prompt section coverage and character counts for every member in a team. Use `--json` to inspect the complete structured prompt matrix.
+
+```bash
+prompt-manager team prompt-matrix <team-id> [--json]
+```
 
 ### prompt-manager team member-context
 
-Get the full context prompt for a team member. This includes agent files, responsibilities, org context, coordination guidance, durable-state guidance, and inbox content when enabled, but excludes HEARTBEAT.md task instructions. Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
+Get standing context for a team member without the active `HEARTBEAT.md` task. This includes agent files, responsibilities, org context, coordination guidance, storage-map guidance, and inbox content when enabled. Use this for external or leader-led bootstrapping that needs taskless context; use `prompt-preview` to audit the full runtime heartbeat prompt.
 
 ```bash
 prompt-manager team member-context <team-id> <agent-id> [--json]

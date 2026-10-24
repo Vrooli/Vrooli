@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Probability-labeled completion forecasts with a documented method, held-out evaluation, and calibration reporting — only where enough relevant data exists (plan R2, §12.1).",
+      "id": "PLAN-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Calibrated statistical forecasts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "An optional model-backed interface over the same bounded, validated commands — never a second scheduling engine and never required for the core loop (plan R2, §18.3).",
+      "id": "PLAN-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Conversational planning assistant",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Multi-scenario comparison, advanced constraint search, and richer learning controls backed by measured evidence (plan R2).",
+      "id": "PLAN-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Richer what-if and scheduling search",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "User-authorized automatic movement of flexible sessions within declared bounds, still preserving fixed commitments and promise history (plan R3).",
+      "id": "PLAN-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Opt-in automatic flexible rescheduling",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Shared household editing, team capacity/assignment, and multi-person availability aggregation as a deliberate product expansion beyond single-user R1 (plan R3, D03).",
+      "id": "PLAN-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Household and team collaboration",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Optional provider event mutation with clear ownership and conflict semantics, well beyond R1's strictly read-only integration (plan R3, §2.3).",
+      "id": "PLAN-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Two-way provider writeback",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Metered plans and billing if the product is taken to market, gated behind proven retention from the beautiful daily-use loop (plan R3, monetization).",
+      "id": "PLAN-P2-007",
+      "prd_ref": "OT-P2-007",
+      "status": "planned",
+      "title": "Commercial billing and subscription",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P2-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

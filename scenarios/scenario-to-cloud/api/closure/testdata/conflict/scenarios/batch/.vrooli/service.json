@@ -1,0 +1,9 @@
+{
+  "service": {
+    "name": "batch"
+  },
+  "runtime": {
+    "kind": "one_shot",
+    "auto_restart_default": true
+  }
+}

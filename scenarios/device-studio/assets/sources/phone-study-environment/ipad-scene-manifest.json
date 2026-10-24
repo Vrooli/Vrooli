@@ -1,0 +1,168 @@
+{
+  "profile_id": "device-studio-ipad-study-environment-export-v2",
+  "blender_version": [
+    5,
+    2,
+    2
+  ],
+  "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+  "input": {
+    "scene_glb": {
+      "staged_name": "phone-study-environment.glb",
+      "size_bytes": 421404,
+      "sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+      "expected_mesh_nodes": [
+        "TableLeg-NE",
+        "TableLeg-NW",
+        "TableLeg-SE",
+        "TableLeg-SW",
+        "TableTop",
+        "TeaCup",
+        "TeaCupHandle",
+        "TeaSurface",
+        "RoomBackWall",
+        "WindowLightPanel",
+        "WindowFrameUprightLeft",
+        "WindowFrameUprightRight",
+        "WindowFrameRailLower",
+        "WindowFrameRailUpper"
+      ]
+    },
+    "device_glb": {
+      "staged_name": "ipad-mini-screen-uv-oriented-180-v2.glb",
+      "size_bytes": 1939592,
+      "sha256": "0326fd47e7df4a065978eaae76e6789cb3027f54bab6f3f7fdef1bdfb867e52e"
+    },
+    "cup_generator": {
+      "staged_name": "phone_table_export_source.py",
+      "sha256": "2a36b813c050497524a75d170deb53f4d23fb8d3c39054f3d5836a34abfa6659"
+    },
+    "inventory_generator": {
+      "staged_name": "phone_environment_inventory_source.py",
+      "sha256": "1cadc29e06491aae213963d731b7edcc7145ebbb54072baef48522b2ce7564b9"
+    },
+    "math_helper": {
+      "staged_name": "ipad_environment_math.py",
+      "sha256": "c45a8996b631d51d48053ae345a01b8a668db68722fa62ce5b96db7a772610d2"
+    },
+    "base_table_manifest": {
+      "staged_name": "phone_table_manifest.json",
+      "sha256": "a5587b445c029211dfece07a71709bb94c4287171526318fa8022d78170d86cf"
+    },
+    "base_environment_manifest": {
+      "staged_name": "phone_environment_manifest.json",
+      "sha256": "bc89ac5b69ef6cd58ef788072eee89fa9c12598c7f76664a838d25623d6617ea"
+    }
+  },
+  "cup": {
+    "radial_segments": 128,
+    "source": "shared phone-table authored make_cup and material builder; unchanged profile geometry except this explicit tessellation override"
+  },
+  "camera_projection": {
+    "camera_candidate_id": "ipad-study-camera-16x9-fit-screen-uv-oriented-180-v3",
+    "camera": {
+      "translation_m": [
+        0.1002994491448368,
+        1.409043851488113,
+        0.5300879317248927
+      ],
+      "rotation_xyzw": [
+        -0.3913243654372847,
+        0.14705677223763933,
+        0.06350320239003839,
+        0.9062046623364743
+      ],
+      "focal_length_mm": 78,
+      "sensor_width_mm": 36,
+      "aspect": 1.7777777777777777
+    },
+    "device_placement": {
+      "scene_support_world": {
+        "translation_m": {
+          "x": 0,
+          "y": 0.75,
+          "z": 0
+        }
+      },
+      "support_pivot_m": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "device_root_rest": {
+        "translation_m": {
+          "x": 0,
+          "y": 0.002631086703401778,
+          "z": 0
+        },
+        "rotation_xyzw": {
+          "x": -0.7035859188226571,
+          "y": 0,
+          "z": 0,
+          "w": 0.7106101989378406
+        }
+      },
+      "source_to_canonical": {
+        "rotation_xyzw": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "w": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      },
+      "display_node_index": 14,
+      "evidence": "exact iPad hero-5 closure placement; candidate-only projection fit input"
+    },
+    "image_margin_normalized": 0.04,
+    "minimum_gap_from_device_normalized": 0.1,
+    "placement_search_blender_xy_meters": {
+      "x_min": -0.38,
+      "x_max": 0.38,
+      "y_min": -0.3,
+      "y_max": 0.3,
+      "step": 0.005
+    },
+    "tabletop_blender_xy_bounds_meters": {
+      "x_min": -0.475,
+      "x_max": 0.475,
+      "y_min": -0.39,
+      "y_max": 0.39,
+      "edge_margin": 0.02
+    },
+    "placement_basis": "project all actual transformed tablet vertices, require full tablet and regenerated cup inside frame margin, and search the complete cup bounds for at least 10% projected separation; candidate scene fit only"
+  },
+  "expected_output": {
+    "glb_name": "ipad-study-environment.glb",
+    "inventory_name": "ipad-environment-inventory.json",
+    "max_bytes": 33554432,
+    "expected_mesh_nodes": [
+      "TableLeg-NE",
+      "TableLeg-NW",
+      "TableLeg-SE",
+      "TableLeg-SW",
+      "TableTop",
+      "TeaCup",
+      "TeaCupHandle",
+      "TeaSurface",
+      "RoomBackWall",
+      "WindowLightPanel",
+      "WindowFrameUprightLeft",
+      "WindowFrameUprightRight",
+      "WindowFrameRailLower",
+      "WindowFrameRailUpper"
+    ]
+  },
+  "scene_scope": "New versioned iPad-specific environment camera candidate derived from the approved phone study environment. Source environment and device remain unchanged; only cup, handle, and tea geometry are regenerated. Camera v3 is tablet-specific; the phone scene and camera are unchanged. Candidate remains unqualified.",
+  "candidate_identity": {
+    "bundle_id": "device-studio-starter-ipad-mini-6-ipad-environment-v2",
+    "artifact_id": "ipad-study-environment-v2-glb",
+    "scene_id": "ipad-study-environment-screen-uv-oriented-180-v2-cup128-fit-camera-v3",
+    "camera_id": "ipad-study-camera-16x9-fit-screen-uv-oriented-180-v3",
+    "status": "candidate_only_until_native_export_and_visual_contact_review"
+  }
+}

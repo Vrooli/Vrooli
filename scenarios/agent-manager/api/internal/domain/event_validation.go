@@ -58,13 +58,13 @@ func validateToolResultEvent(evt *RunEvent) {
 		return
 	}
 
-	if data.ToolName == "" {
+	if data.ToolName == "" && data.ToolCallID == "" {
 		log.Printf("[WARN] tool_result event has empty toolName (runID=%s)", evt.RunID)
 	}
 
 	// Output can legitimately be empty for some tool results (e.g., file write)
 	// Only warn if both output and error are empty on a failed result
-	if !data.Success && data.Output == "" && data.Error == "" {
+	if (data.OutcomeKnown == nil || *data.OutcomeKnown) && !data.Success && data.Output == "" && data.Error == "" {
 		log.Printf("[WARN] failed tool_result event has no error details (runID=%s, tool=%s)", evt.RunID, data.ToolName)
 	}
 }
@@ -101,8 +101,15 @@ func validateMessageDeletedEvent(evt *RunEvent) {
 
 // validateMetricEvent logs warnings for metric events with suspicious data.
 func validateMetricEvent(evt *RunEvent) {
-	// Handle CostEventData (the primary metric type)
-	if data, ok := evt.Data.(*CostEventData); ok {
+	if _, ok := evt.Data.(*UsageEventData); ok {
+		return
+	}
+	if _, ok := evt.Data.(*ChargeEventData); ok {
+		return
+	}
+	// Usage is the primary metric type. A zero-token usage event is retained
+	// because some providers emit charge evidence separately.
+	if data, ok := evt.Data.(*UsageEventData); ok {
 		// Zero tokens might indicate a parsing issue
 		if data.InputTokens == 0 && data.OutputTokens == 0 {
 			log.Printf("[WARN] metric event has zero tokens (runID=%s)", evt.RunID)
@@ -119,6 +126,18 @@ func validateMetricEvent(evt *RunEvent) {
 	}
 
 	log.Printf("[WARN] metric event has unexpected data type: %T (runID=%s)", evt.Data, evt.RunID)
+}
+
+// IsOperationalErrorEvent reports whether an error-typed event represents an
+// operational failure. Provider quota frames below 100% are observations, not
+// failures; exhausted and unquantified rate-limit events retain their existing
+// error meaning.
+func IsOperationalErrorEvent(evt *RunEvent) bool {
+	if evt == nil || evt.EventType != EventTypeError {
+		return false
+	}
+	quota, isQuota := evt.Data.(*RateLimitEventData)
+	return !isQuota || quota == nil || quota.UsedPercent == nil || *quota.UsedPercent >= 100
 }
 
 // EventValidationStats tracks validation statistics for a set of events.
@@ -174,7 +193,13 @@ func ValidateEvents(events []*RunEvent) EventValidationStats {
 		case EventTypeMetric:
 			stats.MetricCount++
 		case EventTypeError:
-			stats.ErrorCount++
+			// Native quota observations use the historical rate-limit payload
+			// for compatibility. A provider-reported percentage below 100 is
+			// an observation frame, not throttling; exhausted/amount-unknown
+			// limit events retain their historical error classification.
+			if IsOperationalErrorEvent(evt) {
+				stats.ErrorCount++
+			}
 		case EventTypeLog:
 			stats.LogCount++
 		}

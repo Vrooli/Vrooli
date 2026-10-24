@@ -17,6 +17,17 @@ import {
 import { createTestInstruction } from '../../helpers';
 
 describe('Outcome Builder', () => {
+  it.each([true, false])('preserves typed condition truth and values: %s', truth => {
+    const result = { success: true, condition: { type: 'expression', outcome: truth, negated: true, actual: false, expected: true } };
+    const now = new Date();
+    const outcome = buildStepOutcome({ instruction: createTestInstruction({ index: 0, nodeId: 'condition' }),
+      result, startedAt: now, completedAt: now });
+    const wire = toDriverOutcome(outcome);
+    expect(wire.condition).toMatchObject({ type: 'expression', negated: true,
+      actual: { boolValue: false }, expected: { boolValue: true } });
+    expect((wire.condition as { outcome?: boolean }).outcome ?? false).toBe(truth);
+  });
+
   it('builds a StepOutcome with telemetry, focus, and failure details', () => {
     const instruction = createTestInstruction({
       index: -1,
@@ -69,6 +80,10 @@ describe('Outcome Builder', () => {
         base64: Buffer.from('image-bytes').toString('base64'),
         width: 800,
         height: 600,
+        media_type: 'image/jpeg',
+        requested_extent: 'full_page',
+        actual_extent: 'full_page',
+        degraded: true,
         capture_time: '2024-01-01T00:00:00.500Z',
       },
       domSnapshot: {
@@ -91,6 +106,12 @@ describe('Outcome Builder', () => {
     expect(outcome.success).toBe(false);
     expect(outcome.failure?.message).toBe('boom');
     expect(outcome.screenshot).toBeDefined();
+    expect(outcome.notes).toMatchObject({
+      screenshot_requested_extent: 'full_page',
+      screenshot_actual_extent: 'full_page',
+      screenshot_media_type: 'image/jpeg',
+      screenshot_degraded: 'true',
+    });
     expect(outcome.domSnapshot).toBeDefined();
     expect(outcome.consoleLogs.length).toBe(1);
     expect(outcome.networkEvents.length).toBe(1);

@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "forensics", "title": "Forensics", "routes": ["/forensics"], "purpose": "Show evidence availability and investigation context honestly.", "prd_refs": ["OT-P0-003"] } }

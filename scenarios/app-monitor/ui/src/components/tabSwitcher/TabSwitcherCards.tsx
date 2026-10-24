@@ -16,6 +16,9 @@ import {
 
 export type SortOption<T extends string> = { value: T; label: string };
 
+const CARD_GRID_INITIAL_WINDOW = 48;
+const CARD_GRID_WINDOW_INCREMENT = 48;
+
 export function Section({
   title,
   description,
@@ -86,34 +89,10 @@ export function AppGrid({
   errorMessage?: string | null;
   isRefreshing?: boolean;
 }) {
-  const [visibleCount, setVisibleCount] = useState(() => Math.min(apps.length, 24));
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(apps.length, CARD_GRID_INITIAL_WINDOW));
 
   useEffect(() => {
-    if (apps.length <= 24) {
-      setVisibleCount(apps.length);
-      return;
-    }
-
-    setVisibleCount(24);
-    let rafId = 0;
-    const revealNextBatch = () => {
-      setVisibleCount((current) => {
-        if (current >= apps.length) {
-          return current;
-        }
-        const nextValue = Math.min(apps.length, current + 24);
-        if (nextValue < apps.length) {
-          rafId = window.requestAnimationFrame(revealNextBatch);
-        }
-        return nextValue;
-      });
-    };
-    rafId = window.requestAnimationFrame(revealNextBatch);
-    return () => {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
+    setVisibleCount(Math.min(apps.length, CARD_GRID_INITIAL_WINDOW));
   }, [apps]);
 
   const isBusy = Boolean(isLoading || isRefreshing);
@@ -138,6 +117,9 @@ export function AppGrid({
 
   const visibleApps = apps.slice(0, visibleCount);
   const hasPendingRender = visibleCount < apps.length;
+  const renderMoreApps = () => {
+    setVisibleCount((current) => Math.min(apps.length, current + CARD_GRID_WINDOW_INCREMENT));
+  };
 
   return (
     <>
@@ -164,7 +146,10 @@ export function AppGrid({
       </div>
       {hasPendingRender && (
         <div className="tab-switcher__progressive-status" role="status" aria-live="polite">
-          Loading more results...
+          Showing {visibleCount} of {apps.length} scenarios.
+          <button type="button" onClick={renderMoreApps}>
+            Show more
+          </button>
         </div>
       )}
     </>
@@ -184,34 +169,10 @@ export function ResourceGrid({
   isLoading?: boolean;
   skeletonCount?: number;
 }) {
-  const [visibleCount, setVisibleCount] = useState(() => Math.min(resources.length, 24));
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(resources.length, CARD_GRID_INITIAL_WINDOW));
 
   useEffect(() => {
-    if (resources.length <= 24) {
-      setVisibleCount(resources.length);
-      return;
-    }
-
-    setVisibleCount(24);
-    let rafId = 0;
-    const revealNextBatch = () => {
-      setVisibleCount((current) => {
-        if (current >= resources.length) {
-          return current;
-        }
-        const nextValue = Math.min(resources.length, current + 24);
-        if (nextValue < resources.length) {
-          rafId = window.requestAnimationFrame(revealNextBatch);
-        }
-        return nextValue;
-      });
-    };
-    rafId = window.requestAnimationFrame(revealNextBatch);
-    return () => {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
+    setVisibleCount(Math.min(resources.length, CARD_GRID_INITIAL_WINDOW));
   }, [resources]);
 
   if (isLoading) {
@@ -222,6 +183,9 @@ export function ResourceGrid({
   }
   const visibleResources = resources.slice(0, visibleCount);
   const hasPendingRender = visibleCount < resources.length;
+  const renderMoreResources = () => {
+    setVisibleCount((current) => Math.min(resources.length, current + CARD_GRID_WINDOW_INCREMENT));
+  };
   return (
     <>
       <div className="tab-switcher__grid">
@@ -231,7 +195,10 @@ export function ResourceGrid({
       </div>
       {hasPendingRender && (
         <div className="tab-switcher__progressive-status" role="status" aria-live="polite">
-          Loading more results...
+          Showing {visibleCount} of {resources.length} resources.
+          <button type="button" onClick={renderMoreResources}>
+            Show more
+          </button>
         </div>
       )}
     </>

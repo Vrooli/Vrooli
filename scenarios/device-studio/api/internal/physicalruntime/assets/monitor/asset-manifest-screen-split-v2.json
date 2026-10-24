@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "artifact_id": "innerscene-ultrawide-monitor-screen-split-v2",
+  "path": "monitor-screen-split-v2.glb",
+  "media_type": "model/gltf-binary",
+  "size_bytes": 113844,
+  "sha256": "d077d0e5433f8058f0c7d09c7dfae423af6412ffdedeb6f2af34a2f7e766deb9",
+  "source_manifest_sha256": "d9718414b087fe098c6877bece031554e997ea8daa28f851fe446ca45ac1020a",
+  "source_path": "scenarios/device-studio/assets/sources/innerscene-ultrawide-monitor-screenmap-v2/monitor-screen-split-v2-manifest.json",
+  "source_title": "Wide View - Ultrawide Monitor",
+  "creator": "Innerscene (original model)",
+  "license": "CC0-1.0",
+  "attribution": "Innerscene, Wide View - Ultrawide Monitor (CC0-1.0; retained as provenance)",
+  "adaptation": "Split the source glass mesh into its two planar display triangles and 298 original bevel triangles. The target-only display primitive has a dedicated unit-rectangle TEXCOORD_0 accessor and cloned screen material; original POSITION/NORMAL, source BIN prefix, UV0 accessor, and all bevel UV/material references remain preserved.",
+  "identity": "Generic monitor design only; no manufacturer or model claim.",
+  "qualification": "candidate_only_unqualified"
+}

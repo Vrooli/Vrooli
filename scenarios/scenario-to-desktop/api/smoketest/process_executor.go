@@ -3,15 +3,16 @@ package smoketest
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
-	"strconv"
 	"sync"
-	"syscall"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // DefaultMaxOutputBytes is the default maximum output size (10MB).
@@ -107,102 +108,142 @@ func (e *DefaultProcessExecutor) Execute(ctx context.Context, workDir, command s
 
 // ExecuteWithResult runs a command and returns detailed execution result with separated stdout/stderr.
 func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir, command string, args, env []string, timeout time.Duration) (*ExecutionResult, error) {
-	if timeout <= 0 {
-		timeout = 30 * time.Second
-	}
-
+	timeout = normalizedTimeout(timeout)
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	cmd, capture := e.executionCommand(workDir, command, args, env)
+	startTime := e.clock.Now()
+	result := func(waitCompleted bool) *ExecutionResult {
+		return capture.result(e.clock.Now().Sub(startTime), cmd, waitCompleted)
+	}
+	if err := commandContextError(execCtx.Err(), timeout); err != nil {
+		return result(false), err
+	}
+	if err := e.startProcess(cmd); err != nil {
+		return result(false), err
+	}
+	return e.waitForProcess(execCtx, cmd, timeout, result)
+}
 
+type executionCapture struct {
+	stdout, stderr, combined *limitedWriter
+	processSessionID         string
+}
+
+func newProcessSessionID() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+	}
+	return hex.EncodeToString(raw[:])
+}
+
+func normalizedTimeout(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		return 30 * time.Second
+	}
+	return timeout
+}
+
+func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args, env []string) (*exec.Cmd, executionCapture) {
 	cmd := exec.Command(command, args...)
 	cmd.Dir = workDir
-
-	// Set process group on Unix systems for clean termination
-	if runtime.GOOS != "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	}
-
+	configureProcessGroup(cmd)
+	sessionID := newProcessSessionID()
+	env = append(env, "S2D_PROCESS_SESSION="+sessionID)
 	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	}
+	capture := executionCapture{stdout: newLimitedWriter(e.maxOutputBytes), stderr: newLimitedWriter(e.maxOutputBytes), combined: newLimitedWriter(e.maxOutputBytes), processSessionID: sessionID}
+	cmd.Stdout = io.MultiWriter(capture.stdout, capture.combined)
+	cmd.Stderr = io.MultiWriter(capture.stderr, capture.combined)
+	return cmd, capture
+}
 
-	// Create limited writers for stdout and stderr
-	stdoutWriter := newLimitedWriter(e.maxOutputBytes)
-	stderrWriter := newLimitedWriter(e.maxOutputBytes)
-	combinedWriter := newLimitedWriter(e.maxOutputBytes)
-
-	// Use MultiWriter to capture both separate and combined output
-	cmd.Stdout = io.MultiWriter(stdoutWriter, combinedWriter)
-	cmd.Stderr = io.MultiWriter(stderrWriter, combinedWriter)
-
-	startTime := e.clock.Now()
-
-	type execResult struct {
-		err error
+func (c executionCapture) result(duration time.Duration, cmd *exec.Cmd, waitCompleted bool) *ExecutionResult {
+	truncated := c.stdout.truncatedBytes + c.stderr.truncatedBytes
+	result := &ExecutionResult{Stdout: c.stdout.String(), Stderr: c.stderr.String(), Combined: c.combined.String(), ExitCode: -1, Duration: duration, Truncated: truncated > 0, TruncatedBytes: truncated, ProcessSessionID: c.processSessionID}
+	if waitCompleted && cmd.ProcessState != nil {
+		result.ExitCode = cmd.ProcessState.ExitCode()
 	}
-	resultCh := make(chan execResult, 1)
+	return result
+}
 
-	go func() {
-		// Notify test hooks that the process is starting
-		if e.onProcessStarted != nil {
-			e.onProcessStarted()
-		}
-
-		// Split Start/Wait so we can expose the PID for monitoring.
-		if startErr := cmd.Start(); startErr != nil {
-			resultCh <- execResult{err: startErr}
-			return
-		}
-
-		// Notify PID-aware hooks (e.g. process monitoring).
-		if e.onProcessStartedPID != nil && cmd.Process != nil {
-			e.onProcessStartedPID(cmd.Process.Pid)
-		}
-
-		resultCh <- execResult{err: cmd.Wait()}
-	}()
-
-	buildResult := func() *ExecutionResult {
-		duration := e.clock.Now().Sub(startTime)
-		truncatedBytes := stdoutWriter.truncatedBytes + stderrWriter.truncatedBytes
-		result := &ExecutionResult{
-			Stdout:         stdoutWriter.String(),
-			Stderr:         stderrWriter.String(),
-			Combined:       combinedWriter.String(),
-			ExitCode:       -1,
-			Duration:       duration,
-			Truncated:      truncatedBytes > 0,
-			TruncatedBytes: truncatedBytes,
-		}
-		if cmd.ProcessState != nil {
-			result.ExitCode = cmd.ProcessState.ExitCode()
-		}
-		return result
+func commandContextError(err error, timeout time.Duration) error {
+	if err == context.DeadlineExceeded {
+		return fmt.Errorf("command timed out after %s", timeout)
 	}
+	if err != nil {
+		return fmt.Errorf("command cancelled")
+	}
+	return nil
+}
 
+func (e *DefaultProcessExecutor) startProcess(cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	if e.onProcessStarted != nil {
+		e.onProcessStarted()
+	}
+	if e.onProcessStartedPID != nil && cmd.Process != nil {
+		e.onProcessStartedPID(cmd.Process.Pid)
+	}
+	return nil
+}
+
+func (e *DefaultProcessExecutor) waitForProcess(ctx context.Context, cmd *exec.Cmd, timeout time.Duration, result func(bool) *ExecutionResult) (*ExecutionResult, error) {
+	completed := make(chan error, 1)
+	go func() { completed <- cmd.Wait() }()
 	select {
-	case res := <-resultCh:
-		return buildResult(), res.err
-
-	case <-execCtx.Done():
-		e.terminateProcess(cmd)
-
-		// Wait briefly for process to exit and collect output
-		select {
-		case <-resultCh:
-			result := buildResult()
-			if execCtx.Err() == context.DeadlineExceeded {
-				return result, fmt.Errorf("command timed out after %s", timeout)
-			}
-			return result, fmt.Errorf("command cancelled")
-		case <-e.clock.After(e.killGracePeriod):
-			result := buildResult()
-			if execCtx.Err() == context.DeadlineExceeded {
-				return result, fmt.Errorf("command timed out after %s", timeout)
-			}
-			return result, fmt.Errorf("command cancelled")
+	case err := <-completed:
+		// The launcher can exit successfully while a descendant (notably an
+		// Electron-launched runtime) survives in its dedicated process group.
+		// Success is not a cleanup exemption: the smoke test owns that group.
+		e.cleanupExitedProcessGroup(cmd.Process.Pid)
+		checked, leakErr := e.assertNoSessionDescendants(result(true))
+		if leakErr != nil {
+			return checked, leakErr
 		}
+		return checked, err
+	case <-ctx.Done():
+		e.terminateProcess(cmd)
 	}
+	select {
+	case <-completed:
+		checked, leakErr := e.assertNoSessionDescendants(result(true))
+		if leakErr != nil {
+			return checked, leakErr
+		}
+		return checked, commandContextError(ctx.Err(), timeout)
+	case <-e.clock.After(e.killGracePeriod):
+		checked, leakErr := e.assertNoSessionDescendants(result(false))
+		if leakErr != nil {
+			return checked, leakErr
+		}
+		return checked, commandContextError(ctx.Err(), timeout)
+	}
+}
+
+func (e *DefaultProcessExecutor) assertNoSessionDescendants(result *ExecutionResult) (*ExecutionResult, error) {
+	if result == nil || result.ProcessSessionID == "" {
+		return result, fmt.Errorf("post-launch descendant assertion unavailable: launch session marker missing")
+	}
+	remaining, err := cleanupProcessSession(result.ProcessSessionID, e.killGracePeriod)
+	if err != nil {
+		result.RemainingDescendantPIDs = []int{-1}
+		result.Stderr += fmt.Sprintf("\npost-launch descendant assertion unavailable: %v", err)
+		return result, fmt.Errorf("post-launch descendant assertion unavailable: %w", err)
+	}
+	result.RemainingDescendantPIDs = remaining
+	if len(remaining) > 0 {
+		return result, fmt.Errorf("post-launch descendant assertion failed: launch session %s still has processes %v", result.ProcessSessionID, remaining)
+	}
+	return result, nil
+}
+
+func (e *DefaultProcessExecutor) cleanupExitedProcessGroup(pid int) {
+	cleanupProcessGroupAfterLeaderExit(pid, e.killGracePeriod)
 }
 
 // LookPath searches for an executable in the system PATH.
@@ -216,26 +257,7 @@ func (e *DefaultProcessExecutor) terminateProcess(cmd *exec.Cmd) {
 		return
 	}
 
-	if runtime.GOOS == "windows" {
-		// Use taskkill with /T flag to kill the entire process tree
-		// /F = force, /T = tree (all child processes), /PID = process ID
-		killCmd := exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid))
-		if err := killCmd.Run(); err != nil {
-			// Fallback to direct process kill if taskkill fails
-			_ = cmd.Process.Kill()
-		}
-		return
-	}
-
-	// On Unix, kill the process group
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err == nil {
-		_ = syscall.Kill(-pgid, syscall.SIGKILL)
-		return
-	}
-
-	// Fallback to killing just the process
-	_ = cmd.Process.Kill()
+	terminateProcessTree(cmd)
 }
 
 // limitedWriter wraps a buffer and limits the amount of data written.

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "git-control-tower-staged-message",
+  "profileKey": "git-control-tower/staged-message",
+  "description": "Draft a commit message from supplied immutable staged evidence; no repository writes or network tools; canonical tool hints are advisory on Codex, protected empty workspace grants and empty API scopes enforce the write boundary",
+  "roleRef": "code.default",
+  "maxTurns": 4,
+  "allowedTools": [
+    "read",
+    "glob",
+    "grep"
+  ],
+  "deniedTools": [
+    "write",
+    "edit",
+    "shell",
+    "web_search",
+    "web_fetch"
+  ],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "networkAccess": "NETWORK_ACCESS_NONE",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED",
+    "writePolicy": {
+      "paths": []
+    },
+    "networkMode": "NETWORK_ACCESS_FULL",
+    "manualReview": true,
+    "autoApply": false,
+    "applyOnFailure": false
+  },
+  "createdBy": "git-control-tower",
+  "declaredScopes": [],
+  "spawnPolicy": {
+    "axisOrder": [
+      "executionMode",
+      "sandboxMode"
+    ],
+    "executionMode": {
+      "prefer": [
+        "codec_pipe"
+      ]
+    },
+    "sandboxMode": {
+      "prefer": [
+        "protected"
+      ]
+    },
+    "require": [
+      {
+        "executionMode": "codec_pipe",
+        "sandboxMode": "protected"
+      }
+    ]
+  }
+}

@@ -2,82 +2,58 @@
  * Action Executor Tests
  */
 
-import { createActionExecutor, createMockActionExecutor } from '../../../../src/ai/action/executor';
+import { createActionExecutor } from '../../../../src/ai/action/executor';
 import type { Page } from 'rebrowser-playwright';
+import { createMockPage } from '../../../helpers';
 import type { BrowserAction } from '../../../../src/ai/action/types';
 import type { ElementLabel } from '../../../../src/ai/vision-client/types';
 
-/**
- * Create a mock Playwright page for testing.
- */
-function createMockPage(): {
-  page: Page;
-  mocks: {
-    click: jest.Mock;
-    keyboard: {
-      type: jest.Mock;
-      press: jest.Mock;
-    };
-    mouse: {
-      click: jest.Mock;
-      dblclick: jest.Mock;
-      move: jest.Mock;
-      wheel: jest.Mock;
-    };
-    goto: jest.Mock;
-    hover: jest.Mock;
-    selectOption: jest.Mock;
-    waitForSelector: jest.Mock;
-    url: jest.Mock;
-    viewportSize: jest.Mock;
-  };
-} {
-  const mocks = {
-    click: jest.fn().mockResolvedValue(undefined),
-    keyboard: {
-      type: jest.fn().mockResolvedValue(undefined),
-      press: jest.fn().mockResolvedValue(undefined),
-    },
-    mouse: {
-      click: jest.fn().mockResolvedValue(undefined),
-      dblclick: jest.fn().mockResolvedValue(undefined),
-      move: jest.fn().mockResolvedValue(undefined),
-      wheel: jest.fn().mockResolvedValue(undefined),
-    },
-    goto: jest.fn().mockResolvedValue(undefined),
-    hover: jest.fn().mockResolvedValue(undefined),
-    selectOption: jest.fn().mockResolvedValue(undefined),
-    evaluate: jest.fn().mockResolvedValue({ x: 0, y: 0 }),
-    waitForSelector: jest.fn().mockResolvedValue(undefined),
-    url: jest.fn().mockReturnValue('https://example.com'),
-    viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-  };
-
-  const page = {
-    click: mocks.click,
-    keyboard: mocks.keyboard,
-    mouse: mocks.mouse,
-    goto: mocks.goto,
-    hover: mocks.hover,
-    selectOption: mocks.selectOption,
-    evaluate: mocks.evaluate,
-    waitForSelector: mocks.waitForSelector,
-    url: mocks.url,
-    viewportSize: mocks.viewportSize,
-  } as unknown as Page;
-
-  return { page, mocks };
-}
+type ActionPageMocks = {
+  click: jest.Mock;
+  keyboard: { type: jest.Mock; press: jest.Mock };
+  mouse: { click: jest.Mock; dblclick: jest.Mock; move: jest.Mock; wheel: jest.Mock };
+  goto: jest.Mock;
+  hover: jest.Mock;
+  selectOption: jest.Mock;
+  waitForSelector: jest.Mock;
+  url: jest.Mock;
+  viewportSize: jest.Mock;
+};
 
 describe('createActionExecutor', () => {
   let executor: ReturnType<typeof createActionExecutor>;
   let page: Page;
-  let mocks: ReturnType<typeof createMockPage>['mocks'];
+  let mocks: ActionPageMocks;
 
   beforeEach(() => {
-    const mockPage = createMockPage();
-    page = mockPage.page;
-    mocks = mockPage.mocks;
+    mocks = {
+      click: jest.fn().mockResolvedValue(undefined),
+      keyboard: { type: jest.fn().mockResolvedValue(undefined), press: jest.fn().mockResolvedValue(undefined) },
+      mouse: {
+        click: jest.fn().mockResolvedValue(undefined),
+        dblclick: jest.fn().mockResolvedValue(undefined),
+        move: jest.fn().mockResolvedValue(undefined),
+        wheel: jest.fn().mockResolvedValue(undefined),
+      },
+      goto: jest.fn().mockResolvedValue(undefined),
+      hover: jest.fn().mockResolvedValue(undefined),
+      selectOption: jest.fn().mockResolvedValue(undefined),
+      waitForSelector: jest.fn().mockResolvedValue(undefined),
+      url: jest.fn().mockReturnValue('https://example.com'),
+      viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+    };
+    page = createMockPage({
+      click: mocks.click,
+      keyboard: mocks.keyboard as unknown as Page['keyboard'],
+      mouse: mocks.mouse as unknown as Page['mouse'],
+      goto: mocks.goto,
+      hover: mocks.hover,
+      selectOption: mocks.selectOption,
+      evaluate: jest.fn().mockResolvedValue({ x: 0, y: 0 }),
+      waitForSelector: mocks.waitForSelector,
+      url: mocks.url,
+      viewportSize: mocks.viewportSize,
+    });
     executor = createActionExecutor();
   });
 
@@ -432,20 +408,23 @@ describe('createActionExecutor', () => {
     });
 
     it('includes duration in error result', async () => {
-      mocks.waitForSelector.mockImplementationOnce(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        throw new Error('Timeout');
-      });
+      jest.useFakeTimers();
+      try {
+        mocks.waitForSelector.mockImplementationOnce(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          throw new Error('Timeout');
+        });
 
-      const action: BrowserAction = {
-        type: 'click',
-        elementId: 5,
-      };
+        const action: BrowserAction = { type: 'click', elementId: 5 };
+        const pending = executor.execute(page, action);
+        await jest.advanceTimersByTimeAsync(50);
+        const result = await pending;
 
-      const result = await executor.execute(page, action);
-
-      expect(result.success).toBe(false);
-      expect(result.durationMs).toBeGreaterThanOrEqual(50);
+        expect(result.success).toBe(false);
+        expect(result.durationMs).toBeGreaterThanOrEqual(50);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
@@ -462,47 +441,5 @@ describe('createActionExecutor', () => {
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
       expect(result.newUrl).toBe('https://example.com');
     });
-  });
-});
-
-describe('createMockActionExecutor', () => {
-  it('records calls', async () => {
-    const mock = createMockActionExecutor();
-    const page = {} as Page;
-
-    await mock.execute(page, { type: 'click', elementId: 5 });
-    await mock.execute(page, { type: 'type', text: 'hello' });
-
-    const calls = mock.getCalls();
-    expect(calls).toHaveLength(2);
-    const [firstCall, secondCall] = calls;
-    if (!firstCall || !secondCall) {
-      throw new Error('Expected two recorded calls');
-    }
-    expect(firstCall.action.type).toBe('click');
-    expect(secondCall.action.type).toBe('type');
-  });
-
-  it('can be set to fail mode', async () => {
-    const mock = createMockActionExecutor();
-    const page = {} as Page;
-
-    mock.setFailMode(true, 'Simulated failure');
-
-    const result = await mock.execute(page, { type: 'click', elementId: 5 });
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('Simulated failure');
-  });
-
-  it('clears calls', async () => {
-    const mock = createMockActionExecutor();
-    const page = {} as Page;
-
-    await mock.execute(page, { type: 'click', elementId: 5 });
-    expect(mock.getCalls()).toHaveLength(1);
-
-    mock.clearCalls();
-    expect(mock.getCalls()).toHaveLength(0);
   });
 });

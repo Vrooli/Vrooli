@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.apply;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/apply;apply_v1";
+
+// =============================================================================
+// APPLY DOMAIN — write a brand's identity into a target scenario's source tree
+// =============================================================================
+//
+// @layer 5
+// @domain apply
+// @stability stable
+//
+// Wire contract for the ApplyService Connect-RPC service. Apply is a stateless
+// orchestration domain: it owns no table of its own. It reads a brand (brands
+// domain) and its stored image assets (assets domain), then materializes the
+// requested brand elements as files inside a target scenario's source tree
+// (CSS custom properties, a manifest.json merge, copied logo/favicon bytes).
+// After a real apply it records the brand↔scenario link through the assignments
+// domain. All cross-domain wiring lives only at the composition root
+// (handlers/apply/module.go); the internal domains never import each other.
+//
+// The old REST surface folded preview and apply into one POST keyed off an
+// X-Dry-Run header. That is re-expressed Connect-native as two explicit RPCs so
+// the safe, read-only path and the mutating path are distinct in the contract:
+//
+//   - PreviewApply computes exactly what ApplyBrand would write and returns it
+//     WITHOUT touching the filesystem or recording an assignment (dry_run=true).
+//     A UI/CLI calls it to show the user the plan before committing.
+//   - ApplyBrand performs the writes, then records the assignment (dry_run=false).
+//
+// Both take the same inputs and return the same shape, so a caller can preview
+// then apply with an identical request. Idempotency / safety:
+//   - Element application is overwrite-by-marker: re-applying a brand rewrites
+//     the same managed files, so running twice converges (no accumulation).
+//   - An unknown brand_id → NOT_FOUND. A scenario directory that does not exist
+//     → NOT_FOUND (the target must already be a real scenario). Missing brand
+//     facets/assets are reported per-element as "skipped", never as a call error.
+//
+// Consumed by:
+//   - API: handlers/apply/connect_handler.go implements the generated
+//          ApplyServiceHandler interface.
+//   - UI:  ui/src/api/apply.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/apply/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service ApplyService {
+  rpc PreviewApply(PreviewApplyRequest) returns (ApplyResponse);
+  rpc ApplyBrand(ApplyBrandRequest) returns (ApplyResponse);
+}
+
+// PreviewApplyRequest asks what applying a brand to a scenario WOULD do, without
+// writing anything.
+message PreviewApplyRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The target scenario's name (its directory must exist).
+  string scenario_name = 2;
+  // Optional. The brand elements to apply: any of "colors", "typography",
+  // "identity", "favicon", "logo". Empty means all of them. Unknown names are
+  // reported per-element as "skipped".
+  repeated string elements = 3;
+}
+
+// ApplyBrandRequest applies a brand to a scenario's source tree and records the
+// assignment. Same fields as PreviewApplyRequest.
+message ApplyBrandRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The target scenario's name (its directory must exist).
+  string scenario_name = 2;
+  // Optional. The brand elements to apply (empty = all).
+  repeated string elements = 3;
+}
+
+// ApplyAction records one file that was (or would be) written.
+message ApplyAction {
+  // The kind of write: "css", "json", or "asset".
+  string type = 1;
+  // The path written, relative to the scenario root (e.g. "ui/src/styles/brand.css").
+  string file = 2;
+  // The brand element this action materializes (e.g. "colors", "logo").
+  string element = 3;
+}
+
+// SkipReason records why an element produced no action.
+message SkipReason {
+  // The element that was skipped.
+  string element = 1;
+  // A human-readable reason (e.g. "no colors defined", "unknown element").
+  string reason = 2;
+}
+
+// ApplyResponse reports the plan (PreviewApply) or the outcome (ApplyBrand).
+message ApplyResponse {
+  // The target scenario.
+  string scenario = 1;
+  // The brand that was applied.
+  string brand_id = 2;
+  // The brand version at apply time.
+  int32 brand_version = 3;
+  // True for PreviewApply (nothing was written); false for ApplyBrand.
+  bool dry_run = 4;
+  // The files written (or that would be written), in element order.
+  repeated ApplyAction applied = 5;
+  // The elements that produced no action, with reasons.
+  repeated SkipReason skipped = 6;
+}

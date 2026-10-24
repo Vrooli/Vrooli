@@ -14,19 +14,21 @@ class GraphPosition(_message.Message):
     y: float
     def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
 
-class GraphInitiativeRollup(_message.Message):
-    __slots__ = ("total", "completed", "in_progress", "failed", "pending")
+class GraphGoalRollup(_message.Message):
+    __slots__ = ("total", "completed", "in_progress", "failed", "pending", "dropped")
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_FIELD_NUMBER: _ClassVar[int]
     IN_PROGRESS_FIELD_NUMBER: _ClassVar[int]
     FAILED_FIELD_NUMBER: _ClassVar[int]
     PENDING_FIELD_NUMBER: _ClassVar[int]
+    DROPPED_FIELD_NUMBER: _ClassVar[int]
     total: int
     completed: int
     in_progress: int
     failed: int
     pending: int
-    def __init__(self, total: _Optional[int] = ..., completed: _Optional[int] = ..., in_progress: _Optional[int] = ..., failed: _Optional[int] = ..., pending: _Optional[int] = ...) -> None: ...
+    dropped: int
+    def __init__(self, total: _Optional[int] = ..., completed: _Optional[int] = ..., in_progress: _Optional[int] = ..., failed: _Optional[int] = ..., pending: _Optional[int] = ..., dropped: _Optional[int] = ...) -> None: ...
 
 class GraphBacklogNodeData(_message.Message):
     __slots__ = ("kind", "name", "title", "status", "priority", "active_execution_status", "active_execution_count")
@@ -46,7 +48,7 @@ class GraphBacklogNodeData(_message.Message):
     active_execution_count: int
     def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., active_execution_status: _Optional[str] = ..., active_execution_count: _Optional[int] = ...) -> None: ...
 
-class GraphInitiativeNodeData(_message.Message):
+class GraphGoalNodeData(_message.Message):
     __slots__ = ("name", "title", "status", "rollup")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -55,8 +57,8 @@ class GraphInitiativeNodeData(_message.Message):
     name: str
     title: str
     status: str
-    rollup: GraphInitiativeRollup
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., rollup: _Optional[_Union[GraphInitiativeRollup, _Mapping]] = ...) -> None: ...
+    rollup: GraphGoalRollup
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., rollup: _Optional[_Union[GraphGoalRollup, _Mapping]] = ...) -> None: ...
 
 class GraphCaptureNodeData(_message.Message):
     __slots__ = ("id", "text", "status")
@@ -131,22 +133,22 @@ class GraphRunNodeData(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
 
 class GraphNodeData(_message.Message):
-    __slots__ = ("backlog", "initiative", "capture", "scenario", "execution", "activity", "run")
+    __slots__ = ("backlog", "goal", "capture", "scenario", "execution", "activity", "run")
     BACKLOG_FIELD_NUMBER: _ClassVar[int]
-    INITIATIVE_FIELD_NUMBER: _ClassVar[int]
+    GOAL_FIELD_NUMBER: _ClassVar[int]
     CAPTURE_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_FIELD_NUMBER: _ClassVar[int]
     ACTIVITY_FIELD_NUMBER: _ClassVar[int]
     RUN_FIELD_NUMBER: _ClassVar[int]
     backlog: GraphBacklogNodeData
-    initiative: GraphInitiativeNodeData
+    goal: GraphGoalNodeData
     capture: GraphCaptureNodeData
     scenario: GraphScenarioNodeData
     execution: GraphExecutionNodeData
     activity: GraphAgentActivityNodeData
     run: GraphRunNodeData
-    def __init__(self, backlog: _Optional[_Union[GraphBacklogNodeData, _Mapping]] = ..., initiative: _Optional[_Union[GraphInitiativeNodeData, _Mapping]] = ..., capture: _Optional[_Union[GraphCaptureNodeData, _Mapping]] = ..., scenario: _Optional[_Union[GraphScenarioNodeData, _Mapping]] = ..., execution: _Optional[_Union[GraphExecutionNodeData, _Mapping]] = ..., activity: _Optional[_Union[GraphAgentActivityNodeData, _Mapping]] = ..., run: _Optional[_Union[GraphRunNodeData, _Mapping]] = ...) -> None: ...
+    def __init__(self, backlog: _Optional[_Union[GraphBacklogNodeData, _Mapping]] = ..., goal: _Optional[_Union[GraphGoalNodeData, _Mapping]] = ..., capture: _Optional[_Union[GraphCaptureNodeData, _Mapping]] = ..., scenario: _Optional[_Union[GraphScenarioNodeData, _Mapping]] = ..., execution: _Optional[_Union[GraphExecutionNodeData, _Mapping]] = ..., activity: _Optional[_Union[GraphAgentActivityNodeData, _Mapping]] = ..., run: _Optional[_Union[GraphRunNodeData, _Mapping]] = ...) -> None: ...
 
 class GraphNode(_message.Message):
     __slots__ = ("id", "type", "data", "position")

@@ -1,0 +1,124 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.documentation-page",
+    "name": "DocumentationPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The technical content surface with navigation tree, table of contents, code samples, search, versioning, feedback, responsive reading width, and deep links.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.navigation-tree",
+        "reason": "Section navigation is shared."
+      },
+      {
+        "asset": "navigation.table-of-contents",
+        "reason": "In-page outline is shared."
+      },
+      {
+        "asset": "data-display.code-block",
+        "reason": "Samples render through the shared block."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "i18n-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "navigation",
+      "purpose": "Document tree across the whole corpus.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "content",
+      "purpose": "The document body.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "outline",
+      "purpose": "In-page heading outline synchronized with scroll.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "feedback",
+      "purpose": "Was-this-helpful and edit affordances.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ]
+}

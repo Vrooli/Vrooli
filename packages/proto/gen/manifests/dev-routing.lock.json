@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "scenario": "dev-routing",
+  "input_digest": "sha256:6e59199bc132ddc379af047ee21df4034236a2762af3c7348aad92eec5945e33",
+  "input_files": [
+    "schemas/dev-routing/v1/routing/routing.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/dev-routing/v1/routing/routing.pb.go": "sha256:e1ab4ec31b3c4e5b619cd2e88bb47de34fac3993f7867c76e41975b180d5e419",
+    "gen/go/dev-routing/v1/routing/routing_v1connect/routing.connect.go": "sha256:c7ec367a24c62ab738c0703ae73eba26a69284ad0d0b556023a05f28ab7cb373",
+    "gen/python/dev_routing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/dev_routing/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/dev_routing/v1/routing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/dev_routing/v1/routing/routing_pb2.py": "sha256:29d2d8b4b28781dfb3b9bb333a59b75d4c3a08adb901f5694f94549bb3622975",
+    "gen/python/dev_routing/v1/routing/routing_pb2.pyi": "sha256:318763419a04a7e8c923b0c2f1ba362d080875ade94e66c0e3c106f6e1699610",
+    "gen/typescript/dev-routing/v1/routing/routing_pb.ts": "sha256:52377796cdf0db26a8831b89aa98c2bab1dd64db562b5a11401cfaa96d1fb00f",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+  }
+}

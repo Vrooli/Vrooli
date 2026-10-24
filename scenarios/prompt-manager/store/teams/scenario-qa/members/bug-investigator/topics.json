@@ -1,0 +1,26 @@
+{
+  "loop_kind": "queue",
+  "intake": [
+    {
+      "prefix": "bug-inbox/*",
+      "taxonomy": "bug-report",
+      "source_team": "*"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "bug-investigation-report/<slug>"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "bug-investigation-report/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "report-bug"
+  ]
+}

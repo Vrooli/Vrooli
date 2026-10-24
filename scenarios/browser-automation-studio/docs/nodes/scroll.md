@@ -20,7 +20,7 @@
 ## Runtime Behavior
 
 1. The automation compiler/executor forwards scroll params (type/direction/amount/selectors/behavior/timeouts) unchanged; validation is handled by the workflow validator/UI.
-2. The Browserless session dispatches either window-level `Page.scroll` commands or executes frame-aware `scrollIntoView`/`scrollTo` scripts, depending on the mode.
+2. The Playwright driver dispatches either window-level `Page.scroll` commands or executes frame-aware `scrollIntoView`/`scrollTo` scripts, depending on the mode.
 3. For `untilVisible`, the runtime loops up to `maxScrolls`, checking `IntersectionObserver` state each time; failure raises a descriptive error that includes the selector and attempts.
 4. Telemetry captures the final coordinates/direction so replay tooling can show how far the viewport moved.
 

@@ -79,7 +79,7 @@ describe('collections', () => {
 
     it('handles mix of actual values and "all"', () => {
       const items = createTestItems();
-      const result = filterByProperties(items, { status: 'active', name: 'all' as TestItem['name'] | 'all' });
+      const result = filterByProperties(items, { status: 'active', name: 'all' });
       expect(result).toHaveLength(2);
     });
   });

@@ -1,0 +1,90 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Use Agent Manager to run, read, and recall agent work: choose one bare run or a declared workflow, search retained conversations from incomplete clues, inspect bounded context with provenance, and record what the attempt taught in the agent-manager-usage scope.",
+  "entry": "SKILL.md",
+  "icon": "terminal",
+  "id": "agent-manager",
+  "kind": "skill",
+  "learning": {
+    "capture": "every attempt",
+    "scope": "agent-manager-usage"
+  },
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "agent-manager",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "agent-manager run create",
+      "agent-manager run get",
+      "agent-manager run report",
+      "agent-manager run result",
+      "agent-manager run events",
+      "agent-manager run episodes",
+      "agent-manager run messages-friction",
+      "agent-manager run invocation-facts",
+      "agent-manager run episode-cohort",
+      "agent-manager run cohort-report",
+      "agent-manager run park",
+      "agent-manager run wake",
+      "agent-manager run await-result",
+      "agent-manager run continue",
+      "agent-manager run stop",
+      "agent-manager investigation start",
+      "agent-manager investigation get",
+      "agent-manager investigation list",
+      "agent-manager investigation wait",
+      "agent-manager investigation cancel",
+      "agent-manager run investigate",
+      "agent-manager run apply-investigation",
+      "agent-manager findings list",
+      "agent-manager workflow simulate",
+      "agent-manager workflow start",
+      "agent-manager workflow execution-wait",
+      "agent-manager workflow execution-get",
+      "agent-manager workflow execution-result",
+      "agent-manager workflow trace",
+      "agent-manager task create",
+      "agent-manager profile list",
+      "agent-manager conversation search",
+      "agent-manager conversation context",
+      "agent-manager conversation index status",
+      "agent-manager measures run-success-rate",
+      "search-hub query query",
+      "vrooli-memory recall wake",
+      "vrooli-memory recall recall",
+      "vrooli-memory journal note",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "agent-manager",
+      "program-runtime",
+      "vrooli-memory",
+      "prompt-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "agent-manager",
+    "run",
+    "workflow",
+    "conversation-search",
+    "recall",
+    "subagent",
+    "delegation",
+    "result-spec",
+    "classify",
+    "episodes",
+    "friction",
+    "findings",
+    "investigation",
+    "learning-spine"
+  ],
+  "updatedAt": "2026-09-12T00:00:00Z"
+}

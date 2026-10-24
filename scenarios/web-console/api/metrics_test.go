@@ -1,19 +1,23 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"context"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+
+	"connectrpc.com/connect"
+
+	metricsH "web-console/handlers/metrics"
+
+	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics"
 )
 
 // [REQ:P1-004b] Operational Metrics Collection - metrics tests
 
 func TestMetrics_Snapshot_Defaults(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 	snap := m.Snapshot()
 
 	if snap.Sessions.Created != 0 {
@@ -34,7 +38,7 @@ func TestMetrics_Snapshot_Defaults(t *testing.T) {
 }
 
 func TestMetrics_Snapshot_AfterOperations(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 
 	m.SessionsCreated.Add(3)
 	m.SessionsDeleted.Add(1)
@@ -74,7 +78,7 @@ func TestMetrics_Snapshot_AfterOperations(t *testing.T) {
 }
 
 func TestMetrics_AtomicConcurrency(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 	done := make(chan struct{})
 
 	for i := 0; i < 100; i++ {
@@ -97,7 +101,9 @@ func TestMetrics_AtomicConcurrency(t *testing.T) {
 	}
 }
 
-func TestHandleMetrics_Endpoint(t *testing.T) {
+// MetricsService.Get returns the current snapshot through the Connect
+// handler. Exercises the same transport-neutral path the real CLI uses.
+func TestMetricsService_Get(t *testing.T) {
 	srv := newFakeTestServer()
 
 	// Simulate some operations
@@ -105,41 +111,29 @@ func TestHandleMetrics_Endpoint(t *testing.T) {
 	srv.metrics.ActiveSessions.Add(1)
 	srv.metrics.ConnectionsTotal.Add(3)
 
-	req := httptest.NewRequest("GET", "/api/v1/metrics", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleMetrics(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	h := metricsH.NewConnectHandler(metricsH.Deps{Service: &metricsH.Adapter{Metrics: srv.metrics}})
+	resp, err := h.Get(context.Background(), connect.NewRequest(&metricsv1.GetRequest{}))
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
 	}
-
-	ct := rec.Header().Get("Content-Type")
-	if !strings.HasPrefix(ct, "application/json") {
-		t.Errorf("expected Content-Type application/json, got %q", ct)
+	got := resp.Msg
+	if got.GetSessions().GetCreated() != 2 {
+		t.Errorf("expected 2 created, got %d", got.GetSessions().GetCreated())
 	}
-
-	var resp MetricsResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+	if got.GetSessions().GetActive() != 1 {
+		t.Errorf("expected 1 active, got %d", got.GetSessions().GetActive())
 	}
-	if resp.Sessions.Created != 2 {
-		t.Errorf("expected 2 created, got %d", resp.Sessions.Created)
+	if got.GetConnections().GetTotal() != 3 {
+		t.Errorf("expected 3 total connections, got %d", got.GetConnections().GetTotal())
 	}
-	if resp.Sessions.Active != 1 {
-		t.Errorf("expected 1 active, got %d", resp.Sessions.Active)
-	}
-	if resp.Connections.Total != 3 {
-		t.Errorf("expected 3 total connections, got %d", resp.Connections.Total)
-	}
-	if resp.Uptime == "" {
+	if got.GetUptime() == "" {
 		t.Error("uptime should not be empty")
 	}
 }
 
 // [REQ:P1-004b] Verify metrics overhead is negligible (<1ms per operation)
 func TestMetrics_PerformanceOverhead(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 
 	start := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -149,7 +143,7 @@ func TestMetrics_PerformanceOverhead(t *testing.T) {
 		}
 	})
 
-	// 10000 iterations should complete very quickly; atomic ops are <100ns each
+	// Ten-thousand iterations should complete very quickly; atomic ops are <100ns each
 	nsPerOp := start.NsPerOp()
 	if nsPerOp > 1_000_000 { // 1ms threshold
 		t.Errorf("metrics overhead too high: %d ns/op (threshold: 1,000,000 ns)", nsPerOp)
@@ -159,22 +153,15 @@ func TestMetrics_PerformanceOverhead(t *testing.T) {
 func TestHandleCreateSession_EmitsEvent(t *testing.T) {
 	srv := newTestServer()
 
-	body := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	sess, err := callCreate(t, srv, 80, 24, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
 	}
 
-	// Verify event was emitted
-	events := srv.events.Recent(10)
+	evts := srv.events.Recent(10)
 	found := false
-	for _, evt := range events {
-		if evt.Type == EventSessionCreated {
+	for _, evt := range evts {
+		if evt.Type == events.SessionCreated {
 			found = true
 			if evt.Details["shell"] == "" {
 				t.Error("expected shell detail in session.created event")
@@ -186,7 +173,6 @@ func TestHandleCreateSession_EmitsEvent(t *testing.T) {
 		t.Error("expected session.created event to be emitted")
 	}
 
-	// Verify metrics were incremented
 	snap := srv.metrics.Snapshot()
 	if snap.Sessions.Created != 1 {
 		t.Errorf("expected 1 session created metric, got %d", snap.Sessions.Created)
@@ -195,38 +181,27 @@ func TestHandleCreateSession_EmitsEvent(t *testing.T) {
 		t.Errorf("expected 1 active session metric, got %d", snap.Sessions.Active)
 	}
 
-	// Cleanup
-	var resp SessionResponse
-	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
-	_ = srv.sessions.Delete(resp.ID)
+	_ = srv.sessions.Delete(context.Background(), sess.GetId())
 }
 
 func TestHandleDeleteSession_EmitsEvent(t *testing.T) {
 	srv := newTestServer()
 
-	// Create a session first
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
 	srv.metrics.SessionsCreated.Add(1)
 	srv.metrics.ActiveSessions.Add(1)
 
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/"+sess.ID, nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteSession(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d", rec.Code)
+	if err := callDelete(t, srv, sess.ID); err != nil {
+		t.Fatalf("delete: %v", err)
 	}
 
-	// Verify event
-	events := srv.events.Recent(10)
+	evts := srv.events.Recent(10)
 	found := false
-	for _, evt := range events {
-		if evt.Type == EventSessionDeleted && evt.SessionID == sess.ID {
+	for _, evt := range evts {
+		if evt.Type == events.SessionDeleted && evt.SessionID == sess.ID {
 			found = true
 			break
 		}
@@ -235,7 +210,6 @@ func TestHandleDeleteSession_EmitsEvent(t *testing.T) {
 		t.Error("expected session.deleted event to be emitted")
 	}
 
-	// Verify metrics
 	snap := srv.metrics.Snapshot()
 	if snap.Sessions.Deleted != 1 {
 		t.Errorf("expected 1 deleted metric, got %d", snap.Sessions.Deleted)

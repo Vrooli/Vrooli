@@ -1,0 +1,125 @@
+{
+  "id": "9d6aa49e-da1d-43ef-9644-445abcf499a2",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "session-transcript-typing",
+  "folder_path": "/bas/flows",
+  "description": "Session transcript typing performance capture. Opens a session whose transcript contains a mermaid diagram, waits for the diagram to render, then types into the composer one character at a time. Each keystroke sets draft state on SessionDetailsPage, re-rendering the whole conversation pane — the path that used to remount every mermaid diagram and re-parse every message's markdown per keystroke.",
+  "tags": [
+    "intent:performance",
+    "reset:none",
+    "interaction:composer-typing",
+    "requires_confirmation:true",
+    "routed_isolation:true"
+  ],
+  "version": 1,
+  "created_at": "2026-08-10T22:24:04.386933639Z",
+  "updated_at": "2026-08-10T22:24:04.386933639Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-session",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/sessions/sess_bb1509a9b6efda07"
+          },
+          "metadata": {
+            "label": "Open a session whose transcript contains a mermaid diagram"
+          }
+        }
+      },
+      {
+        "id": "wait-transcript",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='agent-session-messages']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the transcript pane"
+          }
+        }
+      },
+      {
+        "id": "wait-diagram-rendered",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const deadline = Date.now() + 30000; while (Date.now() < deadline) { const svg = document.querySelectorAll('[data-mermaid-host] svg').length; if (svg > 0) return { diagrams: svg }; await new Promise((r) => setTimeout(r, 200)); } return { diagrams: 0 }; })()"
+          },
+          "metadata": {
+            "label": "Wait until the mermaid diagram has rendered, so typing is measured against a settled transcript"
+          }
+        }
+      },
+      {
+        "id": "watch-diagrams",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const pane = document.querySelector('[data-testid=\"agent-session-messages\"]'); if (!pane) return { error: 'transcript pane not found' }; const messages = pane.querySelectorAll('article').length; const chars = pane.textContent ? pane.textContent.length : 0; const diagrams = pane.querySelectorAll('[data-mermaid-host]').length; window.__diagramSwaps = 0; window.__skeletonAppearances = 0; const observer = new MutationObserver((records) => { for (const record of records) { record.removedNodes.forEach((node) => { if (node.nodeType === 1 && (node.nodeName.toLowerCase() === 'svg' || (node.querySelector && node.querySelector('svg')))) window.__diagramSwaps++; }); record.addedNodes.forEach((node) => { if (node.nodeType !== 1) return; const isSkeleton = (node.getAttribute && node.getAttribute('data-testid') === 'mermaid-skeleton') || (node.querySelector && node.querySelector('[data-testid=\"mermaid-skeleton\"]')); if (isSkeleton) window.__skeletonAppearances++; }); } }); observer.observe(pane, { childList: true, subtree: true }); window.__diagramObserver = observer; performance.mark('bas.session-transcript-typing.ready'); return { messages, diagrams, chars, observing: 1 }; })()"
+          },
+          "metadata": {
+            "label": "Watch the STABLE transcript pane for SVG teardown — a remount destroys the diagram host itself, so an observer on the host is detached by the very event it should count"
+          }
+        }
+      },
+      {
+        "id": "type-into-composer",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const box = document.querySelector('[data-testid=\"agent-session-composer\"]'); if (!box) return { typed: 0, error: 'composer not found' }; const setValue = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; const phrase = 'Summarize the diagram above and list the follow-up work it implies.'; box.focus(); let typed = 0; const startedAt = performance.now(); for (const ch of phrase) { setValue.call(box, box.value + ch); box.dispatchEvent(new Event('input', { bubbles: true })); typed++; await new Promise((r) => setTimeout(r, 40)); } performance.mark('bas.session-transcript-typing.typed'); return { typed, elapsedMs: Math.round(performance.now() - startedAt) }; })()"
+          },
+          "metadata": {
+            "label": "Type character by character through the native setter — one draft state change, and therefore one page re-render, per keystroke"
+          }
+        }
+      },
+      {
+        "id": "settle",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { await new Promise((r) => setTimeout(r, 1500)); const result = { diagrams: document.querySelectorAll('[data-mermaid-host] svg').length, diagramSwaps: window.__diagramSwaps ?? -1, skeletonAppearances: window.__skeletonAppearances ?? -1, composerLength: (document.querySelector('[data-testid=\"agent-session-composer\"]') || {}).value?.length ?? 0 }; performance.mark('bas.session-transcript-typing.settled'); window.localStorage.setItem('swarm-manager.perf.session-transcript-typing.result', JSON.stringify(result)); return result; })()"
+          },
+          "metadata": {
+            "label": "Report how many times a diagram was torn down and re-rendered during typing"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-session",
+        "target": "wait-transcript"
+      },
+      {
+        "source": "wait-transcript",
+        "target": "wait-diagram-rendered"
+      },
+      {
+        "source": "wait-diagram-rendered",
+        "target": "watch-diagrams"
+      },
+      {
+        "source": "watch-diagrams",
+        "target": "type-into-composer"
+      },
+      {
+        "source": "type-into-composer",
+        "target": "settle"
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.human-input-request",
+    "name": "HumanInputRequest",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The structured agent request for missing information, a selection, an approval, or a correction, embedding the appropriate control inline and resuming deterministically once answered.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form",
+        "reason": "Embedded controls, validation, and submission use the shared form runtime."
+      },
+      {
+        "asset": "feedback.alert",
+        "reason": "Framing and non-colour treatment are shared."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Announcements go through the one shared live region so nothing talks over anything else."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "error-association",
+    "input-preservation",
+    "status-announced",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "validation-error",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "rationale": "Determinism on resume is the requirement: an answered request must continue exactly the work that was paused, and a request abandoned or expired must say so rather than silently leaving the run stalled."
+}

@@ -7,8 +7,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['./src/test-setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/world-build-provenance.test.ts'],
     exclude: ['node_modules', 'dist'],
     // Use forks pool for better native module (gl) compatibility
     pool: 'forks',
@@ -19,7 +19,8 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      // Unit Health consumes coverage-summary.json or lcov.info.
+      reporter: ['text', 'json', 'html', 'json-summary', 'lcov'],
       exclude: [
         'node_modules/',
         'src/test/',

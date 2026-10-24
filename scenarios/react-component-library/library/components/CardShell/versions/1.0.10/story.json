@@ -1,0 +1,81 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CardShellStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Scenario-owned card content"
+        }
+      ],
+      "id": "default",
+      "name": "Card shell",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": ""
+      },
+      "composition": {
+        "specimen": {
+          "export": "CardShellStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='data-display.card-shell']"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='data-display.card-shell'] [data-testid='card-shell-story-content']:empty",
+          "value": "1"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty card",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "This card contains deliberately long content so its shell demonstrates wrapping and keeps its hierarchy readable."
+      },
+      "composition": {
+        "specimen": {
+          "export": "CardShellStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='data-display.card-shell']"
+        },
+        {
+          "kind": "text",
+          "value": "This card contains deliberately long content so its shell demonstrates wrapping and keeps its hierarchy readable."
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long card content",
+      "role": "boundary"
+    }
+  ]
+}

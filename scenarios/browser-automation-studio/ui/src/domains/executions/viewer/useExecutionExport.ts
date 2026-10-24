@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { Execution, TimelineFrame } from "../store";
 import type { Export } from "@/domains/exports";
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 // Use config from the unified export domain (single source of truth)
 import {
   DIMENSION_PRESET_CONFIG,
@@ -173,7 +173,7 @@ export const useExecutionExport = ({
   });
 
   // Export progress tracking via WebSocket
-  const { progress: exportProgress, reset: resetExportProgress } = useExportProgress({
+  const { progress: exportProgress, reset: resetExportProgress, statusError: exportStatusError } = useExportProgress({
     exportId: activeExportId,
     executionId: activeExportId ? undefined : execution.id,
     onComplete: (progress) => {
@@ -188,6 +188,10 @@ export const useExecutionExport = ({
       setIsExporting(false);
     },
   });
+
+  useEffect(() => {
+    if (exportStatusError) toast.error(`Unable to recover export status: ${exportStatusError}`);
+  }, [exportStatusError]);
 
   // Stylization state - defaults to "stylized" to match current behavior
   const [stylization, setStylization] = useState<ExportStylization>("stylized");
@@ -486,9 +490,9 @@ export const useExecutionExport = ({
       return screenshotUrl;
     }
     const specFrame = activeMovieSpec?.frames?.[0];
-    if (specFrame?.screenshot_asset_id && activeMovieSpec?.assets) {
+    if (specFrame?.screenshotAssetId && activeMovieSpec?.assets) {
       const asset = activeMovieSpec.assets.find(
-        (candidate) => candidate?.id === specFrame.screenshot_asset_id,
+        (candidate) => candidate?.id === specFrame.screenshotAssetId,
       );
       if (asset?.source) {
         return resolveUrl(asset.source) ?? asset.source;
@@ -532,7 +536,7 @@ export const useExecutionExport = ({
       ? previewMetrics.capturedFrames
       : undefined;
   const estimatedFrameCount =
-    exportSummary?.frame_count ??
+    exportSummary?.frameCount ??
     movieSpecFrameCount ??
     previewFrameCount ??
     replayFramesWithFallback.length;
@@ -540,9 +544,9 @@ export const useExecutionExport = ({
     previewMetrics.totalDurationMs || previewMetrics.totalDurationMs === 0
       ? previewMetrics.totalDurationMs
       : undefined;
-  const specDurationMs = activeMovieSpec?.playback?.duration_ms;
+  const specDurationMs = activeMovieSpec?.playback?.durationMs;
   const estimatedTotalDurationMs =
-    exportSummary?.total_duration_ms ??
+    exportSummary?.totalDurationMs ??
     specDurationMs ??
     previewDurationMs ??
     null;
@@ -618,6 +622,7 @@ export const useExecutionExport = ({
         format: exportFormat,
         fileName: finalFileName,
         renderSource: replayRenderSource,
+        stylization: isStylized ? "stylized" : "raw",
         movieSpec: exportSpec,
         overrides,
         outputDir: outputDir.trim(),
@@ -694,7 +699,7 @@ export const useExecutionExport = ({
     // New preview state for ReplayPlayer
     replayFrames: replayFramesWithFallback,
     replayStyle,
-    recordedVideoUrl: null as string | null, // TODO: Fetch from recorded video status
+    recordedVideoUrl: recordedVideoStatus.url,
     composerPreviewUrl,
     firstFramePreviewUrl,
     firstFrameLabel,

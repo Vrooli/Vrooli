@@ -1,8 +1,11 @@
 {
   "_metadata": {
-    "description": "Parent registry linking operational targets to technical requirements",
     "auto_sync_enabled": true,
+    "description": "Requirements registry linking SDA operational targets to implementation requirements",
+    "last_validated_at": "2026-06-14T11:55:33-04:00",
     "schema_version": "1.0.0"
   },
-  "imports": []
+  "imports": [
+    "01-operational-targets/module.json"
+  ]
 }

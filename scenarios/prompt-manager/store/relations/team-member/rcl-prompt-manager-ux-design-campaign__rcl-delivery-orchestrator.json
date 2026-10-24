@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "rcl-prompt-manager-ux-design-campaign",
+  "agentId": "rcl-delivery-orchestrator",
+  "roles": [
+    "rcl-delivery-orchestrator"
+  ],
+  "status": "active"
+}

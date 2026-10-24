@@ -1,0 +1,84 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "controlled-device-motion",
+    "title": "Controlled physical device motion",
+    "purpose": "Produce actual qualified phone rotation or articulated laptop/fold motion with a readable settled interval and explicit preview limits.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-004",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-008",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "library",
+      "state": "default",
+      "intent": "Find a true-3D device with required separated parts and qualified motion.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "asset",
+      "state": "unqualified-motion",
+      "intent": "Understand why an unqualified candidate cannot close its lid or fold safely.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "unsupported-motion",
+      "intent": "Select a qualified asset instead of silently converting requested physical motion into crop movement.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "default",
+      "intent": "Set camera/device/joint tracks, source entry offset and readable fixed hold independently.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "render-preflight",
+      "intent": "Request an explicit final-renderer look frame and short continuous final-profile sample before admitting a long render.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "running",
+      "intent": "Render the bounded look and motion sample on the selected qualified worker.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "review",
+      "state": "default",
+      "intent": "Inspect actual native sample intersections, clearances, screen legibility and silhouette stability; the browser proxy is insufficient.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "running",
+      "intent": "Render the reviewed pinned motion snapshot on a qualified worker after sample approval.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "review-needed",
+      "intent": "Inspect encoded movement and direct artifacts before accepting the motion.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "controlled-device-motion-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Produce actual qualified phone rotation or articulated laptop/fold motion with a readable settled interval and explicit preview limits.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

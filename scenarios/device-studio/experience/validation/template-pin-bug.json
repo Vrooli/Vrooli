@@ -1,0 +1,8 @@
+{
+  "status": "published",
+  "knowledge_id": "knw-1792459024617298162",
+  "topic": "bug-inbox/code-defect/react-vite-template-pins-absent-experiencesurface-contract-version",
+  "writer_skill": "report-bug",
+  "stdout": "Published Scenario QA bug knw-1792459024617298162 [bug-inbox/code-defect/react-vite-template-pins-absent-experiencesurface-contract-version].\n",
+  "scope": "Inherited source-template defect; owned generated Notes spec corrected, template source unchanged."
+}

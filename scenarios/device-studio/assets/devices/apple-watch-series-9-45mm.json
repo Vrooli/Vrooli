@@ -1,0 +1,137 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "apple-watch-series-9-45mm",
+  "group": "watch",
+  "kind": "rectangular_smartwatch",
+  "identity_status": "documented_product",
+  "manufacturer": "Apple",
+  "model": "Apple Watch Series 9, 45 mm case",
+  "dimensions": {
+    "case": {
+      "width": {
+        "value": 38,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "case",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/111833",
+            "kind": "manufacturer_specification",
+            "qualifier": "Published case values exclude band; strap/fit envelope not established."
+          }
+        ]
+      },
+      "height": {
+        "value": 45,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "case",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/111833",
+            "kind": "manufacturer_specification",
+            "qualifier": "Published case values exclude band; strap/fit envelope not established."
+          }
+        ]
+      },
+      "depth": {
+        "value": 10.7,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "case",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/111833",
+            "kind": "manufacturer_specification",
+            "qualifier": "Published case values exclude band; strap/fit envelope not established."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "front",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown",
+        "shape": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "front-facing",
+      "status": "candidate_only"
+    },
+    {
+      "name": "wrist-mounted",
+      "status": "unknown"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "whole_device_rotation",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "wrist",
+      "status": "unknown"
+    },
+    {
+      "kind": "floating",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "watch-series-9-polyman",
+      "status": "not_acquired",
+      "listing_url": "https://sketchfab.com/3d-models/apple-watch-series-9-b6d698e718bb425a97057767f0cede47",
+      "author": "polyman Studio",
+      "license": "CC BY 4.0 listing",
+      "attribution": "Credit polyman Studio; include adaptation notice",
+      "rights_notes": "45/41 mm variant is unverified; listing metadata only; no file acquired/inspected."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://support.apple.com/en-us/111833",
+      "kind": "manufacturer_specification",
+      "qualifier": "Apple Watch Series 9 case size; source distinguishes 41 mm and 45 mm variants."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/mobile-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Active mask, physical display dimensions, sensor layout and strap bounds not established."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Case dimensions do not establish circular active-mask geometry, wrist interface, or strap fit."
+}

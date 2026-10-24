@@ -207,7 +207,7 @@ export async function fetchSkillSuggestions(params: {
       return { suggestions: [], queryCount: 0, method: "error" };
     }
 
-    return jsonResponse<SkillSuggestResponse>(res);
+    return await jsonResponse<SkillSuggestResponse>(res);
   } catch {
     return { suggestions: [], queryCount: 0, method: "error" };
   }

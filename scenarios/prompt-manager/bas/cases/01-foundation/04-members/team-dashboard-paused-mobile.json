@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "name": "team-dashboard-paused-mobile",
+    "description": "Proves the real campaign dashboard exposes paused status, mission hierarchy, and mobile containment without implying current execution.",
+    "labels": { "reset": "none", "safety": "fixture-only", "routed_isolation": "true", "requires_confirmation": "true" },
+    "requirement": "UX-CAMPAIGN-003",
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "dashboard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/teamDashboard.root", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }
+      }
+    },
+    {
+      "id": "paused",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/teamDashboard.root",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-dashboard-status",
+          "expected": { "string_value": "paused" },
+          "timeout_ms": 15000,
+          "failure_message": "The campaign dashboard must report its paused state explicitly"
+        }
+      }
+    },
+    {
+      "id": "mission",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": { "selector": "@selector/teamDashboard.mission", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 15000, "failure_message": "The mobile dashboard mission hierarchy is missing" }
+      }
+    },
+    {
+      "id": "containment",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": { "expression": "(()=>{if(document.documentElement.scrollWidth>window.innerWidth)throw Error(`Dashboard horizontal overflow: ${document.documentElement.scrollWidth}px > ${window.innerWidth}px`);return true;})()" }
+      }
+    },
+    {
+      "id": "capture",
+      "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open", "target": "dashboard" },
+    { "id": "e2", "source": "dashboard", "target": "paused" },
+    { "id": "e3", "source": "paused", "target": "mission" },
+    { "id": "e4", "source": "mission", "target": "containment" },
+    { "id": "e5", "source": "containment", "target": "capture" }
+  ]
+}

@@ -3,56 +3,33 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"sort"
 	"time"
+
+	"connectrpc.com/connect"
+	aisearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch"
+	aisearchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch/aisearch_v1connect"
 )
 
-// searchPromptManager calls prompt-manager's AI search endpoint.
+// searchPromptManager calls prompt-manager's generated AI search service.
 func (s *SkillSuggestService) searchPromptManager(ctx context.Context, query string, limit int) ([]pmSearchResult, error) {
 	if s.promptManagerURL == "" {
 		return nil, fmt.Errorf("prompt-manager URL not configured")
 	}
 
-	reqBody, err := json.Marshal(map[string]interface{}{
-		"query": query,
-		"limit": limit,
-		"tag":   "skill",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal search request: %w", err)
-	}
-
-	url := fmt.Sprintf("%s/api/v1/search/ai", s.promptManagerURL)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(httpReq)
+	client := aisearchconnect.NewAISearchServiceClient(s.httpClient, s.promptManagerURL)
+	resp, err := client.SearchSkills(ctx, connect.NewRequest(&aisearchv1.SearchSkillsRequest{Query: query, Limit: int32(limit), Output: "results"}))
 	if err != nil {
 		return nil, fmt.Errorf("search request failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("prompt-manager returned %d: %s", resp.StatusCode, string(body))
+	results := make([]pmSearchResult, 0, len(resp.Msg.GetResults()))
+	for _, result := range resp.Msg.GetResults() {
+		results = append(results, pmSearchResult{ID: result.GetId(), Name: result.GetName(), Description: result.GetDescription(), Score: result.GetScore(), ScorePercent: int(result.GetScorePercent()), Tags: result.GetTags(), Modes: result.GetModes()})
 	}
-
-	var searchResp pmSearchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
-		return nil, fmt.Errorf("failed to decode search response: %w", err)
-	}
-
-	return searchResp.Results, nil
+	return results, nil
 }
 
 // mergeResults deduplicates by skill ID, ranks by max score, and caps at max.

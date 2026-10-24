@@ -1,0 +1,129 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-core-set",
+    "title": "Core supervision set",
+    "routes": [
+      "/setup/core-set"
+    ],
+    "purpose": "Let the operator declare the supervision seed while preserving the trusted base and seeing the computed consequence before commitment.",
+    "prd_refs": [
+      "OT-P0-009"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Trusted-base authority is visible and cannot be removed."
+    },
+    {
+      "statement": "The complete scenario and resource closure is visible before confirmation."
+    },
+    {
+      "statement": "A catalog failure keeps the seed visible and prevents an unpreviewed write."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The committed seed and its computed closure are visible.",
+      "setup": {
+        "route": "/setup/core-set"
+      }
+    },
+    {
+      "id": "draft-preview",
+      "description": "A changed seed has a computed preview and is awaiting explicit confirmation.",
+      "setup": {
+        "route": "/setup/core-set"
+      }
+    },
+    {
+      "id": "closure-unavailable",
+      "description": "The catalog cannot be resolved; the seed remains visible and confirmation is disabled.",
+      "setup": {
+        "route": "/setup/core-set"
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "core-set-step",
+      "role": "region",
+      "description": "The core supervision selection surface."
+    },
+    {
+      "id": "seed-toggle",
+      "role": "checkbox",
+      "description": "Adds or removes a scenario from the draft seed; trusted-base toggles are disabled."
+    },
+    {
+      "id": "closure-preview",
+      "role": "region",
+      "description": "The typed scenario and resource supervision closure, or an unavailable explanation."
+    },
+    {
+      "id": "confirm",
+      "role": "button",
+      "description": "Commits the previewed seed through the operator-state authority."
+    }
+  ],
+  "claims": [
+    {
+      "id": "trusted-base-locked",
+      "type": "custom",
+      "statement": "Every trusted-base member remains selected and its toggle is disabled.",
+      "tier": "aspirational",
+      "elements": [
+        "seed-toggle"
+      ],
+      "states": [
+        "default",
+        "draft-preview"
+      ]
+    },
+    {
+      "id": "closure-before-confirm",
+      "type": "element-present",
+      "statement": "The computed closure is visible before the confirmation control is enabled.",
+      "tier": "aspirational",
+      "elements": [
+        "closure-preview",
+        "confirm"
+      ],
+      "states": [
+        "draft-preview"
+      ]
+    },
+    {
+      "id": "unavailable-fails-closed",
+      "type": "custom",
+      "statement": "When closure computation is unavailable, the seed remains visible and confirmation is disabled.",
+      "tier": "aspirational",
+      "elements": [
+        "closure-preview",
+        "confirm"
+      ],
+      "states": [
+        "closure-unavailable"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "core-set-step": {
+        "testid": "step-core-set"
+      },
+      "seed-toggle": {
+        "testid": "core-set-toggle"
+      },
+      "closure-preview": {
+        "testid": "core-set-preview"
+      },
+      "confirm": {
+        "testid": "core-set-confirm"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "sess_667b5cbcd1bcea81",
+  "title": "Lifecycle triage drill",
+  "kind": "swarm_operations",
+  "status": "failed",
+  "skill_id": "swarm-manager-proposals",
+  "profile_key": "swarm-manager/default",
+  "failure_reason": "agent-manager request failed: status 403: {\"code\":\"POLICY_RUNNER_DENIED\", \"message\":\"validation error on toolRestrictionPolicy: runner \\\"codex\\\" cannot enforce allowedTools\", \"details\":{\"fields\":{\"field\":{\"string_value\":\"toolRestrictionPolicy\"}, \"message\":{\"string_value\":\"runner \\\"codex\\\" cannot enforce allowedTools\"}, \"recovery\":{\"string_value\":\"fix_input\"}, \"request_id\":{\"string_value\":\"d37bc80a-f8de-4628-bd1e-9792ef7adfa2\"}, \"retryable\":{\"bool_value\":false}, \"user_message\":{\"string_value\":\"Invalid value for toolRestrictionPolicy: runner \\\"codex\\\" cannot enforce allowedTools\"}}}}",
+  "created_at": "2026-07-20T18:01:58Z",
+  "updated_at": "2026-07-20T18:06:34Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "proposal_target": {
+    "type": "backlog_item",
+    "ref": "fix/lifecycle-triage-drill-a",
+    "name": "Lifecycle triage drill A"
+  }
+}

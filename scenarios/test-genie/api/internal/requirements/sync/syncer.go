@@ -10,8 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
@@ -77,6 +80,10 @@ type Options struct {
 
 	// ScenarioRoot is the path to the scenario directory.
 	ScenarioRoot string
+
+	// ArtifactRoot is test-genie's governed storage root for this scenario.
+	// It is deliberately distinct from ScenarioRoot, which contains source.
+	ArtifactRoot string
 }
 
 // DefaultOptions returns default sync options.
@@ -134,6 +141,7 @@ type syncer struct {
 	statusUpdater  *StatusUpdater
 	orphanDetector *OrphanDetector
 	fileWriter     *FileWriter
+	artifactRoot   func(string) (string, error)
 }
 
 // New creates a Syncer with the provided dependencies.
@@ -144,6 +152,7 @@ func New(reader Reader, writer Writer) Syncer {
 		statusUpdater:  NewStatusUpdater(),
 		orphanDetector: NewOrphanDetector(reader),
 		fileWriter:     NewFileWriter(writer),
+		artifactRoot:   func(root string) (string, error) { return root, nil },
 	}
 }
 
@@ -151,7 +160,9 @@ func New(reader Reader, writer Writer) Syncer {
 func NewDefault() Syncer {
 	reader := &osReader{}
 	writer := &osWriter{}
-	return New(reader, writer)
+	result := New(reader, writer).(*syncer)
+	result.artifactRoot = artifactpaths.ScenarioRootForDir
+	return result
 }
 
 // Sync updates requirement files based on test evidence.
@@ -207,10 +218,19 @@ func (s *syncer) Sync(ctx context.Context, index *parsing.ModuleIndex, evidence 
 
 		// Write sync metadata
 		if opts.ScenarioRoot != "" {
-			if err := s.writeSyncMetadata(ctx, opts.ScenarioRoot, result); err != nil {
-				result.Errors = append(result.Errors, err)
+			artifactRoot := opts.ArtifactRoot
+			if artifactRoot == "" {
+				artifactRoot, err = s.artifactRoot(opts.ScenarioRoot)
+				if err != nil {
+					result.Errors = append(result.Errors, err)
+				}
 			}
-			if err := s.updatePRDOperationalTargets(ctx, index, opts.ScenarioRoot, result.SyncedAt); err != nil {
+			if artifactRoot != "" {
+				if err := s.writeSyncMetadata(ctx, artifactRoot, result); err != nil {
+					result.Errors = append(result.Errors, err)
+				}
+			}
+			if err := s.updatePRDOperationalTargets(ctx, index, opts.ScenarioRoot, opts.ArtifactRoot, result.SyncedAt); err != nil {
 				result.Errors = append(result.Errors, err)
 			}
 		}
@@ -219,7 +239,7 @@ func (s *syncer) Sync(ctx context.Context, index *parsing.ModuleIndex, evidence 
 	return result, nil
 }
 
-func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing.ModuleIndex, scenarioRoot string, ts time.Time) error {
+func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing.ModuleIndex, scenarioRoot, artifactRoot string, ts time.Time) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -252,7 +272,14 @@ func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing
 		return nil
 	}
 
-	backupDir := filepath.Join(scenarioRoot, "coverage", "requirements-sync", "prd-backups")
+	if artifactRoot == "" {
+		var err error
+		artifactRoot, err = s.artifactRoot(scenarioRoot)
+		if err != nil {
+			return err
+		}
+	}
+	backupDir := artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "requirements-sync", "prd-backups")
 	if err := s.writer.MkdirAll(backupDir, 0o755); err != nil {
 		return err
 	}
@@ -263,17 +290,36 @@ func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing
 	return s.writer.WriteFile(prdPath, []byte(updated), 0o644)
 }
 
-func desiredOperationalTargetCheckboxes(index *parsing.ModuleIndex) map[string]bool {
+// otIDPattern matches operational-target identifiers (e.g. OT-P0-001) inside a
+// requirement's PRDRef field. It is the single regex source for OT extraction.
+var otIDPattern = regexp.MustCompile(`OT-[Pp][0-2]-\d{3}`)
+
+// OTPriorityCount holds the complete/total requirement tallies for one priority
+// band (P0/P1/P2) of operational targets.
+type OTPriorityCount struct {
+	Complete int
+	Total    int
+}
+
+// OTSummary aggregates operational-target completion across a module index.
+// An operational target is "complete" only when every requirement that links to
+// it (via PRDRef) is itself complete — matching the PRD checkbox semantics.
+type OTSummary struct {
+	// Complete is the number of operational targets whose requirements are all complete.
+	Complete int
+	// Total is the number of distinct operational targets referenced by requirements.
+	Total int
+	// ByPriority breaks the tallies down by priority band ("P0"/"P1"/"P2").
+	ByPriority map[string]OTPriorityCount
+}
+
+// otRequirementCounts walks the index once and returns, per operational-target
+// ID, how many of its linked requirements exist and how many are complete.
+func otRequirementCounts(index *parsing.ModuleIndex) map[string]*OTPriorityCount {
 	if index == nil {
 		return nil
 	}
-	re := regexp.MustCompile(`OT-[Pp][0-2]-\d{3}`)
-	type counts struct {
-		total    int
-		complete int
-	}
-	byOT := make(map[string]*counts)
-
+	byOT := make(map[string]*OTPriorityCount)
 	for _, module := range index.Modules {
 		if module == nil {
 			continue
@@ -283,29 +329,66 @@ func desiredOperationalTargetCheckboxes(index *parsing.ModuleIndex) map[string]b
 			if req == nil {
 				continue
 			}
-			m := re.FindString(req.PRDRef)
+			m := otIDPattern.FindString(req.PRDRef)
 			if m == "" {
 				continue
 			}
 			ot := strings.ToUpper(m)
 			c := byOT[ot]
 			if c == nil {
-				c = &counts{}
+				c = &OTPriorityCount{}
 				byOT[ot] = c
 			}
-			c.total++
+			c.Total++
 			if req.Status == types.StatusComplete {
-				c.complete++
+				c.Complete++
 			}
 		}
 	}
+	return byOT
+}
 
-	desired := make(map[string]bool, len(byOT))
+// OperationalTargetSummary aggregates OT completion for the whole index. It is
+// the read-side counterpart to desiredOperationalTargetCheckboxes and is reused
+// by the execute report so partial runs can show cached OT counts.
+func OperationalTargetSummary(index *parsing.ModuleIndex) OTSummary {
+	byOT := otRequirementCounts(index)
+	summary := OTSummary{ByPriority: map[string]OTPriorityCount{}}
 	for ot, c := range byOT {
-		if c == nil || c.total == 0 {
+		if c == nil || c.Total == 0 {
 			continue
 		}
-		desired[ot] = c.complete == c.total
+		summary.Total++
+		complete := c.Complete == c.Total
+		if complete {
+			summary.Complete++
+		}
+		// Priority band is the middle segment of the ID: OT-P0-001 -> P0.
+		band := "P2"
+		if parts := strings.Split(ot, "-"); len(parts) >= 2 {
+			band = strings.ToUpper(parts[1])
+		}
+		pc := summary.ByPriority[band]
+		pc.Total++
+		if complete {
+			pc.Complete++
+		}
+		summary.ByPriority[band] = pc
+	}
+	return summary
+}
+
+func desiredOperationalTargetCheckboxes(index *parsing.ModuleIndex) map[string]bool {
+	byOT := otRequirementCounts(index)
+	if byOT == nil {
+		return nil
+	}
+	desired := make(map[string]bool, len(byOT))
+	for ot, c := range byOT {
+		if c == nil || c.Total == 0 {
+			continue
+		}
+		desired[ot] = c.Complete == c.Total
 	}
 	return desired
 }

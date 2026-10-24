@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "react-component-library:PageFrame",
+    "name": "Page Frame",
+    "kind": "component",
+    "domain": "legacy",
+    "description": "Reusable page frame component implementation for the React component library.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "deprecated"
+    }
+  },
+  "deprecation": {
+    "reason": "A fixture-driven demo frame published as a component, with position fixed and 100vh geometry no consumer can override; AppShell 2 owns page geometry.",
+    "replacedBy": "navigation.app-shell",
+    "migration": "Mount routed pages under AppShell 2 and use PageHeader 2 for the title region."
+  }
+}

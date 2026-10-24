@@ -1,0 +1,233 @@
+package opencode
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+)
+
+// errEventStreamUnsupported marks a server that does not expose a stream path,
+// so Events can fall back to the older scoped endpoint.
+var errEventStreamUnsupported = errors.New("opencode event stream path unsupported")
+
+// Client is the narrow surface the OpenCode watcher depends on. Tests substitute
+// a fake; production uses HTTPClient against a loopback `opencode serve`.
+type Client interface {
+	// ListSessions returns sessions scoped to directory. An empty directory
+	// uses the server's own working directory; a server scopes both listing and
+	// events to that directory, so callers must pass each candidate cwd to see
+	// sessions started outside the server's root.
+	ListSessions(ctx context.Context, directory string) ([]Session, error)
+	SessionMessages(ctx context.Context, sessionID string) ([]MessageWithParts, error)
+	SessionStatus(ctx context.Context) (map[string]SessionStatus, error)
+	AbortSession(ctx context.Context, sessionID string) error
+	RevertMessage(ctx context.Context, sessionID, messageID, partID string) error
+	// Events opens the SSE stream and calls onEvent for each decoded event until
+	// ctx is cancelled or the stream terminates, returning the terminating
+	// error (nil on a clean EOF).
+	Events(ctx context.Context, onEvent func(Event)) error
+	// ReplyPermission answers a pending permission request with "once",
+	// "always", or "reject".
+	ReplyPermission(ctx context.Context, requestID, reply string) error
+}
+
+// HTTPClient talks to an `opencode serve` instance over loopback HTTP.
+type HTTPClient struct {
+	BaseURL string
+	HTTP    *http.Client
+}
+
+// NewHTTPClient builds a client with sensible per-call timeouts. The event
+// stream uses its own long-lived request (no client timeout) so SSE is not
+// killed mid-stream.
+func NewHTTPClient(baseURL string) *HTTPClient {
+	return &HTTPClient{
+		BaseURL: strings.TrimRight(baseURL, "/"),
+		HTTP:    &http.Client{Timeout: 15 * time.Second},
+	}
+}
+
+func (c *HTTPClient) getJSON(ctx context.Context, path string, out interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+func (c *HTTPClient) ListSessions(ctx context.Context, directory string) ([]Session, error) {
+	path := "/session"
+	if directory != "" {
+		path += "?directory=" + url.QueryEscape(directory)
+	}
+	var sessions []Session
+	if err := c.getJSON(ctx, path, &sessions); err != nil {
+		return nil, err
+	}
+	return sessions, nil
+}
+
+func (c *HTTPClient) SessionMessages(ctx context.Context, sessionID string) ([]MessageWithParts, error) {
+	var messages []MessageWithParts
+	if err := c.getJSON(ctx, "/session/"+sessionID+"/message", &messages); err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func (c *HTTPClient) SessionStatus(ctx context.Context) (map[string]SessionStatus, error) {
+	var status map[string]SessionStatus
+	if err := c.getJSON(ctx, "/session/status", &status); err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+func (c *HTTPClient) AbortSession(ctx context.Context, sessionID string) error {
+	path := "/session/" + url.PathEscape(sessionID) + "/abort"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *HTTPClient) RevertMessage(ctx context.Context, sessionID, messageID, partID string) error {
+	body := map[string]string{"messageID": messageID}
+	if partID != "" {
+		body["partID"] = partID
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	path := "/session/" + url.PathEscape(sessionID) + "/revert"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return nil
+}
+
+// Events streams the SSE endpoint. SSE frames are `data: <json>` lines
+// separated by blank lines; we decode each data line into an Event. Malformed
+// frames are skipped so one bad line never tears down the stream.
+//
+// It prefers /global/event because the scoped /event stream only carries events
+// for the server's own project directory, which silently hides every pane
+// running elsewhere. A server too old to expose /global/event falls back to
+// /event.
+func (c *HTTPClient) Events(ctx context.Context, onEvent func(Event)) error {
+	err := c.streamEvents(ctx, "/global/event", onEvent)
+	if errors.Is(err, errEventStreamUnsupported) {
+		return c.streamEvents(ctx, "/event", onEvent)
+	}
+	return err
+}
+
+func (c *HTTPClient) streamEvents(ctx context.Context, path string, onEvent func(Event)) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	// The stream is intentionally long-lived. An explicit zero timeout documents
+	// that cancellation is owned by ctx rather than an implicit default client.
+	streamClient := &http.Client{Timeout: 0}
+	resp, err := streamClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("opencode %s: %w", path, errEventStreamUnsupported)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if payload == "" {
+			continue
+		}
+		var ev Event
+		if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+			continue
+		}
+		// The global stream nests the event under "payload"; unwrap it so
+		// callers see the same shape the scoped stream produced.
+		if ev.Payload != nil {
+			ev = *ev.Payload
+		}
+		onEvent(ev)
+	}
+	return scanner.Err()
+}
+
+// ReplyPermission answers a pending permission request: POST
+// /permission/{requestID}/reply with {"reply": "once" | "always" | "reject"}.
+func (c *HTTPClient) ReplyPermission(ctx context.Context, requestID, reply string) error {
+	body, err := json.Marshal(map[string]string{"reply": reply})
+	if err != nil {
+		return err
+	}
+	path := "/permission/" + url.PathEscape(requestID) + "/reply"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return nil
+}

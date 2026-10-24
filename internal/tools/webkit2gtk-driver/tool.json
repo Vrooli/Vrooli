@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "webkit2gtk-driver",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "WebKitGTK WebDriver executable used by scenario-to-desktop Linux journey automation",
+  "commands": [
+    "WebKitWebDriver"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "webkit2gtk-driver",
+  "packages": {
+    "apt-get": "webkit2gtk-driver"
+  },
+  "installHint": "Install the approved WebKitGTK WebDriver package with `sudo vrooli setup`",
+  "platforms": [
+    "linux"
+  ],
+  "privilege": "elevated",
+  "privilegeReason": "The approved WebKitGTK WebDriver package is installed through the operator-owned host setup flow.",
+  "bundling": "host-required",
+  "capability": "headless-gui",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "notes": "The package is host tooling and is not bundled into desktop applications. Host installation remains gated on operator setup."
+}

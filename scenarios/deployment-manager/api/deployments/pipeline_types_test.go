@@ -13,8 +13,9 @@ func TestExtractDeployResult(t *testing.T) {
 					Details: map[string]interface{}{
 						"artifacts": []interface{}{
 							map[string]interface{}{
-								"artifact_id": float64(42),
-								"platform":    "windows",
+								"artifact_id":        float64(42),
+								"platform":           "windows",
+								"destination_object": "s3://bucket/windows/app.exe",
 							},
 							map[string]interface{}{
 								"artifact_id": float64(43),
@@ -40,6 +41,9 @@ func TestExtractDeployResult(t *testing.T) {
 		}
 		if result.Artifacts[0].Platform != "windows" {
 			t.Errorf("expected platform windows, got %s", result.Artifacts[0].Platform)
+		}
+		if result.Artifacts[0].DestinationObject != "s3://bucket/windows/app.exe" {
+			t.Errorf("expected destination object, got %s", result.Artifacts[0].DestinationObject)
 		}
 		if result.Artifacts[1].ArtifactID != 43 {
 			t.Errorf("expected artifact_id 43, got %d", result.Artifacts[1].ArtifactID)
@@ -105,6 +109,13 @@ func TestExtractProvenance(t *testing.T) {
 		_, err := ExtractProvenance(status)
 		if err == nil {
 			t.Fatal("expected error for nil provenance")
+		}
+	})
+
+	t.Run("returns error when provenance identity is incomplete", func(t *testing.T) {
+		_, err := ExtractProvenance(&PipelineStatus{Provenance: &PipelineBuildProvenance{Version: "1.2.3"}})
+		if err == nil {
+			t.Fatal("expected incomplete provenance error")
 		}
 	})
 

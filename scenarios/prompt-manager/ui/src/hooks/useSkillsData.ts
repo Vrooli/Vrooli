@@ -66,8 +66,16 @@ export function useSkillsData(): UseSkillsDataReturn {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (request: CreateSkillRequest) => skillService.createSkill(request),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+    onSuccess: async (createdSkill) => {
+      // Reconcile the server list first, then commit the mutation response as
+      // the read-after-write authority. A newly created skill can otherwise
+      // disappear between the create response and a list projection refresh,
+      // leaving callers that immediately navigate to its ID on an empty route.
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+      queryClient.setQueryData<Skill[]>(QUERY_KEYS.skills, (current = []) => {
+        const withoutCreated = current.filter((skill) => skill.id !== createdSkill.id)
+        return [...withoutCreated, createdSkill]
+      })
       void useGraphStore.getState().fetchHealthScores()
     },
   })

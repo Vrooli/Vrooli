@@ -21,6 +21,9 @@ export interface CreateExecutionRequest {
   mode: ExecutionMode;
   startedBy?: string;
   operation?: "generator" | "improver";
+  preferredRunner?: string;
+  model?: string;
+  effort?: string;
 }
 
 export interface ListExecutionFilters {
@@ -45,9 +48,11 @@ export interface IExecutionService {
   create(request: CreateExecutionRequest): Promise<ExecutionRecord>;
   start(executionId: string): Promise<ExecutionRecord>;
   cancel(executionId: string): Promise<ExecutionRecord>;
-  retry(executionId: string): Promise<ExecutionRecord>;
+  retry(executionId: string, note?: string): Promise<ExecutionRecord>;
   followUp(executionId: string, request: FollowUpRequest): Promise<ExecutionRecord>;
   triggerReview(executionId: string): Promise<ExecutionRecord>;
+  haltContinuation(item: string, reason?: string): Promise<void>;
+  resumeContinuation(item: string): Promise<void>;
 }
 
 export function createExecutionService(apiClient: IApiClient = defaultApiClient): IExecutionService {
@@ -89,6 +94,11 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
         mode: request.mode,
         ...(request.startedBy ? { startedBy: request.startedBy } : {}),
         ...(request.operation ? { operation: request.operation } : {}),
+        ...((request.preferredRunner || request.model || request.effort) ? { executionPreferences: {
+          preferredRunner: request.preferredRunner ?? "",
+          model: request.model ?? "",
+          effort: request.effort ?? "",
+        } } : {}),
       });
       const body = toProtoJson(CreateExecutionRequestSchema, msg);
       const data = await apiClient.post<unknown>(API_ENDPOINTS.execution, body);
@@ -103,8 +113,12 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
       return mutate(API_ENDPOINTS.executionCancel(executionId));
     },
 
-    async retry(executionId: string): Promise<ExecutionRecord> {
-      return mutate(API_ENDPOINTS.executionRetry(executionId));
+    async retry(executionId: string, note?: string): Promise<ExecutionRecord> {
+      const data = await apiClient.post<unknown>(
+        API_ENDPOINTS.executionRetry(executionId),
+        note ? { note } : {},
+      );
+      return parseExecution(data);
     },
 
     async triggerReview(executionId: string): Promise<ExecutionRecord> {
@@ -121,6 +135,14 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
       const body = toProtoJson(FollowUpExecutionRequestSchema, msg);
       const data = await apiClient.post<unknown>(API_ENDPOINTS.executionFollowUp(executionId), body);
       return parseExecution(data);
+    },
+
+    async haltContinuation(item: string, reason?: string): Promise<void> {
+      await apiClient.post(API_ENDPOINTS.executionContinuationHalt, { item, ...(reason ? { reason } : {}) });
+    },
+
+    async resumeContinuation(item: string): Promise<void> {
+      await apiClient.post(API_ENDPOINTS.executionContinuationResume, { item });
     },
   };
 }

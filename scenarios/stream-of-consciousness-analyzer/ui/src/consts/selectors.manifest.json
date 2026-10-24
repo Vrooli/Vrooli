@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.root": {
+      "testId": "app-root",
+      "selector": "[data-testid=\"app-root\"]"
+    },
+    "scheme.list": {
+      "testId": "scheme-list",
+      "selector": "[data-testid=\"scheme-list\"]"
+    },
+    "scheme.createBtn": {
+      "testId": "create-scheme-btn",
+      "selector": "[data-testid=\"create-scheme-btn\"]"
+    },
+    "scheme.item": {
+      "testId": "scheme-item",
+      "selector": "[data-testid=\"scheme-item\"]"
+    },
+    "capture.container": {
+      "testId": "text-capture",
+      "selector": "[data-testid=\"text-capture\"]"
+    },
+    "capture.input": {
+      "testId": "text-capture-input",
+      "selector": "[data-testid=\"text-capture-input\"]"
+    },
+    "capture.sendBtn": {
+      "testId": "text-capture-send",
+      "selector": "[data-testid=\"text-capture-send\"]"
+    },
+    "canvas.view": {
+      "testId": "canvas-view",
+      "selector": "[data-testid=\"canvas-view\"]"
+    },
+    "canvas.node": {
+      "testId": "canvas-node",
+      "selector": "[data-testid=\"canvas-node\"]"
+    },
+    "canvas.shortcutHelp": {
+      "testId": "keyboard-shortcut-help",
+      "selector": "[data-testid=\"keyboard-shortcut-help\"]"
+    },
+    "graph.view": {
+      "testId": "graph-view",
+      "selector": "[data-testid=\"graph-view\"]"
+    },
+    "graph.thoughtTitleInput": {
+      "testId": "thought-title-input",
+      "selector": "[data-testid=\"thought-title-input\"]"
+    },
+    "graph.createThoughtBtn": {
+      "testId": "create-thought-btn",
+      "selector": "[data-testid=\"create-thought-btn\"]"
+    },
+    "graph.linkModeBtn": {
+      "testId": "link-mode-btn",
+      "selector": "[data-testid=\"link-mode-btn\"]"
+    },
+    "graph.linkModeHint": {
+      "testId": "link-mode-hint",
+      "selector": "[data-testid=\"link-mode-hint\"]"
+    },
+    "graph.thoughtNode": {
+      "testId": "thought-node",
+      "selector": "[data-testid=\"thought-node\"]"
+    },
+    "graph.edgeItem": {
+      "testId": "edge-item",
+      "selector": "[data-testid=\"edge-item\"]"
+    },
+    "viewToggle.canvasBtn": {
+      "testId": "view-canvas-btn",
+      "selector": "[data-testid=\"view-canvas-btn\"]"
+    },
+    "viewToggle.graphBtn": {
+      "testId": "view-graph-btn",
+      "selector": "[data-testid=\"view-graph-btn\"]"
+    },
+    "provider.status": {
+      "testId": "provider-status",
+      "selector": "[data-testid=\"provider-status\"]"
+    },
+    "export.btn": {
+      "testId": "export-btn",
+      "selector": "[data-testid=\"export-btn\"]"
+    },
+    "error.banner": {
+      "testId": "error-banner",
+      "selector": "[data-testid=\"error-banner\"]"
+    },
+    "error.retryBtn": {
+      "testId": "error-retry-btn",
+      "selector": "[data-testid=\"error-retry-btn\"]"
+    },
+    "error.boundaryFallback": {
+      "testId": "error-boundary-fallback",
+      "selector": "[data-testid=\"error-boundary-fallback\"]"
+    },
+    "error.boundaryRetry": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "connection.status": {
+      "testId": "connection-status",
+      "selector": "[data-testid=\"connection-status\"]"
+    },
+    "suggestion.list": {
+      "testId": "suggestion-list",
+      "selector": "[data-testid=\"suggestion-list\"]"
+    },
+    "suggestion.item": {
+      "testId": "suggestion-item",
+      "selector": "[data-testid=\"suggestion-item\"]"
+    }
+  },
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "469efa313aa0ecf5b5deeaff9280bc309a697f8f3b2a510c71583ddbf5dfb698"
+  }
+}

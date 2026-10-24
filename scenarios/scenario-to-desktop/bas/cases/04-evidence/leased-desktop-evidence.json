@@ -1,0 +1,97 @@
+{
+  "metadata": {
+    "name": "scenario-to-desktop-leased-desktop-evidence",
+    "description": "Given Test Genie has installed routed isolation, when an operator creates the deterministic desktop-evidence fixture from the console, then the leased artifact and smoke report are recorded as a successful journey.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCENARIO-P0-010\"]",
+      "purpose": "desktop-leased-evidence",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-to-desktop",
+          "scenario_path": "/?view=generator&scenario=scenario-to-desktop&bas_fixture=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the isolated desktop-evidence fixture"
+        }
+      }
+    },
+    {
+      "id": "assert-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/generator.evidenceFixtureRun",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Leased evidence control is available"
+        }
+      }
+    },
+    {
+      "id": "create-evidence",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/generator.evidenceFixtureRun"
+        },
+        "metadata": {
+          "label": "Create the leased desktop artifact and smoke report"
+        }
+      }
+    },
+    {
+      "id": "assert-success",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/generator.evidenceFixtureResult",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "leased writes: 3"
+          },
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Fixture reports its artifact and smoke success"
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture leased desktop evidence result"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate", "target": "assert-control"},
+    {"id": "e2", "source": "assert-control", "target": "create-evidence"},
+    {"id": "e3", "source": "create-evidence", "target": "assert-success"},
+    {"id": "e4", "source": "assert-success", "target": "capture"}
+  ]
+}

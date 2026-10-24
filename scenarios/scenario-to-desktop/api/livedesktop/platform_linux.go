@@ -1,3 +1,5 @@
+//go:build linux
+
 package livedesktop
 
 import (
@@ -12,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 )
@@ -29,6 +32,9 @@ func NewLinuxBackend(logger *slog.Logger) *LinuxBackend {
 		logger:     logger,
 	}
 }
+
+// NewBackend selects the supported local backend for this build target.
+func NewBackend(logger *slog.Logger) PlatformBackend { return NewLinuxBackend(logger) }
 
 func (b *LinuxBackend) PlatformID() string { return "linux-xvfb" }
 
@@ -82,11 +88,7 @@ func (b *LinuxBackend) StartRemoteAccess(display PlatformDisplay) (RemoteAccessI
 		return RemoteAccessInfo{}, nil, fmt.Errorf("finding WebSocket port: %w", err)
 	}
 
-	x11vncCmd := exec.Command("x11vnc",
-		"-display", display.DisplayID(),
-		"-rfbport", fmt.Sprintf("%d", vncPort),
-		"-nopw", "-shared", "-forever", "-noxdamage",
-	)
+	x11vncCmd := exec.Command("x11vnc", x11vncArgs(display.DisplayID(), vncPort)...)
 	if err := x11vncCmd.Start(); err != nil {
 		return RemoteAccessInfo{}, nil, fmt.Errorf("starting x11vnc: %w", err)
 	}
@@ -96,14 +98,18 @@ func (b *LinuxBackend) StartRemoteAccess(display PlatformDisplay) (RemoteAccessI
 		return RemoteAccessInfo{}, nil, fmt.Errorf("x11vnc exited immediately — is the display %s active?", display.DisplayID())
 	}
 
-	websockifyCmd := exec.Command("websockify",
-		fmt.Sprintf("%d", wsPort),
-		fmt.Sprintf("localhost:%d", vncPort),
-	)
+	websockifyCmd := exec.Command("websockify", websockifyArgs(wsPort, vncPort)...)
 	if err := websockifyCmd.Start(); err != nil {
 		_ = x11vncCmd.Process.Kill()
 		_ = x11vncCmd.Wait()
 		return RemoteAccessInfo{}, nil, fmt.Errorf("starting websockify: %w", err)
+	}
+	if err := waitForLoopbackListener(wsPort, 3*time.Second); err != nil {
+		_ = websockifyCmd.Process.Kill()
+		_ = websockifyCmd.Wait()
+		_ = x11vncCmd.Process.Kill()
+		_ = x11vncCmd.Wait()
+		return RemoteAccessInfo{}, nil, fmt.Errorf("waiting for websockify on loopback: %w", err)
 	}
 
 	b.logger.Info("VNC session started", "display", display.DisplayID(), "vnc_port", vncPort, "ws_port", wsPort)
@@ -118,6 +124,14 @@ func (b *LinuxBackend) StartRemoteAccess(display PlatformDisplay) (RemoteAccessI
 		websockifyCmd: websockifyCmd,
 	}
 	return info, handle, nil
+}
+
+func x11vncArgs(displayID string, port int) []string {
+	return []string{"-display", displayID, "-rfbport", fmt.Sprintf("%d", port), "-localhost", "-nopw", "-shared", "-forever", "-noxdamage"}
+}
+
+func websockifyArgs(websocketPort, vncPort int) []string {
+	return []string{fmt.Sprintf("127.0.0.1:%d", websocketPort), fmt.Sprintf("127.0.0.1:%d", vncPort)}
 }
 
 func (b *LinuxBackend) StopRemoteAccess(handle RemoteAccessHandle) {
@@ -139,7 +153,23 @@ func (b *LinuxBackend) StopRemoteAccess(handle RemoteAccessHandle) {
 
 // linuxProcess wraps an exec.Cmd process handle.
 type linuxProcess struct {
-	cmd *exec.Cmd
+	cmd  *exec.Cmd
+	done chan struct{}
+	err  error // published by closing done
+}
+
+type launchStderr struct{ bytes.Buffer }
+
+func (w *launchStderr) Write(p []byte) (int, error) {
+	count := len(p)
+	remaining := 16*1024 - w.Len()
+	if remaining > 0 {
+		if len(p) > remaining {
+			p = p[:remaining]
+		}
+		_, _ = w.Buffer.Write(p)
+	}
+	return count, nil
 }
 
 func (p *linuxProcess) PID() int {
@@ -150,10 +180,15 @@ func (p *linuxProcess) PID() int {
 }
 
 func (p *linuxProcess) IsRunning() bool {
-	if p.cmd == nil || p.cmd.ProcessState != nil {
+	if p == nil || p.cmd == nil || p.cmd.Process == nil {
 		return false
 	}
-	return p.cmd.Process != nil
+	select {
+	case <-p.done:
+		return false
+	default:
+		return true
+	}
 }
 
 func (b *LinuxBackend) LaunchApp(ctx context.Context, display PlatformDisplay, appPath string, opts LaunchOptions) (PlatformProcess, error) {
@@ -192,18 +227,30 @@ func (b *LinuxBackend) LaunchApp(ctx context.Context, display PlatformDisplay, a
 	default:
 		cmdName = appPath
 	}
+	cmdArgs = append(cmdArgs, opts.ExtraArgs...)
 
 	if opts.DarkMode {
 		cmdArgs = append(cmdArgs, "--force-dark-mode")
 	}
 
-	cmd := exec.CommandContext(context.Background(), cmdName, cmdArgs...)
+	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 	cmd.Env = env
+	stderr := &launchStderr{}
+	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("launching app: %w", err)
 	}
 
-	return &linuxProcess{cmd: cmd}, nil
+	process := &linuxProcess{cmd: cmd, done: make(chan struct{})}
+	go func() { process.err = cmd.Wait(); close(process.done) }()
+	timer := time.NewTimer(150 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-process.done:
+		return nil, fmt.Errorf("app exited during startup: %v: %s", process.err, strings.TrimSpace(stderr.String()))
+	case <-timer.C:
+		return process, nil
+	}
 }
 
 func (b *LinuxBackend) KillApp(proc PlatformProcess) {
@@ -213,7 +260,7 @@ func (b *LinuxBackend) KillApp(proc PlatformProcess) {
 	}
 	if lp.cmd.Process != nil {
 		_ = lp.cmd.Process.Kill()
-		_ = lp.cmd.Wait()
+		<-lp.done
 	}
 }
 
@@ -284,7 +331,7 @@ func checkLinuxVNCDeps() error {
 		return fmt.Errorf(
 			"required tools not installed: %v. "+
 				"Run 'sudo apt-get install -y x11vnc websockify' or re-run "+
-				"'./scripts/manage.sh setup' to install all dependencies",
+				"'vrooli setup' to install all dependencies",
 			missing,
 		)
 	}
@@ -294,7 +341,7 @@ func checkLinuxVNCDeps() error {
 // findAvailablePort probes for a free TCP port in [start, end].
 func findAvailablePort(start, end int) (int, error) {
 	for port := start; port <= end; port++ {
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		if err == nil {
 			_ = ln.Close()
 			return port, nil
@@ -303,11 +350,29 @@ func findAvailablePort(start, end int) (int, error) {
 	return 0, fmt.Errorf("no available port in range %d-%d", start, end)
 }
 
+// waitForLoopbackListener makes session readiness mean the browser-facing VNC
+// proxy is actually reachable, rather than merely that websockify was spawned.
+func waitForLoopbackListener(port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	address := fmt.Sprintf("127.0.0.1:%d", port)
+	for {
+		conn, err := net.DialTimeout("tcp", address, 100*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s did not become reachable within %s", address, timeout)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // shellExec runs a command and returns stdout.
 func shellExec(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if len(env) > 0 {
-		cmd.Env = env
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

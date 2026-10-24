@@ -67,7 +67,7 @@ func NewSuggestionServiceWithEnv(db *sql.DB, env EnvReader) *SuggestionService {
 	providers := []LLMProvider{
 		{
 			Name:     "ollama",
-			URL:      envOrDefault(env, "OLLAMA_URL", DefaultOllamaURL),
+			URL:      OllamaProviderTransport,
 			Active:   true,
 			Fallback: false,
 		},
@@ -79,13 +79,6 @@ func NewSuggestionServiceWithEnv(db *sql.DB, env EnvReader) *SuggestionService {
 		},
 	}
 	return &SuggestionService{db: db, providers: providers}
-}
-
-func envOrDefault(env EnvReader, key, def string) string {
-	if v := env(key); v != "" {
-		return v
-	}
-	return def
 }
 
 // GetProviders returns the current provider configuration

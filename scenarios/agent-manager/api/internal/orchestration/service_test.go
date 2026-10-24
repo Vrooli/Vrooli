@@ -3,7 +3,9 @@ package orchestration_test
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,16 +13,77 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
+
+func TestOrchestrator_CreateRun_RejectsUnboundedWorkReferencesBeforeEffects(t *testing.T) {
+	for name, refs := range map[string][]*eventpb.WorkReference{
+		"nil":              {nil},
+		"missing kind":     {{Id: "effort:test"}},
+		"missing identity": {{Kind: "effort"}},
+		"oversized":        {{Kind: "effort", Id: strings.Repeat("x", 4097)}},
+		"too many":         make([]*eventpb.WorkReference, 101),
+	} {
+		t.Run(name, func(t *testing.T) {
+			// No repositories or dispatch dependencies: invalid declarations must
+			// be refused before reserving an operation or creating a run.
+			svc := &orchestration.Orchestrator{}
+			fixtureOwnerIdentityOption()(svc)
+			run, err := svc.CreateRun(context.Background(), authenticatedCreateRunFixture(orchestration.CreateRunRequest{WorkReferences: refs}))
+			if run != nil || err == nil || !strings.Contains(err.Error(), "work_references") {
+				t.Fatalf("expected bounded declaration refusal, got run=%v error=%v", run, err)
+			}
+		})
+	}
+}
+
+// testRolePolicyCatalogJSON is a minimal valid role-policy catalog declaring the
+// portable role every profile fixture uses ("code.default"). The catalog offers
+// both codex and claude-code candidates; the test registry only registers the
+// claude-code mock runner, so candidate selection deterministically lands there.
+const testRolePolicyCatalogJSON = `{
+  "schemaVersion":1,
+  "metadata":{"catalogId":"orchestration-test","updatedAt":"2026-07-13"},
+  "defaultRole":"code.default",
+  "roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.default"},{"runner":"claude-code","resourceRole":"code.default"}]}}
+}`
+
+// fakeRoleResolver stands in for the resource-owned role resolver so CreateRun
+// role resolution runs in unit tests without shelling out to resource CLIs. It
+// reports each requested runner/role as available with a concrete model, which
+// mirrors a healthy resource response.
+type fakeRoleResolver struct{}
+
+func (fakeRoleResolver) Resolve(_ context.Context, r domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
+	return rolepolicy.ResolvedRole{Runner: r, Role: role, Model: "mock-model"}, nil
+}
+
+// newTestRolePolicyOption wires a working role-policy state + resolver into a
+// test orchestrator so CreateRun's execution-policy resolution succeeds exactly
+// as it does in production. Without it, any CreateRun with a RoleRef fails at
+// resolveExecutionPolicy because no catalog/resolver is configured.
+func newTestRolePolicyOption(t *testing.T) orchestration.Option {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "role-policy.json")
+	if err := os.WriteFile(path, []byte(testRolePolicyCatalogJSON), 0o600); err != nil {
+		t.Fatalf("write role catalog: %v", err)
+	}
+	state, err := rolepolicy.NewState(path, rolepolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("build role policy state: %v", err)
+	}
+	return orchestration.WithRolePolicyState(state, fakeRoleResolver{})
+}
 
 // [REQ:REQ-P0-001] [REQ:REQ-P0-002] [REQ:REQ-P0-003] [REQ:REQ-P0-004]
 // Tests for orchestration service - profile, task, and run operations
 
-func newTestOrchestrator(t *testing.T) orchestration.Service {
+func newTestOrchestrator(t *testing.T) *orchestration.Orchestrator {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -44,10 +107,12 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+
+		fixtureOwnerIdentityOption(),
 	)
 }
 
-func mustCreateProfile(t *testing.T, svc orchestration.Service, ctx context.Context, profile *domain.AgentProfile) *domain.AgentProfile {
+func mustCreateProfile(t *testing.T, svc *orchestration.Orchestrator, ctx context.Context, profile *domain.AgentProfile) *domain.AgentProfile {
 	t.Helper()
 	created, err := svc.CreateProfile(ctx, profile)
 	if err != nil {
@@ -56,7 +121,7 @@ func mustCreateProfile(t *testing.T, svc orchestration.Service, ctx context.Cont
 	return created
 }
 
-func mustCreateTask(t *testing.T, svc orchestration.Service, ctx context.Context, task *domain.Task) *domain.Task {
+func mustCreateTask(t *testing.T, svc *orchestration.Orchestrator, ctx context.Context, task *domain.Task) *domain.Task {
 	t.Helper()
 	created, err := svc.CreateTask(ctx, task)
 	if err != nil {
@@ -78,13 +143,12 @@ func TestOrchestrator_ProfileCRUD(t *testing.T) {
 
 	// Create
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "claude-3-opus",
-		MaxTurns:   100,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "test-profile",
+
+		MaxTurns:  100,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 
 	created := mustCreateProfile(t, svc, ctx, profile)
@@ -141,9 +205,7 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 	result, err := svc.EnsureProfile(ctx, orchestration.EnsureProfileRequest{
 		ProfileKey: "system-monitor-investigator",
 		Defaults: &domain.AgentProfile{
-			Name:       "System Monitor Investigator",
-			RunnerType: domain.RunnerTypeCodex,
-			Model:      "codex-mini-latest",
+			Name: "System Monitor Investigator", RoleRef: "code.default",
 		},
 	})
 	if err != nil {
@@ -170,9 +232,7 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 		ProfileKey:     "system-monitor-investigator",
 		UpdateExisting: true,
 		Defaults: &domain.AgentProfile{
-			Name:       "System Monitor Investigator",
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Model:      "claude-3-opus",
+			Name: "System Monitor Investigator", RoleRef: "code.default",
 		},
 	})
 	if err != nil {
@@ -181,8 +241,8 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 	if !result.Updated {
 		t.Errorf("expected profile to be updated")
 	}
-	if result.Profile.RunnerType != domain.RunnerTypeClaudeCode {
-		t.Errorf("expected runner type to update, got %v", result.Profile.RunnerType)
+	if result.Profile.RoleRef != "code.default" {
+		t.Errorf("expected portable role to update, got %q", result.Profile.RoleRef)
 	}
 }
 
@@ -254,12 +314,11 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 
 	// First create a profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "run-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "claude-3-opus",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "run-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -274,11 +333,11 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	// Create run (will fail due to missing sandbox, but we can test the creation logic)
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
-	})
+	}))
 	if err != nil {
 		// Expected - sandbox not available
 		t.Logf("CreateRun returned expected error (sandbox unavailable): %v", err)
@@ -355,11 +414,11 @@ func TestOrchestrator_ListProfiles_Pagination(t *testing.T) {
 	// Create multiple profiles
 	for i := 0; i < 10; i++ {
 		profile := &domain.AgentProfile{
-			ID:         uuid.New(),
-			Name:       "profile-" + uuid.New().String(),
-			RunnerType: domain.RunnerTypeClaudeCode,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			ID:   uuid.New(),
+			Name: "profile-" + uuid.New().String(),
+
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(), RoleRef: "code.default",
 		}
 		mustCreateProfile(t, svc, ctx, profile)
 	}
@@ -670,11 +729,11 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "idempotent-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "idempotent-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -691,20 +750,20 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 	idempotencyKey := "test-idempotency-" + uuid.New().String()
 
 	// First creation attempt (may fail due to sandbox, but key should be recorded)
-	run1, err1 := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run1, err1 := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
 		IdempotencyKey: idempotencyKey,
-	})
+	}))
 
 	// Second creation attempt with same key should return same result
-	run2, err2 := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run2, err2 := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Different prompt",
 		IdempotencyKey: idempotencyKey,
-	})
+	}))
 
 	// Both should have same outcome (either both succeed with same run, or both fail)
 	if (err1 == nil) != (err2 == nil) {
@@ -723,7 +782,7 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 // [REQ:REQ-P0-005] Run creation with capacity limits
 
 // newTestOrchestratorWithLimit creates an orchestrator with a specific MaxConcurrentRuns limit.
-func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Service, repository.RunRepository) {
+func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (*orchestration.Orchestrator, repository.RunRepository) {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -747,6 +806,8 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Serv
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	return svc, repos.Runs
@@ -760,11 +821,11 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "slot-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "slot-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -800,11 +861,11 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 	}
 
 	// Now try to create another run - should fail with capacity error
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should fail",
-	})
+	}))
 
 	if err == nil {
 		t.Fatal("expected CapacityExceededError, got nil")
@@ -835,11 +896,11 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "force-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "force-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -870,12 +931,12 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 
 	// Try to create with Force=true - should NOT return capacity error
 	// (may fail for other reasons like runner issues, but NOT capacity)
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Force this run",
 		Force:          true,
-	})
+	}))
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		if _, ok := err.(*domain.CapacityExceededError); ok {
@@ -894,11 +955,11 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "starting-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "starting-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -935,11 +996,11 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 	}
 
 	// Try to create another run - should fail (1 running + 1 starting = 2 = limit)
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should fail",
-	})
+	}))
 
 	if err == nil {
 		t.Fatal("expected CapacityExceededError when counting starting runs")
@@ -962,11 +1023,11 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "under-capacity-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "under-capacity-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -993,11 +1054,11 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 	}
 
 	// Try to create another run - should NOT fail with capacity error
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should succeed (capacity-wise)",
-	})
+	}))
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		var capErr *domain.CapacityExceededError
@@ -1015,7 +1076,7 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 // Tests for feature flag and extra flag handling in run creation.
 
 // newTestOrchestratorWithFlagValidator creates an orchestrator with a custom flag validator.
-func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator) orchestration.Service {
+func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator) *orchestration.Orchestrator {
 	t.Helper()
 
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -1040,6 +1101,9 @@ func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator)
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithFlagValidator(fv),
+		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 }
 
@@ -1050,11 +1114,11 @@ func TestOrchestrator_CreateRun_InlineEnableBrowser(t *testing.T) {
 	ctx := context.Background()
 
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "browser-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "browser-test-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1069,12 +1133,12 @@ func TestOrchestrator_CreateRun_InlineEnableBrowser(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	enableBrowser := true
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test with browser enabled",
 		EnableBrowser:  &enableBrowser,
-	})
+	}))
 	// The run may fail for non-capacity reasons (runner execution issues in mock),
 	// but it should NOT fail due to EnableBrowser being invalid.
 	if err != nil {
@@ -1100,14 +1164,14 @@ func TestOrchestrator_CreateRun_ExtraFlagsValidation(t *testing.T) {
 
 	// Create profile with extra flags
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "flags-test-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ID:   uuid.New(),
+		Name: "flags-test-profile",
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--forbidden"},
 		},
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1121,11 +1185,11 @@ func TestOrchestrator_CreateRun_ExtraFlagsValidation(t *testing.T) {
 	}
 	mustCreateTask(t, svc, ctx, task)
 
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should fail validation",
-	})
+	}))
 
 	if err == nil {
 		t.Fatal("expected error from flag validation, got nil")
@@ -1162,14 +1226,14 @@ func TestOrchestrator_CreateRun_ExtraFlagsInlineOverride(t *testing.T) {
 
 	// Create profile with extra flags
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "inline-override-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ID:   uuid.New(),
+		Name: "inline-override-profile",
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--profile-flag"},
 		},
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1184,14 +1248,14 @@ func TestOrchestrator_CreateRun_ExtraFlagsInlineOverride(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	// Create run with inline extra flags that override profile's
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test inline override",
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--inline-flag"},
 		},
-	})
+	}))
 	// Verify that the inline flags were validated (may fail for other reasons)
 	if err != nil {
 		t.Logf("CreateRun returned error (may be expected): %v", err)
@@ -1216,14 +1280,14 @@ func TestOrchestrator_CreateRun_NoFlagValidator(t *testing.T) {
 	ctx := context.Background()
 
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "no-validator-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ID:   uuid.New(),
+		Name: "no-validator-profile",
+
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--anything-goes"},
 		},
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1238,11 +1302,11 @@ func TestOrchestrator_CreateRun_NoFlagValidator(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	// Should NOT fail due to flag validation (no validator is set)
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test without validator",
-	})
+	}))
 	if err != nil {
 		// Check it's not a validation error about extra flags
 		if ve, ok := err.(*domain.ValidationError); ok && ve.Field == "extraFlags" {
@@ -1261,11 +1325,11 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 
 	// Create profile and task
 	profile := &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "no-limit-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "no-limit-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef: "code.default",
 	}
 	mustCreateProfile(t, svc, ctx, profile)
 
@@ -1294,11 +1358,11 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 	}
 
 	// Try to create another run - should NOT fail with capacity error
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "No limit test",
-	})
+	}))
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		var capErr *domain.CapacityExceededError
@@ -1338,20 +1402,24 @@ func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 	ctx := context.Background()
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		ID:         uuid.New(),
-		Name:       "resolve-root-profile",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Model:      "claude-3-opus",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:   uuid.New(),
+		Name: "resolve-root-profile",
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(), RoleRef:
+
+		// Create task with relative projectRoot "." — the exact scenario that
+		// caused the bug when investigation runs inherited this from source tasks.
+		"code.default",
 	})
 
-	// Create task with relative projectRoot "." — the exact scenario that
-	// caused the bug when investigation runs inherited this from source tasks.
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		ID:          uuid.New(),
 		Title:       "Relative Root Task",
@@ -1365,12 +1433,12 @@ func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
 	// CreateRun should succeed past the preflight validation.
 	// It will still fail asynchronously (no sandbox provider), but the run
 	// should be created with the task's projectRoot resolved to absolute.
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
 		Force:          true,
-	})
+	}))
 	// The run should be created (preflight passes)
 	if err != nil {
 		t.Fatalf("CreateRun failed unexpectedly: %v", err)

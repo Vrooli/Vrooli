@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "speaker-verification",
+    "title": "Speaker Verification",
+    "routes": ["/admin/speaker-verification"],
+    "purpose": "Manage speaker enrollment and verification state while making model/profile compatibility explicit.",
+    "prd_refs": ["OT-P0-003"]
+  }
+}

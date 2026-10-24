@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchHealth, fetchVaultStatus, fetchCompliance, fetchOrientationSummary } from "../lib/api";
+import { fetchHealth, fetchCredentialCoverage, fetchCompliance, fetchOrientationSummary } from "../lib/api";
 
 export const useSecretsData = () => {
   const healthQuery = useQuery({
@@ -8,9 +8,9 @@ export const useSecretsData = () => {
     refetchInterval: 60000
   });
 
-  const vaultQuery = useQuery({
-    queryKey: ["vault-status"],
-    queryFn: () => fetchVaultStatus(),
+  const credentialQuery = useQuery({
+    queryKey: ["credential-coverage"],
+    queryFn: () => fetchCredentialCoverage(),
     refetchInterval: 60000
   });
 
@@ -27,21 +27,21 @@ export const useSecretsData = () => {
   });
 
   const isRefreshing =
-    healthQuery.isFetching || vaultQuery.isFetching || complianceQuery.isFetching;
+    healthQuery.isFetching || credentialQuery.isFetching || complianceQuery.isFetching;
 
   const isInitialLoading =
-    healthQuery.isLoading || vaultQuery.isLoading || complianceQuery.isLoading || orientationQuery.isLoading;
+    healthQuery.isLoading || credentialQuery.isLoading || complianceQuery.isLoading || orientationQuery.isLoading;
 
   const refreshAll = () => {
     healthQuery.refetch();
-    vaultQuery.refetch();
+    credentialQuery.refetch();
     complianceQuery.refetch();
     orientationQuery.refetch();
   };
 
   return {
     healthQuery,
-    vaultQuery,
+    credentialQuery,
     complianceQuery,
     orientationQuery,
     isRefreshing,

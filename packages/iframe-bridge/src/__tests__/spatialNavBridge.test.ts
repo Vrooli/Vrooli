@@ -94,6 +94,130 @@ describe('initSpatialNav (bridge)', () => {
     vi.useRealTimers();
   });
 
+  it('shares one polling loop and releases ownership on disposal', () => {
+    const read = vi.fn(() => [null]);
+    controller = initSpatialNav({ getGamepads: read });
+    expect(initSpatialNav()).toBe(controller);
+    flushRAF();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(() => initSpatialNav({ hostRelay: false })).toThrow(/already initialized/);
+    controller.dispose();
+    const count = read.mock.calls.length;
+    flushRAF();
+    expect(read).toHaveBeenCalledTimes(count);
+    const previous = controller;
+    controller = initSpatialNav();
+    expect(controller).not.toBe(previous);
+    previous.dispose(); // An old owner's cleanup must not dispose its replacement.
+    expect(initSpatialNav()).toBe(controller);
+  });
+
+  it('routes focused input from inner to outer handlers, then default navigation', () => {
+    const button = makeButton('custom', { top: 0, left: 0, width: 80, height: 40 });
+    root.append(button);
+    const click = vi.fn();
+    button.onclick = click;
+    controller = initSpatialNav({ rootElement: root, isVisible: () => true,
+      getBoundingClientRect: mockGetRect, getGamepads: () => [currentGamepad] });
+    controller.enterSpatialMode();
+    button.focus();
+    window.dispatchEvent(new Event('gamepadconnected'));
+    const calls: string[] = [];
+    const removeInner = controller.registerActionHandler(button, () => { calls.push('inner'); });
+    const removeOuter = controller.registerActionHandler(root, () => { calls.push('outer'); return true; });
+    const press = () => {
+      currentGamepad = makeGamepad(); flushRAF();
+      currentGamepad = makeGamepad({ buttons: { 0: { pressed: true, touched: true, value: 1 } } }); flushRAF();
+    };
+    press();
+    expect(calls).toEqual(['inner', 'outer']);
+    expect(click).not.toHaveBeenCalled();
+    removeOuter();
+    press();
+    expect(click).toHaveBeenCalledTimes(1);
+    removeInner();
+    removeInner();
+    press();
+    expect(click).toHaveBeenCalledTimes(2);
+  });
+
+  it('isolates modal input and unregisters scopes by identity', () => {
+    const trigger = makeButton('trigger', { top: 0, left: 0, width: 80, height: 40 });
+    root.append(trigger);
+    const outer = document.createElement('div');
+    const inner = document.createElement('div');
+    const button = makeButton('modal', { top: 0, left: 0, width: 80, height: 40 });
+    inner.append(button); outer.append(inner); root.append(outer);
+    controller = initSpatialNav({ rootElement: root, isVisible: () => true,
+      getBoundingClientRect: mockGetRect, getGamepads: () => [currentGamepad] });
+    controller.enterSpatialMode();
+    const outsideHandler = vi.fn(() => true);
+    const insideHandler = vi.fn(() => true);
+    controller.registerActionHandler(root, outsideHandler);
+    controller.registerActionHandler(inner, insideHandler);
+    const removeOuter = controller.registerScope(outer);
+    const removeInner = controller.registerScope(inner);
+    window.dispatchEvent(new Event('gamepadconnected'));
+    removeOuter(); // Parent cleanup must leave the child's scope active.
+    currentGamepad = makeGamepad({ buttons: { 1: { pressed: true, touched: true, value: 1 } } });
+    flushRAF();
+    expect(insideHandler).toHaveBeenCalledWith('back');
+    expect(outsideHandler).not.toHaveBeenCalled();
+    removeInner();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('preserves native focus on gamepad activation and confines later focus to the modal', () => {
+    const trigger = makeButton('trigger', { top: 0, left: 0, width: 80, height: 40 });
+    const modal = document.createElement('div');
+    const close = makeButton('close', { top: 0, left: 100, width: 80, height: 40 });
+    modal.append(close); root.append(trigger, modal);
+    controller = initSpatialNav({ rootElement: root, isVisible: () => true,
+      getBoundingClientRect: mockGetRect, autoActivate: false });
+    close.focus();
+    controller.enterSpatialMode();
+    expect(document.activeElement).toBe(close);
+    trigger.focus();
+    const remove = controller.registerScope(modal);
+    trigger.focus(); // Native Tab/programmatic focus cannot escape an active gamepad modal.
+    expect(document.activeElement).toBe(close);
+    remove();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('supports legacy scope push/pop while restoring focus for existing consumers', () => {
+    const trigger = makeButton('trigger', { top: 0, left: 0, width: 80, height: 40 });
+    const modal = document.createElement('div');
+    const close = makeButton('close', { top: 0, left: 100, width: 80, height: 40 });
+    modal.append(close); root.append(trigger, modal);
+    controller = initSpatialNav({ rootElement: root, isVisible: () => true, autoActivate: false });
+    controller.enterSpatialMode();
+    trigger.focus();
+    controller.pushScope(modal);
+    expect(document.activeElement).toBe(close);
+    controller.popScope();
+    expect(document.activeElement).toBe(trigger);
+    controller.popScope();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('routes Back to an open modal before pointer focus has transferred', () => {
+    const modal = document.createElement('div');
+    root.append(modal);
+    controller = initSpatialNav({ getGamepads: () => [currentGamepad] });
+    controller.registerScope(modal);
+    expect(document.activeElement).toBe(document.body);
+    const close = vi.fn(() => true);
+    const page = vi.fn(() => true);
+    controller.registerActionHandler(document.body, page);
+    controller.registerActionHandler(modal, close);
+    window.dispatchEvent(new Event('gamepadconnected'));
+    currentGamepad = makeGamepad({ buttons: { 1: { pressed: true, touched: true, value: 1 } } });
+    flushRAF();
+    expect(close).toHaveBeenCalledWith('back');
+    expect(page).not.toHaveBeenCalled();
+  });
+
   it('returns a controller with expected methods', () => {
     controller = initSpatialNav({
       rootElement: root,

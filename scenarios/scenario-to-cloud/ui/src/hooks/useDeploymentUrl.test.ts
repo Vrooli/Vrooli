@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseDeploymentHash, buildDeploymentHash } from "./useDeploymentUrl";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { parseDeploymentHash, buildDeploymentHash, useDeploymentUrl } from "./useDeploymentUrl";
 import { DEFAULT_DEPLOYMENT_URL_STATE } from "../types/url";
 
 describe("parseDeploymentHash", () => {
@@ -235,5 +236,19 @@ describe("round-trip parsing and building", () => {
 
     // Rebuilt URL should not include default values
     expect(rebuilt).toBe("#deployments/abc");
+  });
+});
+
+describe("useDeploymentUrl modal navigation", () => {
+  it("closes URL-provided modals and reverses pushed modals", async () => {
+    window.history.replaceState(null, "", "#deployments/demo?modal=redeploy");
+    const { result } = renderHook(() => useDeploymentUrl());
+    act(() => result.current.closeModal());
+    expect(result.current.state.modal).toBe(null);
+
+    act(() => result.current.openModal("delete"));
+    expect(result.current.state.modal).toBe("delete");
+    act(() => result.current.closeModal());
+    await waitFor(() => expect(result.current.state.modal).toBe(null));
   });
 });

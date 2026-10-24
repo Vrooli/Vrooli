@@ -1,0 +1,194 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "branding": {
+    "brand": "personal-planner",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Personal Planner's durable local workspace data.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Planner records are bounded by the local workspace budget."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes a compact receipt under the planner state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is regenerated on each enforcement run."
+        }
+      }
+    },
+    "rationale": "The scenario owns its local durable workspace; external identity and notification data remain external."
+  },
+  "skills": {
+    "feature": [],
+    "waivers": {
+      "usage": {
+        "reason": "Personal Planner has no stable operator-facing skill contract yet; the current release exposes its product surfaces through the UI, API, and CLI while those workflows mature.",
+        "declared_at": "2026-09-19"
+      }
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "personal-planner",
+    "displayName": "Personal Planner",
+    "description": "A personal planning and focus application that helps people make realistic commitments, follow through, and plan better from what actually happens.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "5.0.0"
+    },
+    "generated_at": "2026-09-19T00:38:51Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "5b6c7d6becb3a9c5cd815a9cacf5a43119f52c8ea4b4578bfdfd776518a37be6",
+    "content_sha": "b942bb5b43a7caa0b9b9b658bb852c16a86647c5791913ab24b66ad48381703b"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "personal-planner",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "personal-planner"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "port": 20003
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Authoritative user identity and private-workspace isolation; also supplies the recipient-bound viewer identity used by selective commitment sharing.",
+        "degraded_behavior": "Personal Planner refuses to start without an identity provider; a workspace cannot be scoped to a subject.",
+        "startup_policy": "must_start"
+      },
+      "notification-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Delivers commitment reminders, latest-safe-stopping-time cues, and material deadline-risk notices with quiet hours and delivery receipts.",
+        "degraded_behavior": "Reminders and risk notices remain visible in-app only; no external channel delivery.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "credentials": {}
+}

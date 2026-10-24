@@ -1,6 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { useTools } from "../../hooks/useTools";
-import { useYoloMode } from "../../hooks/useSettings";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useModeHistory } from "../../hooks/useModeHistory";
 import { useAgentSettings } from "../../hooks/useAgentSettings";
@@ -16,27 +14,22 @@ import {
   updateSkill as updateSkillFromAPI,
   syncSkills as syncSkillsFromAPI,
 } from "../../data/skills";
-import type { ApprovalOverride, EffectiveTool } from "../../lib/api";
 import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types/templates";
 import type { Theme, SettingsTab } from "./settingsTypes";
+import { DEFAULT_MODEL } from "./settingsTypes";
 
-export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose: () => void, onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void) {
+export function useSettingsState(_open: boolean, activeTab: SettingsTab, onClose: () => void, onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("theme") as Theme) || "dark";
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("theme");
+      if (stored === "light" || stored === "dark") return stored;
+    }
     return "dark";
   });
   const [defaultModel, setDefaultModelState] = useState<string>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("defaultModel") || "anthropic/claude-3.5-sonnet";
-    return "anthropic/claude-3.5-sonnet";
+    if (typeof window !== "undefined") return localStorage.getItem("defaultModel") || DEFAULT_MODEL;
+    return DEFAULT_MODEL;
   });
-  const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
-
-  // YOLO mode
-  const { yoloMode, isLoading: isLoadingYoloMode, isUpdating: isUpdatingYoloMode, setYoloMode } = useYoloMode(open && activeTab === "tools");
-
-  // Tools
-  const { toolsByScenario, toolSet, scenarios, enabledTools, isLoading: isLoadingTools, isSyncing: isSyncingTools, isUpdating: isUpdatingTools, error: toolsError, toggleTool, setApproval, syncDiscoveredTools } = useTools({ enabled: open && activeTab === "tools" });
-
   // Suggestions
   const { visible: suggestionsVisible, setVisible: setSuggestionsVisible, mergeModel, setMergeModel, autoSuggest, autoSuggestLoading, autoSuggestError, updateAutoSuggest } = useSuggestionsSettings();
   const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
@@ -63,14 +56,14 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
   useEffect(() => {
     if (activeTab === "templates") {
       setIsLoadingTemplates(true);
-      getAllTemplates().then(setTemplates).finally(() => setIsLoadingTemplates(false));
+      void getAllTemplates().then(setTemplates).finally(() => setIsLoadingTemplates(false));
     }
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "skills") {
       setIsLoadingSkills(true);
-      getAllSkills().then(setSkills).finally(() => setIsLoadingSkills(false));
+      void getAllSkills().then(setSkills).finally(() => setIsLoadingSkills(false));
     }
   }, [activeTab]);
 
@@ -130,14 +123,6 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     setIsCreatingSkill(false);
   }, [isCreatingSkill, editingSkill]);
 
-  const handleYoloModeToggle = useCallback((checked: boolean) => setYoloMode(checked), [setYoloMode]);
-
-  const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
-    setApproval(scenario, toolName, override);
-  }, [setApproval]);
-
-  const handleRunTool = useCallback((tool: EffectiveTool) => setSelectedToolForRun(tool), []);
-
   const handleSaveSuggestions = useCallback(async () => {
     setIsSavingSuggestions(true);
     setSuggestionsSaveError(null);
@@ -147,11 +132,7 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
   }, [suggestionsDraft, updateAutoSuggest]);
 
   return {
-    theme, defaultModel, selectedToolForRun, setSelectedToolForRun,
-    yoloMode, isLoadingYoloMode, isUpdatingYoloMode,
-    toolsByScenario, toolSet, scenarios, enabledTools,
-    isLoadingTools, isSyncingTools, isUpdatingTools, toolsError,
-    toggleTool, syncDiscoveredTools,
+    theme, defaultModel,
     suggestionsVisible, setSuggestionsVisible, mergeModel, setMergeModel,
     autoSuggestLoading, autoSuggestError,
     modeHistory, clearModeHistory,
@@ -163,6 +144,6 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     handleThemeChange, handleDefaultModelChange,
     handleDeleteTemplate, handleResetTemplate, handleEditTemplate,
     handleDeleteSkill, handleSyncSkills, handleEditSkill, handleSaveSkill,
-    handleYoloModeToggle, handleSetApproval, handleRunTool, handleSaveSuggestions,
+    handleSaveSuggestions,
   };
 }

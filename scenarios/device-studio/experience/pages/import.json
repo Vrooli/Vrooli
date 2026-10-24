@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "import",
+    "title": "Import assets",
+    "routes": [
+      "/imports/new"
+    ],
+    "purpose": "Inspect local device, scene, plate and project inputs without executing embedded code or silently uploading private media.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-008",
+      "OT-P0-010",
+      "OT-P0-012"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Know exactly what files will be read and where they stay."
+    },
+    {
+      "statement": "Resolve units, axes, rights and unsafe or unsupported content."
+    },
+    {
+      "statement": "Review an imported candidate before it becomes reusable."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "inspecting",
+      "description": "Show bounded progress and parser limitations without implying successful qualification."
+    },
+    {
+      "id": "unsafe-content",
+      "description": "Name blocked file/feature and safe removal/re-export path without executing it."
+    },
+    {
+      "id": "rights-unknown",
+      "description": "Retain provenance gap and block release until the actual rights basis is supplied."
+    }
+  ],
+  "claims": [
+    {
+      "id": "import-intent-1",
+      "type": "custom",
+      "statement": "Import never automatically executes embedded code; deliberate script execution is a separately authorized isolated job, and remote dependencies require the controlled fetch policy.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "import-intent-2",
+      "type": "custom",
+      "statement": "Successful parsing creates a candidate; release requires the independent quality and rights review.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Bounded file intake followed by inspection summary, mapping and review handoff; progressive steps preserve original files and report import diagnostics.",
+    "controls": [
+      "Choose local files with allowed formats/size/resource limits",
+      "Assign asset kind and provenance/license/creator/attribution",
+      "Confirm units, up/front axes, origin, part separation, joints and screen surfaces",
+      "Map textures/UV and repair missing references through explicit local relink",
+      "Save candidate and open review; cancel safely"
+    ],
+    "details": [
+      "Archive traversal, executable scripts, remote references, decompression bombs and parser/resource limits are checked before unsafe evaluation.",
+      "Unclear rights block release, not honest private inspection where allowed.",
+      "A flattened model cannot gain articulation by checkbox; repair is separate declared authored work."
+    ]
+  },
+  "x-requirements": [
+    "DS-SAFETY-IMPORT",
+    "DS-SAFETY-INPUT-BOUNDS"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

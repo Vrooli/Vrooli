@@ -1,16 +1,15 @@
 {
-  "module_id": "pre-deployment-validation",
-  "title": "Pre-Deployment Validation",
-  "priority": "P0",
-  "description": "Comprehensive validation checks before deployment execution",
+  "_metadata": {
+    "last_validated_at": "2026-09-04T03:17:18-04:00"
+  },
   "requirements": [
     {
       "id": "DM-P0-023",
-      "category": "pre-deployment-validation",
-      "prd_ref": "OT-P0-023",
       "title": "Comprehensive Validation Checks",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-023",
+      "category": "pre-deployment-validation",
       "description": "Run 6+ checks: fitness threshold, secret completeness, licensing, resource limits, platform requirements, dependency compatibility",
-      "status": "complete",
       "tags": [
         "validation",
         "deployment"
@@ -18,20 +17,20 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-023] tags"
+          "ref": "cli/validations/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
     {
       "id": "DM-P0-024",
-      "category": "pre-deployment-validation",
-      "prd_ref": "OT-P0-024",
       "title": "Fast Validation Execution",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-024",
+      "category": "pre-deployment-validation",
       "description": "Complete all validation checks within 10 seconds for scenarios with ≤50 dependencies",
-      "status": "complete",
       "tags": [
         "validation",
         "performance"
@@ -39,20 +38,20 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-024] tags"
+          "ref": "cli/validations/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
     {
       "id": "DM-P0-025",
-      "category": "pre-deployment-validation",
-      "prd_ref": "OT-P0-025",
       "title": "Validation Report UI",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-025",
+      "category": "pre-deployment-validation",
       "description": "Display pass/fail/warning status with color coding (green/red/yellow) for each check",
-      "status": "complete",
       "tags": [
         "validation",
         "ui"
@@ -60,20 +59,20 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-025] tags"
+          "ref": "cli/validations/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
     {
       "id": "DM-P0-026",
-      "category": "pre-deployment-validation",
-      "prd_ref": "OT-P0-026",
       "title": "Actionable Remediation Steps",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-026",
+      "category": "pre-deployment-validation",
       "description": "Provide at least one actionable step for each failed check (e.g., \"Upload code signing certificate here\")",
-      "status": "complete",
       "tags": [
         "validation",
         "ux"
@@ -81,20 +80,20 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-026] tags"
+          "ref": "cli/validations/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
     {
       "id": "DM-P0-027",
-      "category": "pre-deployment-validation",
-      "prd_ref": "OT-P0-027",
       "title": "SaaS Cost Estimation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-027",
+      "category": "pre-deployment-validation",
       "description": "Estimate monthly cost (compute, storage, bandwidth) within ±20% accuracy for SaaS/cloud tiers",
-      "status": "complete",
       "tags": [
         "validation",
         "cost-estimation"
@@ -102,13 +101,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-027] tags"
+          "ref": "cli/validations/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     }
-  ],
-  "_metadata": {}
+  ]
 }

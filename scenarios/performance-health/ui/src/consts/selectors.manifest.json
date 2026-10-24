@@ -1,0 +1,534 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.audit": {
+      "testId": "page-audit",
+      "selector": "[data-testid=\"page-audit\"]"
+    },
+    "pages.trends": {
+      "testId": "page-trends",
+      "selector": "[data-testid=\"page-trends\"]"
+    },
+    "pages.fleet": {
+      "testId": "page-fleet",
+      "selector": "[data-testid=\"page-fleet\"]"
+    },
+    "pages.trace": {
+      "testId": "page-trace",
+      "selector": "[data-testid=\"page-trace\"]"
+    },
+    "pages.readiness": {
+      "testId": "page-readiness",
+      "selector": "[data-testid=\"page-readiness\"]"
+    },
+    "pages.budgets": {
+      "testId": "page-budgets",
+      "selector": "[data-testid=\"page-budgets\"]"
+    },
+    "pages.overviewSnapshot": {
+      "testId": "overview-snapshot",
+      "selector": "[data-testid=\"overview-snapshot\"]"
+    },
+    "perf.scenarioSelect": {
+      "testId": "perf-scenario-select",
+      "selector": "[data-testid=\"perf-scenario-select\"]"
+    },
+    "audit.runButton": {
+      "testId": "audit-run-button",
+      "selector": "[data-testid=\"audit-run-button\"]"
+    },
+    "audit.error": {
+      "testId": "audit-error",
+      "selector": "[data-testid=\"audit-error\"]"
+    },
+    "audit.runError": {
+      "testId": "audit-run-error",
+      "selector": "[data-testid=\"audit-run-error\"]"
+    },
+    "audit.tierPanel": {
+      "testId": "audit-tier-panel",
+      "selector": "[data-testid=\"audit-tier-panel\"]"
+    },
+    "audit.tierBadge": {
+      "testId": "audit-tier-badge",
+      "selector": "[data-testid=\"audit-tier-badge\"]"
+    },
+    "audit.findings": {
+      "testId": "audit-findings",
+      "selector": "[data-testid=\"audit-findings\"]"
+    },
+    "audit.findingsEmpty": {
+      "testId": "audit-findings-empty",
+      "selector": "[data-testid=\"audit-findings-empty\"]"
+    },
+    "audit.result": {
+      "testId": "audit-result",
+      "selector": "[data-testid=\"audit-result\"]"
+    },
+    "audit.outcomeBadge": {
+      "testId": "audit-outcome-badge",
+      "selector": "[data-testid=\"audit-outcome-badge\"]"
+    },
+    "audit.analyzeTraceLink": {
+      "testId": "audit-analyze-trace-link",
+      "selector": "[data-testid=\"audit-analyze-trace-link\"]"
+    },
+    "trends.error": {
+      "testId": "trends-error",
+      "selector": "[data-testid=\"trends-error\"]"
+    },
+    "trends.empty": {
+      "testId": "trends-empty",
+      "selector": "[data-testid=\"trends-empty\"]"
+    },
+    "trends.charts": {
+      "testId": "trends-charts",
+      "selector": "[data-testid=\"trends-charts\"]"
+    },
+    "trends.cardGoBuild": {
+      "testId": "trends-card-go-build",
+      "selector": "[data-testid=\"trends-card-go-build\"]"
+    },
+    "trends.cardUiBuild": {
+      "testId": "trends-card-ui-build",
+      "selector": "[data-testid=\"trends-card-ui-build\"]"
+    },
+    "trends.cardBundle": {
+      "testId": "trends-card-bundle",
+      "selector": "[data-testid=\"trends-card-bundle\"]"
+    },
+    "trends.cardLcp": {
+      "testId": "trends-card-lcp",
+      "selector": "[data-testid=\"trends-card-lcp\"]"
+    },
+    "trends.cardComponent": {
+      "testId": "trends-card-component",
+      "selector": "[data-testid=\"trends-card-component\"]"
+    },
+    "trends.cardStartup": {
+      "testId": "trends-card-startup",
+      "selector": "[data-testid=\"trends-card-startup\"]"
+    },
+    "trends.samples": {
+      "testId": "trends-samples",
+      "selector": "[data-testid=\"trends-samples\"]"
+    },
+    "fleet.refreshButton": {
+      "testId": "fleet-refresh-button",
+      "selector": "[data-testid=\"fleet-refresh-button\"]"
+    },
+    "fleet.loading": {
+      "testId": "fleet-loading",
+      "selector": "[data-testid=\"fleet-loading\"]"
+    },
+    "fleet.error": {
+      "testId": "fleet-error",
+      "selector": "[data-testid=\"fleet-error\"]"
+    },
+    "fleet.empty": {
+      "testId": "fleet-empty",
+      "selector": "[data-testid=\"fleet-empty\"]"
+    },
+    "fleet.summary": {
+      "testId": "fleet-summary",
+      "selector": "[data-testid=\"fleet-summary\"]"
+    },
+    "fleet.summaryScenarios": {
+      "testId": "fleet-summary-scenarios",
+      "selector": "[data-testid=\"fleet-summary-scenarios\"]"
+    },
+    "fleet.summaryNoBudget": {
+      "testId": "fleet-summary-no-budget",
+      "selector": "[data-testid=\"fleet-summary-no-budget\"]"
+    },
+    "fleet.summaryRegressed": {
+      "testId": "fleet-summary-regressed",
+      "selector": "[data-testid=\"fleet-summary-regressed\"]"
+    },
+    "fleet.tiers": {
+      "testId": "fleet-tiers",
+      "selector": "[data-testid=\"fleet-tiers\"]"
+    },
+    "fleet.slowest": {
+      "testId": "fleet-slowest",
+      "selector": "[data-testid=\"fleet-slowest\"]"
+    },
+    "fleet.regressed": {
+      "testId": "fleet-regressed",
+      "selector": "[data-testid=\"fleet-regressed\"]"
+    },
+    "fleet.noBudget": {
+      "testId": "fleet-no-budget",
+      "selector": "[data-testid=\"fleet-no-budget\"]"
+    },
+    "fleet.errors": {
+      "testId": "fleet-errors",
+      "selector": "[data-testid=\"fleet-errors\"]"
+    },
+    "trace.artifactInput": {
+      "testId": "trace-artifact-input",
+      "selector": "[data-testid=\"trace-artifact-input\"]"
+    },
+    "trace.analyzeButton": {
+      "testId": "trace-analyze-button",
+      "selector": "[data-testid=\"trace-analyze-button\"]"
+    },
+    "trace.error": {
+      "testId": "trace-error",
+      "selector": "[data-testid=\"trace-error\"]"
+    },
+    "trace.empty": {
+      "testId": "trace-empty",
+      "selector": "[data-testid=\"trace-empty\"]"
+    },
+    "trace.vitals": {
+      "testId": "trace-vitals",
+      "selector": "[data-testid=\"trace-vitals\"]"
+    },
+    "trace.components": {
+      "testId": "trace-components",
+      "selector": "[data-testid=\"trace-components\"]"
+    },
+    "trace.findings": {
+      "testId": "trace-findings",
+      "selector": "[data-testid=\"trace-findings\"]"
+    },
+    "trace.findingsEmpty": {
+      "testId": "trace-findings-empty",
+      "selector": "[data-testid=\"trace-findings-empty\"]"
+    },
+    "readiness.error": {
+      "testId": "readiness-error",
+      "selector": "[data-testid=\"readiness-error\"]"
+    },
+    "readiness.summary": {
+      "testId": "readiness-summary",
+      "selector": "[data-testid=\"readiness-summary\"]"
+    },
+    "readiness.tierBadge": {
+      "testId": "readiness-tier-badge",
+      "selector": "[data-testid=\"readiness-tier-badge\"]"
+    },
+    "readiness.autofixableCount": {
+      "testId": "readiness-autofixable-count",
+      "selector": "[data-testid=\"readiness-autofixable-count\"]"
+    },
+    "readiness.gaps": {
+      "testId": "readiness-gaps",
+      "selector": "[data-testid=\"readiness-gaps\"]"
+    },
+    "readiness.gapsEmpty": {
+      "testId": "readiness-gaps-empty",
+      "selector": "[data-testid=\"readiness-gaps-empty\"]"
+    },
+    "readiness.previewButton": {
+      "testId": "readiness-preview-button",
+      "selector": "[data-testid=\"readiness-preview-button\"]"
+    },
+    "readiness.applyButton": {
+      "testId": "readiness-apply-button",
+      "selector": "[data-testid=\"readiness-apply-button\"]"
+    },
+    "readiness.applyError": {
+      "testId": "readiness-apply-error",
+      "selector": "[data-testid=\"readiness-apply-error\"]"
+    },
+    "readiness.fixResult": {
+      "testId": "readiness-fix-result",
+      "selector": "[data-testid=\"readiness-fix-result\"]"
+    },
+    "budgets.error": {
+      "testId": "budgets-error",
+      "selector": "[data-testid=\"budgets-error\"]"
+    },
+    "budgets.form": {
+      "testId": "budgets-form",
+      "selector": "[data-testid=\"budgets-form\"]"
+    },
+    "budgets.notDeclared": {
+      "testId": "budgets-not-declared",
+      "selector": "[data-testid=\"budgets-not-declared\"]"
+    },
+    "budgets.ratchet": {
+      "testId": "budgets-ratchet",
+      "selector": "[data-testid=\"budgets-ratchet\"]"
+    },
+    "budgets.saveButton": {
+      "testId": "budgets-save-button",
+      "selector": "[data-testid=\"budgets-save-button\"]"
+    },
+    "budgets.checkButton": {
+      "testId": "budgets-check-button",
+      "selector": "[data-testid=\"budgets-check-button\"]"
+    },
+    "budgets.saved": {
+      "testId": "budgets-saved",
+      "selector": "[data-testid=\"budgets-saved\"]"
+    },
+    "budgets.checkError": {
+      "testId": "budgets-check-error",
+      "selector": "[data-testid=\"budgets-check-error\"]"
+    },
+    "budgets.checkResult": {
+      "testId": "budgets-check-result",
+      "selector": "[data-testid=\"budgets-check-result\"]"
+    },
+    "budgets.checkVerdict": {
+      "testId": "budgets-check-verdict",
+      "selector": "[data-testid=\"budgets-check-verdict\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "state.loading": {
+      "testId": "state-loading",
+      "selector": "[data-testid=\"state-loading\"]"
+    },
+    "state.error": {
+      "testId": "state-error",
+      "selector": "[data-testid=\"state-error\"]"
+    },
+    "state.errorRetry": {
+      "testId": "state-error-retry",
+      "selector": "[data-testid=\"state-error-retry\"]"
+    },
+    "state.empty": {
+      "testId": "state-empty",
+      "selector": "[data-testid=\"state-empty\"]"
+    },
+    "state.emptyAction": {
+      "testId": "state-empty-action",
+      "selector": "[data-testid=\"state-empty-action\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "audit",
+            "trends",
+            "fleet",
+            "trace",
+            "readiness",
+            "budgets",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "pages.workflowCard": {
+      "description": "Overview workflow entry-point card by destination route",
+      "selectorPattern": "[data-testid=\"overview-workflow-card-${to}\"]",
+      "testIdPattern": "overview-workflow-card-${to}",
+      "params": [
+        {
+          "name": "to",
+          "type": "string"
+        }
+      ]
+    },
+    "audit.findingRow": {
+      "description": "Readiness finding row in the audit workbench by finding code",
+      "selectorPattern": "[data-testid=\"audit-finding-${code}\"]",
+      "testIdPattern": "audit-finding-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.scenarioRow": {
+      "description": "Fleet offender row by scenario id",
+      "selectorPattern": "[data-testid=\"fleet-scenario-${scenario}\"]",
+      "testIdPattern": "fleet-scenario-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.tierRow": {
+      "description": "Fleet tier-distribution row by tier",
+      "selectorPattern": "[data-testid=\"fleet-tier-${tier}\"]",
+      "testIdPattern": "fleet-tier-${tier}",
+      "params": [
+        {
+          "name": "tier",
+          "type": "string"
+        }
+      ]
+    },
+    "trace.componentRow": {
+      "description": "Per-component trace timing row by component name",
+      "selectorPattern": "[data-testid=\"trace-component-${component}\"]",
+      "testIdPattern": "trace-component-${component}",
+      "params": [
+        {
+          "name": "component",
+          "type": "string"
+        }
+      ]
+    },
+    "readiness.gapRow": {
+      "description": "Readiness gap row by finding code",
+      "selectorPattern": "[data-testid=\"readiness-gap-${code}\"]",
+      "testIdPattern": "readiness-gap-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "string"
+        }
+      ]
+    },
+    "budgets.field": {
+      "description": "Budget threshold input by proto field name",
+      "selectorPattern": "[data-testid=\"budgets-field-${field}\"]",
+      "testIdPattern": "budgets-field-${field}",
+      "params": [
+        {
+          "name": "field",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "f8279fe5e8a17e4a357ab2485efd59e74089cd6e726f3c719b883e44687e043d",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

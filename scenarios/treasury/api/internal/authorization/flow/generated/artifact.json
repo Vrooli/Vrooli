@@ -1,0 +1,701 @@
+{
+  "schemaVersion": 6,
+  "flowId": "authorization.lifecycle",
+  "source": {
+    "contractPath": "api/internal/authorization/flow/flow.json",
+    "contractSha256": "225b790b601d17de6fa40b8c5a2588d33f2801ada5b602b310bad94b4de92f05",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/authorization/flow/generated/model.qnt",
+    "modelSha256": "a466502d1911567e5a5a289ba0d3ae6156d876e1e57167397eed716906adc976",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/authorization/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026081802",
+      "--max-samples",
+      "10",
+      "--n-traces",
+      "10",
+      "--max-steps",
+      "5",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/authorization/flow/generated/model.qnt",
+      "--seed",
+      "2026081802"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/authorization/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/authorization/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "5"
+    ]
+  },
+  "states": [
+    "evaluating",
+    "refused",
+    "pending",
+    "approved",
+    "released",
+    "settled"
+  ],
+  "events": [
+    "refuse",
+    "require_approval",
+    "approve",
+    "release",
+    "settle"
+  ],
+  "transitions": [
+    {
+      "from": "evaluating",
+      "event": "refuse",
+      "to": "refused",
+      "wantError": false
+    },
+    {
+      "from": "evaluating",
+      "event": "require_approval",
+      "to": "pending",
+      "wantError": false
+    },
+    {
+      "from": "evaluating",
+      "event": "approve",
+      "to": "approved",
+      "wantError": false
+    },
+    {
+      "from": "evaluating",
+      "event": "release",
+      "to": "evaluating",
+      "wantError": true
+    },
+    {
+      "from": "evaluating",
+      "event": "settle",
+      "to": "evaluating",
+      "wantError": true
+    },
+    {
+      "from": "refused",
+      "event": "refuse",
+      "to": "refused",
+      "wantError": true
+    },
+    {
+      "from": "refused",
+      "event": "require_approval",
+      "to": "refused",
+      "wantError": true
+    },
+    {
+      "from": "refused",
+      "event": "approve",
+      "to": "refused",
+      "wantError": true
+    },
+    {
+      "from": "refused",
+      "event": "release",
+      "to": "refused",
+      "wantError": true
+    },
+    {
+      "from": "refused",
+      "event": "settle",
+      "to": "refused",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "refuse",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "require_approval",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "pending",
+      "event": "approve",
+      "to": "approved",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "release",
+      "to": "released",
+      "wantError": false
+    },
+    {
+      "from": "pending",
+      "event": "settle",
+      "to": "pending",
+      "wantError": true
+    },
+    {
+      "from": "approved",
+      "event": "refuse",
+      "to": "approved",
+      "wantError": true
+    },
+    {
+      "from": "approved",
+      "event": "require_approval",
+      "to": "approved",
+      "wantError": true
+    },
+    {
+      "from": "approved",
+      "event": "approve",
+      "to": "approved",
+      "wantError": true
+    },
+    {
+      "from": "approved",
+      "event": "release",
+      "to": "released",
+      "wantError": false
+    },
+    {
+      "from": "approved",
+      "event": "settle",
+      "to": "settled",
+      "wantError": false
+    },
+    {
+      "from": "released",
+      "event": "refuse",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "require_approval",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "approve",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "release",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "settle",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "refuse",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "require_approval",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "approve",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "release",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "settle",
+      "to": "settled",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "direct_settlement",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "settle",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "approval_then_release",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "policy_refusal",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "refuse",
+          "want": "refused",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "refuse",
+          "want": "refused",
+          "wantError": false
+        },
+        {
+          "event": "settle",
+          "want": "refused",
+          "wantError": true
+        },
+        {
+          "event": "approve",
+          "want": "refused",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "refused",
+          "wantError": true
+        },
+        {
+          "event": "approve",
+          "want": "refused",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "settle",
+          "want": "evaluating",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "evaluating",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "settle",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "refuse",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "refuse",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "refuse",
+          "want": "approved",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "refuse",
+          "want": "pending",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "refuse",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "release",
+          "want": "evaluating",
+          "wantError": true
+        },
+        {
+          "event": "refuse",
+          "want": "refused",
+          "wantError": false
+        },
+        {
+          "event": "settle",
+          "want": "refused",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "refused",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "refused",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "release",
+          "want": "evaluating",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "evaluating",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "evaluating",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_009",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "refuse",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_010",
+      "initial": "evaluating",
+      "steps": [
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "require_approval",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "require_approval",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "settle",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "evaluating",
+        "refused",
+        "pending",
+        "approved",
+        "released",
+        "settled"
+      ],
+      "coveredEvents": [
+        "refuse",
+        "require_approval",
+        "approve",
+        "release",
+        "settle"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "evaluating",
+        "refused",
+        "pending",
+        "approved",
+        "released",
+        "settled"
+      ],
+      "coveredEvents": [
+        "refuse",
+        "require_approval",
+        "approve",
+        "release",
+        "settle"
+      ],
+      "coveredPairs": [
+        "evaluating/refuse",
+        "evaluating/require_approval",
+        "evaluating/approve",
+        "evaluating/release",
+        "evaluating/settle",
+        "refused/require_approval",
+        "refused/approve",
+        "refused/release",
+        "refused/settle",
+        "pending/refuse",
+        "pending/require_approval",
+        "pending/approve",
+        "pending/release",
+        "pending/settle",
+        "approved/refuse",
+        "approved/require_approval",
+        "approved/approve",
+        "approved/release",
+        "approved/settle",
+        "released/refuse",
+        "released/require_approval",
+        "released/approve",
+        "released/settle",
+        "settled/approve",
+        "settled/release",
+        "settled/settle"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

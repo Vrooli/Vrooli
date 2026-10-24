@@ -4,7 +4,9 @@ package infra
 import "time"
 
 // Clock abstracts time operations for testing.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	// Now returns the current time.
 	Now() time.Time
 	// Sleep pauses execution for the given duration.

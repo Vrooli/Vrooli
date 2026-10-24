@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "name": "dark-parity-broken",
+    "description": "CALIBRATION: plants a surface whose light and dark render are identical and must fail dark-parity evidence.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "overlay-composition-calibration",
+      "calibration": "expected-failure",
+      "assertion_class": "dark-parity-broken",
+      "requirements_json": "[\"OVERLAY-COMPOSITION\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open calibration host"
+        }
+      }
+    },
+    {
+      "id": "plant-broken-fixture",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { document.body.innerHTML='<div id=\"surface\" style=\"background:rgb(255,255,255);color:rgb(0,0,0)\">surface</div>'; const s=document.querySelector('#surface'); const light=getComputedStyle(s).backgroundColor; document.documentElement.classList.add('dark'); const dark=getComputedStyle(s).backgroundColor; document.body.dataset.calibrationOk=light!==dark?'yes':'no'; return {light,dark}; })()",
+          "store_result": "plantedEvidence"
+        },
+        "metadata": {
+          "label": "Plant the deliberately broken fixture"
+        }
+      }
+    },
+    {
+      "id": "assert-calibration",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-calibration-ok=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 1000,
+          "failure_message": "EXPECTED CALIBRATION FAILURE: the planted dark render is identical to the light render."
+        },
+        "metadata": {
+          "label": "Expected failure discriminator"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "plant-broken-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "plant-broken-fixture",
+      "target": "assert-calibration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

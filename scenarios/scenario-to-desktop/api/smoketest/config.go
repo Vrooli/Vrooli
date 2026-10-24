@@ -3,8 +3,8 @@ package smoketest
 
 import "time"
 
-// Config holds configuration for smoke test execution.
-type Config struct {
+// SmokeTestConfig holds configuration for smoke test execution.
+type SmokeTestConfig struct {
 	// TimeoutSeconds is the maximum duration for a smoke test.
 	// This is the default timeout; deployment-mode-specific timeouts override it.
 	TimeoutSeconds int
@@ -83,8 +83,8 @@ type GranularLifecycleMarkers struct {
 }
 
 // DefaultConfig returns the default smoke test configuration.
-func DefaultConfig() Config {
-	return Config{
+func DefaultConfig() SmokeTestConfig {
+	return SmokeTestConfig{
 		TimeoutSeconds:                   30,
 		BundledModeTimeoutSeconds:        60, // Bundled mode needs longer due to runtime startup
 		ExternalServerModeTimeoutSeconds: 30,
@@ -112,19 +112,19 @@ func DefaultConfig() Config {
 }
 
 // Timeout returns the timeout as a time.Duration.
-func (c Config) Timeout() time.Duration {
+func (c SmokeTestConfig) Timeout() time.Duration {
 	return time.Duration(c.TimeoutSeconds) * time.Second
 }
 
 // TimeoutMS returns the timeout in milliseconds.
-func (c Config) TimeoutMS() int {
+func (c SmokeTestConfig) TimeoutMS() int {
 	return c.TimeoutSeconds * 1000
 }
 
 // TimeoutForDeploymentMode returns the appropriate timeout for the given deployment mode.
 // Supported modes: "bundled", "external-server", "cloud-api".
 // Falls back to default timeout for unknown modes.
-func (c Config) TimeoutForDeploymentMode(deploymentMode string) time.Duration {
+func (c SmokeTestConfig) TimeoutForDeploymentMode(deploymentMode string) time.Duration {
 	switch deploymentMode {
 	case "bundled":
 		if c.BundledModeTimeoutSeconds > 0 {
@@ -139,6 +139,6 @@ func (c Config) TimeoutForDeploymentMode(deploymentMode string) time.Duration {
 }
 
 // TimeoutMSForDeploymentMode returns the timeout in milliseconds for the given deployment mode.
-func (c Config) TimeoutMSForDeploymentMode(deploymentMode string) int {
+func (c SmokeTestConfig) TimeoutMSForDeploymentMode(deploymentMode string) int {
 	return int(c.TimeoutForDeploymentMode(deploymentMode).Milliseconds())
 }

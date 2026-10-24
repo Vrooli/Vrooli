@@ -1,0 +1,11 @@
+{
+  "elements": [
+    {
+      "selector": "h1",
+      "role": "heading",
+      "display": "block",
+      "text": "Ready",
+      "rect": {"x": 10, "y": 10, "width": 200, "height": 30}
+    }
+  ]
+}

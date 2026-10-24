@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { create } from "@bufbuild/protobuf";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
@@ -22,6 +22,8 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { probeRunner } from "../hooks/useApi";
+import type { RunStatusCounts } from "../hooks/useApi";
+import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { formatHyphenatedLabel } from "../lib/display";
 import { jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
@@ -29,22 +31,27 @@ import type { ProbeResult, Run, RunnerType, Task, HealthResponse, JsonValue } fr
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
 import { formatStandardRelativeTime } from "../lib/dateTime";
+import { reviewFileCount } from "../lib/reviewFileCount";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
-  tasks: Task[];
   runs: Run[];
+  statusCounts?: RunStatusCounts | null;
   onRefresh: () => void;
+  onGetTask?: (taskId: string) => Promise<Task>;
   onNavigateToRun?: (runId: string, tab?: string) => void;
 }
 
 export function DashboardPage({
   health,
-  tasks,
   runs,
+  statusCounts,
   onRefresh,
+  onGetTask,
   onNavigateToRun,
 }: DashboardPageProps) {
+  const [taskTitles, setTaskTitles] = useState<Record<string, string>>({});
+  const loadedTaskIdsRef = useRef<Set<string>>(new Set());
   const activeRuns = runs.filter(
     (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
   );
@@ -57,6 +64,52 @@ export function DashboardPage({
       return bTime - aTime;
     })
     .slice(0, 5);
+  const activeCount = (statusCounts?.running ?? 0) + activeRuns.filter((run) => run.status === RunStatus.STARTING).length;
+  const reviewCount = statusCounts?.needsReview ?? pendingReview.length;
+  const totalRuns = statusCounts?.total ?? runs.length;
+
+  useEffect(() => {
+    if (!onGetTask) {
+      return;
+    }
+
+    const taskIds = [...new Set([...pendingReview, ...recentRuns].map((run) => run.taskId))]
+      .filter((taskId) => taskId !== "" && !loadedTaskIdsRef.current.has(taskId));
+    if (taskIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    const timerId = window.setTimeout(() => {
+      void Promise.allSettled(
+        taskIds.map(async (taskId) => {
+          const task = await onGetTask(taskId);
+          return { taskId, title: task.title || "Unknown Task" };
+        })
+      ).then((results) => {
+        if (cancelled) {
+          return;
+        }
+        setTaskTitles((previous) => {
+          const next = { ...previous };
+          for (const [index, result] of results.entries()) {
+            const taskId = taskIds[index];
+            if (!taskId) {
+              continue;
+            }
+            loadedTaskIdsRef.current.add(taskId);
+            next[taskId] = result.status === "fulfilled" ? result.value.title : "Unknown Task";
+          }
+          return next;
+        });
+      });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [onGetTask, pendingReview, recentRuns]);
 
   const healthPanel = useCollapsiblePanel({ storageKey: "dashboard.health" });
 
@@ -95,19 +148,19 @@ export function DashboardPage({
       <div className="grid grid-cols-3 gap-2">
         <CompactStatCard
           title="Active"
-          value={activeRuns.length}
+          value={activeCount}
           icon={<Activity className="h-4 w-4" />}
-          variant={activeRuns.length > 0 ? "primary" : "muted"}
+          variant={activeCount > 0 ? "primary" : "muted"}
         />
         <CompactStatCard
           title="Review"
-          value={pendingReview.length}
+          value={reviewCount}
           icon={<Clock className="h-4 w-4" />}
-          variant={pendingReview.length > 0 ? "warning" : "muted"}
+          variant={reviewCount > 0 ? "warning" : "muted"}
         />
         <CompactStatCard
-          title="Tasks"
-          value={tasks.length}
+          title="Runs"
+          value={totalRuns}
           icon={<Server className="h-4 w-4" />}
           variant="muted"
         />
@@ -128,7 +181,7 @@ export function DashboardPage({
           <CardContent className="p-0">
             <div>
               {pendingReview.map((run) => {
-                const task = tasks.find((t) => t.id === run.taskId);
+                const fileCount = reviewFileCount(run);
                 return (
                   <div
                     key={run.id}
@@ -139,9 +192,9 @@ export function DashboardPage({
                     onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id, "diff")}
                   >
                     <div className="min-w-0 flex-1 mr-3">
-                      <p className="font-medium text-sm truncate">{task?.title || "Unknown Task"}</p>
+                      <p className="font-medium text-sm truncate">{taskTitles[run.taskId] || "Loading task..."}</p>
                       <p className="text-xs text-muted-foreground">
-                        {run.changedFiles} files changed | {formatStandardRelativeTime(run.endedAt)}
+                        {fileCount.available ? `${fileCount.count} files changed` : "File count unavailable"} | {formatStandardRelativeTime(run.endedAt)}
                       </p>
                     </div>
                     <Badge variant="needs_review" className="flex-shrink-0">Needs Review</Badge>
@@ -246,7 +299,7 @@ export function DashboardPage({
                     <RunActivityItem
                       key={run.id}
                       run={run}
-                      tasks={tasks}
+                      taskTitle={taskTitles[run.taskId]}
                       onClick={() => onNavigateToRun?.(run.id)}
                     />
                   ))}
@@ -322,6 +375,8 @@ function runStatusLabel(status: RunStatus): string {
       return "failed";
     case RunStatus.CANCELLED:
       return "cancelled";
+    case RunStatus.PARKED:
+      return "parked";
     default:
       return "pending";
   }
@@ -338,8 +393,8 @@ function HealthItem({
   message?: string;
   runnerType?: RunnerType;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [probeCopied, setProbeCopied] = useState(false);
+  const { status: messageCopyStatus, copyText: copyMessage } = useClipboardFeedback();
+  const { status: probeCopyStatus, copyText: copyProbe } = useClipboardFeedback();
   const [probing, setProbing] = useState(false);
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
   const probeDetails = probeResult?.details ?? {};
@@ -353,13 +408,8 @@ function HealthItem({
 
   const handleCopy = async () => {
     if (!message) return;
-    try {
-      await navigator.clipboard.writeText(message);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
+    const result = await copyMessage(message);
+    if (!result.ok) console.error("Failed to copy:", result.error);
   };
 
   const handleCopyProbeResult = async () => {
@@ -374,13 +424,8 @@ function HealthItem({
       .filter(Boolean)
       .join("\n");
 
-    try {
-      await navigator.clipboard.writeText(copyText);
-      setProbeCopied(true);
-      setTimeout(() => setProbeCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy probe result:", err);
-    }
+    const result = await copyProbe(copyText);
+    if (!result.ok) console.error("Failed to copy probe result:", result.error);
   };
 
   const handleProbe = async () => {
@@ -428,7 +473,7 @@ function HealthItem({
                   title="Copy full error message"
                   aria-label="Copy error message"
                 >
-                  {copied ? (
+                  {messageCopyStatus === "copied" ? (
                     <Check className="h-3 w-3 text-success" />
                   ) : (
                     <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
@@ -481,7 +526,7 @@ function HealthItem({
                 title="Copy probe result"
                 aria-label="Copy probe result"
               >
-                {probeCopied ? (
+                {probeCopyStatus === "copied" ? (
                   <Check className="h-3 w-3" />
                 ) : (
                   <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />
@@ -513,15 +558,13 @@ function HealthItem({
 
 function RunActivityItem({
   run,
-  tasks,
+  taskTitle,
   onClick,
 }: {
   run: Run;
-  tasks: Task[];
+  taskTitle?: string;
   onClick?: () => void;
 }) {
-  const task = tasks.find((t) => t.id === run.taskId);
-
   return (
     <div
       className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -533,7 +576,7 @@ function RunActivityItem({
       <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
         <RunStatusIcon status={run.status} />
         <div className="min-w-0">
-          <p className="font-medium text-sm truncate">{task?.title || "Unknown Task"}</p>
+          <p className="font-medium text-sm truncate">{taskTitle || "Loading task..."}</p>
           <p className="text-xs text-muted-foreground">
             {formatStandardRelativeTime(run.createdAt)}
           </p>

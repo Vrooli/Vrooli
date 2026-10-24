@@ -8,14 +8,15 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-
-	"github.com/gorilla/mux"
+	"sync"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -55,7 +56,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/prompts/skills/{id}/versions", h.GetSkillVersions).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/prompts/skills/{id}/revert/{version}", h.RevertSkillVersion).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/prompts/preview", h.Preview).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/prompts/simulate", h.Simulate).Methods(http.MethodPost)
 
 	// Experiment results (uses the same prompt-manager client as an ExperimentClient).
 	expHandler := NewExperimentHandler(h.experimentClient)
@@ -158,15 +158,32 @@ func buildSkillSummary(skill promptmanager.PromptSkill) PromptSkillSummary {
 
 func (h *Handler) ListSkills(w http.ResponseWriter, r *http.Request) {
 	catalogSkills := promptcatalog.SkillEntries()
-	items := make([]PromptSkillSummary, 0, len(catalogSkills))
-	for _, entry := range catalogSkills {
-		skill, err := h.client.GetSkill(r.Context(), entry.SkillID)
+	// One remote read per catalog entry, issued concurrently. Serially these
+	// round trips added up: the catalog is fixed-size and the reads are
+	// independent, so the response cost is one round trip rather than the sum
+	// of all of them. Results stay in catalog order regardless of arrival.
+	items := make([]PromptSkillSummary, len(catalogSkills))
+	errs := make([]error, len(catalogSkills))
+	var wg sync.WaitGroup
+	for index, entry := range catalogSkills {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			skill, err := h.client.GetSkill(r.Context(), entry.SkillID)
+			if err != nil {
+				errs[index] = fmt.Errorf("%s: %w", entry.SkillID, err)
+				return
+			}
+			items[index] = buildSkillSummary(skill)
+		}()
+	}
+	wg.Wait()
+	for index, err := range errs {
 		if err != nil {
 			apierr.MapError(w, "[prompts] list-skills",
-				classifyClientError(err, "[prompts] list-skills", "prompt skill not found: "+entry.SkillID, "failed to load prompt skills"))
+				classifyClientError(err, "[prompts] list-skills", "prompt skill not found: "+catalogSkills[index].SkillID, "failed to load prompt skills"))
 			return
 		}
-		items = append(items, buildSkillSummary(skill))
 	}
 	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
 		apierr.MapError(w, "[prompts] list-skills", apierr.Internal("failed to encode response"))
@@ -318,75 +335,5 @@ func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 		"prompt":     rendered,
 	}); err != nil {
 		apierr.MapError(w, "[prompts] preview", apierr.Internal("failed to encode response"))
-	}
-}
-
-type simulateRequest struct {
-	Kind            string            `json:"kind"`
-	Mode            string            `json:"mode,omitempty"`
-	ItemName        string            `json:"item_name,omitempty"`
-	ItemTitle       string            `json:"item_title,omitempty"`
-	ItemDescription string            `json:"item_description,omitempty"`
-	ItemStatus      string            `json:"item_status,omitempty"`
-	ItemPriority    string            `json:"item_priority,omitempty"`
-	ItemTags        string            `json:"item_tags,omitempty"`
-	ItemFolder      string            `json:"item_folder,omitempty"`
-	Variables       map[string]string `json:"variables,omitempty"`
-}
-
-func defaultVariables(req simulateRequest) map[string]string {
-	vars := map[string]string{
-		"ITEM_NAME":        strings.TrimSpace(req.ItemName),
-		"ITEM_TITLE":       strings.TrimSpace(req.ItemTitle),
-		"ITEM_DESCRIPTION": strings.TrimSpace(req.ItemDescription),
-		"ITEM_KIND":        strings.TrimSpace(req.Kind),
-		"ITEM_STATUS":      strings.TrimSpace(req.ItemStatus),
-		"ITEM_PRIORITY":    strings.TrimSpace(req.ItemPriority),
-		"ITEM_TAGS":        strings.TrimSpace(req.ItemTags),
-		"ITEM_FOLDER":      strings.TrimSpace(req.ItemFolder),
-	}
-	for key, value := range req.Variables {
-		vars[key] = value
-	}
-	return vars
-}
-
-func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
-	var req simulateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		apierr.MapError(w, "[prompts] simulate", apierr.BadRequest("invalid request body"))
-		return
-	}
-	kind := strings.ToLower(strings.TrimSpace(req.Kind))
-	if kind == "" {
-		apierr.MapError(w, "[prompts] simulate", apierr.BadRequest("kind is required"))
-		return
-	}
-	mode := strings.ToLower(strings.TrimSpace(req.Mode))
-	if mode == "" {
-		mode = "workshop"
-	}
-	entry, ok := promptcatalog.ResolveBacklogSkill(mode, kind)
-	if !ok {
-		apierr.MapError(w, "[prompts] simulate", apierr.BadRequest("mode must be workshop, initialize, or finalize for the selected kind"))
-		return
-	}
-	vars := defaultVariables(req)
-	rendered, err := h.client.ReadSkill(r.Context(), entry.SkillID, vars, false)
-	if err != nil {
-		apierr.MapError(w, "[prompts] simulate", apierr.Internal("failed to resolve prompt"))
-		return
-	}
-	if err := httputil.JSON(w, map[string]any{
-		"entry_id":   entry.ID,
-		"group":      entry.Group,
-		"usage_type": entry.UsageType,
-		"kind":       kind,
-		"mode":       mode,
-		"skill_id":   entry.SkillID,
-		"variables":  vars,
-		"prompt":     rendered,
-	}); err != nil {
-		apierr.MapError(w, "[prompts] simulate", apierr.Internal("failed to encode response"))
 	}
 }

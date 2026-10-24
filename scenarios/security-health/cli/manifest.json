@@ -1,0 +1,356 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "security-health",
+  "description": "security-health CLI surface. Schema-validated against cli-manifest/v1 and cross-validated against the Connect-RPC proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate a scenario's security posture (secrets, Go SAST, Go vuln-DB, JS deps)",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Run the applicable security scanners against a scenario and report normalized findings",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Preview or apply deterministic security posture fixes",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview safe deterministic security fixes without writing files",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to a rule id; repeat or comma-separate values"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply safe deterministic security fixes",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to a rule id; repeat or comma-separate values"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "deps",
+      "description": "Query the fleet dependency & vulnerability intelligence index",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search dependencies across scenarios; answers 'who is exposed to CVE-X?'",
+          "positionals": [
+            {
+              "name": "query",
+              "required": false,
+              "description": "Free-text query (optional when using only filters)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "default": "20",
+              "description": "Maximum results to return"
+            },
+            {
+              "name": "mode",
+              "description": "Retrieval mode: ai | text (default lets the server choose)"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem: go | npm"
+            },
+            {
+              "name": "vulnerable-only",
+              "bool": true,
+              "description": "Only return dependencies with known vulnerabilities"
+            },
+            {
+              "name": "name-glob",
+              "description": "Glob over the dependency name (e.g. 'golang.org/x/*')"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report dependency-index availability, counts, and last reconcile",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "vulnerabilities",
+          "description": "List structured vulnerability evidence across fleet dependencies",
+          "positionals": [
+            {
+              "name": "package",
+              "required": false,
+              "description": "Optional package filter, such as react or golang.org/x/net",
+              "bind": {
+                "field": "package_name"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem: go | npm"
+            },
+            {
+              "name": "scenario",
+              "description": "Filter by scenario id"
+            },
+            {
+              "name": "vulnerability",
+              "description": "Filter by CVE, GHSA, GO, or OSV id",
+              "bind": {
+                "field": "vulnerability_id"
+              }
+            },
+            {
+              "name": "minimum-confidence",
+              "description": "Minimum evidence confidence: degraded | advisory | gating"
+            },
+            {
+              "name": "limit",
+              "default": "20",
+              "description": "Maximum vulnerability groups to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyService",
+            "method": "ListVulnerabilities"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Explain one vulnerability with affected scenarios and fixed-version guidance",
+          "positionals": [
+            {
+              "name": "vulnerability",
+              "required": true,
+              "description": "CVE, GHSA, GO, or OSV id",
+              "bind": {
+                "field": "vulnerability_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Optional ecosystem filter: go | npm"
+            },
+            {
+              "name": "package",
+              "description": "Optional package filter",
+              "bind": {
+                "field": "package_name"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyService",
+            "method": "ExplainVulnerability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reindex",
+      "description": "Reconcile the fleet dependency corpus (re-walk lockfiles, re-annotate vulns)",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a reindex job (or compute the plan with --dry-run)",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Limit to a single scenario; empty means all"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Compute planned upserts/deletes without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReindexService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Poll a reindex job's progress",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReindexService",
+            "method": "ReindexStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cooperative cancellation of an in-flight reindex job",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReindexService",
+            "method": "ReindexCancel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +22,14 @@ type DuplicateResult struct {
 	Skipped         bool             `json:"skipped"`
 	SkipReason      string           `json:"skip_reason,omitempty"`
 	Tool            string           `json:"tool,omitempty"`
+	DroppedGroups   int              `json:"dropped_groups,omitempty"`
+	DroppedLines    int              `json:"dropped_lines,omitempty"`
 }
+
+// DuplicateMinimumLines is the fleet-wide physical-line floor for a useful
+// refactor opportunity. It matches jscpd's minimum and is applied after all
+// backends have been normalized and overlap-merged.
+const DuplicateMinimumLines = 5
 
 // DuplicateBlock represents a block of duplicated code
 type DuplicateBlock struct {
@@ -86,10 +94,12 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 		}, nil
 	}
 
-	// Convert relative paths to absolute paths
-	absPaths := make([]string, len(files))
-	for i, relPath := range files {
-		absPaths[i] = filepath.Join(dd.scenarioPath, relPath)
+	absPaths, err := resolveScenarioFiles(dd.scenarioPath, files)
+	if err != nil {
+		return &DuplicateResult{
+			Skipped:    true,
+			SkipReason: err.Error(),
+		}, nil
 	}
 
 	// Run dupl with threshold (25 tokens minimum for significant duplication)
@@ -98,7 +108,7 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 
 	// dupl -t 25 <files...>
 	args := append([]string{"-t", "25"}, absPaths...)
-	cmd := exec.CommandContext(cmdCtx, "dupl", args...)
+	cmd := exec.CommandContext(cmdCtx, "dupl", args...) // #nosec G204 G702 -- executable is fixed and file args are constrained to scenario root.
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -110,7 +120,7 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 	// Parse output
 	output := stdout.String()
 
-	blocks := dd.parseDuplOutput(output)
+	blocks, droppedGroups, droppedLines := normalizeDuplicateBlocks(dd.parseDuplOutput(output))
 
 	totalLines := 0
 	for _, block := range blocks {
@@ -123,6 +133,8 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 		TotalLines:      totalLines,
 		Skipped:         false,
 		Tool:            "dupl",
+		DroppedGroups:   droppedGroups,
+		DroppedLines:    droppedLines,
 	}, nil
 }
 
@@ -205,6 +217,91 @@ func (dd *DuplicationDetector) parseDuplOutput(output string) []DuplicateBlock {
 	return blocks
 }
 
+// normalizeDuplicateBlocks merges clone groups that describe the same
+// overlapping physical ranges, deduplicates their locations, and removes
+// groups below DuplicateMinimumLines. Parsers deliberately remain lossless so
+// their backend formats can be tested independently.
+func normalizeDuplicateBlocks(blocks []DuplicateBlock) ([]DuplicateBlock, int, int) {
+	merged := make([]DuplicateBlock, 0, len(blocks))
+	for _, block := range blocks {
+		block = canonicalDuplicateBlock(block)
+		mergedIndex := -1
+		for i := range merged {
+			if duplicateBlocksOverlap(merged[i], block) {
+				mergedIndex = i
+				break
+			}
+		}
+		if mergedIndex < 0 {
+			merged = append(merged, block)
+			continue
+		}
+		merged[mergedIndex].Files = append(merged[mergedIndex].Files, block.Files...)
+		merged[mergedIndex] = canonicalDuplicateBlock(merged[mergedIndex])
+	}
+
+	kept := make([]DuplicateBlock, 0, len(merged))
+	droppedGroups, droppedLines := 0, 0
+	for _, block := range merged {
+		// A clone group needs at least two distinct physical locations. Merging
+		// overlapping detector ranges can collapse a noisy group to one range;
+		// that is diagnostic noise, not a duplication opportunity.
+		if len(block.Files) < 2 || block.Lines < DuplicateMinimumLines {
+			droppedGroups++
+			droppedLines += block.Lines
+			continue
+		}
+		kept = append(kept, block)
+	}
+	return kept, droppedGroups, droppedLines
+}
+
+func canonicalDuplicateBlock(block DuplicateBlock) DuplicateBlock {
+	locations := append([]DuplicateLocation(nil), block.Files...)
+	sort.Slice(locations, func(i, j int) bool {
+		if locations[i].Path != locations[j].Path {
+			return locations[i].Path < locations[j].Path
+		}
+		if locations[i].StartLine != locations[j].StartLine {
+			return locations[i].StartLine < locations[j].StartLine
+		}
+		return locations[i].EndLine < locations[j].EndLine
+	})
+	files := make([]DuplicateLocation, 0, len(locations))
+	maxLines := 0
+	for _, location := range locations {
+		if location.EndLine < location.StartLine {
+			continue
+		}
+		last := len(files) - 1
+		if last >= 0 && files[last].Path == location.Path && location.StartLine <= files[last].EndLine {
+			if location.EndLine > files[last].EndLine {
+				files[last].EndLine = location.EndLine
+			}
+			continue
+		}
+		files = append(files, location)
+	}
+	for _, location := range files {
+		if span := location.EndLine - location.StartLine + 1; span > maxLines {
+			maxLines = span
+		}
+	}
+	block.Files, block.Lines = files, maxLines
+	return block
+}
+
+func duplicateBlocksOverlap(left, right DuplicateBlock) bool {
+	for _, a := range left.Files {
+		for _, b := range right.Files {
+			if a.Path == b.Path && a.StartLine <= b.EndLine && b.StartLine <= a.EndLine {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // detectJSDuplication uses jscpd to detect JavaScript/TypeScript duplication
 func (dd *DuplicationDetector) detectJSDuplication(ctx context.Context, files []string) (*DuplicateResult, error) {
 	// Check if npx is available (for running jscpd)
@@ -230,7 +327,7 @@ func (dd *DuplicationDetector) detectJSDuplication(ctx context.Context, files []
 	// For simplicity, analyze the entire ui/src directory if TypeScript files present
 	uiSrcPath := filepath.Join(dd.scenarioPath, "ui", "src")
 
-	cmd := exec.CommandContext(cmdCtx, "npx", "jscpd", "--reporters", "json", "--min-lines", "5", "--min-tokens", "50", "--silent", uiSrcPath)
+	cmd := exec.CommandContext(cmdCtx, "npx", "jscpd", "--reporters", "json", "--min-lines", "5", "--min-tokens", "50", "--silent", uiSrcPath) // #nosec G204 G702 -- executable is fixed and target path is derived from scenario root.
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -258,7 +355,7 @@ func (dd *DuplicationDetector) detectJSDuplication(ctx context.Context, files []
 
 	// Parse JSON output
 	output := stdout.String()
-	blocks := dd.parseJscpdOutput(output)
+	blocks, droppedGroups, droppedLines := normalizeDuplicateBlocks(dd.parseJscpdOutput(output))
 
 	totalLines := 0
 	for _, block := range blocks {
@@ -271,6 +368,8 @@ func (dd *DuplicationDetector) detectJSDuplication(ctx context.Context, files []
 		TotalLines:      totalLines,
 		Skipped:         false,
 		Tool:            "jscpd",
+		DroppedGroups:   droppedGroups,
+		DroppedLines:    droppedLines,
 	}, nil
 }
 

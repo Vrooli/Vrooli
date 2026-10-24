@@ -5,6 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchChecks, CheckInfo } from "../../lib/api";
 
 interface CheckMetadataContextValue {
+  /** Raw check metadata from the API */
+  checks: CheckInfo[];
+  /** Metadata keyed by checkId for bulk enrichment */
+  metadataMap: ReadonlyMap<string, CheckInfo>;
   /** Get human-friendly title for a checkId, falls back to checkId if not found */
   getTitle: (checkId: string) => string;
   /** Get full metadata for a checkId */
@@ -33,10 +37,12 @@ export function CheckMetadataProvider({ children }: { children: ReactNode }) {
   }, [checks]);
 
   const value = useMemo<CheckMetadataContextValue>(() => ({
+    checks: checks ?? [],
+    metadataMap,
     getTitle: (checkId: string) => metadataMap.get(checkId)?.title ?? checkId,
     getMetadata: (checkId: string) => metadataMap.get(checkId),
     isLoading,
-  }), [metadataMap, isLoading]);
+  }), [checks, metadataMap, isLoading]);
 
   return (
     <CheckMetadataContext.Provider value={value}>

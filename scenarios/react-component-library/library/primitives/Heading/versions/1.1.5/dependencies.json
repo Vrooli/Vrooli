@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Heading",
+  "version": "1.1.5",
+  "resolvedAt": "2026-09-08T20:09:35Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Text",
+      "major": 1,
+      "observed": "1.2.0",
+      "rank": 3
+    }
+  ]
+}

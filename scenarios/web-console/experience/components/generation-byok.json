@@ -1,0 +1,20 @@
+{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "generation-byok",
+    "title": "BYOK generation provenance",
+    "purpose": "Draft coverage contract for the AI resolution order and provider provenance surfaced by the BYOK BAS case.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.1/story.json"
+  },
+  "states": [{ "id": "response", "example": "idle", "description": "A generated command identifies OpenRouter as its provider." }],
+  "elements": [
+    { "id": "resolution-strip", "role": "status", "description": "Ordered provider resolution strip." },
+    { "id": "provider-provenance", "role": "status", "description": "Provider used for the generated response." }
+  ],
+  "claims": [],
+  "bindings": { "elements": {
+    "resolution-strip": { "testid": "ai-resolution-strip" },
+    "provider-provenance": { "testid": "ai-provider-provenance" }
+  } }
+}

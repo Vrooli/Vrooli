@@ -1,116 +1,127 @@
 package httpserver
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
+	apihealth "github.com/vrooli/api-core/health"
+	repocontract "github.com/vrooli/repo-contract-go"
+
+	"test-genie/internal/dbexec"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := s.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
+	// The lifecycle contract is owned by api-core. This path performs exactly one
+	// bounded primary-store ping; it must not aggregate execution history or
+	// wait behind advisory work longer than its own small health budget.
+	check := apihealth.DB(s.db.Primary())
+	if s.healthDB != nil {
+		check = apihealth.Func("database", func(ctx context.Context) error {
+			return checkSQLiteSchema(ctx, s.healthDB)
+		})
 	}
-
-	operations := map[string]interface{}{}
-	if s.suiteRequests != nil {
-		if snapshot, err := s.suiteRequests.StatusSnapshot(r.Context()); err == nil {
-			operations["queue"] = queueSnapshotPayload(snapshot)
-		} else if err != nil {
-			s.log("queue snapshot failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
-	if s.executionHistory != nil {
-		if latest, err := s.executionHistory.Latest(r.Context()); err == nil && latest != nil {
-			operations["lastExecution"] = executionSummaryPayload(latest)
-		} else if err != nil {
-			s.log("latest execution lookup failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   s.serviceName(),
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-		"operations": operations,
-	}
-
-	s.writeJSON(w, http.StatusOK, response)
+	apihealth.New(s.serviceName()).
+		Version("1.0.0").
+		Timeout(250*time.Millisecond).
+		Check(check, apihealth.Critical).
+		Check(apihealth.Func("self_health_sweep", s.checkSweepStatus), apihealth.Optional).
+		Handler()(w, r)
 }
 
-func queueSnapshotPayload(snapshot queue.SuiteRequestSnapshot) map[string]interface{} {
-	payload := map[string]interface{}{
-		"total":     snapshot.Total,
-		"queued":    snapshot.Queued,
-		"delegated": snapshot.Delegated,
-		"stale":     snapshot.Stale,
-		"running":   snapshot.Running,
-		"completed": snapshot.Completed,
-		"failed":    snapshot.Failed,
-		"pending":   snapshot.Queued + snapshot.Delegated,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-	if snapshot.OldestQueuedAt != nil {
-		payload["oldestQueuedAt"] = snapshot.OldestQueuedAt.Format(time.RFC3339)
-		age := time.Since(*snapshot.OldestQueuedAt).Seconds()
-		if age < 0 {
-			age = 0
-		}
-		payload["oldestQueuedAgeSeconds"] = int(age)
-	}
-	return payload
-}
-
-func executionSummaryPayload(result *orchestrator.SuiteExecutionResult) map[string]interface{} {
-	if result == nil {
+func (s *Server) checkSweepStatus(context.Context) error {
+	if s.sweepStatus == nil {
 		return nil
 	}
-	return map[string]interface{}{
-		"executionId":  result.ExecutionID,
-		"scenario":     result.ScenarioName,
-		"success":      result.Success,
-		"completedAt":  result.CompletedAt.Format(time.RFC3339),
-		"startedAt":    result.StartedAt.Format(time.RFC3339),
-		"phaseSummary": result.PhaseSummary,
-		"preset":       result.PresetUsed,
+	status := s.sweepStatus.Snapshot()
+	if status.Outcome == "failed" || status.Outcome == "timed_out" {
+		return fmt.Errorf("last advisory sweep %s: %s", status.Outcome, status.Error)
 	}
+	return nil
+}
+
+// checkSQLiteSchema is a minimal read-only SQLite probe. Unlike runtime work,
+// it uses the dedicated lifecycle connection and performs no history lookup or
+// payload hydration. A schema read proves the connection can execute a query,
+// not merely allocate a pool slot.
+func checkSQLiteSchema(ctx context.Context, db dbexec.HealthProbe) error {
+	var version int
+	if err := db.QueryRowContext(ctx, "PRAGMA schema_version").Scan(&version); err != nil {
+		return fmt.Errorf("query sqlite schema version: %w", err)
+	}
+	return nil
 }
 
 // handleGetConfig returns configuration values needed by the UI.
 // This includes paths that should NOT be hardcoded in the frontend.
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	// Get VROOLI_ROOT from environment, with a sensible fallback
-	repoRoot := os.Getenv("VROOLI_ROOT")
-	if repoRoot == "" {
-		// Fallback to HOME-based path if VROOLI_ROOT not set
-		home := os.Getenv("HOME")
-		if home != "" {
-			repoRoot = home + "/Vrooli"
+	repoRoot := s.resolveRepoRoot()
+	scenariosPath := ""
+	testGeniePath := ""
+	if repoRoot != "" {
+		scenariosPath = s.resolveScenariosRoot()
+		if path, err := repocontract.ResolveScenarioPath(repoRoot, "test-genie"); err == nil {
+			testGeniePath = path
 		}
 	}
 
 	response := map[string]interface{}{
-		"repoRoot":          repoRoot,
-		"testGeniePath":     repoRoot + "/scenarios/test-genie",
-		"testGenieCLI":      "test-genie", // CLI command name (should be on PATH)
-		"scenariosPath":     repoRoot + "/scenarios",
-		"timestamp":         time.Now().UTC().Format(time.RFC3339),
-		"securityModel":     "allowlist",
-		"directoryScoping":  true,
-		"pathValidation":    true,
-		"bashAllowlistOnly": true,
+		"repoRoot":      repoRoot,
+		"testGeniePath": testGeniePath,
+		"testGenieCLI":  "test-genie", // CLI command name (should be on PATH)
+		"scenariosPath": scenariosPath,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}
 
 	s.writeJSON(w, http.StatusOK, response)
+}
+
+func (s *Server) resolveRepoRoot() string {
+	if s.scenarios != nil {
+		if scenariosRoot := filepath.Clean(s.scenarios.ScenarioRoot()); scenariosRoot != "." && scenariosRoot != "" {
+			root := filepath.Dir(scenariosRoot)
+			if _, err := repocontract.FindRepoRoot(root); err == nil {
+				return root
+			}
+		}
+	}
+
+	for _, start := range []string{
+		strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")),
+		strings.TrimSpace(os.Getenv("VROOLI_ROOT")),
+	} {
+		if start == "" {
+			continue
+		}
+		if root, err := repocontract.FindRepoRoot(start); err == nil {
+			return root
+		}
+	}
+
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		return root
+	}
+	return ""
+}
+
+func (s *Server) resolveScenariosRoot() string {
+	if s.scenarios != nil {
+		if value := filepath.Clean(s.scenarios.ScenarioRoot()); value != "." && value != "" {
+			return value
+		}
+	}
+
+	if root := s.resolveRepoRoot(); root != "" {
+		contract, err := repocontract.LoadDefault(root)
+		if err == nil {
+			if path, pathErr := contract.TopLevelDir(root, "scenarios"); pathErr == nil {
+				return path
+			}
+		}
+	}
+	return ""
 }

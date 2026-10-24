@@ -7,15 +7,16 @@
 package env
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 )
 
 // Renderer handles template expansion for environment variables and arguments.
@@ -42,17 +43,25 @@ func NewRenderer(appData, bundlePath string, ports ports.Allocator, envReader in
 func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[string]string, error) {
 	env := make(map[string]string)
 
-	// Inherit current environment.
+	// Inherit only the explicitly safe environment contract.
 	for _, kv := range r.EnvReader.Environ() {
 		parts := strings.SplitN(kv, "=", 2)
 		if len(parts) == 2 {
-			env[parts[0]] = parts[1]
+			if _, allowed := BundledEnvironmentReasons[parts[0]]; allowed {
+				env[parts[0]] = parts[1]
+			}
 		}
 	}
 
 	// Add standard bundle hints.
 	env["APP_DATA_DIR"] = r.AppData
 	env["BUNDLE_ROOT"] = r.BundlePath
+	// These are runtime-owned execution markers. They describe the bundled
+	// process context and therefore must be recreated here instead of inherited
+	// from the operator shell.
+	env["VROOLI_DATA"] = r.AppData
+	env["VROOLI_DESKTOP_MODE"] = "true"
+	env["VROOLI_LIFECYCLE_MANAGED"] = "true"
 	// Canonical root for api-core/storage class directories.
 	env["VROOLI_STORAGE_ROOT"] = filepath.Join(r.AppData, "storage")
 	// Bundled services should skip api-core staleness checks (no source modules in bundle).
@@ -83,24 +92,36 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 
 	// Apply service environment (with template expansion).
 	for k, v := range svc.Env {
-		env[k] = r.RenderValue(v)
+		value, err := r.RenderValue(v)
+		if err != nil {
+			return nil, fmt.Errorf("service %s environment %s: %w", svc.ID, k, err)
+		}
+		env[k] = value
 	}
 
 	// Apply binary-specific environment (overrides service env).
 	for k, v := range bin.Env {
-		env[k] = r.RenderValue(v)
+		value, err := r.RenderValue(v)
+		if err != nil {
+			return nil, fmt.Errorf("service %s binary environment %s: %w", svc.ID, k, err)
+		}
+		env[k] = value
 	}
 
 	return env, nil
 }
 
 // RenderArgs expands template variables in command arguments.
-func (r *Renderer) RenderArgs(args []string) []string {
+func (r *Renderer) RenderArgs(args []string) ([]string, error) {
 	out := make([]string, 0, len(args))
 	for _, a := range args {
-		out = append(out, r.RenderValue(a))
+		value, err := r.RenderValue(a)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, value)
 	}
-	return out
+	return out, nil
 }
 
 // RenderValue expands template variables in a string.
@@ -108,7 +129,7 @@ func (r *Renderer) RenderArgs(args []string) []string {
 //   - ${data}  -> app data directory
 //   - ${bundle} -> bundle root path
 //   - ${service.port} -> allocated port for service.port
-func (r *Renderer) RenderValue(input string) string {
+func (r *Renderer) RenderValue(input string) (string, error) {
 	// Static replacements.
 	replacements := map[string]string{
 		"data":   r.AppData,
@@ -130,7 +151,8 @@ func (r *Renderer) RenderValue(input string) string {
 
 	// Match ${...} patterns.
 	re := regexp.MustCompile(`\$\{([^}]+)\}`)
-	return re.ReplaceAllStringFunc(input, func(match string) string {
+	var unresolved string
+	result := re.ReplaceAllStringFunc(input, func(match string) string {
 		key := strings.TrimSuffix(strings.TrimPrefix(match, "${"), "}")
 
 		// Try static replacement first.
@@ -143,7 +165,11 @@ func (r *Renderer) RenderValue(input string) string {
 			return port
 		}
 
-		// Keep original if no match.
+		unresolved = match
 		return match
 	})
+	if unresolved != "" {
+		return result, fmt.Errorf("unresolved template token %s", unresolved)
+	}
+	return result, nil
 }

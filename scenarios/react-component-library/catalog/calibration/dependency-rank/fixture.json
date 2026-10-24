@@ -1,0 +1,9 @@
+{
+  "gate": "dependency-rank",
+  "assetId": "__corpus__.dependency-rank",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.dependency_rank",
+  "description": "A primitive lock imports a component above its composition rank.",
+  "mutation": "dependency-rank"
+}

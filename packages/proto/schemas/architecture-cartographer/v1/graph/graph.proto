@@ -1,0 +1,465 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.graph;
+
+import "architecture-cartographer/v1/domains/domains.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
+import "common/v1/attestation.proto";
+import "common/v1/code_graph.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1";
+
+// =============================================================================
+// GRAPH DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain graph
+// @stability stable
+//
+// Wire contract for the GraphService Connect-RPC service. The graph domain
+// owns extraction, normalization, and persistence of immutable graph
+// snapshots produced by the language code-graph scenarios (go-code-graph,
+// typescript-code-graph). Parsing itself lives strictly in the language
+// scenarios — graph never imports a parser.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - GraphSnapshot   (used by conflict detection + signal scoring)
+//   - FileNode / PackageNode / SymbolNode / ImportEdge (graph nodes/edges)
+//   - Chunk           (the unit of scoring; consumed by signals)
+//
+// Consumed by:
+//   - API: handlers/graph/connect_handler.go implements the generated
+//          GraphServiceHandler interface from the graph_v1connect package.
+//   - UI:  ui/src/api/graph.ts (graph viewer feature lands in a later plan).
+//   - CLI: cli/domains/graph/handlers.go calls the generated Connect-Go
+//          client and renders via cliapp.ListReport / cliapp.MutationReport.
+// =============================================================================
+
+// Language identifies the source language a node/edge belongs to.
+enum Language {
+  LANGUAGE_UNSPECIFIED = 0;
+  LANGUAGE_GO = 1;
+  LANGUAGE_TYPESCRIPT = 2;
+}
+
+// FileNode is one source file in the target scenario.
+message FileNode {
+  // Stable node identifier ("file:" + repo-relative path).
+  string id = 1;
+  // Repo-relative path (e.g., "api/internal/conflicts/service.go").
+  string path = 2;
+  // Owning package node id (transitively from PackageNode.id).
+  string package_id = 3;
+  // Source language.
+  Language language = 4;
+  // Approximate line count (best-effort, not load-bearing).
+  int32 lines = 5;
+  // True when the file is a test file (e.g., *_test.go, *.test.ts).
+  bool is_test = 6;
+}
+
+// PackageNode is one logical package or module.
+message PackageNode {
+  // Stable node identifier ("pkg:" + import path).
+  string id = 1;
+  // Canonical import path (e.g., "github.com/x/y/z" or "@vrooli/foo").
+  string import_path = 2;
+  // Repo-relative filesystem directory containing the package
+  // (slash-separated, no leading slash, e.g. "api/internal/graph").
+  // Empty when the package is external / outside the target scenario.
+  // This is the single key used to map a package to a domain.
+  string repo_path = 3;
+  // Source language.
+  Language language = 4;
+}
+
+// SymbolNode is one exported identifier (function, type, constant, etc.).
+message SymbolNode {
+  // Stable node identifier ("sym:" + package_id + ":" + name).
+  string id = 1;
+  // Identifier (e.g., "DetectConflicts", "FakeRepository").
+  string name = 2;
+  // Owning package node id.
+  string package_id = 3;
+  // Owning file node id (the file declaring the symbol).
+  string file_id = 4;
+  // Kind of symbol, e.g., "func", "type", "const", "var", "iface".
+  string kind = 5;
+  // True when the symbol is exported from its package.
+  bool exported = 6;
+}
+
+// ImportEdge is a directed dependency from a file or package to a package.
+message ImportEdge {
+  // Source node id (FileNode.id or PackageNode.id).
+  string from = 1;
+  // Target package node id.
+  string to_package_id = 2;
+  // Per-symbol granularity when the language graph reports it; empty
+  // when the importer pulls the package by side effect only.
+  repeated string symbol_ids = 3;
+  // True when the edge is test-only (importer is a test file).
+  bool test_only = 4;
+}
+
+// Chunk is the unit of scoring. Day-one signals score one chunk at a
+// time. v0.1 chunks correspond 1:1 with a FileNode; richer chunkings
+// (function-level, symbol-cluster) are P1.
+message Chunk {
+  // Stable chunk identifier.
+  string id = 1;
+  // The file node represented by this chunk.
+  string file_id = 2;
+  // Repo-relative path (denormalized for log readability).
+  string path = 3;
+  // Optional: the manifest-declared domain currently owning this chunk.
+  // Empty when the file is not yet declared in any domain's paths.
+  string current_domain = 4;
+}
+
+// GraphSnapshot is the normalized, immutable result of extracting a
+// language graph. Cartographer never mutates a snapshot after
+// construction — all downstream consumers receive a value-copy.
+message GraphSnapshot {
+  // Stable identifier ("snap:" + scenario + ":" + content_hash).
+  string id = 1;
+  // Target scenario name (e.g., "architecture-cartographer").
+  string scenario = 2;
+  // Content hash over the inputs that produced this snapshot. Used as
+  // the cache key. Stable across re-extractions when nothing changes.
+  string content_hash = 3;
+  // Source language(s) covered by this snapshot. Multi-language
+  // scenarios produce one snapshot per language and combine downstream.
+  repeated Language languages = 4;
+  // Server time at the moment the snapshot was first persisted.
+  google.protobuf.Timestamp extracted_at = 5;
+  // Total elapsed wall-clock extraction time in milliseconds.
+  int64 extraction_ms = 6;
+  // All nodes in the graph, deduped by id.
+  repeated FileNode files = 7;
+  repeated PackageNode packages = 8;
+  repeated SymbolNode symbols = 9;
+  // All edges in the graph, deduped by (from, to_package_id) pair.
+  repeated ImportEdge imports = 10;
+  // Effective profile(s) used by language adapters. Empty only for legacy
+  // snapshots created before profile metadata was persisted.
+  repeated string extraction_profiles = 11;
+  // Capabilities intentionally omitted by an adapter profile. These are
+  // informational and do not indicate a failed extraction.
+  repeated common.v1.CodeGraphOmission omitted_information = 12;
+}
+
+// =============================================================================
+// GRAPH SERVICE
+// =============================================================================
+
+service GraphService {
+  // ExtractGraph asks the language code-graph adapter(s) for a fresh
+  // graph of the target scenario, normalizes the result, persists it,
+  // and returns the snapshot.
+  rpc ExtractGraph(ExtractGraphRequest) returns (ExtractGraphResponse);
+
+  // GetGraphSnapshot returns a persisted snapshot by id.
+  rpc GetGraphSnapshot(GetGraphSnapshotRequest) returns (GetGraphSnapshotResponse);
+
+  // ListGraphSnapshots paginates persisted snapshots for a scenario.
+  rpc ListGraphSnapshots(ListGraphSnapshotsRequest) returns (ListGraphSnapshotsResponse);
+
+  // ClearGraphSnapshots removes cached snapshots for a scenario.
+  // Honors X-Dry-Run.
+  rpc ClearGraphSnapshots(ClearGraphSnapshotsRequest) returns (ClearGraphSnapshotsResponse);
+
+  // PreviewSnapshotRetention reports how much snapshot storage is
+  // reclaimable beyond the retention floor, without deleting anything.
+  //
+  // It is also the estimate/preview half of the storage-manager owner
+  // provider contract: storage-manager never duplicates owner-private
+  // deletion logic, so it asks this scenario what is safe to drop.
+  rpc PreviewSnapshotRetention(PreviewSnapshotRetentionRequest) returns (PreviewSnapshotRetentionResponse);
+
+  // ApplySnapshotRetention prunes snapshots beyond the retention floor and
+  // returns freed pages to the filesystem. Requires explicit confirmation.
+  rpc ApplySnapshotRetention(ApplySnapshotRetentionRequest) returns (ApplySnapshotRetentionResponse);
+
+  // ExportGraph returns the snapshot in a serializable shape (e.g.,
+  // JSON) for offline analysis or fixture authoring.
+  rpc ExportGraph(ExportGraphRequest) returns (ExportGraphResponse);
+
+  // GetZoneMap classifies the latest graph packages into the scenario's
+  // template-declared code-layout zones and includes layering cross-checks.
+  rpc GetZoneMap(GetZoneMapRequest) returns (GetZoneMapResponse);
+
+  // GetSlice returns the implementation slice for one domain, from proto
+  // adoption evidence through handler, internal, CLI, and UI rungs.
+  rpc GetSlice(GetSliceRequest) returns (GetSliceResponse);
+
+  // InferArchetype infers each domain's archetype (Q20) from graph signals and
+  // converges it against the declared DOMAINS.md archetype, reporting drift
+  // without overriding the declared value.
+  rpc InferArchetype(InferArchetypeRequest) returns (InferArchetypeResponse);
+}
+
+message ExtractGraphRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Optional language filter. Empty means auto-detect.
+  repeated Language languages = 2;
+  // Optional Idempotency-Key passthrough for caller-controlled dedupe.
+  string idempotency_key = 3;
+}
+
+message ExtractGraphResponse {
+  GraphSnapshot snapshot = 1;
+  // True when the snapshot was served from cache (content_hash hit).
+  bool from_cache = 2;
+}
+
+message GetGraphSnapshotRequest {
+  // GraphSnapshot.id.
+  string id = 1;
+}
+
+message GetGraphSnapshotResponse {
+  GraphSnapshot snapshot = 1;
+}
+
+message ListGraphSnapshotsRequest {
+  // Filter to one scenario; empty lists all.
+  string scenario = 1;
+  // Cursor pagination.
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListGraphSnapshotsResponse {
+  repeated GraphSnapshot snapshots = 1;
+  string next_page_token = 2;
+}
+
+message ClearGraphSnapshotsRequest {
+  // Filter to one scenario; required.
+  string scenario = 1;
+  // True returns the count that would have been deleted without
+  // performing the deletion.
+  bool dry_run = 2;
+}
+
+message ClearGraphSnapshotsResponse {
+  // Number of snapshots deleted (or that would have been on dry-run).
+  int32 deleted = 1;
+  bool dry_run = 2;
+}
+
+message ExportGraphRequest {
+  // GraphSnapshot.id.
+  string id = 1;
+}
+
+message ExportGraphResponse {
+  // Serialized snapshot in the requested format. v0.1 returns
+  // canonical-form JSON bytes.
+  bytes payload = 1;
+  // Content-type of the payload (e.g., "application/json").
+  string content_type = 2;
+}
+
+message GetZoneMapRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+  // or extract one when no cached snapshot exists.
+  string snapshot_id = 2;
+}
+
+message GetZoneMapResponse {
+  ZoneMap zone_map = 1;
+}
+
+message ZoneMap {
+  string scenario = 1;
+  string snapshot_id = 2;
+  repeated ZonePackage packages = 3;
+  repeated ZoneViolation violations = 4;
+  // How trustworthy the zone taxonomy is: HIGH when ARCHITECTURE.md declares a
+  // Zone Map that the code confirms; LOW when zones are derived-only (no
+  // ARCHITECTURE.md Zone Map to converge against).
+  AuthorityConfidence authority_confidence = 5;
+  // Map-level honesty contract (Q7): DERIVED when zones are code-computed,
+  // CONTRADICTED when any package's declared layer disagrees with the code.
+  common.v1.AttestedAnswer attestation = 6;
+}
+
+message ZonePackage {
+  string package_id = 1;
+  string import_path = 2;
+  string repo_path = 3;
+  string zone = 4;
+  string domain = 5;
+  string archetype = 6;
+  bool declared = 7;
+  // Convergence confidence in [0,1] from the three zone signals (manifest /
+  // ARCHITECTURE.md / import graph).
+  double confidence = 8;
+  // Raw layer label from the ARCHITECTURE.md Zone Map, preserved verbatim;
+  // empty when the doc does not declare this package's layer.
+  string declared_layer = 9;
+  // Typed evidence behind the classification (one per contributing signal).
+  repeated ZoneEvidence evidence = 10;
+  // True when the declared layer disagrees with the code-derived zone.
+  bool drift = 11;
+}
+
+// ZoneEvidence is one typed signal behind a converged zone classification.
+message ZoneEvidence {
+  string kind = 1; // manifest | architecture_doc | import_graph
+  string detail = 2;
+  string locator = 3;
+}
+
+message ZoneViolation {
+  string kind = 1;
+  string subtype = 2;
+  vrooli.architecture_cartographer.v1.shared.Severity severity = 3;
+  repeated string locations = 4;
+  repeated string domains = 5;
+  string summary = 6;
+}
+
+// AuthorityConfidence grades how trustworthy a derived map's authority is.
+enum AuthorityConfidence {
+  AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+  AUTHORITY_CONFIDENCE_HIGH = 1;
+  AUTHORITY_CONFIDENCE_LOW = 2;
+}
+
+message GetSliceRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Domain name from DOMAINS.md / the derived domain map.
+  string domain = 2;
+  // Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+  // or extract one when no cached snapshot exists.
+  string snapshot_id = 3;
+}
+
+message GetSliceResponse {
+  DomainSlice slice = 1;
+}
+
+message DomainSlice {
+  string scenario = 1;
+  string domain = 2;
+  string snapshot_id = 3;
+  repeated SliceRung rungs = 4;
+  repeated string surfaces = 5;
+  // Package-level dependency edges between rungs (handler->internal->proto…).
+  repeated SliceEdge layer_edges = 6;
+  // Q16 honesty contract: DERIVED from the graph; sufficiency PARTIAL while
+  // symbol-level edge resolution is deferred to the call/reference-edge phase.
+  common.v1.AttestedAnswer attestation = 7;
+}
+
+message SliceRung {
+  string name = 1;
+  bool present = 2;
+  repeated SliceEvidence evidence = 3;
+  repeated SliceFile files = 4;
+  repeated SliceSymbol symbols = 5;
+}
+
+// SliceEvidence is one typed justification for a rung; folds into a Citation.
+message SliceEvidence {
+  string kind = 1; // declared_path | package | proto_import | proto_file
+  string value = 2; // locator
+  string source = 3; // doc | code
+}
+
+message SliceFile {
+  string path = 1;
+  int32 lines = 2;
+  bool is_test = 3;
+}
+
+message SliceSymbol {
+  string name = 1;
+  string kind = 2;
+  string file = 3;
+}
+
+message SliceEdge {
+  string from_rung = 1;
+  string to_rung = 2;
+  string kind = 3; // import
+}
+
+message InferArchetypeRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Optional single domain; empty infers for every domain in the map.
+  string domain = 2;
+  // Optional GraphSnapshot.id. Empty uses/extracts the latest snapshot.
+  string snapshot_id = 3;
+}
+
+message InferArchetypeResponse {
+  string scenario = 1;
+  string snapshot_id = 2;
+  repeated ArchetypeReport reports = 3;
+}
+
+// ArchetypeReport is the Q20 answer for one domain: the converged archetype set
+// (declared + inferred, primary first) plus a drift flag and the honesty
+// contract. The declared value is never overridden — disagreement is reported.
+message ArchetypeReport {
+  string domain = 1;
+  repeated vrooli.architecture_cartographer.v1.domains.DomainArchetype archetypes = 2;
+  // True when the declared primary archetype disagrees with the inferred one.
+  bool convergence_drift = 3;
+  common.v1.AttestedAnswer attestation = 4;
+}
+
+// ScenarioSnapshotCount is one scenario's snapshot inventory.
+message ScenarioSnapshotCount {
+  string scenario = 1;
+  int32 snapshot_count = 2;
+  // Rows beyond the retention floor for this scenario.
+  int32 reclaimable_count = 3;
+}
+
+message PreviewSnapshotRetentionRequest {
+  // keep_per_scenario overrides the configured retention floor for this
+  // preview only. Zero uses the configured value.
+  int32 keep_per_scenario = 1;
+}
+
+message PreviewSnapshotRetentionResponse {
+  // Payload bytes held by snapshots beyond the retention floor. This is
+  // payload length, not database file size: graph_snapshots shares its file
+  // with other tables, and reporting the whole file would claim reclaimable
+  // space that is not.
+  int64 reclaimable_bytes = 1;
+  // Rows that a prune would remove.
+  int32 reclaimable_rows = 2;
+  // The retention floor this preview was computed against.
+  int32 keep_per_scenario = 3;
+  int32 total_snapshots = 4;
+  repeated ScenarioSnapshotCount scenarios = 5;
+}
+
+message ApplySnapshotRetentionRequest {
+  int32 keep_per_scenario = 1;
+  // confirm must be true. Deletion is irreversible, so the caller states
+  // intent explicitly rather than having an empty request mean "delete".
+  bool confirm = 2;
+}
+
+message ApplySnapshotRetentionResponse {
+  int32 rows_removed = 1;
+  int64 bytes_reclaimed = 2;
+  // Database pages returned to the filesystem by incremental vacuum.
+  int64 pages_freed = 3;
+  int32 scenarios_scanned = 4;
+  int32 keep_per_scenario = 5;
+}

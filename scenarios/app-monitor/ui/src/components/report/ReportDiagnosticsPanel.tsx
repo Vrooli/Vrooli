@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 
 import type { App, BridgeRuleReport, BridgeRuleViolation } from '@/types';
-import type { BrowserlessFallbackPageStatus } from '@/services/api';
 import type { ReportDiagnosticsState } from './useReportIssueState';
 
 interface ReportDiagnosticsPanelProps {
@@ -17,7 +16,6 @@ interface ReportDiagnosticsPanelProps {
   includeSummary: boolean;
   onIncludeSummaryChange: (value: boolean) => void;
   disabled?: boolean;
-  pageStatus?: BrowserlessFallbackPageStatus | null;
   activePreviewUrl?: string | null;
   app?: App | null;
 }
@@ -27,7 +25,6 @@ const ReportDiagnosticsPanel = ({
   includeSummary,
   onIncludeSummaryChange,
   disabled = false,
-  pageStatus = null,
   activePreviewUrl = null,
   app = null,
 }: ReportDiagnosticsPanelProps) => {
@@ -122,96 +119,8 @@ const ReportDiagnosticsPanel = ({
       });
     }
 
-    // Add page status analysis from browserless fallback
-    if (pageStatus) {
-      // Show detected issues as a summary if available
-      if (pageStatus.detectedIssues && pageStatus.detectedIssues.length > 0) {
-        pageStatus.detectedIssues.forEach((issue, idx) => {
-          cards.push({
-            key: `page-detected-issue-${idx}`,
-            status: 'error',
-            title: 'Page issue detected',
-            summary: issue,
-          });
-        });
-      }
-
-      // Individual checks for specific errors (only if not already in detectedIssues)
-      if (pageStatus.notFoundError && !pageStatus.detectedIssues?.some(i => i.includes('404'))) {
-        cards.push({
-          key: 'page-not-found',
-          status: 'error',
-          title: '404 Not Found',
-          summary: 'The page returned a 404 error. The URL may be incorrect or the route handler is missing.',
-        });
-      }
-
-      if (pageStatus.cloudflareError && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('cloudflare'))) {
-        cards.push({
-          key: 'page-cloudflare-error',
-          status: 'error',
-          title: 'Cloudflare Gateway Error',
-          summary: 'Cloudflare reported a gateway error (502/503/520-522). The backend service may be down or unreachable.',
-        });
-      }
-
-      if (pageStatus.emptyBody && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('empty') || i.toLowerCase().includes('white screen'))) {
-        cards.push({
-          key: 'page-empty-body',
-          status: 'error',
-          title: 'Empty page content',
-          summary: 'The page body is empty or has minimal content. This often indicates a critical rendering error or failed bundle loading.',
-        });
-      }
-
-      if (pageStatus.whiteScreen && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('white screen'))) {
-        cards.push({
-          key: 'page-white-screen',
-          status: 'error',
-          title: 'White screen detected',
-          summary: 'Page loaded but rendered no visible content. This typically indicates a bundling error or runtime exception before the UI initialized.',
-        });
-      }
-
-      if (pageStatus.moduleError && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('module'))) {
-        cards.push({
-          key: 'page-module-error',
-          status: 'error',
-          title: 'Module loading error',
-          summary: pageStatus.moduleError,
-        });
-      }
-
-      if (pageStatus.loadError && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('load') || i.toLowerCase().includes('network'))) {
-        cards.push({
-          key: 'page-load-error',
-          status: 'error',
-          title: 'Resource loading error',
-          summary: pageStatus.loadError,
-        });
-      }
-
-      if (pageStatus.httpError) {
-        cards.push({
-          key: 'page-http-error',
-          status: 'error',
-          title: `HTTP ${pageStatus.httpError.status} error`,
-          summary: pageStatus.httpError.message,
-        });
-      }
-
-      if (pageStatus.resourceCount === 0 && !pageStatus.whiteScreen && !pageStatus.emptyBody) {
-        cards.push({
-          key: 'page-no-resources',
-          status: 'warning',
-          title: 'No resources loaded',
-          summary: 'The page HTML loaded but no JavaScript or CSS resources were fetched. Possible bundling or server configuration issue.',
-        });
-      }
-    }
-
     return cards;
-  }, [diagnosticsError, diagnosticsState, diagnosticsWarning, diagnosticsWarnings, hasScanFailure, pageStatus, app, activePreviewUrl]);
+  }, [diagnosticsError, diagnosticsState, diagnosticsWarning, diagnosticsWarnings, hasScanFailure, app, activePreviewUrl]);
 
   const ruleCards = useMemo(() => diagnosticsRuleResults.map((rule: BridgeRuleReport, index: number) => {
     const combinedWarnings = Array.from(new Set(

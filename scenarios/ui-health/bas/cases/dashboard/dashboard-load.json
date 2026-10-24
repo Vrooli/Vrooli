@@ -1,0 +1,100 @@
+{
+  "metadata": {
+    "name": "dashboard-load",
+    "description": "Visits the dashboard and verifies the three stat cards, the API-status card, and the quick-action affordances render.",
+    "labels": {
+      "reset": "none",
+      "navigation_spec": "ui-health.app.ui"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "ui-health",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to dashboard" }
+      }
+    },
+    {
+      "id": "wait-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='page-dashboard']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Dashboard page visible" }
+      }
+    },
+    {
+      "id": "wait-stat-scenarios",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard-stat-scenarios-validated']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": { "label": "scenariosValidated stat card" }
+      }
+    },
+    {
+      "id": "wait-stat-surfaces",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard-stat-surfaces-indexed']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": { "label": "surfacesIndexed stat card" }
+      }
+    },
+    {
+      "id": "wait-stat-issues",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard-stat-open-issues']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": { "label": "openIssues stat card" }
+      }
+    },
+    {
+      "id": "wait-api-status",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard-api-status']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "API status card hydrated" }
+      }
+    },
+    {
+      "id": "capture-final",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture loaded dashboard" }
+      }
+    }
+  ]
+}

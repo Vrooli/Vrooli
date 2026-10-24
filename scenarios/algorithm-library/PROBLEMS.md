@@ -1,42 +1,14 @@
 # Known Issues - Algorithm Library
 
-## Judge0 Integration (Critical)
+## Execution model
 
-### Problem
-Judge0 resource fails to execute code due to cgroup configuration issues at the system level.
-
-### Error
-```
-Cannot write /sys/fs/cgroup/memory/box-XXX/tasks: No such file or directory
-```
-
-### Root Cause
-The Judge0 container requires specific cgroup v1 memory controller configuration that is not compatible with the host system's cgroup v2 setup. This is a system-level configuration issue that requires root access to resolve.
-
-### Impact
-- Code validation endpoint (`/api/v1/algorithms/validate`) is non-functional
-- CLI validate command hangs indefinitely
-- P0 requirement "Execute and validate algorithms using Judge0 resource" cannot be fulfilled
-
-### Attempted Solutions
-1. Verified Judge0 resource is installed and running
-2. Confirmed Judge0 API is accessible (http://localhost:2358/about responds)
-3. Submission creation succeeds but execution fails with Internal Error (status 13)
-
-### Workaround
-Local executor has been implemented as a comprehensive fallback. The scenario now provides:
+The scenario validates trusted development inputs with its local multi-language executor. It provides:
 - Algorithm reference and search functionality (fully working)
 - Multi-language implementations storage (58 algorithms, 8 Python implementations)
 - Performance benchmarking (using local execution)
 - API for algorithm retrieval (all endpoints functional)
-- Local validation for **all 5 target languages**: Python, JavaScript, Go, Java, and C++ (without Judge0)
+- Local validation for **all 5 target languages**: Python, JavaScript, Go, Java, and C++
 - Compilation support for Java and C++ with proper error reporting
-
-### Resolution Path
-Requires one of:
-1. System administrator to enable cgroup v1 compatibility mode
-2. Judge0 upgrade to support cgroup v2
-3. Alternative execution backend (e.g., Docker-in-Docker, local sandboxing)
 
 ## API Endpoint Notes
 
@@ -52,7 +24,7 @@ Previously appeared to hang when accessed via curl with jq piping. Issue resolve
 - ✅ Algorithm search functionality (35 algorithms)
 - ✅ Categories endpoint (9 categories: sorting, searching, graph, dynamic_programming, greedy, backtracking, string, tree, math)
 - ✅ Stats endpoint (31 implementations, 48 test cases)
-- ✅ Benchmark endpoint (returns results but limited without Judge0 execution)
+- ✅ Benchmark endpoint (uses local execution)
 - ✅ CLI commands (all functional including validate via local executor)
 - ✅ Database population (35 algorithms, 23 Python implementations, 31 total implementations, 65.7% coverage)
 - ✅ UI running on port 39037
@@ -61,7 +33,6 @@ Previously appeared to hang when accessed via curl with jq piping. Issue resolve
 
 ### Functional with Local Executor
 - ✅ Algorithm validation for Python, JavaScript, Go, Java, and C++ (local execution)
-- ⚠️ Judge0 code execution (blocked but fallback working for all 5 languages)
 - ✅ Test case verification against user code (via local executor)
 - ✅ Compilation support for Java and C++ with detailed error messages
 
@@ -108,7 +79,7 @@ Fixed by marshaling the metadata map to JSON before inserting into PostgreSQL. T
 - ✅ Dependency tests: PASS
 - ✅ Business tests: PASS
 - ✅ Performance tests: PASS
-- ✅ Lifecycle tests: PASS (5/5 - build, API health, search, Judge0 integration, CLI)
+- ✅ Lifecycle tests: PASS (build, API health, search, CLI)
 - ✅ Unit tests: PASS (all tests passing after SQL mock fixes)
 - ✅ Integration tests: PASS (validates real API with actual database)
 

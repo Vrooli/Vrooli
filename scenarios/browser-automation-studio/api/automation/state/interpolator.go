@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -77,12 +78,23 @@ func (i *Interpolator) InterpolatePlanStep(step contracts.PlanStep) contracts.Pl
 // Resolved values are never re-scanned, so a variable containing "${...}" in its
 // value will not be interpreted as a new variable reference.
 func (i *Interpolator) InterpolateString(s string) string {
+	value, _ := i.interpolateString(s, false)
+	return value
+}
+
+// InterpolateStringStrict rejects absent parameters instead of treating them as
+// empty strings. Selector argument validation must distinguish these cases.
+func (i *Interpolator) InterpolateStringStrict(s string) (string, error) {
+	return i.interpolateString(s, true)
+}
+
+func (i *Interpolator) interpolateString(s string, strict bool) (string, error) {
 	if i.state == nil {
-		return s
+		return s, nil
 	}
 	// Support both ${var} and {{var}} template syntax
 	if !strings.Contains(s, "${") && !strings.Contains(s, "{{") {
-		return s
+		return s, nil
 	}
 
 	// Single-pass interpolation: build result progressively without re-scanning resolved values
@@ -131,6 +143,8 @@ func (i *Interpolator) InterpolateString(s string) string {
 		// Resolve the token and append the result (without re-scanning)
 		if resolved, ok := i.resolveTokenWithFallback(token); ok {
 			result.WriteString(stringify(resolved))
+		} else if strict {
+			return "", fmt.Errorf("unresolved workflow parameter %q", token)
 		}
 		// If unresolved, we simply don't append anything (token is dropped)
 
@@ -138,7 +152,7 @@ func (i *Interpolator) InterpolateString(s string) string {
 		remaining = afterPrefix[end+len(suffix):]
 	}
 
-	return result.String()
+	return result.String(), nil
 }
 
 // InterpolateValue performs variable substitution recursively on any value.
@@ -536,10 +550,16 @@ func tokenizeExpression(expr string) []string {
 // CompareValues compares two values using the specified operator.
 func CompareValues(current any, expected any, op string) bool {
 	switch op {
-	case "", "eq", "==":
+	case "", "eq", "equals", "==":
 		return fmt.Sprint(current) == fmt.Sprint(expected)
-	case "ne", "!=":
+	case "ne", "not_equals", "!=":
 		return fmt.Sprint(current) != fmt.Sprint(expected)
+	case "contains":
+		return strings.Contains(fmt.Sprint(current), fmt.Sprint(expected))
+	case "starts_with":
+		return strings.HasPrefix(fmt.Sprint(current), fmt.Sprint(expected))
+	case "ends_with":
+		return strings.HasSuffix(fmt.Sprint(current), fmt.Sprint(expected))
 	}
 
 	// Numeric comparisons
@@ -563,14 +583,17 @@ func CompareValues(current any, expected any, op string) bool {
 // ToFloat converts a value to float64 if possible.
 func ToFloat(v any) (float64, bool) {
 	switch t := v.(type) {
+	case string:
+		number, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+		return number, err == nil && !math.IsNaN(number) && !math.IsInf(number, 0)
 	case int:
 		return float64(t), true
 	case int64:
 		return float64(t), true
 	case float64:
-		return t, true
+		return t, !math.IsNaN(t) && !math.IsInf(t, 0)
 	case float32:
-		return float64(t), true
+		return ToFloat(float64(t))
 	}
 	return 0, false
 }

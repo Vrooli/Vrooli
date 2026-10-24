@@ -1,0 +1,390 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "git-control-tower",
+  "generator": "v1.0.0",
+  "manifest_hash": "c7b5be4c7848a6a95ff41c405991b4103854c4dd8bfcaf7b0835adf0be2830c3",
+  "commands": [
+    {
+      "path": "audit list",
+      "group": "audit",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "baseline abandon",
+      "group": "baseline",
+      "command": "abandon",
+      "binding": "."
+    },
+    {
+      "path": "baseline check",
+      "group": "baseline",
+      "command": "check",
+      "binding": "."
+    },
+    {
+      "path": "baseline collection",
+      "group": "baseline",
+      "command": "collection",
+      "binding": "."
+    },
+    {
+      "path": "baseline cycle",
+      "group": "baseline",
+      "command": "cycle",
+      "binding": "."
+    },
+    {
+      "path": "baseline delete",
+      "group": "baseline",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "baseline diff",
+      "group": "baseline",
+      "command": "diff",
+      "binding": "."
+    },
+    {
+      "path": "baseline gc",
+      "group": "baseline",
+      "command": "gc",
+      "binding": "."
+    },
+    {
+      "path": "baseline list",
+      "group": "baseline",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "baseline path",
+      "group": "baseline",
+      "command": "path",
+      "binding": "."
+    },
+    {
+      "path": "baseline promote",
+      "group": "baseline",
+      "command": "promote",
+      "binding": "."
+    },
+    {
+      "path": "baseline repair",
+      "group": "baseline",
+      "command": "repair",
+      "binding": "."
+    },
+    {
+      "path": "baseline show",
+      "group": "baseline",
+      "command": "show",
+      "binding": "."
+    },
+    {
+      "path": "baseline snapshot",
+      "group": "baseline",
+      "command": "snapshot",
+      "binding": "."
+    },
+    {
+      "path": "baseline start",
+      "group": "baseline",
+      "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "baseline status",
+      "group": "baseline",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "branch create",
+      "group": "branch",
+      "command": "create",
+      "binding": "BranchService.CreateBranch"
+    },
+    {
+      "path": "branch list",
+      "group": "branch",
+      "command": "list",
+      "binding": "BranchService.ListBranches"
+    },
+    {
+      "path": "branch publish",
+      "group": "branch",
+      "command": "publish",
+      "binding": "BranchService.PublishBranch"
+    },
+    {
+      "path": "branch switch",
+      "group": "branch",
+      "command": "switch",
+      "binding": "BranchService.SwitchBranch"
+    },
+    {
+      "path": "message cancel",
+      "group": "message",
+      "command": "cancel",
+      "binding": "AdvisoryService.CancelStagedMessageJob",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message check",
+      "group": "message",
+      "command": "check",
+      "binding": "AdvisoryService.CheckStagedMessage",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message collect",
+      "group": "message",
+      "command": "collect",
+      "binding": "AdvisoryService.CollectStagedMessage",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message evidence",
+      "group": "message",
+      "command": "evidence",
+      "binding": "AdvisoryService.ReadStagedMessageEvidence",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message start",
+      "group": "message",
+      "command": "start",
+      "binding": "AdvisoryService.StartStagedMessage",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message status",
+      "group": "message",
+      "command": "status",
+      "binding": "AdvisoryService.GetStagedMessageJob",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message wait",
+      "group": "message",
+      "command": "wait",
+      "binding": "AdvisoryService.WaitStagedMessageJob",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "proposal anchor",
+      "group": "proposal",
+      "command": "anchor",
+      "binding": "ProposalService.AnchorScope"
+    },
+    {
+      "path": "proposal approve",
+      "group": "proposal",
+      "command": "approve",
+      "binding": "ProposalService.ApplyProposal"
+    },
+    {
+      "path": "proposal combine",
+      "group": "proposal",
+      "command": "combine",
+      "binding": "ProposalService.CombineProposals"
+    },
+    {
+      "path": "proposal create",
+      "group": "proposal",
+      "command": "create",
+      "binding": "ProposalService.CreateProposal"
+    },
+    {
+      "path": "proposal diff",
+      "group": "proposal",
+      "command": "diff",
+      "binding": "RepoService.GetRepoDiff"
+    },
+    {
+      "path": "proposal edit",
+      "group": "proposal",
+      "command": "edit",
+      "binding": "ProposalService.EditProposal"
+    },
+    {
+      "path": "proposal list",
+      "group": "proposal",
+      "command": "list",
+      "binding": "ProposalService.ListProposals"
+    },
+    {
+      "path": "proposal refresh",
+      "group": "proposal",
+      "command": "refresh",
+      "binding": "ProposalService.RefreshProposal"
+    },
+    {
+      "path": "proposal show",
+      "group": "proposal",
+      "command": "show",
+      "binding": "ProposalService.GetProposal"
+    },
+    {
+      "path": "proposal withdraw",
+      "group": "proposal",
+      "command": "withdraw",
+      "binding": "ProposalService.WithdrawProposal"
+    },
+    {
+      "path": "repo blame",
+      "group": "repo",
+      "command": "blame",
+      "binding": "RepoService.GetBlame"
+    },
+    {
+      "path": "repo commit",
+      "group": "repo",
+      "command": "commit",
+      "binding": "RepoService.CreateCommit"
+    },
+    {
+      "path": "repo diff",
+      "group": "repo",
+      "command": "diff",
+      "binding": "RepoService.GetRepoDiff"
+    },
+    {
+      "path": "repo groups",
+      "group": "repo",
+      "command": "groups",
+      "binding": "RepoService.GetRepoGroups"
+    },
+    {
+      "path": "repo prepare-push-recovery",
+      "group": "repo",
+      "command": "prepare-push-recovery",
+      "binding": "RepoService.PreparePushRecovery"
+    },
+    {
+      "path": "repo push-recovery-status",
+      "group": "repo",
+      "command": "push-recovery-status",
+      "binding": "RepoService.GetPushRecovery"
+    },
+    {
+      "path": "repo push-safety",
+      "group": "repo",
+      "command": "push-safety",
+      "binding": "RepoService.InspectPushSafety"
+    },
+    {
+      "path": "repo stage",
+      "group": "repo",
+      "command": "stage",
+      "binding": "RepoService.StageFiles"
+    },
+    {
+      "path": "repo status",
+      "group": "repo",
+      "command": "status",
+      "binding": "RepoService.GetRepoStatus"
+    },
+    {
+      "path": "repo sync-status",
+      "group": "repo",
+      "command": "sync-status",
+      "binding": "RepoService.GetSyncStatus"
+    },
+    {
+      "path": "repo unstage",
+      "group": "repo",
+      "command": "unstage",
+      "binding": "RepoService.UnstageFiles"
+    },
+    {
+      "path": "repo untrack",
+      "group": "repo",
+      "command": "untrack",
+      "binding": "RepoService.UntrackBinary"
+    },
+    {
+      "path": "repo untracked",
+      "group": "repo",
+      "command": "untracked",
+      "binding": "RepoService.GetTrackedBinaries"
+    },
+    {
+      "path": "review run",
+      "group": "review",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "review status",
+      "group": "review",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "review summary",
+      "group": "review",
+      "command": "summary",
+      "binding": "."
+    },
+    {
+      "path": "worktree create",
+      "group": "worktree",
+      "command": "create",
+      "binding": "WorktreeService.CreateWorktree"
+    },
+    {
+      "path": "worktree get",
+      "group": "worktree",
+      "command": "get",
+      "binding": "WorktreeService.GetWorktree"
+    },
+    {
+      "path": "worktree list",
+      "group": "worktree",
+      "command": "list",
+      "binding": "WorktreeService.ListWorktrees"
+    },
+    {
+      "path": "worktree lock",
+      "group": "worktree",
+      "command": "lock",
+      "binding": "WorktreeService.LockWorktree"
+    },
+    {
+      "path": "worktree move",
+      "group": "worktree",
+      "command": "move",
+      "binding": "WorktreeService.MoveWorktree"
+    },
+    {
+      "path": "worktree prune",
+      "group": "worktree",
+      "command": "prune",
+      "binding": "WorktreeService.PruneWorktrees"
+    },
+    {
+      "path": "worktree remove",
+      "group": "worktree",
+      "command": "remove",
+      "binding": "WorktreeService.RemoveWorktree"
+    },
+    {
+      "path": "worktree unlock",
+      "group": "worktree",
+      "command": "unlock",
+      "binding": "WorktreeService.UnlockWorktree"
+    }
+  ]
+}

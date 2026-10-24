@@ -1,0 +1,76 @@
+{
+  "metadata": {
+    "name": "00-reference-scale-v1-setup",
+    "description": "Seed one fixed reference-scale-v1 dataset through the live routed Test Genie lease. The fixed receipt is recorded; setup traffic is excluded from the measured tab sequence.",
+    "requirement": "OT-P1-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "performance-fixture-setup",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-planner",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open the Planner origin for the isolated fixture setup"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "today-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for the app shell before seeding"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "seed-reference-scale",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Seed the fixed profile only in the active routed lease"
+        },
+        "evaluate": {
+          "expression": "(async () => {\n  const d = new Date();\n  const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;\n  const response = await fetch('/api/v1/dev/test-fixtures/performance/reference-scale-v1', {\n    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ local_date: localDate })\n  });\n  if (!response.ok) throw new Error(`reference fixture returned ${response.status}`);\n  const result = await response.json();\n  const expected = { work_items: 1000, calendar_events: 10000, allocations: 10000, manual_actuals: 10000, goals: 1 };\n  if (result.fixture !== 'p1-reference-scale-v1' || result.local_date !== localDate || !result.authored_fingerprint || !result.lease_id || JSON.stringify(result.counts) !== JSON.stringify(expected)) {\n    throw new Error(`unexpected fixed fixture receipt: ${JSON.stringify(result)}`);\n  }\n  return { fixture: result.fixture, local_date: result.local_date, counts: result.counts, fingerprint: result.authored_fingerprint, lease_id: result.lease_id };\n})()",
+          "store_result": "planner_reference_scale_fixture_receipt"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-open-to-today",
+      "source": "open-planner",
+      "target": "today-ready"
+    },
+    {
+      "id": "edge-today-to-seed",
+      "source": "today-ready",
+      "target": "seed-reference-scale"
+    }
+  ]
+}

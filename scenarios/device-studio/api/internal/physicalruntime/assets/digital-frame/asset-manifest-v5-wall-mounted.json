@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "asset_id": "innerscene-frame-digital-neutral-wall-v5-mounted",
+  "source": {
+    "path": "innerscene-frame-wall-v4-glassless.glb",
+    "bytes": 790500,
+    "sha256": "a555090d9896b2cbb89ce55b62a78ba80f077bc7b184ff1efe757c74f3074203",
+    "license": "CC0-1.0 source; AGPL-3.0-only existing Vrooli wall-cleat/adaptation"
+  },
+  "derivative": {
+    "generator": "scenarios/device-studio/assets/sources/innerscene-picture-frame/derive_wall_mount_v5.py",
+    "runtime": "Python standard library; deterministic and offline",
+    "path": "innerscene-frame-wall-v5-mounted.glb",
+    "bytes": 790488,
+    "sha256": "e9254d84025b8b3b3a371d10fa3bba970f31242790cbfce8f94f11110a72289b",
+    "cleat_node_index": 6,
+    "cleat_mesh_index": 8,
+    "cleat_translation_m": [
+      0,
+      0.174,
+      -0.013
+    ],
+    "changes": [
+      "Only the existing Vrooli-authored WallMountCleat node translation changed; its front face now aligns with the frame-rail rear bound at z=-9 mm. All mesh/accessor/image/material records, screen geometry, UVs, and BIN bytes are unchanged."
+    ]
+  },
+  "wall_mount_pose": {
+    "frame_rail_rear_bound_m": -0.009,
+    "cleat_local_z_bounds_m": [
+      -0.017,
+      -0.009
+    ],
+    "room_wall_front_relative_to_support_frame_m": -0.0025,
+    "desired_rear_clearance_m": 0.002,
+    "device_root_rest_z_m": 0.0165,
+    "derivation": "RoomBackWall center is z=-0.480 m with 35 mm thickness; support frame is at center+20 mm=-0.460 m. The wall front is -0.4625 m. Place the new cleat rear bound at wall front+2 mm, yielding root rest z=+16.5 mm from the support frame. Source-derived candidate pose, not a measured hardware mount or load rating."
+  },
+  "display_binding": {
+    "screen_node": "Unprinted frame insert",
+    "screen_mesh_index": 7,
+    "screen_material_index": 5,
+    "uv_bounds": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "screen_geometry_unchanged": true
+  },
+  "qualification_limits": [
+    "This is a generic CC0-source picture-frame adaptation, not a manufacturer electronic frame.",
+    "The wall cleat is a Vrooli-authored candidate mount only; fastener design, substrate, load rating, and installation safety are not established.",
+    "The 2 mm room-wall clearance is a source-scene placement assumption, not measured hardware clearance."
+  ]
+}

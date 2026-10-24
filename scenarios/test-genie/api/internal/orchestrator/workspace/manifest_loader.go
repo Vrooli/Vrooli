@@ -13,7 +13,7 @@ type ServiceManifest struct {
 		Name string `json:"name"`
 	} `json:"service"`
 	Environment map[string]string `json:"environment"`
-	Lifecycle struct {
+	Lifecycle   struct {
 		Health struct {
 			Checks []json.RawMessage `json:"checks"`
 		} `json:"health"`

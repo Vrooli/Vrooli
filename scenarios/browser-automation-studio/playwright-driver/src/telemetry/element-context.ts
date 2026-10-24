@@ -14,10 +14,10 @@
  * Handlers that target elements should call captureElementContext() before executing
  * the action, then include the result in their HandlerResult.
  *
- * @see docs/plans/enrich-execution-with-element-context.md
+ * Related design work is historical; current plans are owned by Plan Manager.
  */
 
-import type { Page, Locator } from 'rebrowser-playwright';
+import type { Page, Frame, Locator } from 'rebrowser-playwright';
 import { create } from '@bufbuild/protobuf';
 import {
   ElementMetaSchema,
@@ -86,7 +86,7 @@ interface RawElementMeta {
  * @returns Element context, or minimal context if element not found
  */
 export async function captureElementContext(
-  page: Page,
+  page: Page | Frame,
   selector: string,
   options: {
     /** Timeout for locating element (ms). Default: 1000 */
@@ -209,6 +209,8 @@ async function captureRawElementMeta(
           'data-testid',
           'data-test-id',
           'data-cy',
+          'data-experience-surface',
+          'data-experience-state',
         ];
         for (const attr of interestingAttrs) {
           const val = el.getAttribute(attr);

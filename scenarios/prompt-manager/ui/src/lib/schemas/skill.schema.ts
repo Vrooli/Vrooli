@@ -23,6 +23,35 @@ const nullableStringArray = z
   .optional()
   .transform((val) => val ?? [])
 
+/** Immutable provenance of a skill imported from a third party. */
+export const SkillOriginSchema = z.object({
+  kind: z.string(),
+  sourceUrl: z.string(),
+  commit: z.string(),
+  license: z.string(),
+  checksum: z.string().optional(),
+  treeChecksum: z.string().optional(),
+  importedBy: z.string().optional(),
+  importedAt: z.string().optional(),
+  upstreamVersion: z.string().optional(),
+  review: z
+    .object({
+      verdict: z.string().optional().transform((val) => val ?? 'pending'),
+      reviewer: z.string().optional(),
+      reviewedAt: z.string().optional(),
+    })
+    .optional(),
+})
+export type SkillOrigin = z.infer<typeof SkillOriginSchema>
+
+/** A tool outside Vrooli's managed toolchain that a third-party skill depends on. */
+export const ExternalToolSchema = z.object({
+  name: z.string(),
+  url: z.string().optional(),
+  purpose: z.string().optional(),
+})
+export type ExternalTool = z.infer<typeof ExternalToolSchema>
+
 /**
  * Skill schema matching the API's Response type.
  *
@@ -40,15 +69,26 @@ export const SkillSchema = z.object({
   icon: z.string().nullable().optional(),
   targetToolId: z.string().nullable().optional(),
   defaultScope: z.string().nullable().optional(), // Default scope skill to include with this skill
+  programmaticHome: z.string().nullable().optional(), // Record-of-fact pointer ("engine:identifier") set when detection has graduated to a programmatic engine
   draft: z.boolean().nullable().optional().transform((val) => val ?? false),
   folder: FolderTypeSchema,
   skillDir: z.string().nullable().optional(),    // Absolute path to skill directory
   contentPath: z.string().nullable().optional(), // Absolute path to SKILL.md file
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  usageCount: z.number(),
+  // Some legacy skills have no persisted timestamps. Normalize protobuf null
+  // values at the boundary so one malformed record cannot hide the entire
+  // list from the UI.
+  createdAt: z.string().nullable().optional().transform((val) => val ?? ''),
+  updatedAt: z.string().nullable().optional().transform((val) => val ?? ''),
+  // Protobuf JSON omits zero-valued scalars by default. Treat an omitted
+  // counter as its wire default instead of rejecting successful create/list
+  // responses for skills that have not been used yet.
+  usageCount: z.number().optional().transform((val) => val ?? 0),
   lastUsed: z.string().nullable().optional(),
   effectivenessRating: z.number().nullable().optional(),
+  // Third-party provenance. Present only for skills imported from an external source.
+  origin: SkillOriginSchema.nullable().optional(),
+  // Tools a third-party skill needs that Vrooli does not provide or manage.
+  externalTools: z.array(ExternalToolSchema).nullable().optional(),
 })
 
 export type Skill = z.infer<typeof SkillSchema>
@@ -70,6 +110,7 @@ export const CreateSkillRequestSchema = z.object({
   tags: z.array(z.string()).optional(),
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
+  programmaticHome: z.string().nullable().optional(),
   draft: z.boolean().optional(),
   folder: FolderTypeSchema,
 })
@@ -90,6 +131,8 @@ export const UpdateSkillRequestSchema = z.object({
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
   defaultScope: z.string().optional(), // Default scope skill ID
+  programmaticHome: z.string().nullable().optional(),
+  clearProgrammaticHome: z.boolean().optional(),
   draft: z.boolean().optional(),
   folder: FolderTypeSchema.optional(),
 })

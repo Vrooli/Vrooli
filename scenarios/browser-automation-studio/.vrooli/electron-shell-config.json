@@ -1,0 +1,77 @@
+{
+  "app_name": "browser-automation-studio",
+  "app_display_name": "Vrooli Ascension",
+  "app_description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
+  "version": "1.0.0",
+  "author": "Vrooli Team",
+  "author_email": "noreply@vrooli.com",
+  "homepage": "https://vrooli.com",
+  "icon": "platforms/electron/assets/icon.png",
+  "license": "MIT",
+  "app_id": "com.vrooli.browser-automation-studio",
+  "app_url": "",
+  "server_type": "external",
+  "server_port": 20000,
+  "server_path": "http://localhost:20000",
+  "api_endpoint": "http://localhost:15000",
+  "scenario_dist_path": "bundle",
+  "deployment_mode": "proxy",
+  "scenario_name": "browser-automation-studio",
+  "auto_manage_vrooli": false,
+  "vrooli_binary_path": "vrooli",
+  "framework": "electron",
+  "strategy_id": "electron-sidecar",
+  "template_type": "basic",
+  "features": {
+    "splash": true,
+    "systemTray": true,
+    "autoUpdater": true,
+    "singleInstance": true,
+    "devTools": true,
+    "menu": true
+  },
+  "window": {
+    "width": 1400,
+    "height": 900,
+    "background": "#2e2c29",
+    "title": "Vrooli Ascension"
+  },
+  "styling": {
+    "splashBackgroundStart": "#1a1a1a",
+    "splashBackgroundEnd": "#2d2d2d",
+    "splashTextColor": "#ffffff",
+    "splashAccentColor": "#00d4ff"
+  },
+  "platforms": [
+    "linux"
+  ],
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 15000
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 20000
+    },
+    "playwright_driver": {
+      "env_var": "PLAYWRIGHT_DRIVER_PORT",
+      "port": 24400
+    },
+    "playwright_driver_frames": {
+      "env_var": "PLAYWRIGHT_DRIVER_FRAMES_PORT",
+      "port": 24400
+    },
+    "playwright_driver_metrics": {
+      "env_var": "PLAYWRIGHT_DRIVER_METRICS_PORT",
+      "port": 24400
+    }
+  },
+  "code_signing": {
+    "enabled": true,
+    "linux": {
+      "gpg_key_id": "4A81236E416FA4792815AB648D783B0798A75581"
+    }
+  },
+  "output_path": "platforms/electron"
+}

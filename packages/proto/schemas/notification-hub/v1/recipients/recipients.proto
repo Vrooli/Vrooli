@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.recipients;
+
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients;recipients_v1";
+
+service RecipientsService {
+  rpc GetRecipient(GetRecipientRequest) returns (Recipient);
+  rpc RegisterPushSubscription(RegisterPushSubscriptionRequest) returns (RegisterPushSubscriptionResponse);
+  rpc RemovePushSubscription(RemovePushSubscriptionRequest) returns (RemovePushSubscriptionResponse);
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc UpsertDevice(UpsertDeviceRequest) returns (Device);
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+  rpc UpsertChannelAddress(UpsertChannelAddressRequest) returns (ChannelAddress);
+  rpc RemoveChannelAddress(RemoveChannelAddressRequest) returns (RemoveChannelAddressResponse);
+  rpc SetQuietWindow(SetQuietWindowRequest) returns (QuietWindow);
+  rpc ListQuietWindows(ListQuietWindowsRequest) returns (ListQuietWindowsResponse);
+  rpc DeleteQuietWindow(DeleteQuietWindowRequest) returns (DeleteQuietWindowResponse);
+  rpc SetEscalationChain(SetEscalationChainRequest) returns (EscalationChain);
+  rpc GetEscalationChain(GetEscalationChainRequest) returns (EscalationChain);
+}
+
+message GetRecipientRequest {}
+message Recipient {
+  string id = 1;
+  string subject = 2;
+  string trust_posture = 3;
+  string created_at = 4;
+  string updated_at = 5;
+}
+
+message RegisterPushSubscriptionRequest {
+  string endpoint = 1;
+  string p256dh = 2;
+  string auth = 3;
+  string origin = 4;
+}
+message RegisterPushSubscriptionResponse { string subscription_id = 1; }
+message RemovePushSubscriptionRequest { string endpoint = 1; }
+message RemovePushSubscriptionResponse {}
+message ListDevicesRequest {}
+message Device { string id = 1; string name = 2; string machine_id = 3; repeated string channels = 4; }
+message ListDevicesResponse {
+  repeated Device devices = 1;
+  // Public half of the scenario-owned VAPID key. It is safe to return to the
+  // authenticated UI; the private half never leaves scenario state storage.
+  string vapid_public_key = 2;
+}
+message UpsertDeviceRequest { string id = 1; string name = 2; string machine_id = 3; }
+message RemoveDeviceRequest { string id = 1; }
+message RemoveDeviceResponse {}
+
+message ChannelAddress {
+  string id = 1;
+  string device_id = 2;
+  string channel = 3;
+  string address = 4;
+  repeated string approved_labels = 5;
+}
+message UpsertChannelAddressRequest {
+  string id = 1;
+  string device_id = 2;
+  string channel = 3;
+  string address = 4;
+  repeated string approved_labels = 5;
+}
+message RemoveChannelAddressRequest { string id = 1; }
+message RemoveChannelAddressResponse {}
+message SetQuietWindowRequest {
+  int32 weekday = 1;
+  string start = 2;
+  string end = 3;
+  string timezone = 4;
+  bool critical_override = 5;
+}
+message QuietWindow { string id = 1; int32 weekday = 2; string start = 3; string end = 4; string timezone = 5; bool critical_override = 6; }
+message ListQuietWindowsRequest {}
+message ListQuietWindowsResponse { repeated QuietWindow windows = 1; }
+message DeleteQuietWindowRequest { string id = 1; }
+message DeleteQuietWindowResponse {}
+
+message EscalationStep { int32 ordinal = 1; string channel = 2; }
+message EscalationChain { string recipient_id = 1; repeated EscalationStep steps = 2; }
+message SetEscalationChainRequest { repeated string channels = 1; }
+message GetEscalationChainRequest {}

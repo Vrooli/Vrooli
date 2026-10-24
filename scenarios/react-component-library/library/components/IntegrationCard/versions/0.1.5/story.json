@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "connected", "name": "Connected account", "args": { "providerName": "OpenRouter", "connectionName": "Production key", "status": "connected", "scopes": ["models:read"], "bindings": ["web-console"], "freshness": "Verified recently" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "needs-attention", "name": "Needs attention", "args": { "providerName": "GitHub", "connectionName": "Expired token", "status": "needs_attention", "nextAction": "Reconnect this account" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "expired", "name": "Expired", "args": { "providerName": "GitHub", "connectionName": "Expired token", "status": "expired", "nextAction": "Reconnect this account" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "disconnected", "name": "Disconnected", "args": { "providerName": "GitHub", "connectionName": "Disconnected account", "status": "disconnected", "nextAction": "Connect this account" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "insufficient-scope", "name": "Insufficient scope", "args": { "providerName": "GitHub", "connectionName": "Limited token", "status": "insufficient_scope", "scopes": ["profile:read"], "nextAction": "Reconnect with the required permissions" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "provider-unavailable", "name": "Provider unavailable", "args": { "providerName": "Remote provider", "connectionName": "Provider outage", "status": "provider_unavailable", "nextAction": "Try again later" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "offline", "name": "Offline", "args": { "providerName": "Remote provider", "connectionName": "Unavailable account", "status": "offline", "nextAction": "Try again when the provider is available" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] },
+    { "id": "default", "name": "Default", "args": { "providerName": "Example provider", "connectionName": "Example connection", "status": "unknown" }, "expect": [{ "kind": "visible", "selector": "[data-testid=integration-card]" }] }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.style-sheet",
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:StyleSheet"
+}

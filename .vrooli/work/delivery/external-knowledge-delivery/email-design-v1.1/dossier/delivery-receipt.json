@@ -1,0 +1,22 @@
+{
+  "version": "1.1",
+  "date": "2026-10-14",
+  "entry_document": "1bAOrWfuDLas4VABUzXC8H3DOGtGeRdNgvQwfdkV52E4",
+  "spec_document": "1b-XsCToyltcrFWZuHQIo-M6DQVOASP6pjafOpPk9nbY",
+  "atlas_document": "1FGEwJtpi67XDCfqpzb4FwkL4isVEXRDNhlsC3Q7FtjU",
+  "atlas_pdf_file": "11LA8rM-T-FCtqPenWi1qk26C_U7pL0D1",
+  "source_package_file": "1qXodc3dVfSssXBMThb34BeKiV2v3Bp9H",
+  "spec_pdf_file": "1edmfwCH8NSClMF83MFQrLzk_XptKVWY3",
+  "history_folder": "1UScrIfcGb9VzlPH6ZsWUffnO2ToYwnEK",
+  "coverage": {
+    "representative_screens": 21,
+    "rendered_variants": 84,
+    "vector_atlas_pages": 112,
+    "native_overview_pages": 24,
+    "spec_pages": 26
+  },
+  "owner_selection": "20:59 UTC multi-Gmail first-release/unified/account filtering/provider-neutral seam; overall prior visual direction endorsed",
+  "native_import": "pending",
+  "team_state": "disabled; no activation performed",
+  "sharing": "Private owner access retained; no sharing expansion"
+}

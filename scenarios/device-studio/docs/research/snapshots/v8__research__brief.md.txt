@@ -1,0 +1,7 @@
+# Device Studio: accepted decisions and dependent research
+
+Read decisions.json and ../..//v7/research/README.md. The operator selected all seven A recommendations, with cross-platform desktop architecture from the start, existing Vrooli monetization/credits/account integration, and clear disclosure of every AI or agent-initiating action.
+
+Research actual code and current owner contracts. Distinguish implemented, documented, and proposed. Deliver file:line evidence and concise gaps/recommendations. No production edits, installs, lifecycle changes, credentials, purchases or paid calls. Preserve v1-v7. Reports here inform the general implementation/validation approach; they do not create the scenario or certify releases.
+
+Outputs: monetization.md, identity-credits.md, desktop-rendering.md, and parent synthesis/catalog follow-up. Use primary online sources only when external facts are needed. Check referenced paths exist. Scope: investigation, targeted evidence validation only.

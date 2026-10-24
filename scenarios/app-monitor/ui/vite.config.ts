@@ -6,6 +6,7 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '');
+  const isProfile = mode === 'profile';
 
   return {
     base: './',  // Required for universal deployment (proxied scenarios)
@@ -33,8 +34,17 @@ export default defineConfig(({ mode }) => {
         '@services': path.resolve(__dirname, './src/services'),
         '@types': path.resolve(__dirname, './src/types'),
         '@utils': path.resolve(__dirname, './src/utils'),
+        ...(isProfile ? {
+          'react-dom/client': 'react-dom/profiling',
+          'react-dom$': 'react-dom/profiling',
+        } : {}),
       },
     },
+    esbuild: isProfile
+      ? {
+          keepNames: true,
+        }
+      : undefined,
     build: {
       outDir: 'dist',
       sourcemap: true,
@@ -42,7 +52,7 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       environment: 'jsdom',
-      setupFiles: ['./src/setupTests.ts'],
+      setupFiles: ['./src/test-setup.ts'],
       pool: 'forks',
       maxWorkers: 1,
       minWorkers: 1,
@@ -53,11 +63,23 @@ export default defineConfig(({ mode }) => {
         provider: 'v8',
         reporter: ['json-summary', 'json', 'text'],
         reportOnFailure: true,
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'src/**/*.spec.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test-setup.ts',
+          'src/test-utils/**',
+          'src/consts/strings.generated.ts',
+          'src/i18n/locales/**',
+          'src/**/generated/**',
+        ],
         thresholds: {
-          lines: 0,
-          functions: 0,
-          branches: 0,
-          statements: 0,
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
         },
       },
     },

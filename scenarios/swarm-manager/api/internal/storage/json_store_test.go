@@ -38,8 +38,8 @@ func TestWriteJSONAtomicCreatesFileAndDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected file stat to succeed: %v", err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o644 {
-		t.Fatalf("expected permissions 0644, got %04o", perm)
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("expected permissions 0600, got %04o", perm)
 	}
 	if len(bytes) == 0 {
 		t.Fatalf("expected file to contain JSON bytes")

@@ -6,16 +6,9 @@ Complete documentation for the knowledge-observatory CLI (`knowledge-observatory
 
 ## Installation
 
-```bash
-cd scenarios/knowledge-observatory/cli
-go build -o knowledge-observatory .
-```
-
-Or install via the shared installer (recommended):
-
-```bash
-./install.sh
-```
+The Vrooli control plane builds and installs the declared CLI surface during
+scenario lifecycle setup. Start the scenario with `vrooli scenario start knowledge-observatory`.
+Use `knowledge-observatory --help` for the current command inventory.
 
 ## Global Options
 
@@ -31,15 +24,15 @@ Or install via the shared installer (recommended):
 | Command | Description |
 |---------|-------------|
 | `status` | Check API health |
-| `search` | Semantic search over knowledge |
-| `ingest` | Ingest a single record |
-| `ingest-job` | Enqueue an async document ingest job |
-| `job-status` | Fetch ingest job status |
-| `ingest-health` | Inspect ingest queue/runner health |
+| `search` | Documentation hybrid search |
+| `knowledge-base` | Governed source inspection and maintenance evidence |
+| `knowledge inventory` | Bounded candidate inventory; read-only |
+| `knowledge proposals` | Review-only disposition proposals |
+| `knowledge route` | Dry-run or owner-authorized routing receipt |
+| `reindex` | Documentation index reconciliation |
 | `collection-diagnostics` | Inspect embedding/chunk diagnostics for a collection |
 | `collection-prune-stale` | Prune stale chunk versions (dry-run by default) |
 | `collection-dedupe` | Remove duplicate content chunks (dry-run by default) |
-| `document-delete` | Delete chunks for a document (dry-run by default) |
 | `health` | Knowledge health metrics |
 | `metrics` | Alias for `health` |
 | `graph` | Generate a knowledge graph |
@@ -58,78 +51,38 @@ knowledge-observatory status [--json]
 
 ## search
 
-```bash
-knowledge-observatory search "agent workflows" --limit 10 --threshold 0.35
+```text
+knowledge-observatory search query "agent workflows" --limit 5 --json
+knowledge-observatory search status
 ```
 
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--collection` | Collection name |
-| `--namespaces` | Comma-separated namespaces |
-| `--visibility` | Comma-separated visibility values |
-| `--tags` | Comma-separated tags |
-| `--ingested-after` | RFC3339 timestamp filter |
-| `--ingested-before` | RFC3339 timestamp filter |
-| `--limit` | Max results |
-| `--threshold` | Score threshold |
+For governed agent workflows, prefer `knowledge-base search`. Repository documents
+are discovered by indexing; there is no `ingest`, `ingest-job`, `job-status`,
+`ingest-health`, or `document-delete` CLI command.
 
-## ingest
+## knowledge-base
 
-```bash
-knowledge-observatory ingest --namespace docs --content "Knowledge Observatory entry" --visibility shared
+| Command | Purpose |
+|---|---|
+| `search` | Scoped retrieval with source identity and live authority declarations |
+| `inspect` | Revision-pinned source pages; `--allow-missing` returns a typed missing observation for absent paths |
+| `review` | Selected-document duplicate/reference/portability evidence |
+| `health` | Documentation checks; use `--scope path-exact` to retain an exact family scope |
+| `status` | Index availability and reconciliation status |
+
+Each command supports `--json`. See the [usage guide](../guides/getting-started.md)
+and [maintenance workflow](../guides/document-maintenance.md) for program composition,
+input examples, evidence interpretation, and knowledge preservation.
+
+## reindex
+
+```text
+knowledge-observatory reindex status
+knowledge-observatory reindex run --dry-run
 ```
 
-Content can also be passed as positional arguments or via stdin.
-
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--namespace` | Namespace (required) |
-| `--collection` | Collection name |
-| `--visibility` | Visibility (shared, private, restricted) |
-| `--record-id` | Explicit record ID |
-| `--external-id` | External identifier |
-| `--tags` | Comma-separated tags |
-| `--metadata` | Metadata JSON object |
-| `--source` | Source identifier |
-| `--source-type` | Source type |
-| `--content` | Content string |
-
-## ingest-job
-
-```bash
-knowledge-observatory ingest-job --namespace docs --content "$(cat README.md)" --chunk-size 1200 --chunk-overlap 150
-```
-
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--namespace` | Namespace (required) |
-| `--collection` | Collection name |
-| `--visibility` | Visibility (shared, private, restricted) |
-| `--document-id` | Explicit document ID |
-| `--external-id` | External identifier |
-| `--tags` | Comma-separated tags |
-| `--metadata` | Metadata JSON object |
-| `--source` | Source identifier |
-| `--source-type` | Source type |
-| `--chunk-size` | Chunk size override |
-| `--chunk-overlap` | Chunk overlap override |
-| `--content` | Content string |
-
-## job-status
-
-```bash
-knowledge-observatory job-status <job_id>
-```
-
-## ingest-health
-
-```bash
-knowledge-observatory ingest-health
-knowledge-observatory ingest-health --watch --interval 10s
-```
+Use the owner command help before requesting index mutations. Collection maintenance
+operates on index chunks, not source-document consolidation or retirement.
 
 ## collection-diagnostics
 
@@ -175,23 +128,6 @@ knowledge-observatory collection-dedupe --collection knowledge --apply --max-del
 | `--apply` | Execute deletion |
 | `--max-deletes` | Max duplicate points to delete |
 
-## document-delete
-
-```bash
-knowledge-observatory document-delete --namespace docs --document-id doc-123
-knowledge-observatory document-delete --namespace docs --external-id ext-123 --apply
-```
-
-**Options:**
-| Flag | Description |
-|------|-------------|
-| `--namespace` | Namespace (required) |
-| `--collection` | Collection override |
-| `--document-id` | Document identifier |
-| `--external-id` | External identifier (resolved server-side) |
-| `--dry-run` | Preview only (default true) |
-| `--apply` | Execute deletion |
-
 ## health / metrics
 
 ```bash
@@ -230,7 +166,7 @@ knowledge-observatory docs health knowledge-observatory
 knowledge-observatory docs view "scenarios/knowledge-observatory/docs/manifest.json" --format preview
 knowledge-observatory docs reset "scenarios/knowledge-observatory/docs/internal/PROBLEMS.md" --max-age-days 30 --keep-min-entries 3 --preview
 knowledge-observatory docs heal knowledge-observatory --dry-run --wait
-knowledge-observatory docs heal-status <job_id>
+knowledge-observatory docs heal-status "<job_id>"
 ```
 
 ### docs search-files
@@ -294,10 +230,49 @@ Fetch the documentation tree for a scenario.
 
 Fetch documentation health details for a scenario.
 
+```bash
+knowledge-observatory docs health knowledge-observatory
+knowledge-observatory docs health knowledge-observatory --json
+```
+
 **Options:**
 | Flag | Description |
 |------|-------------|
 | `--scenario` | Scenario name (optional if provided as positional argument) |
+| `--scope` | `scenario` (default) or `path` |
+| `--path` | Docs path to scan when using path scope |
+| `--checks` | Comma-separated checks: `structure`, `content`, `links`, `refs`, `commands`, `manifest`, `numbers` |
+| `--strict-external-links` | Treat external link failures as failures |
+| `--require-all-docs-registered` | Report scenario docs missing from `docs/manifest.json` |
+| `--skip-external-links` | Skip external link probing for offline runs |
+| `--json` | Emit raw JSON output |
+
+The `refs` check validates explicit marked references such as `cli:...`.
+The `commands` check conservatively validates Vrooli-owned commands found in
+fenced shell snippets by delegating to CLI Health (DOCS policy); it does not
+execute the referenced commands.
+
+Command-snippet finding codes:
+| Code | Severity | Meaning |
+|------|----------|---------|
+| `broken_command_snippet` | warning | Snippet is invalid: unknown path, bad arguments, `enum_placeholder_mismatch` (an `"<a\|b\|c>"` alternation drifted from the manifest/proto vocabulary), or `invalid_literal_value` (an example value violates descriptor-derived constraints) |
+| `placeholder_style` | warning | Snippet is correct but uses unquoted `<...>` placeholders; the finding carries a byte-exact quoted fix that `docs fix-placeholders` applies deterministically |
+| `partial_command_snippet` | info | Command path exists but argument metadata was unavailable |
+| `unknown_command_snippet` | warning | Validation could not complete (CLI Health unreachable, unknown owner) |
+
+The preferred documentation convention is quoted placeholders: `"<session>"`
+for a named slot, `"<minor|moderate|major|architectural>"` for an enum whose
+alternation must exactly match the owning manifest's `values` (union any proto
+enum). Quoting keeps snippets shell-safe when pasted verbatim and lets the
+enum vocabulary be machine-checked instead of hand-maintained prose.
+
+Human output includes the shared health maturity report. For Knowledge
+Observatory docs health, that report separates documentation contract, required
+docs, append-log integrity, content quality, link health, reference integrity,
+and manifest coverage so operators can see the highest-priority documentation
+capability instead of one overloaded local ladder. The `--json` form preserves
+the complete shared `assessment` payload, including `assessment.local` for
+legacy consumers and `assessment.capabilities[]` for capability-aware tooling.
 
 ### docs view
 
@@ -325,9 +300,31 @@ Fetch status for a healing job by ID.
 |------|-------------|
 | `--job-id` | Healing job ID (optional if provided as positional argument) |
 
+### docs fix-placeholders
+
+Apply the deterministic quoted-placeholder fixes for a scenario's markdown
+command snippets. A thin wrapper over the shared scenario-validation
+`PreviewFix`/`ApplyFix` RPC scoped to the `placeholder_style` rule: the server
+re-validates every snippet through CLI Health and applies each returned
+byte-exact fix verbatim (never recomputed). Idempotent — a second run reports
+zero candidates.
+
+```bash
+knowledge-observatory docs fix-placeholders "<scenario>" --dry-run   # unified diff, no writes
+knowledge-observatory docs fix-placeholders "<scenario>"             # apply
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--scenario` | Scenario name (optional if provided as positional argument) |
+| `--dry-run` | Preview the unified diff without writing; selects exactly the files/lines the apply path would touch |
+| `--json` | Emit the raw FixResponse |
+
 ### docs reset
 
-Reset/clean supported documents (PROBLEMS/PROGRESS).
+Reset/clean supported documents that declare `operations.appendLog` with
+reset support in the resolved documentation manifest.
 
 **Options:**
 | Flag | Description |
@@ -341,8 +338,8 @@ Reset/clean supported documents (PROBLEMS/PROGRESS).
 
 ```bash
 knowledge-observatory configure
-knowledge-observatory configure api_base http://localhost:<API_PORT>
-knowledge-observatory configure token <api_token>
+knowledge-observatory configure api_base http://localhost:"<API_PORT>"
+knowledge-observatory configure token "<api_token>"
 ```
 
 ## Environment overrides

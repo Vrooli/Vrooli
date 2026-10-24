@@ -141,9 +141,9 @@ export function useDownloadHosting({
         bucket: settings.bucket ?? '',
         region: settings.region ?? '',
         endpoint: settings.endpoint ?? '',
-        forcePathStyle: settings.force_path_style ?? false,
+        forcePathStyle: settings.force_path_style,
         defaultPrefix: settings.default_prefix ?? '',
-        signedUrlTtlSeconds: settings.signed_url_ttl_seconds ?? 900,
+        signedUrlTtlSeconds: settings.signed_url_ttl_seconds,
         publicBaseUrl: settings.public_base_url ?? '',
       });
       setCredentialsForm((prev) => ({
@@ -179,7 +179,7 @@ export function useDownloadHosting({
             app_key: artifactsAppKey || undefined,
             page_size: 50,
           });
-      setArtifacts(response.artifacts ?? []);
+      setArtifacts(response.artifacts);
     } catch (err) {
       setArtifactsError(err instanceof Error ? err.message : 'Failed to load artifacts');
     } finally {
@@ -235,7 +235,7 @@ export function useDownloadHosting({
         release_version: uploadState.releaseVersion.trim() || undefined,
       });
       const headers = new Headers();
-      Object.entries(presign.required_headers ?? {}).forEach(([key, value]) => {
+      Object.entries(presign.required_headers).forEach(([key, value]) => {
         if (key.toLowerCase() === 'host') return;
         headers.set(key, value);
       });
@@ -243,7 +243,7 @@ export function useDownloadHosting({
         headers.set('Content-Type', uploadState.file.type || 'application/octet-stream');
       }
       const uploadResp = await fetch(presign.upload_url, { method: 'PUT', headers, body: uploadState.file });
-      if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`);
+      if (!uploadResp.ok) throw new Error(`Upload failed (${String(uploadResp.status)})`);
       await commitDownloadArtifactAdmin({
         bucket: presign.bucket,
         object_key: presign.object_key,

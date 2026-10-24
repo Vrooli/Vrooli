@@ -1,0 +1,54 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createOperationsService, type IOperationsService } from "./operations-service";
+import type { IApiClient } from "../lib/api-client";
+
+// Actual public GET consumers. Command strings/run IDs are projection data only;
+// no command, stop, queue, dispatch or authentication capability is exercised.
+let client: IApiClient;
+let service: IOperationsService;
+let expectedReads: unknown[][];
+const emptySummary = { activeActivityCount: 0, recentlyFinishedCount: 0, queueDepth: 0, maxQueueDepth: 0, saturatedLanes: [], activeLaneCountByLane: {}, totalBacklogItems: 0, activeGoals: 0, blockedItems: 0, activeSessions: 0 };
+const emptyBriefing = { generatedAt: "", freshnessSeconds: 0, windowSeconds: 0, summary: emptySummary, activeWork: [], needsAttention: [], recentCompletions: [], directorHandoffs: [], recommendedNextActions: [], drillDownCommands: [], warnings: [] };
+beforeEach(() => {
+  client = { get: vi.fn().mockRejectedValue(new Error("Unconfigured operations read")), post: vi.fn().mockRejectedValue(new Error("Forbidden post")), put: vi.fn().mockRejectedValue(new Error("Forbidden put")), patch: vi.fn().mockRejectedValue(new Error("Forbidden patch")), delete: vi.fn().mockRejectedValue(new Error("Forbidden delete")) };
+  service = createOperationsService(client); expectedReads = [];
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Forbidden alternate transport")));
+});
+afterEach(() => {
+  try { expect(vi.mocked(client.get).mock.calls).toEqual(expectedReads); for (const method of ["post", "put", "patch", "delete"] as const) expect(client[method]).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled(); }
+  finally { vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+describe("Operations public read projection compatibility", () => {
+  it("sends complete repeated filters and preserves rich camel-case activity context", async () => {
+    expectedReads = [["/operations?window=PT1H1M1S&status=running&status=needs_review&lane=execute&lane=review&mode=bounded&owner_type=backlog&owner_type=scenario&q=owner+%26+proof"]];
+    vi.mocked(client.get).mockResolvedValue({ lanes: [{ lane: "execute", active: 1, capacity: 2, queue: 3 }], queue: { depth: 3, maxDepth: 12 }, activities: [{ activityId: "fixture-activity", runId: "fixture-run", ownerType: "backlog", ownerKind: "fix", ownerName: "fixture-owner", ownerTitle: "Owner title", purpose: "process", phaseKind: "execute", lane: "execute", status: "running", mode: "bounded", phase: "working", round: 2, milestoneName: "fixture-milestone", requestedAt: "requested", startedAt: "started", finishedAt: "finished", runtimeSeconds: 0, failureReason: "retained reason", requestedBy: "retained requester", interactionType: "operator" }], recentlyFinished: [], generatedAt: "generated", windowSeconds: 3661 });
+    expect(await service.fetchOperations({ windowSeconds: 3661, statuses: [" running ", "", "needs_review"], lanes: ["execute", " review "], modes: [" bounded ", " "], ownerTypes: ["backlog", "scenario"], q: " owner & proof " })).toEqual({ lanes: [{ lane: "execute", active: 1, capacity: 2, queue: 3 }], queue: { depth: 3, maxDepth: 12 }, activities: [{ activityId: "fixture-activity", runId: "fixture-run", ownerType: "backlog", ownerKind: "fix", ownerName: "fixture-owner", ownerTitle: "Owner title", purpose: "process", phaseKind: "execute", lane: "execute", status: "running", mode: "bounded", phase: "working", round: 2, milestoneName: "fixture-milestone", requestedAt: "requested", startedAt: "started", finishedAt: "finished", runtimeSeconds: 0, failureReason: "retained reason", requestedBy: "retained requester", interactionType: "operator" }], recentlyFinished: [], generatedAt: "generated", windowSeconds: 3661 });
+  });
+  it("omits blank filters and an explicit zero window without sending an alternate default request", async () => {
+    expectedReads = [["/operations"]]; vi.mocked(client.get).mockResolvedValue({});
+    expect(await service.fetchOperations({ windowSeconds: 0, statuses: [" "], lanes: [""], modes: [" "], ownerTypes: [""], q: " " })).toEqual({ lanes: [], queue: { depth: 0, maxDepth: 0 }, activities: [], recentlyFinished: [], generatedAt: "", windowSeconds: 0 });
+  });
+  it("preserves explicit snake-case empty/zero fields ahead of conflicting camel aliases", async () => {
+    expectedReads = [["/operations"]];
+    vi.mocked(client.get).mockResolvedValue({ queue: { depth: 0, max_depth: 0, maxDepth: 12 }, activities: [{ activity_id: "snake-id", activityId: "ignored", run_id: "", runId: "ignored-run", owner_type: "backlog", ownerType: "ignored-owner", owner_kind: "", ownerKind: "ignored-kind", owner_name: "snake-name", ownerName: "ignored-name", owner_title: "", ownerTitle: "ignored-title", purpose: "process", phase_kind: "", phaseKind: "ignored-phase", lane: "", status: "pending", mode: "", phase: "", round: 0, milestone_name: "", milestoneName: "ignored-milestone", requested_at: "snake-requested", requestedAt: "ignored-time", started_at: "", startedAt: "ignored-start", finished_at: "", finishedAt: "ignored-finish", runtime_seconds: 0, runtimeSeconds: 99, failure_reason: "", failureReason: "ignored-reason", requested_by: "", requestedBy: "ignored-requester", interaction_type: "", interactionType: "ignored-interaction" }], recently_finished: [], recentlyFinished: [{ activityId: "ignored-finished" }], generated_at: "", generatedAt: "ignored-generated", window_seconds: 0, windowSeconds: 999 });
+    expect(await service.fetchOperations()).toEqual({ lanes: [], queue: { depth: 0, maxDepth: 0 }, activities: [{ activityId: "snake-id", runId: undefined, ownerType: "backlog", ownerKind: undefined, ownerName: "snake-name", ownerTitle: undefined, purpose: "process", phaseKind: undefined, lane: undefined, status: "pending", mode: undefined, phase: undefined, round: undefined, milestoneName: undefined, requestedAt: "snake-requested", startedAt: undefined, finishedAt: undefined, runtimeSeconds: 0, failureReason: undefined, requestedBy: undefined, interactionType: undefined }], recentlyFinished: [], generatedAt: "", windowSeconds: 0 });
+  });
+  it("retains full camel-case briefing advice, warnings and optional owner context as inert read data", async () => {
+    expectedReads = [["/operations/brief?window=PT1M30S"]];
+    vi.mocked(client.get).mockResolvedValue({ generatedAt: "brief-at", freshnessSeconds: 0, windowSeconds: 90, summary: { activeActivityCount: 1, recentlyFinishedCount: 2, queueDepth: 3, maxQueueDepth: 10, saturatedLanes: ["review"], activeLaneCountByLane: { review: 1 }, totalBacklogItems: 12, activeGoals: 4, blockedItems: 2, activeSessions: 1 }, activeWork: [], recentCompletions: [], needsAttention: [{ id: "attention/fixture", severity: "medium", reason: "owner-read", title: "Read owner detail", status: "needs_review", lane: "review", ref: "fix/fixture", command: "swarm-manager operations list --lane review" }], directorHandoffs: [{ sourcePath: "fixture-handoff.md", title: "Owner handoff", observedAt: "observed", excerpt: "Retained excerpt" }], recommendedNextActions: [{ id: "read", label: "Read detail", reason: "Owner evidence", command: "swarm-manager operations brief --json", uiPath: "/operations" }], drillDownCommands: [{ label: "Read queue", command: "swarm-manager operations list --json" }], warnings: ["Optional source unavailable"] });
+    expect(await service.fetchBriefing!({ windowSeconds: 90 })).toEqual({ generatedAt: "brief-at", freshnessSeconds: 0, windowSeconds: 90, summary: { activeActivityCount: 1, recentlyFinishedCount: 2, queueDepth: 3, maxQueueDepth: 10, saturatedLanes: ["review"], activeLaneCountByLane: { review: 1 }, totalBacklogItems: 12, activeGoals: 4, blockedItems: 2, activeSessions: 1 }, activeWork: [], recentCompletions: [], needsAttention: [{ id: "attention/fixture", severity: "medium", reason: "owner-read", title: "Read owner detail", status: "needs_review", lane: "review", ref: "fix/fixture", command: "swarm-manager operations list --lane review" }], directorHandoffs: [{ sourcePath: "fixture-handoff.md", title: "Owner handoff", observedAt: "observed", excerpt: "Retained excerpt" }], recommendedNextActions: [{ id: "read", label: "Read detail", reason: "Owner evidence", command: "swarm-manager operations brief --json", uiPath: "/operations" }], drillDownCommands: [{ label: "Read queue", command: "swarm-manager operations list --json" }], warnings: ["Optional source unavailable"] });
+  });
+  it("keeps minimal optional briefing rows readable without inventing run, command or navigation refs", async () => {
+    expectedReads = [["/operations/brief"]]; vi.mocked(client.get).mockResolvedValue({ needs_attention: [{ id: "attention/minimal", severity: "low", reason: "read", title: "Minimal attention" }], director_handoffs: [{ title: "Minimal handoff", excerpt: "Retained" }], recommended_next_actions: [{ id: "minimal", label: "Read", reason: "Owner" }], drill_down_commands: [{ label: "No command yet" }] });
+    expect(await service.fetchBriefing!()).toEqual({ ...emptyBriefing, needsAttention: [{ id: "attention/minimal", severity: "low", reason: "read", title: "Minimal attention", status: undefined, lane: undefined, ref: undefined, command: undefined }], directorHandoffs: [{ sourcePath: "", title: "Minimal handoff", observedAt: undefined, excerpt: "Retained" }], recommendedNextActions: [{ id: "minimal", label: "Read", reason: "Owner", command: undefined, uiPath: undefined }], drillDownCommands: [{ label: "No command yet", command: "" }] });
+  });
+  it("drops unsupported briefing collection/value types using the existing defensive display defaults", async () => {
+    expectedReads = [["/operations/brief"]];
+    vi.mocked(client.get).mockResolvedValue({ generated_at: 7, freshness_seconds: "stale", window_seconds: null, summary: { active_activity_count: "unknown", queue_depth: false, saturated_lanes: ["execute", false, 7], active_lane_count_by_lane: { execute: 1, unsupported: "unknown" } }, active_work: "not-an-array", recent_completions: {}, needs_attention: null, director_handoffs: 7, recommended_next_actions: false, drill_down_commands: "not-a-list", warnings: ["Retained warning", 7, false, null] });
+    expect(await service.fetchBriefing!()).toEqual({ ...emptyBriefing, summary: { ...emptySummary, saturatedLanes: ["execute"], activeLaneCountByLane: { execute: 1 } }, warnings: ["Retained warning"] });
+  });
+  it.each(["fetchOperations", "fetchBriefing"] as const)("propagates an exact %s refusal without an alternate request or stop fallback", async method => {
+    expectedReads = [[method === "fetchOperations" ? "/operations" : "/operations/brief"]]; const error = new Error("Owner read unavailable"); vi.mocked(client.get).mockRejectedValue(error);
+    await expect(service[method]!()).rejects.toBe(error);
+  });
+});

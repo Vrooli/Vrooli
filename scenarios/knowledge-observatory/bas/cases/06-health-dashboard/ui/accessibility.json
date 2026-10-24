@@ -1,52 +1,75 @@
 {
   "metadata": {
+    "name": "accessibility",
     "description": "Verifies dashboard meets WCAG AA accessibility standards",
-    "version": 1,
-    "reset": "full",
-    "requirements": [
-      "KO-HD-005"
-    ],
-    "execution_mode": "mutating"
+    "version": "1",
+    "requirement": "KO-HD-005",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "execution_viewport_preset": "desktop",
+      "requirements_json": "[\"KO-HD-005\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open Knowledge Observatory dashboard",
-        "destinationType": "scenario",
-        "scenario": "knowledge-observatory",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Knowledge Observatory dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "knowledge-observatory",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "navigate-home-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for page to settle"
+        },
+        "wait": {
+          "duration_ms": 1000
+        }
       }
     },
     {
       "id": "assert-accessibility",
-      "type": "assert",
-      "data": {
-        "label": "Page is accessible",
-        "selector": "html",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Page should be accessible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Page is accessible"
+        },
+        "assert": {
+          "selector": "html",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Page should be accessible"
+        }
       }
     }
   ],
   "edges": [
     {
-      "id": "e1",
+      "id": "e1-settle-in",
       "source": "navigate-home",
-      "target": "assert-accessibility",
-      "type": "smoothstep"
+      "target": "navigate-home-settle"
+    },
+    {
+      "id": "e1",
+      "source": "navigate-home-settle",
+      "target": "assert-accessibility"
     }
   ]
 }

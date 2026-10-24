@@ -35,11 +35,9 @@ export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-util
 export {
   LOCKED_STATUSES,
   TERMINAL_STATUSES,
-  getBacklogNotQueueableReason,
-  getItemActions,
-  isBacklogQueueable,
+  itemActionsFromNextAction,
 } from "./backlog-queue-utils";
-export type { ActionContext, ItemActions, PrimaryCta } from "./backlog-queue-utils";
+export type { ItemActions, PrimaryCta } from "./backlog-queue-utils";
 
 // Theme Utilities
 export { applyTheme, resolveTheme, useResolvedTheme, watchSystemTheme } from "./theme-utils";
@@ -59,25 +57,8 @@ export type { ErrorCategory, ErrorLogEntry } from "./error-utils";
 
 // Workshop file utilities
 export {
-  WORKSHOP_FILE_PATHS,
-  parseWorkshopRound,
-  buildWorkshopRoundContent,
-  getPendingDecisionCount,
   findBacklogFileByPath,
 } from "./workshop-files";
-
-// Clarification utilities
-export { parseImpactFromContent } from "./clarification-utils";
-
-// Readiness computation
-export {
-  READINESS_DIMENSIONS,
-  DIMENSION_LABELS,
-  SCORE_COLORS,
-  buildReadinessData,
-  computeNextNudge,
-} from "./maturity";
-export type { ReadinessIndicatorData } from "./maturity";
 
 // Execution Utilities
 export {

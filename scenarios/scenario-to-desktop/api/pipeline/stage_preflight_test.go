@@ -92,7 +92,7 @@ func TestPreflightStage_BundleRootResolution(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test",
 			DeploymentMode: DeploymentModeBundled, // Explicitly set bundled mode for this test
 		},
@@ -182,7 +182,7 @@ func TestPreflightStage_BinaryPathResolution(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test",
 			DeploymentMode: DeploymentModeBundled, // Explicitly set bundled mode for this test
 		},
@@ -210,6 +210,33 @@ func TestPreflightStage_BinaryPathResolution(t *testing.T) {
 }
 
 // TestPreflightStage_NoBundleResult verifies proper error handling when bundle result is missing.
+func TestPreflightStage_DefersCrossTargetRuntimeValidation(t *testing.T) {
+	mockSvc := &mockPreflightService{}
+	stage := NewPreflightStage(
+		WithPreflightService(mockSvc),
+		WithPreflightTimeProvider(&mockTimeProvider{now: time.Now().Unix()}),
+	)
+
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &PipelineConfig{
+			ScenarioName:   "test",
+			DeploymentMode: DeploymentModeBundled,
+			Platforms:      []string{"mac-amd64"},
+		},
+		BundleResult: &bundle.PackageResult{BundleDir: t.TempDir(), ManifestPath: "bundle.json"},
+	})
+
+	if result.Status != StatusSkipped {
+		t.Fatalf("status = %q, want %q; error=%q", result.Status, StatusSkipped, result.Error)
+	}
+	if mockSvc.lastRequest != nil {
+		t.Fatal("cross-target preflight must not execute the host runtime")
+	}
+	if len(result.Logs) == 0 || !containsSubstring(result.Logs[len(result.Logs)-1], "target-host preflight evidence") {
+		t.Fatalf("logs = %v, want explicit target-host evidence guidance", result.Logs)
+	}
+}
+
 func TestPreflightStage_NoBundleResult(t *testing.T) {
 	mockSvc := &mockPreflightService{}
 	mockTime := &mockTimeProvider{now: time.Now().Unix()}
@@ -219,7 +246,7 @@ func TestPreflightStage_NoBundleResult(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test",
 			DeploymentMode: DeploymentModeBundled, // Bundled mode requires bundle result
 		},
@@ -294,7 +321,7 @@ func TestPreflightStage_Bundleability_FailsFast(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			DeploymentMode: DeploymentModeBundled,
 		},
@@ -366,7 +393,7 @@ func TestPreflightStage_Bundleability_WarnsWithSwap(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			DeploymentMode: DeploymentModeBundled,
 		},
@@ -451,7 +478,7 @@ func TestPreflightStage_Bundleability_ExternalServer_SkipsCheck(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-scenario",
 			DeploymentMode: DeploymentModeExternalServer, // External server mode - should skip check
 		},
@@ -472,6 +499,30 @@ func TestPreflightStage_Bundleability_ExternalServer_SkipsCheck(t *testing.T) {
 	// Should be skipped (external-server mode skips preflight entirely)
 	if result.Status != StatusSkipped {
 		t.Errorf("expected status %q, got %q (error: %s)", StatusSkipped, result.Status, result.Error)
+	}
+}
+
+func TestPreflightStageRecordsResourceEligibilityWarnings(t *testing.T) {
+	stage := NewPreflightStage()
+	result := newStageResult(stage.Name(), NewRealTimeProvider())
+	input := &StageInput{ResourceDeploymentPlan: &ResourceDeploymentPlan{Resources: []ResourceDeploymentPlanItem{
+		{Resource: "vault", OS: "windows", Architecture: "amd64", Support: "unsupported", Eligibility: "ineligible", EligibilityReason: "credential storage is unavailable"},
+		{Resource: "postgres", Bundling: "host-required", Requires: []string{"docker"}},
+		{Resource: "host-safeguard", Bundling: "prohibited", Limitations: []string{"host mutation is forbidden"}},
+	}}}
+
+	stage.appendResourceEligibilityWarnings(input, result)
+	if len(result.Logs) != 4 {
+		t.Fatalf("warning logs = %v, want stage-start plus three entries", result.Logs)
+	}
+	if !containsSubstring(result.Logs[1], "vault") || !containsSubstring(result.Logs[1], "windows-amd64") || !containsSubstring(result.Logs[1], "credential storage") {
+		t.Fatalf("ineligible warning = %q", result.Logs[1])
+	}
+	if !containsSubstring(result.Logs[2], "postgres") || !containsSubstring(result.Logs[2], "docker") {
+		t.Fatalf("host-required warning = %q", result.Logs[2])
+	}
+	if !containsSubstring(result.Logs[3], "host-safeguard") || !containsSubstring(result.Logs[3], "prohibited") {
+		t.Fatalf("prohibited warning = %q", result.Logs[3])
 	}
 }
 

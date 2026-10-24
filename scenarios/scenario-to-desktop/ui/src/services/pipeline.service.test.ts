@@ -15,7 +15,12 @@ import {
   TERMINAL_STATES,
   POLL_INTERVAL_MS,
 } from "./pipeline.service";
-import type { VerbosePipelineStatus } from "../lib/api";
+import { create } from "@bufbuild/protobuf";
+import { PipelineStatusSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 describe("pipeline.service", () => {
   describe("constants", () => {
@@ -24,67 +29,65 @@ describe("pipeline.service", () => {
     });
 
     it("should define terminal states", () => {
-      expect(TERMINAL_STATES).toContain("completed");
-      expect(TERMINAL_STATES).toContain("failed");
-      expect(TERMINAL_STATES).toContain("cancelled");
+      expect(TERMINAL_STATES).toContain(StageStatus.COMPLETED);
+      expect(TERMINAL_STATES).toContain(StageStatus.FAILED);
+      expect(TERMINAL_STATES).toContain(StageStatus.CANCELLED);
     });
   });
 
   describe("mapPipelineToRunStatus", () => {
     it("returns idle for null/undefined", () => {
-      expect(mapPipelineToRunStatus(null)).toBe("idle");
       expect(mapPipelineToRunStatus(undefined)).toBe("idle");
     });
 
     it("maps pending to running", () => {
-      expect(mapPipelineToRunStatus("pending")).toBe("running");
+      expect(mapPipelineToRunStatus(StageStatus.PENDING)).toBe("running");
     });
 
     it("maps running to running", () => {
-      expect(mapPipelineToRunStatus("running")).toBe("running");
+      expect(mapPipelineToRunStatus(StageStatus.RUNNING)).toBe("running");
     });
 
     it("maps completed to completed", () => {
-      expect(mapPipelineToRunStatus("completed")).toBe("completed");
+      expect(mapPipelineToRunStatus(StageStatus.COMPLETED)).toBe("completed");
     });
 
     it("maps failed to failed", () => {
-      expect(mapPipelineToRunStatus("failed")).toBe("failed");
+      expect(mapPipelineToRunStatus(StageStatus.FAILED)).toBe("failed");
     });
 
     it("maps cancelled to cancelled", () => {
-      expect(mapPipelineToRunStatus("cancelled")).toBe("cancelled");
+      expect(mapPipelineToRunStatus(StageStatus.CANCELLED)).toBe("cancelled");
     });
 
     it("maps unknown status to idle", () => {
-      expect(mapPipelineToRunStatus("unknown")).toBe("idle");
+      expect(mapPipelineToRunStatus(StageStatus.UNSPECIFIED)).toBe("idle");
     });
   });
 
   describe("isTerminalState", () => {
     it("returns false for null/undefined", () => {
-      expect(isTerminalState(null)).toBe(false);
       expect(isTerminalState(undefined)).toBe(false);
     });
 
     it("returns true for completed", () => {
-      expect(isTerminalState("completed")).toBe(true);
+      expect(isTerminalState(StageStatus.COMPLETED)).toBe(true);
     });
 
     it("returns true for failed", () => {
-      expect(isTerminalState("failed")).toBe(true);
+      expect(isTerminalState(StageStatus.FAILED)).toBe(true);
     });
 
     it("returns true for cancelled", () => {
-      expect(isTerminalState("cancelled")).toBe(true);
+      expect(isTerminalState(StageStatus.CANCELLED)).toBe(true);
     });
 
     it("returns false for pending", () => {
-      expect(isTerminalState("pending")).toBe(false);
+      expect(isTerminalState(StageStatus.PENDING)).toBe(false);
     });
 
     it("returns false for running", () => {
-      expect(isTerminalState("running")).toBe(false);
+      expect(isTerminalState(StageStatus.RUNNING)).toBe(false);
     });
   });
 
@@ -94,19 +97,35 @@ describe("pipeline.service", () => {
     });
 
     it("returns false for completed status", () => {
-      expect(shouldContinuePolling({ status: "completed" } as VerbosePipelineStatus)).toBe(false);
+      expect(
+        shouldContinuePolling(
+          create(PipelineStatusSchema, { status: StageStatus.COMPLETED }),
+        ),
+      ).toBe(false);
     });
 
     it("returns false for failed status", () => {
-      expect(shouldContinuePolling({ status: "failed" } as VerbosePipelineStatus)).toBe(false);
+      expect(
+        shouldContinuePolling(
+          create(PipelineStatusSchema, { status: StageStatus.FAILED }),
+        ),
+      ).toBe(false);
     });
 
     it("returns true for running status", () => {
-      expect(shouldContinuePolling({ status: "running" } as VerbosePipelineStatus)).toBe(true);
+      expect(
+        shouldContinuePolling(
+          create(PipelineStatusSchema, { status: StageStatus.RUNNING }),
+        ),
+      ).toBe(true);
     });
 
     it("returns true for pending status", () => {
-      expect(shouldContinuePolling({ status: "pending" } as VerbosePipelineStatus)).toBe(true);
+      expect(
+        shouldContinuePolling(
+          create(PipelineStatusSchema, { status: StageStatus.PENDING }),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -123,14 +142,20 @@ describe("pipeline.service", () => {
     });
 
     it("categorizes validation errors", () => {
-      expect(categorizeError(new Error("validation failed"))).toBe("validation");
+      expect(categorizeError(new Error("validation failed"))).toBe(
+        "validation",
+      );
       expect(categorizeError(new Error("invalid input"))).toBe("validation");
       expect(categorizeError(new Error("field required"))).toBe("validation");
     });
 
     it("categorizes permission errors", () => {
-      expect(categorizeError(new Error("permission denied"))).toBe("permission");
-      expect(categorizeError(new Error("unauthorized access"))).toBe("permission");
+      expect(categorizeError(new Error("permission denied"))).toBe(
+        "permission",
+      );
+      expect(categorizeError(new Error("unauthorized access"))).toBe(
+        "permission",
+      );
     });
 
     it("categorizes timeout errors", () => {
@@ -144,7 +169,9 @@ describe("pipeline.service", () => {
     });
 
     it("returns unknown for unrecognized errors", () => {
-      expect(categorizeError(new Error("something went wrong"))).toBe("unknown");
+      expect(categorizeError(new Error("something went wrong"))).toBe(
+        "unknown",
+      );
     });
   });
 
@@ -192,30 +219,41 @@ describe("pipeline.service", () => {
     });
 
     it("returns 0 for status without stage_order", () => {
-      expect(calculatePipelineProgress({} as VerbosePipelineStatus)).toBe(0);
+      expect(calculatePipelineProgress(create(PipelineStatusSchema))).toBe(0);
     });
 
     it("calculates progress based on completed stages", () => {
-      const status: VerbosePipelineStatus = {
-        stage_order: ["bundle", "preflight", "generate", "build"],
+      const status = create(PipelineStatusSchema, {
+        stageOrder: [
+          StageName.BUNDLE,
+          StageName.PREFLIGHT,
+          StageName.GENERATE,
+          StageName.BUILD,
+        ],
         stages: {
-          bundle: { status: "completed" },
-          preflight: { status: "completed" },
-          generate: { status: "running" },
-          build: { status: "pending" },
+          bundle: { stage: StageName.BUNDLE, status: StageStatus.COMPLETED },
+          preflight: {
+            stage: StageName.PREFLIGHT,
+            status: StageStatus.COMPLETED,
+          },
+          generate: { stage: StageName.GENERATE, status: StageStatus.RUNNING },
+          build: { stage: StageName.BUILD, status: StageStatus.PENDING },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       expect(calculatePipelineProgress(status)).toBe(0.5); // 2 of 4 completed
     });
 
     it("counts skipped stages as completed", () => {
-      const status: VerbosePipelineStatus = {
-        stage_order: ["bundle", "preflight"],
+      const status = create(PipelineStatusSchema, {
+        stageOrder: [StageName.BUNDLE, StageName.PREFLIGHT],
         stages: {
-          bundle: { status: "completed" },
-          preflight: { status: "skipped" },
+          bundle: { stage: StageName.BUNDLE, status: StageStatus.COMPLETED },
+          preflight: {
+            stage: StageName.PREFLIGHT,
+            status: StageStatus.SKIPPED,
+          },
         },
-      } as unknown as VerbosePipelineStatus;
+      });
       expect(calculatePipelineProgress(status)).toBe(1); // Both done
     });
   });
@@ -225,27 +263,31 @@ describe("pipeline.service", () => {
       expect(getCurrentStage(null)).toBe(null);
     });
 
-    it("returns current_stage from status", () => {
-      const status = { current_stage: "build" } as VerbosePipelineStatus;
-      expect(getCurrentStage(status)).toBe("build");
+    it("returns current stage from status", () => {
+      const status = create(PipelineStatusSchema, {
+        currentStage: StageName.BUILD,
+      });
+      expect(getCurrentStage(status)).toBe(StageName.BUILD);
     });
   });
 
   describe("getStageStatus", () => {
     it("returns pending for null status", () => {
-      expect(getStageStatus(null, "build")).toBe("pending");
+      expect(getStageStatus(null, "build")).toBe(StageStatus.PENDING);
     });
 
     it("returns stage status from stages map", () => {
-      const status = {
-        stages: { build: { status: "running" } },
-      } as unknown as VerbosePipelineStatus;
-      expect(getStageStatus(status, "build")).toBe("running");
+      const status = create(PipelineStatusSchema, {
+        stages: {
+          build: { stage: StageName.BUILD, status: StageStatus.RUNNING },
+        },
+      });
+      expect(getStageStatus(status, "build")).toBe(StageStatus.RUNNING);
     });
 
     it("returns pending for missing stage", () => {
-      const status = { stages: {} } as VerbosePipelineStatus;
-      expect(getStageStatus(status, "build")).toBe("pending");
+      const status = create(PipelineStatusSchema);
+      expect(getStageStatus(status, "build")).toBe(StageStatus.PENDING);
     });
   });
 
@@ -255,20 +297,24 @@ describe("pipeline.service", () => {
     });
 
     it("returns false for incomplete pipeline", () => {
-      const status = { status: "running" } as VerbosePipelineStatus;
+      const status = create(PipelineStatusSchema, {
+        status: StageStatus.RUNNING,
+      });
       expect(canResumePipeline(status)).toBe(false);
     });
 
     it("returns true for completed pipeline with stopped_after_stage", () => {
-      const status = {
-        status: "completed",
-        stopped_after_stage: "generate",
-      } as VerbosePipelineStatus;
+      const status = create(PipelineStatusSchema, {
+        status: StageStatus.COMPLETED,
+        stoppedAfterStage: StageName.GENERATE,
+      });
       expect(canResumePipeline(status)).toBe(true);
     });
 
     it("returns false for completed pipeline without stopped_after_stage", () => {
-      const status = { status: "completed" } as VerbosePipelineStatus;
+      const status = create(PipelineStatusSchema, {
+        status: StageStatus.COMPLETED,
+      });
       expect(canResumePipeline(status)).toBe(false);
     });
   });
@@ -278,15 +324,21 @@ describe("pipeline.service", () => {
       expect(getStoppedAfterStage(null)).toBe(null);
     });
 
-    it("returns stopped_after_stage from status", () => {
-      const status = { stopped_after_stage: "generate" } as VerbosePipelineStatus;
-      expect(getStoppedAfterStage(status)).toBe("generate");
+    it("returns stopped-after stage from status", () => {
+      const status = create(PipelineStatusSchema, {
+        stoppedAfterStage: StageName.GENERATE,
+      });
+      expect(getStoppedAfterStage(status)).toBe(StageName.GENERATE);
     });
   });
 
   describe("generateRequestIdempotencyKey", () => {
     it("generates key with scenario, stage, and session", () => {
-      const key = generateRequestIdempotencyKey("my-scenario", "generate", "session-123");
+      const key = generateRequestIdempotencyKey(
+        "my-scenario",
+        "generate",
+        "session-123",
+      );
       expect(key).toMatch(/^my-scenario:generate:session-123:\d+$/);
     });
 
@@ -305,7 +357,11 @@ describe("pipeline.service", () => {
     });
 
     it("handles special characters in scenario name", () => {
-      const key = generateRequestIdempotencyKey("my-test:scenario", "generate", "session");
+      const key = generateRequestIdempotencyKey(
+        "my-test:scenario",
+        "generate",
+        "session",
+      );
       expect(key).toContain("my-test:scenario");
     });
   });

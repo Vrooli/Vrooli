@@ -34,7 +34,9 @@ export function createPollingController(): PollingController {
 
 export interface StatusSubscriberManager {
   /** Add a subscriber and return an unsubscribe function */
-  subscribe: (callback: (status: VerbosePipelineStatus | null) => void) => () => void;
+  subscribe: (
+    callback: (status: VerbosePipelineStatus | null) => void,
+  ) => () => void;
 
   /** Notify all subscribers with the given status */
   notifyAll: (status: VerbosePipelineStatus | null) => void;
@@ -46,7 +48,9 @@ export interface StatusSubscriberManager {
 export function createStatusSubscriberManager(): StatusSubscriberManager {
   const subscribers = new Set<(status: VerbosePipelineStatus | null) => void>();
 
-  const subscribe = (callback: (status: VerbosePipelineStatus | null) => void) => {
+  const subscribe = (
+    callback: (status: VerbosePipelineStatus | null) => void,
+  ) => {
     subscribers.add(callback);
     return () => {
       subscribers.delete(callback);
@@ -86,10 +90,13 @@ export function createLoadDebounceGuard(debounceMs = 500): LoadDebounceGuard {
   const shouldProceed = (): boolean => {
     const now = Date.now();
     if (now - lastLoadAttemptTime < debounceMs) {
-      console.debug("[pipelineStore] loadActivePipeline skipped - debounce active", {
-        timeSinceLast: now - lastLoadAttemptTime,
-        debounceMs,
-      });
+      console.debug(
+        "[pipelineStore] loadActivePipeline skipped - debounce active",
+        {
+          timeSinceLast: now - lastLoadAttemptTime,
+          debounceMs,
+        },
+      );
       return false;
     }
     lastLoadAttemptTime = now;

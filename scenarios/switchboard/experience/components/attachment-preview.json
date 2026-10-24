@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "attachment-preview",
+    "title": "Attachment preview",
+    "purpose": "Renders an image, file or captured photo attached to a message, staying within the limits the channel descriptor declares and stating clearly when a file exceeds them.",
+    "storyRef": "../../../react-component-library/library/components/AttachmentPreview/versions/1.0.4/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "An attachment that fits the channel's declared limits."
+    }
+  ],
+  "elements": [
+    {
+      "id": "preview-root",
+      "role": "img",
+      "name": "Attachment"
+    },
+    {
+      "id": "limit-note",
+      "role": "note",
+      "name": "Exceeds this channel's limit"
+    }
+  ],
+  "claims": [
+    {
+      "id": "limit-from-descriptor",
+      "type": "custom",
+      "statement": "Whether an attachment is acceptable is decided by the channel descriptor's declared limits.",
+      "tier": "manual",
+      "elements": [
+        "preview-root",
+        "limit-note"
+      ],
+      "rationale": "OT-P0-002. Media limits differ per channel and belong in data, not in the preview component."
+    },
+    {
+      "id": "rejection-is-explained",
+      "type": "element-present",
+      "statement": "An attachment that exceeds a limit states the limit and the channel, before the send is attempted.",
+      "tier": "aspirational",
+      "elements": [
+        "limit-note"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Discovering a size limit from a failed send is the worst version of this interaction."
+    },
+    {
+      "id": "alt-text-required",
+      "type": "accessible-name",
+      "statement": "Every rendered attachment carries an accessible name derived from its filename or caption.",
+      "tier": "aspirational",
+      "elements": [
+        "preview-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "preview-root": {
+        "testid": "attachment-preview"
+      },
+      "limit-note": {
+        "testid": "attachment-limit-note"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "What is attached"
+    },
+    {
+      "statement": "Whether this channel will accept it"
+    }
+  ]
+}

@@ -72,10 +72,9 @@ export function SEOHead({ branding, seoConfig, baseUrl }: SEOHeadProps) {
       updateFavicon(branding.favicon_url);
     }
 
-    // Update theme color from branding
-    if (branding?.theme_primary_color) {
-      updateThemeColor(branding.theme_primary_color);
-    }
+    // Browser chrome should match the page background, not the interactive accent.
+    // A primary color can be vivid while the application surface remains dark.
+    updateThemeColor(branding?.theme_background_color || 'rgb(7 9 15)');
   }, [branding, seoConfig, baseUrl]);
 
   // This component renders nothing - it just updates the document head

@@ -1,0 +1,22 @@
+{
+  "id": "throughput_stats",
+  "label": "Items created · 7 days",
+  "description": "Backlog items created in the trailing seven days.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "throughput_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "throughput_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "throughput_stats",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

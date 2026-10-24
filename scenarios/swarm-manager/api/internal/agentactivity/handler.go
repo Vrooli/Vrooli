@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
+
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 type Handler struct {
@@ -45,7 +46,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		filters.ActiveOnly = active
 	}
 
-	items, err := h.service.List(r.Context(), filters)
+	items, err := h.service.ListSnapshot(r.Context(), filters)
 	if err != nil {
 		apierr.MapError(w, "[agent-activity] list", apierr.Internal("failed to list agent activities"))
 		return

@@ -14,11 +14,6 @@ export interface StatusColorClasses {
   text: string;
 }
 
-/** RGB color string for use in SVG/Canvas contexts (e.g. MiniMap). */
-export interface StatusRgb {
-  rgb: string;
-}
-
 type StatusGroup = "neutral" | "active" | "waiting" | "done" | "error" | "terminal";
 
 // PERF: Backgrounds use 90% opacity (solid enough to hide the dot grid
@@ -57,15 +52,6 @@ const STATUS_GROUP_COLORS: Record<StatusGroup, StatusColorClasses> = {
     border: "border-slate-500/50",
     text: "text-slate-400",
   },
-};
-
-const STATUS_GROUP_RGB: Record<StatusGroup, string> = {
-  neutral: "rgb(148 163 184 / 0.6)",
-  active: "rgb(34 211 238 / 0.6)",
-  waiting: "rgb(251 191 36 / 0.6)",
-  done: "rgb(52 211 153 / 0.6)",
-  error: "rgb(248 113 113 / 0.6)",
-  terminal: "rgb(100 116 139 / 0.4)",
 };
 
 const STATUS_TO_GROUP: Record<string, StatusGroup> = {
@@ -111,14 +97,9 @@ export function getStatusColorClasses(status: string | undefined): StatusColorCl
   return STATUS_GROUP_COLORS[getStatusGroup(status)];
 }
 
-/** Get an RGB color string for SVG/Canvas contexts (e.g. MiniMap nodeColor). */
-export function getStatusRgb(status: string | undefined): string {
-  return STATUS_GROUP_RGB[getStatusGroup(status)];
-}
-
 /**
- * Backlog statuses considered "actionable" — these items appear in the Operations lens.
- * Mirrors the Go-side `actionableBacklogStatuses` in projection.go.
+ * Backlog statuses considered "actionable" — the attention highlight and
+ * sidebar chips treat these as ready-for-operator-input.
  */
 export const ACTIONABLE_BACKLOG_STATUSES: ReadonlySet<string> = new Set([
   "backlog", "researching", "ready", "queued", "in_progress", "failed",

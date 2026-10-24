@@ -1,0 +1,113 @@
+{
+  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل {{SCENARIO_DISPLAY_NAME}} هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `template-manager generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "app": {
+    "title": "{{SCENARIO_DISPLAY_NAME}}"
+  },
+  "layout": {
+    "navigationLabel": "التنقل الرئيسي",
+    "mobileNavigationLabel": "التنقل على الهاتف",
+    "skipToContent": "تخطٍ إلى المحتوى",
+    "openNavigation": "افتح التنقل",
+    "closeNavigation": "أغلق التنقل",
+    "nav": {
+      "dashboard": "الرئيسية",
+      "notes": "الملاحظات",
+      "settings": "الإعدادات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "الرئيسية",
+      "description": "أول ما يراه المشغّل. قرر ما ينتمي إلى هنا قبل الإصدار.",
+      "placeholderTitle": "لم يقرر هذا السيناريو واجهته الرئيسية بعد",
+      "placeholderDescription": "افتح START-HERE، البوابة 5، وسمِّ السؤال الوحيد الذي تجيب عنه هذه الصفحة. استبدل هذا العنصر النائب بتلك الواجهة. بطاقة الصحة المجاورة مثال على ميزة يملكها السيناريو ومبنية من أجزاء المكتبة."
+    },
+    "notes": {
+      "title": "الملاحظات",
+      "description": "مجال مثال عملي: قائمة، إنشاء، قياس. انسخ الشكل مرة واحدة ثم أزله بواسطة detemplate."
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة",
+      "description": "تفضيلات هذا المتصفح. أضف كل إعداد يحتاجه سيناريوك فعلاً؛ لا يكرر أي جزء آخر من الهيكل إعداداً.",
+      "preferences": "التفضيلات",
+      "themeHint": "فاتح أو داكن أو اتباع النظام.",
+      "localeHint": "ينطبق على هذه اللوحة فقط."
+    }
+  },
+  "health": {
+    "title": "حالة API",
+    "loading": "جارٍ التحقق من حالة API…",
+    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:",
+    "description": "يستطلع واجهة API لهذا السيناريو ويعرض ما تقوله."
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا توجد إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "notes": {
+    "title": "الملاحظات",
+    "loading": "جارٍ تحميل الملاحظات…",
+    "empty": "لا توجد ملاحظات بعد.",
+    "create": "إنشاء ملاحظة",
+    "attachmentsLabel": "{{count}} مرفقات",
+    "attachmentsLabel_one": "مرفق واحد",
+    "table": {
+      "title": "العنوان",
+      "created": "تاريخ الإنشاء",
+      "attachments": "المرفقات",
+      "actions": "الإجراءات",
+      "search": "البحث في الملاحظات"
+    },
+    "uploadAttachment": "رفع مرفق",
+    "attachmentFileLabel": "ملف المرفق",
+    "uploadSuccess": "تم رفع {{name}}.",
+    "noFileSelected": "اختر ملفًا قبل الرفع.",
+    "measure": {
+      "title": "ملاحظات هذا الأسبوع",
+      "loading": "جارٍ العد…",
+      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  }
+}

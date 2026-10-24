@@ -1,0 +1,55 @@
+{
+  "name": "cloud-api",
+  "displayName": "Cloud API",
+  "description": "Scaffold a resource that represents credentials, endpoint configuration, and connectivity validation for a hosted API.",
+  "driver": "cloud-api",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "hosted-service"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "full"
+    },
+    "RESOURCE_ENDPOINT": {
+      "flag": "endpoint",
+      "description": "Base URL or health endpoint for the hosted API.",
+      "default": "https://api.example.com/health"
+    },
+    "RESOURCE_CREDENTIAL_ENV": {
+      "flag": "credential-env",
+      "description": "Primary environment variable checked for credentials.",
+      "default": "API_KEY"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
+    }
+  },
+  "docs": {
+    "resource-templates": "docs/resources/resource-templates.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "The local control plane should validate credentials and connectivity without pretending to own the hosted service runtime.",
+    "Secrets should be referenced, not hard-coded into generated scaffolds."
+  ]
+}

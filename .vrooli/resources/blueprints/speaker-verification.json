@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "speaker-verification",
+  "display_name": "Speaker Verification",
+  "category": "audio",
+  "summary": "Local-first speaker verification and target-speaker extraction service for identity-aware audio workflows.",
+  "why_it_matters": "Speaker verification remains valuable capability knowledge, but it is not part of the current actively validated core resource set and should stay blueprint-level until scenario demand resumes.",
+  "when_to_use": [
+    "A future scenario needs enrolled-speaker verification or separation.",
+    "Operators want voice identity checks in local-first audio workflows.",
+    "The workflow depends on reusable speaker embeddings or extraction endpoints."
+  ],
+  "example_scenarios": [
+    "Voice-gated assistants",
+    "Audio diarization helpers",
+    "Target-speaker transcription pipelines"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The service can run in containers, but model acceleration, audio dependencies, and inference performance vary by environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Model and inference runtime strategy",
+    "Audio preprocessing conventions",
+    "Defined enrollment, storage, and privacy policies"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should validate a real voice workflow with expected error tolerances.",
+    "Keep speaker identity, extraction, and downstream transcription concerns separate.",
+    "Privacy and retention behavior must be explicit."
+  ],
+  "operational_notes": [
+    "Model runtime requirements and latency matter to operator expectations.",
+    "Validation should include known positive and negative verification cases.",
+    "Sensitive voice artifacts need clear storage boundaries."
+  ],
+  "risks": [
+    "Audio identity workflows are easy to oversell and hard to validate thoroughly.",
+    "GPU expectations can silently shape support quality."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "speaker-verification"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/speaker-verification"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

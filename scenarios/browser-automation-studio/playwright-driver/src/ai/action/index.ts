@@ -13,6 +13,5 @@ export { parseLLMResponse, extractReasoning, ActionParseError } from './parser';
 // Executor
 export {
   createActionExecutor,
-  createMockActionExecutor,
   type ActionExecutorConfig,
 } from './executor';

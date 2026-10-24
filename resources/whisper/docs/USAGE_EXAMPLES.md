@@ -8,7 +8,8 @@ This directory contains examples demonstrating how to use Whisper for various au
 
 ```bash
 # Install and start Whisper
-./manage.sh --action install
+vrooli resource install whisper
+vrooli resource start whisper
 
 # Transcribe an audio file
 curl -X POST "http://localhost:8090/asr?output=json" \
@@ -60,19 +61,37 @@ curl -X POST "http://localhost:8090/asr?output=srt" \
 ### Use Different Model Sizes
 
 ```bash
-# Install with small model for faster processing
-./manage.sh --action install --model small
+# The active model is a capacity rung, not an install flag: the broker asks
+# Whisper to move between them, and an operator can ask directly.
+vrooli resource run whisper -- capacity degrade --to small
+vrooli resource run whisper -- capacity upshift --to large-v3
 
-# Install with large model for best accuracy
-./manage.sh --action install --model large
+# See which rungs this resource declares
+vrooli resource acceleration explain whisper
 ```
 
 ## GPU Acceleration
 
+Acceleration is declared, not requested per install. Whisper declares
+`backends: ["cuda", "cpu"]` with `require: preferred` in its `resource.json`,
+so the control plane selects CUDA when the host can reach it and falls back to
+the CPU when it cannot — and reports which one happened either way:
+
 ```bash
-# Install with GPU support for faster processing
-./manage.sh --action install --gpu yes --model large
+# Which backend did it ask for, which did it get, and why
+vrooli resource acceleration explain whisper
+
+# The same answer as a status field
+vrooli resource status whisper --json | jq '{declared_mode, observed_mode, mode_drift}'
 ```
+
+A resource running below its declared backend reports `mode_drift: true` with
+`healthy: false` and `serving: true`. It is degraded, not down.
+
+> **Linux note.** whisper.cpp v1.9.2 publishes no Linux CUDA release asset, so
+> on Linux this resource currently selects the CPU target and reports
+> `mode_drift: true`. That is accurate, not a fault: see
+> [whisper-cpp-managed-service-assessment.md](whisper-cpp-managed-service-assessment.md).
 
 ## Integration Examples
 
@@ -105,12 +124,12 @@ print(f"Transcription: {result['text']}")
 
 ### Check Service Status
 ```bash
-./manage.sh --action status
+vrooli resource status whisper
 ```
 
 ### View Logs
 ```bash
-./manage.sh --action logs
+vrooli resource logs whisper
 ```
 
 ### Test with Sample Audio

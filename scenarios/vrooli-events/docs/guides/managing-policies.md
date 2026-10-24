@@ -1,147 +1,77 @@
 # Managing Policies
 
-Policy rules govern inter-scenario communication: who can call whom, how often, and what happens when things fail.
+vrooli-events exposes receipt-capture policies as its public policy resource.
+These policies decide which API receipts are projected into the durable event
+stream. Inter-scenario access, rate-limit, and circuit-breaker enforcement is
+implemented by the discovery integration and local policy caches; it is not a
+vrooli-events CLI CRUD surface.
 
-## Policy Types
+Implementation: [CODE: internal/policy/policy.go] | API handlers: [CODE: api/handlers_capture_policy.go] and [CODE: api/handlers_policy.go]
 
-### Access Control
-
-Allow or deny calls between scenario pairs.
-
-```bash
-# Deny a specific scenario from calling agent-manager
-vrooli-events policy create --type access \
-  --source "untrusted-scenario" \
-  --target "agent-manager" \
-  --effect deny \
-  --priority 10
-
-# Allow everything from swarm-manager to agent-manager (explicit allow)
-vrooli-events policy create --type access \
-  --source "swarm-manager" \
-  --target "agent-manager" \
-  --effect allow \
-  --priority 5
-```
-
-**Priority**: Higher priority rules win when multiple rules match the same call. Use this for "deny all except..." patterns:
+## Inspect the active policy snapshot
 
 ```bash
-# Deny all calls to sensitive-service
-vrooli-events policy create --type access \
-  --source "*" --target "sensitive-service" --effect deny --priority 1
-
-# But allow swarm-manager
-vrooli-events policy create --type access \
-  --source "swarm-manager" --target "sensitive-service" --effect allow --priority 10
+curl "http://localhost:${API_PORT}/api/v1/policies/snapshot"
 ```
 
-### Rate Limiting
-
-Cap request rates between scenario pairs using sliding windows.
+The snapshot is versioned and is the source used by API Core policy consumers.
+Connected consumers can receive updates over the policy stream:
 
 ```bash
-# agent-manager can receive max 100 requests/minute from any single scenario
-vrooli-events policy create --type rate_limit \
-  --source "*" \
-  --target "agent-manager" \
-  --max-requests 100 \
-  --window 60
-
-# Allow short bursts up to 20 above the limit
-vrooli-events policy create --type rate_limit \
-  --source "*" \
-  --target "agent-manager" \
-  --max-requests 100 \
-  --window 60 \
-  --burst 20
+curl -N "http://localhost:${API_PORT}/api/v1/policies/subscribe"
 ```
 
-When a sender hits the rate limit, the discovery package returns a `RateLimitExceeded` error with a `retry_after` hint.
+## Create or reconcile a receipt-capture policy
 
-### Circuit Breaking
-
-Automatically stop calling failing scenarios to prevent cascade failures.
+The same `policy_id` is idempotent: posting it again updates the existing
+declaration instead of creating a duplicate rule.
 
 ```bash
-# If calls to flaky-service fail 5 times in 60 seconds, stop for 30 seconds
-vrooli-events policy create --type circuit_breaker \
-  --source "*" \
-  --target "flaky-service" \
-  --failure-threshold 5 \
-  --window 60 \
-  --cooldown 30
+curl -X POST "http://localhost:${API_PORT}/api/v1/receipt-capture-policies" \
+  -H 'Content-Type: application/json' \
+  -d '{"policy_id":"example.receipt","enabled":true,"selector":{"target_scenario":"example-scenario","operation":"example.v1.run","protocol":"http","event_type":"vrooli.events.receipt.v1"},"response_type":"example.response.v1","response_projection_paths":["status.code"],"retention_days":30,"access":{"read_principals":["agent-manager"]}}'
 ```
 
-**Circuit breaker lifecycle**:
-1. **Closed** (normal): Calls proceed. Failures counted.
-2. **Open** (tripped): All calls denied immediately. Timer counting down.
-3. **Half-Open** (probing): One call allowed through. If it succeeds, return to Closed. If it fails, return to Open.
+The selector requires a target scenario, a stable operation pattern, either
+`http` or `connect`, and the canonical receipt event type. Projection paths
+must be descriptor-style names such as `status.code`.
 
-### Manual Override
-
-Force a circuit breaker into a specific state:
+List enabled declarations:
 
 ```bash
-# Force closed (resume traffic despite failures)
-vrooli-events policy override --id <rule-id> --state closed
-
-# Force open (block traffic for maintenance)
-vrooli-events policy override --id <rule-id> --state open --ttl 1800
+curl "http://localhost:${API_PORT}/api/v1/receipt-capture-policies"
 ```
 
-Overrides expire after TTL (default: 1 hour) and revert to automatic behavior.
-
-## How Enforcement Works
-
-### Sender Side (EmittingResolver)
-
-Before making a call, the discovery package checks its local policy cache:
-
-1. Is the circuit breaker open? → Return `CircuitOpenError` immediately
-2. Is the call denied by access control? → Return `PolicyDeniedError` immediately
-3. Is the rate limit exceeded? → Return `RateLimitExceeded` with `retry_after`
-4. Proceed with the call
-
-**No network round-trip to vrooli-events** — all checks are against the local cache.
-
-### Receiver Side (PolicyMiddleware)
-
-When a request arrives, the middleware checks:
-
-1. Extract `X-Source-Scenario` header
-2. Evaluate receiver-side policy cache
-3. If denied → Return 403 with `PolicyDeniedError` JSON body
-4. If allowed → Pass to handler
-
-### Cache Freshness
-
-Both caches subscribe to vrooli-events SSE policy push channel. When you create, update, or delete a rule, all connected scenarios receive the update within milliseconds.
-
-If vrooli-events goes down:
-- Last-known policy remains in effect
-- Configurable per-rule: `fail-open` (allow when cache is stale) or `fail-closed` (deny when cache is stale)
-- Global default: `fail-open` (Vrooli scenarios trust each other — policy is governance, not hard security)
-
-## Viewing Violations
+Delete by declaration identity:
 
 ```bash
-# Recent violations
-vrooli-events policy violations --since 1h
-
-# Violations for a specific target
-vrooli-events policy violations --target "agent-manager" --since 24h
-
-# JSON output for piping
-vrooli-events policy violations --since 1h --json
+curl -X DELETE "http://localhost:${API_PORT}/api/v1/receipt-capture-policies/example.receipt"
 ```
 
-Each violation records: timestamp, source, target, endpoint, rule that triggered, and reason.
+## Reconcile scenario declarations
 
-## Best Practices
+Scenarios can declare receipt policies in their metadata. Reconciliation
+validates the complete declaration set and applies it atomically:
 
-1. **Start with monitoring, not blocking**: Use vrooli-events analytics to understand call patterns before creating deny rules
-2. **Use rate limits before circuit breakers**: Rate limits are soft (queue and retry); circuit breakers are hard (immediate denial)
-3. **Set reasonable thresholds**: Circuit breaker failure_threshold=5 and cooldown=30s is a good starting point
-4. **Use glob patterns for broad rules**: `--source "*" --target "sensitive-service"` applies to all callers
-5. **Use priority for exceptions**: Low-priority deny-all + high-priority specific allows is a clean pattern
+```bash
+curl -X POST "http://localhost:${API_PORT}/api/v1/receipt-capture-policies/reconcile" \
+  -H 'Content-Type: application/json' \
+  -d '{"scenario":"example-scenario"}'
+```
+
+Use `vrooli-events capture-preview` to inspect the local declaration before
+reconciling it, and `vrooli-events capture-reconcile` to apply the governed
+declaration through the CLI.
+
+## Enforcement model
+
+Discovery-integrated callers use a local policy cache before making a network
+call. Receiver middleware performs a second check using the source-scenario
+identity header. The two caches receive versioned updates from the policy SSE
+stream, so request traffic does not depend on a round trip to the policy
+service.
+
+The policy endpoints documented here are deliberately limited to receipt
+capture. Do not use older `vrooli-events policy ...` or `vrooli-events
+subscriptions ...` commands; subscriptions are managed through the HTTP API
+documented in [Creating Subscriptions](creating-subscriptions.md).

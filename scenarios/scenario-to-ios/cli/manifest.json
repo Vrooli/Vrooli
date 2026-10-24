@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-to-ios",
+  "description": "Operator CLI surface. The standard flat status command is cataloged as local because cli-core owns its implementation rather than a scenario Connect service.",
+  "groups": [
+    {
+      "name": "ops",
+      "description": "Standard lifecycle and operator commands.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show scenario API health and lifecycle state.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "ios",
+      "description": "Operate the iOS delivery ramp through typed report-shaped control surfaces.",
+      "commands": [
+        {"name":"targets","description":"Probe iOS targets and macOS bridge readiness.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"generate","description":"Generate a deterministic Capacitor iOS project.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["filesystem:write","network:internal"]}},
+        {"name":"build","description":"Build an iOS artifact on a macOS bridge host.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["filesystem:write","network:internal"]}},
+        {"name":"conformance-plan","description":"Show the twelve iOS conformance chapters.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"readiness","description":"Show the probed six-rung Apple readiness ladder.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"distribution","description":"Show independent TestFlight, App Store, and ad-hoc channels.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"matrix","description":"Inspect iOS validation matrix readiness.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"matrix-catalog","description":"Show the durable iOS validation catalog.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"matrix-list","description":"List durable iOS validation runs.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"matrix-create","description":"Create a normal-profile iOS validation matrix.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"matrix-start","description":"Start a server-owned iOS validation matrix.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"matrix-wait","description":"Wait for a server-owned iOS validation matrix.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"compare","description":"Compare two durable iOS validation matrix runs.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"matrix-rerun-failed","description":"Rerun failed iOS validation cells.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}}
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

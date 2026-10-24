@@ -1,0 +1,116 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Proto Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Proto Health",
+    "eyebrow": "契約バリデーター",
+    "description": "シナリオの proto 契約を検証し、Vrooli の品質ループツールが利用するシナリオ単位のサーフェス情報を確認します。"
+  },
+  "layout": {
+    "sidebarLabel": "メインサイドバーナビゲーション",
+    "bottomNavLabel": "メインモバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "proto-health チェックの実行と API ヘルスの確認を一か所で行います。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "protoHealth": {
+    "scenarioLabel": "シナリオ",
+    "run": "実行",
+    "loading": "proto サーフェスを読み込み中...",
+    "validation": "検証",
+    "status": {
+      "passed": "合格",
+      "blocked": "ブロック"
+    },
+    "metrics": {
+      "errors": "エラー",
+      "warnings": "警告",
+      "info": "情報"
+    },
+    "empty": "検出事項はありません。",
+    "surfaceFacts": "サーフェス情報",
+    "facts": {
+      "files": "ファイル",
+      "services": "サービス",
+      "transport": "トランスポート"
+    },
+    "table": {
+      "domain": "ドメイン",
+      "service": "サービス",
+      "rpcs": "RPC"
+    },
+    "noServices": "サービスは見つかりません。",
+    "severity": {
+      "error": "エラー",
+      "warning": "警告",
+      "info": "情報",
+      "unspecified": "未指定"
+    },
+    "transport": {
+      "connect": "Connect",
+      "handRolled": "手書き",
+      "mixed": "混在",
+      "none": "なし",
+      "unknown": "不明"
+    }
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

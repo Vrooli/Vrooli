@@ -1,0 +1,146 @@
+{
+  "metadata": {
+    "name": "workspace-analyze-hero",
+    "description": "Stage-5 Analyze journey driving the analysis surface end-to-end against the real backend: navigates to /workspace, switches to Analyze mode, and asserts the Analyze panel composes with the one-tap analysis actions discovered from AnalysisService.ListAnalysisOperations (Inspect/probe, Extract text/ocr, Safety check/nsfw_classify). It then loads an image and runs the default op (probe) — and because probe is the pure-Go, no-model analysis op (unlike the model-backed ocr/nsfw_classify), the run resolves SYNCHRONOUSLY to a real metadata result with NO install gate. Asserting the probe result panel renders proves the full discovery -> sync analyze edge (POST /api/v1/analysis/probe) -> AnalyzeResponse oneof parse -> structured-result render wiring works against the live API. A broken analysis-discovery RPC, an Analyze panel that fails to compose, a regressed multipart analyze edge, or a result that never renders all fail here. The model-backed ocr/nsfw_classify ops (which need an opt-in model absent in CI) surface the install gate instead — that post-install path + the on-canvas OCR detection boxes are the ATTENDED acceptance gate; the lifecycle + parsing are unit-covered by api/analysis.test, useAnalyze.test, and Workspace.analyze.test.",
+    "requirement": "IMG-P0-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "workspace-analyze-hero"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Workspace" }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Mode switcher visible" }
+      }
+    },
+    {
+      "id": "switch-to-analyze",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.modeOption(mode=\"analyze\")" },
+        "metadata": { "label": "Switch to Analyze mode" }
+      }
+    },
+    {
+      "id": "wait-analyze-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.analyze.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Analyze panel composes" }
+      }
+    },
+    {
+      "id": "assert-probe-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.analyzeAction(name=\"probe\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The Inspect/probe action did not render — AnalysisService.ListAnalysisOperations discovery regressed."
+        },
+        "metadata": { "label": "Discovery populated the probe action" }
+      }
+    },
+    {
+      "id": "assert-ocr-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.analyzeAction(name=\"ocr\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The Extract-text/ocr action did not render — AnalysisService.ListAnalysisOperations discovery regressed."
+        },
+        "metadata": { "label": "Discovery populated the OCR action" }
+      }
+    },
+    {
+      "id": "load-sample-image",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const c = document.createElement('canvas'); c.width = 240; c.height = 160; const g = c.getContext('2d'); g.fillStyle = '#3b6ea5'; g.fillRect(0, 0, 240, 160); g.fillStyle = '#f0c419'; g.fillRect(40, 30, 160, 100); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'sample.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"workspace-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('loaded'); }, 'image/png'); }); })()",
+          "store_result": "imageLoaded"
+        },
+        "metadata": { "label": "Load a generated sample image into the canvas" }
+      }
+    },
+    {
+      "id": "wait-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.canvas.image",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Loaded image renders in the canvas" }
+      }
+    },
+    {
+      "id": "run-analyze",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.analyze.run" },
+        "metadata": { "label": "Run the default analysis op (probe)" }
+      }
+    },
+    {
+      "id": "assert-probe-result",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.analyze.probe",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The probe metadata result did not render after running analysis — the sync analyze edge (POST /api/v1/analysis/probe), the AnalyzeResponse oneof parse, or the probe result view regressed. (probe is pure-Go and needs no model, so this path must succeed headless.)"
+        },
+        "metadata": { "label": "Probe metadata result renders (real sync result, no model gate)" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-workspace", "target": "wait-mode-switcher", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-mode-switcher", "target": "switch-to-analyze", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "switch-to-analyze", "target": "wait-analyze-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "wait-analyze-panel", "target": "assert-probe-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-probe-action", "target": "assert-ocr-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-ocr-action", "target": "load-sample-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "load-sample-image", "target": "wait-canvas-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "wait-canvas-image", "target": "run-analyze", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "run-analyze", "target": "assert-probe-result", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

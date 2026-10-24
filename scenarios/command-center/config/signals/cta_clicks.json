@@ -1,0 +1,35 @@
+{
+  "id": "cta_clicks",
+  "label": "CTA clicks · 30 days",
+  "description": "Call-to-action clicks summarised from metrics events.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "series",
+  "source": {
+    "team": "marketing-crew",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary?window_days=30",
+    "select": "cta_clicks",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "cta_clicks",
+    "contractVersion": "analytics-summary.v1",
+    "selector": "cta_clicks",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 412,
+    "series": [
+      260,
+      290,
+      330,
+      350,
+      380,
+      412
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

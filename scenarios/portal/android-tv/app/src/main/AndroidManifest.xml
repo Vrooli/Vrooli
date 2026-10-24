@@ -1,0 +1,31 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ <uses-permission android:name="android.permission.INTERNET"/>
+ <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES"/>
+ <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+ <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+ <uses-feature android:name="android.software.leanback" android:required="true"/>
+ <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+ <queries>
+  <intent><action android:name="android.settings.ACCESSIBILITY_SETTINGS"/></intent>
+  <intent><action android:name="android.settings.SETTINGS"/></intent>
+  <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LEANBACK_LAUNCHER"/></intent>
+  <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/></intent>
+ </queries>
+ <application android:label="${appLabel}" android:theme="@style/AppTheme" android:icon="@drawable/portal" android:banner="@drawable/banner" android:allowBackup="false" android:networkSecurityConfig="@xml/network_security_config">
+  <provider android:name="com.vrooli.portal.tv.StatusProvider" android:authorities="${applicationId}.vrooli.status" android:exported="true" android:readPermission="android.permission.DUMP" android:writePermission="android.permission.DUMP" android:grantUriPermissions="false"/>
+  <service android:name="com.vrooli.portal.tv.HomeOverrideService" android:label="@string/home_override_label" android:enabled="${homeEnabled}" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:foregroundServiceType="specialUse">
+   <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Opt-in device-local TV Home routing with native pause and stock recovery"/>
+   <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
+   <meta-data android:name="android.accessibilityservice" android:resource="@xml/home_override_service"/>
+  </service>
+  <activity android:name="com.vrooli.portal.tv.MainActivity" android:exported="true" android:screenOrientation="landscape" android:launchMode="singleTask">
+   <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/><category android:name="android.intent.category.LEANBACK_LAUNCHER"/></intent-filter>
+   <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="vrooli-portal" android:host="connect"/></intent-filter>
+  </activity>
+  <activity-alias android:name="com.vrooli.portal.tv.HomeActivity" android:targetActivity="com.vrooli.portal.tv.MainActivity" android:enabled="${homeEnabled}" android:exported="true">
+   <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
+  </activity-alias>
+ </application>
+</manifest>

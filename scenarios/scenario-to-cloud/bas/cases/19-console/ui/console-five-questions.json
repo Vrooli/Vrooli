@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "name": "Deployment console answers the five operator questions",
+    "description": "Observer journey: open the production deployment page and assert the identity header (environment, target key, transport, deployment id), the release panel, the health panel, the operation panel and the recovery panel are all rendered from API state. Read-only: navigation and assertions only; nothing is clicked. Apply, cancel and restore journeys need the routed test-storage lease (docs/agent-system/routed-test-db.md), which is not installed for this scenario, so they are proven by vitest (ui/src/components/deployments/console/DeploymentConsole.test.tsx) and recorded here as observer-only.",
+    "tags": ["e2e", "ui", "console"],
+    "requirements": ["STC-P0-038"],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-038\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer",
+    "version": 1
+  },
+  "flow_definition": {
+  "settings": { "viewport_width": 1280, "viewport_height": 900 },
+  "nodes": [
+    {"id":"open-console","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-cloud","scenario_path":"/#deployments/7e493e04-5297-47eb-9df9-74929f185956","wait_until":"NAVIGATE_WAIT_EVENT_LOAD","timeout_ms":30000},"metadata":{"label":"Open the deployment console"}}},
+    {"id":"identity","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identity","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000,"failure_message":"Identity header must render"},"metadata":{"label":"Identity header present"}}},
+    {"id":"environment","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identityEnvironment","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Environment must be named"},"metadata":{"label":"Environment named"}}},
+    {"id":"target","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identityTarget","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Target key must be named"},"metadata":{"label":"Target key named"}}},
+    {"id":"transport","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identityTransport","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Transport must be named"},"metadata":{"label":"Transport named"}}},
+    {"id":"release","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.release","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Release panel must render"},"metadata":{"label":"Release panel present"}}},
+    {"id":"health","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.health","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Health panel must render"},"metadata":{"label":"Health panel present"}}},
+    {"id":"operation","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.operation","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Operation panel must render"},"metadata":{"label":"Operation panel present"}}},
+    {"id":"recovery","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.recovery","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Recovery panel must render"},"metadata":{"label":"Recovery panel present"}}},
+    {"id":"health-settled","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.healthFreshness","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000,"failure_message":"Health observation must settle with a freshness standing"},"metadata":{"label":"Health observation settled with a verdict"}}},
+    {"id":"health-status","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.healthFreshness","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Freshness pill must render next to the verdict"},"metadata":{"label":"Health status and freshness shown separately"}}},
+    {"id":"advanced-collapsed","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.advancedToggle","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Terminal, files and raw process controls must be collapsed by default"},"metadata":{"label":"Advanced surfaces stay behind a disclosure"}}}
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-console", "target": "identity" },
+    { "id": "e2", "source": "identity", "target": "environment" },
+    { "id": "e3", "source": "environment", "target": "target" },
+    { "id": "e4", "source": "target", "target": "transport" },
+    { "id": "e5", "source": "transport", "target": "release" },
+    { "id": "e6", "source": "release", "target": "health" },
+    { "id": "e7", "source": "health", "target": "operation" },
+    { "id": "e8", "source": "operation", "target": "recovery" },
+    { "id": "e9", "source": "recovery", "target": "health-settled" },
+    { "id": "e10", "source": "health-settled", "target": "health-status" },
+    { "id": "e11", "source": "health-status", "target": "advanced-collapsed" }
+  ]
+  }
+}

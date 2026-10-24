@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from swarm_manager.v1.domain import capture_pb2 as swarm__manager_dot_v1_dot_domain_dot_capture__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/api/capture.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a%swarm-manager/v1/domain/capture.proto\"3\n\x14\x43reateCaptureRequest\x12\x1b\n\x04text\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04text\"\xc4\x01\n\x0f\x43\x61ptureResponse\x12\x33\n\x07\x63\x61pture\x18\x01 \x01(\x0b\x32\x19.swarm_manager.v1.CaptureR\x07\x63\x61pture\x12\x1c\n\x07task_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n\x06run_id\x18\x03 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x1e\n\x08\x62\x61se_url\x18\x04 \x01(\tH\x02R\x07\x62\x61seUrl\x88\x01\x01\x42\n\n\x08_task_idB\t\n\x07_run_idB\x0b\n\t_base_url\"M\n\x14ListCapturesResponse\x12\x35\n\x08\x63\x61ptures\x18\x01 \x03(\x0b\x32\x19.swarm_manager.v1.CaptureR\x08\x63\x61ptures\"\xa2\x01\n\x17\x43lassifyCaptureResponse\x12 \n\x07task_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n\x06run_id\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n\x08\x62\x61se_url\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07\x62\x61seUrl\x12!\n\x07\x63reated\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07\x63reatedBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/api/capture.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1b\x62uf/validate/validate.proto\x1a%swarm-manager/v1/domain/capture.proto\"3\n\x14\x43reateCaptureRequest\x12\x1b\n\x04text\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04text\"\xd2\x01\n\x0f\x43\x61ptureResponse\x12\x41\n\x07\x63\x61pture\x18\x01 \x01(\x0b\x32\'.vrooli.swarm_manager.v1.domain.CaptureR\x07\x63\x61pture\x12\x1c\n\x07task_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n\x06run_id\x18\x03 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x1e\n\x08\x62\x61se_url\x18\x04 \x01(\tH\x02R\x07\x62\x61seUrl\x88\x01\x01\x42\n\n\x08_task_idB\t\n\x07_run_idB\x0b\n\t_base_url\"[\n\x14ListCapturesResponse\x12\x43\n\x08\x63\x61ptures\x18\x01 \x03(\x0b\x32\'.vrooli.swarm_manager.v1.domain.CaptureR\x08\x63\x61ptures\"\xa2\x01\n\x17\x43lassifyCaptureResponse\x12 \n\x07task_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n\x06run_id\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n\x08\x62\x61se_url\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07\x62\x61seUrl\x12!\n\x07\x63reated\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07\x63reatedBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -44,12 +44,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CLASSIFYCAPTURERESPONSE'].fields_by_name['base_url']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_CLASSIFYCAPTURERESPONSE'].fields_by_name['created']._loaded_options = None
   _globals['_CLASSIFYCAPTURERESPONSE'].fields_by_name['created']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_CREATECAPTUREREQUEST']._serialized_start=124
-  _globals['_CREATECAPTUREREQUEST']._serialized_end=175
-  _globals['_CAPTURERESPONSE']._serialized_start=178
-  _globals['_CAPTURERESPONSE']._serialized_end=374
-  _globals['_LISTCAPTURESRESPONSE']._serialized_start=376
-  _globals['_LISTCAPTURESRESPONSE']._serialized_end=453
-  _globals['_CLASSIFYCAPTURERESPONSE']._serialized_start=456
-  _globals['_CLASSIFYCAPTURERESPONSE']._serialized_end=618
+  _globals['_CREATECAPTUREREQUEST']._serialized_start=135
+  _globals['_CREATECAPTUREREQUEST']._serialized_end=186
+  _globals['_CAPTURERESPONSE']._serialized_start=189
+  _globals['_CAPTURERESPONSE']._serialized_end=399
+  _globals['_LISTCAPTURESRESPONSE']._serialized_start=401
+  _globals['_LISTCAPTURESRESPONSE']._serialized_end=492
+  _globals['_CLASSIFYCAPTURERESPONSE']._serialized_start=495
+  _globals['_CLASSIFYCAPTURERESPONSE']._serialized_end=657
 # @@protoc_insertion_point(module_scope)

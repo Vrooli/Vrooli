@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.message-actions",
+    "name": "MessageActions",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The contextual action group for copy, retry, edit, branch, rate, cite, save, and share, kept out of the way until relevant without becoming hover-only.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions and overflow use the shared group."
+      },
+      {
+        "asset": "controls.icon-button",
+        "reason": "Individual actions are shared icon controls with accessible names."
+      },
+      {
+        "asset": "overlays.menu",
+        "reason": "Less-common actions collapse into the shared overflow menu."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "tap-target-size",
+    "pointer-independence"
+  ],
+  "beauty": {
+    "avoid": [
+      "hover-only-affordance"
+    ]
+  },
+  "rationale": "The tension is clutter versus reachability. Actions hidden until hover are unreachable on touch and by keyboard, so the contract is progressive disclosure that still has a non-pointer path."
+}

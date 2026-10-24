@@ -1,8 +1,9 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 
 import { SystemResources } from "./SystemResources";
 import type { SystemState } from "../../../lib/api";
+import { renderWithProviders } from "../../../test-utils/renderWithProviders";
 
 function baseSystem(): SystemState {
   return {
@@ -45,7 +46,7 @@ describe("SystemResources SSH key auth state", () => {
     const system = baseSystem();
     system.ssh.verification_state = "unknown";
 
-    render(<SystemResources system={system} />);
+    renderWithProviders(<SystemResources system={system} />);
 
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(
@@ -58,7 +59,7 @@ describe("SystemResources SSH key auth state", () => {
     system.ssh.auth_mode = "explicit_key";
     system.ssh.verification_state = "unauthorized";
 
-    render(<SystemResources system={system} />);
+    renderWithProviders(<SystemResources system={system} />);
 
     expect(screen.getByText("Unauthorized")).toBeInTheDocument();
     expect(

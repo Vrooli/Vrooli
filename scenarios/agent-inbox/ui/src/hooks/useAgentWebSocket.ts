@@ -82,7 +82,7 @@ export function useAgentWebSocket({
 
       if (!isMountedRef.current) return;
 
-      if (response.events && response.events.length > 0) {
+      if (response.events.length > 0) {
         // Update last sequence
         const maxSequence = Math.max(...response.events.map(e => e.sequence));
         lastSequenceRef.current = maxSequence;
@@ -124,7 +124,7 @@ export function useAgentWebSocket({
         if (newStatus.status && TERMINAL_STATUSES.includes(newStatus.status) && !terminalRef.current) {
           terminalRef.current = true;
           // Final fetch to pick up any remaining events
-          fetchEvents(signal);
+          void fetchEvents(signal);
         }
         return newStatus;
       });
@@ -180,7 +180,7 @@ export function useAgentWebSocket({
     };
 
     // Initial fetch + start loop
-    poll();
+    void poll();
 
     return () => {
       cancelled = true;

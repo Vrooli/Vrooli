@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "calibration-composition-contract",
+    "name": "Composition Contract Calibration",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "calibration",
+    "description": "A deliberately broken calibration asset proving that a context consumer cannot replace a provided elevation with a hard-coded shadow.",
+    "targets": ["react-vite"],
+    "slot": "component",
+    "delivery": "adopted",
+    "target": { "priority": "P1", "maturity": "implemented" }
+  },
+  "consumes": { "elevation": "flat" }
+}

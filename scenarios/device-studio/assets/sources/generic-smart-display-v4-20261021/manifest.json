@@ -1,0 +1,48 @@
+{
+  "schema": "device-studio-source-asset/v1",
+  "asset_id": "generic-smart-display-v4-20261021",
+  "status": "candidate_only_unqualified",
+  "source": {
+    "asset_id": "generic-smart-display-concept-v3",
+    "path": "../generic-smart-display-v3-20261021/generic-smart-display-v3.glb",
+    "bytes": 219856,
+    "sha256": "9890e82e4ded55f098fb2eb99548bb3d0331c1a599193ee2041c9773a338cf50",
+    "preserved_unchanged": true,
+    "rights": "Vrooli-authored AGPL-3.0-only generic geometry; official Google reference media is comparison-only and not embedded."
+  },
+  "derivative": {
+    "generator": "derive_smart_display_v4.py",
+    "runtime": "Python standard library",
+    "deterministic": true,
+    "glb_file": "generic-smart-display-v4.glb",
+    "glb_bytes": 219864,
+    "glb_sha256": "7bf1f3b0c835f5817c592b12693d5b3d1deb6d289e06e727270ce245ebd75333",
+    "changes": [
+      "Area-weighted smooth normals on only the Display rear shell triangle vertices; POSITION, UVs, indices, node transforms, and all other geometry are unchanged.",
+      "Shell polymer material metallicFactor 0.10\u21920.04 and roughnessFactor 0.38\u21920.56 to reduce broad specular reflections."
+    ],
+    "shell_binding": {
+      "node_index": 6,
+      "mesh_index": 4,
+      "primitive_index": 0,
+      "position_accessor": 16,
+      "normal_accessor": 17,
+      "vertex_count": 1152,
+      "smoothed_position_groups": 194
+    }
+  },
+  "display_binding": {
+    "node_index": 8,
+    "node_name": "MainDisplayActivePlane",
+    "mesh_index": 6,
+    "primitive_index": 0,
+    "material_index": 2,
+    "uv_v_orientation": "0 at top; 1 at bottom",
+    "screen_geometry_unchanged": true
+  },
+  "qualification_limits": [
+    "Preserves the existing v3 candidate envelope and display target; does not change v3 bytes or IDs.",
+    "This is an unreviewed asset-only repair. No Device Studio native v4 render was run; professional appearance remains unaccepted until root's later native pilot.",
+    "No manufacturer identity or product qualification is claimed."
+  ]
+}

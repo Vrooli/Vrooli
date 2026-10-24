@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { CampaignCard } from './CampaignCard';
 
 const mockCampaign = {
@@ -97,5 +97,28 @@ describe('CampaignCard', () => {
     );
 
     expect(screen.getByText(/test-agent/i)).toBeInTheDocument();
+  });
+});
+
+
+describe('campaign navigation ownership', () => {
+  it('opens the focused card but lets nested buttons own their keyboard activation', () => {
+    const onView = vi.fn();
+    const onDelete = vi.fn();
+    render(<CampaignCard campaign={mockCampaign} onView={onView} onDelete={onDelete} />);
+    const card = screen.getByRole('article');
+    fireEvent.keyDown(card, { key: 'Enter' });
+    fireEvent.keyDown(card, { key: ' ' });
+    expect(onView).toHaveBeenCalledTimes(2);
+    onView.mockClear();
+    const remove = screen.getByRole('button', { name: /delete/i });
+    fireEvent.keyDown(remove, { key: 'Enter' });
+    fireEvent.click(remove);
+    expect(onView).not.toHaveBeenCalled();
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith('test-id', 'Test Campaign');
+    fireEvent.click(screen.getByRole('button', { name: /view/i }));
+    expect(onView).toHaveBeenCalledTimes(1);
+    expect(onView).toHaveBeenCalledWith('test-id');
   });
 });

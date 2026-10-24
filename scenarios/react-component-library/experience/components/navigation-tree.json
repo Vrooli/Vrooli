@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "navigation-tree",
+    "title": "NavigationTree",
+    "purpose": "NavigationTree preserves responsive navigation semantics and token ownership.",
+    "storyRef": "../../library/components/NavigationTree/versions/1.1.8/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The navigation surface is available."
+    },
+    {
+      "id": "long-content",
+      "example": "long-content",
+      "description": "Long labels remain operable."
+    }
+  ],
+  "elements": [
+    {
+      "id": "navigation",
+      "role": "navigation",
+      "description": "The named tree navigation landmark."
+    },
+    {
+      "id": "link",
+      "role": "link",
+      "description": "A hierarchical navigation destination."
+    }
+  ],
+  "claims": [
+    {
+      "id": "named-tree-navigation",
+      "type": "element-present",
+      "statement": "The asset exposes a named navigation landmark with a stable hierarchical heading and links.",
+      "tier": "machine",
+      "elements": ["navigation", "link"],
+      "states": ["default", "long-content"]
+    },
+    {
+      "id": "tree-no-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "Long navigation labels remain bounded without document-level horizontal overflow.",
+      "tier": "machine",
+      "states": ["default", "long-content"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "navigation": { "selector": "navigation" },
+      "link": { "selector": "link" }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "service": {
+    "name": "opt-a"
+  },
+  "dependencies": {
+    "scenarios": {
+      "opt-b": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "queues work until opt-b returns"
+      }
+    }
+  }
+}

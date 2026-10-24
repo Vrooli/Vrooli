@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"mime"
 	"net/http"
@@ -15,9 +17,15 @@ import (
 type ArtifactInfo struct {
 	URL         string
 	SizeBytes   int64
+	SHA256      string
 	ContentType string
 	ObjectName  string
 	Path        string
+}
+
+func artifactDigest(data []byte) string {
+	digest := sha256.Sum256(data)
+	return hex.EncodeToString(digest[:])
 }
 
 func artifactObjectName(executionID uuid.UUID, label string, ext string) string {

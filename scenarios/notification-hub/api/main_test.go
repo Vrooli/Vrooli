@@ -1,668 +1,224 @@
-
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
-	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"testing"
+
+	"notification-hub/internal/hub"
+	"notification-hub/internal/modules"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
 )
 
-// TestHealthCheck tests the health check endpoint
-func TestHealthCheck(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("HealthCheckReturnsOK", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "GET",
-			Path:   "/health",
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
+func TestLeasedTestModeRequestReadsOnlyTheDisposableAsk(t *testing.T) {
+	ctx := context.Background()
+	routed, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db")})
+	require.NoError(t, err)
+	defer routed.Close()
+	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
+	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return err
 		}
-
-		// Health check should return 200 or 503 depending on dependencies
-		if w.Code != http.StatusOK && w.Code != http.StatusServiceUnavailable {
-			t.Errorf("Expected status 200 or 503, got %d", w.Code)
-		}
-
-		response := assertJSONResponse(t, w, w.Code, []string{"status", "service", "timestamp"})
-
-		// Validate status field
-		status, ok := response["status"].(string)
-		if !ok {
-			t.Error("Status field should be a string")
-		}
-
-		validStatuses := map[string]bool{"healthy": true, "degraded": true, "unhealthy": true}
-		if !validStatuses[status] {
-			t.Errorf("Invalid status: %s", status)
-		}
-
-		// Validate service field
-		if service, ok := response["service"].(string); !ok || service != "notification-hub-api" {
-			t.Errorf("Expected service 'notification-hub-api', got %v", response["service"])
-		}
-
-		// Validate dependencies exist
-		if _, exists := response["dependencies"]; !exists {
-			t.Error("Expected 'dependencies' field in health check response")
-		}
+		return seedTestRecipient(ctx, pool)
 	})
+	require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), "e1-fixture-lease", 0))
 
-	t.Run("HealthCheckContainsDependencies", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "GET",
-			Path:   "/health",
-		})
-
+	service := hub.New(routed, schedule.System(), log.New(io.Discard, "", 0))
+	var questions []string
+	var timeline []hub.Notification
+	mux := apihttp.TestModeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		subject := service.ResolveRecipient(r.Context())
+		asks, err := service.ListAsks(r.Context(), subject, true, 50)
 		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-
-		var response map[string]interface{}
-		json.Unmarshal(w.Body.Bytes(), &response)
-
-		deps, ok := response["dependencies"].(map[string]interface{})
-		if !ok {
-			t.Fatal("Dependencies should be a map")
+		for _, ask := range asks {
+			questions = append(questions, ask.Question)
 		}
-
-		// Check for expected dependencies
-		expectedDeps := []string{"database", "redis", "notification_processor", "profile_system", "template_system"}
-		for _, depName := range expectedDeps {
-			if _, exists := deps[depName]; !exists {
-				t.Errorf("Expected dependency '%s' not found in health check", depName)
-			}
-		}
-	})
-}
-
-// TestAPIDocsEndpoint tests the API documentation endpoint
-func TestAPIDocsEndpoint(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("APIDocsReturnsHTML", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "GET",
-			Path:   "/docs",
-		})
-
+		timeline, err = service.ListForRecipient(r.Context(), subject, 50)
 		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
-		}
-
-		contentType := w.Header().Get("Content-Type")
-		if contentType != "text/html" {
-			t.Errorf("Expected Content-Type 'text/html', got '%s'", contentType)
-		}
-
-		body := w.Body.String()
-		if len(body) == 0 {
-			t.Error("Expected non-empty response body")
-		}
-	})
-}
-
-// TestProfileManagement tests profile CRUD operations
-func TestProfileManagement(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	var createdProfileID string
-
-	t.Run("CreateProfile", func(t *testing.T) {
-		req := map[string]interface{}{
-			"name": "Test Profile API",
-			"slug": "test-profile-api",
-			"plan": "premium",
-			"settings": map[string]interface{}{
-				"notification_limit": 1000,
-			},
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/admin/profiles",
-			Body:   req,
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusCreated, []string{"id", "name", "api_key", "status"})
-
-		createdProfileID = response["id"].(string)
-
-		// Validate response fields
-		if response["name"] != "Test Profile API" {
-			t.Errorf("Expected name 'Test Profile API', got %v", response["name"])
-		}
-
-		if response["status"] != "active" {
-			t.Errorf("Expected status 'active', got %v", response["status"])
-		}
-
-		// API key should only be returned on creation
-		if _, exists := response["api_key"]; !exists {
-			t.Error("Expected api_key in creation response")
-		}
-	})
-
-	t.Run("ListProfiles", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "GET",
-			Path:   "/api/v1/admin/profiles",
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"profiles"})
-
-		profiles, ok := response["profiles"].([]interface{})
-		if !ok {
-			t.Fatal("Expected profiles to be an array")
-		}
-
-		if len(profiles) == 0 {
-			t.Error("Expected at least one profile in list")
-		}
-	})
-
-	t.Run("GetProfile", func(t *testing.T) {
-		if createdProfileID == "" {
-			t.Skip("Profile creation failed, skipping get test")
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "GET",
-			Path:   fmt.Sprintf("/api/v1/admin/profiles/%s", createdProfileID),
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"id", "name", "slug"})
-
-		if response["id"] != createdProfileID {
-			t.Errorf("Expected ID %s, got %v", createdProfileID, response["id"])
-		}
-
-		// API key should NOT be returned in get response
-		if _, exists := response["api_key"]; exists {
-			t.Error("API key should not be returned in get profile response")
-		}
-	})
-
-	t.Run("UpdateProfile", func(t *testing.T) {
-		if createdProfileID == "" {
-			t.Skip("Profile creation failed, skipping update test")
-		}
-
-		updateReq := map[string]interface{}{
-			"name": "Updated Profile Name",
-			"plan": "enterprise",
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "PUT",
-			Path:   fmt.Sprintf("/api/v1/admin/profiles/%s", createdProfileID),
-			Body:   updateReq,
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"id", "name", "plan"})
-
-		if response["name"] != "Updated Profile Name" {
-			t.Errorf("Expected updated name, got %v", response["name"])
-		}
-
-		if response["plan"] != "enterprise" {
-			t.Errorf("Expected plan 'enterprise', got %v", response["plan"])
-		}
-	})
-
-	t.Run("CreateProfile_MissingName", func(t *testing.T) {
-		req := map[string]interface{}{
-			"slug": "missing-name",
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/admin/profiles",
-			Body:   req,
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		assertErrorResponse(t, w, http.StatusBadRequest, "Invalid request")
-	})
-}
-
-// TestNotificationSending tests notification sending functionality
-func TestNotificationSending(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	// Create a test contact first
-	contact, err := createTestContact(env.DB, env.TestProfile.ID)
-	if err != nil {
-		t.Fatalf("Failed to create test contact: %v", err)
+		_ = json.NewEncoder(w).Encode(questions)
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/conversations/asks", nil)
+	request.Header.Set("X-Vrooli-Test-Mode", "1")
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	require.Equal(t, http.StatusOK, response.Code, "fixture reads failed: %s", response.Body.String())
+	require.Equal(t, []string{"Choose a test-only option"}, questions)
+	require.Len(t, timeline, 10)
+	byID := make(map[string]hub.Notification, len(timeline))
+	for _, item := range timeline {
+		byID[item.ID] = item
+	}
+	require.Equal(t, "pending", byID[hub.TestNotificationID].State)
+	require.Equal(t, "delivered", byID["e4-test-delivered"].State)
+	require.Equal(t, "answered", byID["e4-test-history"].State)
+	for id, state := range map[string]string{
+		"e4-test-pending": "pending", "e4-test-held": "held", "e4-test-routed": "routed",
+		"e4-test-failed": "failed", "e4-test-unroutable": "unroutable", "e4-test-suppressed": "suppressed",
+		"e4-test-unknown": "future-state",
+	} {
+		require.Equal(t, state, byID[id].State, "fixture preserves every recognized and unknown delivery state")
 	}
 
-	t.Run("SendNotification_Success", func(t *testing.T) {
-		req := map[string]interface{}{
-			"recipients": []map[string]interface{}{
-				{
-					"contact_id": contact.ID.String(),
-					"variables": map[string]interface{}{
-						"name":    "John Doe",
-						"message": "Hello from test",
-					},
-				},
-			},
-			"subject":  "Test Notification",
-			"content": map[string]interface{}{
-				"text": "This is a test notification for {{name}}: {{message}}",
-				"html": "<p>This is a test notification for {{name}}: {{message}}</p>",
-			},
-			"channels": []string{"email"},
-			"priority": "normal",
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "POST",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/notifications/send", env.TestProfile.ID),
-			Body:    req,
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusCreated, []string{"notifications", "message"})
-
-		notifications, ok := response["notifications"].([]interface{})
-		if !ok {
-			t.Fatal("Expected notifications to be an array")
-		}
-
-		if len(notifications) != 1 {
-			t.Errorf("Expected 1 notification, got %d", len(notifications))
-		}
-	})
-
-	t.Run("SendNotification_MultipleRecipients", func(t *testing.T) {
-		// Create another contact
-		contact2, err := createTestContact(env.DB, env.TestProfile.ID)
-		if err != nil {
-			t.Fatalf("Failed to create second test contact: %v", err)
-		}
-
-		req := map[string]interface{}{
-			"recipients": []map[string]interface{}{
-				{
-					"contact_id": contact.ID.String(),
-					"variables":  map[string]interface{}{"name": "User 1"},
-				},
-				{
-					"contact_id": contact2.ID.String(),
-					"variables":  map[string]interface{}{"name": "User 2"},
-				},
-			},
-			"subject":  "Bulk Notification",
-			"content": map[string]interface{}{
-				"text": "Hello {{name}}!",
-			},
-			"channels": []string{"email", "sms"},
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "POST",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/notifications/send", env.TestProfile.ID),
-			Body:    req,
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusCreated, []string{"notifications"})
-
-		notifications, ok := response["notifications"].([]interface{})
-		if !ok {
-			t.Fatal("Expected notifications to be an array")
-		}
-
-		if len(notifications) != 2 {
-			t.Errorf("Expected 2 notifications, got %d", len(notifications))
-		}
-	})
-
-	t.Run("SendNotification_InvalidContactID", func(t *testing.T) {
-		req := map[string]interface{}{
-			"recipients": []map[string]interface{}{
-				{
-					"contact_id": "invalid-uuid",
-					"variables":  map[string]interface{}{"name": "Test"},
-				},
-			},
-			"subject":  "Test",
-			"content": map[string]interface{}{"text": "Test"},
-			"channels": []string{"email"},
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "POST",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/notifications/send", env.TestProfile.ID),
-			Body:    req,
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		assertErrorResponse(t, w, http.StatusBadRequest, "Invalid contact_id")
-	})
-
-	t.Run("SendNotification_MissingRecipients", func(t *testing.T) {
-		req := map[string]interface{}{
-			"subject":  "Test",
-			"content": map[string]interface{}{"text": "Test"},
-			"channels": []string{"email"},
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "POST",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/notifications/send", env.TestProfile.ID),
-			Body:    req,
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		// Should fail due to missing recipients
-		if w.Code == http.StatusCreated {
-			t.Error("Expected error for missing recipients, got success")
-		}
-	})
+	stats := routed.LeaseStats()
+	require.Greater(t, stats.TestPoolRequests, int64(0))
+	require.Zero(t, stats.PrimaryDuringTestModeRequests)
+	var primaryAsks int
+	require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM asks`).Scan(&primaryAsks))
+	require.Zero(t, primaryAsks, "fixture must never be written to the primary database")
+	var answers int
+	require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM answers`).Scan(&answers))
+	require.Zero(t, answers, "the disposable fixture remains unanswered")
+	testCtx, err := routed.PinTestPool(ctx, "e1-fixture-lease")
+	require.NoError(t, err)
+	var fixtureReceipts, fixtureAttempts, fixtureAnswers int
+	require.NoError(t, routed.QueryRowContext(testCtx, `SELECT count(*) FROM receipts WHERE notification_id = ?`, "e4-test-delivered").Scan(&fixtureReceipts))
+	require.NoError(t, routed.QueryRowContext(testCtx, `SELECT count(*) FROM delivery_attempts WHERE notification_id = ?`, "e4-test-delivered").Scan(&fixtureAttempts))
+	var readAskAnswers int
+	require.NoError(t, routed.QueryRowContext(testCtx, `SELECT count(*) FROM answers WHERE ask_id = ?`, hub.TestAskID).Scan(&readAskAnswers))
+	require.NoError(t, routed.QueryRowContext(testCtx, `SELECT count(*) FROM answers WHERE ask_id = ?`, "e4-test-answered-ask").Scan(&fixtureAnswers))
+	require.Equal(t, 1, fixtureReceipts, "adapter receipt is explicit fixture data")
+	require.Equal(t, 1, fixtureAttempts, "delivery attempt is distinct from current state")
+	require.Zero(t, readAskAnswers, "an ordinary ask read must not acknowledge or answer it")
+	require.Equal(t, 1, fixtureAnswers, "History contains only a closed answered ask")
+	t.Logf("lease_id=%s test_pool_requests=%d primary_during_test_mode_requests=%d primary_asks=%d primary_answers=%d", routed.ActiveLeaseID(), stats.TestPoolRequests, stats.PrimaryDuringTestModeRequests, primaryAsks, answers)
 }
 
-// TestAuthentication tests API key authentication
-func TestAuthentication(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	basePath := fmt.Sprintf("/api/v1/profiles/%s/notifications", env.TestProfile.ID)
-
-	t.Run("WithoutAPIKey", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    basePath,
-			Headers: map[string]string{}, // No API key
-		})
-
+func TestTestModeRequestsFailClosedWithoutAnActiveLease(t *testing.T) {
+	ctx := context.Background()
+	routed, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db")})
+	require.NoError(t, err)
+	defer routed.Close()
+	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
+	service := hub.New(routed, schedule.System(), log.New(io.Discard, "", 0))
+	called := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		_, err := service.ListAsks(r.Context(), service.ResolveRecipient(r.Context()), true, 50)
 		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-
-		assertErrorResponse(t, w, http.StatusUnauthorized, "API key required")
+		w.WriteHeader(http.StatusNoContent)
 	})
+	mux := apihttp.TestModeMiddleware(requireRoutedTestLease(routed, next))
 
-	t.Run("WithInvalidAPIKey", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    basePath,
-			Headers: map[string]string{"X-API-Key": "invalid-key-12345"},
-		})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/conversations/asks", nil)
+	request.Header.Set("X-Vrooli-Test-Mode", "1")
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	require.Equal(t, http.StatusServiceUnavailable, response.Code)
+	require.False(t, called, "handler must not reach storage without a lease")
+	require.Zero(t, routed.LeaseStats().PrimaryDuringTestModeRequests)
 
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
+	leaseID := "cleared-fixture-lease"
+	require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), leaseID, 0))
+	require.NoError(t, routed.ClearTestPool(leaseID))
+	called = false
+	response = httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	require.Equal(t, http.StatusServiceUnavailable, response.Code)
+	require.False(t, called, "a cleared lease must not route test-mode requests to primary")
+	require.Zero(t, routed.LeaseStats().PrimaryDuringTestModeRequests)
 
-		assertErrorResponse(t, w, http.StatusUnauthorized, "Invalid API key or profile")
-	})
-
-	t.Run("WithValidAPIKey", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    basePath,
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		// Should return 200 for valid API key
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
-		}
-	})
-
-	t.Run("WithBearerToken", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    basePath,
-			Headers: map[string]string{"Authorization": "Bearer " + env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		// Should accept Bearer token format
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200 with Bearer token, got %d", w.Code)
-		}
-	})
+	var primaryAsks int
+	require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM asks`).Scan(&primaryAsks))
+	require.Zero(t, primaryAsks, "failed test-mode requests must have no primary-store effect")
 }
 
-// TestErrorPatterns tests systematic error conditions
-func TestErrorPatterns(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	// Test notification endpoints with error patterns
-	notificationPatterns := NewTestScenarioBuilder().
-		AddMissingAPIKey("/api/v1/profiles/%s/notifications", "GET").
-		AddInvalidAPIKey("/api/v1/profiles/%s/notifications", "GET").
-		AddInvalidJSON("/api/v1/profiles/%s/notifications/send", "POST").
-		Build()
-
-	RunErrorTests(t, env, notificationPatterns)
-
-	// Test contact endpoints with error patterns
-	contactPatterns := NewTestScenarioBuilder().
-		AddMissingAPIKey("/api/v1/profiles/%s/contacts", "GET").
-		AddInvalidJSON("/api/v1/profiles/%s/contacts", "POST").
-		Build()
-
-	RunErrorTests(t, env, contactPatterns)
-}
-
-// TestNotificationListing tests listing notifications
-func TestNotificationListing(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("ListNotifications_Empty", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/notifications", env.TestProfile.ID),
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
+func TestE4FixtureProfilesStayInsideThePinnedTestPool(t *testing.T) {
+	for _, fixture := range []string{"empty-open-asks", "asks-read-failure"} {
+		t.Run(fixture, func(t *testing.T) {
+			ctx := context.Background()
+			routed, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db")})
+			require.NoError(t, err)
+			defer routed.Close()
+			require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
+			routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+				if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+					return err
+				}
+				return seedTestRecipient(ctx, pool)
+			})
+			leaseID := "e4-fixture-profile-lease"
+			require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), leaseID, 0))
+			service := hub.New(routed, schedule.System(), log.New(io.Discard, "", 0))
+			var listErr error
+			var listed int
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var asks []hub.AskRecord
+				asks, listErr = service.ListAsks(r.Context(), service.ResolveRecipient(r.Context()), true, 50)
+				listed = len(asks)
+				if listErr != nil {
+					http.Error(w, "read failed", http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+			})
+			mux := apihttp.TestModeMiddleware(requireRoutedTestLease(routed, next))
+			sendList := func(referer string) *httptest.ResponseRecorder {
+				request := httptest.NewRequest(http.MethodPost, "/vrooli.notification_hub.v1.conversations.ConversationsService/ListAsks", nil)
+				request.Header.Set("X-Vrooli-Test-Mode", "1")
+				request.Header.Set("Referer", referer)
+				response := httptest.NewRecorder()
+				mux.ServeHTTP(response, request)
+				return response
+			}
+			firstResponse := sendList("http://notification-hub.invalid/updates?vrooli_test_mode=1&e4_fixture=" + fixture)
+			require.NoError(t, listErr, "fixture selection on Updates is deferred until the Needs you list read")
+			require.Equal(t, 1, listed)
+			require.Equal(t, http.StatusNoContent, firstResponse.Code)
+			listErr = nil
+			response := sendList("http://notification-hub.invalid/asks?vrooli_test_mode=1")
+			if fixture == "asks-read-failure" {
+				require.Error(t, listErr, "the actual leased ListAsks query must fail")
+				require.Equal(t, http.StatusInternalServerError, response.Code)
+			} else {
+				require.NoError(t, listErr)
+				require.Zero(t, listed, "empty-open-asks profile must return an authoritative empty open list")
+				require.Equal(t, http.StatusNoContent, response.Code)
+			}
+			listErr = nil
+			repeated := sendList("http://notification-hub.invalid/asks?vrooli_test_mode=1")
+			if fixture == "asks-read-failure" {
+				require.Error(t, listErr, "the selected read failure remains active for follow-up list queries in the same routed case")
+				require.Equal(t, http.StatusInternalServerError, repeated.Code)
+			} else {
+				require.NoError(t, listErr)
+				require.Zero(t, listed, "follow-up list queries must retain the selected empty state")
+				require.Equal(t, http.StatusNoContent, repeated.Code)
+			}
+			stats := routed.LeaseStats()
+			require.Greater(t, stats.TestPoolRequests, int64(0))
+			require.Zero(t, stats.PrimaryDuringTestModeRequests)
+			testCtx, err := routed.PinTestPool(ctx, leaseID)
+			require.NoError(t, err)
+			var restored int
+			if fixture == "asks-read-failure" {
+				require.NoError(t, routed.QueryRowContext(testCtx, `SELECT count(*) FROM asks`).Scan(&restored), "the leased asks table is restored after the injected read failure")
+			} else {
+				require.NoError(t, routed.QueryRowContext(testCtx, `SELECT count(*) FROM asks WHERE id = ? AND state = 'pending'`, hub.TestAskID).Scan(&restored), "the ordinary disposable ask is restored after the empty profile read")
+			}
+			require.Greater(t, restored, 0)
+			var primaryAsks int
+			require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM asks`).Scan(&primaryAsks))
+			require.Zero(t, primaryAsks, "E4 fixture mutations must never touch primary storage")
 		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"notifications"})
-
-		notifications, ok := response["notifications"].([]interface{})
-		if !ok {
-			t.Fatal("Expected notifications to be an array")
-		}
-
-		// Should return empty array, not null
-		if notifications == nil {
-			t.Error("Expected empty array, got nil")
-		}
-	})
-}
-
-// TestContactManagement tests contact CRUD operations
-func TestContactManagement(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("ListContacts_Empty", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/contacts", env.TestProfile.ID),
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"contacts"})
-
-		contacts, ok := response["contacts"].([]interface{})
-		if !ok {
-			t.Fatal("Expected contacts to be an array")
-		}
-
-		if contacts == nil {
-			t.Error("Expected empty array, got nil")
-		}
-	})
-}
-
-// TestAnalytics tests analytics endpoints
-func TestAnalytics(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("GetDeliveryStats", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/analytics/delivery-stats", env.TestProfile.ID),
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"stats"})
-
-		if response["stats"] == nil {
-			t.Error("Expected stats object, got nil")
-		}
-	})
-
-	t.Run("GetDailyStats", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/analytics/daily-stats", env.TestProfile.ID),
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"daily_stats"})
-
-		dailyStats, ok := response["daily_stats"].([]interface{})
-		if !ok {
-			t.Fatal("Expected daily_stats to be an array")
-		}
-
-		if dailyStats == nil {
-			t.Error("Expected empty array, got nil")
-		}
-	})
-}
-
-// TestUnsubscribeWebhook tests the unsubscribe webhook endpoint
-func TestUnsubscribeWebhook(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("UnsubscribeWebhook", func(t *testing.T) {
-		req := map[string]interface{}{
-			"email":   "user@example.com",
-			"reason":  "no longer interested",
-			"profile": env.TestProfile.ID.String(),
-		}
-
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/webhooks/unsubscribe",
-			Body:   req,
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		// Unsubscribe webhook should always return 200
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
-		}
-	})
+	}
 }

@@ -3,36 +3,78 @@ package testsqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
-	goruntime "runtime"
 	"testing"
 
-	"github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
-
+	"test-genie/internal/dbexec"
 	"test-genie/internal/storage/sqlfiles"
 	"test-genie/internal/storage/sqlitedb"
+
+	"github.com/vrooli/api-core/database"
+	repocontract "github.com/vrooli/repo-contract-go"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
+	_ "modernc.org/sqlite"
 )
 
 // Open returns a temporary SQLite database initialized with Test Genie's schema.
-func Open(t *testing.T) *sql.DB {
+func Open(t testing.TB) *sql.DB {
 	t.Helper()
 	return open(t, false)
 }
 
 // OpenWithSeed returns a temporary SQLite database initialized with schema and seed data.
-func OpenWithSeed(t *testing.T) *sql.DB {
+func OpenWithSeed(t testing.TB) *sql.DB {
 	t.Helper()
 	return open(t, true)
 }
 
-func open(t *testing.T, includeSeed bool) *sql.DB {
+// OpenRouted returns a temporary SQLite database as a *database.RoutedDB —
+// the production handle shape after the routed-test-db migration. Use it for
+// tests that construct Server/Bootstrapped (which now hold *RoutedDB); the
+// same handle still satisfies the dbexec.Executor seam every repository takes.
+func OpenRouted(t testing.TB) *database.RoutedDB {
+	t.Helper()
+	return openRouted(t, false)
+}
+
+func openRouted(t testing.TB, includeSeed bool) *database.RoutedDB {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test-genie.db")
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatalf("build sqlite dsn: %v", err)
+	}
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		t.Fatalf("open routed sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if err := applyDomainSchemas(db); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+	_ = includeSeed
+	return db
+}
+
+func open(t testing.TB, includeSeed bool) *sql.DB {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "test-genie.db")
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatalf("build sqlite dsn: %v", err)
+	}
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          sqlitedb.BuildDSN(path),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
@@ -41,21 +83,31 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "schema.sql")); err != nil {
-		t.Fatalf("apply sqlite schema: %v", err)
+	if err := applyDomainSchemas(db); err != nil {
+		t.Fatalf("apply schema: %v", err)
 	}
-	if includeSeed {
-		if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "seed.sql")); err != nil {
-			t.Fatalf("apply sqlite seed: %v", err)
-		}
-	}
+	_ = includeSeed
 	return db
 }
 
-func scenarioRoot() string {
-	_, file, _, ok := goruntime.Caller(0)
-	if !ok {
-		return "."
+func applyDomainSchemas(db dbexec.Executor) error {
+	scenarioDir, err := scenarioRoot()
+	if err != nil {
+		return err
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	root := filepath.Join(scenarioDir, "api", "internal")
+	for _, domain := range []string{"execution", "playbooksclaims", "remediation", "selfhealthsnapshots", "validationbroker"} {
+		if err := sqlfiles.ExecFile(db, filepath.Join(root, domain, "schema.sql")); err != nil {
+			return fmt.Errorf("apply %s schema: %w", domain, err)
+		}
+	}
+	return nil
+}
+
+func scenarioRoot() (string, error) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		return "", fmt.Errorf("resolve repository root for Test Genie schemas: %w", err)
+	}
+	return filepath.Join(repoRoot, "scenarios", "test-genie"), nil
 }

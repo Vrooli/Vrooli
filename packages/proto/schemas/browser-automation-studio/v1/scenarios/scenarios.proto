@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.scenarios;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/scenarios;scenarios";
+
+// =============================================================================
+// SCENARIOS DOMAIN — discovery of sibling scenarios + their HTTP ports.
+// =============================================================================
+//
+// @stability beta
+//
+// ScenariosService exposes BAS's runtime view of other Vrooli scenarios on the
+// same host so workflows can resolve cross-scenario URLs without hardcoding
+// ports. It wraps the internal scenarioport package, which in turn shells out
+// to the `vrooli` CLI; everything observable here is local-state, not
+// authoritative configuration.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/scenarios_v1/connect_handler.go
+//   - UI:   ui/src/api/scenarios.ts (scenario picker, URL preview)
+//   - CLI:  bas scenarios list | bas scenarios port <name>
+// =============================================================================
+
+service ScenariosService {
+  // List returns every scenario the local vrooli CLI knows about, with the
+  // current runtime status from `vrooli scenario status`.
+  rpc List(ListScenariosRequest) returns (ListScenariosResponse);
+
+  // GetPort returns the primary HTTP port and resolved base URL for a single
+  // scenario by name. The URL is computed via the same discovery path that
+  // workflow nodes use, so it is safe to embed in subsequent requests.
+  rpc GetPort(GetScenarioPortRequest) returns (GetScenarioPortResponse);
+}
+
+// Scenario is the lightweight metadata view returned by List.
+message Scenario {
+  // Stable scenario slug (e.g. "browser-automation-studio").
+  string name = 1;
+
+  // Free-form one-liner from the scenario's manifest. May be empty.
+  string description = 2;
+
+  // Runtime status as reported by `vrooli scenario status`
+  // (e.g. "running", "stopped", "unknown"). Free-form; do not match on it.
+  string status = 3;
+}
+
+message ListScenariosRequest {}
+
+message ListScenariosResponse {
+  repeated Scenario scenarios = 1;
+}
+
+message GetScenarioPortRequest {
+  // Scenario slug. Required, non-empty.
+  string name = 1 [(buf.validate.field).string = {min_len: 1}];
+}
+
+message GetScenarioPortResponse {
+  // Primary HTTP port discovered for the scenario; 0 if no port is known.
+  int32 port = 1;
+
+  // Current runtime status, same vocabulary as Scenario.status.
+  string status = 2;
+
+  // Fully-qualified base URL for the scenario's primary HTTP port. Empty if
+  // unresolved.
+  string url = 3;
+}

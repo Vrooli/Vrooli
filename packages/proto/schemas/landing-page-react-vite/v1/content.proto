@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
+
+// =============================================================================
+// CONTENT DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain content
+// @imports none
+// @stability stable
+//
+// Content sections are the ordered, typed blocks that compose a variant's
+// landing page (hero, features, pricing, cta, testimonials, faq, footer,
+// video, downloads). Each section carries a free-form JSON content payload
+// rendered by the matching frontend block component.
+//
+// =============================================================================
+
+// ContentSection is a single ordered, typed block of a variant's landing page.
+message ContentSection {
+  // Primary key.
+  int64 id = 1;
+  // Owning variant id (FK; cascade delete).
+  int64 variant_id = 2;
+  // Section type: hero|features|pricing|cta|testimonials|faq|footer|video|downloads.
+  string section_type = 3;
+  // Free-form section content payload rendered by the block component.
+  google.protobuf.Struct content = 4;
+  // Ordering position within the variant (ascending). JSON key "order".
+  int32 order = 5;
+  // Whether the section is shown on the public page.
+  bool enabled = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// GetPublicSectionsRequest lists enabled sections for a variant (public view).
+message GetPublicSectionsRequest {
+  int64 variant_id = 1;
+}
+
+// GetSectionsRequest lists all sections for a variant (admin view).
+message GetSectionsRequest {
+  int64 variant_id = 1;
+}
+
+// SectionsResponse returns an ordered list of sections.
+message SectionsResponse {
+  repeated ContentSection sections = 1;
+}
+
+// GetSectionRequest fetches a single section by id.
+message GetSectionRequest {
+  int64 id = 1;
+}
+
+// SectionResponse returns a single section.
+message SectionResponse {
+  ContentSection section = 1;
+}
+
+// CreateSectionRequest creates a new section for a variant.
+message CreateSectionRequest {
+  int64 variant_id = 1;
+  string section_type = 2;
+  google.protobuf.Struct content = 3;
+  int32 order = 4;
+  // Presence-tracked; defaults to true when omitted.
+  optional bool enabled = 5;
+}
+
+// UpdateSectionRequest replaces a section's content payload.
+message UpdateSectionRequest {
+  int64 id = 1;
+  google.protobuf.Struct content = 2;
+}
+
+// DeleteSectionRequest deletes a section by id.
+message DeleteSectionRequest {
+  int64 id = 1;
+}
+
+// DeleteSectionResponse acknowledges a deletion.
+message DeleteSectionResponse {
+  bool deleted = 1;
+}
+
+// ContentService manages a variant's ordered landing-page sections.
+service ContentService {
+  // Lists enabled sections for a variant (public).
+  rpc GetPublicSections(GetPublicSectionsRequest) returns (SectionsResponse);
+  // Lists all sections for a variant (admin).
+  rpc GetSections(GetSectionsRequest) returns (SectionsResponse);
+  // Fetches a single section by id (admin).
+  rpc GetSection(GetSectionRequest) returns (SectionResponse);
+  // Creates a section (admin).
+  rpc CreateSection(CreateSectionRequest) returns (SectionResponse);
+  // Replaces a section's content (admin).
+  rpc UpdateSection(UpdateSectionRequest) returns (SectionResponse);
+  // Deletes a section (admin).
+  rpc DeleteSection(DeleteSectionRequest) returns (DeleteSectionResponse);
+}

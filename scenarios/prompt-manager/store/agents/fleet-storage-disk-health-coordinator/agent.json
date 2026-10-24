@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "fleet-storage-disk-health-coordinator",
+  "displayName": "fleet-storage-disk-health-coordinator",
+  "description": "Make portable disk-wear monitoring truthful, demonstrate the required alert-before-repair sequence, fix write amplification, and address the remaining recorded storage/host-health obligations through their owning scenarios and control plane.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "effort",
+    "storage",
+    "disk-health",
+    "finite"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-09-14T13:08:33Z",
+  "updatedAt": "2026-10-24T11:52:50Z"
+}

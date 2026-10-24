@@ -74,7 +74,7 @@ export function CorrelationTracePage() {
       setCorrelationId(cid);
       setActiveSearch(cid);
     }
-  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeSearch, location.search]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["trace", activeSearch],

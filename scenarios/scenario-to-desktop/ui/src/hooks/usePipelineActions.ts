@@ -24,9 +24,10 @@ import {
   probeEndpoints,
   type PipelineConfig,
   type ProbeResponse,
-  type BundlePreflightSecret,
 } from "../lib/api";
 import { filterNonEmptySecrets } from "../controllers/pipelineController";
+import type { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import type { PreflightSecret } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 
 // ============================================================================
 // Types
@@ -40,7 +41,9 @@ export interface UsePipelineActionsProps {
 export interface UsePipelineActionsReturn {
   // Pipeline state from store
   pipelineId: string | null;
-  pipelineStatus: ReturnType<typeof usePipelineStore.getState>["pipelineStatus"];
+  pipelineStatus: ReturnType<
+    typeof usePipelineStore.getState
+  >["pipelineStatus"];
   runStatus: ReturnType<typeof usePipelineStore.getState>["runStatus"];
   error: string | null;
   errorInfo: ReturnType<typeof usePipelineStore.getState>["errorInfo"];
@@ -49,27 +52,35 @@ export interface UsePipelineActionsReturn {
   isRunning: boolean;
   isSubmitting: boolean;
   isBusy: boolean;
-  currentStage: string | null;
+  currentStage: StageName | null;
   progress: number;
   canResume: boolean;
-  stoppedAfterStage: string | null;
+  stoppedAfterStage: StageName | null;
 
   // Preflight state
-  preflightResult: ReturnType<typeof usePipelineStore.getState>["preflightResult"];
+  preflightResult: ReturnType<
+    typeof usePipelineStore.getState
+  >["preflightResult"];
   preflightSecrets: Record<string, string>;
   preflightOverride: boolean;
   preflightOk: boolean;
-  missingPreflightSecrets: BundlePreflightSecret[];
+  missingPreflightSecrets: PreflightSecret[];
 
   // Preflight actions
-  runPreflight: (secretsOverride?: Record<string, string>, configOverride?: Partial<PipelineConfig>) => Promise<void>;
+  runPreflight: (
+    secretsOverride?: Record<string, string>,
+    configOverride?: Partial<PipelineConfig>,
+  ) => Promise<void>;
   resetPreflight: () => void;
   setPreflightSecrets: (secrets: Record<string, string>) => void;
   setPreflightSecret: (id: string, value: string) => void;
   setPreflightOverride: (override: boolean) => void;
 
   // Pipeline actions
-  runStage: (stage: PipelineStage, config?: Partial<PipelineConfig>) => Promise<string>;
+  runStage: (
+    stage: PipelineStage,
+    config?: Partial<PipelineConfig>,
+  ) => Promise<string>;
   runFullPipeline: (config?: Partial<PipelineConfig>) => Promise<string>;
   cancelPipeline: () => Promise<void>;
   resumePipeline: (pipelineId: string) => Promise<string>;
@@ -105,7 +116,9 @@ export interface UsePipelineActionsReturn {
 // Hook Implementation
 // ============================================================================
 
-export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineActionsReturn {
+export function usePipelineActions(
+  props: UsePipelineActionsProps,
+): UsePipelineActionsReturn {
   const { scenarioName, onBuildStart } = props;
 
   // ========== Pipeline Store ==========
@@ -166,7 +179,7 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
   const generateMutation = useMutation({
     mutationFn: (config: PipelineConfig) => runPipeline(config),
     onSuccess: (data) => {
-      onBuildStart?.(data.pipeline_id);
+      onBuildStart?.(data.pipelineId);
     },
   });
 
@@ -174,11 +187,11 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
     (config: PipelineConfig) => {
       generateMutation.mutate(config);
     },
-    [generateMutation]
+    [generateMutation],
   );
 
   const generateError = generateMutation.isError
-    ? (generateMutation.error as Error).message
+    ? generateMutation.error.message
     : null;
 
   // ========== Connection Test Mutation ==========
@@ -196,7 +209,7 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
     (proxyUrl: string) => {
       connectionMutation.mutate(proxyUrl);
     },
-    [connectionMutation]
+    [connectionMutation],
   );
 
   // ========== Preflight Action ==========
@@ -204,21 +217,23 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
   const runPreflight = useCallback(
     async (
       secretsOverride?: Record<string, string>,
-      configOverride?: Partial<PipelineConfig>
+      configOverride?: Partial<PipelineConfig>,
     ) => {
       if (!scenarioName) return;
 
-      const filteredSecrets = filterNonEmptySecrets(secretsOverride ?? preflightSecrets);
+      const filteredSecrets = filterNonEmptySecrets(
+        secretsOverride ?? preflightSecrets,
+      );
 
       setPreflightOverride(false);
 
       await runPreflightStage({
-        preflight_secrets:
+        preflightSecrets:
           Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
         ...configOverride,
       });
     },
-    [scenarioName, preflightSecrets, runPreflightStage, setPreflightOverride]
+    [scenarioName, preflightSecrets, runPreflightStage, setPreflightOverride],
   );
 
   // ========== Return ==========
@@ -275,7 +290,7 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
     connectionTestPending: connectionMutation.isPending,
     connectionTestResult: connectionMutation.data ?? null,
     connectionTestError: connectionMutation.error
-      ? (connectionMutation.error as Error).message
+      ? connectionMutation.error.message
       : null,
 
     // State management

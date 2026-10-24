@@ -1,9 +1,29 @@
+---
+name: "idea-workshop"
+description: "Collaborative brainstorming methodology for shaping vague intuitions into coherent, structured ideas ready for swarm-manager's idea agent pipeline. Guides the conversation from raw brain-dump through synthesis, sharpening questions, and iteration to a complete backlog submission."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","brainstorming","ideation","collaboration","methodology"]
+  icon: "lightbulb"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-03-20T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager", "swarm-manager backlog", "swarm-manager does"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Idea Workshop
 
 Collaborative methodology for transforming vague intuitions into coherent, structured ideas through iterative conversation. The goal is to help the user externalize and shape a raw concept without disrupting their creative flow, then hand off the refined idea to swarm-manager's idea agent pipeline for formal hardening.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 
@@ -17,7 +37,7 @@ Use Idea Workshop when:
 
 **Do NOT use** for:
 - Refining an already-articulated idea (use swarm-manager's clarify/suggest/enhance directly)
-- Implementation planning for a defined task (use plan-skill-discovery)
+- Implementation planning for a defined task (use the plan-manager authoring wizard via implementation-plan-authoring)
 - Debugging or fixing existing code
 - Quick one-off questions
 
@@ -169,7 +189,7 @@ Use Idea Workshop when:
    ```
 2. **Kick off the clarify phase** to begin formal hardening:
    ```bash
-   swarm-manager backlog research --kind idea --name <name> --data '{"mode":"clarify"}'
+   swarm-manager backlog research --kind idea --name "<name>" --data '{"mode":"clarify"}'
    ```
 3. **Inform the user** of next steps: the idea agent will generate clarifying questions, then suggest improvements, then produce an enhanced specification.
 
@@ -225,7 +245,7 @@ This methodology covers the **pre-ideation phase**: shaping raw thoughts into a 
 
 **Does NOT cover:**
 - **Formal idea refinement** — That's swarm-manager's clarify/suggest/enhance pipeline (this skill hands off to it)
-- **Implementation planning** — Use plan-skill-discovery after the idea is refined
+- **Implementation planning** — Use the plan-manager authoring wizard (implementation-plan-authoring) after the idea is refined
 - **Technical architecture decisions** — Those come during planning, not brainstorming
 - **Evaluating whether an idea is worth pursuing** — That's a product/business decision, not a methodology question
 

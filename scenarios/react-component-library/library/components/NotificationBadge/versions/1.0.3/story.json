@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Count",
+      "args": {
+        "value": "7",
+        "tone": "warning"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "7"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {
+      "id": "dot",
+      "name": "Dot",
+      "args": {
+        "dot": true,
+        "tone": "danger"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-notification-badge-indicator]",
+          "name": "data-dot",
+          "value": "true"
+        }
+      ]
+    }
+    ,
+    {"id":"empty","name":"No notifications","args":{"count":0},"expect":[{"kind":"text","value":"7"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Large notification count","args":{"count":999},"expect":[{"kind":"text","value":"7"}],"role":"boundary","mode":"pinned"}
+  ]
+}

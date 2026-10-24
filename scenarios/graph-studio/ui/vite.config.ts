@@ -2,7 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Get ports from environment variables
-const UI_PORT = parseInt(process.env.UI_PORT);
+// The default lives here rather than in the npm script: package scripts run
+// through cmd.exe on Windows, which cannot expand ${UI_PORT:-9101}.
+const UI_PORT = parseInt(process.env.UI_PORT) || 9101;
 const API_PORT = parseInt(process.env.API_PORT);
 
 const API_BASE_URL = `http://localhost:${API_PORT}`;
@@ -35,6 +37,10 @@ const healthPlugin = {
 
 export default defineConfig({
   plugins: [react(), healthPlugin],
+  preview: {
+    port: UI_PORT,
+    host: true,
+  },
   server: {
     port: UI_PORT,
     host: true,

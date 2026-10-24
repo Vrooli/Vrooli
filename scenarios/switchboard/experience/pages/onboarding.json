@@ -1,0 +1,228 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "onboarding",
+    "title": "Welcome",
+    "routes": [
+      "/welcome"
+    ],
+    "purpose": "The first screen a stranger sees. It hands them a working agent in one step and defers every account, credential and provisioning decision until after the agent has already answered them.",
+    "prd_refs": [
+      "OT-P0-014",
+      "OT-P1-008",
+      "OT-P1-013"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether this can be tried right now, without an account or a credential"
+    },
+    {
+      "statement": "What the agent will be able to do once it exists"
+    },
+    {
+      "statement": "That an external handle is available later and is not needed now"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A single description field and one dominant action."
+    },
+    {
+      "id": "submitting",
+      "description": "The description is being drafted into an agent; the field is locked and the action is busy."
+    },
+    {
+      "id": "success",
+      "description": "The drafted agent is shown for confirmation before anything is written."
+    },
+    {
+      "id": "validation-error",
+      "description": "The description is too short to draft from; the message sits beside the field."
+    },
+    {
+      "id": "request-error",
+      "description": "Drafting failed; the typed description is preserved and a retry is offered."
+    },
+    {
+      "id": "offline",
+      "description": "Drafting is unavailable; the field explains what still works locally."
+    },
+    {
+      "id": "loading",
+      "description": "The page's regions are resolving; each reports its own placeholder."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing to show yet; the surface says so and offers the action that would fill it."
+    },
+    {
+      "id": "partial",
+      "description": "One region failed while the rest resolved; the failure is named and the page stays usable."
+    },
+    {
+      "id": "stale",
+      "description": "Content is from a cached read; its age is stated."
+    }
+  ],
+  "elements": [
+    {
+      "id": "describe-field",
+      "role": "textbox",
+      "name": "Describe your agent"
+    },
+    {
+      "id": "draft-action",
+      "role": "button",
+      "name": "Draft the agent"
+    },
+    {
+      "id": "drafted-profile",
+      "role": "region",
+      "name": "Drafted agent"
+    },
+    {
+      "id": "confirm-action",
+      "role": "button",
+      "name": "Create this agent"
+    },
+    {
+      "id": "skip-link",
+      "role": "link",
+      "name": "Start from a blank agent"
+    },
+    {
+      "id": "later-note",
+      "role": "note",
+      "name": "Attach a phone number or iMessage later"
+    }
+  ],
+  "claims": [
+    {
+      "id": "one-dominant-action",
+      "type": "single-dominant-action",
+      "statement": "Exactly one action visually dominates the first screen, and it is the one that produces an agent.",
+      "tier": "aspirational",
+      "elements": [
+        "draft-action",
+        "skip-link"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A first screen offering an equal-weight choice converts worse than one that makes the recommended path obvious."
+    },
+    {
+      "id": "no-account-wall",
+      "type": "element-absent",
+      "statement": "No sign-in, payment, or credential field is present before an agent has been drafted.",
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "submitting",
+        "success"
+      ],
+      "rationale": "The whole reason the in-app surface exists is that it can be tried in ten seconds."
+    },
+    {
+      "id": "value-before-setup",
+      "type": "reading-order",
+      "statement": "The reader meets the description field before any mention of attaching an external handle.",
+      "tier": "aspirational",
+      "elements": [
+        "describe-field",
+        "draft-action",
+        "later-note"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "input-survives-failure",
+      "type": "custom",
+      "statement": "A failed draft preserves the typed description verbatim and does not clear the field.",
+      "tier": "manual",
+      "elements": [
+        "describe-field"
+      ],
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "confirm-before-write",
+      "type": "affordance-present",
+      "statement": "A drafted agent is presented for confirmation and nothing is written until the confirm action is used.",
+      "tier": "aspirational",
+      "elements": [
+        "drafted-profile",
+        "confirm-action"
+      ],
+      "states": [
+        "success"
+      ],
+      "rationale": "OT-P1-008 requires assisted authoring to present before it writes."
+    },
+    {
+      "id": "states-distinct",
+      "type": "state-distinct",
+      "statement": "Default, submitting, success and request-error are each perceivably different without reading the copy.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Every state renders with equivalent contrast and hierarchy in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "draft-region",
+      "purpose": "The drafted agent profile resolved from the description.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "describe-field": {
+        "testid": "onboarding-describe"
+      },
+      "draft-action": {
+        "testid": "onboarding-draft"
+      },
+      "drafted-profile": {
+        "testid": "onboarding-drafted"
+      },
+      "confirm-action": {
+        "testid": "onboarding-confirm"
+      },
+      "skip-link": {
+        "testid": "onboarding-skip"
+      },
+      "later-note": {
+        "testid": "onboarding-later"
+      }
+    },
+    "regions": {
+      "draft-region": {
+        "testid": "onboarding-draft-region"
+      }
+    }
+  }
+}

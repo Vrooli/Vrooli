@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "future",
+    "description": "Deferred / out-of-scope expansion targets, tracked for visibility but explicitly not built in this rebuild.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "FUT-001",
+      "title": "Agent-assisted application for non-standard integrations",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "future",
+      "criticality": "P2",
+      "description": "Deferred: spawn sandboxed agents via agent-manager for complex/non-standard scenario integrations under a mandatory inline-marker constraint; agent-manager is declared as a dependency only when this is built.",
+      "tags": [
+        "future",
+        "deferred",
+        "agent-manager"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred P2 (OT-P2-001). Not built in this rebuild; revisit once core authoring + validation phase ship."
+        }
+      ]
+    },
+    {
+      "id": "FUT-002",
+      "title": "Fleet-wide brand adoption across the scenario fleet",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "future",
+      "criticality": "P2",
+      "description": "Out of scope: apply + validate branding across the whole scenario fleet, tracked separately under the brand-manager-readiness initiative.",
+      "tags": [
+        "future",
+        "out-of-scope",
+        "fleet"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Out of scope for this rebuild (OT-P2-002); tracked under the brand-manager-readiness initiative."
+        }
+      ]
+    }
+  ]
+}

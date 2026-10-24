@@ -18,7 +18,9 @@ Components (UI) → Hooks (React State) → Controllers (Business Logic) → Ser
 ## Files
 
 ### `pipelineController.ts`
+
 Pipeline-related business logic:
+
 - `buildPipelineConfig()` - Construct pipeline config from form state
 - `validateBeforeRun()` - Validate prerequisites before running a stage
 - `canProceedToGeneration()` - Check if generation can proceed
@@ -26,7 +28,9 @@ Pipeline-related business logic:
 - `filterNonEmptySecrets()` - Filter out empty secret values
 
 ### `generatorController.ts`
+
 Generator page orchestration:
+
 - `loadGeneratorPageData()` - Load all data for the Generator page
 - `submitGeneratorForm()` - Validate and submit the generator form
 - `prepareFormSubmission()` - Prepare form data for submission
@@ -34,7 +38,9 @@ Generator page orchestration:
 - `findScenarioByName()` - Look up scenario by name
 
 ### `preflightController.ts`
+
 Preflight validation orchestration:
+
 - `buildPreflightPipelineConfig()` - Build config for preflight run
 - `buildPreflightSectionState()` - Build complete preflight UI state
 - `resolveAllStepStatuses()` - Calculate status for all preflight steps
@@ -42,7 +48,9 @@ Preflight validation orchestration:
 - `isPreflightReadyForGeneration()` - Check if preflight is complete
 
 ### `signingController.ts`
+
 Code signing orchestration:
+
 - `loadSigningPageData()` - Load signing configuration and status
 - `saveSigningConfig()` - Persist signing configuration
 
@@ -50,7 +58,7 @@ Code signing orchestration:
 
 ```typescript
 // In a hook
-import { prepareFormSubmission } from '../controllers/generatorController';
+import { prepareFormSubmission } from "../controllers/generatorController";
 
 const result = prepareFormSubmission({
   scenarioName,

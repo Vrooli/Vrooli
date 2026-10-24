@@ -1,0 +1,67 @@
+{
+  "metadata": {
+    "name": "perf-overlay-swipe-dismiss",
+    "description": "Perf-capture flow (intent:performance). Assertion-free. Mobile viewport: open the Settings full-page drawer, then pointer-drag its grabber downward one move per animation frame. This traces the swipe-to-dismiss gesture the library's useOverlaySurface owns, so a regression in per-frame drag cost is attributable. NEVER bind as a requirement automation case.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "wait-workspace",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='tabbar-settings']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Wait for the mobile tab bar" }
+      }
+    },
+    {
+      "id": "open-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid='tabbar-settings']" },
+        "metadata": { "label": "Open the Settings drawer" }
+      }
+    },
+    {
+      "id": "wait-grabber",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='settings-modal.grabber']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the drawer grabber" }
+      }
+    },
+    {
+      "id": "drag-grabber",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const el = document.querySelector('[data-testid=\"settings-modal.grabber\"]'); if (!el) throw new Error('perf-overlay-swipe-dismiss: grabber not found'); const dy = 300, steps = 60; const r = el.getBoundingClientRect(); const x = r.left + r.width / 2; const y0 = r.top + r.height / 2; const fire = (type, y, buttons) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'touch', isPrimary: true, button: buttons ? 0 : -1, buttons: buttons })); const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve())); return (async () => { fire('pointerdown', y0, 1); await frame(); for (let i = 1; i <= steps; i++) { fire('pointermove', y0 + (dy * i) / steps, 1); await frame(); } fire('pointerup', y0 + dy, 0); await frame(); return true; })(); })()"
+        },
+        "metadata": { "label": "Pointer-drag the grabber down 300px over 60 frames" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "wait-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "open-settings", "target": "wait-grabber", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-grabber", "target": "drag-grabber", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

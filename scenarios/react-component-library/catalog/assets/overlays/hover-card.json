@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.hover-card",
+    "name": "HoverCard",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The richer preview surface that stays navigable as the pointer travels from trigger to content and never blocks keyboard access to the underlying destination.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.popover",
+        "reason": "Anchoring, collision handling, and the pointer-safe corridor are shared."
+      },
+      {
+        "asset": "hooks.use-hover",
+        "reason": "Entry and exit intent are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "pointer-independence"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

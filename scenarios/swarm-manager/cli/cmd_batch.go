@@ -12,9 +12,9 @@ import (
 
 // BatchCreateRequest is the request body for the batch create endpoint.
 type BatchCreateRequest struct {
-	Items       []BatchCreateItem       `json:"items"`
-	Initiatives []BatchCreateInitiative `json:"initiatives,omitempty"`
-	Preview     bool                    `json:"preview,omitempty"`
+	Items      []BatchCreateItem      `json:"items"`
+	Milestones []BatchCreateMilestone `json:"milestones,omitempty"`
+	Preview    bool                   `json:"preview,omitempty"`
 }
 
 // BatchCreateItem represents a single item in a batch create request.
@@ -26,34 +26,39 @@ type BatchCreateItem struct {
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
 }
 
-type BatchCreateInitiative struct {
-	Name        string  `json:"name"`
-	Title       string  `json:"title"`
-	Description *string `json:"description,omitempty"`
-	Status      *string `json:"status,omitempty"`
+type BatchCreateMilestone struct {
+	Name        string    `json:"name"`
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	Status      *string   `json:"status,omitempty"`
+	Priority    *int      `json:"priority,omitempty"`
+	DependsOn   *[]string `json:"depends_on,omitempty"`
 }
 
-type BatchCreateInitiativeResult struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Status      string `json:"status"`
-	Action      string `json:"action"`
+type BatchCreateMilestoneResult struct {
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
+	Action      string   `json:"action"`
 }
 
 // BatchCreateResponse is the response from the batch create endpoint.
 type BatchCreateResponse struct {
-	Items       []BacklogItem                 `json:"items"`
-	Initiatives []BatchCreateInitiativeResult `json:"initiatives,omitempty"`
-	Count       int                           `json:"count"`
-	Preview     bool                          `json:"preview,omitempty"`
-	Warnings    []string                      `json:"warnings,omitempty"`
+	Items      []BacklogItem                `json:"items"`
+	Milestones []BatchCreateMilestoneResult `json:"milestones,omitempty"`
+	Count      int                          `json:"count"`
+	Preview    bool                         `json:"preview,omitempty"`
+	Warnings   []string                     `json:"warnings,omitempty"`
 }
 
 // BatchQueueRequest is the request body for the batch queue endpoint.
@@ -112,7 +117,7 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/batch", nil, json.RawMessage(payload))
+	body, err := a.core.Request("POST", "/backlog/batch", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
@@ -139,31 +144,8 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 		fmt.Printf("  Created %d backlog item(s)\n", response.Count)
 	}
 
-	printSection("Items")
-	for _, item := range response.Items {
-		effortStr := ""
-		if item.Effort != "" {
-			effortStr = fmt.Sprintf(", effort: %s", item.Effort)
-		}
-		fmt.Printf("  [%s] %s (priority: %d, status: %s%s)\n", item.Kind, item.Name, item.Priority, item.Status, effortStr)
-		if len(item.DependsOn) > 0 {
-			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
-		}
-		if item.Initiative != "" {
-			fmt.Printf("    Initiative: %s\n", item.Initiative)
-		}
-	}
-
-	if len(response.Initiatives) > 0 {
-		printSection("Initiatives")
-		for _, initiative := range response.Initiatives {
-			fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(initiative.Action), initiative.Name, initiative.Status)
-			fmt.Printf("    Title: %s\n", initiative.Title)
-			if initiative.Description != "" {
-				fmt.Printf("    Description: %s\n", initiative.Description)
-			}
-		}
-	}
+	printBatchCreateItems(response.Items)
+	printBatchCreateMilestones(response.Milestones)
 
 	if len(response.Items) > 0 {
 		first := response.Items[0]
@@ -174,6 +156,46 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 	}
 
 	return nil
+}
+
+// printBatchCreateItems renders the "Items" section for a batch-create result.
+func printBatchCreateItems(items []BacklogItem) {
+	printSection("Items")
+	for _, item := range items {
+		effortStr := ""
+		if item.Effort != "" {
+			effortStr = fmt.Sprintf(", effort: %s", item.Effort)
+		}
+		fmt.Printf("  [%s] %s (priority: %d, status: %s%s)\n", item.Kind, item.Name, item.Priority, item.Status, effortStr)
+		if len(item.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
+		}
+		if item.Milestone != "" {
+			fmt.Printf("    Milestone: %s\n", item.Milestone)
+		}
+	}
+}
+
+// printBatchCreateMilestones renders the "Milestones" section when any
+// milestones were created or updated by the batch.
+func printBatchCreateMilestones(milestones []BatchCreateMilestoneResult) {
+	if len(milestones) == 0 {
+		return
+	}
+	printSection("Milestones")
+	for _, milestone := range milestones {
+		fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(milestone.Action), milestone.Name, milestone.Status)
+		fmt.Printf("    Title: %s\n", milestone.Title)
+		if milestone.Description != "" {
+			fmt.Printf("    Description: %s\n", milestone.Description)
+		}
+		if milestone.Priority > 0 {
+			fmt.Printf("    Priority: %d\n", milestone.Priority)
+		}
+		if len(milestone.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(milestone.DependsOn, ", "))
+		}
+	}
 }
 
 func (a *App) cmdBacklogBatchQueue(args []string) error {
@@ -215,7 +237,7 @@ func (a *App) cmdBacklogBatchQueue(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/batch/queue", nil, json.RawMessage(payload))
+	body, err := a.core.Request("POST", "/backlog/batch/queue", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}

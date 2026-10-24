@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "primitives.slot",
+    "name": "Slot",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The composition primitive that merges behavior, props, and refs onto a consumer-supplied element instead of introducing a wrapper, so every asset can offer an as-child escape hatch.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "rationale": "Authored first among primitives because the as-child pattern is what keeps convenience APIs from becoming cages, and retrofitting it later means changing every asset's public surface."
+}

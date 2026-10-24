@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestEnv holds test environment resources
@@ -91,7 +92,7 @@ func (s *Server) setupTestRoutes() *mux.Router {
 	router := mux.NewRouter()
 
 	// Health check
-	router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
+	router.HandleFunc("/health", health.New("data-tools-api").Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()).Methods("GET", "OPTIONS")
 
 	// Data processing endpoints
 	router.HandleFunc("/api/v1/data/parse", s.wrapWithAuth(s.handleDataParse)).Methods("POST")

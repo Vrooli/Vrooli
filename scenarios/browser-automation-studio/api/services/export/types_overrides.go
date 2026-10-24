@@ -1,11 +1,13 @@
 package export
 
+import exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
+
 // Overrides allows clients to customize export themes and cursor configuration.
 type Overrides struct {
-	Theme        *ExportTheme      `json:"theme,omitempty"`
-	Cursor       *ExportCursorSpec `json:"cursor,omitempty"`
-	ThemePreset  *ThemePreset      `json:"theme_preset,omitempty"`
-	CursorPreset *CursorPreset     `json:"cursor_preset,omitempty"`
+	Theme        *exportsv1.ReplayTheme  `json:"theme,omitempty"`
+	Cursor       *exportsv1.ReplayCursor `json:"cursor,omitempty"`
+	ThemePreset  *ThemePreset            `json:"theme_preset,omitempty"`
+	CursorPreset *CursorPreset           `json:"cursor_preset,omitempty"`
 }
 
 // ThemePreset specifies which chrome and background preset themes to apply.

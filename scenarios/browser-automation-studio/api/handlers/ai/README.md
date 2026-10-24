@@ -10,16 +10,16 @@ flowchart TD
         EL[ElementAnalysisHandler\n/analyze-elements]
         SS[ScreenshotHandler\n/preview-screenshot]
     end
-    subgraph Runner["automationRunner (in-process)"]
-        PB[Plan & instructions\n(navigate → wait → evaluate → screenshot)]
+    subgraph Runner["automationRunner - in-process"]
+        PB["Plan & instructions\n(navigate → wait → evaluate → screenshot)"]
         EX[SimpleExecutor]
     end
     subgraph Engine["PlaywrightEngine"]
-        PW[Playwright session\n(per execution)]
+        PW["Playwright session\n(per execution)"]
     end
     subgraph Recorder["Recorder / Sinks"]
-        MEM[In-memory Recorder\n(tests + helpers)]
-        EVT[MemorySink\n(events/heartbeats)]
+        MEM["In-memory Recorder\n(tests + helpers)"]
+        EVT["MemorySink\n(events/heartbeats)"]
     end
 
     DOM --> PB

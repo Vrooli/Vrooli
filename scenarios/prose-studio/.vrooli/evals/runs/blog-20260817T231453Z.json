@@ -1,0 +1,523 @@
+{
+  "run_id": "20260817T231453Z",
+  "authorship": {
+    "scenario": "blind-label-a",
+    "baseline": "blind-label-b"
+  },
+  "generated_text": "I built validation tooling to give us trust, but watching long suites vanish when a local terminal closed exposed a real failure path. When a client connection drops, losing the run creates ambiguity: nobody knows if the code failed or if the network simply blinked. We shipped a server-owned execution model to fix that vulnerability. Our background service, test-genie, owns each scenario test run immediately after the trigger command returns, ensuring the suite remains intact instead of disappearing with the caller.\n\nWhen we shipped this workflow, our goal as a builder team was to eliminate the anxiety of fragile terminal sessions during long validations. In our environment, test-genie acts as the background execution manager that takes charge of a scenario test run the moment the initiation command returns. The practical day-to-day routine is straightforward. An operator triggers the scenario suite from the command line, captures the generated run identifier, and issues a single call to wait on the server-owned run. Because test-genie holds the master state on the server, the local client process no longer serves as a brittle point of failure. If an operator closes their laptop, loses network access, or terminates their local shell, the underlying execution does not unravel. We established a firm operational principle: a cancelled client is not the same thing as an aborted run. The suite keeps executing in the background, continuously accumulating structured logs and test outputs. When engineers return, they use the saved identifier to check status or resume their single wait call. By making validation server-owned, we prevent premature aborts, protect validation cycles, and provide teams with durable, trustworthy execution data.\n\nI have learned as a builder that the real cost of brittle validation is not just lost time; it is lost truth. When a verification run dies because an interactive session dropped, your team cannot tell whether they hit a real product failure path or a simple network blip. That is why we shipped server-owned execution in test-genie. By making the test run live on the backend after the caller departs, we turn what used to be fragile terminal noise into durable, addressable evidence.\n\nThis shift transforms operational governance. Long-running validation cycles no longer demand that an agent remain tethered to an active console just to nurse a process across the finish line. Instead, the suite continues, its identity is preserved, and the resulting record stays intact on the server. When an engineer or another operator arrives later, they do not need to re-run an expensive verification pass or guess what happened. They simply inspect the exact run identifier, review the logs, and make a confident triage decision from the preserved run record.\n\nA cancelled client is not an aborted run, and recognizing that boundary is essential for reliable systems. We no longer ask operators to wait in place and risk conflating connection drops with defective code. Decoupling the client terminal from execution gives us a disciplined control plane where evidence remains addressable, handoffs are seamless, and product decisions rest on factual execution results. That is how durable validation becomes a true product capability.",
+  "baseline_text": "# Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.",
+  "evidence_source": "/home/matthalloran8/Vrooli/scenarios/prose-studio/evals/baselines/server-owned-test-runs.md",
+  "content_desk_draft_id": "07d2c33f-f22e-4ef2-ab3e-3e56194b62cc",
+  "round": {
+    "id": "39d502de-792f-4d9f-abe0-c1d9c1ce5343",
+    "session_id": "8aebccdf-67f1-4d1e-aa75-a16961b4bbd1",
+    "strategy": {
+      "kind": "vs_standard",
+      "k": 5,
+      "tau": 0.7,
+      "temperature_stance": "role_default",
+      "max_output_tokens": 1400
+    },
+    "candidate_ids": [
+      "482b9072-162e-49fb-8767-2ab0792ff986",
+      "491c6dca-995b-4f54-a42d-777efd6326f9",
+      "89354e12-aa5b-4743-8f91-2d1807ecc08e",
+      "afb82f03-527a-439c-be51-812952186a53",
+      "7c5541bc-570f-4ecd-863d-b76e8456aace"
+    ],
+    "sampling_key": {
+      "k": 5,
+      "temperature_stance": "role_default",
+      "max_output_tokens_effective": 7000,
+      "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST",
+      "measurement_tier": "deterministic_and_semantic"
+    },
+    "selection_seed": 1787008534124060392,
+    "total_cost_micros": 46890,
+    "negative_context": {},
+    "lexical_set_measurements": {
+      "candidate_count": 5,
+      "pairwise_similarity": [
+        [
+          0,
+          0.6352584834545039,
+          0.6250899222416371,
+          0.6309935321747676,
+          0.6305629473003934
+        ],
+        [
+          0.6352584834545039,
+          0,
+          0.6259752899427298,
+          0.6573657813247945,
+          0.6459525301968898
+        ],
+        [
+          0.6250899222416371,
+          0.6259752899427298,
+          0,
+          0.6483526998147817,
+          0.6455417161648165
+        ],
+        [
+          0.6309935321747676,
+          0.6573657813247945,
+          0.6483526998147817,
+          0,
+          0.6463220993645408
+        ],
+        [
+          0.6305629473003934,
+          0.6459525301968898,
+          0.6455417161648165,
+          0.6463220993645408,
+          0
+        ]
+      ],
+      "mean_similarity": 0.6391415001979854,
+      "diversity": 0.36085849980201457,
+      "coverage": 0.627542322780233,
+      "basis": "lexical token 1-3 gram cosine/Jaccard blend; no embeddings available"
+    },
+    "semantic_set_measurements": {
+      "candidate_count": 5,
+      "pairwise_similarity": [
+        [
+          0,
+          0.926344350601183,
+          0.9286874130560259,
+          0.9397759109845023,
+          0.9169758616657412
+        ],
+        [
+          0.926344350601183,
+          0,
+          0.9642121241161656,
+          0.9468862635653297,
+          0.9583724869497187
+        ],
+        [
+          0.9286874130560259,
+          0.9642121241161656,
+          0,
+          0.9565458578407728,
+          0.9616265134068159
+        ],
+        [
+          0.9397759109845023,
+          0.9468862635653297,
+          0.9565458578407728,
+          0,
+          0.9435801170813742
+        ],
+        [
+          0.9169758616657412,
+          0.9583724869497187,
+          0.9616265134068159,
+          0.9435801170813742,
+          0
+        ]
+      ],
+      "mean_similarity": 0.944300689926763,
+      "diversity": 0.05569931007323703,
+      "coverage": 0.9257518795946387,
+      "basis": "semantic cosine similarity over gateway embeddings (dimension 3)"
+    },
+    "measurement_basis": "semantic cosine similarity over gateway embeddings (dimension 3)"
+  },
+  "document": {
+    "id": "a5001089-f129-4bb5-a9cb-7a5dcb8b73a3",
+    "title": "How Vrooli's server-owned test runs make long-running validation durable Use only factual claims supported by this evidence brief. Do not invent metrics, infrastructure, failure incidents, implementation details, or outcomes. Explain each evidence claim once, with distinct section purposes; do not restate the same workflow or conclusion in multiple sections. Evidence claims: test-genie owns a scenario test run after the command returns; operators start the suite, record its run identifier, and wait once on the server-owned run; a cancelled client is not the same thing as an aborted run. Evidence source: # Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.. Explicitly use these exact terms where they fit naturally: server-owned, test-genie, wait. HARD LENGTH: produce 800 to 1100 words across exactly three sections.",
+    "profile_key": "content-desk/marketing-dev-log-profile",
+    "outline_profile_key": "content-desk/marketing-dev-log-profile",
+    "style_key": "content-desk/marketing-dev-log-style",
+    "outline_id": "97fb9b17-9b91-4ac6-baaa-70395d5f85ae",
+    "outline_text": "{\"section_1\":{\"intent\":\"Hook the reader by showing why fragile client connections undermine confidence and introduce test-genie as the server-owned orchestrator that maintains test lifecycle integrity when local sessions drop.\",\"summary\":\"I explain how disconnects previously risked invalidating test runs and why we shipped test-genie to own scenario runs independently on the server side after the trigger command returns.\",\"target_words\":360},\"section_2\":{\"intent\":\"Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.\",\"summary\":\"I walk through the streamlined process where operators dispatch tests, capture the run identifier, and wait on the server-owned run, clarifying why a cancelled client does not mean an aborted run.\",\"target_words\":410},\"section_3\":{\"intent\":\"Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage.\",\"summary\":\"I conclude by highlighting how server-owned execution decouples test stability from terminal uptime, preserving durable evidence so teams can differentiate true product failures from transient caller interruptions.\",\"target_words\":380}}",
+    "outline": [
+      {
+        "intent": "Hook the reader by showing why fragile client connections undermine confidence and introduce test-genie as the server-owned orchestrator that maintains test lifecycle integrity when local sessions drop.",
+        "summary": "I explain how disconnects previously risked invalidating test runs and why we shipped test-genie to own scenario runs independently on the server side after the trigger command returns.",
+        "target_words": 360
+      },
+      {
+        "intent": "Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.",
+        "summary": "I walk through the streamlined process where operators dispatch tests, capture the run identifier, and wait on the server-owned run, clarifying why a cancelled client does not mean an aborted run.",
+        "target_words": 410
+      },
+      {
+        "intent": "Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage.",
+        "summary": "I conclude by highlighting how server-owned execution decouples test stability from terminal uptime, preserving durable evidence so teams can differentiate true product failures from transient caller interruptions.",
+        "target_words": 380
+      }
+    ],
+    "outline_profile_version": "content-desk/marketing-dev-log-profile@17",
+    "section_profile_version": "content-desk/marketing-dev-log-profile@17",
+    "section_ids": [
+      "44d6fd87-5d54-4dd9-82d1-d8c6b9a88323",
+      "7c955b2a-e476-443b-884a-fe69dc57d6f0",
+      "a68dc936-762d-462c-88ea-d8d2be0eaa78"
+    ],
+    "status": "assembled",
+    "assembled_text": "I built validation tooling to give us trust, but watching long suites vanish when a local terminal closed exposed a real failure path. When a client connection drops, losing the run creates ambiguity: nobody knows if the code failed or if the network simply blinked. We shipped a server-owned execution model to fix that vulnerability. Our background service, test-genie, owns each scenario test run immediately after the trigger command returns, ensuring the suite remains intact instead of disappearing with the caller.\n\nWhen we shipped this workflow, our goal as a builder team was to eliminate the anxiety of fragile terminal sessions during long validations. In our environment, test-genie acts as the background execution manager that takes charge of a scenario test run the moment the initiation command returns. The practical day-to-day routine is straightforward. An operator triggers the scenario suite from the command line, captures the generated run identifier, and issues a single call to wait on the server-owned run. Because test-genie holds the master state on the server, the local client process no longer serves as a brittle point of failure. If an operator closes their laptop, loses network access, or terminates their local shell, the underlying execution does not unravel. We established a firm operational principle: a cancelled client is not the same thing as an aborted run. The suite keeps executing in the background, continuously accumulating structured logs and test outputs. When engineers return, they use the saved identifier to check status or resume their single wait call. By making validation server-owned, we prevent premature aborts, protect validation cycles, and provide teams with durable, trustworthy execution data.\n\nI have learned as a builder that the real cost of brittle validation is not just lost time; it is lost truth. When a verification run dies because an interactive session dropped, your team cannot tell whether they hit a real product failure path or a simple network blip. That is why we shipped server-owned execution in test-genie. By making the test run live on the backend after the caller departs, we turn what used to be fragile terminal noise into durable, addressable evidence.\n\nThis shift transforms operational governance. Long-running validation cycles no longer demand that an agent remain tethered to an active console just to nurse a process across the finish line. Instead, the suite continues, its identity is preserved, and the resulting record stays intact on the server. When an engineer or another operator arrives later, they do not need to re-run an expensive verification pass or guess what happened. They simply inspect the exact run identifier, review the logs, and make a confident triage decision from the preserved run record.\n\nA cancelled client is not an aborted run, and recognizing that boundary is essential for reliable systems. We no longer ask operators to wait in place and risk conflating connection drops with defective code. Decoupling the client terminal from execution gives us a disciplined control plane where evidence remains addressable, handoffs are seamless, and product decisions rest on factual execution results. That is how durable validation becomes a true product capability.",
+    "coherence": {
+      "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text",
+      "cross_section_repetition": 0.4287723722541527,
+      "style_drift": 0.2222222222222222,
+      "thresholds": {
+        "max_cross_section_repetition": 0.55,
+        "max_style_drift": 0.35
+      },
+      "verdict": {
+        "coherent": true,
+        "cross_section_repetition": true,
+        "style_drift": true
+      }
+    },
+    "sections": [
+      {
+        "id": "44d6fd87-5d54-4dd9-82d1-d8c6b9a88323",
+        "document_id": "a5001089-f129-4bb5-a9cb-7a5dcb8b73a3",
+        "position": 0,
+        "intent": "Hook the reader by showing why fragile client connections undermine confidence and introduce test-genie as the server-owned orchestrator that maintains test lifecycle integrity when local sessions drop.",
+        "summary": "I explain how disconnects previously risked invalidating test runs and why we shipped test-genie to own scenario runs independently on the server side after the trigger command returns.",
+        "target_words": 360,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "680c6582-7e88-4d5f-865c-cb219e606c62",
+        "committed_candidate_id": "a1d1ec7f-96cd-4486-8151-26dbacab39a5",
+        "context_snapshot": {
+          "outline_ref": "97fb9b17-9b91-4ac6-baaa-70395d5f85ae",
+          "outline_text": "{\"section_1\":{\"intent\":\"Hook the reader by showing why fragile client connections undermine confidence and introduce test-genie as the server-owned orchestrator that maintains test lifecycle integrity when local sessions drop.\",\"summary\":\"I explain how disconnects previously risked invalidating test runs and why we shipped test-genie to own scenario runs independently on the server side after the trigger command returns.\",\"target_words\":360},\"section_2\":{\"intent\":\"Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.\",\"summary\":\"I walk through the streamlined process where operators dispatch tests, capture the run identifier, and wait on the server-owned run, clarifying why a cancelled client does not mean an aborted run.\",\"target_words\":410},\"section_3\":{\"intent\":\"Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage.\",\"summary\":\"I conclude by highlighting how server-owned execution decouples test stability from terminal uptime, preserving durable evidence so teams can differentiate true product failures from transient caller interruptions.\",\"target_words\":380}}",
+          "following_intents": [
+            "Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.",
+            "Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage."
+          ],
+          "estimated_tokens": 0
+        }
+      },
+      {
+        "id": "7c955b2a-e476-443b-884a-fe69dc57d6f0",
+        "document_id": "a5001089-f129-4bb5-a9cb-7a5dcb8b73a3",
+        "position": 1,
+        "intent": "Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.",
+        "summary": "I walk through the streamlined process where operators dispatch tests, capture the run identifier, and wait on the server-owned run, clarifying why a cancelled client does not mean an aborted run.",
+        "target_words": 410,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "4dc8fb76-b1a5-499c-917a-1ab8c6dc9987",
+        "committed_candidate_id": "ea3b5934-f3b7-403b-8749-9cba45df16e2",
+        "context_snapshot": {
+          "outline_ref": "97fb9b17-9b91-4ac6-baaa-70395d5f85ae",
+          "outline_text": "{\"section_1\":{\"intent\":\"Hook the reader by showing why fragile client connections undermine confidence and introduce test-genie as the server-owned orchestrator that maintains test lifecycle integrity when local sessions drop.\",\"summary\":\"I explain how disconnects previously risked invalidating test runs and why we shipped test-genie to own scenario runs independently on the server side after the trigger command returns.\",\"target_words\":360},\"section_2\":{\"intent\":\"Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.\",\"summary\":\"I walk through the streamlined process where operators dispatch tests, capture the run identifier, and wait on the server-owned run, clarifying why a cancelled client does not mean an aborted run.\",\"target_words\":410},\"section_3\":{\"intent\":\"Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage.\",\"summary\":\"I conclude by highlighting how server-owned execution decouples test stability from terminal uptime, preserving durable evidence so teams can differentiate true product failures from transient caller interruptions.\",\"target_words\":380}}",
+          "following_intents": [
+            "Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage."
+          ],
+          "estimated_tokens": 0
+        }
+      },
+      {
+        "id": "a68dc936-762d-462c-88ea-d8d2be0eaa78",
+        "document_id": "a5001089-f129-4bb5-a9cb-7a5dcb8b73a3",
+        "position": 2,
+        "intent": "Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage.",
+        "summary": "I conclude by highlighting how server-owned execution decouples test stability from terminal uptime, preserving durable evidence so teams can differentiate true product failures from transient caller interruptions.",
+        "target_words": 380,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "8ea13ca5-9e37-409e-b00f-6f76808a9308",
+        "committed_candidate_id": "577d963a-08b3-4d73-85cf-9ef0d9ead3fe",
+        "context_snapshot": {
+          "outline_ref": "97fb9b17-9b91-4ac6-baaa-70395d5f85ae",
+          "outline_text": "{\"section_1\":{\"intent\":\"Hook the reader by showing why fragile client connections undermine confidence and introduce test-genie as the server-owned orchestrator that maintains test lifecycle integrity when local sessions drop.\",\"summary\":\"I explain how disconnects previously risked invalidating test runs and why we shipped test-genie to own scenario runs independently on the server side after the trigger command returns.\",\"target_words\":360},\"section_2\":{\"intent\":\"Detail the practical operator workflow where starting the suite records a run identifier and allows engineers to wait once on durable background execution without premature aborts.\",\"summary\":\"I walk through the streamlined process where operators dispatch tests, capture the run identifier, and wait on the server-owned run, clarifying why a cancelled client does not mean an aborted run.\",\"target_words\":410},\"section_3\":{\"intent\":\"Conclude on the product governance value of turning long validation cycles into persistent, addressable evidence that enables clean operator handoffs and confident triage.\",\"summary\":\"I conclude by highlighting how server-owned execution decouples test stability from terminal uptime, preserving durable evidence so teams can differentiate true product failures from transient caller interruptions.\",\"target_words\":380}}",
+          "estimated_tokens": 0
+        }
+      }
+    ]
+  },
+  "claim_coverage": {
+    "supportedSpans": [
+      {
+        "end": 134,
+        "claimId": "443e7e9e-c457-4064-a132-9a93d71b5eba",
+        "supported": true
+      },
+      {
+        "start": 135,
+        "end": 266,
+        "claimId": "85b01b6a-da0c-46b8-b0c9-c711df1f8852",
+        "supported": true
+      },
+      {
+        "start": 267,
+        "end": 335,
+        "claimId": "d7d74736-eeba-40c3-99d8-b6d24fd8a08b",
+        "supported": true
+      },
+      {
+        "start": 336,
+        "end": 521,
+        "claimId": "bfbd2277-0f1b-4122-9e40-21149039cb80",
+        "supported": true
+      },
+      {
+        "start": 523,
+        "end": 663,
+        "claimId": "a910f8fa-78d6-48cc-acdc-82859daff6b7",
+        "supported": true
+      },
+      {
+        "start": 664,
+        "end": 819,
+        "claimId": "727d8ef2-4e4b-4ba0-9ff6-725117c44cf5",
+        "supported": true
+      },
+      {
+        "start": 820,
+        "end": 872,
+        "claimId": "f8d55e2e-7033-4f1b-aa52-297a0a87ab56",
+        "supported": true
+      },
+      {
+        "start": 873,
+        "end": 1032,
+        "claimId": "6e6afb2e-4349-44e5-957d-54f6c4ac762e",
+        "supported": true
+      },
+      {
+        "start": 1033,
+        "end": 1162,
+        "claimId": "767a2a81-c054-4da6-93a8-65ebf15d8e8a",
+        "supported": true
+      },
+      {
+        "start": 1163,
+        "end": 1296,
+        "claimId": "8a637cd6-f21c-49f8-a2bd-af112ac8d259",
+        "supported": true
+      },
+      {
+        "start": 1297,
+        "end": 1401,
+        "claimId": "67a2ea44-8df4-458e-8650-30950bab8aa2",
+        "supported": true
+      },
+      {
+        "start": 1402,
+        "end": 1506,
+        "claimId": "9088312a-7fdc-48fa-8607-2a9010bf7407",
+        "supported": true
+      },
+      {
+        "start": 1507,
+        "end": 1609,
+        "claimId": "c5f06a7d-b424-42a1-9c71-2c78e4a492f8",
+        "supported": true
+      },
+      {
+        "start": 1610,
+        "end": 1760,
+        "claimId": "634b165c-2989-4e32-9e2e-84bb60882929",
+        "supported": true
+      },
+      {
+        "start": 1762,
+        "end": 1871,
+        "claimId": "0fc8a361-af73-47cb-a7d0-619b8d20db77",
+        "supported": true
+      },
+      {
+        "start": 1872,
+        "end": 2033,
+        "claimId": "1d64a1da-3cee-41c6-b16e-93da4acd311b",
+        "supported": true
+      },
+      {
+        "start": 2034,
+        "end": 2094,
+        "claimId": "af50f6e1-1871-40af-8618-038a39c3dabf",
+        "supported": true
+      },
+      {
+        "start": 2095,
+        "end": 2246,
+        "claimId": "94016d69-8107-49c9-80f0-4753af9f2883",
+        "supported": true
+      },
+      {
+        "start": 2248,
+        "end": 2293,
+        "claimId": "1ebacaa3-a96a-4c32-af55-44523fa3d272",
+        "supported": true
+      },
+      {
+        "start": 2294,
+        "end": 2440,
+        "claimId": "3912f01e-cfbd-4345-b8eb-908a9e74c7c0",
+        "supported": true
+      },
+      {
+        "start": 2441,
+        "end": 2550,
+        "claimId": "9fb19b4d-a11c-41f2-a0b4-2c38091fed80",
+        "supported": true
+      },
+      {
+        "start": 2551,
+        "end": 2684,
+        "claimId": "ce2ad05f-6076-43f3-9011-2378131d5a0d",
+        "supported": true
+      },
+      {
+        "start": 2685,
+        "end": 2815,
+        "claimId": "9d1e7486-2e4b-4aeb-bba7-b9028628bafd",
+        "supported": true
+      },
+      {
+        "start": 2817,
+        "end": 2923,
+        "claimId": "dd8fe09b-2cb8-4742-bb83-68d465edd972",
+        "supported": true
+      },
+      {
+        "start": 2924,
+        "end": 3025,
+        "claimId": "dfdd4a64-5c3e-41a2-ab87-e1d94f28ca83",
+        "supported": true
+      },
+      {
+        "start": 3026,
+        "end": 3224,
+        "claimId": "f3c69198-bf84-47aa-8287-717c2593011a",
+        "supported": true
+      },
+      {
+        "start": 3225,
+        "end": 3290,
+        "claimId": "8acf955a-4797-44b9-8c16-7e6546cc4bdc",
+        "supported": true
+      }
+    ],
+    "uncoveredSpans": [
+      {
+        "start": 134,
+        "end": 135
+      },
+      {
+        "start": 266,
+        "end": 267
+      },
+      {
+        "start": 335,
+        "end": 336
+      },
+      {
+        "start": 521,
+        "end": 523
+      },
+      {
+        "start": 663,
+        "end": 664
+      },
+      {
+        "start": 819,
+        "end": 820
+      },
+      {
+        "start": 872,
+        "end": 873
+      },
+      {
+        "start": 1032,
+        "end": 1033
+      },
+      {
+        "start": 1162,
+        "end": 1163
+      },
+      {
+        "start": 1296,
+        "end": 1297
+      },
+      {
+        "start": 1401,
+        "end": 1402
+      },
+      {
+        "start": 1506,
+        "end": 1507
+      },
+      {
+        "start": 1609,
+        "end": 1610
+      },
+      {
+        "start": 1760,
+        "end": 1762
+      },
+      {
+        "start": 1871,
+        "end": 1872
+      },
+      {
+        "start": 2033,
+        "end": 2034
+      },
+      {
+        "start": 2094,
+        "end": 2095
+      },
+      {
+        "start": 2246,
+        "end": 2248
+      },
+      {
+        "start": 2293,
+        "end": 2294
+      },
+      {
+        "start": 2440,
+        "end": 2441
+      },
+      {
+        "start": 2550,
+        "end": 2551
+      },
+      {
+        "start": 2684,
+        "end": 2685
+      },
+      {
+        "start": 2815,
+        "end": 2817
+      },
+      {
+        "start": 2923,
+        "end": 2924
+      },
+      {
+        "start": 3025,
+        "end": 3026
+      },
+      {
+        "start": 3224,
+        "end": 3225
+      }
+    ]
+  },
+  "gates": {
+    "word_count": false,
+    "essay_shape": true,
+    "section_count": true,
+    "required_claim_terms": true,
+    "claims": true,
+    "claim_coverage": true,
+    "semantic_diversity": true,
+    "coherence": true
+  },
+  "blind_comparison": {
+    "status": "pending_operator_verdict",
+    "verdict": null,
+    "rationale": null
+  },
+  "provider": "openrouter",
+  "model": "google/gemini-3.7-flash",
+  "cost_micros": 46890
+}

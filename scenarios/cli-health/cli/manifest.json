@@ -1,0 +1,343 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "cli-health",
+  "description": "Single source of truth for the cli-health CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. New RPCs must either land here as a command binding or be listed in `omitted[]` with a reason.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Run cli-health validators against a scenario's CLI manifest, proto, and endpoints.json",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Validate a single scenario by id",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Probe the installed CLI runtime and reconcile its help surface with the manifest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "project",
+          "description": "Validate the repository root CLI manifest and its project-level proto migration posture",
+          "flags": [
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Probe the installed root CLI runtime and reconcile its help surface with the manifest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateTarget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search CLI commands across scenarios (AI-first with text fallback)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search the indexed corpus by natural-language text",
+          "positionals": [
+            {
+      "name": "text",
+      "required": true,
+      "description": "Natural-language query",
+      "bind": {
+        "field": "query"
+      }
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "default": "10",
+              "description": "Maximum results to return"
+            },
+            {
+              "name": "mode",
+              "description": "Force a retrieval mode: ai | text (default lets the server choose)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report search backend availability (ollama, qdrant, indexed count)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        }
+      ]
+    },
+    {
+      "name": "command",
+      "description": "Validate Vrooli-owned command references without executing them",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a single command reference",
+          "positionals": [
+            {
+              "name": "command-ref",
+              "description": "Command reference to validate",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "command",
+              "description": "Command reference to validate",
+              "bind": {
+                "field": "command_text"
+              }
+            },
+            {
+              "name": "policy",
+              "default": "docs",
+              "description": "Validation policy: docs | skill | plan | action",
+              "values": [
+                "docs",
+                "skill",
+                "plan",
+                "action"
+              ]
+            },
+            {
+              "name": "qualifiers",
+              "description": "Comma-separated cli marker qualifiers such as future,old,external,literal"
+            },
+            {
+              "name": "refresh",
+              "default": "never",
+              "description": "Refresh policy: never | on-miss",
+              "values": [
+                "never",
+                "on-miss"
+              ],
+              "bind": {
+                "field": "refresh_policy"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CommandReferenceValidationService",
+            "method": "ValidateCommandReference"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reindex",
+      "description": "Reconcile the search corpus: rebuild Qdrant points from CLI manifests + help output",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a reindex job",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Limit to a single scenario; empty means all",
+              "bind": {
+                "field": "scope"
+              }
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Compute planned upserts/deletes without writing"
+            },
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set CLI_HEALTH_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Poll a reindex job's progress",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set CLI_HEALTH_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "ReindexStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cooperative cancellation of an in-flight reindex job",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set CLI_HEALTH_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "ReindexCancel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "CommandReferenceValidationService",
+      "method": "ValidateCommandReferences",
+      "reason": "Batch command-reference validation is an API integration surface for health consumers; the CLI exposes the single-reference validate command for operator use."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "CLI Health has no deterministic fixer; the API method is intentionally unimplemented for the shared validation contract."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "CLI Health has no deterministic fixer; the API method is intentionally unimplemented for the shared validation contract."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteConfig",
+      "reason": "Internal search-index write API consumed programmatically by the reindex pipeline; no standalone CLI command."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteCorpus",
+      "reason": "Internal search-index write API consumed programmatically by the reindex pipeline; no standalone CLI command."
+    }
+  ]
+}

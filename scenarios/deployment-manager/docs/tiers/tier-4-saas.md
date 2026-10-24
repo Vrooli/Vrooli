@@ -20,7 +20,7 @@ Tier 4 covers scenarios deployed to remote servers (DigitalOcean, AWS, bare meta
 ## Provider Notes
 
 - [DigitalOcean](../providers/digitalocean.md) retains manual steps (costing, `doctl`). These become callable recipes once deployment-manager supports provider modules.
-- Vault/Kubernetes hardening instructions were moved to [history](../history/README.md) until we re-spec them for the new flow.
+- Vault/Kubernetes hardening is not yet part of the supported SaaS flow; current provider guidance is maintained under `docs/providers/`.
 
 ## Roadmap
 
@@ -34,4 +34,4 @@ Tier 4 covers scenarios deployed to remote servers (DigitalOcean, AWS, bare meta
 ## Interim Guidance
 
 - Continue using Tier 1 + Cloudflare tunnels for remote demos/customers.
-- When a true SaaS deployment is unavoidable, document every manual step under `docs/deployment/providers/` and file app-issue-tracker tasks to automate it in deployment-manager.
+- When a true SaaS deployment is unavoidable, document every manual step under this scenario's `docs/providers/` and file app-issue-tracker tasks to automate it in deployment-manager.

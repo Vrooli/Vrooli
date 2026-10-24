@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"git-control-tower/internal/dbschema"
 )
 
 // AuditLogger abstracts audit logging operations to enable testing.
@@ -31,12 +33,12 @@ type AuditLogger interface {
 
 // SQLiteAuditLogger implements AuditLogger using SQLite.
 type SQLiteAuditLogger struct {
-	db *sql.DB
+	db dbschema.DB
 }
 
 // NewSQLiteAuditLogger creates a new SQLite audit logger.
 // Returns nil if db is nil (graceful degradation).
-func NewSQLiteAuditLogger(db *sql.DB) *SQLiteAuditLogger {
+func NewSQLiteAuditLogger(db dbschema.DB) *SQLiteAuditLogger {
 	if db == nil {
 		return nil
 	}

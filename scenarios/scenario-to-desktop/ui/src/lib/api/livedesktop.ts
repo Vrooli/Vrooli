@@ -1,107 +1,74 @@
-import { buildUrl, throwIfNotOk } from "./client";
+import type { JsonObject } from "@bufbuild/protobuf";
+import type {
+  DesktopControlResponse,
+  DesktopSession,
+  DesktopSessionRequest,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/evidence_pb";
+import { evidenceConnectClient } from "./connect";
+import { buildUrl } from "./client";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type SessionState = "creating" | "running" | "stopping" | "stopped" | "error";
+export type { DesktopSession };
+export type DesktopSessionConfig = Pick<
+  DesktopSessionRequest,
+  "scenarioName" | "artifactPath" | "platform" | "width" | "height" | "target"
+>;
 
-export interface MetricsView {
-  splash_duration_ms?: number;
-  splash_detected: boolean;
-  ready_duration_ms?: number;
-  ready_detected: boolean;
-  current_cpu_percent?: number;
-  current_rss_mb?: number;
-  peak_rss_mb?: number;
-  sample_count: number;
-}
-
-export interface DesktopSession {
-  id: string;
-  scenario_name: string;
-  state: SessionState;
-  vnc_port: number;
-  ws_port: number;
-  width: number;
-  height: number;
-  created_at: string;
-  last_heartbeat: string;
-  error?: string;
-  is_recording: boolean;
-  network_mode: "normal" | "offline" | "slow";
-  bandwidth_kbps?: number;
-  dark_mode: boolean;
-  locale?: string;
-  app_running: boolean;
-  platform?: string;
-  metrics?: MetricsView;
-}
-
-export interface DesktopSessionConfig {
-  width?: number;
-  height?: number;
-  scenario_name: string;
-  app_path?: string;
-  platform?: string;
-}
-
-export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
+export type ConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "error";
 
 // ============================================================================
 // API Functions
 // ============================================================================
 
-export async function startDesktopSession(config: DesktopSessionConfig): Promise<DesktopSession> {
-  const res = await fetch(buildUrl("/livedesktop/sessions"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config),
-  });
-  await throwIfNotOk(res);
-  return (await res.json()) as DesktopSession;
+export async function startDesktopSession(
+  config: DesktopSessionConfig,
+): Promise<DesktopSession> {
+  return evidenceConnectClient.startDesktopSession(config);
 }
 
 export async function stopDesktopSession(id: string): Promise<void> {
-  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}`), {
-    method: "DELETE",
-  });
-  await throwIfNotOk(res);
+  await evidenceConnectClient.stopDesktopSession({ sessionId: id });
 }
 
 export async function heartbeatSession(id: string): Promise<void> {
-  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/heartbeat`), {
-    method: "POST",
-  });
-  await throwIfNotOk(res);
+  await evidenceConnectClient.heartbeatDesktopSession({ sessionId: id });
 }
 
 export async function getDesktopSession(id: string): Promise<DesktopSession> {
-  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}`));
-  await throwIfNotOk(res);
-  return (await res.json()) as DesktopSession;
+  return evidenceConnectClient.getDesktopSession({ sessionId: id });
 }
 
 export async function listDesktopSessions(): Promise<DesktopSession[]> {
-  const res = await fetch(buildUrl("/livedesktop/sessions"));
-  await throwIfNotOk(res);
-  return (await res.json()) as DesktopSession[];
+  const response = await evidenceConnectClient.listDesktopSessions({});
+  return response.sessions;
 }
 
-export async function launchAppOnDesktop(id: string, appPath?: string): Promise<void> {
-  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/launch`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(appPath ? { app_path: appPath } : {}),
+export async function launchAppOnDesktop(
+  id: string,
+  appPath?: string,
+): Promise<void> {
+  await evidenceConnectClient.launchDesktopArtifact({
+    sessionId: id,
+    artifactPath: appPath,
   });
-  await throwIfNotOk(res);
 }
 
 export async function findArtifact(id: string): Promise<string> {
-  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/artifact`));
-  await throwIfNotOk(res);
-  const data = (await res.json()) as { artifact_path: string };
-  return data.artifact_path;
+  const session = await evidenceConnectClient.getDesktopSession({
+    sessionId: id,
+  });
+  return (
+    await evidenceConnectClient.findDesktopArtifact({
+      scenarioName: session.scenarioName,
+    })
+  ).artifactPath;
 }
 
 // ============================================================================
@@ -113,20 +80,30 @@ export interface ControlRequest {
   params?: Record<string, unknown>;
 }
 
-export interface ControlResult {
-  status: string;
-  data?: Record<string, unknown>;
-  message?: string;
+export type ControlResult = DesktopControlResponse;
+
+export function controlResultString(
+  result: DesktopControlResponse,
+  field: string,
+): string | undefined {
+  const fields = result.result?.fields;
+  if (!fields || Array.isArray(fields) || typeof fields !== "object") {
+    return undefined;
+  }
+  const value = fields[field];
+  return typeof value === "string" ? value : undefined;
 }
 
-export async function executeDesktopControl(id: string, req: ControlRequest): Promise<ControlResult> {
-  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/control`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
+export async function executeDesktopControl(
+  id: string,
+  req: ControlRequest,
+): Promise<ControlResult> {
+  const response = await evidenceConnectClient.controlDesktop({
+    sessionId: id,
+    action: req.action,
+    params: req.params as JsonObject | undefined,
   });
-  await throwIfNotOk(res);
-  return (await res.json()) as ControlResult;
+  return response;
 }
 
 /**
@@ -134,6 +111,8 @@ export async function executeDesktopControl(id: string, req: ControlRequest): Pr
  * Uses the same origin as the API, switching protocol to ws/wss.
  */
 export function buildVncWsUrl(sessionId: string): string {
-  const apiUrl = buildUrl(`/livedesktop/sessions/${encodeURIComponent(sessionId)}/ws`);
+  const apiUrl = buildUrl(
+    `/livedesktop/sessions/${encodeURIComponent(sessionId)}/ws`,
+  );
   return apiUrl.replace(/^http/, "ws");
 }

@@ -1,0 +1,27 @@
+{
+  "description": "ROCm, Intel, and Apple-Silicon GPU detection/scheduling hardened in system-monitor/hostinventory first, then surfaced in selection and fallback messaging.",
+  "module_id": "MOD-P2-003",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [],
+      "description": "ROCm, Intel, and Apple-Silicon GPU detection/scheduling hardened in system-monitor/hostinventory first, then surfaced in selection and fallback messaging.",
+      "id": "IMG-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "AMD / Intel / Apple-Silicon GPU Hardening",
+      "validation": [
+        {
+          "notes": "Cross-vendor GPU detection tracked with system-monitor",
+          "phase": "manual",
+          "ref": "docs/concepts/INTEGRATIONS.md",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "AMD / Intel / Apple-Silicon GPU Hardening"
+}

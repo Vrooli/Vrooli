@@ -8,8 +8,11 @@ import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-i
 
 export type CaptureTrigger = "periodic" | "post-commit" | "manual";
 export type CaptureStatus = "complete" | "failed";
+// A snapshot is either a loose working-tree capture ("capture") or one pinned
+// by a BaselineManifest ("baseline"). The UI only ever *creates* loose captures
+// (Plan C Decision 1); baseline-pinned snapshots are produced by the baseline
+// snapshot flow and surfaced only through a manifest's visuals pointer.
 export type SnapshotRole = "baseline" | "capture";
-export type CaptureMode = "baseline" | "capture";
 
 export type CaptureTheme = "light" | "dark";
 
@@ -46,10 +49,29 @@ export function getCapturePresets(scenarioSlug: string): CapturePreset[] {
   const stored = localStorage.getItem(`gct.capturePresets.${scenarioSlug}`);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const presets = parsed.filter(isCapturePreset);
+        if (presets.length > 0) {
+          return presets;
+        }
+      }
     } catch { /* fall through */ }
   }
   return DEFAULT_PRESETS;
+}
+
+function isCapturePreset(value: unknown): value is CapturePreset {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const preset = value as Record<string, unknown>;
+  return (
+    typeof preset.name === "string" &&
+    typeof preset.width === "number" &&
+    typeof preset.height === "number" &&
+    (preset.theme === "light" || preset.theme === "dark")
+  );
 }
 
 export function setCapturePresets(scenarioSlug: string, presets: CapturePreset[]): void {
@@ -111,12 +133,15 @@ export interface CaptureStorageStats {
 
 // ── Visual Capture API Functions ───────────────────────────────────────
 
-export async function triggerVisualCapture(scenarioSlug: string, mode: CaptureMode = "capture", repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
+// triggerVisualCapture captures the current working-tree screenshots as a loose
+// snapshot (never a baseline). Baseline-pinned visuals are produced by the
+// baseline snapshot flow, not here (Plan C Decision 1).
+export async function triggerVisualCapture(scenarioSlug: string, repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
   const url = buildApiUrl("/repo/visual-capture", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug, mode, presets })
+    body: JSON.stringify({ scenarioSlug, mode: "capture", presets })
   });
   return handleResponse<SnapshotSetMeta>(res);
 }
@@ -187,81 +212,3 @@ export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, fi
   return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
 }
 
-// ── Workflow Capture Types ─────────────────────────────────────────────
-
-export type ExecutionMode = "observer" | "mutating" | "destructive";
-
-export interface WorkflowExecutionResult {
-  workflowName: string;
-  executionMode: ExecutionMode;
-  executionId?: string;
-  status: "passed" | "failed" | "skipped" | "error";
-  error?: string;
-  durationMs: number;
-  videoCount: number;
-  videoStatus?: "captured" | "failed" | "none";
-}
-
-export interface WorkflowCaptureResult {
-  id: string;
-  scenarioSlug: string;
-  role: SnapshotRole;
-  workflowResults: WorkflowExecutionResult[];
-  createdAt: string;
-  status: "complete" | "failed";
-  error?: string;
-  sizeBytes: number;
-}
-
-export interface WorkflowCaptureListResponse {
-  captures: WorkflowCaptureResult[];
-  total: number;
-  staleness?: SnapshotStalenessInfo;
-}
-
-export interface WorkflowCaptureDetailResponse {
-  capture: WorkflowCaptureResult;
-  videos: SnapshotFile[];
-}
-
-// ── Workflow Capture API Functions ──────────────────────────────────────
-
-export async function triggerWorkflowCapture(
-  scenarioSlug: string,
-  mode: CaptureMode = "capture",
-  executionModes: ExecutionMode[] = ["observer"],
-  repoId?: string
-): Promise<WorkflowCaptureResult> {
-  const url = buildApiUrl("/repo/workflow-capture", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug, mode, executionModes })
-  });
-  return handleResponse<WorkflowCaptureResult>(res);
-}
-
-export async function fetchWorkflowCaptures(scenarioSlug: string, repoId?: string): Promise<WorkflowCaptureListResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/workflow-captures?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<WorkflowCaptureListResponse>(res);
-}
-
-export async function fetchWorkflowCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<WorkflowCaptureDetailResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/workflow-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<WorkflowCaptureDetailResponse>(res);
-}
-
-export function buildWorkflowVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
-  const params = new URLSearchParams({ scenarioSlug });
-  return buildApiUrl(`/repo/workflow-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
-}

@@ -9,10 +9,9 @@ import (
 
 const defaultCacheTTL = 30 * time.Second
 
-// cacheKey identifies a unique graph projection by lens and optional focus.
+// cacheKey identifies a unique graph projection by lens.
 type cacheKey struct {
-	Lens        Lens
-	FocusNodeID string
+	Lens Lens
 }
 
 type cacheEntry struct {
@@ -110,16 +109,11 @@ func (c *ProjectionCache) Project(ctx context.Context, params ProjectionParams) 
 		return c.staleOrError(key, err)
 	}
 
-	if params.FocusNodeID != "" {
-		slog.Info("built graph", "lens", params.Lens, "focus", params.FocusNodeID, "duration", c.now().Sub(startedAt))
-	} else {
-		slog.Info("built graph", "lens", params.Lens, "duration", c.now().Sub(startedAt))
-	}
+	slog.Info("built graph", "lens", params.Lens, "duration", c.now().Sub(startedAt))
 	return response, nil
 }
 
 // Invalidate clears all cached projections for the requested lenses.
-// For the flow lens this clears ALL focus variants.
 func (c *ProjectionCache) Invalidate(lenses ...Lens) {
 	if len(lenses) == 0 {
 		return
@@ -138,14 +132,6 @@ func (c *ProjectionCache) Invalidate(lenses ...Lens) {
 			delete(c.entries, key)
 		}
 	}
-}
-
-// InvalidateFocus clears the cached operations projection for a specific focus node.
-func (c *ProjectionCache) InvalidateFocus(focusNodeID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	delete(c.entries, cacheKey{Lens: LensOperations, FocusNodeID: focusNodeID})
 }
 
 func (c *ProjectionCache) staleOrError(key cacheKey, buildErr error) (GraphResponse, error) {

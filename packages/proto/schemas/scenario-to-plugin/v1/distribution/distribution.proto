@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_plugin.v1.distribution;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/distribution;distribution_v1";
+
+// PLG-DIST-GATE, PLG-DIST-CONFIRM, PLG-DIST-REVOKE-PARTIAL.
+service DistributionService {
+  // Publishes only after governance approval and rehearsal evidence exist.
+  rpc Publish(PublishRequest) returns (PublishResponse);
+  // Revokes every recorded channel publication and reports partial outcomes.
+  rpc Revoke(RevokeRequest) returns (RevokeResponse);
+}
+message PublishRequest { string package_id = 1; string channel = 2; string source_revision = 3; }
+message PublishResponse { bool published = 1; string coordinate = 2; string digest = 3; string confirmation_reference = 4; string refusal = 5; }
+message RevokeRequest { string package_id = 1; }
+message RevokeResponse { bool complete = 1; repeated ChannelOutcome outcomes = 2; }
+message ChannelOutcome { string channel = 1; bool withdrawn = 2; string detail = 3; }

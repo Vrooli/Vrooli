@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "name": "portal-shell-smoke",
+    "description": "Observer smoke workflow for the Vrooli Portal UI. It opens the live scenario, waits for the app shell, and asserts the branded title so Test Genie's workflow phase has executable evidence without relying on removed notes-template selectors.",
+    "requirement": "PORTAL-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "operator-ui-smoke"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-shell",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "portal",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Vrooli Portal"
+        }
+      }
+    },
+    {
+      "id": "wait-shell",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/layout.shell",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "App shell visible"
+        }
+      }
+    },
+    {
+      "id": "assert-title",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/app.title",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Vrooli Portal"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Vrooli Portal title did not render on the operator shell."
+        },
+        "metadata": {
+          "label": "Assert branded title renders"
+        }
+      }
+    }
+  ]
+}

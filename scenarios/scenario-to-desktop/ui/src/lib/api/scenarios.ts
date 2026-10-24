@@ -1,5 +1,4 @@
-import { buildUrl, fetchJson, mutateJson, mutateVoid, throwIfNotOk } from "./client";
-import { parseOrThrow } from "./safeParse";
+import type { JsonObject } from "@bufbuild/protobuf";
 import {
   LoadStateResponseSchema,
   SaveStateResponseSchema,
@@ -7,9 +6,12 @@ import {
   GetLogsResponseSchema,
   ValidationStatusSchema,
   ScenariosResponseSchema,
-  TemplateListResponseSchema,
 } from "./schemas/scenarios";
-import type { BundlePreflightResponse } from "./types";
+import {
+  operationsConnectClient,
+  stateConnectClient,
+  systemConnectClient,
+} from "./connect";
 
 // ==================== Scenario State Types ====================
 
@@ -42,7 +44,8 @@ export interface FormState {
   output_path?: string;
   connection_result?: unknown;
   connection_error?: string | null;
-  preflight_result?: BundlePreflightResponse | null;
+  /** JSON persistence boundary for generated PreflightResponse evidence. */
+  preflight_result?: unknown;
   preflight_error?: string | null;
   preflight_override?: boolean;
   preflight_secrets?: Record<string, string>;
@@ -152,9 +155,6 @@ export interface ScenarioStageStatus {
   can_reuse?: boolean;
 }
 
-/** @deprecated Use ScenarioStageStatus instead */
-export type StageStatus = ScenarioStageStatus;
-
 export interface ValidationStatus {
   scenario_name: string;
   overall_status: "valid" | "partial" | "stale" | "none";
@@ -211,105 +211,143 @@ export interface SaveStateOptions {
   expectedHash?: string;
 }
 
+const asJsonObject = (value: unknown): JsonObject =>
+  JSON.parse(JSON.stringify(value)) as JsonObject;
+
+const requiredPayload = (payload: JsonObject | undefined): JsonObject => {
+  if (!payload) throw new Error("StateService returned an empty payload");
+  return payload;
+};
+
 // ==================== Scenario State Functions ====================
 
 export async function fetchScenarioState(
   scenarioName: string,
   options?: LoadStateOptions,
 ) {
-  const params = new URLSearchParams();
-  if (options?.includeLogs) params.set("include_logs", "true");
-  if (options?.validateManifest) params.set("validate_manifest", "true");
-  if (options?.manifestPath) params.set("manifest_path", options.manifestPath);
-
-  const url =
-    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/state`) +
-    (params.toString() ? `?${params.toString()}` : "");
-
-  const response = await fetch(url);
-  // Special case: 404 means state doesn't exist yet (not an error)
-  if (response.status === 404) {
-    return { state: null, found: false } as const;
-  }
-  await throwIfNotOk(response);
-  return parseOrThrow(LoadStateResponseSchema, await response.json());
+  const response = await stateConnectClient.loadScenarioState({
+    scenarioName,
+    includeLogs: options?.includeLogs,
+    validateManifest: options?.validateManifest,
+    manifestPath: options?.manifestPath,
+  });
+  return LoadStateResponseSchema.parse(
+    response.payload ?? { state: null, found: response.found },
+  );
 }
 
-export function saveScenarioState(
+export async function saveScenarioState(
   scenarioName: string,
   formState: FormState,
   options?: SaveStateOptions,
 ) {
-  return mutateJson(
-    `/scenarios/${encodeURIComponent(scenarioName)}/state`,
-    SaveStateResponseSchema,
-    {
-      method: "PUT",
-      body: {
-        form_state: formState,
-        manifest_path: options?.manifestPath,
-        compute_hash: options?.computeHash,
-        log_tails: options?.logTails,
-        build_artifacts: options?.buildArtifacts,
-        stage_results: options?.stageResults,
-        expected_hash: options?.expectedHash,
-      },
-    },
-  );
+  const payload = {
+    form_state: formState,
+    manifest_path: options?.manifestPath,
+    compute_hash: options?.computeHash,
+    log_tails: options?.logTails,
+    build_artifacts: options?.buildArtifacts,
+    stage_results: options?.stageResults,
+    expected_hash: options?.expectedHash,
+  };
+  const response = await stateConnectClient.saveScenarioState({
+    scenarioName,
+    payload: asJsonObject(payload),
+  });
+  return SaveStateResponseSchema.parse(requiredPayload(response.payload));
 }
 
-export function deleteScenarioState(scenarioName: string) {
-  return mutateVoid(
-    `/scenarios/${encodeURIComponent(scenarioName)}/state`,
-    { method: "DELETE" },
-  );
+export async function deleteScenarioState(scenarioName: string) {
+  await stateConnectClient.deleteScenarioState({ scenarioName });
 }
 
-export function checkStateStaleness(
+export async function checkStateStaleness(
   scenarioName: string,
   currentConfig: InputFingerprint,
 ) {
-  return mutateJson(
-    `/scenarios/${encodeURIComponent(scenarioName)}/state/check`,
-    CheckStalenessResponseSchema,
-    { method: "POST", body: { current_config: currentConfig } },
-  );
+  const response = await stateConnectClient.checkScenarioState({
+    scenarioName,
+    currentConfig: asJsonObject(currentConfig),
+  });
+  return CheckStalenessResponseSchema.parse(requiredPayload(response.payload));
 }
 
-export async function getScenarioLogs(
-  scenarioName: string,
-  serviceId: string,
-) {
-  const url = buildUrl(
-    `/scenarios/${encodeURIComponent(scenarioName)}/state/logs/${encodeURIComponent(serviceId)}`
-  );
-  const response = await fetch(url);
-  // Special case: 404 means logs don't exist (not an error)
-  if (response.status === 404) {
-    return null;
-  }
-  await throwIfNotOk(response);
-  return parseOrThrow(GetLogsResponseSchema, await response.json());
+export async function getScenarioLogs(scenarioName: string, serviceId: string) {
+  const response = await stateConnectClient.getScenarioStateLog({
+    scenarioName,
+    serviceId,
+  });
+  return response.found && response.payload
+    ? GetLogsResponseSchema.parse(response.payload)
+    : null;
 }
 
-export function invalidateScenarioStage(
+export async function invalidateScenarioStage(
   scenarioName: string,
   fromStage: string,
   reason?: string,
 ) {
-  return mutateJson(
-    `/scenarios/${encodeURIComponent(scenarioName)}/state/invalidate`,
-    ValidationStatusSchema,
-    { method: "POST", body: { from_stage: fromStage, reason } },
-  );
+  const response = await stateConnectClient.invalidateScenarioState({
+    scenarioName,
+    fromStage,
+    reason,
+  });
+  return ValidationStatusSchema.parse(requiredPayload(response.payload));
 }
 
 // ==================== Other Scenario Functions ====================
 
-export function fetchScenarioDesktopStatus() {
-  return fetchJson("/scenarios/desktop-status", ScenariosResponseSchema);
+export async function fetchScenarioDesktopStatus() {
+  const response = await operationsConnectClient.listDesktopScenarioStatus({});
+  return ScenariosResponseSchema.parse({
+    scenarios: response.scenarios.map((scenario) => ({
+      name: scenario.name,
+      display_name: scenario.displayName,
+      service_display_name: scenario.serviceDisplayName,
+      service_description: scenario.serviceDescription,
+      service_icon_path: scenario.serviceIconPath,
+      has_desktop: scenario.hasDesktop,
+      desktop_path: scenario.desktopPath,
+      version: scenario.version,
+      platforms: scenario.platforms,
+      built: scenario.built,
+      dist_path: scenario.distPath,
+      last_modified: scenario.lastModified,
+      package_size:
+        scenario.packageSize === undefined
+          ? undefined
+          : Number(scenario.packageSize),
+      connection_config: scenario.connectionConfig
+        ? {
+            deployment_mode: scenario.connectionConfig.mode,
+            proxy_url: scenario.connectionConfig.endpoint,
+          }
+        : undefined,
+      build_artifacts: scenario.buildArtifacts.map((artifact) => ({
+        platform: artifact.platform,
+        file_name: artifact.fileName,
+        size_bytes: Number(artifact.sizeBytes),
+        modified_at: artifact.modifiedAt,
+        absolute_path: artifact.absolutePath,
+        relative_path: artifact.relativePath,
+      })),
+      artifacts_source: scenario.artifactsSource,
+      artifacts_path: scenario.artifactsPath,
+      artifacts_expected_path: scenario.artifactsExpectedPath,
+      record_id: scenario.recordId,
+      record_output_path: scenario.recordOutputPath,
+      record_location_mode: scenario.recordLocationMode,
+      record_updated_at: scenario.recordUpdatedAt,
+    })),
+    stats: {
+      total: response.stats?.total ?? 0,
+      with_desktop: response.stats?.withDesktop ?? 0,
+      built: response.stats?.built ?? 0,
+      web_only: response.stats?.webOnly ?? 0,
+    },
+  });
 }
 
-export function fetchTemplates() {
-  return fetchJson("/templates", TemplateListResponseSchema);
+export async function fetchTemplates() {
+  return systemConnectClient.listTemplates({});
 }

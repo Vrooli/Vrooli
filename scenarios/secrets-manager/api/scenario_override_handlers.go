@@ -2,11 +2,11 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // ScenarioOverrideHandlers handles HTTP requests for scenario overrides.
@@ -16,7 +16,7 @@ type ScenarioOverrideHandlers struct {
 }
 
 // NewScenarioOverrideHandlers creates handlers for scenario override operations.
-func NewScenarioOverrideHandlers(db *sql.DB, logger *Logger) *ScenarioOverrideHandlers {
+func NewScenarioOverrideHandlers(db *database.RoutedDB, logger *Logger) *ScenarioOverrideHandlers {
 	return &ScenarioOverrideHandlers{
 		store:  NewScenarioOverrideStore(db, logger),
 		logger: logger,

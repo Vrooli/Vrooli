@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — shared output types
+// =============================================================================
+//
+// @stability experimental
+//
+// Types shared across more than one `vrooli <command> --json` contract in this
+// package (e.g. the discovery-failure shape reported by both `resource list`
+// and `scenario list`).
+// =============================================================================
+
+// DiscoveryFailure records one item that could not be loaded during a discovery
+// sweep. Emitted under the `discovery_failures` envelope key; empty on a clean
+// sweep.
+message DiscoveryFailure {
+  // Discovery kind that failed (e.g. "resource", "scenario").
+  string kind = 1;
+
+  // Item slug that failed to load, when known.
+  string name = 2;
+
+  // Path under inspection when the failure occurred.
+  string path = 3;
+
+  // Pipeline stage at which discovery failed.
+  string stage = 4;
+
+  // Human-readable error detail.
+  string error = 5;
+}

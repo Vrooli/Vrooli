@@ -128,3 +128,25 @@ func TestLanguageDetector_SkipsNodeModules(t *testing.T) {
 	// Should only count the App.tsx, not the file in node_modules
 	assertLanguageInfo(t, languages, LanguageTypeScript, 1, "ui")
 }
+
+func TestLanguageDetectorIncludesCustomSourceAndExcludesOutputs(t *testing.T) {
+	root := t.TempDir()
+	createTestDir(t, root, "playwright-driver/src", map[string]string{"handler.ts": "export const value = 1;\n"})
+	createTestDir(t, root, "automation-worker/src", map[string]string{"worker.ts": "export const worker = 1;\n"})
+	for _, dir := range []string{"playwright-driver/node_modules/library", "playwright-driver/dist", "data"} {
+		createTestDir(t, root, dir, map[string]string{"ignored.ts": "export const ignored = 1;\n"})
+	}
+	languages, err := NewLanguageDetector(root).DetectLanguages()
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := languages[LanguageTypeScript]
+	if info == nil || info.FileCount != 2 {
+		t.Fatalf("want both maintained component sources, got %+v", info)
+	}
+	for _, path := range info.Files {
+		if path != "playwright-driver/src/handler.ts" && path != "automation-worker/src/worker.ts" {
+			t.Errorf("unexpected source: %s", path)
+		}
+	}
+}

@@ -35,12 +35,13 @@ type AssembleBundleRequest struct {
 
 // ExportBundleRequest is the request body for bundle export endpoint.
 type ExportBundleRequest struct {
-	Scenario       string `json:"scenario"`
-	Tier           string `json:"tier"`
-	ProfileID      string `json:"profile_id,omitempty"`
-	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
-	OutputDir      string `json:"output_dir,omitempty"`
-	StageBundle    *bool  `json:"stage_bundle,omitempty"`
+	Scenario          string `json:"scenario"`
+	Tier              string `json:"tier"`
+	ArtifactTrustMode string `json:"artifact_trust_mode,omitempty"`
+	ProfileID         string `json:"profile_id,omitempty"`
+	IncludeSecrets    *bool  `json:"include_secrets,omitempty"`
+	OutputDir         string `json:"output_dir,omitempty"`
+	StageBundle       *bool  `json:"stage_bundle,omitempty"`
 }
 
 // ExportBundleResponse is the response for bundle export endpoint.
@@ -67,7 +68,12 @@ type Handler struct {
 	profileRepo   profiles.Repository
 	signingRepo   codesigning.Repository
 	signingGen    generation.Generator
-	log           func(string, map[string]interface{})
+	// productionReleaseExportAuthorize protects production release exports
+	// that include secret plans. The
+	// handler remains usable in isolated domain tests without a transport
+	// policy; production wiring must install the verified service boundary.
+	productionReleaseExportAuthorize func(context.Context) error
+	log                              func(string, map[string]interface{})
 }
 
 // NewHandler creates a new bundles handler.
@@ -89,6 +95,20 @@ func NewHandlerWithSigning(secretsClient *secrets.Client, profileRepo profiles.R
 		signingGen:    generation.NewGenerator(nil),
 		log:           log,
 	}
+}
+
+// WithProductionReleaseExportAuthorization installs the publisher boundary
+// for production release exports that include secret plans.
+func (h *Handler) WithProductionReleaseExportAuthorization(authorize func(context.Context) error) *Handler {
+	h.productionReleaseExportAuthorize = authorize
+	return h
+}
+
+func (h *Handler) authorizeProductionReleaseExport(ctx context.Context) error {
+	if h.productionReleaseExportAuthorize == nil {
+		return nil
+	}
+	return h.productionReleaseExportAuthorize(ctx)
 }
 
 // ValidateBundle validates a desktop bundle manifest.
@@ -129,7 +149,6 @@ func (h *Handler) MergeBundleSecrets(w http.ResponseWriter, r *http.Request) {
 	if req.Tier == "" {
 		req.Tier = "tier-2-desktop"
 	}
-
 	// Re-validate manifest before merging.
 	rawPayload, err := json.Marshal(req.Manifest)
 	if err != nil {
@@ -175,7 +194,6 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 	if req.IncludeSecrets != nil {
 		includeSecrets = *req.IncludeSecrets
 	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
@@ -223,9 +241,16 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 
 	// Validate assembled manifest to guarantee schema compliance before handing off.
 	if scenarioRoot := resolveScenarioRoot(req.Scenario); scenarioRoot != "" {
-		_ = populateAssetMetadata(manifest, scenarioRoot)
+		if err := populateAssetMetadata(manifest, scenarioRoot); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to populate asset metadata","details":"%s"}`, err.Error()), http.StatusBadGateway)
+			return
+		}
 	}
-	payload, _ := json.Marshal(manifest)
+	payload, err := json.Marshal(manifest)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to serialize assembled manifest","details":"%s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
 	if err := ValidateManifestBytes(payload); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"assembled manifest failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
 		return
@@ -269,6 +294,23 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 	includeSecrets := true
 	if req.IncludeSecrets != nil {
 		includeSecrets = *req.IncludeSecrets
+	}
+	if includeSecrets {
+		trustMode := strings.TrimSpace(req.ArtifactTrustMode)
+		if trustMode == "" {
+			// Older callers remain fail-closed at the production boundary.
+			trustMode = "production"
+		}
+		if trustMode != "production" && trustMode != "development-local" {
+			http.Error(w, `{"error":"artifact_trust_mode must be production or development-local for exports with secret plans"}`, http.StatusBadRequest)
+			return
+		}
+		if trustMode == "production" {
+			if err := h.authorizeProductionReleaseExport(r.Context()); err != nil {
+				http.Error(w, fmt.Sprintf(`{"error":"production release export with secret plans is unauthorized","details":"%s"}`, err), http.StatusForbidden)
+				return
+			}
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
@@ -318,7 +360,10 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 
 	// Validate assembled manifest before export.
 	if scenarioRoot := resolveScenarioRoot(req.Scenario); scenarioRoot != "" {
-		_ = populateAssetMetadata(manifest, scenarioRoot)
+		if err := populateAssetMetadata(manifest, scenarioRoot); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to populate asset metadata","details":"%s"}`, err.Error()), http.StatusBadGateway)
+			return
+		}
 	}
 	payload, err := json.Marshal(manifest)
 	if err != nil {

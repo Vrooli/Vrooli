@@ -1,0 +1,125 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Vrooli Memory のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Vrooli Memory",
+    "eyebrow": "シナリオテンプレート",
+    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "journal": "ジャーナル",
+      "recall": "想起",
+      "operator": "オペレーター",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "journal": {
+      "title": "ジャーナル"
+    },
+    "recall": {
+      "title": "想起"
+    },
+    "operator": {
+      "title": "オペレーター確認",
+      "description": "圧縮フロンティアを確認し、共有メモリを変更する前にピン提案を審査します。",
+      "frontierTitle": "圧縮フロンティア",
+      "frontierCount": "適格ノード {{eligible}} · 目標 {{target}}",
+      "frontierEmpty": "フロンティアは空です",
+      "correctionTitle": "ファセットポリシー",
+      "facetsEmpty": "ファセット定義がありません",
+      "facetCount": "{{count}} 件のファセット定義",
+      "correctionHint": "各ジャーナル項目から訂正できます。訂正は追記専用の割り当てとして記録されます。",
+      "proposalsTitle": "ピン提案",
+      "proposalsEmpty": "確認が必要なピン提案はありません",
+      "summary": "要約・深さ {{depth}}・子孫 {{span}} 件",
+      "leaf": "リーフ・深さ {{depth}}",
+      "unclassified": "未分類",
+      "entries": "件",
+      "accept": "承認",
+      "reject": "却下",
+      "refresh": "更新"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "journal": {
+    "title": "ジャーナルのタイムライン",
+    "loading": "ジャーナルを読み込み中…",
+    "retry": "再試行",
+    "empty": "まだメモリはありません",
+    "unknownTime": "時刻不明",
+    "facetCorrection": "ファセットを変更",
+    "changeFacet": "ファセットを選択",
+    "pin": "ピン留め",
+    "unpin": "ピン留め解除"
+  },
+  "recall": {
+    "title": "メモリを想起",
+    "queryLabel": "メモリの検索",
+    "queryPlaceholder": "共有メモリを検索",
+    "submit": "想起",
+    "loading": "メモリを検索中…",
+    "empty": "一致するメモリはありません",
+    "score": "スコア {{score}}",
+    "summary": "{{count}} 件のメモリの要約"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

@@ -1,6 +1,7 @@
 package health
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -10,10 +11,16 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
+
+func TestParseHealthBodyAcceptsOKStatus(t *testing.T) {
+	if !parseHealthBody(bytes.NewBufferString(`{"status":"ok","ready":true}`)) {
+		t.Fatal("parseHealthBody rejected a healthy endpoint using status=ok")
+	}
+}
 
 // testMonitor creates a Monitor configured for testing.
 func testMonitor(m *manifest.Manifest, ports map[string]map[string]int, clock *testutil.MockClock, dialer infra.NetworkDialer, fs *testutil.MockFileSystem, cmdRunner *testutil.MockCommandRunner) *Monitor {
@@ -77,11 +84,28 @@ func TestWaitForReadiness_HealthSuccess(t *testing.T) {
 
 	clock := testutil.NewMockClock(time.Now())
 	hm := testMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, nil, nil, nil)
+	var probes []struct {
+		service string
+		attempt int
+		success bool
+		at      time.Time
+	}
+	hm.OnReadinessProbe = func(service string, attempt int, success bool, at time.Time) {
+		probes = append(probes, struct {
+			service string
+			attempt int
+			success bool
+			at      time.Time
+		}{service, attempt, success, at})
+	}
 
 	ctx := context.Background()
 	err := hm.WaitForReadiness(ctx, "api")
 	if err != nil {
 		t.Errorf("WaitForReadiness() error = %v", err)
+	}
+	if len(probes) != 1 || probes[0].service != "api" || probes[0].attempt != 1 || !probes[0].success || probes[0].at.IsZero() {
+		t.Fatalf("readiness probes = %+v, want the first successful health probe", probes)
 	}
 }
 

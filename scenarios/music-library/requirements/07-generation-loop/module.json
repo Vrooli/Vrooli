@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "module": "generation-loop",
+    "description": "Background generation conditioned on the profile, competing on equal footing with owned music.",
+    "prd_ref": "OT-P1-003",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P1-008",
+      "title": "Generation is conditioned on the current profile",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "A background queue produces candidates from the active preference profile, sampling across its uncertain regions rather than only its peak, so generation explores as well as exploits.",
+      "tags": ["generation", "loop"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/generation/conditioning_test.go", "phase": "unit", "status": "planned", "notes": "Generation requests span uncertain regions, not only the profile maximum" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-009",
+      "title": "Generated tracks re-enter the same index",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Generated audio is decomposed by the same pipeline as owned audio and ranked by the same model, with no scoring advantage or penalty for being generated. Disclosure is a presentation and provenance concern, never a ranking one.",
+      "tags": ["generation", "parity"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/generation/parity_test.go", "phase": "integration", "status": "planned", "notes": "Provenance does not alter the computed score" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-010",
+      "title": "Generation is bounded and gets discarded",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "The queue respects a storage budget and a GPU-contention policy, and candidates that fail to earn listening are evicted. Producing many and keeping few is the intended behaviour, not a failure mode.",
+      "tags": ["generation", "budget"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/generation/retention_test.go", "phase": "unit", "status": "planned", "notes": "Budget honoured; unlistened candidates evicted; generation yields under contention" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-011",
+      "title": "Directed requests alongside the queue",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "The listener can ask for a specific piece of music in their own words and have it produced without disturbing the background queue or the profile, unless they choose to feed the result back.",
+      "tags": ["generation", "control"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/generation/directed_test.go", "phase": "integration", "status": "planned", "notes": "Directed requests bypass profile conditioning and do not implicitly update it" }
+      ]
+    }
+  ]
+}

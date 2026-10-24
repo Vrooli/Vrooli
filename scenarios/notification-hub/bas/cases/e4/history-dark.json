@@ -1,0 +1,642 @@
+{
+  "metadata": {
+    "name": "e4-history-dark-bounded",
+    "description": "Captures the 200-row History scope and filtered-empty view in dark theme from the leased disposable recipient pool.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "history-dark-bounded"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-updates",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Settings to apply the dark theme"
+        }
+      }
+    },
+    {
+      "id": "set-dark",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=dark)"
+        },
+        "metadata": {
+          "label": "Choose dark with the registered Settings theme control"
+        }
+      }
+    },
+    {
+      "id": "return-to-updates-after-theme",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Return to routed Updates before testing History"
+        }
+      }
+    },
+    {
+      "id": "open-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=history)"
+        },
+        "metadata": {
+          "label": "Open History in mobile navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-history-fixture",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 history answer fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Closed ask appears in bounded History"
+        },
+        "metadata": {
+          "label": "Closed ask appears in bounded History"
+        }
+      }
+    },
+    {
+      "id": "assert-limit-200",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "up to 200 returned decisions"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Dark History discloses loaded cap"
+        },
+        "metadata": {
+          "label": "Dark History discloses loaded cap"
+        }
+      }
+    },
+    {
+      "id": "filter-defaulted",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/history.filterLink(state=defaulted)"
+        },
+        "metadata": {
+          "label": "Filter loaded History to defaulted decisions"
+        }
+      }
+    },
+    {
+      "id": "assert-filtered-empty",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "No decisions match this filter."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Filtered empty is distinct from no loaded history"
+        },
+        "metadata": {
+          "label": "Filtered empty is distinct from no loaded history"
+        }
+      }
+    },
+    {
+      "id": "select-nh16-history-all",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/history.filterLink(state=all)"
+        },
+        "metadata": {
+          "label": "Clear the status filter before the selected mobile text search"
+        }
+      }
+    },
+    {
+      "id": "assert-nh16-mobile-search-heading",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "No matching loaded requests"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "NH16.1 selected search heading appears after History settles"
+        },
+        "metadata": {
+          "label": "Selected NH16.1 loaded-history search heading is visible"
+        }
+      }
+    },
+    {
+      "id": "assert-nh16-mobile-search-copy",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "mobile"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "NH16.1 selected search text and incomplete-account boundary remain visible"
+        },
+        "metadata": {
+          "label": "Selected NH16.1 mobile query and honest boundary are visible"
+        }
+      }
+    },
+    {
+      "id": "enter-nh16-mobile-query",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "#history-search",
+          "value": "mobile",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Enter the selected NH16.1 mobile text query"
+        }
+      }
+    },
+    {
+      "id": "assert-nh16-mobile-search-boundary",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Older matching records may exist"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "NH16.1 text search states its incomplete-account boundary"
+        },
+        "metadata": {
+          "label": "Selected NH16.1 search retains the honest incomplete-account boundary"
+        }
+      }
+    },
+    {
+      "id": "record-nh16-skip-before",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const node=document.querySelector('[data-testid=\"layout-shell-skip\"]'); window.__nh16SkipRef=node; const rect=node?.getBoundingClientRect(); const style=node?getComputedStyle(node):null; return {found:!!node,initiallyFocused:document.activeElement===node,focusVisible:node?.matches(':focus-visible')??false,transform:style?.transform??null,rect:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,viewport:{width:innerWidth,height:innerHeight}}; })()",
+          "store_result": "nh16SkipBefore"
+        },
+        "metadata": {
+          "label": "Measure the same skip-link node before keyboard navigation"
+        }
+      }
+    },
+    {
+      "id": "tab-to-nh16-skip",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Tab"
+        },
+        "metadata": {
+          "label": "Reveal the first keyboard skip link with a genuine Tab key"
+        }
+      }
+    },
+    {
+      "id": "record-nh16-skip-after",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { await new Promise(resolve=>setTimeout(resolve,350)); const node=document.querySelector('[data-testid=\\\"layout-shell-skip\\\"]'); const rect=node?.getBoundingClientRect(); const style=node?getComputedStyle(node):null; const sameNodeFocused=!!node&&window.__nh16SkipRef===node&&document.activeElement===node; const focusVisible=node?.matches(':focus-visible')??false; const visible=!!rect&&rect.top>=0&&rect.bottom<=innerHeight; if(!sameNodeFocused||!focusVisible||!visible) throw new Error('skip link did not reveal the same focused node inside the viewport'); return {sameNodeFocused,activeTestId:document.activeElement?.getAttribute('data-testid')??null,focusVisible,visible,transform:style?.transform??null,rect:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,viewport:{width:innerWidth,height:innerHeight}}; })()",
+          "store_result": "nh16SkipAfter"
+        },
+        "metadata": {
+          "label": "Measure same-node focus-visible reveal after Tab"
+        }
+      }
+    },
+    {
+      "id": "activate-nh16-skip",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Activate the focused skip link with Enter"
+        }
+      }
+    },
+    {
+      "id": "record-nh16-main-focus",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const active=document.activeElement; const main=document.getElementById('layout-shell-main'); return {activeIsMain:active===main,activeTag:active?.tagName??null,activeId:active?.id??null,hash:location.hash}; })()",
+          "store_result": "nh16MainFocus"
+        },
+        "metadata": {
+          "label": "Measure focus movement to main after skip activation"
+        }
+      }
+    },
+    {
+      "id": "route-updates",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=dashboard)"
+        },
+        "metadata": {
+          "label": "Navigate to updates through mobile lower navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-route-updates",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/layout.navTab(key=dashboard)",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "aria-current",
+          "expected": {
+            "string_value": "page"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Confirm updates route is current destination did not become the selected route"
+        },
+        "metadata": {
+          "label": "Confirm updates route is current"
+        }
+      }
+    },
+    {
+      "id": "route-asks",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=asks)"
+        },
+        "metadata": {
+          "label": "Navigate to asks through mobile lower navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-route-asks",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/layout.navTab(key=asks)",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "aria-current",
+          "expected": {
+            "string_value": "page"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Confirm asks route is current destination did not become the selected route"
+        },
+        "metadata": {
+          "label": "Confirm asks route is current"
+        }
+      }
+    },
+    {
+      "id": "route-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=history)"
+        },
+        "metadata": {
+          "label": "Navigate to history through mobile lower navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-route-history",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/layout.navTab(key=history)",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "aria-current",
+          "expected": {
+            "string_value": "page"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Confirm history route is current destination did not become the selected route"
+        },
+        "metadata": {
+          "label": "Confirm history route is current"
+        }
+      }
+    },
+    {
+      "id": "route-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=delivery)"
+        },
+        "metadata": {
+          "label": "Navigate to delivery through mobile lower navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-route-delivery",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/layout.navTab(key=delivery)",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "aria-current",
+          "expected": {
+            "string_value": "page"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Confirm delivery route is current destination did not become the selected route"
+        },
+        "metadata": {
+          "label": "Confirm delivery route is current"
+        }
+      }
+    },
+    {
+      "id": "route-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=settings)"
+        },
+        "metadata": {
+          "label": "Navigate to settings through mobile lower navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-route-settings",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/layout.navTab(key=settings)",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "aria-current",
+          "expected": {
+            "string_value": "page"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Confirm settings route is current destination did not become the selected route"
+        },
+        "metadata": {
+          "label": "Confirm settings route is current"
+        }
+      }
+    },
+    {
+      "id": "return-to-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navTab(key=history)"
+        },
+        "metadata": {
+          "label": "Return to History after exercising all five destinations"
+        }
+      }
+    },
+    {
+      "id": "record-nh16-phone-measurements",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const shell=document.querySelector('[data-testid=\"layout-shell\"]'); const nav=document.querySelector('[data-rcl-bottom-nav]'); const menu=document.querySelector('.nh-mobile-menu > button'); const links=[...document.querySelectorAll('[data-testid$=\"-tab\"]')]; const rect=n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}}; const result={viewport:{width:innerWidth,height:innerHeight},body:{clientWidth:document.body.clientWidth,scrollWidth:document.body.scrollWidth},document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth},shell:shell?rect(shell):null,menu:menu?rect(menu):null,nav:nav?rect(nav):null,destinations:links.map(link=>({testId:link.dataset.testid,href:link.getAttribute('href'),current:link.getAttribute('aria-current'),rect:rect(link)}))}; document.activeElement?.blur(); return result; })()",
+          "store_result": "nh16PhoneMeasurements"
+        },
+        "metadata": {
+          "label": "Measure selected phone layout widths and destination target geometry"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-nh16-seq36-01",
+      "source": "open-updates",
+      "target": "record-nh16-skip-before",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-02",
+      "source": "record-nh16-skip-before",
+      "target": "tab-to-nh16-skip",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-03",
+      "source": "tab-to-nh16-skip",
+      "target": "record-nh16-skip-after",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-04",
+      "source": "record-nh16-skip-after",
+      "target": "activate-nh16-skip",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-05",
+      "source": "activate-nh16-skip",
+      "target": "record-nh16-main-focus",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-06",
+      "source": "record-nh16-main-focus",
+      "target": "set-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-07",
+      "source": "set-dark",
+      "target": "return-to-updates-after-theme",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-08",
+      "source": "return-to-updates-after-theme",
+      "target": "open-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-09",
+      "source": "open-history",
+      "target": "route-updates",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-10",
+      "source": "route-updates",
+      "target": "assert-route-updates",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-11",
+      "source": "assert-route-updates",
+      "target": "route-asks",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-12",
+      "source": "route-asks",
+      "target": "assert-route-asks",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-13",
+      "source": "assert-route-asks",
+      "target": "route-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-14",
+      "source": "route-history",
+      "target": "assert-route-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-15",
+      "source": "assert-route-history",
+      "target": "route-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-16",
+      "source": "route-delivery",
+      "target": "assert-route-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-17",
+      "source": "assert-route-delivery",
+      "target": "route-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-18",
+      "source": "route-settings",
+      "target": "assert-route-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-19",
+      "source": "assert-route-settings",
+      "target": "return-to-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-20",
+      "source": "return-to-history",
+      "target": "assert-history-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-21",
+      "source": "assert-history-fixture",
+      "target": "assert-limit-200",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-22",
+      "source": "assert-limit-200",
+      "target": "filter-defaulted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-23",
+      "source": "filter-defaulted",
+      "target": "assert-filtered-empty",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-24",
+      "source": "assert-filtered-empty",
+      "target": "select-nh16-history-all",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-25",
+      "source": "select-nh16-history-all",
+      "target": "enter-nh16-mobile-query",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-26",
+      "source": "enter-nh16-mobile-query",
+      "target": "assert-nh16-mobile-search-heading",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-27",
+      "source": "assert-nh16-mobile-search-heading",
+      "target": "assert-nh16-mobile-search-copy",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-28",
+      "source": "assert-nh16-mobile-search-copy",
+      "target": "record-nh16-phone-measurements",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-29",
+      "source": "record-nh16-phone-measurements",
+      "target": "assert-nh16-mobile-search-boundary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

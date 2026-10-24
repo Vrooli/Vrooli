@@ -251,6 +251,27 @@ describe("createRuntimeControlClient", () => {
         });
     });
 
+    describe("waitForReady", () => {
+        it("uses one bounded control request and returns readiness", async () => {
+            http._response.json = { ready: true };
+            const client = createRuntimeControlClient(http, fs, timer, config);
+
+            await expect(client.waitForReady(5000, true)).resolves.toEqual({ ready: true });
+
+            expect(http._requests).toHaveLength(1);
+            expect(http._requests[0]!.url).toBe("http://127.0.0.1:47710/readyz/wait?timeout_ms=5000&critical_only=true");
+            expect(http._requests[0]!.headers.Authorization).toBe("Bearer test-token-123");
+        });
+
+        it("caps the server wait to two minutes", async () => {
+            const client = createRuntimeControlClient(http, fs, timer, config);
+
+            await client.waitForReady(999999);
+
+            expect(http._requests[0]!.url).toContain("timeout_ms=120000");
+        });
+    });
+
     describe("collectDiagnostics", () => {
         beforeEach(() => {
             // Set up default responses for diagnostic endpoints

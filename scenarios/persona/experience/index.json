@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "persona",
+  "description": "Experience contract for Persona. The scenario's centre of gravity is the handoff queue: everything else exists so that when an agent meets a wall it must not cross, a person can finish the step in one action with the context already assembled. All declared page routes are implemented and their page specs are active; journey specs remain draft until their full cross-page flows are driven end to end.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "What Needs You",
+      "status": "active"
+    },
+    {
+      "id": "handoffs",
+      "path": "pages/handoffs.json",
+      "title": "Handoffs",
+      "status": "active"
+    },
+    {
+      "id": "personas",
+      "path": "pages/personas.json",
+      "title": "Personas",
+      "status": "active"
+    },
+    {
+      "id": "persona-detail",
+      "path": "pages/persona-detail.json",
+      "title": "Persona",
+      "status": "active"
+    },
+    {
+      "id": "journal",
+      "path": "pages/journal.json",
+      "title": "Journal",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "complete-a-blocked-enrolment",
+      "path": "journeys/complete-a-blocked-enrolment.json",
+      "title": "Finish what the agent could not",
+      "status": "draft"
+    },
+    {
+      "id": "prepare-a-persona-for-first-use",
+      "path": "journeys/prepare-a-persona-for-first-use.json",
+      "title": "Set up an identity worth trusting",
+      "status": "draft"
+    },
+    {
+      "id": "answer-who-did-this",
+      "path": "journeys/answer-who-did-this.json",
+      "title": "Reconstruct an action after the fact",
+      "status": "draft"
+    },
+    {
+      "id": "understand-a-system-wide-refusal",
+      "path": "journeys/understand-a-system-wide-refusal.json",
+      "title": "Find out why everything is refusing",
+      "status": "draft"
+    }
+  ]
+}

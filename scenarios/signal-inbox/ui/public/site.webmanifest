@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Signal Inbox",
+  "short_name": "signal-inbox",
+  "description": "Capture, categorize, and retrieve external signals — bookmarks, articles, videos, conversations, and pasted notes — as a searchable substrate other scenarios consume",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

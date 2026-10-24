@@ -12,6 +12,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useAssetStore } from '@stores/assetStore';
 import { useEntitlementStore, TIER_CONFIG } from '@stores/entitlementStore';
 import type { WatermarkSettings as WatermarkSettingsType, WatermarkPosition } from '@stores/settingsStore';
+import { LANDING_PAGE_URL } from '@shared/upgradeDestination';
 import { PositionPicker } from './PositionPicker';
 import { AssetPicker } from './AssetPicker';
 import {
@@ -21,12 +22,6 @@ import {
 } from '@lib/builtInAssets';
 
 // Get landing page URL from environment or use default
-const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
-const LANDING_PAGE_URL =
-  typeof landingPageEnv === 'string' && landingPageEnv.length > 0
-    ? landingPageEnv
-    : 'https://browser-automation-studio.com';
-
 export function WatermarkSettings() {
   const { replay, setReplaySetting } = useSettingsStore();
   const { watermark } = replay;

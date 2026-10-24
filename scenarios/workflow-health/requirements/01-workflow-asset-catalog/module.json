@@ -1,0 +1,45 @@
+{
+  "description": "Workflow Health scans scenario-owned BAS assets into a stable catalog that separates validation cases, agent-runnable flows, and reusable action fragments.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "title": "Catalog BAS Cases, Flows, Actions, Seeds, and Registry Metadata",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "The workflow catalog scanner must read `bas/cases`, `bas/flows`, `bas/actions`, `bas/seeds`, and `bas/registry.json` for a target scenario and emit deterministic asset records with stable IDs, canonical paths, asset type, metadata, requirement links, selector refs, route refs, safety profile, and dependency edges.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Scanner golden tests cover cases, flows, actions, seeds, stale registry entries, missing registry entries, selector references, route references, subflows, and legacy/current BAS node shapes."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-002",
+      "title": "Classify Assets by Workflow Role",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "Workflow Health must classify every BAS asset as a validation case, agent flow, dependency fragment, seed, or registry-only/stale entry so downstream validation, search, execution, and UI surfaces cannot confuse tests with runnable actions.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Catalog fixture tests assert `bas/cases` become validation evidence, `bas/flows` become agent flow candidates, and `bas/actions` are hidden fragments unless explicitly requested."
+        }
+      ]
+    }
+  ],
+  "title": "Workflow asset catalog"
+}

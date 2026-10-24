@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.export-workflow",
+    "name": "ExportWorkflow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The export flow covering scope, field selection, format, options, background execution, progress, completion, failure, and retrieval of the finished artifact.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form",
+        "reason": "Scope and option selection use the shared form runtime."
+      },
+      {
+        "asset": "services.background-task-registry",
+        "reason": "Long work survives navigation by living in the shared task registry."
+      },
+      {
+        "asset": "feedback.progress-toast",
+        "reason": "Background progress is reported through the shared notification."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error",
+    "offline",
+    "retry"
+  ]
+}

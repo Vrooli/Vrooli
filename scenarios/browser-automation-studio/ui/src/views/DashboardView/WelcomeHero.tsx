@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import {
   Plus,
   GraduationCap,
@@ -11,7 +11,9 @@ import {
   ArrowDownToLine,
 } from 'lucide-react';
 import { selectors } from '@constants/selectors';
-import { FeatureShowcase } from './previews/FeatureShowcase';
+const FeatureShowcase = lazy(() => import('./previews/FeatureShowcase').then((module) => ({
+  default: module.FeatureShowcase,
+})));
 
 // ============================================
 // TYPES
@@ -161,6 +163,18 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
   onStartRecording,
 }) => {
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
+  const [showFeatureShowcase, setShowFeatureShowcase] = useState(false);
+
+  useEffect(() => {
+    const idleCallback = window.requestIdleCallback;
+    if (typeof idleCallback === 'function') {
+      const handle = idleCallback(() => setShowFeatureShowcase(true), { timeout: 1500 });
+      return () => window.cancelIdleCallback(handle);
+    }
+
+    const handle = window.setTimeout(() => setShowFeatureShowcase(true), 1000);
+    return () => window.clearTimeout(handle);
+  }, []);
 
   const handleActiveIndexChange = useCallback((index: number) => {
     setActiveFeatureIndex(index);
@@ -268,10 +282,18 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
 
         {/* Feature showcase with cycling previews */}
         <div className="animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-          <FeatureShowcase
-            activeIndex={activeFeatureIndex}
-            onActiveIndexChange={handleActiveIndexChange}
-          />
+        <Suspense
+          fallback={
+            <div className="w-full max-w-2xl mx-auto min-h-[270px] rounded-xl border border-flow-border/40 bg-flow-node/40" />
+          }
+        >
+          {showFeatureShowcase && (
+            <FeatureShowcase
+              activeIndex={activeFeatureIndex}
+              onActiveIndexChange={handleActiveIndexChange}
+            />
+          )}
+        </Suspense>
         </div>
 
         {/* Stats section */}

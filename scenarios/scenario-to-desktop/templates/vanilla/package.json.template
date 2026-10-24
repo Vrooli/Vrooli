@@ -32,7 +32,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "concurrently": "^8.0.0",
-    "electron": "^33.0.0",
+    "electron": "44.7.2",
+    {{ELECTRON_MKSNAPSHOT_DEPENDENCY}}
     "electron-builder": "^26.0.12",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0",
@@ -46,25 +47,22 @@
     "productName": "{{APP_DISPLAY_NAME}}",
     "copyright": "Copyright © {{YEAR}} {{AUTHOR}}",
     "afterPack": "scripts/post-build-windows.js",
+    "afterAllArtifactBuild": {{LINUX_ARTIFACT_SIGNER_HOOK}},
     "directories": {
       "output": "dist-electron",
       "buildResources": "assets"
     },
     "files": [
       "dist/**/*",
+      "native-extension.json",
       "assets/**/*",
       "src/splash.html",
       "!**/*.ts",
       "!**/tsconfig.json",
       "!**/*.map"
     ],
-    "extraResources": [
-      {
-        "from": "{{SCENARIO_DIST_PATH}}",
-        "to": "{{SCENARIO_DIST_PATH}}",
-        "filter": ["**/*"]
-      }
-    ],
+    "beforePack": {{V8_SNAPSHOT_BEFORE_PACK}},
+    "extraResources": {{EXTRA_RESOURCES}},
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "assets/icon.png",
@@ -127,7 +125,11 @@
         }
       }
     },
-    "publish": {{PUBLISH_CONFIG}}
+    "appImage": {
+      "license": null
+    },
+    "publish": {{PUBLISH_CONFIG}},
+    "electronFuses": {{ELECTRON_FUSES}}
   },
   "engines": {
     "node": ">=18.0.0"

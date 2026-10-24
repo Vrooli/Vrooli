@@ -1,0 +1,13 @@
+{
+  "id": "sess_e6d5d77f7b0c23b9",
+  "title": "Manage Swarm operations",
+  "kind": "swarm_operations",
+  "status": "draft",
+  "skill_id": "swarm-manager-operations-session",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-14T01:36:14Z",
+  "updated_at": "2026-07-14T01:36:14Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

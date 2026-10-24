@@ -244,7 +244,7 @@ curl http://localhost:9000/minio/health/cluster
 docker stats minio
 
 # Disk usage
-du -sh ~/.minio/data/
+du -sh "${MINIO_DATA_DIR}/"
 
 # API metrics
 curl http://localhost:9000/minio/v2/metrics/cluster

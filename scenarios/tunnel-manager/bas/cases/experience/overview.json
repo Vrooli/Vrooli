@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "experience-overview",
+    "description": "Navigate to the overview experience page so its active experience specification has a browser automation evidence seam.",
+    "requirement": "UX-EXPERIENCE-OVERVIEW",
+    "version": "1",
+    "labels": {"spec_entry_id": "overview", "reset": "none", "purpose": "experience-contract"},
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {
+      "id": "navigate-overview",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tunnel-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Navigate to overview"}
+      }
+    },
+    {
+      "id": "wait-overview-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.overview",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the overview surface"}
+      }
+    },
+    {
+      "id": "assert-overview-page",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.overview",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Overview did not render its bound page surface"
+        },
+        "metadata": {"label": "Assert overview surface is visible"}
+      }
+    },
+    {
+      "id": "assert-overview-results-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"overview-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"overview-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"overview-results\"][data-experience-state=\"partial\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Overview results did not expose its async lifecycle surface"
+        },
+        "metadata": {"label": "Assert overview results lifecycle"}
+      }
+    }
+  ]
+}

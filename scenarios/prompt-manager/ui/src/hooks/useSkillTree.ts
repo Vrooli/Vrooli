@@ -41,6 +41,11 @@ interface UseSkillTreeProps {
   initialDetailMode?: DetailMode
   /** Initial search query (for persistence) */
   initialSearchQuery?: string
+  /**
+   * Server-backed quick-search match IDs. Quick search is metadata-only:
+   * name, description, tags, and modes.
+   */
+  searchMatchedSkillIds?: Set<string> | null
 }
 
 interface UseSkillTreeReturn {
@@ -95,6 +100,15 @@ function areStringSetsEqual(a: Set<string>, b: Set<string>): boolean {
   return true
 }
 
+function skillMatchesLocalSearch(skill: Skill, query: string): boolean {
+  return (
+    skill.name.toLowerCase().includes(query) ||
+    skill.description.toLowerCase().includes(query) ||
+    skill.tags.some((t) => t.toLowerCase().includes(query)) ||
+    skill.modes.some((m) => m.toLowerCase().includes(query))
+  )
+}
+
 /**
  * Hook for managing skill tree navigation state.
  */
@@ -108,6 +122,7 @@ export function useSkillTree({
   initialViewMode = DEFAULT_VIEW_MODE,
   initialDetailMode = DEFAULT_DETAIL_MODE,
   initialSearchQuery = '',
+  searchMatchedSkillIds = null,
 }: UseSkillTreeProps): UseSkillTreeReturn {
   // Ref to hold skills for stable callbacks (avoids re-creating callbacks when skills load)
   const skillsRef = useRef(skills)
@@ -152,17 +167,17 @@ export function useSkillTree({
     // Apply search query (same fields as filterTree uses for the tree view)
     const query = searchQuery.trim().toLowerCase()
     if (query) {
-      result = result.filter((s) =>
-        s.name.toLowerCase().includes(query) ||
-        s.description.toLowerCase().includes(query) ||
-        s.content.toLowerCase().includes(query) ||
-        s.tags.some((t) => t.toLowerCase().includes(query)) ||
-        s.modes.some((m) => m.toLowerCase().includes(query))
-      )
+      if (searchMatchedSkillIds) {
+        result = result.filter((s) =>
+          searchMatchedSkillIds.has(s.id) || skillMatchesLocalSearch(s, query)
+        )
+      } else {
+        result = result.filter((s) => skillMatchesLocalSearch(s, query))
+      }
     }
 
     return sortSkills(result, sortConfig)
-  }, [skills, filterState, searchQuery, sortConfig])
+  }, [skills, filterState, searchQuery, searchMatchedSkillIds, sortConfig])
 
   // Step 3: For tree view — filter tree by matching skill IDs
   // Sorting is not applied in tree view (sort dropdown is hidden for tree mode).
@@ -172,13 +187,14 @@ export function useSkillTree({
       ? treeNodes
       : filterTreeBySkillIds(treeNodes, matchingIds)
 
-    // Apply search filter on top
-    if (searchQuery.trim()) {
+    // Apply local search filter on top. Server-backed search was already
+    // applied by ID above.
+    if (searchQuery.trim() && !searchMatchedSkillIds) {
       filtered = filterTree(filtered, searchQuery, skills)
     }
 
     return filtered
-  }, [treeNodes, filteredSortedSkills, searchQuery, skills])
+  }, [treeNodes, filteredSortedSkills, searchQuery, searchMatchedSkillIds, skills])
 
   // Toggle a single node's expanded state
   const toggleNode = useCallback((nodeId: string) => {
@@ -251,10 +267,7 @@ export function useSkillTree({
     }
   }, [selectedItemId, expandToItem])
 
-  // When search query changes, expand all matching nodes
-  // Note: We intentionally only depend on searchQuery, not filteredTreeNodes,
-  // to avoid infinite loops when setExpandedNodes triggers a re-render.
-  // We access filteredTreeNodes as a snapshot, not as a reactive dependency.
+  // When search results change, expand all matching nodes.
   useEffect(() => {
     // Preserve persisted folder expansion on first mount even when a search query is restored.
     if (!hasHydratedSearchExpansion.current) {
@@ -278,8 +291,7 @@ export function useSkillTree({
       collectExpandable(filteredTreeNodes)
       setExpandedNodes((prev) => (areStringSetsEqual(prev, nodesToExpand) ? prev : nodesToExpand))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery])
+  }, [filteredTreeNodes, searchQuery])
 
   return {
     // Tree data

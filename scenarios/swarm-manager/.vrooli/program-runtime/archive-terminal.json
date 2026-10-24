@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "swarm-manager.archive-terminal",
+  "version": "1",
+  "owner_skill": "swarm-manager",
+  "rung": "S3",
+  "helpers": {"program": "1"},
+  "purpose": "Preview or archive at most 50 explicitly reviewed completed/dropped backlog snapshots while preserving their verdicts, evidence and independent authorization receipts.",
+  "inputs": {
+    "items": {"type": "array", "required": true, "description": "Explicit kind/name targets with expected_status (completed or dropped) and expected_updated from current owner reads."},
+    "execute": {"type": "boolean", "default": false, "description": "Apply archival; false previews only."}
+  },
+  "assumptions": [
+    "Swarm Manager is running and the caller has verified bookkeeping authority for each exact object.",
+    "The caller separately supplies the exact destructive binding grant; declaration and preview confer no authority.",
+    "The caller reviewed current owner records and treats partial receipts and lost observations as unresolved."
+  ],
+  "invariants": [
+    "Only caller-supplied terminal snapshots are addressed; no implicit inventory scan or target widening.",
+    "Preview is the default and performs no domain mutation.",
+    "Existing terminal verdicts, dependency references and evidence remain unchanged.",
+    "The owner rechecks object authorization, current state and active work/review; a changed or refused target is skipped.",
+    "No retry or advisory agent is spawned; every path reports one bounded envelope."
+  ],
+  "bindings": [{"id": "swarm-manager/backlog/archive-terminal", "effect": "destructive"}],
+  "verbs": ["describe"],
+  "budget": {"wall_ms": 60000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 5, "output_bytes": 65536},
+  "fixtures": [
+    {"id": "empty-selection-refused-before-effects", "inputs": {"items": []}, "expect": {"status": ["failed"]}},
+    {"id": "unfinished-selection-refused-before-effects", "inputs": {"items": [{"kind": "execute", "name": "fixture", "expected_status": "backlog", "expected_updated": "2026-10-08T00:00:00Z"}]}, "expect": {"status": ["failed"]}},
+    {"id": "live-missing-target-preview", "requires": ["swarm-manager"], "inputs": {"items": [{"kind": "execute", "name": "nonexistent-terminal-archive-fixture-20261008", "expected_status": "completed", "expected_updated": "2026-10-08T00:00:00Z"}], "execute": false}, "expect": {"status": ["refused", "partial"]}}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "failed", "unavailable", "refused"]},
+    "phase": {"enum": ["validate", "collect", "decide", "act", "report"]},
+    "signals": {
+      "selected": "Number of explicit reviewed targets, at most 50.",
+      "executed": "Whether execution was requested; not a claim every target changed.",
+      "eligible": "Number of eligible preview targets or successful archives.",
+      "archived": "Number of records actually archived by this call.",
+      "skipped": "Number refused, changed, unavailable, missing or already archived.",
+      "codes": "Distribution of authoritative per-item receipt codes.",
+      "examples": "At most five per-item receipts; the owner retains full history."
+    },
+    "errors": {"classes": ["invalid_input", "kernel_runtime", "binding_error", "remote_error", "scenario_unreachable", "no_grant", "not_run_eligible"]},
+    "evidence": "Explicit backlog references; authoritative mutation events retain actor, grant and independent approver."
+  }
+}

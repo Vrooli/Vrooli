@@ -1,0 +1,123 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "vrooli-memory.run-task",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Run one registered learning operation with scoped advice, durable task checkpoints, and separate outcome and capture receipts.",
+  "inputs": {
+    "resume_token": {
+      "type": "string",
+      "default": ""
+    },
+    "operation": {
+      "type": "string",
+      "required": true
+    },
+    "inputs": {
+      "type": "object",
+      "default": {}
+    },
+    "task_id": {
+      "type": "string",
+      "default": ""
+    },
+    "attempt_id": {
+      "type": "string",
+      "default": ""
+    },
+    "expected_digest": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "assumptions": [
+    "Program Runtime owns task checkpoints and enforces the existing session permissions",
+    "Domain operations declare learning_task metadata and own outcome verification"
+  ],
+  "invariants": [
+    "Print one bounded envelope on every path",
+    "Capture recovery never repeats domain execution",
+    "Pending learning delivery does not rewrite the domain outcome"
+  ],
+  "bindings": [],
+  "verbs": [
+    "tasks.run"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "result": "Domain-owned bounded outcome",
+      "learning": "Capture delivery independent of task outcome",
+      "task": "Durable task receipt for inspection"
+    },
+    "errors": {
+      "classes": [
+        "task_unavailable",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Domain owner evidence"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "resume_token": "",
+        "operation": "fixture",
+        "inputs": {},
+        "task_id": "",
+        "attempt_id": "",
+        "expected_digest": ""
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "vrooli-memory"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "vrooli-memory"
+}

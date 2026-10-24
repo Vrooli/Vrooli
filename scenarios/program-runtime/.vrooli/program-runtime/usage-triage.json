@@ -1,0 +1,243 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.usage-triage",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Separate bounded program-run candidates that helped an agent from those that fought or abandoned the work, using one batched classifier call.",
+  "inputs": {
+    "window_days": {
+      "type": "integer",
+      "default": 30,
+      "description": "Agent program rows and runs created inside the last N days; range [1, 90]."
+    },
+    "max_pairs": {
+      "type": "integer",
+      "default": 32,
+      "description": "Maximum deterministic program-run pairs sent to the single classifier batch; range [1, 32]."
+    },
+    "scenario": {
+      "type": "string",
+      "default": "",
+      "description": "Optional declared-program scenario filter."
+    }
+  },
+  "assumptions": [
+    "program-runtime is running and exposes caller identity on new declared program rows when the caller supplies it",
+    "agent-manager run/list prompt previews are a bounded transcript-match lower bound and never a complete transcript",
+    "ai-gateway serves the classify.fast role through its governed batch binding",
+    "the caller treats transcript_match and every capped reading as a lower bound"
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every execution path.",
+    "Candidate selection is deterministic and completes before inference starts.",
+    "At most one batched inference call runs on any path.",
+    "No transcript body is included in the classifier corpus.",
+    "Only fought_it, abandoned, and wrong_program entries survive into the report; helped entries are dropped."
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/programs/portfolio",
+      "effect": "read",
+      "optional": true,
+      "note": "Declared budget and execution metadata; unavailable rows degrade the report honestly."
+    },
+    {
+      "id": "program-runtime/programs/list",
+      "effect": "read",
+      "note": "Bounded program-run rows provide caller identity, outcome, and measured wall time."
+    },
+    {
+      "id": "agent-manager/run/list",
+      "effect": "read",
+      "optional": true,
+      "note": "Prompt previews provide only a lower-bound transcript match when caller identity is absent."
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read",
+      "optional": true,
+      "note": "Governed episode availability is recorded for the run cohort; episode bodies are never materialized."
+    },
+    {
+      "id": "agent-manager/conversation/search",
+      "effect": "read",
+      "optional": true,
+      "note": "Searches retained conversation metadata for transcript-match run ids; snippets and bodies are not copied."
+    },
+    {
+      "id": "ai-gateway/inference/run-batch",
+      "effect": "read",
+      "via": "ai.classify",
+      "note": "Exactly one bounded classify.fast batch call."
+    }
+  ],
+  "verbs": [
+    "gather",
+    "ai.batch"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "labels": "Validated labels in candidate order; closed values are helped, fought_it, abandoned, and wrong_program.",
+      "pairs_classified": "Number of attributed program-run pairs receiving a validated label.",
+      "candidates_considered": "Deterministically selected candidates before truncation.",
+      "candidates_capped": "True when more candidates existed than max_pairs.",
+      "attribution_basis": "Closed values caller_identity or transcript_match; transcript_match is a lower bound.",
+      "inference_calls": "Exactly one attempted batch call, including the no-candidate sentinel and unavailable paths.",
+      "cohorts": "Only fought_it, abandoned, and wrong_program entries with exemplar run ids; helped is omitted.",
+      "discovery_findings": "wrong_program entries routed to discovery follow-up."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "invalid_input",
+        "invalid_response",
+        "missing_result",
+        "inference_failed",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Bounded binding names, attribution basis, classifier provider/model, and aggregate usage."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 32,
+    "output_bytes": 65536,
+    "async": true,
+    "async_reason": "bounded run and optional Agent Manager reads can exceed the synchronous submission bound; submit asynchronously and wait once"
+  },
+  "fixtures": [
+    {
+      "id": "no-candidates",
+      "inputs": {
+        "window_days": 1,
+        "max_pairs": 4,
+        "scenario": "no-such-scenario"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "pairs_classified": 0,
+          "cohorts": []
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "fought-it-candidate",
+      "inputs": {
+        "window_days": 30,
+        "max_pairs": 32
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "labels": [
+            "fought_it"
+          ]
+        }
+      },
+      "requires": [
+        "agent-manager",
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "classifier-unavailable",
+      "inputs": {
+        "window_days": 30,
+        "max_pairs": 4
+      },
+      "expect": {
+        "status": [
+          "partial",
+          "unavailable"
+        ],
+        "signals": {
+          "pairs_classified": 0,
+          "cohorts": []
+        }
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "agent-manager-unavailable",
+      "inputs": {
+        "window_days": 30,
+        "max_pairs": 4
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "attribution_basis": [
+            "transcript_match"
+          ]
+        }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "candidate-cap",
+      "inputs": {
+        "window_days": 30,
+        "max_pairs": 2
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "candidates_capped": true
+        }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

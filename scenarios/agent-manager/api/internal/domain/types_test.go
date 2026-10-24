@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -214,12 +215,18 @@ func TestDefaultRunConfig(t *testing.T) {
 		t.Errorf("Timeout = %v, want 60m", cfg.Timeout)
 	}
 
-	if !cfg.RequiresSandbox {
-		t.Error("RequiresSandbox should be true by default")
+	// Sandbox-by-default is encoded by SandboxConfig.Mode — the single
+	// source of truth for whether a run is sandboxed. DefaultRunConfig
+	// must produce a non-nil SandboxConfig in Protected mode so a profile
+	// that does not specify a SandboxConfig inherits the safe default.
+	if cfg.SandboxConfig == nil {
+		t.Fatal("SandboxConfig should be non-nil by default")
 	}
-
-	if !cfg.RequiresApproval {
-		t.Error("RequiresApproval should be true by default")
+	if cfg.SandboxConfig.Mode != SandboxModeProtected {
+		t.Errorf("SandboxConfig.Mode = %q, want %q", cfg.SandboxConfig.Mode, SandboxModeProtected)
+	}
+	if DeriveRunMode(cfg.SandboxConfig) != RunModeSandboxed {
+		t.Error("DeriveRunMode should yield RunModeSandboxed for the default config")
 	}
 }
 
@@ -227,26 +234,20 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 	t.Run("applies all fields from profile", func(t *testing.T) {
 		cfg := &RunConfig{}
 		profile := &AgentProfile{
-			RunnerType:           RunnerTypeCodex,
-			Model:                "opus",
 			MaxTurns:             100,
 			Timeout:              time.Hour,
 			AllowedTools:         []string{"Read", "Write"},
 			DeniedTools:          []string{"Bash"},
 			SkipPermissionPrompt: true,
-			RequiresSandbox:      false,
-			RequiresApproval:     false,
+			SandboxConfig:        &SandboxConfig{Mode: SandboxModeOff},
 			AllowedPaths:         []string{"/src"},
-			DeniedPaths:          []string{"/secrets"},
+			DeniedPaths:          []string{"/secrets"}, RoleRef: "code.default",
 		}
 
 		cfg.ApplyProfile(profile)
 
-		if cfg.RunnerType != RunnerTypeCodex {
-			t.Errorf("RunnerType = %s, want %s", cfg.RunnerType, RunnerTypeCodex)
-		}
-		if cfg.Model != "opus" {
-			t.Errorf("Model = %s, want opus", cfg.Model)
+		if cfg.RoleRef != "code.default" {
+			t.Errorf("RoleRef = %q, want code.default", cfg.RoleRef)
 		}
 		if cfg.MaxTurns != 100 {
 			t.Errorf("MaxTurns = %d, want 100", cfg.MaxTurns)
@@ -263,11 +264,35 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 		if !cfg.SkipPermissionPrompt {
 			t.Error("SkipPermissionPrompt should be true")
 		}
-		if cfg.RequiresSandbox {
-			t.Error("RequiresSandbox should be false")
+		if cfg.SandboxConfig == nil || cfg.SandboxConfig.Mode != SandboxModeOff {
+			t.Errorf("SandboxConfig.Mode = %v, want %q", cfg.SandboxConfig, SandboxModeOff)
 		}
-		if cfg.RequiresApproval {
-			t.Error("RequiresApproval should be false")
+		if DeriveRunMode(cfg.SandboxConfig) != RunModeInPlace {
+			t.Error("DeriveRunMode should yield RunModeInPlace when profile sets Mode=Off")
+		}
+	})
+
+	t.Run("preserves cfg.SandboxConfig when profile does not specify one", func(t *testing.T) {
+		// Regression gate for the silent-bypass class of bug: a profile
+		// that leaves SandboxConfig nil must not overwrite the cfg's
+		// resolved default. SandboxConfig.Mode is the single source of
+		// truth for run mode (see docs/internal/INVARIANTS.md); a nil
+		// profile pointer carries no signal and must not clobber it.
+		cfg := DefaultRunConfig()
+		profile := &AgentProfile{
+			MaxTurns: 100, RoleRef:
+			// SandboxConfig deliberately left nil.
+			"code.default",
+		}
+
+		cfg.ApplyProfile(profile)
+
+		if cfg.SandboxConfig == nil {
+			t.Fatal("ApplyProfile must not clobber the default SandboxConfig with nil")
+		}
+		if cfg.SandboxConfig.Mode != SandboxModeProtected {
+			t.Errorf("SandboxConfig.Mode = %q, want %q (default preserved)",
+				cfg.SandboxConfig.Mode, SandboxModeProtected)
 		}
 	})
 
@@ -556,13 +581,11 @@ func TestNewRateLimitEvent(t *testing.T) {
 	}
 }
 
-func TestNewCostEvent(t *testing.T) {
-	runID := uuid.New()
-	event := NewCostEvent(runID, 5000, 1000, 0.15)
-
-	data, ok := event.Data.(*CostEventData)
+func TestUsageAndChargeEvents(t *testing.T) {
+	event := &RunEvent{EventType: EventTypeMetric, Data: &UsageEventData{InputTokens: 5000, OutputTokens: 1000}}
+	data, ok := event.Data.(*UsageEventData)
 	if !ok {
-		t.Fatalf("Data type = %T, want *CostEventData", event.Data)
+		t.Fatalf("Data type = %T, want *UsageEventData", event.Data)
 	}
 	if data.InputTokens != 5000 {
 		t.Errorf("InputTokens = %d, want 5000", data.InputTokens)
@@ -570,8 +593,9 @@ func TestNewCostEvent(t *testing.T) {
 	if data.OutputTokens != 1000 {
 		t.Errorf("OutputTokens = %d, want 1000", data.OutputTokens)
 	}
-	if data.TotalCostUSD != 0.15 {
-		t.Errorf("TotalCostUSD = %f, want 0.15", data.TotalCostUSD)
+	charge := &ChargeEventData{Basis: ChargeBasisMetered}
+	if charge.Basis != ChargeBasisMetered {
+		t.Errorf("Basis = %s, want metered", charge.Basis)
 	}
 }
 
@@ -875,144 +899,129 @@ func TestDefaultHeartbeatConfig(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// LEGACY RUN EVENT DATA TESTS
-// =============================================================================
-
-func TestRunEventData_EventType(t *testing.T) {
-	tests := []struct {
-		name     string
-		data     RunEventData
-		expected RunEventType
+func TestDecodeEventPayloadMigratesLegacyJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		eventType RunEventType
+		raw       string
+		assert    func(t *testing.T, payload EventPayload)
 	}{
 		{
-			name:     "log event by level",
-			data:     RunEventData{Level: "info"},
-			expected: EventTypeLog,
+			name:      "tool call input",
+			eventType: EventTypeToolCall,
+			raw:       `{"toolName":"Read","toolInput":{"path":"/tmp"}}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ToolCallEventData)
+				if got.ToolName != "Read" || got.Input["path"] != "/tmp" {
+					t.Fatalf("decoded tool call = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "log event by message without role",
-			data:     RunEventData{Message: "Hello"},
-			expected: EventTypeLog,
+			name:      "tool result failure",
+			eventType: EventTypeToolResult,
+			raw:       `{"toolOutput":"done","toolError":"denied"}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ToolResultEventData)
+				if got.Output != "done" || got.Error != "denied" || got.Success {
+					t.Fatalf("decoded tool result = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "message event by role",
-			data:     RunEventData{Role: "assistant", Content: "Hello"},
-			expected: EventTypeMessage,
+			name:      "metric fields",
+			eventType: EventTypeMetric,
+			raw:       `{"metricName":"tokens","metricValue":100}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*MetricEventData)
+				if got.Name != "tokens" || got.Value != 100 {
+					t.Fatalf("decoded metric = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "tool call event",
-			data:     RunEventData{ToolName: "Read", ToolInput: map[string]interface{}{}},
-			expected: EventTypeToolCall,
+			name:      "artifact fields",
+			eventType: EventTypeArtifact,
+			raw:       `{"artifactType":"diff","artifactPath":"/tmp/diff"}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ArtifactEventData)
+				if got.Type != "diff" || got.Path != "/tmp/diff" {
+					t.Fatalf("decoded artifact = %#v", got)
+				}
+			},
 		},
 		{
-			name:     "tool result event with output",
-			data:     RunEventData{ToolOutput: "file contents"},
-			expected: EventTypeToolResult,
+			name:      "error fields",
+			eventType: EventTypeError,
+			raw:       `{"errorCode":"TIMEOUT","errorMessage":"expired"}`,
+			assert: func(t *testing.T, payload EventPayload) {
+				got := payload.(*ErrorEventData)
+				if got.Code != "TIMEOUT" || got.Message != "expired" {
+					t.Fatalf("decoded error = %#v", got)
+				}
+			},
 		},
-		{
-			name:     "tool result event with error",
-			data:     RunEventData{ToolError: "not found"},
-			expected: EventTypeToolResult,
-		},
-		{
-			name:     "status event",
-			data:     RunEventData{OldStatus: "pending", NewStatus: "running"},
-			expected: EventTypeStatus,
-		},
-		{
-			name:     "metric event",
-			data:     RunEventData{MetricName: "tokens", MetricValue: 100},
-			expected: EventTypeMetric,
-		},
-		{
-			name:     "artifact event",
-			data:     RunEventData{ArtifactType: "diff"},
-			expected: EventTypeArtifact,
-		},
-		{
-			name:     "error event by code",
-			data:     RunEventData{ErrorCode: "TIMEOUT"},
-			expected: EventTypeError,
-		},
-		{
-			name:     "error event by message",
-			data:     RunEventData{ErrorMessage: "Something failed"},
-			expected: EventTypeError,
-		},
-		{
-			name:     "empty defaults to log",
-			data:     RunEventData{},
-			expected: EventTypeLog,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.data.EventType()
-			if got != tt.expected {
-				t.Errorf("EventType() = %s, want %s", got, tt.expected)
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := DecodeEventPayload(tc.eventType, []byte(tc.raw))
+			if err != nil {
+				t.Fatal(err)
 			}
+			tc.assert(t, payload)
 		})
+	}
+	result, err := DecodeEventPayload(EventTypeToolResult, []byte(`{"toolError":"denied"}`))
+	if err != nil || result.(*ToolResultEventData).Success {
+		t.Fatalf("legacy tool error must remain failed: payload=%#v err=%v", result, err)
 	}
 }
 
-func TestRunEventData_ToTypedPayload(t *testing.T) {
-	t.Run("converts log event", func(t *testing.T) {
-		data := RunEventData{Level: "warn", Message: "Warning message"}
-		payload := data.ToTypedPayload()
+func TestChargeBasisExhaustive(t *testing.T) {
+	for _, basis := range AllChargeBases() {
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("charge basis %q is not handled: %v", basis, recovered)
+				}
+			}()
+			_ = ChargeBasisIsBillable(basis)
+		}()
+	}
+}
 
-		logData, ok := payload.(*LogEventData)
-		if !ok {
-			t.Fatalf("expected *LogEventData, got %T", payload)
-		}
-		if logData.Level != "warn" {
-			t.Errorf("Level = %s, want warn", logData.Level)
-		}
-		if logData.Message != "Warning message" {
-			t.Errorf("Message = %s, want 'Warning message'", logData.Message)
-		}
-	})
+func TestDecodeUsagePayloadWithZeroChargeKeepsTokens(t *testing.T) {
+	payload, err := DecodeEventPayload(EventTypeMetric, []byte(`{"payloadKind":"usage","inputTokens":5000,"outputTokens":0}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage, ok := payload.(*UsageEventData)
+	if !ok || usage.InputTokens != 5000 {
+		t.Fatalf("payload = %#v (%T), want usage with 5000 input tokens", payload, payload)
+	}
+}
 
-	t.Run("converts message event", func(t *testing.T) {
-		data := RunEventData{Role: "user", Content: "Hello"}
-		payload := data.ToTypedPayload()
+func TestDecodeHistoricalFusedMetricPreservesUsageAndCharge(t *testing.T) {
+	payload, err := DecodeEventPayload(EventTypeMetric, []byte(`{"inputTokens":102709,"outputTokens":1686,"cacheReadTokens":71168,"totalCostUsd":0,"costSource":"unknown"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage, ok := payload.(*UsageEventData)
+	if !ok || usage.InputTokens != 102709 || usage.OutputTokens != 1686 || usage.CacheReadTokens != 71168 {
+		t.Fatalf("payload = %#v (%T), want historical usage", payload, payload)
+	}
+	if usage.Charge == nil || usage.Charge.Basis != ChargeBasisUnknown || usage.Charge.AmountMicroUSD != nil {
+		t.Fatalf("historical charge = %#v, want unknown with nil amount", usage.Charge)
+	}
+}
 
-		msgData, ok := payload.(*MessageEventData)
-		if !ok {
-			t.Fatalf("expected *MessageEventData, got %T", payload)
-		}
-		if msgData.Role != "user" {
-			t.Errorf("Role = %s, want user", msgData.Role)
-		}
-	})
-
-	t.Run("converts tool call event", func(t *testing.T) {
-		input := map[string]interface{}{"path": "/test"}
-		data := RunEventData{ToolName: "Read", ToolInput: input}
-		payload := data.ToTypedPayload()
-
-		toolData, ok := payload.(*ToolCallEventData)
-		if !ok {
-			t.Fatalf("expected *ToolCallEventData, got %T", payload)
-		}
-		if toolData.ToolName != "Read" {
-			t.Errorf("ToolName = %s, want Read", toolData.ToolName)
-		}
-	})
-
-	t.Run("converts tool result with error", func(t *testing.T) {
-		data := RunEventData{ToolError: "not found"}
-		payload := data.ToTypedPayload()
-
-		resultData, ok := payload.(*ToolResultEventData)
-		if !ok {
-			t.Fatalf("expected *ToolResultEventData, got %T", payload)
-		}
-		if resultData.Success {
-			t.Error("Success should be false when error is present")
-		}
-	})
+func TestWorkloadFromHistoricalTagOnlyParsesExactWorkflowShape(t *testing.T) {
+	workload, ok := WorkloadFromHistoricalTag("workflow-123e4567-e89b-12d3-a456-426614174000-classify")
+	if !ok || workload.Kind != WorkloadKindWorkflowNode || workload.Key != "classify" || workload.Instance != "123e4567-e89b-12d3-a456-426614174000" {
+		t.Fatalf("workload=%+v ok=%v", workload, ok)
+	}
+	if _, ok := WorkloadFromHistoricalTag("workflow-not-a-uuid-classify"); ok {
+		t.Fatal("malformed workflow tag was parsed")
+	}
 }
 
 // =============================================================================
@@ -1030,10 +1039,9 @@ func TestEventPayload_Interface(t *testing.T) {
 		&ArtifactEventData{Type: "diff", Path: "/tmp/diff"},
 		&ErrorEventData{Code: "ERROR", Message: "test"},
 		&RateLimitEventData{LimitType: "5_hour"},
-		&CostEventData{InputTokens: 100, OutputTokens: 50},
+		&UsageEventData{InputTokens: 100, OutputTokens: 50},
 		&ProgressEventData{Phase: RunPhaseExecuting},
 		&CompactionEventData{Summary: "test", Trigger: "manual"},
-		RunEventData{Level: "info"}, // Legacy type
 	}
 
 	expectedTypes := []RunEventType{
@@ -1046,10 +1054,9 @@ func TestEventPayload_Interface(t *testing.T) {
 		EventTypeArtifact,
 		EventTypeError,
 		EventTypeError,      // RateLimitEventData returns EventTypeError
-		EventTypeMetric,     // CostEventData returns EventTypeMetric
+		EventTypeMetric,     // UsageEventData returns EventTypeMetric
 		EventTypeStatus,     // ProgressEventData returns EventTypeStatus
 		EventTypeCompaction, // CompactionEventData
-		EventTypeLog,        // Legacy defaults
 	}
 
 	for i, payload := range payloads {
@@ -1129,4 +1136,88 @@ func TestCompactionEventData_EventType(t *testing.T) {
 
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+func TestDecodeDurableQuotaPreservesNativeAndLegacyFacts(t *testing.T) {
+	cases := []struct {
+		name     string
+		raw      string
+		quota    bool
+		percent  *float64
+		provider string
+		limit    int
+		wantErr  bool
+	}{
+		{"tagged native zero", `{"payloadKind":"quota","limitType":"weekly","message":"native quota","provider":"openai","pool":"primary","usedPercent":0,"windowMinutes":10080,"provenance":"native"}`, true, quotaPercent(0), "openai", 0, false},
+		{"legacy native zero", `{"limitType":"weekly","message":"native quota","provider":"openai","usedPercent":0,"windowMinutes":10080}`, true, quotaPercent(0), "openai", 0, false},
+		{"legacy limit only", `{"limitType":"token","message":"limit","currentUsed":25,"limit":100}`, true, nil, "", 100, false},
+		{"native unknown percentage", `{"payloadKind":"quota","limitType":"weekly","message":"unknown","usedPercent":null}`, true, nil, "", 0, false},
+		{"generic error", `{"code":"RATE_LIMIT","message":"failed","retryable":true,"details":{"limitType":"weekly"}}`, false, nil, "", 0, false},
+		{"generic conflicting shape", `{"code":"FAIL","message":"failed","limitType":"weekly"}`, false, nil, "", 0, false},
+		{"empty legacy limit remains generic", `{"limitType":"","message":"unknown"}`, false, nil, "", 0, false},
+		{"invalid native percentage", `{"payloadKind":"quota","limitType":"weekly","usedPercent":"0"}`, false, nil, "", 0, true},
+		{"explicit empty discriminator", `{"payloadKind":"","limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"explicit blank discriminator", `{"payloadKind":" ","limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"explicit null discriminator", `{"payloadKind":null,"limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"explicit non-string discriminator", `{"payloadKind":7,"limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"tagged quota with generic code", `{"payloadKind":"quota","limitType":"weekly","code":"FAIL"}`, false, nil, "", 0, true},
+		{"tagged quota with false retryable", `{"payloadKind":"quota","limitType":"weekly","retryable":false}`, false, nil, "", 0, true},
+		{"tagged quota with generic recovery", `{"payloadKind":"quota","limitType":"weekly","recovery":"retry_backoff"}`, false, nil, "", 0, true},
+		{"tagged quota with generic stack trace", `{"payloadKind":"quota","limitType":"weekly","stackTrace":""}`, false, nil, "", 0, true},
+		{"tagged quota with generic details", `{"payloadKind":"quota","limitType":"weekly","details":{}}`, false, nil, "", 0, true},
+		{"untagged false retryable keeps generic precedence", `{"limitType":"weekly","retryable":false}`, false, nil, "", 0, false},
+		{"untagged recovery keeps generic precedence", `{"limitType":"weekly","recovery":"retry_backoff"}`, false, nil, "", 0, false},
+		{"untagged stack trace keeps generic precedence", `{"limitType":"weekly","stackTrace":""}`, false, nil, "", 0, false},
+		{"untagged details keep generic precedence", `{"limitType":"weekly","details":{}}`, false, nil, "", 0, false},
+		{"tagged quota tolerates unrelated future fields", `{"payloadKind":"quota","limitType":"weekly","provider":"openai","usedPercent":0,"futureField":{"enabled":true}}`, true, quotaPercent(0), "openai", 0, false},
+		{"untagged quota tolerates unrelated future fields", `{"limitType":"weekly","provider":"openai","usedPercent":0,"futureField":{"enabled":true}}`, true, quotaPercent(0), "openai", 0, false},
+		{"generic error tolerates unrelated future fields", `{"code":"FAIL","message":"failed","futureField":{"enabled":true}}`, false, nil, "", 0, false},
+		{"tagged native absent percentage", `{"payloadKind":"quota","limitType":"weekly","provider":"openai"}`, true, nil, "openai", 0, false},
+		{"unknown discriminator", `{"payloadKind":"future","limitType":"weekly","message":"unknown"}`, false, nil, "", 0, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := DecodeEventPayload(EventTypeError, []byte(tc.raw))
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("payload=%#v, want explicit decode error", payload)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.quota {
+				got, ok := payload.(*RateLimitEventData)
+				if !ok {
+					t.Fatalf("payload=%T, want quota facts", payload)
+				}
+				if got.Provider != tc.provider || got.Limit != tc.limit || (got.UsedPercent == nil) != (tc.percent == nil) {
+					t.Fatalf("quota facts=%+v", got)
+				}
+				if tc.percent != nil && *got.UsedPercent != *tc.percent {
+					t.Fatalf("used percentage=%v", got.UsedPercent)
+				}
+			} else if _, ok := payload.(*ErrorEventData); !ok {
+				t.Fatalf("payload=%T, want generic error", payload)
+			}
+		})
+	}
+}
+
+func quotaPercent(value float64) *float64 { return &value }
+
+// Writer-stage behavior: reader compatibility alone does not establish tag emission.
+func TestNewRateLimitEventEmitsQuotaDiscriminator(t *testing.T) {
+	data, err := json.Marshal(NewRateLimitEvent(uuid.New(), "weekly", "native", nil, 0).Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if string(got["payloadKind"]) != `"quota"` {
+		t.Fatalf("quota JSON=%s, want explicit durable discriminator", data)
+	}
 }

@@ -1,0 +1,80 @@
+{
+  "description": "Ship at minimum two fixture TS projects under `bas/fixtures/` (`ts-junk-drawer/` and `ts-jsdoc-tags/`) each with hand-curated `expected-graph.json`. CI fails if any fixture's extracted graph diverges byte-for-byte from the expected file. The `ts-jsdoc-tags/` fixture pins the leading-comment contract that `react-component-library` depends on.",
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-003",
+        "REQ-P0-009"
+      ],
+      "description": "Ship at minimum two TypeScript fixture projects under bas/fixtures/: ts-junk-drawer/ (general TS constructs) and ts-jsdoc-tags/ (JSDoc and annotation coverage). Each fixture must include hand-curated expected-graph.json files. CI must run Extract against each fixture and perform a byte-for-byte comparison against the expected-graph.json. Any divergence must fail the CI build. The ts-jsdoc-tags/ fixture specifically pins the leading-comment contract required by react-component-library. Fixture projects must be self-contained (no external network dependencies) and must not evolve without an accompanying expected-graph.json update.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "draft",
+      "title": "Golden-Fixture Determinism Gate in CI",
+      "validation": [
+        {
+          "notes": "Test that the fixture comparison utility correctly identifies byte differences between two JSON files",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that expected-graph.json files are valid JSON and conform to the Graph proto schema",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-GOLDEN-FIXTURE: CI extracts ts-junk-drawer fixture and asserts byte-for-byte match with expected-graph.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-GOLDEN-JSDOC: CI extracts ts-jsdoc-tags fixture and asserts byte-for-byte match with expected-graph.json; specifically validates leading_comments fields",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI fails with a diff output when expected-graph.json does not match actual extraction",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extraction from a clean git clone (no build artifacts) produces identical expected-graph.json output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ts-jsdoc-tags expected-graph.json is signed off by react-component-library team as matching their annotation requirements",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI gate blocks merges that unintentionally change graph extraction behavior",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Golden-Fixture Determinism Gate"
+}

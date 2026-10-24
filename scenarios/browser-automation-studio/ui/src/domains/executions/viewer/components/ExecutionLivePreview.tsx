@@ -11,7 +11,7 @@
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { Video, VideoOff, Loader2, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
-import { useExecutionFrameStream } from '../../hooks';
+import { useFrameStream, type ExecutionFrame } from '@/domains/recording/capture/useFrameStream';
 
 interface ExecutionLivePreviewProps {
   /** The execution ID to stream frames from */
@@ -32,11 +32,12 @@ export function ExecutionLivePreview({
 }: ExecutionLivePreviewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [frame, setFrame] = useState<ExecutionFrame | null>(null);
 
-  const { frameUrl, frame, isStreaming, isSubscribed, frameCount, error } = useExecutionFrameStream(
-    executionId,
-    { enabled }
-  );
+  const stream = useFrameStream({sessionId:null,executionId,enabled,onExecutionFrame:setFrame});
+  const {frameUrl,frameCount,error} = stream;
+  const isSubscribed = stream.isWsFrameActive;
+  const isStreaming = stream.hasFrame && isSubscribed;
 
   // Notify parent of streaming status changes
   useEffect(() => {

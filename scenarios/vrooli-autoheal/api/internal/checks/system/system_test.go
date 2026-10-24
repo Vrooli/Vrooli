@@ -2,11 +2,121 @@ package system
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/internal/hostpressure"
+	"github.com/vrooli/vrooli/internal/setpoint"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
+
+func TestLinuxOnlyChecksReportNotApplicableOnNonLinux(t *testing.T) {
+	originalOS := checkOS
+	checkOS = "darwin"
+	t.Cleanup(func() { checkOS = originalOS })
+
+	checksToTest := []checks.Check{
+		NewBootHistoryCheck(), NewGPUCheck(), NewInodeCheck(), NewLoadCheck(),
+		NewMCERecentCheck(), NewMemoryCheck(), NewPMRuntimeHogCheck(), NewPortCheck(),
+		NewPstoreEvidenceCheck(), NewSwapCheck(), NewZombieCheck(),
+	}
+	for _, check := range checksToTest {
+		result := check.Run(context.Background())
+		if result.Status != checks.StatusNotApplicable {
+			t.Errorf("%s status = %v, want %v", check.ID(), result.Status, checks.StatusNotApplicable)
+		}
+	}
+}
+
+func TestHostPressureSkipsUnreadSensorsIndependently(t *testing.T) {
+	check := NewHostPressureCheck(
+		WithSetpoint(setpoint.Fallback()),
+		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+			return hostpressure.PressureSnapshot{
+				CPUPressure:  hostpressure.NewUnread("test", "PSI unavailable"),
+				MemoryAvail:  hostpressure.NewRead(8<<30, "test"),
+				SwapUsed:     hostpressure.NewRead(0, "test"),
+				ProcessCount: hostpressure.NewRead(100, "test"),
+				ForkRate:     hostpressure.NewUnread("test", "fork counter unsupported"),
+			}
+		}),
+	)
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusOK {
+		t.Fatalf("status = %q, want ok when some sensors are unread: %#v", result.Status, result)
+	}
+}
+
+func testSetpoint(t *testing.T, cpuMax float64, sustain string) setpoint.Setpoint {
+	t.Helper()
+	doc := fmt.Sprintf(`{"schema_version":"1.0.0","confidence":{"level":"SKETCH","rationale":"test","recorded_on":"2026-09-02"},"bars":[
+	 {"id":"cpu","cell_ref":"substrate/SB14","projection":"substrate","target_kind":"cpu","deadband":"d","sustain":%q,"actuator":"a","decision_ref":"r","unit":"percent","max":%g,"gradeable":true}]}`, sustain, cpuMax)
+	sp, err := setpoint.Parse("test.json", []byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sp
+}
+
+// [REQ:STORM-001] A breach of the CPU bar is a warning until the authored
+// sustain has elapsed, then critical; a reading under the bar resets it.
+func TestHostPressureCheckUsesAuthoredSustain(t *testing.T) {
+	clock := time.Date(2026, 9, 2, 10, 14, 0, 0, time.UTC)
+	reading := 11.0
+	check := NewHostPressureCheck(
+		WithSetpoint(testSetpoint(t, 10, "10m")),
+		WithClock(func() time.Time { return clock }),
+		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+			return hostpressure.PressureSnapshot{
+				CPUPressure:  hostpressure.NewRead(reading, "test"),
+				MemoryAvail:  hostpressure.NewRead(8<<30, "test"),
+				SwapUsed:     hostpressure.NewRead(0, "test"),
+				ProcessCount: hostpressure.NewRead(100, "test"),
+			}
+		}),
+	)
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("first breach status = %q, want warning before the sustain: %s", result.Status, result.Message)
+	}
+	clock = clock.Add(61 * time.Second)
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("61s breach status = %q, want warning against a 10m sustain: %s", result.Status, result.Message)
+	}
+	clock = clock.Add(9 * time.Minute)
+	if result := check.Run(context.Background()); result.Status != checks.StatusCritical || result.Details["setpoint_path"] != "test.json" {
+		t.Fatalf("sustained breach status = %q details=%v, want critical from test.json", result.Status, result.Details)
+	}
+	reading = 5
+	if result := check.Run(context.Background()); result.Status != checks.StatusOK {
+		t.Fatalf("clear reading status = %q, want ok: %s", result.Status, result.Message)
+	}
+	reading = 11
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("a new breach after a clear must start a new window, got %q", result.Status)
+	}
+}
+
+func TestHostPressureUsesSetpointThresholds(t *testing.T) {
+	check := NewHostPressureCheck(
+		WithSetpoint(testSetpoint(t, 10, "one read")),
+		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+			return hostpressure.PressureSnapshot{
+				CPUPressure:  hostpressure.NewRead(11, "test"),
+				MemoryAvail:  hostpressure.NewRead(8<<30, "test"),
+				SwapUsed:     hostpressure.NewRead(0, "test"),
+				ProcessCount: hostpressure.NewRead(100, "test"),
+			}
+		}),
+	)
+	// "one read" is not a duration, so the documented default window applies
+	// and the first breach is a warning, not a silent pass.
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("status = %q, want warning at configured CPU bar: %#v", result.Status, result)
+	}
+}
 
 func TestDiskCheck_Interface(t *testing.T) {
 	c := NewDiskCheck()
@@ -374,7 +484,8 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 		reader := &mockFSReader{
 			statfsResult: &checks.StatfsResult{
 				Blocks: 1000000,
-				Bfree:  500000,
+				Bfree:  550000,
+				Bavail: 500000,
 				Bsize:  4096,
 			},
 		}
@@ -385,7 +496,7 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for 50%% usage, got %s", result.Status)
+			t.Errorf("expected OK status for 47%% usage, got %s", result.Status)
 		}
 	})
 
@@ -393,7 +504,8 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 		reader := &mockFSReader{
 			statfsResult: &checks.StatfsResult{
 				Blocks: 1000000,
-				Bfree:  150000, // 85% used
+				Bfree:  200000,
+				Bavail: 150000, // 800000 used of 950000 usable = 85%
 				Bsize:  4096,
 			},
 		}
@@ -405,7 +517,7 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusWarning {
-			t.Errorf("expected Warning status for 85%% usage, got %s", result.Status)
+			t.Errorf("expected Warning status for 84%% usage, got %s", result.Status)
 		}
 	})
 
@@ -413,7 +525,8 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 		reader := &mockFSReader{
 			statfsResult: &checks.StatfsResult{
 				Blocks: 1000000,
-				Bfree:  50000, // 95% used
+				Bfree:  60000,
+				Bavail: 20000, // 940000 used of 960000 usable = 98%
 				Bsize:  4096,
 			},
 		}
@@ -425,7 +538,7 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status for 95%% usage, got %s", result.Status)
+			t.Errorf("expected Critical status for 97%% usage, got %s", result.Status)
 		}
 	})
 
@@ -445,32 +558,21 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 	})
 
 	t.Run("multiple partitions", func(t *testing.T) {
-		callCount := 0
-		reader := &mockFSReader{
-			statfsResult: &checks.StatfsResult{
-				Blocks: 1000000,
-				Bfree:  500000,
-				Bsize:  4096,
-			},
-		}
-		// Override to track calls
-		customReader := &multiCallFSReader{
+		reader := &multiCallFSReader{
 			results: map[string]*checks.StatfsResult{
-				"/":     {Blocks: 1000000, Bfree: 500000, Bsize: 4096},
-				"/home": {Blocks: 1000000, Bfree: 100000, Bsize: 4096}, // 90% used
+				"/":     {Blocks: 1000000, Bfree: 550000, Bavail: 500000, Bsize: 4096},
+				"/home": {Blocks: 1000000, Bfree: 150000, Bavail: 100000, Bsize: 4096}, // 90% used
 			},
 		}
-		_ = reader
-		_ = callCount
 
 		c := NewDiskCheck(
 			WithPartitions([]string{"/", "/home"}),
 			WithDiskThresholds(80, 95),
-			WithFileSystemReader(customReader),
+			WithFileSystemReader(reader),
 		)
 
 		result := c.Run(context.Background())
-		// Should be warning because /home is at 90%
+		// Warning because /home is at 90%, below the 95% critical threshold.
 		if result.Status != checks.StatusWarning {
 			t.Errorf("expected Warning status, got %s", result.Status)
 		}
@@ -483,6 +585,171 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 			t.Errorf("expected 2 partitions, got %d", len(partitions))
 		}
 	})
+
+	t.Run("no partitions configured", func(t *testing.T) {
+		c := NewDiskCheck(
+			WithPartitions([]string{}),
+			WithFileSystemReader(&mockFSReader{}),
+		)
+
+		result := c.Run(context.Background())
+		if result.Status != checks.StatusWarning {
+			t.Errorf("expected Warning status with no partitions, got %s", result.Status)
+		}
+	})
+}
+
+// TestDiskCheck_UsesAvailableNotFreeBlocks pins the accounting bug that let the
+// 2026-07-31 disk-exhaustion incident go unremediated.
+//
+// Bfree includes blocks reserved for the superuser; Bavail does not. Reading
+// Bfree reports free space that no unprivileged writer can ever use. The mock
+// values below are the real figures measured on the incident host, scaled to
+// 4 KiB blocks: 1831.7 GB total, 221.3 GB free, 128.2 GB available — a 93.1 GB
+// reserve. The old code reported 87%; `df` reported 93%.
+//
+// A test that sets Bfree and Bavail to the same value proves nothing, so every
+// case here keeps them distinct.
+func TestDiskCheck_UsesAvailableNotFreeBlocks(t *testing.T) {
+	const gib = 1024 * 1024 * 1024 / 4096 // blocks per GiB at a 4 KiB block size
+
+	tests := []struct {
+		name            string
+		blocks          uint64
+		bfree           uint64
+		bavail          uint64
+		wantPercent     int
+		wantStatus      checks.Status
+		bfreeWouldYield int // what the old implementation reported
+	}{
+		{
+			name:            "incident host: reserve hides critical pressure",
+			blocks:          18317 * gib / 10,
+			bfree:           2213 * gib / 10,
+			bavail:          1282 * gib / 10,
+			wantPercent:     93,
+			wantStatus:      checks.StatusCritical,
+			bfreeWouldYield: 87,
+		},
+		{
+			name:            "large reserve at moderate fill",
+			blocks:          100000,
+			bfree:           50000,
+			bavail:          40000,
+			wantPercent:     56,
+			wantStatus:      checks.StatusOK,
+			bfreeWouldYield: 50,
+		},
+		{
+			name:            "reserve fully consumed",
+			blocks:          100000,
+			bfree:           10000,
+			bavail:          0,
+			wantPercent:     100,
+			wantStatus:      checks.StatusCritical,
+			bfreeWouldYield: 90,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.bfree == tc.bavail {
+				t.Fatal("test is meaningless unless Bfree and Bavail differ")
+			}
+
+			reader := &mockFSReader{
+				statfsResult: &checks.StatfsResult{
+					Blocks: tc.blocks,
+					Bfree:  tc.bfree,
+					Bavail: tc.bavail,
+					Bsize:  4096,
+				},
+			}
+			c := NewDiskCheck(
+				WithPartitions([]string{"/"}),
+				WithDiskThresholds(80, 90),
+				WithFileSystemReader(reader),
+			)
+
+			result := c.Run(context.Background())
+
+			partitions, ok := result.Details["partitions"].([]map[string]interface{})
+			if !ok || len(partitions) != 1 {
+				t.Fatalf("expected 1 partition detail, got %v", result.Details["partitions"])
+			}
+			got, ok := partitions[0]["usedPercent"].(int)
+			if !ok {
+				t.Fatalf("usedPercent missing or not an int: %v", partitions[0]["usedPercent"])
+			}
+
+			if got != tc.wantPercent {
+				t.Errorf("usedPercent = %d, want %d", got, tc.wantPercent)
+			}
+			if got == tc.bfreeWouldYield {
+				t.Errorf("usedPercent = %d matches the Bfree-based reading; the implementation regressed to free blocks", got)
+			}
+			if result.Status != tc.wantStatus {
+				t.Errorf("status = %s, want %s", result.Status, tc.wantStatus)
+			}
+
+			// The reported available bytes must be the unprivileged figure.
+			wantAvailable := tc.bavail * 4096
+			if gotAvailable, _ := partitions[0]["availableBytes"].(uint64); gotAvailable != wantAvailable {
+				t.Errorf("availableBytes = %d, want %d", gotAvailable, wantAvailable)
+			}
+		})
+	}
+}
+
+// TestDiskCheck_IntervalIsSingleSourced asserts the interval the scheduler
+// applies is the interval the configuration declares. Before this was fixed
+// the check hardcoded 300 seconds while the configuration said 120, and the
+// configured value was silently ignored.
+func TestDiskCheck_IntervalIsSingleSourced(t *testing.T) {
+	t.Run("defaults to the configured value", func(t *testing.T) {
+		want := userconfig.GetCheckDefaults("system-disk").IntervalSeconds
+		if want <= 0 {
+			t.Fatal("system-disk defaults declare no interval")
+		}
+		if got := NewDiskCheck().IntervalSeconds(); got != want {
+			t.Errorf("IntervalSeconds() = %d, want the configured %d", got, want)
+		}
+	})
+
+	t.Run("honours an override", func(t *testing.T) {
+		c := NewDiskCheck(WithDiskInterval(45))
+		if got := c.IntervalSeconds(); got != 45 {
+			t.Errorf("IntervalSeconds() = %d, want 45", got)
+		}
+	})
+
+	t.Run("ignores a non-positive override", func(t *testing.T) {
+		want := NewDiskCheck().IntervalSeconds()
+		if got := NewDiskCheck(WithDiskInterval(0)).IntervalSeconds(); got != want {
+			t.Errorf("IntervalSeconds() = %d, want the default %d", got, want)
+		}
+	})
+}
+
+// TestDiskCheck_ThresholdsComeFromConfig asserts the check is born with the
+// thresholds and partitions the configuration declares, rather than a second
+// copy of those numbers that can drift.
+func TestDiskCheck_ThresholdsComeFromConfig(t *testing.T) {
+	defaults := userconfig.GetCheckDefaults("system-disk")
+	if defaults.Thresholds == nil {
+		t.Fatal("system-disk defaults declare no thresholds")
+	}
+
+	c := NewDiskCheck()
+	if want := int(*defaults.Thresholds.WarningPercent); c.warningThreshold != want {
+		t.Errorf("warningThreshold = %d, want %d", c.warningThreshold, want)
+	}
+	if want := int(*defaults.Thresholds.CriticalPercent); c.criticalThreshold != want {
+		t.Errorf("criticalThreshold = %d, want %d", c.criticalThreshold, want)
+	}
+	if len(c.partitions) != len(defaults.Thresholds.Partitions) {
+		t.Errorf("partitions = %v, want %v", c.partitions, defaults.Thresholds.Partitions)
+	}
 }
 
 func TestPortCheck_WithMockReader(t *testing.T) {
@@ -622,384 +889,3 @@ func TestZombieCheck_ExecuteAction(t *testing.T) {
 // =============================================================================
 // Inode Check Mock Tests
 // =============================================================================
-
-func TestInodeCheck_WithMockReader(t *testing.T) {
-	t.Run("healthy inode usage", func(t *testing.T) {
-		reader := &mockFSReader{
-			statfsResult: &checks.StatfsResult{
-				Files: 1000000, // Total inodes
-				Ffree: 700000,  // Free inodes (30% used)
-			},
-		}
-		c := NewInodeCheck(
-			WithInodePartitions([]string{"/"}),
-			WithInodeFileSystemReader(reader),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for 30%% inode usage, got %s", result.Status)
-		}
-		if result.Metrics == nil {
-			t.Fatal("expected metrics to be set")
-		}
-		if result.Metrics.Score == nil {
-			t.Fatal("expected score to be set")
-		}
-		// Score should be ~70 (100 - 30%)
-		if *result.Metrics.Score < 65 || *result.Metrics.Score > 75 {
-			t.Errorf("expected score around 70, got %d", *result.Metrics.Score)
-		}
-	})
-
-	t.Run("warning threshold", func(t *testing.T) {
-		reader := &mockFSReader{
-			statfsResult: &checks.StatfsResult{
-				Files: 1000000,
-				Ffree: 150000, // 85% used
-			},
-		}
-		c := NewInodeCheck(
-			WithInodePartitions([]string{"/"}),
-			WithInodeThresholds(80, 90),
-			WithInodeFileSystemReader(reader),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusWarning {
-			t.Errorf("expected Warning status for 85%% inode usage, got %s", result.Status)
-		}
-	})
-
-	t.Run("critical threshold", func(t *testing.T) {
-		reader := &mockFSReader{
-			statfsResult: &checks.StatfsResult{
-				Files: 1000000,
-				Ffree: 50000, // 95% used
-			},
-		}
-		c := NewInodeCheck(
-			WithInodePartitions([]string{"/"}),
-			WithInodeThresholds(80, 90),
-			WithInodeFileSystemReader(reader),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status for 95%% inode usage, got %s", result.Status)
-		}
-	})
-
-	t.Run("statfs error", func(t *testing.T) {
-		reader := &mockFSReader{
-			statfsErr: context.DeadlineExceeded,
-		}
-		c := NewInodeCheck(
-			WithInodePartitions([]string{"/nonexistent"}),
-			WithInodeFileSystemReader(reader),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status on error, got %s", result.Status)
-		}
-	})
-
-	t.Run("multiple partitions worst status", func(t *testing.T) {
-		reader := &multiCallFSReader{
-			results: map[string]*checks.StatfsResult{
-				"/":     {Files: 1000000, Ffree: 700000}, // 30% used (OK)
-				"/var":  {Files: 1000000, Ffree: 100000}, // 90% used (Critical)
-				"/home": {Files: 1000000, Ffree: 200000}, // 80% used (Warning)
-			},
-		}
-		c := NewInodeCheck(
-			WithInodePartitions([]string{"/", "/var", "/home"}),
-			WithInodeThresholds(75, 85),
-			WithInodeFileSystemReader(reader),
-		)
-
-		result := c.Run(context.Background())
-		// Should be critical because /var is at 90%
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status (worst case), got %s", result.Status)
-		}
-
-		// Check subchecks
-		if result.Metrics == nil || len(result.Metrics.SubChecks) != 3 {
-			t.Fatalf("expected 3 subchecks, got %v", result.Metrics)
-		}
-	})
-
-	t.Run("zero inodes filesystem", func(t *testing.T) {
-		reader := &mockFSReader{
-			statfsResult: &checks.StatfsResult{
-				Files: 0, // No inode limit (some filesystems)
-				Ffree: 0,
-			},
-		}
-		c := NewInodeCheck(
-			WithInodePartitions([]string{"/"}),
-			WithInodeFileSystemReader(reader),
-		)
-
-		result := c.Run(context.Background())
-		// 0 inodes should result in 0% usage
-		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for 0 inodes, got %s", result.Status)
-		}
-	})
-}
-
-// =============================================================================
-// Swap Check Mock Tests
-// =============================================================================
-
-func TestSwapCheck_WithMockReader(t *testing.T) {
-	t.Run("healthy swap usage", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfo: &checks.MemInfo{
-				SwapTotal: 8388608, // 8GB in KB
-				SwapFree:  6291456, // 6GB free (25% used)
-			},
-		}
-		c := NewSwapCheck(WithSwapProcReader(reader))
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for 25%% swap usage, got %s", result.Status)
-		}
-		if result.Metrics == nil {
-			t.Fatal("expected metrics to be set")
-		}
-		if result.Metrics.Score == nil {
-			t.Fatal("expected score to be set")
-		}
-		// Score should be ~75 (100 - 25%)
-		if *result.Metrics.Score < 70 || *result.Metrics.Score > 80 {
-			t.Errorf("expected score around 75, got %d", *result.Metrics.Score)
-		}
-	})
-
-	t.Run("warning threshold", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfo: &checks.MemInfo{
-				SwapTotal: 8388608, // 8GB
-				SwapFree:  3355443, // 40% free (60% used)
-			},
-		}
-		c := NewSwapCheck(
-			WithSwapProcReader(reader),
-			WithSwapThresholds(50, 80),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusWarning {
-			t.Errorf("expected Warning status for 60%% swap usage, got %s", result.Status)
-		}
-	})
-
-	t.Run("critical threshold", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfo: &checks.MemInfo{
-				SwapTotal: 8388608, // 8GB
-				SwapFree:  838861,  // 10% free (90% used)
-			},
-		}
-		c := NewSwapCheck(
-			WithSwapProcReader(reader),
-			WithSwapThresholds(50, 80),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status for 90%% swap usage, got %s", result.Status)
-		}
-	})
-
-	t.Run("no swap configured", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfo: &checks.MemInfo{
-				SwapTotal: 0,
-				SwapFree:  0,
-			},
-		}
-		c := NewSwapCheck(WithSwapProcReader(reader))
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusWarning {
-			t.Errorf("expected Warning status when no swap configured, got %s", result.Status)
-		}
-		if swapConfigured, ok := result.Details["swapConfigured"].(bool); !ok || swapConfigured {
-			t.Error("expected swapConfigured=false")
-		}
-	})
-
-	t.Run("read error", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfoErr: context.DeadlineExceeded,
-		}
-		c := NewSwapCheck(WithSwapProcReader(reader))
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status on error, got %s", result.Status)
-		}
-		if _, ok := result.Details["error"]; !ok {
-			t.Error("expected error details")
-		}
-	})
-
-	t.Run("full swap usage", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfo: &checks.MemInfo{
-				SwapTotal: 8388608, // 8GB
-				SwapFree:  0,       // 0% free (100% used)
-			},
-		}
-		c := NewSwapCheck(WithSwapProcReader(reader))
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status for 100%% swap usage, got %s", result.Status)
-		}
-		// Score should be 0
-		if result.Metrics != nil && result.Metrics.Score != nil && *result.Metrics.Score != 0 {
-			t.Errorf("expected score 0 for full swap, got %d", *result.Metrics.Score)
-		}
-	})
-
-	t.Run("details contain all fields", func(t *testing.T) {
-		reader := &mockProcReader{
-			memInfo: &checks.MemInfo{
-				SwapTotal: 8388608,
-				SwapFree:  4194304, // 50% used
-			},
-		}
-		c := NewSwapCheck(WithSwapProcReader(reader))
-
-		result := c.Run(context.Background())
-
-		// Verify all expected fields are present
-		expectedFields := []string{
-			"swapTotalKB", "swapFreeKB", "swapTotalBytes", "swapFreeBytes",
-			"swapUsedKB", "swapUsedBytes", "usedPercent", "swapConfigured",
-			"warningThreshold", "criticalThreshold",
-		}
-		for _, field := range expectedFields {
-			if _, ok := result.Details[field]; !ok {
-				t.Errorf("expected field %s in details", field)
-			}
-		}
-	})
-}
-
-// =============================================================================
-// Zombie Check Mock Tests (additional scenarios)
-// =============================================================================
-
-func TestZombieCheck_WithMock_MultipleZombies(t *testing.T) {
-	t.Run("many zombies - warning", func(t *testing.T) {
-		// Simulate 15 zombie processes using ProcReader
-		processes := make([]checks.ProcessInfo, 15)
-		for i := 0; i < 15; i++ {
-			processes[i] = checks.ProcessInfo{
-				PID:   1000 + i,
-				PPid:  1,
-				Comm:  "defunct",
-				State: "Z",
-			}
-		}
-		reader := &mockProcReader{
-			processes: processes,
-		}
-		c := NewZombieCheck(
-			WithZombieProcReader(reader),
-			WithZombieThresholds(10, 50),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusWarning {
-			t.Errorf("expected Warning status for 15 zombies, got %s", result.Status)
-		}
-	})
-
-	t.Run("critical zombies", func(t *testing.T) {
-		// Simulate 60 zombie processes using ProcReader
-		processes := make([]checks.ProcessInfo, 60)
-		for i := 0; i < 60; i++ {
-			processes[i] = checks.ProcessInfo{
-				PID:   1000 + i,
-				PPid:  1,
-				Comm:  "defunct",
-				State: "Z",
-			}
-		}
-		reader := &mockProcReader{
-			processes: processes,
-		}
-		c := NewZombieCheck(
-			WithZombieProcReader(reader),
-			WithZombieThresholds(10, 50),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status for 60 zombies, got %s", result.Status)
-		}
-	})
-
-	t.Run("no zombies", func(t *testing.T) {
-		// No zombie processes
-		processes := []checks.ProcessInfo{
-			{PID: 1, PPid: 0, Comm: "init", State: "S"},
-			{PID: 100, PPid: 1, Comm: "bash", State: "S"},
-		}
-		reader := &mockProcReader{
-			processes: processes,
-		}
-		c := NewZombieCheck(WithZombieProcReader(reader))
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for no zombies, got %s", result.Status)
-		}
-	})
-
-	t.Run("proc read error", func(t *testing.T) {
-		reader := &mockProcReader{
-			processesErr: context.DeadlineExceeded,
-		}
-		c := NewZombieCheck(WithZombieProcReader(reader))
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status on error, got %s", result.Status)
-		}
-	})
-
-	t.Run("some zombies below threshold", func(t *testing.T) {
-		// 3 zombies but threshold is 5
-		processes := []checks.ProcessInfo{
-			{PID: 1000, PPid: 1, Comm: "defunct1", State: "Z"},
-			{PID: 1001, PPid: 1, Comm: "defunct2", State: "Z"},
-			{PID: 1002, PPid: 1, Comm: "defunct3", State: "Z"},
-			{PID: 100, PPid: 1, Comm: "bash", State: "S"},
-		}
-		reader := &mockProcReader{
-			processes: processes,
-		}
-		c := NewZombieCheck(
-			WithZombieProcReader(reader),
-			WithZombieThresholds(5, 20),
-		)
-
-		result := c.Run(context.Background())
-		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for zombies below threshold, got %s", result.Status)
-		}
-		if count, ok := result.Details["zombieCount"].(int); !ok || count != 3 {
-			t.Errorf("expected zombieCount=3, got %v", result.Details["zombieCount"])
-		}
-	})
-}

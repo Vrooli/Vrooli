@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { FolderOpen, X as XIcon } from "lucide-react";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { Button } from "../ui/button";
 import {
   validateGlobLines,
@@ -180,15 +180,13 @@ export function AcceptanceGlobDialog({
   }, [allowText, denyText, validateField, onSave]);
 
   return (
-    <Dialog
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Acceptance Globs"
-      maxWidth="max-w-xl"
-      isLoading={isSubmitting}
       testId="acceptance-glob-dialog"
     >
-      <div className="space-y-5">
+      <div className="space-y-5 p-4">
         {/* Allow section */}
         <div>
           <label className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
@@ -282,6 +280,6 @@ export function AcceptanceGlobDialog({
           </Button>
         </div>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

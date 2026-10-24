@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "curl",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "HTTP client for setup, diagnostics, and resource flows",
+  "commands": [
+    "curl"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "curl",
+  "packages": {
+    "brew": "curl"
+  },
+  "installHint": "Install curl for HTTP-based setup and diagnostics",
+  "bundling": "host-required",
+  "capability": "network-transfer",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

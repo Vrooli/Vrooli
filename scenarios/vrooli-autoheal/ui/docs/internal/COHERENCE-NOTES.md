@@ -1,5 +1,21 @@
 # Coherence Audit - 2026-02-18
 
+## 2026-05-15 UI Shell Follow-Up
+
+### Completed
+- Extracted app-shell visual ownership from `src/App.tsx` into `src/shared/ui/composites/app-shell.tsx`.
+- Moved hash-tab synchronization into `src/hooks/useActiveTab.ts` and tick notice lifecycle into `src/hooks/useTickNotice.ts`, keeping `App.tsx` focused on server state, modal orchestration, and surface selection.
+- Added selector-registry entries for shell landmarks, full tab set, desktop/mobile run-tick controls, settings, and the summary grid; updated the manifest to match.
+- Replaced dashboard tick feedback and check-card importance callouts with the shared `Notice` composite.
+- Tightened summary-card and dashboard group containment for mobile and removed horizontal overflow in live browser validation.
+- Migrated additional shared/status presentation (`StatusIcon`, `StatusSparkline`, `ActionHistory`, `ErrorDisplay`, action result icons, dashboard uptime, platform status, and trends grid values) to semantic theme tokens.
+- Added `REQ:UI-RESPONSIVE-001` coverage for shell/content ordering and selector-backed tab navigation.
+
+### Remaining
+- `SystemProtection.tsx` and `CheckDetailModal.tsx` are still the largest UI files and remain the next best targets for responsibility splitting.
+- A shared checkbox primitive is still worth adding if settings controls continue to expand.
+- The mobile tab rail is stable and overflow-safe, but a future compact overflow control could make offscreen tabs more discoverable.
+
 ## State
 - Current pattern: local-first with React Query for server state.
 - App-wide stores: none (no Zustand/global reducer usage found).

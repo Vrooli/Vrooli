@@ -31,28 +31,10 @@ type AgentManagerClientInterface interface {
 	UploadAttachment(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*UploadResponse, error)
 }
 
-// RunnerType identifies which agent runner to use.
-type RunnerType string
-
-const (
-	RunnerTypeClaudeCode RunnerType = "claude-code"
-	RunnerTypeCodex      RunnerType = "codex"
-	RunnerTypeOpenCode   RunnerType = "opencode"
-)
-
 // AgentChatConfig contains configuration for starting an agent chat.
 type AgentChatConfig struct {
-	// RunnerType specifies which runner to use (claude-code, codex, opencode)
-	RunnerType RunnerType `json:"runner_type"`
-
 	// ProjectPath is the directory where the agent will operate
 	ProjectPath string `json:"project_path"`
-
-	// Model optionally specifies the model to use (e.g., "claude-opus-4")
-	Model string `json:"model,omitempty"`
-
-	// MaxTurns optionally limits the number of conversation turns
-	MaxTurns int `json:"max_turns,omitempty"`
 }
 
 // AgentChatSession contains the session info returned after starting agent mode.

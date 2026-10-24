@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "earthly",
+  "display_name": "Earthly",
+  "category": "build",
+  "summary": "Containerized build automation tool for reproducible, cache-aware, multi-target build pipelines.",
+  "why_it_matters": "Earthly remains relevant capability knowledge for reproducible builds, but current Vrooli workflows do not rely on it enough to justify active maintenance.",
+  "when_to_use": [
+    "A future scenario needs reproducible containerized builds across environments.",
+    "Operators want stronger build caching and target composition than ad hoc shell scripts provide.",
+    "The workflow needs BuildKit-oriented build definitions without full CI platform lock-in."
+  ],
+  "example_scenarios": [
+    "Multi-service build pipelines",
+    "Artifact packaging workflows",
+    "Cross-environment release automation"
+  ],
+  "integration_kind": "external-cli",
+  "platform_support": {
+    "notes": "The CLI is broadly portable, but practical support depends on Docker or BuildKit availability and how Vrooli wants to model build ownership.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Container runtime or BuildKit strategy",
+    "Artifact and cache storage conventions",
+    "Clear ownership boundaries versus existing build scripts"
+  ],
+  "dependencies": [],
+  "suggested_template": "external-cli",
+  "implementation_notes": [
+    "Future promotion should focus on validated build workflows instead of wrapping the entire Earthly command set.",
+    "Cache and artifact semantics should be defined before calling this supported.",
+    "Keep build orchestration distinct from deployment orchestration."
+  ],
+  "operational_notes": [
+    "Version pinning and cache behavior materially affect reproducibility.",
+    "Build failures need surfaced logs and explicit artifact outputs.",
+    "Validation should exercise a known Earthfile rather than only checking the binary."
+  ],
+  "risks": [
+    "Introducing another build abstraction can duplicate existing repo tooling.",
+    "Without a real consumer workflow, the wrapper would mostly preserve maintenance burden."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "earthly"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/earthly"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

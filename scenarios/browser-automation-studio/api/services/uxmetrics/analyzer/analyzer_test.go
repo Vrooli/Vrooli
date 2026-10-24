@@ -6,17 +6,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/uxmetricsmocks"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
-	"github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
 )
 
 func TestAnalyzer_AnalyzeExecution_Empty(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	execID := uuid.New()
 	metrics, err := analyzer.AnalyzeExecution(context.Background(), execID)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -32,7 +31,7 @@ func TestAnalyzer_AnalyzeExecution_Empty(t *testing.T) {
 }
 
 func TestAnalyzer_AnalyzeExecution_WithTraces(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	execID := uuid.New()
@@ -61,7 +60,6 @@ func TestAnalyzer_AnalyzeExecution_WithTraces(t *testing.T) {
 	}
 
 	metrics, err := analyzer.AnalyzeExecution(context.Background(), execID)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -77,7 +75,7 @@ func TestAnalyzer_AnalyzeExecution_WithTraces(t *testing.T) {
 }
 
 func TestAnalyzer_DetectExcessiveTime(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	config := &Config{
 		ExcessiveStepDurationMs: 5000, // 5s threshold
 	}
@@ -100,7 +98,7 @@ func TestAnalyzer_DetectExcessiveTime(t *testing.T) {
 }
 
 func TestAnalyzer_DetectZigZag(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	config := &Config{
 		ZigZagThreshold: 0.3, // directness < 0.7 triggers signal
 	}
@@ -137,7 +135,7 @@ func TestAnalyzer_DetectZigZag(t *testing.T) {
 }
 
 func TestAnalyzer_DetectHesitations(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	// Test no hesitations
@@ -168,7 +166,7 @@ func TestAnalyzer_DetectHesitations(t *testing.T) {
 }
 
 func TestAnalyzer_DetectRapidClicks(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	config := &Config{
 		RapidClickWindowMs:       500,
 		RapidClickCountThreshold: 3,
@@ -203,7 +201,7 @@ func TestAnalyzer_DetectRapidClicks(t *testing.T) {
 }
 
 func TestAnalyzer_DetectMultipleRetries(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	// Test no retries
@@ -223,7 +221,7 @@ func TestAnalyzer_DetectMultipleRetries(t *testing.T) {
 }
 
 func TestAnalyzer_CalculateFrictionScore(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	// Test no signals
@@ -247,7 +245,7 @@ func TestAnalyzer_CalculateFrictionScore(t *testing.T) {
 }
 
 func TestAnalyzer_GenerateSummary(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	stepMetrics := []contracts.StepMetrics{
@@ -276,7 +274,7 @@ func TestAnalyzer_GenerateSummary(t *testing.T) {
 }
 
 func TestAnalyzer_AnalyzeStep(t *testing.T) {
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	analyzer := NewAnalyzer(repo, nil)
 
 	execID := uuid.New()

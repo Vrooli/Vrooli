@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "set-up-an-economy",
+    "title": "Set up an economy from nothing",
+    "purpose": "The first-run path a minter takes on an instance with no token type, ending with a holder who can actually earn.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-006",
+      "OT-P0-008",
+      "OT-P0-002"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "empty",
+      "intent": "The minter arrives at an empty console and is routed to the one action that unblocks everything else.",
+      "via": "go-to-approvals"
+    },
+    {
+      "page": "token-types",
+      "state": "empty",
+      "intent": "The minter learns that nothing works until a type exists, and what a supply policy will permanently constrain.",
+      "via": "create-type"
+    },
+    {
+      "page": "token-types",
+      "state": "success",
+      "intent": "The minter names the economy, gives it a symbol and colour, and chooses its supply policy.",
+      "via": "supply-policy-field"
+    },
+    {
+      "page": "holders-admin",
+      "state": "empty",
+      "intent": "The minter adds a holder and binds them to a real authenticated identity rather than a role flag.",
+      "via": "add-holder"
+    },
+    {
+      "page": "catalog-admin",
+      "state": "empty",
+      "intent": "The minter describes what the tokens should buy, in the household's own vocabulary.",
+      "via": "create-entry"
+    },
+    {
+      "page": "catalog-admin",
+      "state": "success",
+      "intent": "The minter chooses deliberately which rewards settle instantly and which wait for approval.",
+      "via": "approval-posture-field"
+    },
+    {
+      "page": "grants-admin",
+      "state": "success",
+      "intent": "The minter issues a first grant with a reason that will reach the holder's history.",
+      "via": "issue-grant"
+    },
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "The console now shows a working economy with a holder, a balance, and a catalog.",
+      "via": "holder-summary"
+    }
+  ],
+  "claims": [
+    {
+      "id": "first-run-never-dead-ends",
+      "type": "state-covered",
+      "statement": "Every empty state in the setup path routes to the action that unblocks it rather than presenting a blank surface.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    }
+  ]
+}

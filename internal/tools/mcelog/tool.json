@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "mcelog",
+  "storage": {
+    "entries": {
+      "error_log": {
+        "rung": "owned",
+        "path": "/var/log/mcelog",
+        "kind": "file",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "mcelog writes machine-check error records to this host log.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "rationale": "mcelog owns a host log on Linux; the log is diagnostic and regenerable."
+  },
+  "description": "Machine Check Exception logger — companion to rasdaemon for AMD/Intel hardware error capture; logs to /var/log/mcelog",
+  "commands": [
+    "mcelog"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "handler": "mcelog",
+  "defaultPackage": "mcelog",
+  "installHint": "Install mcelog via your package manager. On modern AMD systems mcelog is often superseded by rasdaemon — that is acceptable; this tool reports ExecutionAlreadyPresent in that case.",
+  "bundling": "host-required",
+  "capability": "crash-forensics",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    }
+  }
+}

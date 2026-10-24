@@ -1,0 +1,32 @@
+import type { ComponentType, ReactNode } from "react";
+
+import { PreviewShowcase } from "../../../showcase/PreviewShowcase";
+
+export type PreviewHarnessProps = {
+  subject: ComponentType<Record<string, unknown>>;
+  args?: Record<string, unknown>;
+  children?: ReactNode;
+  label?: string;
+  description?: string;
+};
+
+/** Generic responsive context; the host viewport is the source of breakpoint truth. */
+export function ResponsiveMode({
+  subject: Subject,
+  args = {},
+  children,
+  label = "Responsive mode",
+  description = "A responsive subject rendered at the current Preview viewport.",
+}: PreviewHarnessProps) {
+  return (
+    <PreviewShowcase
+      subject={Subject}
+      args={args}
+      family="responsive-mode"
+      label={label}
+      description={description}
+    >
+      {children}
+    </PreviewShowcase>
+  );
+}

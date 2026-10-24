@@ -19,18 +19,56 @@ This guide covers the admin portal for the Landing Page Business Suite. It is gr
 - Admin home after login: `http://localhost:<port>/admin`
 - The admin portal is not linked from the public landing page.
 
-### Default Credentials
+### Admin Credentials
 
-```
-Email: admin@localhost
-Password: changeme123
-```
+There is no built-in password. The admin account is seeded on startup:
 
-Important: change these credentials immediately in production.
+- **Email:** `admin@localhost`, unless `ADMIN_DEFAULT_EMAIL` is set.
+- **Password:** the operator-provisioned `admin-default-password` credential. Set or reset it with:
 
-Options for changing credentials:
-1. Environment variables (recommended for deployments): set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` before starting the scenario.
-2. Admin portal: change via the Profile page (`/admin/profile`) after logging in.
+  ```bash
+  vrooli credentials provision --identity vrooli/landing-page-business-suite --field admin-default-password
+  vrooli scenario restart landing-page-business-suite
+  ```
+
+  The value is read from stdin. On restart, the credential is applied to the seeded admin only while
+  that account still uses the bootstrap email; after you change the email in `/admin/profile`, the
+  account is yours and restarts leave it alone.
+
+#### Recover a locked-out administrator
+
+If you no longer know the admin password, use one of these operator-only paths.
+None of them require the current password, and none are reachable from a
+browser session.
+
+- **Same host:** `landing-page-business-suite admin-credential-reset --email <email> --new-password-stdin`
+  reads the new password from stdin. When the account still uses the bootstrap
+  email it also rotates the `admin-default-password` authority value, so a
+  restart keeps the reset.
+- **Local control plane → deployment:** the deployment declares
+  `admin-default-password` as a managed credential, so rotating it through
+  `scenario-to-cloud` distributes the new value over the deployment transport
+  and restarts the consumer automatically:
+
+  ```bash
+  printf '%s' "$NEW_PASSWORD" | scenario-to-cloud credential rotate \
+    --deployment <deployment-id> \
+    --binding <admin-default-password-binding-id> \
+    --value-stdin
+  ```
+
+  A local LPBS with a stored remote profile can also proxy the recovery call
+  without an interactive session on the VPS:
+  `landing-page-business-suite admin-credential-reset --profile-tag prod --new-password-stdin`.
+- **Unknown or unreachable email:** pass `--new-email` to
+  `admin-credential-reset` to set a sign-in email you control.
+
+A password reset revokes the account's other sessions and records an
+`admin_credential_reset` security event.
+
+If the credential is not provisioned, development starts generate a random one-time password nobody
+knows, and production refuses to start. Two-factor sign-in applies only after you enroll it in
+`/admin/profile`.
 
 ## Admin Navigation Map
 
@@ -65,7 +103,9 @@ This section mirrors the UI navigation config. If you update `NAVIGATION_CONFIG`
   - [CODE: ui/src/surfaces/admin-portal/routes/BillingSettings.tsx]
 - Plans (`/admin/tiers`): Subscription tier management (marked as "Soon" in UI).
   - [CODE: ui/src/surfaces/admin-portal/routes/TiersManagement.tsx]
-- AI Keys (`/admin/api-keys`): Manage AI provider API keys.
+- AI Keys (`/admin/api-keys`): Manage supported legacy/BYOK provider keys. The
+  OpenRouter credential is managed by the shared resource credential authority
+  and is not configured here.
   - [CODE: ui/src/surfaces/admin-portal/routes/APIKeysSettings.tsx]
 
 ### Apps
@@ -101,9 +141,11 @@ This section mirrors the UI navigation config. If you update `NAVIGATION_CONFIG`
 
 ### Deep Links Used By Editors
 
-- Variant Editor (`/admin/customization/variants/:slug`): Edit variant metadata and sections.
+- Presentation Editor (`/admin/presentation/:variantSlug`): Configure app and bundle pages, inspect private previews, save drafts, publish and roll back revisions.
+  - [CODE: ui/src/surfaces/admin-portal/presentation/PresentationAdminPage.tsx]
+- Variant Editor (`/admin/customization/variants/:slug`): Edit experiment metadata and inspect retained legacy snapshots.
   - [CODE: ui/src/surfaces/admin-portal/routes/VariantEditor.tsx]
-- Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`): Edit a single section with live preview.
+- Former Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`): Redirects old bookmarks to the typed Presentation Editor.
   - [CODE: ui/src/surfaces/admin-portal/routes/SectionEditor.tsx]
 - Analytics Variant Shortcut (`/admin/analytics/:variantSlug`): Opens analytics pre-filtered to a variant.
   - [CODE: ui/src/surfaces/admin-portal/routes/AdminAnalytics.tsx]
@@ -125,25 +167,44 @@ Use the Landing dashboard (`/admin/landing`) for at-a-glance landing health and 
 - Variant health summaries and traffic allocation.
 - Resume shortcuts for the last variant or analytics view.
 
-### Customization (Variants and Sections)
+### Customization (Experiments and Presentations)
 
 The Customization page (`/admin/customization`) is the hub for A/B testing:
 - Create, edit, archive, and delete variants.
 - Adjust traffic weights (relative weights; all-zero means an even split).
-- Jump into the Variant Editor or Section Editor.
+- Open variant metadata or the typed Presentation Editor.
 
 #### Variant Editor
 
 The Variant Editor (`/admin/customization/variants/:slug`) lets you:
 - Update variant metadata (name, slug, axes).
-- Add, reorder, and edit sections.
-- Edit the entire variant + sections payload as JSON.
+- Inspect retained legacy section records and export/import recovery snapshots.
+- Open the Presentation Editor for the current public page model. Editing old
+  snapshot JSON does not publish a typed presentation.
 
-#### Section Editor
+#### Presentation Editor
 
-The Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`) lets you:
-- Edit section fields with a live preview.
-- Switch between sections in the variant timeline.
+Open `/admin/presentation/:variantSlug` for an explicit experiment. The typed
+document contains bundle membership, each app's page, ordered blocks, localized
+copy, capability status, safe action references and asset references.
+
+- Edit the complete document and review validation errors before saving.
+- Local preview resolves valid edits after a 300ms debounce without saving.
+  Desktop uses adjacent editing and preview columns; narrow screens stack them.
+  Invalid edits hide the obsolete preview while keeping the source text.
+- Save a draft without changing the public page.
+- Switch explicitly to saved-revision inspection at `/` or `/apps/:slug`, with the requested locale.
+  This stays inside the authenticated editor and is marked as private preview.
+- Publish the saved draft only after confirming the revision and generation.
+  The server qualifies capability and asset references before activation.
+- Roll back to a retained published revision through the same guarded controls.
+
+Generation conflicts require a deliberate reload or reconciliation; they do not
+overwrite another editor's work. Missing owner evidence is a publication error,
+not permission to fabricate an available claim. The private renderer is shared
+with public pages, but preview actions do not perform purchases or downloads.
+Legacy section-editor URLs redirect here; Browser Automation Studio recovery
+material remains available separately.
 
 ### Analytics
 
@@ -176,6 +237,13 @@ Use the Billing dashboard (`/admin/billing-home`) to:
 - Jump to Stripe settings, plans, and AI key management.
 
 ### Stripe Settings
+
+Use **Billing → Stripe** (`/admin/billing`) for the non-secret Stripe settings
+and configuration status. Secret values are write-through authority values;
+provision them through Vrooli onboarding or the governed credential command,
+then use this page to confirm the active mode and redacted status. Deployment
+readiness is the authoritative check for missing mode-specific fields,
+catalog alignment, HTTPS origin, and public webhook reachability.
 
 The Stripe page (`/admin/billing`) configures:
 - Publishable key, secret key, and webhook secret.
@@ -214,9 +282,43 @@ The Downloads page (`/admin/downloads`) manages:
 
 Downloads are gated by subscription status in the public experience.
 
+The Hosting tab's storage wizard configures the S3-compatible bucket that holds
+installer artifacts. Bucket, region, and prefix open with sensible defaults
+(`<bundle-key>-downloads`, `us-east-1`, `artifacts`) that you can override before
+saving. `delivery-s3-access-key-id` and `delivery-s3-secret-access-key` are
+required; `delivery-s3-session-token` is optional and only for temporary AWS STS
+credentials. Access keys are written through to this host's credential authority
+— never to the settings row — and the wizard shows only per-field presence
+(`configured`, `missing`, `unavailable`, or `authority_error`). Entering a new
+value rotates it; ticking a clear box removes it. The secret is never returned
+to the browser or prefilled.
+
+The wizard also shows the configured bucket and region, the complete AWS IAM
+console flow and the required `VrooliDeliveryBucketAccess` policy (with both
+ARNs naming the configured bucket), copyable provision commands, why the bucket
+stays private even for free downloads, and the rotation procedure. You can
+provision keys out of band instead:
+
+```bash
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-access-key-id
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-secret-access-key
+vrooli credentials doctor --format json
+```
+
+Use separate IAM users and credential pairs for local and production
+(`vrooli-lpbs-local`, `vrooli-lpbs-prod`); they should not be identical. Never
+attach `AdministratorAccess`, `AmazonS3FullAccess`, or a root-user access key.
+
+The **Verify** step runs **Test storage access**, which proves the bucket
+accepts object list, write, read, and delete with a unique canary under the
+internal `.vrooli/healthchecks/<uuid>` prefix, verifies the region, and reports
+a structured diagnostic when something is wrong. A local instance publishes
+through a remote profile, so the deployed suite that signs the upload URL needs
+the same key fields provisioned on its own host.
+
 CLI automation (optional):
 - Upload + apply a managed artifact: `landing-page-business-suite admin-downloads-upload-managed --file <path> --app-key <app> --platform <platform> --release-version <version>`
-- Proxy remote admin calls via stored sessions: `landing-page-business-suite remote-profiles-proxy <id> --method <METHOD> --path /admin/...`
+- Proxy allowlisted remote admin/settings calls via stored sessions: `landing-page-business-suite remote-profiles-proxy <id> --method <METHOD> --path /admin/...` (or one of the documented Connect settings procedures). Arbitrary remote paths and secret-reveal procedures are refused.
 
 ### Desktop Auto-Update Endpoints
 

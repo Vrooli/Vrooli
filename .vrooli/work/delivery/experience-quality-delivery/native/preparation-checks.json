@@ -1,0 +1,54 @@
+{
+  "verified_at": "2026-10-16T15:47:53.792274+00:00",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        ".vrooli/work/delivery/experience-quality-delivery/verify-preparation.py"
+      ],
+      "exit_code": 0,
+      "stdout": "Preparation integrity passed: 61 sources; 10 dossier entries; GOAL 1935 characters; resume 15253/30000 bytes; 18 outcomes; 14 planned acceptance journeys.\nThis check does not prove native execution, UI behavior, or release readiness.\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "agent-manager",
+        "effort",
+        "lint",
+        ".vrooli/work/delivery/experience-quality-delivery"
+      ],
+      "exit_code": 0,
+      "stdout": "Goal home .vrooli/work/delivery/experience-quality-delivery: resume set 15090 of 30000 bytes (GOAL 1935, QUEUE 9709, open FEEDBACK 1365, open WORKAROUNDS 2081)\n  low-yield      not fired not evaluated: 0 accepted epochs since the destination was set, need 3\n  empty-censuses not fired not evaluated: 0 censuses under ## Censuses, need 2\n  gap-horizon    not fired not evaluated: GOAL.md needs \"- Destination: <metric> <op> <n>\" and \"- Current: <n> @ <date>\"\ngoal home ok: resume set 15090/30000 bytes, 0 warnings\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "prompt-manager",
+        "team",
+        "validate-contract",
+        "experience-quality-delivery"
+      ],
+      "exit_code": 0,
+      "stdout": "Operating contract valid: experience-quality-delivery\n",
+      "stderr": ""
+    }
+  ],
+  "native": {
+    "team_enabled": false,
+    "heartbeat_enabled": false,
+    "scheduled": false,
+    "schedule": "",
+    "effective_state": "team-disabled",
+    "member_count": 1,
+    "operating_contract_matches": true,
+    "member_documents_match": true,
+    "prompt_contract_findings": [],
+    "delivery_epoch_files": []
+  },
+  "limits": [
+    "Preparation integrity only",
+    "Finite binding proposal remains unapplied; S01 open",
+    "Transitive craft/commission sources unreceived; G06a open",
+    "No product, actual-device, cloud usability or release-readiness proof"
+  ]
+}

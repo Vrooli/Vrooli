@@ -1,0 +1,168 @@
+name: Vrooli CLI release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version used for a non-publishing package dry-run
+        required: true
+        default: v0.0.0-snapshot
+
+permissions:
+  contents: write
+
+jobs:
+  # The macOS Keychain adapter is guarded by `//go:build darwin && cgo` and needs
+  # the macOS SDK to link the Security framework. Cross-compiling darwin from
+  # Ubuntu silently selects the no-backend fallback, so darwin is built here and
+  # handed to the packaging job.
+  darwin:
+    runs-on: macos-latest
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve pinned Go toolchain
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+          cache: true
+
+      - name: Build darwin targets with the Keychain adapter linked
+        env:
+          CGO_ENABLED: 1
+        run: |
+          go run ./cmd/vrooli-dist \
+            --root . \
+            --targets darwin/amd64,darwin/arm64 \
+            --out-dir "${RUNNER_TEMP}/vrooli-darwin" \
+            --version "${RELEASE_VERSION}"
+
+      # BuildDistribution already refuses a cgo-free darwin artifact; this is the
+      # same guarantee restated where a human reading the log will see it.
+      - name: Assert the Keychain adapter is linked
+        run: |
+          for binary in "${RUNNER_TEMP}"/vrooli-darwin/vrooli_darwin_*; do
+            case "${binary}" in *.fp) continue ;; esac
+            go version -m "${binary}" | grep -q 'CGO_ENABLED=1' \
+              || { echo "::error::$(basename "${binary}") has no macOS Keychain adapter"; exit 1; }
+          done
+          "${RUNNER_TEMP}"/vrooli-darwin/vrooli_darwin_$(go env GOARCH) credentials doctor --format json
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vrooli-darwin-${{ github.run_id }}
+          path: ${{ runner.temp }}/vrooli-darwin/*
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    needs: darwin
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Download darwin binaries built on macOS
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vrooli-darwin-${{ github.run_id }}
+          path: ${{ runner.temp }}/vrooli-darwin
+
+      - name: Resolve pinned Go toolchain
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+          cache: true
+
+      - name: Materialize release signing key
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.VROOLI_RELEASE_SIGNING_KEY }}
+        run: |
+          if [[ -z "${RELEASE_SIGNING_KEY}" ]]; then
+            echo "VROOLI_RELEASE_SIGNING_KEY is required" >&2
+            exit 1
+          fi
+          printf '%s\n' "${RELEASE_SIGNING_KEY}" > "${RUNNER_TEMP}/vrooli-release-private.pem"
+          chmod 0600 "${RUNNER_TEMP}/vrooli-release-private.pem"
+
+      - name: Build, checksum, and sign every supported target
+        run: |
+          ./scripts/package-vrooli-release.sh \
+            --version "${RELEASE_VERSION}" \
+            --signing-key "${RUNNER_TEMP}/vrooli-release-private.pem" \
+            --prebuilt "${RUNNER_TEMP}/vrooli-darwin" \
+            --out "${RUNNER_TEMP}/vrooli-release"
+
+      - name: Verify release shapes and embedded version
+        run: |
+          file "${RUNNER_TEMP}"/vrooli-release/vrooli_*
+          tar -tzf "${RUNNER_TEMP}/vrooli-release/vrooli-source.tar.gz" | grep -Fx 'Vrooli/go.mod'
+          "${RUNNER_TEMP}/vrooli-release/vrooli_linux_amd64" version | grep -F "${RELEASE_VERSION#v}"
+          for darwin_binary in "${RUNNER_TEMP}"/vrooli-release/vrooli_darwin_*; do
+            case "${darwin_binary}" in *.fp) continue ;; esac
+            go version -m "${darwin_binary}" | grep -q 'CGO_ENABLED=1' \
+              || { echo "::error::$(basename "${darwin_binary}") shipped without a macOS Keychain adapter"; exit 1; }
+          done
+          openssl base64 -d -A \
+            -in "${RUNNER_TEMP}/vrooli-release/SHA256SUMS.sig" \
+            -out "${RUNNER_TEMP}/SHA256SUMS.sig.bin"
+          openssl dgst -sha256 \
+            -verify install/vrooli-release.pub \
+            -signature "${RUNNER_TEMP}/SHA256SUMS.sig.bin" \
+            "${RUNNER_TEMP}/vrooli-release/SHA256SUMS"
+          for binary in "${RUNNER_TEMP}"/vrooli-release/resource_*; do
+            [[ -f "${binary}" ]] || continue
+            case "${binary}" in
+              *.manifest.json|*.build.json) continue ;;
+            esac
+            test -f "${binary}.manifest.json"
+            test -f "${binary}.build.json"
+            grep -Fq "  $(basename "${binary}")" "${RUNNER_TEMP}/vrooli-release/SHA256SUMS"
+            grep -Fq "  $(basename "${binary}").manifest.json" "${RUNNER_TEMP}/vrooli-release/SHA256SUMS"
+            grep -Fq "  $(basename "${binary}").build.json" "${RUNNER_TEMP}/vrooli-release/SHA256SUMS"
+          done
+          for server in \
+            vault_linux_amd64 \
+            vault_linux_arm64 \
+            vault_darwin_amd64 \
+            vault_darwin_arm64 \
+            vault_windows_amd64.exe; do
+            test -f "${RUNNER_TEMP}/vrooli-release/${server}"
+            grep -Fq "  ${server}" "${RUNNER_TEMP}/vrooli-release/SHA256SUMS"
+          done
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vrooli-${{ env.RELEASE_VERSION }}
+          path: ${{ runner.temp }}/vrooli-release/*
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${RELEASE_VERSION}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_VERSION}" "${RUNNER_TEMP}"/vrooli-release/* --clobber
+          else
+            gh release create "${RELEASE_VERSION}" "${RUNNER_TEMP}"/vrooli-release/* \
+              --verify-tag --generate-notes --title "Vrooli ${RELEASE_VERSION}"
+          fi

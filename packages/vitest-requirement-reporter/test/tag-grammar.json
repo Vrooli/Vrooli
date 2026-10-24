@@ -1,0 +1,9 @@
+[
+  {"name":"arbitrary registry prefixes","text":"[REQ:UH-CORE-001] [REQ:UH-CORE-010]","ids":["UH-CORE-001","UH-CORE-010"]},
+  {"name":"comma and repeated links","text":"[REQ:UH-CORE-001, UH-ANALYZE-003] [REQ:UH-CORE-001]","ids":["UH-CORE-001","UH-ANALYZE-003"]},
+  {"name":"marker case","text":"[req:UH-CORE-001]","ids":["UH-CORE-001"]},
+  {"name":"bare mentions","text":"covers UH-CORE-001 and REQ-CORE-001","ids":[]},
+  {"name":"lowercase identity invalid","text":"[REQ:uh-core-001]","ids":[]},
+  {"name":"underscore identity invalid","text":"[REQ:UH_CORE-001]","ids":[]},
+  {"name":"space after marker unsupported","text":"[REQ: UH-CORE-001]","ids":[]}
+]

@@ -1,0 +1,295 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "git-control-tower",
+  "key": "git-control-tower/staged-message-deep",
+  "version": "1.1.1",
+  "description": "Synthesize a message for the complete immutable staged selection using bounded metadata inventory and agent-selected important or representative patches; preserve detailed inspection accounting separately.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "format_version": {
+        "type": "integer",
+        "enum": [
+          3,
+          4
+        ]
+      },
+      "draft_input_digest": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "draft_context": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "repository_directory": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      }
+    },
+    "required": [
+      "format_version",
+      "draft_input_digest",
+      "draft_context",
+      "repository_directory"
+    ]
+  },
+  "outputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshot_digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 6000
+          },
+          "trailers": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "source_ids": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "description": "Opaque selected-context source IDs only; never stable file IDs, paths, run IDs, or workflow IDs. Copy only contexts[].id. Return [] when no selected source IDs are supplied."
+          },
+          "unknowns": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "covered_file_ids": {
+            "type": "array",
+            "maxItems": 4096,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "description": "Stable integer staged-file IDs supported by complete patch inspection; these IDs never belong in source_ids."
+          },
+          "message_scope": {
+            "type": "string",
+            "enum": [
+              "whole_selection",
+              "limited"
+            ]
+          },
+          "message_scope_explanation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "snapshot_digest",
+          "title",
+          "body",
+          "trailers",
+          "source_ids",
+          "unknowns",
+          "covered_file_ids"
+        ]
+      }
+    },
+    "required": [
+      "result"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "draft",
+      "kind": "run",
+      "run": {
+        "profileKey": "git-control-tower/staged-message-deep",
+        "promptRef": {
+          "skillId": "git-control-tower-staged-message-deep"
+        },
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "snapshot_digest": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "body": {
+                "type": "string",
+                "maxLength": 6000
+              },
+              "trailers": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "source_ids": {
+                "type": "array",
+                "maxItems": 20,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "description": "Opaque selected-context source IDs only; never stable file IDs, paths, run IDs, or workflow IDs. Copy only contexts[].id. Return [] when no selected source IDs are supplied."
+              },
+              "unknowns": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "covered_file_ids": {
+                "type": "array",
+                "maxItems": 4096,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4096
+                },
+                "description": "Stable integer staged-file IDs supported by complete patch inspection; these IDs never belong in source_ids."
+              },
+              "message_scope": {
+                "type": "string",
+                "enum": [
+                  "whole_selection",
+                  "limited"
+                ]
+              },
+              "message_scope_explanation": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "snapshot_digest",
+              "title",
+              "body",
+              "trailers",
+              "source_ids",
+              "unknowns",
+              "covered_file_ids"
+            ]
+          },
+          "schemaRepairAttempts": 0
+        },
+        "bindings": [
+          {
+            "name": "input",
+            "source": "workflow_input",
+            "selector": "$.draft_context",
+            "limit": 1,
+            "maxBytes": 49152,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "repository_directory",
+            "source": "workflow_input",
+            "selector": "$.repository_directory",
+            "limit": 1,
+            "maxBytes": 4096,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
+        ],
+        "sandboxConfig": {
+          "mode": "protected",
+          "writePolicy": {
+            "paths": []
+          },
+          "networkMode": "full",
+          "manualReview": true,
+          "autoApply": false,
+          "applyOnFailure": false
+        },
+        "maxTurns": 96,
+        "maxToolCalls": 96,
+        "timeoutSeconds": 600,
+        "projectRootTemplate": "{{.repository_directory}}",
+        "scopePathTemplate": "."
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "$.value",
+            "order": "desc",
+            "limit": 1,
+            "maxBytes": 61440,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 660,
+    "maxTurns": 96,
+    "maxTokens": 2000000,
+    "maxChargeMicroUsd": 2000000,
+    "maxNodeAttempts": 1,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 60,
+    "enforcement": "metered-cancellation"
+  },
+  "metadata": {
+    "consumerMutationOwner": "git-control-tower",
+    "operation": "staged-message-only",
+    "tokenBudgetBasis": "Cumulative input, output, and cached tokens across child calls; not a context-window limit.",
+    "toolRestriction": "tool hints advisory on unsupported runners; mandatory protected empty write policy; only git-control-tower:read API scope"
+  },
+  "entryNode": "draft",
+  "edges": [
+    {
+      "from": "draft",
+      "to": "done"
+    }
+  ]
+}

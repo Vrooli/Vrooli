@@ -25,6 +25,7 @@ import { CodeBlock } from "./markdown/components/CodeBlock";
 import { MarkdownRenderer } from "./markdown";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { useAttachments } from "../hooks/useAttachments";
+import { useDocumentEscape } from "../hooks/useDocumentEscape";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { getPopoverPosition, type PopoverPlacement } from "../lib/popoverPosition";
@@ -37,6 +38,7 @@ import {
   getTimelineCategoryLabel,
   getTimelineEventLabel,
   getTimelineEventSummary,
+  getToolResultOutcome,
   getTimelineModeLabel,
   groupTimelineEntries,
   TIMELINE_CATEGORY_ORDER,
@@ -59,6 +61,8 @@ interface RunTimelineProps {
   run: Run;
   events: RunEvent[];
   eventsLoading: boolean;
+  focusEventId?: string;
+  focusSequence?: string;
   onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
 }
@@ -97,6 +101,8 @@ export function RunTimeline({
   run,
   events,
   eventsLoading,
+  focusEventId,
+  focusSequence,
   onContinue,
   onDeleteMessage,
 }: RunTimelineProps) {
@@ -106,10 +112,13 @@ export function RunTimeline({
   );
   const [sending, setSending] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied">>({});
+  const copyTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const mountedRef = useRef(false);
   const [continueError, setContinueError] = useState<string | null>(null);
   const [revealedMessages, setRevealedMessages] = useState<Record<string, boolean>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<TimelineFilterState>(() => loadPersistedFilters());
+  const [linkedEventState, setLinkedEventState] = useState<"idle" | "focused" | "missing">("idle");
   const [filterPanelPosition, setFilterPanelPosition] = useState<FilterPanelPosition | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
@@ -120,6 +129,16 @@ export function RunTimeline({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
   const { isDesktop } = useViewportSize();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const copyTimers = copyTimersRef.current;
+    return () => {
+      mountedRef.current = false;
+      for (const timer of copyTimers.values()) clearTimeout(timer);
+      copyTimers.clear();
+    };
+  }, []);
 
   const timelineEntries = useMemo(() => buildTimelineEntries(events), [events]);
   const filteredEntries = useMemo(() => filterTimelineEntries(timelineEntries, filters), [timelineEntries, filters]);
@@ -143,19 +162,13 @@ export function RunTimeline({
       }
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFiltersOpen(false);
-      }
-    };
-
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
     };
   }, [filtersOpen]);
+
+  useDocumentEscape(filtersOpen, () => setFiltersOpen(false));
 
   useEffect(() => {
     if (!filtersOpen) {
@@ -203,6 +216,29 @@ export function RunTimeline({
     timelineEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [visibleEntries.length]);
 
+  useEffect(() => {
+    if (!focusEventId && !focusSequence) {
+      setLinkedEventState("idle");
+      return;
+    }
+    if (eventsLoading) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    if (!focusLinkedEvent(container, focusEventId, focusSequence)) {
+      const existsButFiltered = events.some((event) =>
+        (focusEventId && event.id === focusEventId) ||
+        (focusSequence && event.sequence.toString() === focusSequence)
+      );
+      if (existsButFiltered) {
+        setFilters(createShowAllTimelineFilterState());
+        return;
+      }
+      setLinkedEventState("missing");
+      return;
+    }
+    setLinkedEventState("focused");
+  }, [events, eventsLoading, focusEventId, focusSequence, visibleEntries]);
+
   const isGenerating = useMemo(() => {
     return run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING || run.status === RunStatus.PENDING;
   }, [run.status]);
@@ -210,6 +246,7 @@ export function RunTimeline({
   const canContinue = useMemo(() => {
     return run.actions?.canContinue ?? false;
   }, [run.actions?.canContinue]);
+  const finalizationWarning = run.actions?.finalizationWarning ?? "";
 
   // Show the input area when we can continue OR when the run is still in progress
   // (so users can type their follow-up while waiting). Send is disabled until the run completes.
@@ -275,10 +312,19 @@ export function RunTimeline({
   const handleCopy = async (messageId: string, content: string) => {
     try {
       await navigator.clipboard.writeText(content);
+      if (!mountedRef.current) return;
+
+      const existingTimer = copyTimersRef.current.get(messageId);
+      if (existingTimer !== undefined) clearTimeout(existingTimer);
       setCopyStatus((prev) => ({ ...prev, [messageId]: "copied" }));
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        if (copyTimersRef.current.get(messageId) === timer) {
+          copyTimersRef.current.delete(messageId);
+        }
+        if (!mountedRef.current) return;
         setCopyStatus((prev) => ({ ...prev, [messageId]: "idle" }));
       }, 2000);
+      copyTimersRef.current.set(messageId, timer);
     } catch {
       // Ignore clipboard failures and preserve current UI state.
     }
@@ -343,6 +389,9 @@ export function RunTimeline({
           </Button>
         </div>
         <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4">
+          <div className="sr-only" role="status" aria-live="polite">
+            {linkedEventState === "focused" ? "Focused the matched conversation event." : linkedEventState === "missing" ? "The linked event is missing, deleted, or hidden by the current timeline filters." : ""}
+          </div>
           {eventsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -368,7 +417,13 @@ export function RunTimeline({
                 const spacingClass = getVisibleItemSpacing(previousEntry, entry);
 
                 return (
-                  <div key={entry.id} className={spacingClass}>
+                  <div
+                    key={entry.id}
+                    className={cn(spacingClass, linkedEventState === "focused" && entryContainsTarget(entry, focusEventId, focusSequence) && "rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background")}
+                    data-event-ids={entryEventIds(entry).join(" ")}
+                    data-event-sequences={entryEventSequences(entry).join(" ")}
+                    tabIndex={-1}
+                  >
                     {entry.kind === "message" ? (
                       <MessageBubble
                         entry={entry}
@@ -405,6 +460,13 @@ export function RunTimeline({
 
         {showInputArea ? (
           <div className="border-t border-border px-3 py-4 sm:px-4">
+            {finalizationWarning ? (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <p>{finalizationWarning}</p>
+              </div>
+            ) : null}
+
             {attachments.length > 0 ? (
               <AttachmentPreview
                 attachments={attachments}
@@ -451,6 +513,7 @@ export function RunTimeline({
                 onClick={() => void handleSend()}
                 disabled={(!inputMessage.trim() && attachments.length === 0) || sending || isUploading || isGenerating}
                 className="self-end"
+                aria-label="Send message"
                 title={isGenerating ? "Send is available after the run completes" : undefined}
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -857,18 +920,50 @@ function getVisibleItemSpacing(
   return "pt-3";
 }
 
+function entryEvents(entry: VisibleTimelineItem): RunEvent[] {
+  if (entry.kind !== "tool-group") return [entry.event];
+  return entry.items.flatMap((item) => item.kind === "reasoning"
+    ? [item.entry.event]
+    : [item.pair.call.event, ...(item.pair.result ? [item.pair.result.event] : [])]);
+}
+
+function entryEventIds(entry: VisibleTimelineItem): string[] {
+  return entryEvents(entry).map((event) => event.id).filter(Boolean);
+}
+
+function entryEventSequences(entry: VisibleTimelineItem): string[] {
+  return entryEvents(entry).map((event) => event.sequence.toString());
+}
+
+function entryContainsTarget(entry: VisibleTimelineItem, eventId?: string, sequence?: string): boolean {
+  return entryEvents(entry).some((event) => (eventId && event.id === eventId) || (sequence && event.sequence.toString() === sequence));
+}
+
+export function focusLinkedEvent(container: HTMLElement, eventId?: string, sequence?: string): boolean {
+  const candidates = [...container.querySelectorAll<HTMLElement>("[data-event-ids]")];
+  const target = candidates.find((element) => {
+    const ids = (element.dataset.eventIds ?? "").split(" ");
+    const sequences = (element.dataset.eventSequences ?? "").split(" ");
+    return (eventId && ids.includes(eventId)) || (sequence && sequences.includes(sequence));
+  });
+  if (!target) return false;
+  target.scrollIntoView({ block: "center", behavior: "smooth" });
+  target.focus({ preventScroll: true });
+  return true;
+}
+
 function ToolGroupRow({ group }: { group: TimelineToolGroup }) {
   const [expanded, setExpanded] = useState(false);
 
   const allSucceeded = group.pairs.every((p) => {
     if (!p.result) return false;
     const payload = p.result.event.data.value as Record<string, unknown>;
-    return payload.success === true;
+    return getToolResultOutcome(payload) === "success";
   });
   const anyFailed = group.pairs.some((p) => {
     if (!p.result) return false;
     const payload = p.result.event.data.value as Record<string, unknown>;
-    return payload.success === false;
+    return getToolResultOutcome(payload) === "failure";
   });
   const anyPending = group.pairs.some((p) => !p.result);
 
@@ -982,8 +1077,10 @@ function ToolPairRow({ pair }: { pair: import("../lib/runTimeline").ToolCallPair
           {pair.toolName}
         </div>
         {resultPayload ? (
-          resultPayload.success ? (
+          getToolResultOutcome(resultPayload) === "success" ? (
             <Check className="h-3 w-3 shrink-0 text-green-600 dark:text-green-400" />
+          ) : getToolResultOutcome(resultPayload) === "unknown" ? (
+            <Activity aria-label="Outcome unknown" className="h-3 w-3 shrink-0 text-muted-foreground" />
           ) : (
             <AlertCircle className="h-3 w-3 shrink-0 text-destructive" />
           )
@@ -1007,12 +1104,19 @@ function ToolPairRow({ pair }: { pair: import("../lib/runTimeline").ToolCallPair
           {resultPayload ? (
             <>
               <div className="mt-2 mb-1 text-[10px] font-medium text-muted-foreground">
-                {resultPayload.success ? "Output" : "Error"}
+                {getToolResultOutcome(resultPayload) === "failure" ? "Error" : getToolResultOutcome(resultPayload) === "unknown" ? "Output (outcome unknown)" : "Output"}
               </div>
-              <CodeBlock
-                code={String(resultPayload.success ? resultPayload.output : resultPayload.error) || "(empty)"}
-                language="text"
-              />
+              {Array.isArray(resultPayload.outputBlocks) && resultPayload.outputBlocks.length > 0 ? (
+                resultPayload.outputBlocks.map((block: { type?: string; text?: string; rawJson?: string }, index: number) => (
+                  <div key={index}>
+                    <div className="text-[10px] text-muted-foreground">{block.type || "Unsupported content"}</div>
+                    <CodeBlock code={block.text || block.rawJson || "(empty)"} language={block.text ? "text" : "json"} />
+                  </div>
+                ))
+              ) : (
+                <CodeBlock code={String(resultPayload.output || resultPayload.rawOutputJson || resultPayload.error) || "(empty)"} language="text" />
+              )}
+              {resultPayload.error ? <CodeBlock code={String(resultPayload.error)} language="text" /> : null}
             </>
           ) : null}
         </div>

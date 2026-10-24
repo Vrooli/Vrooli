@@ -33,7 +33,7 @@ type VrooliProvider struct {
 // VrooliProviderOptions configures the Vrooli API provider.
 type VrooliProviderOptions struct {
 	Logger        *logrus.Logger
-	APIURL        string        // The LPBS base URL (e.g., "https://vrooli.com")
+	APIURL        string // The LPBS base URL (e.g., "https://vrooli.com")
 	Model         string
 	AuthToken     string        // User's JWT token for authentication
 	HTTPClient    *http.Client  // Optional custom HTTP client
@@ -241,10 +241,10 @@ func (p *VrooliProvider) ExecutePrompt(ctx context.Context, prompt string) (stri
 
 	if p.log != nil {
 		p.log.WithFields(logrus.Fields{
-			"model":            result.Model,
-			"prompt_tokens":    result.PromptTokens,
+			"model":             result.Model,
+			"prompt_tokens":     result.PromptTokens,
 			"completion_tokens": result.CompletionTokens,
-			"credits_charged":  result.CreditsCharged,
+			"credits_charged":   result.CreditsCharged,
 		}).Debug("LPBS request completed")
 	}
 
@@ -313,10 +313,11 @@ func (p *VrooliProvider) ExecutePromptWithMetadata(ctx context.Context, prompt s
 }
 
 // Model implements AIProvider.
+//
+// Returns the model the provider was configured with (resolved by the chain
+// through the OpenRouter resource policy, or an explicit override). No concrete
+// default slug is baked in.
 func (p *VrooliProvider) Model() string {
-	if p.model == "" {
-		return "openai/gpt-4o-mini"
-	}
 	return p.model
 }
 

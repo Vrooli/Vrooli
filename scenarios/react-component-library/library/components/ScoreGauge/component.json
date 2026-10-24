@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.score-gauge",
+  "deprecatedVersions": [
+    "1.0.6",
+    "1.0.8",
+    "1.0.2",
+    "1.0.7",
+    "1.0.9"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.8",
+    "1.0.7",
+    "1.0.6",
+    "1.0.2",
+    "1.0.9"
+  ],
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:ScoreGauge"
+}

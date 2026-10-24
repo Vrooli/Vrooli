@@ -1,4 +1,4 @@
-// DOC: docs/internal/UTILS_UNIFICATION_NOTES.md
+// DOC: docs/concepts/ARCHITECTURE.md#code-organization-pattern
 /**
  * Append "s" to a word when count !== 1.
  *

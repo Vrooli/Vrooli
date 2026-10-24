@@ -16,7 +16,8 @@
  * 3. Test rapid navigation sequences
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -26,9 +27,7 @@ import {
   TimelineEntry,
 } from '../../src/recording';
 import { waitForScriptReady } from '../../src/recording';
-import type { RawBrowserEvent } from '../../src/recording';
 import { ActionType } from '../../src/proto/recording';
-
 // Helper to get action type from TimelineEntry (protobuf structure)
 // NOTE: The property is `action.type`, not `definition.type`
 function getActionType(entry: TimelineEntry): ActionType | undefined {
@@ -135,19 +134,16 @@ class NavigationTestServer {
     return `http://localhost:${this.port}${path}`;
   }
 }
-
 describe('Route Loss During Navigation (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: NavigationTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new NavigationTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -159,7 +155,7 @@ describe('Route Loss During Navigation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -311,27 +307,28 @@ describe('Route Loss During Navigation (Integration)', () => {
     let context: BrowserContext;
     let page: Page;
     let initializer: RecordingContextInitializer;
-    let capturedEvents: RawBrowserEvent[];
+    let capturedEvents: TimelineEntry[];
+    let pipelineManager: RecordingPipelineManager;
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
       capturedEvents = [];
-      initializer.setEventHandler((event) => {
-        capturedEvents.push(event);
-      });
+      pipelineManager = createRecordingPipelineManager(page, context, initializer, { sessionId: 'rapid-navigation' });
+      await pipelineManager.initialize();
     });
 
     afterEach(async () => {
-      initializer.clearEventHandler();
+      if (pipelineManager.isRecording()) await pipelineManager.stopRecording();
       await context.close();
     });
 
     it('should handle multiple rapid navigations without losing events', async () => {
       await page.goto(server.getUrl('/page-a'));
       await waitForScriptReady(page, 5000);
+      await pipelineManager.startRecording({ sessionId: 'rapid-navigation', onEntry: (entry) => { capturedEvents.push(entry); } });
 
       // Rapid navigation sequence
       await page.goto(server.getUrl('/page-b'));
@@ -351,7 +348,7 @@ describe('Route Loss During Navigation (Integration)', () => {
       await page.click('#btn-b');
       await page.waitForTimeout(500);
 
-      const clickEvents = capturedEvents.filter((e) => e.actionType === 'click'); // RawBrowserEvent uses string
+      const clickEvents = capturedEvents.filter((e) => e.action?.type === ActionType.CLICK);
 
       // Should still be able to capture events after rapid navigations
       expect(clickEvents.length).toBeGreaterThan(0);
@@ -360,6 +357,7 @@ describe('Route Loss During Navigation (Integration)', () => {
     it('should handle back/forward navigation', async () => {
       await page.goto(server.getUrl('/page-a'));
       await waitForScriptReady(page, 5000);
+      await pipelineManager.startRecording({ sessionId: 'rapid-navigation', onEntry: (entry) => { capturedEvents.push(entry); } });
 
       // Navigate forward
       await page.goto(server.getUrl('/page-b'));
@@ -380,7 +378,7 @@ describe('Route Loss During Navigation (Integration)', () => {
       await page.click('#btn-b');
       await page.waitForTimeout(500);
 
-      const clickEvents = capturedEvents.filter((e) => e.actionType === 'click'); // RawBrowserEvent uses string
+      const clickEvents = capturedEvents.filter((e) => e.action?.type === ActionType.CLICK);
 
       expect(clickEvents.length).toBeGreaterThan(0);
     });
@@ -394,7 +392,7 @@ describe('Route Loss During Navigation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();

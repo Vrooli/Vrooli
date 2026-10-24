@@ -1,8 +1,11 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
@@ -117,6 +120,77 @@ func (s *Server) handleGetSubscriptionHealth(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, 0, health)
+}
+
+// handleGetSubscriptionDelivery returns only state needed to inspect an exact
+// queued delivery and form a replay-safe retry request. It never exposes the
+// persisted webhook payload or destination.
+func (s *Server) handleGetSubscriptionDelivery(w http.ResponseWriter, r *http.Request) {
+	id, _, ok := requireByID(w, r, "id", s.subStore.Get, ErrCodeSubRead, "subscription")
+	if !ok {
+		return
+	}
+	eventID := r.PathValue("eventID")
+	if eventID == "" || strings.TrimSpace(eventID) != eventID {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidParam, "invalid event ID")
+		return
+	}
+	queue, ok := s.subStore.(subscription.QueueStore)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, ErrCodeSubRead, "durable delivery queue is unavailable")
+		return
+	}
+	delivery, err := queue.GetDelivery(r.Context(), id, eventID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, ErrCodeNotFound, "delivery not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, ErrCodeSubRead, "failed to get delivery state")
+		log.Printf("delivery metadata read error for subscription %d: %v", id, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, delivery)
+}
+
+// handleRetrySubscriptionDelivery requeues only the persisted payload for an
+// exact dead-letter row whose cumulative attempt count still matches the read.
+func (s *Server) handleRetrySubscriptionDelivery(w http.ResponseWriter, r *http.Request) {
+	id, _, ok := requireByID(w, r, "id", s.subStore.Get, ErrCodeSubRead, "subscription")
+	if !ok {
+		return
+	}
+	var request struct {
+		EventID          string `json:"event_id"`
+		ExpectedAttempts int    `json:"expected_attempts"`
+	}
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+	if request.EventID == "" || strings.TrimSpace(request.EventID) != request.EventID || request.ExpectedAttempts <= 0 {
+		writeError(w, http.StatusBadRequest, ErrCodeValidation, "event_id and a positive expected_attempts value are required")
+		return
+	}
+	queue, ok := s.subStore.(subscription.QueueStore)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, ErrCodeSubWrite, "durable delivery queue is unavailable")
+		return
+	}
+	if err := queue.RetryDeadLetter(r.Context(), id, request.EventID, request.ExpectedAttempts); err != nil {
+		if errors.Is(err, subscription.ErrDeliveryNotRetryable) {
+			writeError(w, http.StatusConflict, "DELIVERY_NOT_RETRYABLE", "delivery is absent, not fully exhausted, no longer dead-lettered, disabled, not a webhook, or its attempt count changed")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, ErrCodeSubWrite, "failed to queue delivery retry")
+		log.Printf("delivery retry error for subscription %d: %v", id, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"status":          "queued",
+		"subscription_id": id,
+		"event_id":        request.EventID,
+		"attempts":        request.ExpectedAttempts,
+	})
 }
 
 // handleTestSubscription sends a synthetic test event to verify the subscription.

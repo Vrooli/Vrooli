@@ -29,10 +29,45 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 
 	itemIndex := make(map[string]bool, len(items))
 	itemByKey := make(map[string]backlog.BacklogItem, len(items))
+	nodes, edges = appendTopologyBacklogNodes(nodes, edges, items, execRecords, itemIndex, itemByKey)
+
+	// Goal nodes and membership edges. Goal scope is authoritative: milestone
+	// names are owned only within their goal and cannot identify a goal node.
+	var goals []GoalEntry
+	if p.goal != nil {
+		goals, err = p.goal.List()
+		if err != nil {
+			slog.Error("topology: goals error", "error", err)
+			goals = nil
+		}
+	}
+	nodes = appendTopologyGoalNodes(nodes, goals, itemByKey)
+	edges = appendTopologyMemberOfEdges(edges, items, goals)
+
+	// Capture nodes and classified_as edges.
+	nodes, edges = p.appendTopologyCaptureNodes(nodes, edges)
+
+	// Scenario nodes and targets edges.
+	nodes, edges = p.appendTopologyScenarioNodes(ctx, nodes, edges, items)
+
+	return NewGraphResponse(LensTopology, nodes, edges), nil
+}
+
+// appendTopologyBacklogNodes appends backlog item nodes and their depends_on
+// edges. It also populates itemIndex (active item keys) and itemByKey (all
+// items by key) for use by later topology sections.
+func appendTopologyBacklogNodes(
+	nodes []Node,
+	edges []Edge,
+	items []backlog.BacklogItem,
+	execRecords []execution.Record,
+	itemIndex map[string]bool,
+	itemByKey map[string]backlog.BacklogItem,
+) ([]Node, []Edge) {
 	for _, item := range items {
 		key := backlogItemKey(string(item.Kind), item.Name)
 		itemByKey[key] = item
-		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
+		if backlog.IsResolvedStatus(item.Status) || item.ArchivedAt != nil {
 			continue
 		}
 		itemIndex[key] = true
@@ -62,141 +97,161 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 			})
 		}
 	}
+	return nodes, edges
+}
 
-	// Initiative nodes and member_of edges.
-	if p.initiative != nil {
-		inits, err := p.initiative.List()
-		if err != nil {
-			slog.Error("topology: initiatives error", "error", err)
-		} else {
-			for _, init := range inits {
-				if init.ArchivedAt != nil {
-					continue
-				}
-
-				rollup := computeInitiativeRollup(init.Items, itemByKey)
-				initNodeID := "initiative/" + init.Name
-				nodes = append(nodes, Node{
-					ID:   initNodeID,
-					Type: "Initiative",
-					Data: GraphInitiativeNodeData{
-						Name:   init.Name,
-						Title:  init.Title,
-						Status: init.Status,
-						Rollup: GraphInitiativeRollup{
-							Total:      int32(rollup.Total),
-							Completed:  int32(rollup.Completed),
-							InProgress: int32(rollup.InProgress),
-							Failed:     int32(rollup.Failed),
-							Pending:    int32(rollup.Pending),
-						},
-					},
-				})
-			}
-		}
-	}
-
-	// member_of edges from backlog items to initiatives.
-	for _, item := range items {
-		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
+// appendTopologyGoalNodes appends non-archived goal nodes.
+func appendTopologyGoalNodes(
+	nodes []Node,
+	goals []GoalEntry,
+	itemByKey map[string]backlog.BacklogItem,
+) []Node {
+	for _, goal := range goals {
+		if goal.ArchivedAt != nil {
 			continue
 		}
-		if item.Initiative != "" {
-			key := backlogItemKey(string(item.Kind), item.Name)
-			nodeID := backlogItemNodeID(string(item.Kind), item.Name)
+
+		rollup := computeGoalRollup(goal.Items, itemByKey)
+		goalNodeID := "goal/" + goal.Name
+		data := GraphGoalNodeData{
+			Name:   goal.Name,
+			Title:  goal.Title,
+			Status: goal.Status,
+			Rollup: GraphGoalRollup{
+				Total:      int32(rollup.Total),
+				Completed:  int32(rollup.Completed),
+				InProgress: int32(rollup.InProgress),
+				Failed:     int32(rollup.Failed),
+				Pending:    int32(rollup.Pending),
+				Dropped:    int32(rollup.Dropped),
+			},
+		}
+		nodes = append(nodes, Node{
+			ID:   goalNodeID,
+			Type: "Goal",
+			Data: data,
+		})
+	}
+	return nodes
+}
+
+// appendTopologyMemberOfEdges appends member_of edges from active backlog items
+// to every active goal whose derived scope contains them. The scope already
+// accounts for targets, dependency closure, and goal-owned milestones; using a
+// backlog item's legacy milestone string here would target a non-existent goal.
+func appendTopologyMemberOfEdges(edges []Edge, items []backlog.BacklogItem, goals []GoalEntry) []Edge {
+	activeItems := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		if backlog.IsResolvedStatus(item.Status) || item.ArchivedAt != nil {
+			continue
+		}
+		activeItems[backlogItemKey(string(item.Kind), item.Name)] = struct{}{}
+	}
+	for _, goal := range goals {
+		if goal.ArchivedAt != nil {
+			continue
+		}
+		for _, key := range goal.Items {
+			if _, ok := activeItems[key]; !ok {
+				continue
+			}
 			edges = append(edges, Edge{
-				ID:     fmt.Sprintf("member_of:%s->%s", key, item.Initiative),
-				Source: nodeID,
-				Target: "initiative/" + item.Initiative,
+				ID:     fmt.Sprintf("member_of:%s->%s", key, goal.Name),
+				Source: backlogItemNodeIDFromKey(key),
+				Target: "goal/" + goal.Name,
 				Type:   "member_of",
 			})
 		}
 	}
+	return edges
+}
 
-	// Capture nodes and classified_as edges.
-	if p.capture != nil {
-		caps, err := p.capture.ListCaptures()
-		if err != nil {
-			slog.Error("topology: captures error", "error", err)
-		} else {
-			for _, cap := range caps {
-				if len(cap.Items) == 0 {
-					continue
-				}
-				capNodeID := "capture/" + cap.ID
-				nodes = append(nodes, Node{
-					ID:   capNodeID,
-					Type: "Capture",
-					Data: GraphCaptureNodeData{
-						ID:     cap.ID,
-						Text:   cap.Text,
-						Status: cap.Status,
-					},
-				})
-				for _, ci := range cap.Items {
-					targetKey := backlogItemKey(ci.Kind, ci.Title)
-					if itemIndex[targetKey] {
-						edges = append(edges, Edge{
-							ID:     fmt.Sprintf("classified_as:%s->%s", cap.ID, targetKey),
-							Source: capNodeID,
-							Target: backlogItemNodeIDFromKey(targetKey),
-							Type:   "classified_as",
-						})
-					}
-				}
-			}
-		}
+// appendTopologyCaptureNodes appends durable raw capture nodes. Classification
+// results are proposal records, not capture files, so the topology never
+// invents classified_as edges from transient workflow output.
+func (p *ProjectionService) appendTopologyCaptureNodes(
+	nodes []Node,
+	edges []Edge,
+) ([]Node, []Edge) {
+	if p.capture == nil {
+		return nodes, edges
+	}
+	caps, err := p.capture.ListCaptures()
+	if err != nil {
+		slog.Error("topology: captures error", "error", err)
+		return nodes, edges
+	}
+	for _, cap := range caps {
+		capNodeID := "capture/" + cap.ID
+		nodes = append(nodes, Node{
+			ID:   capNodeID,
+			Type: "Capture",
+			Data: GraphCaptureNodeData{
+				ID:     cap.ID,
+				Text:   cap.Text,
+				Status: cap.Status,
+			},
+		})
+	}
+	return nodes, edges
+}
+
+// appendTopologyScenarioNodes appends scenario nodes and targets edges.
+// Only scenarios targeted by at least one active backlog item are included —
+// disconnected scenarios clutter the topology with no structural value and
+// cause Dagre to produce linear layouts.
+func (p *ProjectionService) appendTopologyScenarioNodes(
+	ctx context.Context,
+	nodes []Node,
+	edges []Edge,
+	items []backlog.BacklogItem,
+) ([]Node, []Edge) {
+	if p.scenario == nil {
+		return nodes, edges
+	}
+	scens, err := p.scenario.List(ctx)
+	if err != nil {
+		slog.Error("topology: scenarios error", "error", err)
+		return nodes, edges
 	}
 
-	// Scenario nodes and targets edges.
-	// Only include scenarios that are targeted by at least one active backlog
-	// item — disconnected scenarios clutter the topology with no structural
-	// value and cause Dagre to produce linear layouts.
-	if p.scenario != nil {
-		scens, err := p.scenario.List(ctx)
-		if err != nil {
-			slog.Error("topology: scenarios error", "error", err)
-		} else {
-			scenByName := make(map[string]ScenarioEntry, len(scens))
+	scenByName := make(map[string]ScenarioEntry, len(scens))
+	for _, s := range scens {
+		scenByName[s.Name] = s
+	}
+
+	// Build targets edges first to discover which scenarios are referenced.
+	referencedScenarios := make(map[string]struct{})
+	for _, item := range items {
+		if backlog.IsResolvedStatus(item.Status) || item.ArchivedAt != nil {
+			continue
+		}
+		for _, pattern := range item.AcceptanceAllow {
 			for _, s := range scens {
-				scenByName[s.Name] = s
-			}
-
-			// Build targets edges first to discover which scenarios are referenced.
-			referencedScenarios := make(map[string]struct{})
-			for _, item := range items {
-				if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
-					continue
+				if matchesAcceptancePattern(pattern, s.Name) {
+					key := backlogItemKey(string(item.Kind), item.Name)
+					edges = append(edges, Edge{
+						ID:     fmt.Sprintf("targets:%s->%s", key, s.Name),
+						Source: backlogItemNodeID(string(item.Kind), item.Name),
+						Target: "scenario/" + s.Name,
+						Type:   "targets",
+					})
+					referencedScenarios[s.Name] = struct{}{}
 				}
-				for _, pattern := range item.AcceptanceAllow {
-					for _, s := range scens {
-						if matchesAcceptancePattern(pattern, s.Name) {
-							key := backlogItemKey(string(item.Kind), item.Name)
-							edges = append(edges, Edge{
-								ID:     fmt.Sprintf("targets:%s->%s", key, s.Name),
-								Source: backlogItemNodeID(string(item.Kind), item.Name),
-								Target: "scenario/" + s.Name,
-								Type:   "targets",
-							})
-							referencedScenarios[s.Name] = struct{}{}
-						}
-					}
-				}
-			}
-
-			// Only emit scenario nodes that are targeted by backlog items.
-			for name := range referencedScenarios {
-				s := scenByName[name]
-				nodes = append(nodes, Node{
-					ID:   "scenario/" + s.Name,
-					Type: "Scenario",
-					Data: GraphScenarioNodeData(s),
-				})
 			}
 		}
 	}
 
-	return NewGraphResponse(LensTopology, nodes, edges), nil
+	// Only emit scenario nodes that are targeted by backlog items.
+	for name := range referencedScenarios {
+		s := scenByName[name]
+		nodes = append(nodes, Node{
+			ID:   "scenario/" + s.Name,
+			Type: "Scenario",
+			Data: GraphScenarioNodeData(s),
+		})
+	}
+	return nodes, edges
 }
 
 // matchesAcceptancePattern checks if a scenario name matches an acceptance_allow glob pattern.

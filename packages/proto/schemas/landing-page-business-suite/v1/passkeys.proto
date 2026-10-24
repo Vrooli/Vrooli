@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+message BeginPasskeyRegistrationRequest {}
+message BeginPasskeyRegistrationResponse { string options_json = 1; string ceremony_id = 2; }
+message FinishPasskeyRegistrationRequest { string credential_json = 1; string nickname = 2; string ceremony_id = 3; }
+message FinishPasskeyRegistrationResponse { string id = 1; string nickname = 2; }
+message BeginPasskeyAuthenticationRequest { string context = 1; }
+message BeginPasskeyAuthenticationResponse { string options_json = 1; string ceremony_id = 2; }
+message FinishPasskeyAuthenticationRequest { string credential_json = 1; string context = 2; string ceremony_id = 3; }
+message FinishPasskeyAuthenticationResponse { bool authenticated = 1; string redirect_url = 2; bool desktop_continuation = 3; }
+message ListPasskeysRequest {}
+message Passkey { string id = 1; string nickname = 2; string created_at = 3; string last_used_at = 4; string backup_state = 5; }
+message ListPasskeysResponse { repeated Passkey passkeys = 1; }
+message RenamePasskeyRequest { string id = 1; string nickname = 2; }
+message RenamePasskeyResponse { Passkey passkey = 1; }
+message RevokePasskeyRequest { string id = 1; }
+message RevokePasskeyResponse { bool revoked = 1; }
+
+service PasskeyService {
+  rpc BeginRegistration(BeginPasskeyRegistrationRequest) returns (BeginPasskeyRegistrationResponse);
+  rpc FinishRegistration(FinishPasskeyRegistrationRequest) returns (FinishPasskeyRegistrationResponse);
+  rpc BeginAuthentication(BeginPasskeyAuthenticationRequest) returns (BeginPasskeyAuthenticationResponse);
+  rpc FinishAuthentication(FinishPasskeyAuthenticationRequest) returns (FinishPasskeyAuthenticationResponse);
+  rpc ListPasskeys(ListPasskeysRequest) returns (ListPasskeysResponse);
+  rpc RenamePasskey(RenamePasskeyRequest) returns (RenamePasskeyResponse);
+  rpc RevokePasskey(RevokePasskeyRequest) returns (RevokePasskeyResponse);
+}

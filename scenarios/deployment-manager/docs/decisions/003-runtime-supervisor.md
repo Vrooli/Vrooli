@@ -137,6 +137,6 @@ Use OS-native service managers.
 
 ## References
 
-- [Runtime Source Code](/scenarios/scenario-to-desktop/runtime/)
-- [Bundle Packager](/scenarios/scenario-to-desktop/api/bundle_packager.go)
-- [Bundled Runtime Plan](/docs/plans/bundled-desktop-runtime-plan.md)
+- [Runtime reference](../../../scenario-to-desktop/runtime/README.md)
+- [Scenario-to-desktop architecture](../../../scenario-to-desktop/docs/concepts/ARCHITECTURE.md)
+- [Desktop evidence and tier contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md)

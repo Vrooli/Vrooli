@@ -2,17 +2,23 @@ package process
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // [REQ:REQ-P0-009] Test process tracking basic operations
 func TestTrackerBasicOperations(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Start a simple sleep process
@@ -52,7 +58,7 @@ func TestTrackerBasicOperations(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test process running detection
 func TestTrackedProcessIsRunning(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Start a sleep process
@@ -97,7 +103,7 @@ func TestTrackedProcessIsRunning(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetProcesses returns all tracked processes
 func TestGetProcesses(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Track some fake processes (using current PID as they'll be "running")
@@ -120,7 +126,7 @@ func TestGetProcesses(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetRunningProcesses filters correctly
 func TestGetRunningProcesses(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Track current process (running)
@@ -146,7 +152,7 @@ func TestGetRunningProcesses(t *testing.T) {
 // [REQ:REQ-P0-009] Test KillAll method exists and doesn't panic
 // Note: Full process kill testing is done in integration tests.
 func TestKillAll(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -167,10 +173,126 @@ func TestKillAll(t *testing.T) {
 	}
 }
 
+// Wait has reaped the child, but the owner has not delivered its exit receipt.
+// Kernel liveness is not an exit code and must not win the RecordExit race.
+func TestKillAllPreservesDelayedActualExit(t *testing.T) {
+	reaped := make(chan struct{})
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	clk := &reapedClock{Clock: schedule.System(), ctx: ctx, reaped: reaped}
+	tracker := NewTracker(clk)
+	id := uuid.New()
+	cmd := exec.Command("sleep", "30")
+	cmd.SysProcAttr = NewProcessGroupSysProcAttr()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = KillProcessGroupByPID(cmd.Process.Pid) })
+	if _, err := tracker.Track(id, cmd.Process.Pid, "sleep", ""); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		_ = cmd.Wait()
+		close(reaped)
+	}()
+	if _, errs := tracker.KillAll(ctx, id); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	if got := tracker.GetExitInfo(id, cmd.Process.Pid); got != nil {
+		t.Fatalf("termination invented exit evidence before the reaper delivered it: %+v", got)
+	}
+	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	tracker.RecordExit(id, cmd.Process.Pid, ExitInfo{ExitCode: cmd.ProcessState.ExitCode(), Signal: int(status.Signal())})
+	if got := tracker.GetExitInfo(id, cmd.Process.Pid); got == nil || got.Signal != int(syscall.SIGTERM) {
+		t.Fatalf("actual SIGTERM exit was lost: %+v", got)
+	}
+}
+
+func TestDrainKillsChildAfterTrackedLeaderExits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX process groups are required")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	id := uuid.New()
+	tracker := NewTrackerWithConfig(TrackerConfig{GracePeriod: 30 * time.Millisecond, KillWait: 30 * time.Millisecond}, schedule.System())
+	marker := filepath.Join(t.TempDir(), "writes")
+	cmd := exec.Command("sh", "-c", `while :; do echo x >> "$1"; sleep 0.02; done & exit 0`, "leader", marker)
+	cmd.SysProcAttr = NewProcessGroupSysProcAttr()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	pgid := cmd.Process.Pid
+	runnerPGID, _ := sysGetpgid(os.Getpid())
+	if pgid <= 1 || pgid == runnerPGID {
+		t.Fatalf("unsafe test process group %d", pgid)
+	}
+	t.Cleanup(func() {
+		if pgid > 1 && pgid != runnerPGID {
+			_ = sysKill(-pgid, syscall.SIGKILL)
+		}
+	})
+	if _, err := tracker.Track(id, cmd.Process.Pid, cmd.String(), ""); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		if info, err := os.Stat(marker); err == nil && info.Size() > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("child did not begin writing")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("leader failed before exiting: %v", err)
+	}
+	state := cmd.ProcessState
+	tracker.RecordExit(id, cmd.Process.Pid, ExitInfo{ExitCode: state.ExitCode()})
+	recorded := tracker.GetExitInfo(id, cmd.Process.Pid)
+	if recorded == nil || recorded.ExitCode != 0 {
+		t.Fatalf("missing actual leader exit evidence: %+v", recorded)
+	}
+
+	if err := tracker.Drain(ctx, id); err != nil {
+		t.Fatalf("Drain failed: %v", err)
+	}
+	stoppedSize, err := os.Stat(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(80 * time.Millisecond)
+	finalSize, err := os.Stat(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finalSize.Size() != stoppedSize.Size() {
+		t.Fatalf("child kept writing after Drain: size %d -> %d", stoppedSize.Size(), finalSize.Size())
+	}
+	if got := tracker.GetExitInfo(id, cmd.Process.Pid); got == nil || got.ExitCode != 0 || got.StoppedAt != recorded.StoppedAt {
+		t.Fatalf("Drain changed recorded leader exit evidence: before=%+v after=%+v", recorded, got)
+	}
+}
+
+type reapedClock struct {
+	schedule.Clock
+	ctx    context.Context
+	reaped <-chan struct{}
+}
+
+func (c *reapedClock) Sleep(time.Duration) {
+	select {
+	case <-c.reaped:
+	case <-c.ctx.Done():
+	}
+}
+
 // [REQ:REQ-P0-009] Test KillProcess method exists and handles edge cases
 // Note: Full process kill testing is done in integration tests.
 func TestKillProcess(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -195,7 +317,7 @@ func TestKillProcess(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test Cleanup removes tracking data
 func TestCleanup(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	if _, err := tracker.Track(sandboxID, os.Getpid(), "test", ""); err != nil {
@@ -217,7 +339,7 @@ func TestCleanup(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetAllStats aggregates correctly
 func TestGetAllStats(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandbox1 := uuid.New()
 	sandbox2 := uuid.New()
 
@@ -254,7 +376,7 @@ func TestGetAllStats(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test Session workflow
 func TestSessionWorkflow(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
@@ -294,7 +416,7 @@ func TestSessionWorkflow(t *testing.T) {
 
 // [REQ:REQ-P0-009] Test GetActiveCount
 func TestGetActiveCount(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 
 	// Initially zero
@@ -322,14 +444,14 @@ func TestGetActiveCount(t *testing.T) {
 	}
 }
 
-// [REQ:REQ-P0-009] Test WaitForProcess
+// [REQ:REQ-P0-009] WaitForProcess returns the structured exit info
+// recorded by the driver's wait reaper via RecordExit.
 func TestWaitForProcess(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
-	// Start a quick process that exits immediately
-	cmd := exec.Command("true") // 'true' command exits immediately with 0
+	cmd := exec.Command("true")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start process: %v", err)
 	}
@@ -339,57 +461,239 @@ func TestWaitForProcess(t *testing.T) {
 		t.Fatalf("Track failed: %v", err)
 	}
 
-	// Wait for the command to actually exit first
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("wait failed: %v", err)
 	}
 
-	// Now wait for our tracking to detect it's dead
+	// Simulate the driver's wait reaper recording exit info.
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 0, StoppedAt: time.Now()})
+
 	proc, err := tracker.WaitForProcess(ctx, sandboxID, pid, 5*time.Second)
 	if err != nil {
 		t.Errorf("WaitForProcess failed: %v", err)
 	}
-
 	if proc.StoppedAt == nil {
 		t.Error("process should have StoppedAt set")
 	}
-
 	if proc.ExitCode == nil {
 		t.Error("process should have ExitCode set")
 	}
+	if info := tracker.GetExitInfo(sandboxID, pid); info == nil || info.ExitCode != 0 {
+		t.Errorf("GetExitInfo: want exitCode=0, got %v", info)
+	}
 }
 
-// [REQ:REQ-P0-009] Test WaitForProcess timeout
+// WaitForProcess times out when the wait reaper never records exit info.
 func TestWaitForProcessTimeout(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
-	// Start a long-running process
 	cmd := exec.Command("sleep", "60")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start process: %v", err)
 	}
 	defer func() {
-		if err := cmd.Process.Kill(); err != nil {
-			t.Logf("failed to kill process: %v", err)
-		}
+		_ = cmd.Process.Kill()
 	}()
 
 	if _, err := tracker.Track(sandboxID, cmd.Process.Pid, "sleep", ""); err != nil {
 		t.Fatalf("Track failed: %v", err)
 	}
 
-	// Wait with short timeout
 	_, err := tracker.WaitForProcess(ctx, sandboxID, cmd.Process.Pid, 100*time.Millisecond)
 	if err == nil {
-		t.Error("expected timeout error")
+		t.Error("expected timeout error when no RecordExit happens")
+	}
+}
+
+// RecordExit unblocks ExitChannel subscribers and is idempotent.
+func TestRecordExit_IdempotentAndNotifies(t *testing.T) {
+	tracker := NewTracker(schedule.System())
+	sandboxID := uuid.New()
+	pid := 12345
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	exitCh := tracker.ExitChannel(sandboxID, pid)
+	select {
+	case <-exitCh:
+		t.Fatal("ExitChannel should not be closed before RecordExit")
+	default:
+	}
+
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 7, Signal: 9, OOMKilled: true, StoppedAt: time.Now()})
+
+	select {
+	case <-exitCh:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("ExitChannel did not close after RecordExit")
+	}
+
+	info := tracker.GetExitInfo(sandboxID, pid)
+	if info == nil {
+		t.Fatal("GetExitInfo returned nil")
+	}
+	if info.ExitCode != 7 || info.Signal != 9 || !info.OOMKilled {
+		t.Errorf("ExitInfo = %+v; want code=7 sig=9 oom=true", *info)
+	}
+
+	// Idempotent — second call should not panic or change state.
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 99})
+	if info2 := tracker.GetExitInfo(sandboxID, pid); info2.ExitCode != 7 {
+		t.Errorf("second RecordExit changed exit code; got %d", info2.ExitCode)
+	}
+}
+
+// TestWaitForExit_BlocksUntilRecordExit verifies the channel semantics:
+// WaitForExit must wait for RecordExit to fire and return the populated
+// ExitInfo. This is the foundation that StreamProcessLogs relies on to
+// stop racing fast-failing processes (the bug where bwrap chdir errors
+// made `event: exit` go missing).
+func TestWaitForExit_BlocksUntilRecordExit(t *testing.T) {
+	tracker := NewTracker(schedule.System())
+	sandboxID := uuid.New()
+	pid := 24680
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	// In the normal case, the wait reaper records exit a moment after
+	// the process terminates. Simulate that with a short delay.
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 1})
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	info, err := tracker.WaitForExit(ctx, sandboxID, pid)
+	if err != nil {
+		t.Fatalf("WaitForExit: %v", err)
+	}
+	if info == nil || info.ExitCode != 1 {
+		t.Fatalf("WaitForExit returned %+v; want ExitCode=1", info)
+	}
+}
+
+// TestWaitForExit_ReturnsImmediatelyForAlreadyExited covers the path
+// where StreamProcessLogs attaches *after* the wait reaper has already
+// recorded exit info — it should not block.
+func TestWaitForExit_ReturnsImmediatelyForAlreadyExited(t *testing.T) {
+	tracker := NewTracker(schedule.System())
+	sandboxID := uuid.New()
+	pid := 13579
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 42})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	info, err := tracker.WaitForExit(ctx, sandboxID, pid)
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("WaitForExit: %v", err)
+	}
+	if info == nil || info.ExitCode != 42 {
+		t.Fatalf("WaitForExit returned %+v; want ExitCode=42", info)
+	}
+	if elapsed > 50*time.Millisecond {
+		t.Errorf("WaitForExit took %v; should return ~immediately", elapsed)
+	}
+}
+
+// TestWaitForExit_ContextDeadline guards against silent hangs when the
+// reaper genuinely never fires — caller must see ctx.Err().
+func TestWaitForExit_ContextDeadline(t *testing.T) {
+	tracker := NewTracker(schedule.System())
+	sandboxID := uuid.New()
+	pid := 11111
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Millisecond)
+	defer cancel()
+
+	info, err := tracker.WaitForExit(ctx, sandboxID, pid)
+	if err == nil {
+		t.Fatalf("expected ctx error, got info=%+v", info)
+	}
+	if info != nil {
+		t.Errorf("info = %+v; want nil on timeout", info)
+	}
+}
+
+// TestWaitForExit_UntrackedProcess guards the not-found path.
+func TestWaitForExit_UntrackedProcess(t *testing.T) {
+	tracker := NewTracker(schedule.System())
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err := tracker.WaitForExit(ctx, uuid.New(), 99999)
+	if err == nil {
+		t.Fatal("expected error for untracked PID; got nil")
+	}
+}
+
+// SetStdin / WriteStdin / CloseStdin form a one-shot pipe contract.
+func TestStdinPipeContract(t *testing.T) {
+	tracker := NewTracker(schedule.System())
+	sandboxID := uuid.New()
+	pid := 22222
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	// Without SetStdin, WriteStdin should fail.
+	if _, err := tracker.WriteStdin(sandboxID, pid, []byte("oops")); err == nil {
+		t.Error("WriteStdin without stdin pipe should fail")
+	}
+
+	r, w := io.Pipe()
+	defer r.Close()
+	if err := tracker.SetStdin(sandboxID, pid, w); err != nil {
+		t.Fatalf("SetStdin: %v", err)
+	}
+
+	got := make(chan []byte, 1)
+	go func() {
+		buf, _ := io.ReadAll(r)
+		got <- buf
+	}()
+
+	n, err := tracker.WriteStdin(sandboxID, pid, []byte("hello stdin"))
+	if err != nil {
+		t.Fatalf("WriteStdin: %v", err)
+	}
+	if n != len("hello stdin") {
+		t.Errorf("WriteStdin n = %d; want %d", n, len("hello stdin"))
+	}
+	if err := tracker.CloseStdin(sandboxID, pid); err != nil {
+		t.Errorf("CloseStdin: %v", err)
+	}
+
+	select {
+	case payload := <-got:
+		if string(payload) != "hello stdin" {
+			t.Errorf("read = %q; want hello stdin", string(payload))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("io.Pipe reader didn't see write before timeout")
+	}
+
+	// CloseStdin is idempotent.
+	if err := tracker.CloseStdin(sandboxID, pid); err != nil {
+		t.Errorf("second CloseStdin: %v", err)
 	}
 }
 
 // [REQ:REQ-P0-009] Test KillProcess returns error for unknown process
 func TestKillProcessNotFound(t *testing.T) {
-	tracker := NewTracker()
+	tracker := NewTracker(schedule.System())
 	sandboxID := uuid.New()
 	ctx := context.Background()
 

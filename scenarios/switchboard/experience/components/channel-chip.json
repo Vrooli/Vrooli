@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "channel-chip",
+    "title": "Channel chip",
+    "purpose": "Marks which channel a thread, message or binding belongs to, using identity read from the channel descriptor so a new channel needs no change here.",
+    "storyRef": "../../../react-component-library/library/components/Chip/versions/1.0.6/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "unselected",
+      "description": "A channel identity on a thread row."
+    },
+    {
+      "id": "success",
+      "example": "selected",
+      "description": "The channel is the active filter."
+    }
+  ],
+  "elements": [
+    {
+      "id": "chip-root",
+      "role": "img",
+      "name": "Channel"
+    },
+    {
+      "id": "chip-label",
+      "role": "img",
+      "name": "Channel name"
+    }
+  ],
+  "claims": [
+    {
+      "id": "identity-from-descriptor",
+      "type": "custom",
+      "statement": "The chip's label and accent are read from the channel descriptor, with no per-channel branch in the component.",
+      "tier": "manual",
+      "elements": [
+        "chip-root"
+      ],
+      "rationale": "OT-P0-002. A chip with a switch on channel id is the first place the descriptor stops being the source of truth."
+    },
+    {
+      "id": "accent-is-an-edge",
+      "type": "custom",
+      "statement": "Channel accent is applied as an edge or mark rather than as a filled background.",
+      "tier": "manual",
+      "elements": [
+        "chip-root"
+      ],
+      "rationale": "A list of filled, differently-coloured chips is unreadable at roster density."
+    },
+    {
+      "id": "named-for-screen-readers",
+      "type": "accessible-name",
+      "statement": "The chip announces the channel name rather than a decorative glyph alone.",
+      "tier": "aspirational",
+      "elements": [
+        "chip-root",
+        "chip-label"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Every channel accent holds contrast on both grounds.",
+      "tier": "aspirational",
+      "elements": [
+        "chip-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "chip-root": {
+        "testid": "channel-chip"
+      },
+      "chip-label": {
+        "testid": "channel-chip-label"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Which channel this belongs to"
+    }
+  ]
+}

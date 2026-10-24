@@ -7,9 +7,11 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
-func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
+func TestBuildReplaySpecFromTimelineGeneratesSpec(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] generates complete replay movie spec", func(t *testing.T) {
 		executionID := uuid.New()
 		workflowID := uuid.New()
@@ -58,12 +60,12 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Height:     720,
 					},
 					CursorTrail: []*autocontracts.Point{
-						&autocontracts.Point{X: 640, Y: 360},
-						&autocontracts.Point{X: 700, Y: 420},
+						{X: 640, Y: 360},
+						{X: 700, Y: 420},
 					},
 					ClickPosition: &autocontracts.Point{X: 700, Y: 420},
 					HighlightRegions: []*autocontracts.HighlightRegion{
-						&autocontracts.HighlightRegion{Selector: "#hero"},
+						{Selector: "#hero"},
 					},
 				},
 				{
@@ -93,82 +95,127 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 			},
 		}
 
-		pkg, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		pkg, err := BuildReplaySpecFromTimeline(exec, workflow, timeline)
 		if err != nil {
-			t.Fatalf("BuildReplayMovieSpec returned error: %v", err)
+			t.Fatalf("BuildReplaySpecFromTimeline returned error: %v", err)
 		}
 
 		if pkg == nil {
 			t.Fatalf("expected export package, got nil")
 		}
 
-		if pkg.Version == "" {
+		if pkg.GetVersion() == "" {
 			t.Errorf("expected schema version to be set")
 		}
 
-		if pkg.Execution.WorkflowName != workflow.Name {
-			t.Errorf("expected workflow name %q, got %q", workflow.Name, pkg.Execution.WorkflowName)
+		if pkg.GetExecution().GetWorkflowName() != workflow.Name {
+			t.Errorf("expected workflow name %q, got %q", workflow.Name, pkg.GetExecution().GetWorkflowName())
 		}
 
-		if pkg.Summary.FrameCount != len(timeline.Frames) {
-			t.Errorf("expected frame count %d, got %d", len(timeline.Frames), pkg.Summary.FrameCount)
+		if int(pkg.GetSummary().GetFrameCount()) != len(timeline.Frames) {
+			t.Errorf("expected frame count %d, got %d", len(timeline.Frames), pkg.GetSummary().GetFrameCount())
 		}
 
-		if len(pkg.Frames) != len(timeline.Frames) {
-			t.Fatalf("expected %d frames, got %d", len(timeline.Frames), len(pkg.Frames))
+		if len(pkg.GetFrames()) != len(timeline.Frames) {
+			t.Fatalf("expected %d frames, got %d", len(timeline.Frames), len(pkg.GetFrames()))
 		}
 
-		first := pkg.Frames[0]
-		if first.StartOffsetMs != 0 {
-			t.Errorf("expected first frame start offset 0, got %d", first.StartOffsetMs)
+		first := pkg.GetFrames()[0]
+		if first.GetStartOffsetMs() != 0 {
+			t.Errorf("expected first frame start offset 0, got %d", first.GetStartOffsetMs())
 		}
-		if first.ScreenshotAssetID != "shot-1" {
-			t.Errorf("expected screenshot asset ID 'shot-1', got %q", first.ScreenshotAssetID)
+		if first.GetScreenshotAssetId() != "shot-1" {
+			t.Errorf("expected screenshot asset ID 'shot-1', got %q", first.GetScreenshotAssetId())
 		}
-		if len(first.NormalizedCursorTrail) != 2 {
-			t.Errorf("expected 2 normalized cursor points, got %d", len(first.NormalizedCursorTrail))
+		if len(first.GetNormalizedCursorTrail()) != 2 {
+			t.Errorf("expected 2 normalized cursor points, got %d", len(first.GetNormalizedCursorTrail()))
 		}
 
-		second := pkg.Frames[1]
-		if second.StartOffsetMs <= first.StartOffsetMs {
-			t.Errorf("expected second frame to start after first, got %d", second.StartOffsetMs)
+		second := pkg.GetFrames()[1]
+		if second.GetStartOffsetMs() <= first.GetStartOffsetMs() {
+			t.Errorf("expected second frame to start after first, got %d", second.GetStartOffsetMs())
 		}
-		if second.Resilience.Attempt != 2 || second.Resilience.MaxAttempts != 3 {
-			t.Errorf("unexpected resiliency metadata: %+v", second.Resilience)
+		if second.GetResilience().GetAttempt() != 2 || second.GetResilience().GetMaxAttempts() != 3 {
+			t.Errorf("unexpected resiliency metadata: %+v", second.GetResilience())
 		}
-		if second.ZoomFactor <= 1.0 {
-			t.Errorf("expected zoom factor to be preserved, got %f", second.ZoomFactor)
+		if second.GetZoomFactor() <= 1.0 {
+			t.Errorf("expected zoom factor to be preserved, got %f", second.GetZoomFactor())
 		}
-		if second.NormalizedFocusBounds == nil {
+		if second.GetNormalizedFocusBounds() == nil {
 			t.Errorf("expected normalized focus bounds to be populated")
 		}
-		if len(pkg.Assets) != 2 {
-			t.Errorf("expected 2 assets, got %d", len(pkg.Assets))
+		if len(pkg.GetAssets()) != 2 {
+			t.Errorf("expected 2 assets, got %d", len(pkg.GetAssets()))
 		}
-		if pkg.Assets[0].ID != "shot-1" {
-			t.Errorf("expected first asset id 'shot-1', got %q", pkg.Assets[0].ID)
-		}
-
-		if pkg.Theme.BrowserChrome.Title != workflow.Name {
-			t.Errorf("expected chrome title %q, got %q", workflow.Name, pkg.Theme.BrowserChrome.Title)
+		if pkg.GetAssets()[0].GetId() != "shot-1" {
+			t.Errorf("expected first asset id 'shot-1', got %q", pkg.GetAssets()[0].GetId())
 		}
 
-		if pkg.Decor.ChromeTheme == "" {
+		if pkg.GetTheme().GetBrowserChrome().GetTitle() != workflow.Name {
+			t.Errorf("expected chrome title %q, got %q", workflow.Name, pkg.GetTheme().GetBrowserChrome().GetTitle())
+		}
+
+		if pkg.GetDecor().GetChromeTheme() == "" {
 			t.Errorf("expected decor chrome theme to be populated")
 		}
-		if pkg.Decor.BackgroundTheme == "" {
+		if pkg.GetDecor().GetBackgroundTheme() == "" {
 			t.Errorf("expected decor background theme to be populated")
 		}
-		if pkg.Decor.CursorTheme == "" {
+		if pkg.GetDecor().GetCursorTheme() == "" {
 			t.Errorf("expected decor cursor theme to be populated")
 		}
-		if pkg.Decor.CursorScale <= 0 {
-			t.Errorf("expected decor cursor scale to be positive, got %f", pkg.Decor.CursorScale)
+		if pkg.GetDecor().GetCursorScale() <= 0 {
+			t.Errorf("expected decor cursor scale to be positive, got %f", pkg.GetDecor().GetCursorScale())
 		}
+
 	})
 }
 
-func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
+func TestReplaySpecKeepsCssViewportSeparateFromScreenshotRaster(t *testing.T) {
+	execution := &database.ExecutionIndex{ID: uuid.New(), WorkflowID: uuid.New(), Status: database.ExecutionStatusCompleted}
+	workflow := &database.WorkflowIndex{ID: execution.WorkflowID, Name: "geometry"}
+	point := &autocontracts.Point{X: 720, Y: 450}
+	timeline := &ExecutionTimeline{
+		ExecutionID: execution.ID, WorkflowID: workflow.ID,
+		ViewportWidth: 1440, ViewportHeight: 900, DeviceScaleFactor: 2,
+		Frames: []TimelineFrame{{StepIndex: 0, Success: true, Screenshot: &TimelineScreenshot{ArtifactID: "shot", Width: 2880, Height: 1800}, CursorPosition: point}},
+	}
+	spec, err := BuildReplaySpecFromTimeline(execution, workflow, timeline)
+	if err != nil {
+		t.Fatalf("BuildReplaySpecFromTimeline returned error: %v", err)
+	}
+	if got := spec.Presentation.Canvas.Width; got != 2880 {
+		t.Fatalf("canvas width = %d, want raster width 2880", got)
+	}
+	if got := spec.Presentation.Viewport.Width; got != 1440 {
+		t.Fatalf("viewport width = %d, want CSS width 1440", got)
+	}
+	if got := spec.Presentation.DeviceScaleFactor; got != 2 {
+		t.Fatalf("device scale factor = %v, want 2", got)
+	}
+	if got := spec.Frames[0].Viewport.Width; got != 1440 {
+		t.Fatalf("frame viewport width = %d, want CSS width 1440", got)
+	}
+	if got := spec.Frames[0].NormalizedCursorTrail[0].X; got < 0.499 || got > 0.501 {
+		t.Fatalf("normalized cursor x = %v, want 0.5", got)
+	}
+}
+
+func TestTimelineFromReplayPackageUsesTypedTimelineEntries(t *testing.T) {
+	executionID, workflowID := uuid.New(), uuid.New()
+	exec := &database.ExecutionIndex{ID: executionID, WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now()}
+	step := int32(4)
+	nodeID := "package-node"
+	timeline, err := timelineFromReplayPackage(exec, &basevidence.ReplayPackage{Timeline: []*bastimeline.TimelineEntry{{StepIndex: &step, NodeId: &nodeID}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(timeline.Frames) != 1 || timeline.Frames[0].StepIndex != 4 || timeline.Frames[0].NodeID != nodeID {
+		t.Fatalf("typed replay timeline was not projected: %#v", timeline.Frames)
+	}
+}
+
+func TestBuildReplaySpecFromTimelineValidatesInput(t *testing.T) {
 	t.Run("errors when timeline missing frames", func(t *testing.T) {
 		now := time.Now()
 		exec := &database.ExecutionIndex{
@@ -196,7 +243,7 @@ func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
 			Frames:      nil,
 		}
 
-		_, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		_, err := BuildReplaySpecFromTimeline(exec, workflow, timeline)
 		if err == nil {
 			t.Fatalf("expected error when timeline has no frames")
 		}
@@ -225,14 +272,14 @@ func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
 			Frames:      []TimelineFrame{{StepIndex: 0, NodeID: "node-1", StepType: "navigate", Status: "completed"}},
 		}
 
-		_, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		_, err := BuildReplaySpecFromTimeline(exec, workflow, timeline)
 		if err == nil {
 			t.Fatalf("expected error due to execution/timeline mismatch")
 		}
 	})
 }
 
-func TestBuildReplayMovieSpecHandlesScreenshotAssets(t *testing.T) {
+func TestBuildReplaySpecFromTimelineHandlesScreenshotAssets(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] deduplicates screenshot assets", func(t *testing.T) {
 		now := time.Now()
 		exec := &database.ExecutionIndex{
@@ -263,15 +310,15 @@ func TestBuildReplayMovieSpecHandlesScreenshotAssets(t *testing.T) {
 			Frames:      []TimelineFrame{frame, frame},
 		}
 
-		pkg, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		pkg, err := BuildReplaySpecFromTimeline(exec, workflow, timeline)
 		if err != nil {
-			t.Fatalf("BuildReplayMovieSpec returned error: %v", err)
+			t.Fatalf("BuildReplaySpecFromTimeline returned error: %v", err)
 		}
-		if len(pkg.Assets) != 1 {
-			t.Fatalf("expected screenshot assets to be deduplicated, got %d entries", len(pkg.Assets))
+		if len(pkg.GetAssets()) != 1 {
+			t.Fatalf("expected screenshot assets to be deduplicated, got %d entries", len(pkg.GetAssets()))
 		}
-		if pkg.Summary.ScreenshotCount != 1 {
-			t.Errorf("expected screenshot summary count 1, got %d", pkg.Summary.ScreenshotCount)
+		if pkg.GetSummary().GetScreenshotCount() != 1 {
+			t.Errorf("expected screenshot summary count 1, got %d", pkg.GetSummary().GetScreenshotCount())
 		}
 	})
 
@@ -304,18 +351,18 @@ func TestBuildReplayMovieSpecHandlesScreenshotAssets(t *testing.T) {
 			},
 		}
 
-		pkg, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		pkg, err := BuildReplaySpecFromTimeline(exec, workflow, timeline)
 		if err != nil {
-			t.Fatalf("BuildReplayMovieSpec returned error: %v", err)
+			t.Fatalf("BuildReplaySpecFromTimeline returned error: %v", err)
 		}
-		if len(pkg.Assets) != 1 {
-			t.Fatalf("expected one generated asset entry, got %d", len(pkg.Assets))
+		if len(pkg.GetAssets()) != 1 {
+			t.Fatalf("expected one generated asset entry, got %d", len(pkg.GetAssets()))
 		}
-		if pkg.Assets[0].ID == "" {
+		if pkg.GetAssets()[0].GetId() == "" {
 			t.Fatalf("expected generated screenshot asset id when none provided")
 		}
-		if pkg.Assets[0].Source != "https://cdn.example.com/fallback.png" {
-			t.Fatalf("expected asset source to match screenshot URL, got %s", pkg.Assets[0].Source)
+		if pkg.GetAssets()[0].GetSource() != "https://cdn.example.com/fallback.png" {
+			t.Fatalf("expected asset source to match screenshot URL, got %s", pkg.GetAssets()[0].GetSource())
 		}
 	})
 }

@@ -1,0 +1,30 @@
+{
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "description": "Expose provider lifecycle, evaluation quality and failure outcomes, junk-leak withholding, circuit state and quorum, index-age reasons, resolver-cache telemetry, and report-only registry hygiene through generic Search Hub contracts.",
+  "requirements": [
+    {
+      "id": "REQ-P1-017",
+      "title": "Honest provider signals",
+      "prd_ref": "OT-P1-006",
+      "category": "core",
+      "status": "in_progress",
+      "description": "Provider transport failure is distinct from graded emptiness; eval cases expose error outcomes and graded counts; lifecycle and quality gates are descriptor-driven; federation status names reachability, circuit, index-age, quality exclusions, and model availability; metrics expose resolver-cache and registry-hygiene evidence.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused Search Hub eval, routing, health, validation, metrics, registry, resolver-cache, demotion, recovery, lifecycle, and junk-leak tests pass without requiring the live substrate."
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Healthy-substrate baseline, full active-provider suite coverage, and dense-to-hybrid before/after evidence remain pending while Ollama/reranker are GPU-degraded and shared test-genie work is active."
+        }
+      ]
+    }
+  ]
+}

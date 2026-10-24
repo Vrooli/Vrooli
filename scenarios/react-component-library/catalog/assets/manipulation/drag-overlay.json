@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.drag-overlay",
+    "name": "DragOverlay",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The portal-based drag representation following the pointer efficiently, preserving the source element's layout, indicating invalid targets, and animating to its resting place on drop.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.draggable",
+        "reason": "Active drag state and target validity are shared."
+      },
+      {
+        "asset": "motion.motion-primitive",
+        "reason": "Pointer tracking updates transforms directly rather than through React state."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "transition-causality"
+  ],
+  "rationale": "Rendering the dragged item in a portal above every layer is what stops a drag from being clipped by the container it started in, which is the most common visible failure of hand-rolled drag."
+}

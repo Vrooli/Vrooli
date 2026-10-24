@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-003",
+      "title": "Analysis Breadth",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "feature",
+      "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read. SHIPPED (pure-Go, runs on any host): quality_assessment (no-reference sharpness/exposure/contrast) and duplicate_detect (DCT pHash + aHash fingerprints) — new AnalyzeResponse result types + the analyze edge + CLI (`analyze quality`, `analyze duplicate`). REMAINING (forward-declared, seeded, not yet wired): caption, object_detection, tagging, face_detection (no recognition), embedding, qr_barcode_read — model/library-backed.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/quality_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "quality_assessment + duplicate_detect return structured results: flat→blurry/low-contrast, sharp checker scores higher, exposure labels, deterministic + distinct fingerprints."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/analysis/rest_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The analyze edge returns DuplicateResult / QualityResult for the two pure-Go breadth ops. Model-backed breadth ops (caption/object_detection/tagging/face_detection/embedding/qr) remain forward-declared."
+        }
+      ]
+    }
+  ]
+}

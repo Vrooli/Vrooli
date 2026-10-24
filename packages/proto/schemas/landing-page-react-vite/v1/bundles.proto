@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+import "landing-page-react-vite/v1/pricing.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
+
+// =============================================================================
+// BUNDLE ADMIN DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain bundles
+// @imports pricing
+// @stability stable
+//
+// Admin management of bundle products and their price rows. Unlike the public
+// pricing overview, the catalog includes hidden (display_enabled=false) prices
+// so admins can edit them. Price edits are partial: unset fields are preserved,
+// and empty display-metadata values delete the corresponding key.
+//
+// =============================================================================
+
+// BundleCatalogEntry pairs a bundle product with all of its price rows.
+message BundleCatalogEntry {
+  Bundle bundle = 1;
+  repeated PlanOption prices = 2;
+}
+
+// ListBundleCatalogRequest lists all bundles and their prices (admin).
+message ListBundleCatalogRequest {}
+
+// ListBundleCatalogResponse returns the full editable catalog.
+message ListBundleCatalogResponse {
+  repeated BundleCatalogEntry bundles = 1;
+}
+
+// UpdateBundlePriceRequest partially updates one price row. bundle_key and
+// price_id identify the target. Presence-tracked fields update in place;
+// an empty string for subtitle/badge/cta_label (or highlight=false / empty
+// features) deletes that metadata key.
+message UpdateBundlePriceRequest {
+  string bundle_key = 1;
+  string price_id = 2;
+  optional string plan_name = 3;
+  optional int32 display_weight = 4;
+  optional bool display_enabled = 5;
+  optional string subtitle = 6;
+  optional string badge = 7;
+  optional string cta_label = 8;
+  optional bool highlight = 9;
+  repeated string features = 10;
+}
+
+// UpdateBundlePriceResponse returns the resulting price row.
+message UpdateBundlePriceResponse {
+  PlanOption price = 1;
+}
+
+// BundleAdminService manages bundle products and price rows (admin).
+service BundleAdminService {
+  // Lists all bundles and prices, including hidden ones (admin).
+  rpc ListBundleCatalog(ListBundleCatalogRequest) returns (ListBundleCatalogResponse);
+  // Partially updates a single price row (admin).
+  rpc UpdateBundlePrice(UpdateBundlePriceRequest) returns (UpdateBundlePriceResponse);
+}

@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "agent-metareasoning-manager",
     "displayName": "Agent Metareasoning Manager",
@@ -52,7 +68,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Metareasoning dashboard port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -87,181 +103,107 @@
     },
     "setup": {
       "description": "Initialize Agent Metareasoning Manager",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/agent-metareasoning-manager-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "agent-metareasoning-manager"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o agent-metareasoning-manager-api .",
-          "description": "Build Go coordination API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:${API_PORT}/reasoning\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-metareasoning-manager --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start metareasoning manager with Go API server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./agent-metareasoning-manager-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/agent-metareasoning-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start proxy-aware metareasoning dashboard",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:$API_PORT/reasoning\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:${UI_PORT}\\n  CLI: agent-metareasoning-manager --help\\n\\nReasoning endpoints:\\n  POST /reasoning/pros-cons\\n  POST /reasoning/swot\\n  POST /reasoning/risk-assessment\\n  POST /reasoning/self-review\\n  POST /reasoning/chain'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for agent-metareasoning-manager",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute agent-metareasoning-manager --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"agent-metareasoning-manager-api\" || true; sleep 1; pkill -9 -f \"agent-metareasoning-manager-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"agent-metareasoning-manager/ui/server.js\" || true",
-          "description": "Stop UI process"
         }
       ]
     }
   },
   "dependencies": {
     "resources": {
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/metareasoning-orchestrator.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/prompt-tester.json",
-            "type": "app"
-          }
-        ]
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2",
-          "mistral",
-          "codellama",
-          "nomic-embed-text"
-        ]
+        "model_roles": [
+          "chat.default",
+          "embedding.default"
+        ],
+        "startup_policy": "must_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
         "purpose": "execution history and workflow metadata",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "agent-metareasoning-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-metareasoning-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

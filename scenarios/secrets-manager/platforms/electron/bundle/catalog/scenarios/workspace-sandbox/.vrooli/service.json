@@ -1,0 +1,241 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "archives": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "archives",
+        "regenerable": false,
+        "sensitive": true,
+        "agent_removal": "deny",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Review threshold matching the owner's default archive-size budget. Only owner retention may evict indexed terminal archives; pending approvals and unindexed evidence must not be blindly pruned."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        },
+        "rationale": "Content-addressed patches and file bodies retained by the archive and write-ahead approval owner through api-core/storage."
+      },
+      "archive-review-lock": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "archive-review.lock",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "One native-lock coordination file, outside evictable blob trees. Do not remove or replace it while any owner process may hold the inode."
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "workspace-sandbox-retention",
+        "name": "Workspace Sandbox retained sandboxes",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
+    "rationale": "Declares scenario logs, retained archive content and approval-lock coordination. This is not a complete inventory of overlay or database storage and does not authorize generic deletion of retained evidence."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "workspace-sandbox",
+    "displayName": "Workspace Sandbox",
+    "description": "Fast, storage-efficient copy-on-write workspaces for running agents and tools against a project folder without risking modification to the canonical repo",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "developer_tools",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "sandbox",
+      "copy-on-write",
+      "overlayfs",
+      "agent-safety",
+      "diff-review"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/workspace-sandbox"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "plugin": {
+    "slug": "workspace-sandbox",
+    "skills": [
+      {
+        "name": "sandbox",
+        "source": "skills/sandbox/SKILL.md",
+        "command_groups": [
+          "sandbox",
+          "change"
+        ]
+      }
+    ],
+    "entitlement_tier": "free",
+    "standalone": {
+      "install_script": "cli/install.sh",
+      "runtime_binaries": [
+        "cli/workspace-sandbox",
+        "cli/standalone-launch.sh",
+        "api/workspace-sandbox-api"
+      ],
+      "resources": []
+    }
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "hostSafeguards": [
+    {
+      "name": "workspace_sandbox_userns",
+      "required": true,
+      "reason": "Allow the default overlayfs-userns driver to restart through the portable launcher after host reboots on Linux AppArmor systems",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Installs/loads the dedicated vrooli-workspace-sandbox AppArmor profile; does not disable AppArmor or kernel.apparmor_restrict_unprivileged_userns globally."
+    }
+  ],
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "port": 21239
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "workspace-sandbox",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "workspace-sandbox"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "outputs": [
+          {
+            "entry": "./cmd/workspace-sandbox-launcher",
+            "output": "api/workspace-sandbox-launcher"
+          }
+        ]
+      },
+      "run": {
+        "argv": [
+          "./workspace-sandbox-launcher",
+          "./workspace-sandbox-api"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  }
+}

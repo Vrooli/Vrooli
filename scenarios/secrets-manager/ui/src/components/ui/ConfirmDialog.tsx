@@ -65,6 +65,7 @@ export function ConfirmDialog({
               <h3 className="text-lg font-semibold text-white">{title}</h3>
               <button
                 onClick={onCancel}
+                aria-label="Close confirmation dialog"
                 className="rounded-full p-1 text-white/40 hover:bg-white/10 hover:text-white"
               >
                 <X className="h-4 w-4" />

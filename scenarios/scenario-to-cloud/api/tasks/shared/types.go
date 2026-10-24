@@ -1,9 +1,9 @@
 package shared
 
 import (
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // TaskInput provides all data needed to build a prompt.

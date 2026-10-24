@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.shared;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;shared";
+
+// @stability beta
+
+// PlanRef links swarm-manager work containers to canonical plan-manager plans.
+message PlanRef {
+  // Plan authority. Current supported value: plan-manager.
+  string provider = 1 [(buf.validate.field).string = {
+    in: ["plan-manager"]
+  }];
+
+  // Canonical plan-manager plan id.
+  string plan_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Canonical plan-manager slug.
+  string slug = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Role of the plan for this container: execution_spec or operating_mode_plan.
+  string role = 4 [(buf.validate.field).string = {
+    in: [
+      "execution_spec",
+      "operating_mode_plan"
+    ]
+  }];
+}

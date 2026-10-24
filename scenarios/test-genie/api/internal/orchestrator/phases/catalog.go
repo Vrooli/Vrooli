@@ -1,104 +1,146 @@
 package phases
 
 import (
-	"sort"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
+
+	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/orchestrator/phaseregistry"
+	"test-genie/internal/orchestrator/providerdescriptor"
+
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 )
 
-// Catalog exposes the orchestrator's built-in phase registry so the API can
-// clearly advertise the supported domain flows (structure, dependencies, etc.).
+// Catalog exposes the descriptor-backed registry so the API can advertise the
+// effective provider-owned validation contracts.
 type Catalog struct {
 	specs map[Name]Spec
+	order []Name
 }
 
 func newCatalog() *Catalog {
 	return &Catalog{specs: make(map[Name]Spec)}
 }
 
-// NewDefaultCatalog seeds the catalog with the Go-native phase runners.
-func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
+// NewCatalogFromSpecs builds a catalog from already-materialized phase specs.
+// Descriptor-backed orchestration uses this after phaseregistry has validated
+// provider-owned descriptors and bound them to Test Genie runner implementations.
+func NewCatalogFromSpecs(defaultTimeout time.Duration, specs ...Spec) *Catalog {
 	if defaultTimeout <= 0 {
 		defaultTimeout = DefaultTimeout
 	}
 	catalog := newCatalog()
-	weight := 0
-	const phaseSourceNative = "native"
-	register := func(spec Spec) {
-		// Only set default timeout if not explicitly specified
+	for _, spec := range specs {
 		if spec.DefaultTimeout <= 0 {
 			spec.DefaultTimeout = defaultTimeout
 		}
-		spec.Weight = weight
-		if spec.Source == "" {
-			spec.Source = phaseSourceNative
-		}
-		weight += 10
 		catalog.Register(spec)
 	}
-
-	register(Spec{
-		Name:        Structure,
-		Runner:      runStructurePhase,
-		Description: "Validates scenario layout, manifests, and JSON health before any tests run.",
-	})
-	register(Spec{
-		Name:           Standards,
-		Runner:         runStandardsPhase,
-		Optional:       false,
-		DefaultTimeout: 60 * time.Second,
-		Description:    "Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).",
-	})
-	register(Spec{
-		Name:        Dependencies,
-		Runner:      runDependenciesPhase,
-		Description: "Confirms required commands, runtimes, and declared resources are available.",
-	})
-	register(Spec{
-		Name:           Lint,
-		Runner:         runLintPhase,
-		DefaultTimeout: 30 * time.Second,
-		Description:    "Runs static analysis including linting and type checking for Go, TypeScript, and Python.",
-	})
-	register(Spec{
-		Name:           Docs,
-		Runner:         runDocsPhase,
-		Optional:       false,
-		DefaultTimeout: 60 * time.Second,
-		Description:    "Validates Markdown, mermaid diagrams, links, and portability guards across scenario docs.",
-	})
-	register(Spec{
-		Name:        Smoke,
-		Runner:      runSmokePhase,
-		Optional:    true,
-		Description: "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
-	})
-	register(Spec{
-		Name:        Unit,
-		Runner:      runUnitPhase,
-		Description: "Executes Go unit tests and shell syntax validation for local entrypoints.",
-	})
-	register(Spec{
-		Name:        Integration,
-		Runner:      runIntegrationPhase,
-		Description: "Exercises the CLI/Bats suite plus scenario-local orchestrator listings.",
-	})
-	register(Spec{
-		Name:        Playbooks,
-		Runner:      runPlaybooksPhase,
-		Description: "Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.",
-	})
-	register(Spec{
-		Name:        Business,
-		Runner:      runBusinessPhase,
-		Description: "Audits requirements modules to guarantee operational targets stay mapped.",
-	})
-	register(Spec{
-		Name:        Performance,
-		Runner:      runPerformancePhase,
-		Optional:    true,
-		Description: "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
-	})
 	return catalog
+}
+
+// NewDefaultCatalog builds the default provider-backed catalog from
+// provider-owned descriptors. Test Genie owns only the descriptor validation and
+// runner binding; provider metadata lives in scenarios/*/.vrooli/test-genie.json.
+func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
+	if defaultTimeout <= 0 {
+		defaultTimeout = DefaultTimeout
+	}
+	catalog, err := loadDefaultCatalogFromDescriptors(defaultTimeout)
+	if err != nil {
+		panic(err)
+	}
+	return catalog
+}
+
+func loadDefaultCatalogFromDescriptors(defaultTimeout time.Duration) (*Catalog, error) {
+	repoRoot, err := defaultRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+	load := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: repoRoot})
+	if err := load.Err(); err != nil {
+		return nil, fmt.Errorf("load provider descriptors: %w", err)
+	}
+	if len(load.Descriptors) == 0 {
+		return nil, fmt.Errorf("load provider descriptors: no %s files found under %s", providerdescriptor.RelPath, repoRoot)
+	}
+	registry, err := BuildDescriptorRegistry(load.Descriptors)
+	if err != nil {
+		return nil, err
+	}
+	return NewCatalogFromSpecs(defaultTimeout, SpecsFromRegistry(registry)...), nil
+}
+
+// defaultRepoRoot resolves the repository root that holds
+// scenarios/*/.vrooli/test-genie.json. The control plane exports VROOLI_ROOT
+// (and VROOLI_SCENARIO_DIR) to every scenario process; runtime.Caller is only a
+// development fallback because a -trimpath build reports a relative source
+// path, which would resolve to "../.." and find nothing.
+func defaultRepoRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" && filepath.IsAbs(root) {
+		return filepath.Clean(root), nil
+	}
+	if dir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")); dir != "" && filepath.IsAbs(dir) {
+		return filepath.Clean(filepath.Join(dir, "..", "..")), nil
+	}
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("runtime.Caller failed")
+	}
+	if !filepath.IsAbs(file) {
+		return "", fmt.Errorf("resolve repo root: VROOLI_ROOT is unset and the binary was built with -trimpath (source path %q)", file)
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "..")), nil
+}
+
+func BuildDescriptorRegistry(descriptors []providerdescriptor.Descriptor) (*phaseregistry.Registry, error) {
+	result := phaseregistry.Build(descriptors, phaseregistry.Options{Bindings: ValidationProviderRegistryBindings()})
+	if len(result.Diagnostics) > 0 {
+		return nil, fmt.Errorf("build descriptor phase registry: %s", formatRegistryDiagnostics(result.Diagnostics))
+	}
+	return result.Registry, nil
+}
+
+func SpecsFromRegistry(registry *phaseregistry.Registry) []Spec {
+	if registry == nil {
+		return nil
+	}
+	specs := make([]Spec, 0, len(registry.All()))
+	for _, entry := range registry.All() {
+		spec, ok := SpecFromRegistryEntry(entry)
+		if !ok {
+			continue
+		}
+		specs = append(specs, spec)
+	}
+	return specs
+}
+
+func SpecFromRegistryEntry(entry phaseregistry.Entry) (Spec, bool) {
+	spec, ok := entry.Spec.(Spec)
+	return spec, ok
+}
+
+func formatRegistryDiagnostics(diagnostics []phaseregistry.Diagnostic) string {
+	parts := make([]string, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		prefix := diagnostic.Code
+		if diagnostic.Phase != "" {
+			prefix = diagnostic.Phase + ":" + prefix
+		}
+		if diagnostic.Path != "" {
+			prefix = diagnostic.Path + ":" + prefix
+		}
+		parts = append(parts, prefix+": "+diagnostic.Message)
+	}
+	return strings.Join(parts, "; ")
 }
 
 // Register inserts or replaces a phase specification in the catalog.
@@ -114,27 +156,41 @@ func (c *Catalog) Register(spec Spec) {
 	if spec.DefaultTimeout <= 0 {
 		spec.DefaultTimeout = DefaultTimeout
 	}
-	if spec.Weight == 0 && len(c.specs) > 0 {
-		spec.Weight = len(c.specs) * 10
+	if spec.Doc == "" {
+		spec.Doc = docPathConvention(name)
+	}
+	if strings.TrimSpace(spec.DisplayName) == "" {
+		spec.DisplayName = displayNameFromKey(name.String())
+	}
+	if spec.SkipEnvVar == "" {
+		spec.SkipEnvVar = skipEnvVarForPhase(name)
+	}
+	if spec.Policy.IsZero() {
+		spec.Policy = phasepolicy.FromLegacyCatalog(spec.Optional, spec.Advisory)
+	}
+	// Keep the capability manifest in lockstep with the catalog identity: the
+	// phase name and Optional flag are owned by the Spec, so mirror them into
+	// the embedded manifest rather than asking every register() call to repeat
+	// them. This guarantees Capabilities.Phase/Optional can never drift.
+	spec.Capabilities.Phase = name.String()
+	spec.Capabilities.Optional = spec.Optional
+	if _, exists := c.specs[name]; !exists {
+		c.order = append(c.order, name)
 	}
 	c.specs[name] = spec
 }
 
-// All returns a stable slice of registered specs sorted by their weight/name.
+// All returns registered specs in catalog registration order.
 func (c *Catalog) All() []Spec {
 	if c == nil || len(c.specs) == 0 {
 		return nil
 	}
 	specs := make([]Spec, 0, len(c.specs))
-	for _, spec := range c.specs {
-		specs = append(specs, spec)
-	}
-	sort.Slice(specs, func(i, j int) bool {
-		if specs[i].Weight == specs[j].Weight {
-			return specs[i].Name.String() < specs[j].Name.String()
+	for _, name := range c.order {
+		if spec, ok := c.specs[name]; ok {
+			specs = append(specs, spec)
 		}
-		return specs[i].Weight < specs[j].Weight
-	})
+	}
 	return specs
 }
 
@@ -147,12 +203,34 @@ func (c *Catalog) Descriptors() []Descriptor {
 	descriptors := make([]Descriptor, 0, len(specs))
 	for _, spec := range specs {
 		timeout := int(spec.DefaultTimeout.Seconds())
+		provider := ""
+		if spec.Delegated != nil {
+			provider = spec.Delegated.ProviderScenario
+		}
 		descriptors = append(descriptors, Descriptor{
 			Name:                  spec.Name.String(),
+			DisplayName:           spec.DisplayName,
 			Optional:              spec.Optional,
 			Description:           spec.Description,
 			Source:                spec.Source,
+			Provider:              provider,
 			DefaultTimeoutSeconds: timeout,
+			DocPath:               spec.Doc,
+			SkipEnvVar:            spec.SkipEnvVar,
+			Comparable:            spec.Comparable(),
+			Advisory:              spec.Advisory,
+			ArtifactBacked:        spec.ArtifactBacked,
+			NonComparable:         spec.NonComparable,
+			Policy:                spec.Policy,
+			Runnability:           spec.Capabilities,
+			FindingSource:         findingid.SourceToken(spec.FindingSource),
+			ProfileMembership:     append([]string(nil), spec.ProfileMembership...),
+			FreshnessRequirement:  spec.FreshnessRequirement,
+			PhaseClass:            spec.PhaseClass,
+			RuntimeClass:          spec.RuntimeClass,
+			Concurrency:           spec.Concurrency,
+			Determinism:           spec.Determinism,
+			Dimensions:            append([]string(nil), spec.Dimensions...),
 		})
 	}
 	return descriptors
@@ -171,14 +249,49 @@ func (c *Catalog) Lookup(raw string) (Spec, bool) {
 	return spec, exists
 }
 
-// Weight returns a deterministic ordering weight for the provided phase.
-func (c *Catalog) Weight(name Name) (int, bool) {
+// PhaseSetDigest returns a stable digest for a planned phase shape. It changes
+// when the ordered phase set changes, so run reuse can fail closed across
+// catalog evolution instead of silently reusing an older comprehensive shape.
+func PhaseSetDigest(names []string) string {
+	normalized := make([]string, 0, len(names))
+	for _, raw := range names {
+		name, ok := NormalizeName(raw)
+		if !ok {
+			continue
+		}
+		normalized = append(normalized, name.String())
+	}
+	sum := sha256.Sum256([]byte(strings.Join(normalized, "\n")))
+	return "phase-set:" + hex.EncodeToString(sum[:])
+}
+
+// Comparable reports whether this phase participates in baseline/run
+// comparison. Default-new phases are comparable unless explicitly opted out.
+func (s Spec) Comparable() bool {
+	return !s.NonComparable
+}
+
+func skipEnvVarForPhase(name Name) string {
+	key := strings.ToUpper(strings.ReplaceAll(name.Key(), "-", "_"))
+	if key == "" {
+		return ""
+	}
+	return "TEST_GENIE_SKIP_" + key
+}
+
+// Order returns the zero-based registration position for the provided phase.
+func (c *Catalog) Order(name Name) (int, bool) {
 	if c == nil {
 		return 0, false
 	}
-	spec, ok := c.specs[name]
+	normalized, ok := NormalizeName(name.String())
 	if !ok {
 		return 0, false
 	}
-	return spec.Weight, true
+	for index, registered := range c.order {
+		if registered == normalized {
+			return index, true
+		}
+	}
+	return 0, false
 }

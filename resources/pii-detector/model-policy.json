@@ -1,0 +1,194 @@
+{
+  "schema_version": "2026-10-21",
+  "roles": {
+    "pii.small": {
+      "model": "gravitee-io/bert-small-pii-detection",
+      "fallbacks": [],
+      "required_capabilities": ["detect_pii"],
+      "description": "Default tier. INT8 BERT token classifier (~29MB) covering 25 Presidio-aligned categories. Paired with the deterministic regex+checksum pass for structured IDs. CPU-friendly; lowest latency.",
+      "preference": 10,
+      "provenance": {
+        "source_kind": "declared_policy",
+        "confidence": "low",
+        "source": "resources/pii-detector/docs/README.md; model card gravitee-io/bert-small-pii-detection",
+        "observed_at": "2026-10-21",
+        "sample_count": 0
+      }
+    },
+    "pii.default": {
+      "model": "gravitee-io/bert-small-pii-detection",
+      "fallbacks": [],
+      "required_capabilities": ["detect_pii"],
+      "description": "Default routing tier (the ai-gateway detect.pii.default role resolves here). Aliases the small INT8 token classifier — the CPU-friendly, lowest-latency, always-available floor. Callers that want broader category coverage select pii.large explicitly.",
+      "preference": 20,
+      "provenance": {
+        "source_kind": "measured",
+        "confidence": "medium",
+        "source": "resources/pii-detector/server/eval_onnx_test.go (TestPIIEval)",
+        "observed_at": "2026-10-21",
+        "sample_count": 13
+      }
+    },
+    "pii.large": {
+      "model": "ab-ai/pii_model_based_on_distilbert",
+      "fallbacks": ["gravitee-io/bert-small-pii-detection"],
+      "required_capabilities": ["detect_pii"],
+      "description": "Large tier. ab-ai/pii_model_based_on_distilbert — an Apache-2.0, uncased DistilBertForTokenClassification (WordPiece, plain BIO, 65 labels over ~32 PII categories incl. FIRSTNAME/LASTNAME/SSN/IBAN/CREDITCARDNUMBER/PASSWORD/USERNAME/AGE/URL). ~265MB fp32 ONNX (~9x the small INT8 model). REUSES the exact engine_onnx.go machinery (same WordPiece tokenizer + BIO decode + graph-I/O + id2label resolution) — a clean model swap, not a new code path. Broader category coverage than the small tier; higher latency + resident footprint. Degrades to the small tier under capacity pressure.",
+      "preference": 30,
+      "provenance": {
+        "source_kind": "measured",
+        "confidence": "medium",
+        "source": "resources/pii-detector/server/eval_large_onnx_test.go (TestLargePIIEval, TestLargeModelDetectsPII); model card ab-ai/pii_model_based_on_distilbert",
+        "observed_at": "2026-10-21",
+        "sample_count": 8
+      }
+    }
+  },
+  "models": {
+    "gravitee-io/bert-small-pii-detection": {
+      "family": "bert-small-pii",
+      "capabilities": ["detect_pii"],
+      "context_window_tokens": 512,
+      "disk_bytes": 28967262,
+      "resident_bytes": 134217728,
+      "default_eligible": true,
+      "use_case_notes": "INT8 ONNX export (model.quant.onnx, 28,732,710 bytes; ~114MB fp32). BertForTokenClassification, 51 BIO labels over 25 Presidio-aligned categories, do_lower_case=true, inputs input_ids+attention_mask (int64), output logits [1,seq,51]. The '~100MB model' from the operator recollection. Smallest default; always available as the floor of every fallback chain.",
+      "artifact": {
+        "staged": true,
+        "runtime": "onnxruntime>=1.22,<1.24 via github.com/yalue/onnxruntime_go v1.25.0 (CGO-free dlopen; the pii_onnx build tag). v1.25.0 vendors ORT_API_VERSION 23, matching ONNX Runtime 1.23.x.",
+        "source_repo": "https://huggingface.co/gravitee-io/bert-small-pii-detection",
+        "revision": "main",
+        "license": "Apache-2.0",
+        "files": [
+          {
+            "path": "model.quant.onnx",
+            "url": "https://huggingface.co/gravitee-io/bert-small-pii-detection/resolve/main/model.quant.onnx",
+            "size_bytes": 28732710,
+            "sha256": "b227845ff4989c9f7383874b841895dfbdb9a4d7a20ceb39c3f187271894bf2a"
+          },
+          {
+            "path": "vocab.txt",
+            "url": "https://huggingface.co/gravitee-io/bert-small-pii-detection/resolve/main/vocab.txt",
+            "size_bytes": 231508,
+            "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+          },
+          {
+            "path": "config.json",
+            "url": "https://huggingface.co/gravitee-io/bert-small-pii-detection/resolve/main/config.json",
+            "size_bytes": 3044,
+            "sha256": "6757df1ae2ec9ca16cef63009af337a66573d06c721d03c7820590f69eefa6c8"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "url": "https://huggingface.co/gravitee-io/bert-small-pii-detection/resolve/main/tokenizer_config.json",
+            "size_bytes": 1408,
+            "sha256": "01a629a4923673b9a7a6d7da214952152c87c7ab3e002aae8e1e025486942163"
+          },
+          {
+            "path": "special_tokens_map.json",
+            "url": "https://huggingface.co/gravitee-io/bert-small-pii-detection/resolve/main/special_tokens_map.json",
+            "size_bytes": 695,
+            "sha256": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a"
+          }
+        ]
+      },
+      "caveats": [
+        "Measurement is pending a labeled eval on our own corpus; model-card accuracy figures are self-reported and not independently validated. A smoke eval against resources/pii-detector/server/testdata/pii_eval.jsonl ran green (see model-policy constraints.measurement_notes).",
+        "Resident bytes are an estimate until measured on the reference CPU host.",
+        "The model emits a separate B-PERSON per name token, so a two-word name yields two adjacent PERSON spans (both correct detections)."
+      ],
+      "measurement": {
+        "suite_id": "pii.detection",
+        "measured_at": "2026-10-21",
+        "sample_count": 13,
+        "precision": 0,
+        "recall": 1.0,
+        "f1": 0,
+        "latency_p95_ms": 60,
+        "evidence": "Smoke eval: resources/pii-detector/server/eval_onnx_test.go (TestPIIEval) ran the 8-case / 13-category fixture testdata/pii_eval.jsonl through the full hybrid pass (regex + bert-small NER, merged) with model.quant.onnx (INT8) via onnxruntime_go v1.25.0 + ONNX Runtime 1.23.0 on CPU. Category recall 13/13 = 1.00, including PERSON (4/4) and LOCATION (2/2), which only the NER tier can produce. precision/f1 left 0 because the fixture has no negative-span labels; latency_p95_ms is a conservative CPU estimate for short text (per-detect well under 60ms). This is an honest small smoke measurement, NOT a neutral benchmark: expand the fixture before raising measurement_required."
+      }
+    },
+    "ab-ai/pii_model_based_on_distilbert": {
+      "family": "distilbert-pii",
+      "capabilities": ["detect_pii"],
+      "context_window_tokens": 512,
+      "disk_bytes": 265788988,
+      "resident_bytes": 536870912,
+      "default_eligible": false,
+      "use_case_notes": "Large tier. DistilBertForTokenClassification (uncased, WordPiece vocab.txt, plain BIO), 65 labels over ~32 PII categories (FIRSTNAME, LASTNAME, MIDDLENAME, PREFIX, EMAIL, USERNAME, PASSWORD, PHONENUMBER, SSN, IBAN, CREDITCARDNUMBER, CREDITCARDCVV, ACCOUNTNUMBER, DATE, DOB, AGE, SEX, GENDER, CITY, STATE, COUNTY, ZIPCODE, STREET, BUILDINGNUMBER, SECONDARYADDRESS, URL, PHONEIMEI, PIN, AMOUNT, COMPANYNAME, ACCOUNTNAME). do_lower_case=true (read from tokenizer_config.json by the engine). Inputs input_ids+attention_mask (int64), output logits [1,seq,65]. Reuses engine_onnx.go verbatim: a clean model swap behind the NERModel seam. The ONNX graph is a BUILD OUTPUT from the PyTorch safetensors (ab-ai publishes no prebuilt ONNX) — regenerate deterministically with resources/pii-detector/scripts/export_large_model.py (torch legacy exporter, opset 14).",
+      "artifact": {
+        "staged": false,
+        "runtime": "onnxruntime>=1.22,<1.24 via github.com/yalue/onnxruntime_go v1.25.0 (CGO-free dlopen; the pii_onnx build tag). Same binding + ORT 1.23.x as the small tier.",
+        "source_repo": "https://huggingface.co/ab-ai/pii_model_based_on_distilbert",
+        "revision": "main",
+        "license": "Apache-2.0",
+        "onnx_build": "model.onnx is produced locally from the Hugging Face safetensors by scripts/export_large_model.py; its sha256 is a build-output fingerprint for the pinned exporter (torch 2.12.x legacy exporter dynamo=false, onnx 1.23.x, transformers 4.57.x, opset 14, do_constant_folding=true), reproducible to 22413cd7a0f0f1a62223c21cb5a56cf2706cf660845d1de300dcbcd2022e34be. The AUTHORITATIVE reproducibly-downloadable artifacts are the HF source files below.",
+        "files": [
+          {
+            "path": "model.safetensors",
+            "url": "https://huggingface.co/ab-ai/pii_model_based_on_distilbert/resolve/main/model.safetensors",
+            "size_bytes": 265663812,
+            "sha256": "6547ee193e9dbe1268d83c38c636cfc4e8e412da456ff1efe49ea137d33aec8a",
+            "note": "Authoritative source weights (PyTorch). Convert to model.onnx via scripts/export_large_model.py."
+          },
+          {
+            "path": "vocab.txt",
+            "url": "https://huggingface.co/ab-ai/pii_model_based_on_distilbert/resolve/main/vocab.txt",
+            "size_bytes": 231508,
+            "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+          },
+          {
+            "path": "config.json",
+            "url": "https://huggingface.co/ab-ai/pii_model_based_on_distilbert/resolve/main/config.json",
+            "size_bytes": 3479,
+            "sha256": "23f6d0afbc3248361553b177b9d13acf986b5e2c3eaf0345d211094ef781f8a6"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "url": "https://huggingface.co/ab-ai/pii_model_based_on_distilbert/resolve/main/tokenizer_config.json",
+            "size_bytes": 1362,
+            "sha256": "c50074d398bdab3f809eba4db570b202b3b43c71dcf01fb2fdcd8dde54abd932"
+          },
+          {
+            "path": "special_tokens_map.json",
+            "url": "https://huggingface.co/ab-ai/pii_model_based_on_distilbert/resolve/main/special_tokens_map.json",
+            "size_bytes": 125,
+            "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+          },
+          {
+            "path": "model.onnx",
+            "build_output": true,
+            "size_bytes": 265788988,
+            "sha256": "22413cd7a0f0f1a62223c21cb5a56cf2706cf660845d1de300dcbcd2022e34be",
+            "note": "Build output of scripts/export_large_model.py; see onnx_build. Not downloadable from the Hub."
+          }
+        ]
+      },
+      "caveats": [
+        "do_lower_case=true: the engine lowercases at tokenize time (read from tokenizer_config.json). A cased classifier would set do_lower_case=false and the engine honors it — do not force lowercase.",
+        "Resident bytes are an estimate (fp32 ONNX ~265MB on disk) until measured on the reference CPU host; promote only where capacity headroom exists.",
+        "Structured-ID categories (CREDIT_CARD/IBAN/SSN/phone) are also covered by the deterministic regex+checksum pass. On an overlap, MergeSpans keeps the higher-confidence span; a high-confidence model label can displace the regex name on the same bytes. The model is NOT a checksum validator — for Luhn/mod-97-verified IDs the regex pass remains the precise source.",
+        "The model occasionally mislabels adjacent numeric groups (e.g. a 16-digit card as PHONENUMBER). The regex Luhn pass still detects a well-formed card when the model does not claim the span."
+      ],
+      "measurement": {
+        "suite_id": "pii.detection",
+        "measured_at": "2026-10-21",
+        "sample_count": 8,
+        "precision": 0,
+        "recall": 0.917,
+        "f1": 0,
+        "latency_p95_ms": 120,
+        "evidence": "Smoke eval: resources/pii-detector/server/eval_large_onnx_test.go (TestLargePIIEval) ran an 8-case / 12-category labeled fixture (testdata/pii_eval_large.jsonl) through the full hybrid pass (regex + ab-ai DistilBERT NER, merged) with the locally-exported model.onnx via onnxruntime_go v1.25.0 + ONNX Runtime 1.23.0 on CPU. Category recall 11/12 = 0.917, including FIRSTNAME (3/3), LASTNAME, SSN, IBAN, USERNAME, URL, AGE, PHONENUMBER. precision/f1 left 0 because the fixture has no negative-span labels; latency_p95_ms is a conservative CPU estimate for short text. Honest small smoke measurement, NOT a neutral benchmark: expand the fixture before raising measurement_required. TestLargeModelDetectsPII separately asserts byte-exact offsets for FIRSTNAME/LASTNAME/EMAIL/SSN."
+      }
+    }
+  },
+  "constraints": {
+    "preferred_bytes": 134217728,
+    "floor_bytes": 67108864,
+    "resident_model_budget_percent": 40,
+    "max_loaded_models_policy": 1,
+    "role": "pii.small",
+    "measurement_required": false,
+    "measurement_notes": "measurement_required stays false: both served tiers carry REAL smoke-eval recall (small 13/13 from TestPIIEval; large 11/12 = 0.917 from TestLargePIIEval), but the fixtures are too small (8 cases each) to gate routing on. Expand testdata/pii_eval.jsonl + testdata/pii_eval_large.jsonl into labeled corpora with negative spans (so precision/f1 are meaningful) before flipping this to true. The large tier (ab-ai/pii_model_based_on_distilbert) is a clean token-classification model swap that reuses engine_onnx.go verbatim. The originally-scoped GLiNER zero-shot tiers (knowledgator/gliner-pii-edge, urchade/gliner_multi_pii) were NOT shipped — see resources/pii-detector/docs/ZERO_SHOT_DECISION.md for the clean-over-complete rationale (SentencePiece + bi-encoder span decode is not a clean pure-Go fit; a sidecar is the recommended path if zero-shot is needed)."
+  }
+}

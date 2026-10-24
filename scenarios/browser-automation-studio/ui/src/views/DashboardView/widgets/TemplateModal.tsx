@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Play, Globe } from 'lucide-react';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
-import { BrowserUrlBar } from '@/domains/recording';
+import { BrowserUrlBar } from '@/domains/recording/capture/BrowserUrlBar';
 import type { Template, TemplateField } from './templates';
 
 interface TemplateModalProps {

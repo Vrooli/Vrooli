@@ -1,0 +1,264 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "reindex_run",
+      "path": "/vrooli.ui_health.v1.reindex.ReindexService/Reindex",
+      "method": "POST",
+      "summary": "Start a reindex job",
+      "description": "Queues a reconcile job that upserts/deletes points in the ui-health-surface Qdrant collection.",
+      "category": "reindex",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "scenario": "string (optional; empty means all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "job_id": "string",
+          "planned_deletes": "int32",
+          "planned_upserts": "int32"
+        }
+      },
+      "examples": [
+        {
+          "name": "Reindex (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.reindex.ReindexService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "reindex_status",
+      "path": "/vrooli.ui_health.v1.reindex.ReindexService/ReindexStatus",
+      "method": "POST",
+      "summary": "Poll reindex job status",
+      "description": "Returns the progress, state, and (on failure) error for a previously-started reindex job.",
+      "category": "reindex",
+      "request": {
+        "type": "object",
+        "properties": {
+          "job_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "job_id": "string",
+          "processed": "int32",
+          "state": "string",
+          "total": "int32"
+        }
+      },
+      "examples": [
+        {
+          "name": "Job status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.reindex.ReindexService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\"}'"
+        }
+      ]
+    },
+    {
+      "id": "reindex_cancel",
+      "path": "/vrooli.ui_health.v1.reindex.ReindexService/ReindexCancel",
+      "method": "POST",
+      "summary": "Cancel a reindex job",
+      "description": "Requests cooperative cancellation of an in-flight job.",
+      "category": "reindex",
+      "request": {
+        "type": "object",
+        "properties": {
+          "job_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cancelled": "boolean",
+          "job_id": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Cancel job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.reindex.ReindexService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\"}'"
+        }
+      ]
+    },
+    {
+      "id": "search_query",
+      "path": "/vrooli.ui_health.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search UI surface across scenarios",
+      "description": "Semantic (AI) and text-fallback search across every scenario's UI surface (components, pages, features, hooks).",
+      "category": "search",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "mode": "Mode",
+          "query": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "mode_used": "Mode",
+          "results": "array<SearchResult>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Search",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"date picker\",\"limit\":10}'"
+        }
+      ]
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.ui_health.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report search backend availability",
+      "description": "Reports whether ollama and qdrant are reachable, indexed doc count, and the most recent reconcile outcome.",
+      "category": "search",
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "boolean",
+          "indexed_count": "int32",
+          "last_reconcile_at": "string",
+          "last_reconcile_outcome": "string",
+          "ollama": "boolean",
+          "qdrant": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "name": "Status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's UI manifest, slot directories, and overlay rules",
+      "description": "Runs ui-health validators against a scenario and returns the shared scenario-validation response with findings in the maturity assessment.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "examples": [
+        {
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview ui-health's deterministic UI auto-fixes for a scenario",
+      "description": "Previews (dry-run) the safe mechanical remediations ui-health can apply to a scenario's auto-fixable UI findings, returning candidate edits without writing.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional, explicit scenario root)",
+          "rule_ids": "string[] (optional, restrict to finding codes)",
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool (false for preview)",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Preview fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply ui-health's deterministic UI auto-fixes for a scenario",
+      "description": "Writes the safe mechanical remediations ui-health can apply to a scenario's auto-fixable UI findings. Idempotent: re-applying a fixed scenario yields no candidates.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional, explicit scenario root)",
+          "rule_ids": "string[] (optional, restrict to finding codes)",
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool (true)",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Apply fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
+    }
+  ]
+}

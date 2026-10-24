@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.advisory;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory;advisory_v1";
+
+// AdvisoryService is the typed surface for evidence-bound, non-mutating
+// summaries and drafts. Provider delivery remains a separate webhook
+// transport because it must accept the provider's signed payload shape.
+service AdvisoryService {
+  rpc Draft(DraftRequest) returns (DraftResponse);
+  rpc CheckStagedMessage(CheckStagedMessageRequest) returns (CheckStagedMessageResponse);
+  rpc CollectStagedMessage(CollectStagedMessageRequest) returns (StagedMessageCollection);
+  rpc StartStagedMessage(StartStagedMessageRequest) returns (StagedMessageJob);
+  rpc GetStagedMessageJob(StagedMessageJobRequest) returns (StagedMessageJob);
+  rpc WaitStagedMessageJob(StagedMessageJobRequest) returns (StagedMessageJob);
+  rpc CancelStagedMessageJob(StagedMessageJobRequest) returns (StagedMessageJob);
+  rpc ReadStagedMessageEvidence(ReadStagedMessageEvidenceRequest) returns (ReadStagedMessageEvidenceResponse);
+}
+
+message DraftRequest {
+  string kind = 1;
+  ChangeSubject subject = 2;
+  EvidenceBundle evidence = 3;
+}
+
+message ChangeSubject {
+  string repository_id = 1;
+  string kind = 2;
+  HostSubject host = 3;
+  string base_revision = 4;
+  string head_revision = 5;
+  string parent_revision = 6;
+  SubjectScope scope = 7;
+  string snapshot_digest = 8;
+}
+
+message HostSubject {
+  string provider = 1;
+  string instance_id = 2;
+  string repository_id = 3;
+  string change_number = 4;
+}
+
+message SubjectScope {
+  repeated string paths = 1;
+  string selection_digest = 2;
+}
+
+message EvidenceBundle {
+  string operation_id = 1;
+  string subject_digest = 2;
+  string status = 3;
+  repeated Claim claims = 4;
+  Coverage coverage = 5;
+  repeated ValidationRef validation = 6;
+  repeated string unknowns = 7;
+  map<string, string> versions = 8;
+}
+
+message Claim {
+  string text = 1;
+  repeated string evidence_refs = 2;
+}
+
+message Coverage {
+  int32 included_files = 1;
+  int32 omitted_files = 2;
+  repeated Omission omissions = 3;
+}
+
+message Omission {
+  string path = 1;
+  string reason = 2;
+}
+
+message ValidationRef {
+  string execution_id = 1;
+  string availability = 2;
+  string verdict = 3;
+}
+
+message DraftResponse {
+  string status = 1;
+  string kind = 2;
+  string subject_digest = 3;
+  string title = 4;
+  string body = 5;
+  repeated string unknowns = 6;
+  Coverage coverage = 7;
+  repeated string evidence_refs = 8;
+}
+
+// Collection is deterministic and never dispatches an agent.
+message CollectStagedMessageRequest { string repository_id = 1; }
+message StartStagedMessageRequest {
+  string repository_id = 1;
+  string collection_id = 2;
+  string snapshot_digest = 3;
+  repeated string selected_context_ids = 4;
+  string request_key = 5;
+  string operator_note = 6;
+  // Explicit deeper investigation of this successful partial draft; uses its
+  // original immutable subject and a new request key, never recollects staging.
+  string continuation_of_job_id = 7;
+}
+message StagedMessageJobRequest {
+  string repository_id = 1;
+  string job_id = 2;
+  int32 timeout_seconds = 3;
+  string request_key = 4;
+}
+message StagedMessageTrailer { string key = 1; string value = 2; }
+message StagedMessageTimingHint {
+  string source = 1;
+  string timestamp = 2;
+  bool content_matches_index = 3;
+  string limitation = 4;
+}
+message StagedMessageFile {
+  string path = 1;
+  string old_path = 2;
+  string status = 3;
+  string old_mode = 4;
+  string new_mode = 5;
+  string old_blob_id = 6;
+  string new_blob_id = 7;
+  string patch = 8;
+  bool binary = 9;
+  string omission_reason = 10;
+  repeated StagedMessageTimingHint timing_hints = 11;
+  int32 edit_count = 12;
+}
+message StagedMessageSnapshot {
+  string digest = 1;
+  string repository_id = 2;
+  string base_head = 3;
+  repeated StagedMessageFile files = 4;
+  string captured_at = 5;
+}
+message StagedMessageCoverage {
+  repeated string covered_paths = 1;
+  repeated string uncovered_paths = 2;
+  int32 matched_edits = 3;
+  int32 total_edits = 4;
+  bool partial = 5;
+  repeated Omission omissions = 6;
+}
+message StagedMessageContext {
+  string id = 1;
+  string kind = 2;
+  string reference = 3;
+  string revision = 4;
+  string title = 5;
+  string body = 6;
+  string status = 7;
+  string detail = 8;
+  repeated string matched_paths = 9;
+  int32 matched_edits = 10;
+  bool full_match = 11;
+  repeated string unknowns = 12;
+  string activity_start = 13;
+  string activity_end = 14;
+}
+enum StagedMessageScope {
+  STAGED_MESSAGE_SCOPE_UNSPECIFIED = 0;
+  STAGED_MESSAGE_SCOPE_WHOLE_SELECTION = 1;
+  STAGED_MESSAGE_SCOPE_LIMITED = 2;
+}
+message StagedMessageSuggestion {
+  string id = 1;
+  string title = 2;
+  string body = 3;
+  repeated StagedMessageTrailer trailers = 4;
+  StagedMessageCoverage coverage = 5;
+  repeated string source_ids = 6;
+  repeated string unknowns = 7;
+  // Message scope is independent from detailed patch inspection coverage.
+  StagedMessageScope message_scope = 8;
+  string message_scope_explanation = 9;
+}
+message StagedMessageCollection {
+  string id = 1;
+  StagedMessageSnapshot snapshot = 2;
+  repeated StagedMessageSuggestion suggestions = 3;
+  repeated StagedMessageContext contexts = 4;
+  repeated Omission omissions = 5;
+  string status = 6;
+  string collected_at = 7;
+}
+message StagedMessageJob {
+  string id = 1;
+  string repository_id = 2;
+  string snapshot_digest = 3;
+  string status = 4;
+  string created_at = 5;
+  string updated_at = 6;
+  string execution_id = 7;
+  bool cancel_requested = 8;
+  StagedMessageSuggestion result = 9;
+  string error = 10;
+  bool applicable = 11;
+  string applicability_reason = 12;
+  StagedMessageSnapshot snapshot = 13;
+  string phase = 14;
+  string continuation_of_job_id = 15;
+  uint32 evidence_files_read = 16;
+  uint32 evidence_files_total = 17;
+}
+
+message ReadStagedMessageEvidenceRequest {
+  string repository_id = 1;
+  string job_id = 2;
+  string snapshot_digest = 3;
+  // Zero-based offset in the complete canonical manifest.
+  uint32 cursor = 4;
+  uint32 max_bytes = 5;
+  // Metadata only; never reads Git blobs. Cursor pages the complete manifest.
+  bool inventory_only = 6;
+  // Exact stable IDs for targeted patches, mutually exclusive with inventory/cursor.
+  repeated uint32 file_ids = 7;
+}
+message StagedMessageEvidenceFile {
+  uint32 file_id = 1;
+  string path = 2;
+  string old_path = 3;
+  string patch = 4;
+  bool complete_patch = 5;
+  string omission_reason = 6;
+  string old_blob_id = 7;
+  string new_blob_id = 8;
+  string status = 9;
+  // Positive retained measurement; absent/zero means unmeasured, not no changes.
+  int32 edit_count = 10;
+  string old_mode = 11;
+  string new_mode = 12;
+}
+message ReadStagedMessageEvidenceResponse {
+  string snapshot_digest = 1;
+  repeated StagedMessageEvidenceFile files = 2;
+  uint32 next_cursor = 3;
+  // Sequential/inventory: end of manifest. Targeted: every requested ID returned.
+  // Independently of each file's complete_patch flag; retry omitted target IDs directly.
+  bool complete = 4;
+  // Non-secret evidence receipt, never an authorization credential.
+  string receipt = 5;
+  uint32 total_files = 6;
+}
+
+message CheckStagedMessageRequest { string repository_id = 1; string snapshot_digest = 2; }
+message CheckStagedMessageResponse { bool applicable = 1; string reason = 2; string current_snapshot_digest = 3; }

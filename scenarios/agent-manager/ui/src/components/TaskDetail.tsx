@@ -14,6 +14,8 @@ const taskStatusLabel = (status: TaskStatus): string => {
       return "queued";
     case TaskStatus.RUNNING:
       return "running";
+    case TaskStatus.COMPLETED:
+      return "completed";
     case TaskStatus.NEEDS_REVIEW:
       return "needs_review";
     case TaskStatus.APPROVED:
@@ -25,7 +27,7 @@ const taskStatusLabel = (status: TaskStatus): string => {
     case TaskStatus.CANCELLED:
       return "cancelled";
     default:
-      return "queued";
+      return "unknown";
   }
 };
 
@@ -54,19 +56,26 @@ export function TaskDetail({
           <h3 className="text-lg font-semibold">{task.title}</h3>
           <Badge
             variant={
-              taskStatusLabel(task.status) as
+              (taskStatusLabel(task.status) === "unknown" ? "secondary" : taskStatusLabel(task.status)) as
                 | "queued"
                 | "running"
+                | "completed"
                 | "needs_review"
                 | "approved"
                 | "rejected"
                 | "failed"
                 | "cancelled"
+                | "secondary"
             }
           >
             {taskStatusLabel(task.status).replace("_", " ")}
           </Badge>
         </div>
+        {task.status === TaskStatus.RUNNING && !task.currentRunId && (
+          <p className="text-xs text-muted-foreground" role="note">
+            This legacy task has no recorded current run, so its active attempt cannot be matched.
+          </p>
+        )}
         {task.description ? (
           <div className="text-sm text-muted-foreground">
             <MarkdownRenderer content={task.description} />

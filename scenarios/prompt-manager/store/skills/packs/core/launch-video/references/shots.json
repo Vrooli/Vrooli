@@ -1,0 +1,514 @@
+{
+  "version": 1,
+  "ownership": "Original Vrooli descriptions; independent intent taxonomy. External research provenance: upstream.md. No imported recipes or assets.",
+  "shots": [
+    {
+      "id": "context-to-detail",
+      "intent": [
+        "direct-attention",
+        "detail",
+        "focus"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        2,
+        5
+      ],
+      "requires": [
+        "capture",
+        "target-bounds"
+      ],
+      "notes": "Establish the window, move once toward the subject, settle before the read.",
+      "antiPatterns": [
+        "Zoom beyond encoded pixels; losing all navigation context."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "action-to-change",
+      "intent": [
+        "interaction",
+        "proof"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        6
+      ],
+      "requires": [
+        "start-state",
+        "recorded-action",
+        "end-state"
+      ],
+      "notes": "Let the pointer arrive, show the actual action, hold its visible consequence.",
+      "antiPatterns": [
+        "Drawing an action or result that did not occur in the recording."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "resolving-list",
+      "intent": [
+        "results",
+        "progress"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        2,
+        5
+      ],
+      "requires": [
+        "real-changing-list"
+      ],
+      "notes": "Follow a real sequence of completed results; keep the completed group readable.",
+      "antiPatterns": [
+        "Adding success states or implying accelerated performance without disclosure."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "signal-to-inspection",
+      "intent": [
+        "anomaly",
+        "investigate",
+        "proof"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        4,
+        7
+      ],
+      "requires": [
+        "signal",
+        "actual-detail-view"
+      ],
+      "notes": "Establish a signal and follow the real navigation into its explanation.",
+      "antiPatterns": [
+        "Implying causal diagnosis from unrelated chart and report captures."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "before-after",
+      "intent": [
+        "transformation",
+        "comparison"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        6
+      ],
+      "requires": [
+        "matched-before",
+        "matched-after"
+      ],
+      "notes": "Keep scale and framing matched so the changed state explains the outcome.",
+      "antiPatterns": [
+        "Unrelated datasets, unequal scale, or hidden qualification."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "split-comparison",
+      "intent": [
+        "comparison",
+        "context"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        6
+      ],
+      "requires": [
+        "two-source-regions"
+      ],
+      "notes": "Hold two matched views; accent the meaningful difference once.",
+      "antiPatterns": [
+        "Shrinking both screens below legibility or inventing superiority."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "scroll-reveal",
+      "intent": [
+        "browse",
+        "progressive-disclosure"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        6
+      ],
+      "requires": [
+        "scroll-container",
+        "known-layout"
+      ],
+      "notes": "Capture eased real scrolling; stop with the meaningful content fully visible.",
+      "antiPatterns": [
+        "Fixed highlight drifting over unrelated moving content."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "result-arrival",
+      "intent": [
+        "result",
+        "payoff"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        2,
+        5
+      ],
+      "requires": [
+        "captured-result-transition"
+      ],
+      "notes": "Cut surrounding context only after the actual result arrives; let it hold.",
+      "antiPatterns": [
+        "Composing a new success card and presenting it as shipped UI."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "layered-window",
+      "intent": [
+        "reveal",
+        "depth"
+      ],
+      "media": [
+        "capture-derivative"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        2,
+        4
+      ],
+      "requires": [
+        "high-resolution-capture",
+        "mask-bounds"
+      ],
+      "notes": "Separate captured window and background subtly without changing internal layout.",
+      "antiPatterns": [
+        "Impossible UI layers, excessive perspective, or tiny text."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "detail-to-context",
+      "intent": [
+        "breadth",
+        "context"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        5
+      ],
+      "requires": [
+        "detail",
+        "context-capture"
+      ],
+      "notes": "Pull back after a detail is understood to reveal where it belongs.",
+      "antiPatterns": [
+        "Using a wide ending to imply unshown integration or coverage."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "type-bridge",
+      "intent": [
+        "story",
+        "transition",
+        "clarity"
+      ],
+      "media": [
+        "explanatory"
+      ],
+      "complexity": "low",
+      "durationRange": [
+        2,
+        4
+      ],
+      "requires": [
+        "approved-short-copy"
+      ],
+      "notes": "Let one short phrase connect two proof beats with a clear reading hold.",
+      "antiPatterns": [
+        "Replacing the proof sequence with slogan after slogan."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "brand-resolve",
+      "intent": [
+        "outro",
+        "identity",
+        "ending"
+      ],
+      "media": [
+        "brand"
+      ],
+      "complexity": "low",
+      "durationRange": [
+        3,
+        5
+      ],
+      "requires": [
+        "shipped-logo",
+        "approved-takeaway"
+      ],
+      "notes": "Resolve the visual motif into the brand; hold a single takeaway and destination.",
+      "antiPatterns": [
+        "Ending while type still arrives; an unverified download or availability claim."
+      ],
+      "implementationRefs": [
+        "production.md",
+        "upstream.md"
+      ]
+    },
+    {
+      "id": "source-constellation",
+      "intent": [
+        "breadth",
+        "connections",
+        "collage"
+      ],
+      "media": [
+        "capture-derivative"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "related-source-crops",
+        "source-bounds"
+      ],
+      "notes": "Arrange related genuine regions spatially; connect only relationships supported by the product.",
+      "antiPatterns": [
+        "Decorative edges that imply unobserved integration."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "material-metaphor",
+      "intent": [
+        "broll",
+        "material",
+        "3d-look",
+        "metaphor",
+        "focus"
+      ],
+      "media": [
+        "generated-still-motion"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        2,
+        4
+      ],
+      "requires": [
+        "story-job",
+        "imagegen-provenance",
+        "full-size-styleframe",
+        "timed-motion-review"
+      ],
+      "notes": "Brief rich materials/light/negative space; add restrained camera and independent light motion, then match cut to actual product proof. Preserve original plate pixels and prompt. See broll.md.",
+      "antiPatterns": [
+        "Calling a moving still true3D; generic filler; using generated art as product evidence."
+      ],
+      "implementationRefs": [
+        "broll.md",
+        "production.md"
+      ]
+    },
+    {
+      "id": "mobile-reader",
+      "intent": [
+        "messages",
+        "mobile",
+        "rich-content"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "actual-responsive-ui",
+        "rich-fictional-data"
+      ],
+      "notes": "Show useful rich messages at phone content width, scroll with eased stops and hold a decision.",
+      "antiPatterns": [
+        "Shrunk desktop UI or device shell covering controls."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "search-decision",
+      "intent": [
+        "search",
+        "find",
+        "proof"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "known-query",
+        "observed-results"
+      ],
+      "notes": "Lead with the search capability, show actual input and hold the resulting decision.",
+      "antiPatterns": [
+        "Using the query as the editorial feature claim."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "public-destination",
+      "intent": [
+        "cta",
+        "qr",
+        "ending"
+      ],
+      "media": [
+        "brand"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "verified-full-url",
+        "deterministic-qr"
+      ],
+      "notes": "Hold a usable action, complete URL and stationary QR; verify compressed video at playback widths.",
+      "antiPatterns": [
+        "Bare internal route, unverified download or source-only QR check."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "procedural-spatial-insert",
+      "intent": [
+        "broll",
+        "3d",
+        "blender",
+        "geometry",
+        "parallax",
+        "orbit"
+      ],
+      "media": [
+        "procedural-3d"
+      ],
+      "complexity": "high",
+      "durationRange": [
+        2,
+        4
+      ],
+      "requires": [
+        "story-job",
+        "qualified-installed-renderer",
+        "scene-script",
+        "materials-lights-camera",
+        "representative-frame-and-motion",
+        "bounded-owned-process"
+      ],
+      "notes": "Use actual geometry when changing occlusion, orbit or moving parts matter. Retain scene, script, engine/device, samples and rendered frames. Inspect material response before scaling. CPU rendering is valid; reservation is not GPU execution evidence.",
+      "antiPatterns": [
+        "Reviving fixed effort paths as a service; GPU claims from environment guesses; basic primitives plus glow passed as premium; needless insert quota."
+      ],
+      "implementationRefs": [
+        "broll.md",
+        "safety.md"
+      ]
+    }
+  ]
+}

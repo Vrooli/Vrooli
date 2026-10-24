@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.looks;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks;looks_v1";
+
+// =============================================================================
+// LOOKS DOMAIN — the Look / Style Library (IMG-P1-012)
+// =============================================================================
+//
+// @stability alpha
+//
+// Wire contract for LooksService: a data-defined, thumbnail-backed library of
+// reusable "Looks". A Look is a named transformation recipe — an ordered chain
+// of deterministic ops (internal/ops) and/or AI ops (internal/ai), plus a
+// prompt template and default params — that compiles down to the concrete
+// op/AI request shapes the Workspace already submits. Looks generalize the
+// preset (OT-P1-010) and recipe (OT-P1-004) ideas into one entity:
+//
+//   - a "realistic ↔ anime" STYLE look is an edit_instruct/image_to_image step
+//     with a prompt template;
+//   - a "Polaroid 600" FILM look is a pure-deterministic adjust+filter+grain
+//     chain (runs on any host, no model);
+//   - an "old-iPod" CAMERA look is a deterministic resize+saturation+grain chain;
+//   - a "restore + de-plasticize" ENHANCE look chains upscale → naturalize.
+//
+// The library is the COMPOSE-SEAM other scenarios use: branding-manager /
+// AI-UGC call CompileLook to turn a chosen Look + a subject into the exact
+// requests to run, without re-encoding prompt/param knowledge. Built-in Looks
+// are a read-only seeded baseline; operators add their own (CreateLook) which
+// persist in SQLite.
+//
+// Transport: DISCOVERY + CRUD + COMPILE are Connect-RPC (typed). Thumbnail
+// RENDERING (RenderPreview) is Connect too — it applies the Look's deterministic
+// step chain in-process to a built-in reference image and stores the preview as
+// a blob, so "add your own style → see a preview" works with zero model
+// provisioning for deterministic Looks. AI steps in a Look are reported as
+// deferred in the preview (they need a backend; run them via the Workspace).
+//
+// Consumed by:
+//   - API: handlers/looks/connect_handler.go implements LooksServiceHandler.
+//   - CLI: cli/domains/looks calls the generated Connect-Go client.
+//   - UI:  ui/src/api/looks.ts wraps the generated Connect-Web client; the
+//          Workspace look-picker drawer lists + applies Looks.
+// =============================================================================
+
+service LooksService {
+  // ListLooks returns the library (built-in + custom), optionally filtered by
+  // kind, in stable order (built-ins first, then custom by created_at).
+  rpc ListLooks(ListLooksRequest) returns (ListLooksResponse);
+
+  // GetLook returns one Look by id.
+  rpc GetLook(GetLookRequest) returns (GetLookResponse);
+
+  // CreateLook persists a new custom Look. The id is server-assigned (slugified
+  // from the name) when empty and must not collide with a built-in or existing
+  // custom id.
+  rpc CreateLook(CreateLookRequest) returns (CreateLookResponse);
+
+  // UpdateLook replaces a custom Look's mutable fields. Built-in Looks are
+  // read-only and cannot be updated.
+  rpc UpdateLook(UpdateLookRequest) returns (UpdateLookResponse);
+
+  // DeleteLook removes a custom Look. Built-in Looks cannot be deleted.
+  rpc DeleteLook(DeleteLookRequest) returns (DeleteLookResponse);
+
+  // CompileLook resolves a Look + a subject into the ordered concrete op/AI
+  // request shapes to run (prompt template filled, params merged). This is the
+  // compose-seam; it executes nothing.
+  rpc CompileLook(CompileLookRequest) returns (CompileLookResponse);
+
+  // RenderPreview applies the Look's deterministic step chain in-process to a
+  // built-in reference image, stores the result as a blob, sets the Look's
+  // thumbnail_ref (for custom Looks), and returns the blob key. AI steps are
+  // skipped and reported in deferred_steps (they need a backend).
+  rpc RenderPreview(RenderPreviewRequest) returns (RenderPreviewResponse);
+}
+
+// LookKind groups Looks for the picker. The kind also hints whether a Look is
+// typically deterministic (FILM/CAMERA) or model-backed (STYLE).
+enum LookKind {
+  LOOK_KIND_UNSPECIFIED = 0;
+  LOOK_KIND_STYLE = 1; // a prompt-driven artistic/photographic style (model-backed)
+  LOOK_KIND_FILM = 2; // film-stock / grain emulation (typically deterministic)
+  LOOK_KIND_CAMERA = 3; // camera / lens / device emulation (typically deterministic)
+  LOOK_KIND_ENHANCE = 4; // a restoration/enhancement chain
+  LOOK_KIND_CUSTOM = 5; // user-defined / mixed
+}
+
+// StepKind distinguishes a deterministic op (internal/ops, always runnable) from
+// a model-backed AI op (internal/ai, gated on backend + weights).
+enum StepKind {
+  STEP_KIND_UNSPECIFIED = 0;
+  STEP_KIND_DETERMINISTIC = 1;
+  STEP_KIND_AI = 2;
+}
+
+// LookStep is one stage of a Look's chain.
+message LookStep {
+  // Operation name: a deterministic op (e.g. "adjust", "filter", "naturalize"
+  // is treated as deterministic) or an AI op (e.g. "edit_instruct",
+  // "image_to_image"). Must exist in the corresponding catalog.
+  string operation = 1;
+  // Whether this step runs on the deterministic engine or the AI engine.
+  StepKind kind = 2;
+  // Op params (string-valued, matching the op's param map). For an AI step the
+  // step may carry a `prompt` here, or rely on the Look's prompt_template.
+  map<string, string> params = 3;
+}
+
+// Look is one library entry.
+message Look {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  LookKind kind = 4;
+  // The ordered transformation chain.
+  repeated LookStep steps = 5;
+  // prompt_template steers the (first) prompt-driven AI step. Placeholders:
+  //   {subject} — the caller's subject text (CompileLook subject);
+  //   {prompt}  — the caller's free-form prompt (CompileLook prompt).
+  // Empty leaves AI steps to their own `prompt` param.
+  string prompt_template = 6;
+  // Default params merged into every compiled step (e.g. strength, cfg_scale).
+  map<string, string> params = 7;
+  // thumbnail_ref is the blob key of the generated preview ("" until rendered).
+  string thumbnail_ref = 8;
+  // builtin marks a seeded, read-only Look.
+  bool builtin = 9;
+  // RFC3339 timestamps ("" for built-ins).
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message ListLooksRequest {
+  // Optional kind filter; LOOK_KIND_UNSPECIFIED returns all.
+  LookKind kind = 1;
+}
+
+message ListLooksResponse {
+  repeated Look looks = 1;
+}
+
+message GetLookRequest {
+  string id = 1;
+}
+
+message GetLookResponse {
+  Look look = 1;
+}
+
+message CreateLookRequest {
+  // The Look to create. id is assigned from the name when empty. builtin,
+  // thumbnail_ref, and timestamps are server-controlled and ignored on input.
+  Look look = 1;
+}
+
+message CreateLookResponse {
+  Look look = 1;
+}
+
+message UpdateLookRequest {
+  Look look = 1;
+}
+
+message UpdateLookResponse {
+  Look look = 1;
+}
+
+message DeleteLookRequest {
+  string id = 1;
+}
+
+message DeleteLookResponse {
+  bool deleted = 1;
+}
+
+message CompileLookRequest {
+  string look_id = 1;
+  // subject substitutes the {subject} placeholder in the prompt template.
+  string subject = 2;
+  // prompt substitutes the {prompt} placeholder (a free-form addition).
+  string prompt = 3;
+  // has_input declares whether the caller has an input image, so the compiler
+  // can flag a Look that needs one but has none.
+  bool has_input = 4;
+}
+
+// CompiledStep is one resolved, ready-to-submit stage.
+message CompiledStep {
+  string operation = 1;
+  StepKind kind = 2;
+  // Fully resolved params (Look defaults + step params + filled prompt).
+  map<string, string> params = 3;
+}
+
+message CompileLookResponse {
+  // The ordered resolved steps to run, in order.
+  repeated CompiledStep steps = 1;
+  // primary_prompt is the resolved prompt for the first prompt-driven AI step
+  // (convenience for single-step Looks).
+  string primary_prompt = 2;
+  // requires_image is true when any step edits an input image.
+  bool requires_image = 3;
+  // requires_mask is true when any step needs a mask.
+  bool requires_mask = 4;
+  // warnings carries non-fatal cautions (e.g. "needs an input image but none
+  // provided", "contains AI steps that need a backend").
+  repeated string warnings = 5;
+}
+
+message RenderPreviewRequest {
+  string look_id = 1;
+}
+
+message RenderPreviewResponse {
+  // Blob key of the rendered preview (a deterministic approximation when the
+  // Look contains AI steps).
+  string thumbnail_ref = 1;
+  // Operations that were skipped because they are model-backed (need a backend).
+  repeated string deferred_steps = 2;
+}

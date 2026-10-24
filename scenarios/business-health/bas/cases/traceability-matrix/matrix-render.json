@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "name": "matrix-render",
+    "description": "Traceability matrix happy path: deep-links into the matrix for the business-health scenario itself and asserts the grid + registry summary render. Proves the OT × requirement grid loads its evidence join end-to-end against a real scenario.",
+    "requirement": "BH-UX-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "matrix"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-matrix",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "business-health",
+          "scenario_path": "/matrix?scenario=business-health",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Deep-link into the matrix for business-health" }
+      }
+    },
+    {
+      "id": "wait-grid",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/matrix.grid",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": { "label": "Matrix grid visible" }
+      }
+    },
+    {
+      "id": "assert-registry",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/matrix.registrySummary",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Registry summary did not render — the matrix loaded no registry shape (check GetMatrix returned a registry for business-health)."
+        },
+        "metadata": { "label": "Assert the registry summary header rendered" }
+      }
+    }
+  ]
+}

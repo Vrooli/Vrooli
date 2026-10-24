@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Silent Founder OS">
+  <rect width="512" height="512" rx="112" fill="#07090f"/>
+  <path d="M128 352V160h56l72 112 72-112h56v192h-56V248l-72 104-72-104v104z" fill="#38bdf8"/>
+</svg>

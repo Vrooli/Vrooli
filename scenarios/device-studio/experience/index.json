@@ -1,0 +1,177 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "device-studio",
+  "description": "Device Studio experience contract. Template routes remain distinct from the partially implemented local project index/detail routes and proposed product routes; every entry remains draft and no page-level acceptance is claimed.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Home",
+      "status": "draft",
+      "x-route-status": "implemented-template",
+      "x-product-status": "not-implemented"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "draft",
+      "x-route-status": "implemented-template",
+      "x-product-status": "not-implemented"
+    },
+    {
+      "id": "projects",
+      "path": "pages/projects.json",
+      "title": "Projects",
+      "status": "draft",
+      "x-route-status": "partially-implemented"
+    },
+    {
+      "id": "project",
+      "path": "pages/project.json",
+      "title": "Project",
+      "status": "draft",
+      "x-route-status": "partially-implemented"
+    },
+    {
+      "id": "library",
+      "path": "pages/library.json",
+      "title": "Library",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "asset",
+      "path": "pages/asset.json",
+      "title": "Asset detail",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "import",
+      "path": "pages/import.json",
+      "title": "Import assets",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "creation",
+      "path": "pages/creation.json",
+      "title": "AI and agent creation",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "review",
+      "path": "pages/review.json",
+      "title": "Review candidate",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "shot",
+      "path": "pages/shot.json",
+      "title": "Shot builder",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "jobs",
+      "path": "pages/jobs.json",
+      "title": "Jobs",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "job",
+      "path": "pages/job.json",
+      "title": "Job detail",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "result",
+      "path": "pages/result.json",
+      "title": "Result and handoff",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "account",
+      "path": "pages/account.json",
+      "title": "Account and providers",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    },
+    {
+      "id": "project-settings",
+      "path": "pages/project-settings.json",
+      "title": "Project privacy and limits",
+      "status": "draft",
+      "x-route-status": "planned-not-implemented"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "first-photographic-shot",
+      "path": "journeys/first-photographic-shot.json",
+      "title": "First photographic presentation",
+      "status": "draft"
+    },
+    {
+      "id": "controlled-device-motion",
+      "path": "journeys/controlled-device-motion.json",
+      "title": "Controlled physical device motion",
+      "status": "draft"
+    },
+    {
+      "id": "agent-creation-and-release",
+      "path": "journeys/agent-creation-and-release.json",
+      "title": "Bounded AI creation and review",
+      "status": "draft"
+    },
+    {
+      "id": "offline-recovery",
+      "path": "journeys/offline-recovery.json",
+      "title": "Offline editing and interrupted work",
+      "status": "draft"
+    },
+    {
+      "id": "account-and-funded-work",
+      "path": "journeys/account-and-funded-work.json",
+      "title": "Optional account and funded execution",
+      "status": "draft"
+    },
+    {
+      "id": "mobile-calibration",
+      "path": "journeys/mobile-calibration.json",
+      "title": "Accessible mobile precision editing",
+      "status": "draft"
+    },
+    {
+      "id": "scoped-library-release",
+      "path": "journeys/scoped-library-release.json",
+      "title": "Import and scoped library release",
+      "status": "draft"
+    },
+    {
+      "id": "portable-replay-and-handoff",
+      "path": "journeys/portable-replay-and-handoff.json",
+      "title": "Portable replay and consumer handoff",
+      "status": "draft"
+    }
+  ],
+  "x-evidence-frontier": {
+    "status": "design-only-pre-l1",
+    "implemented_product_routes": [],
+    "runtime_attestations": false,
+    "mockups_ratified": false,
+    "promotion": "Implement, bind, capture and validate exact states before promoting relevant routes or claims."
+  }
+}

@@ -1,0 +1,1 @@
+{"gate":"responsive","assetId":"calibration-responsive","kind":"component","runner":"external","requiredFailureCode":"catalog.responsive_calibration","description":"A browser viewport fixture that must fail at the narrow breakpoint."}

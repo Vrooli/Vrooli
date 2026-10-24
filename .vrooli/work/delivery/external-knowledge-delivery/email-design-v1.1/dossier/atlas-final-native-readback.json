@@ -1,0 +1,897 @@
+{
+  "documentId": "1FGEwJtpi67XDCfqpzb4FwkL4isVEXRDNhlsC3Q7FtjU",
+  "title": "20 Vrooli Mail — Visual atlas and state coverage v1.1",
+  "revisionId": "AHj4eMQP3U_gMEaIvoxbxnKkwSUWrh7clEgXWJM82MzmxDs2b3VS0K3Jv2vN-0g2R79ThghvrpzbpVqq4xvURet-0L5ZPqB4I4CrJ6mmyg",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "Vrooli Mail",
+      "startIndex": 1,
+      "endIndex": 12,
+      "tabId": "t.0",
+      "namedStyleType": "TITLE",
+      "isListItem": false
+    },
+    {
+      "text": "Visual atlas and state coverage",
+      "startIndex": 13,
+      "endIndex": 44,
+      "tabId": "t.0",
+      "namedStyleType": "SUBTITLE",
+      "isListItem": false
+    },
+    {
+      "text": "Version 1.1 • 14 October 2026 • Multi-Gmail first release • Fictional mail",
+      "startIndex": 45,
+      "endIndex": 119,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "1. Read the design, not a claim of live software",
+      "startIndex": 120,
+      "endIndex": 168,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "This atlas presents the selected full-client direction through 84 rendered variants of 21 representative screen families in four viewport/theme combinations: desktop light, desktop dark, mobile light and mobile dark. Multiple Gmail accounts, All inboxes and account filtering are first-release requirements. The specification owns exact behavior, boundaries and acceptance. Static design specimens do not establish working integration, model quality, secure rendering or accessibility conformance.",
+      "startIndex": 169,
+      "endIndex": 666,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The complete full-resolution PDF and original asset package are the zoomable review sources. Native Docs embeds overview boards for navigation and discussion. The original individual PNGs, responsive HTML/CSS and manifest retain the usable-resolution source; the boards are not the only handoff. Actual capture counts, file hashes and checked variants are recorded in the delivery receipt and asset manifest rather than inferred from a checklist.",
+      "startIndex": 667,
+      "endIndex": 1113,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Full-resolution atlas PDF — individual screens at readable scale",
+      "startIndex": 1114,
+      "endIndex": 1178,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Original assets and source package — HTML, PNGs, manifests and specification",
+      "startIndex": 1179,
+      "endIndex": 1255,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Product specification — full behavior and acceptance contract",
+      "startIndex": 1256,
+      "endIndex": 1317,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Email project entry — scope, sources and handoff checkpoint",
+      "startIndex": 1318,
+      "endIndex": 1377,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "1.1 Suggested review route",
+      "startIndex": 1378,
+      "endIndex": 1404,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_2",
+      "isListItem": false
+    },
+    {
+      "text": "Start with Unified inbox, Account chooser, Specific-account inbox and Partial unified inbox. Compare their mobile and dark variants. Then review Thread, Reply, New message, Search and Proposal review. Finish with Accounts, Sync, Reconnect and Send review, where identity, permissions and recovery matter most.",
+      "startIndex": 1405,
+      "endIndex": 1714,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The owner endorsed the overall visual direction on 14 October 2026 at 20:59 UTC and selected the multi-Gmail amendment. The warm porcelain/ink/evergreen language and detailed interaction choices remain designer selections under delegated authority. This revised artifact set, native import and implementation acceptance are separate. The local delivery team and heartbeat remain disabled.",
+      "startIndex": 1715,
+      "endIndex": 2103,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "2. Visual and interaction contract",
+      "startIndex": 2104,
+      "endIndex": 2138,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Working surfaces are full-width and compact. Desktop uses appropriate navigation/list/detail panes; mobile uses edge-to-edge list → full-page detail and full-page compose, with saved back-stack context. Do not reproduce desktop split panes as vertically stacked mobile panels. Settings is a sectioned compact list, and source/code viewers get a complete usable content area.",
+      "startIndex": 2139,
+      "endIndex": 2513,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Light mode uses warm porcelain with dark ink and restrained evergreen actions. Dark mode uses distinct dark surface levels and readable status colors. The typography and spacing prioritize real mail density; original source content stays more prominent than optional AI assistance. Realistic fictional Aster Studio messages demonstrate the design without exposing private mail.",
+      "startIndex": 2514,
+      "endIndex": 2891,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "All actions need accessible names and visible focus, touch alternatives to hover, non-color status cues and recovery feedback. Primary mobile controls respect the device safe area and keyboard. Reduced motion removes decorative movement. Static images demonstrate the intended composition only; keyboard, screen-reader, contrast, native-device and motion checks remain future product acceptance work.",
+      "startIndex": 2892,
+      "endIndex": 3292,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Detailed state and acceptance definitions: specification §§15–16. Requirement families R01–R08 and acceptance IDs A01–A18 are stable cross-references. R08 and A16–A18 specify first-release multiple accounts. Each section distinguishes representative visual intent from behaviors a static image cannot prove.",
+      "startIndex": 3293,
+      "endIndex": 3600,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM01. Unified inbox",
+      "startIndex": 3601,
+      "endIndex": 3620,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "All inboxes combines connected Gmail mailboxes without merging their messages or conversations. Account badges and a persistent view filter keep ownership visible. Desktop can use list/reader panes; mobile stays an edge-to-edge list.",
+      "startIndex": 3621,
+      "endIndex": 3854,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect account chips, per-row identity, counts and partial coverage. All inboxes is the first-run default; switching the view never silently changes an open draft sender.",
+      "startIndex": 3855,
+      "endIndex": 4040,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R04, R06, R07, R08. Acceptance: A01, A02, A06, A09, A13, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 4041,
+      "endIndex": 4185,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM02. Thread and reading",
+      "startIndex": 4188,
+      "endIndex": 4212,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Every conversation belongs to one receiving account; same subject or RFC Message-ID in another mailbox never merges it. Original message headers, bodies, quoted history and attachments remain distinct from cited AI derivations.",
+      "startIndex": 4213,
+      "endIndex": 4440,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect the receiving account, source identity, safe rendering and full-page mobile back navigation. Reply uses the receiving mailbox and verified alias, never a global last-used account.",
+      "startIndex": 4441,
+      "endIndex": 4642,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R04, R06, R07, R08. Acceptance: A03, A05, A13, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 4643,
+      "endIndex": 4777,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM03. Reply and draft",
+      "startIndex": 4780,
+      "endIndex": 4801,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "This reply retains the Work receiving account and verified From identity. Draft ownership, local save and Gmail save are separate. Mobile uses a full page above keyboard and safe area. New mail begins in MA05.",
+      "startIndex": 4802,
+      "endIndex": 5011,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect From, To/Cc/Bcc, attachments, signature and save receipts. Changing account/alias invalidates prior send approval; unavailable source-account send never silently falls through to another mailbox.",
+      "startIndex": 5012,
+      "endIndex": 5229,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R02, R06, R07, R08. Acceptance: A07, A08, A13, A18. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 5230,
+      "endIndex": 5354,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM04. Search and evidence",
+      "startIndex": 5357,
+      "endIndex": 5382,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Exact filters and natural-language recall share a clear source-result surface. Every useful passage resolves to account, thread, message or attachment provenance. Numbers, IDs and quoted phrases keep lexical semantics.",
+      "startIndex": 5383,
+      "endIndex": 5601,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect interpreted filters, match locations, source citations, query scope and freshness. Duplicate derivations collapse to one source. No hidden-account metadata or remote fallback is permitted after an empty private result.",
+      "startIndex": 5602,
+      "endIndex": 5842,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R03, R06, R07, R08. Acceptance: A01, A04, A05, A13, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 5843,
+      "endIndex": 5977,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM05. Agent proposal review",
+      "startIndex": 5980,
+      "endIndex": 6007,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "One coherent suggestion includes source evidence, a meaningful reason, exact proposed action and affected account/people. Approval and receipts are routed through existing shared mechanisms. No suggestion is applied merely because it exists.",
+      "startIndex": 6008,
+      "endIndex": 6249,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect source quotations, before/after or final-draft preview, stale/permission state and focused choices. Deduplication and a small useful digest must prevent an exhausting approval queue.",
+      "startIndex": 6250,
+      "endIndex": 6454,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R04, R06, R07, R08. Acceptance: A01, A05, A10, A14, A18. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 6455,
+      "endIndex": 6584,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM06. Waiting",
+      "startIndex": 6587,
+      "endIndex": 6600,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Open-loop tracking shows what is awaited, from whom, source evidence and last activity. Suggested waiting is separate from user-confirmed tracking; a reply does not automatically prove resolution.",
+      "startIndex": 6601,
+      "endIndex": 6797,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect tracking state, follow-up timing, snooze, resolution and original-thread links. Drafting a reminder is separate from sending it. Planner remains owner of accepted scheduled commitments.",
+      "startIndex": 6798,
+      "endIndex": 7005,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R04, R05, R07, R08. Acceptance: A06, A10, A11, A13. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 7006,
+      "endIndex": 7130,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM07. Projects",
+      "startIndex": 7133,
+      "endIndex": 7147,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Project collections connect relevant mail and evidence without copying mailboxes into another owner. Explicit, suggested and corrected associations are distinct. Cross-account membership never creates new access.",
+      "startIndex": 7148,
+      "endIndex": 7360,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect source account, membership explanation, related attachment and Planner links. Removing a local project association must not silently remove a Gmail label.",
+      "startIndex": 7361,
+      "endIndex": 7537,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R03, R04, R05, R06, R08. Acceptance: A01, A06, A11. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 7538,
+      "endIndex": 7662,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM08. Attachment preview",
+      "startIndex": 7665,
+      "endIndex": 7689,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Original attachment availability and derived understanding are separate. Download-on-demand, coverage by page/range and precise limits remain visible. Code/JSON has a proper full viewer, not a clipped decorative snippet.",
+      "startIndex": 7690,
+      "endIndex": 7910,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect preview/text/source choices, filename/type/size, provenance, covered range and download status. No fabricated malware-scanning badge. Unsupported, encrypted, policy-blocked and OCR-failed cases remain specified obligations.",
+      "startIndex": 7911,
+      "endIndex": 8156,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R07, R08. Acceptance: A03, A04, A12, A13. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 8157,
+      "endIndex": 8286,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM09. Accounts and setup",
+      "startIndex": 8289,
+      "endIndex": 8313,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Manage multiple independent Gmail accounts with their own capabilities, health and mailbox selection. Integration Hub owns connection and consent. A successful callback confirms identity and scope before explicit capture selection.",
+      "startIndex": 8314,
+      "endIndex": 8545,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect Work and Personal account rows and Add account. Connecting the same verified identity renews the existing binding without duplication or automatic scope expansion. Other providers remain future.",
+      "startIndex": 8546,
+      "endIndex": 8762,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R06, R07, R08. Acceptance: A01, A02, A14, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 8763,
+      "endIndex": 8892,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM10. Settings and privacy",
+      "startIndex": 8895,
+      "endIndex": 8921,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Compact rows and sections expose effective grants, sync, appearance, notifications, retention and inference policy. Embedding, generation, reranking and OCR can have different allowed processing locations.",
+      "startIndex": 8922,
+      "endIndex": 9127,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect scannability, plain-language consequences and separate pause/unbind, local erase and Google revocation. A local-first label alone does not certify encryption, residency or a remote processor.",
+      "startIndex": 9128,
+      "endIndex": 9341,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R06, R07, R08. Acceptance: A01, A13, A14. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 9342,
+      "endIndex": 9456,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM11. Per-account sync and recovery",
+      "startIndex": 9459,
+      "endIndex": 9494,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Work and Personal show independent sync, coverage and capability state. One disconnected account does not block a healthy account. Captured, exact-searchable, semantic-pending and stale remain distinct.",
+      "startIndex": 9495,
+      "endIndex": 9697,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect account-specific cause and recovery. Unified results label missing or stale coverage and avoid a misleading complete total. Cached content remains readable only while current access permits it.",
+      "startIndex": 9698,
+      "endIndex": 9913,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R07, R08. Acceptance: A02, A04, A07, A14, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 9914,
+      "endIndex": 10053,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EM12. Original and source viewer",
+      "startIndex": 10056,
+      "endIndex": 10088,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "A complete technical viewer supports original headers/MIME, plain text and JSON/code with line numbers, search, wrap and copy. Nothing in the viewer executes as code or agent instructions.",
+      "startIndex": 10089,
+      "endIndex": 10277,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect reading room, long-line behavior, provenance and raw/pretty distinctions. A retained extracted passage may be available when historical original layout is not; show that difference rather than substituting a current link.",
+      "startIndex": 10278,
+      "endIndex": 10521,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R07, R08. Acceptance: A03, A04, A12, A13. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 10522,
+      "endIndex": 10651,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX01. Reconnect",
+      "startIndex": 10654,
+      "endIndex": 10669,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Reconnect preserves local drafts and distinguishes a failed renewal attempt from an actually unusable prior grant. Same-account renewal differs from choosing a new account. Consent does not automatically start capture.",
+      "startIndex": 10670,
+      "endIndex": 10888,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect the precise failure cause and account impact. Credential-authority failure should not demand a new Google login. Revocation can affect sibling Google services and must show confirmed, pending or unknown state.",
+      "startIndex": 10889,
+      "endIndex": 11120,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R06, R07, R08. Acceptance: A01, A02, A07, A14, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 11121,
+      "endIndex": 11255,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX02. Genuinely empty inbox",
+      "startIndex": 11258,
+      "endIndex": 11285,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "An actual empty inbox has a calm, useful next step. It is different from no connected account, no captured content, no matching results, denied access and a failed request.",
+      "startIndex": 11286,
+      "endIndex": 11458,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect copy, coverage and a proportionate action. Never use zero results to imply a mailbox was checked completely when indexing is incomplete or permission failed.",
+      "startIndex": 11459,
+      "endIndex": 11638,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R07, R08. Acceptance: A02, A04, A13, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 11639,
+      "endIndex": 11773,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX03. Semantic search degraded",
+      "startIndex": 11776,
+      "endIndex": 11806,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The query is preserved while exact matches remain useful. The interface names the active mode and missing coverage instead of inventing a semantic answer or quietly switching to a remote service.",
+      "startIndex": 11807,
+      "endIndex": 12002,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect fallback explanation, exact filters, source snippets and recovery. Model-disabled-by-policy, index-pending and service-unavailable are different underlying causes with honest labels.",
+      "startIndex": 12003,
+      "endIndex": 12207,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R03, R06, R07, R08. Acceptance: A01, A04, A05, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 12208,
+      "endIndex": 12337,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EX04. Send review",
+      "startIndex": 12340,
+      "endIndex": 12357,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The final review binds the chosen account/alias, To/Cc/Bcc, subject, body and attachments. Any change invalidates approval. A bounded local Undo hold delays submission; ambiguous timeout requires checking whether sent.",
+      "startIndex": 12358,
+      "endIndex": 12576,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect the exact Work account, audience and matching reply content. This static specimen cannot send. Viewing another inbox never retargets the reviewed draft or approval. The send-enabled fixture is separately authorized; the read-only setup example does not grant send.",
+      "startIndex": 12577,
+      "endIndex": 12863,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R02, R06, R07, R08. Acceptance: A07, A08, A13, A14, A18. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 12864,
+      "endIndex": 12993,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA01. Account chooser and view filter",
+      "startIndex": 12996,
+      "endIndex": 13033,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Choose All inboxes or one connected Gmail account. The selected view is explicit and preserved across navigation. Count and freshness belong to the selected scope, with each account retaining its own grants.",
+      "startIndex": 13034,
+      "endIndex": 13241,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect both account identities, the current scope and the distinction between changing the view and choosing a sender. Switching views never changes an open draft.",
+      "startIndex": 13242,
+      "endIndex": 13420,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R08. Acceptance: A01, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 13421,
+      "endIndex": 13540,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA02. Add account and provider picker",
+      "startIndex": 13543,
+      "endIndex": 13580,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Gmail is the only first-release provider. The generic Add account entry leaves room for future adapters without suggesting those providers already work. Connection, secure credentials and consent stay in Integration Hub.",
+      "startIndex": 13581,
+      "endIndex": 13801,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect Gmail availability, future-provider labels and explicit capability review. Duplicate verified identities renew the existing account; broadening scopes still requires the normal consent route.",
+      "startIndex": 13802,
+      "endIndex": 14015,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R06, R08. Acceptance: A01, A14, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 14016,
+      "endIndex": 14135,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA03. Specific-account inbox",
+      "startIndex": 14138,
+      "endIndex": 14166,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The Work filter shows only that mailbox, with its own unread count, labels and freshness. Return to All inboxes is obvious. Thread, draft, label and sync identifiers remain account-scoped even when provider IDs collide.",
+      "startIndex": 14167,
+      "endIndex": 14386,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect the selected account title and account-local mail. Search inherits visible scope unless deliberately broadened, and authorization runs before private ranking or snippets.",
+      "startIndex": 14387,
+      "endIndex": 14579,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R08. Acceptance: A01, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 14580,
+      "endIndex": 14699,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA04. Partial unified inbox",
+      "startIndex": 14702,
+      "endIndex": 14729,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "A disconnected Personal account leaves Work usable. The combined view states its incomplete coverage and shows the affected account and recovery. It never presents partial counts or results as complete.",
+      "startIndex": 14730,
+      "endIndex": 14932,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect healthy-account continuity, precise recovery and authorized cached freshness. When revocation is observed or requested locally, protected results are withdrawn; provider propagation can still be pending.",
+      "startIndex": 14933,
+      "endIndex": 15158,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R01, R03, R06, R08. Acceptance: A01, A02, A16, A17. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 15159,
+      "endIndex": 15283,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MA05. New message and sender choice",
+      "startIndex": 15286,
+      "endIndex": 15321,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "New mail from All inboxes starts without a silently inferred sender. Choose an authorized account and verified alias, or use a deliberately configured default shown prominently. This is a blank message, separate from EM03’s reply.",
+      "startIndex": 15322,
+      "endIndex": 15552,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Review focus: Inspect unset From and disabled send. Unassigned text may be recovered locally without provider-draft mapping or account/agent access. A scoped compose may visibly preselect that account; view changes never migrate drafts, and sender changes invalidate approval.",
+      "startIndex": 15553,
+      "endIndex": 15829,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Mapping: R02, R06, R08. Acceptance: A07, A08, A18. Four visual variants: desktop light/dark and mobile light/dark.",
+      "startIndex": 15830,
+      "endIndex": 15944,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "3. Coverage and honest limits",
+      "startIndex": 15947,
+      "endIndex": 15976,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "The atlas covers 21 representative screen/state families with 84 rendered variants: desktop 1440 × 1000 CSS pixels and mobile 430 × 932 CSS pixels, each in light and dark, with 2× original PNGs. The final manifest records actual files and dimensions. Captures do not establish that every error, permission combination, viewport or workflow was tested.",
+      "startIndex": 15977,
+      "endIndex": 16328,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Specified but not exhaustively captured: bulk/mixed labels and undo partial failure; long hostile MIME and RTL mail; draft conflict and crash recovery; ambiguous send timeout; Personal-only inbox and Work-prefilled new compose; all account/grant combinations; source deletion and cache invalidation; every unsupported/encrypted/oversize attachment; every keyboard/screen-reader/reduced-motion interaction; narrow widths below the mobile specimen; real phone browser and external OAuth behavior. These remain explicitly required by the specification.",
+      "startIndex": 16329,
+      "endIndex": 16878,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The mockup prototype supports bounded review navigation only. It must not request real credentials, connect a mailbox, send mail, mutate provider state or call an AI service. Use it to inspect layout and transition intent; use the future actual build to qualify behavior. Owner acceptance, design artifact QA and implementation acceptance are distinct records.",
+      "startIndex": 16879,
+      "endIndex": 17239,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "4. Asset provenance and receiving instructions",
+      "startIndex": 17240,
+      "endIndex": 17286,
+      "tabId": "t.0",
+      "namedStyleType": "HEADING_1",
+      "isListItem": false
+    },
+    {
+      "text": "Each original asset records path, role, format, bytes, SHA-256, dimensions, version, screen, viewport, theme and requirement/acceptance mapping. Preserve original PNGs and HTML/CSS for implementation. This v1.1 set implements the owner-selected multi-account scope and preserves the endorsed visual language; exact revised-artifact acceptance is still separate. Prior v1.0 files remain in project history.",
+      "startIndex": 17287,
+      "endIndex": 17692,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The source package retains the original recovered design brief with its native-source hash separately from normalized recovered-text hash, the source-map direction, dated native source observations, this specification/atlas text, native readback/export receipts and the visual asset manifest. Historical sources are not rewritten to make them agree. Changes to the governing set require a new version and explicit mapping of superseded assets.",
+      "startIndex": 17693,
+      "endIndex": 18136,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Future receiving work opens the exact Drive files and originals through its authorized route, compares hashes/dimensions, maps requirements, and records a cold-reader receipt. It then reconciles the latest preparation-v2 native revision and current owner decisions through the existing guarded handoff. No hand-authored PRD rewrite, team enablement or email action follows merely from opening the package.",
+      "startIndex": 18137,
+      "endIndex": 18542,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "The latest preparation-v2 receipt records application at 19:27:58.683 UTC on 14 October 2026 with the team disabled, unscheduled, idle and undispatched. The earlier sources.json pending checkpoint is stale. A future import must use a fresh expected native revision and must not replay the already-applied v1 amendment request.",
+      "startIndex": 18543,
+      "endIndex": 18869,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1FGEwJtpi67XDCfqpzb4FwkL4isVEXRDNhlsC3Q7FtjU"
+}

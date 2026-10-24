@@ -28,3 +28,45 @@ Centralize prerequisites and failure points before cutting installers.
 ## Tests
 - Run scenario tests from repo root: `make test` or `vrooli test help` for options.
 - UI/unit tests live under `ui/`; API/CLI tests under `api/` and `cli/`.
+
+
+## Generator freshness and authoritative source profiles
+
+Before consuming the compiled template generator, run the owner read operation:
+
+```bash
+cd scenarios/scenario-to-desktop/templates/build-tools
+node write-build-stamp.js --check
+```
+
+This verifies the recorded input hash/schema and a regular compiled generator
+entry without writing, rebuilding, installing or generating output. The existing
+build command still writes the stamp after TypeScript compilation. Missing,
+invalid or stale inputs fail with the governed setup instruction. The input
+contract includes non-test TypeScript, package/tsconfig and the stamp producer
+itself; dist/node_modules/test sources are excluded. JS producer and Go verifier
+use the same byte-ordered path/content framing. Run `test:stamp` for isolated
+read-only/stale-input regressions; the normal build-tools test entry includes them.
+A valid input stamp is a freshness check, not a native packaging/release verdict.
+
+A committed shell needs one reviewed generation input shared with its comparator.
+BAS's source shell uses `.vrooli/electron-shell-config.json` (proxy/basic), while
+its historical `.vrooli/desktop-config.json` remains a distinct saved bundled
+profile. Neither profile is silently substituted for the other. The reviewed
+source shell preserves current presentation and the existing bundle resource and
+Linux signing hook. Source regeneration can use the supported template-generator
+CLI with the explicit source-profile JSON from the BAS scenario directory;
+dependency installation remains governed separately. A source-only refresh sets
+`SKIP_DESKTOP_DEPENDENCY_INSTALL=1`. Do not hand-edit generated output or weaken
+byte/security comparisons to reconcile a mismatched profile.
+
+
+New generation build-status artifacts retain`derived_config_sha256` for the exact
+temporary JSON bytes and`derived_config_status=ephemeral-not-retained`. The worker
+removes that temporary file; it no longer advertises`config_path` as reusable.
+The digest remains diagnostic evidence on successful and failed attempts. It does
+not store arbitrary feature/native-extension/signing inputs, recover their values
+or promise full reproduction. No neighboring profile is automatically asserted to
+be the source. BAS's committed source profile is independently bound by its
+comparator/docs; a generic typed input-reference contract remains future work.
+Existing historical records are not rewritten or represented as newly qualified.

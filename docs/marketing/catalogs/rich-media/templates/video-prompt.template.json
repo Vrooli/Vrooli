@@ -1,0 +1,100 @@
+{
+  "_comment_top": "Video-prompt template. Compatible with Veo 3.1 and Seedance 2 JSON-prompt conventions (2026 industry-standard); should also map cleanly to Gemini-video and Sora when those expose JSON inputs. Schema follows the 5-part formula: Cinematography + Subject + Action + Context + Style&Ambiance, with named fields aligned to Veo/Seedance.",
+  "_comment_references": "References point at character/scene/product entries by slug. References are hydrated at compose time before submission.",
+  "references": {
+    "character_slugs": [],
+    "scene_slug": "REPLACE — scene slug, or null",
+    "product_slugs": []
+  },
+  "title": "REPLACE — short human-readable shot title",
+  "duration_seconds": 8,
+  "shot_sequence": [
+    {
+      "_comment": "One element per shot. For single-shot videos, this array has one element. For multi-shot videos, list shots in order.",
+      "shot_id": "shot-1",
+      "duration_seconds": 8,
+      "cinematography": {
+        "shot_type": "wide | medium | medium-close | close-up | extreme-close-up",
+        "camera_movement": "static | pan-left | pan-right | tilt-up | tilt-down | dolly-in | dolly-out | tracking | handheld",
+        "angle": "eye-level | low | high | overhead | dutch",
+        "lens_or_focal_length": "REPLACE — e.g. '35mm equivalent, slight wide'",
+        "framing_notes": "REPLACE — composition cues"
+      },
+      "subject": {
+        "_comment": "Hydrated from character entries. Identity and core_traits are frozen across all shots in this video.",
+        "primary_character_slug": "REPLACE — or null",
+        "secondary_character_slugs": [],
+        "wardrobe_variant_id": "REPLACE — id from character.wardrobe_variants",
+        "expression": "REPLACE — micro-expression for this shot"
+      },
+      "action": {
+        "_comment": "Per-shot. What the subject does over the duration.",
+        "description": "REPLACE — e.g. 'walks from doorway to kitchen counter, picks up mug, takes a sip, looks toward window'",
+        "speaking_lines": [
+          {
+            "speaker_slug": "REPLACE — character_slug",
+            "line": "REPLACE — verbatim line as spoken",
+            "delivery_notes": "REPLACE — pace / emotion / pause cues",
+            "voice_profile_slug": "REPLACE — pulls from character.core_traits.voice_profile"
+          }
+        ],
+        "ambient_sound": "REPLACE — e.g. 'morning birds outside, kettle finishing in background'"
+      },
+      "context": {
+        "_comment": "Hydrated from scene entry. Per-shot override allowed.",
+        "scene_default_overrides": null
+      },
+      "style_and_ambiance": {
+        "aesthetic": "REPLACE — e.g. 'photorealistic, lived-in, slightly desaturated'",
+        "ambiance_overrides": null,
+        "brand_palette_lock": true,
+        "negative_modifiers": [
+          "no fabricated UI elements not in product entry",
+          "no real-person likeness drift"
+        ]
+      },
+      "product_in_shot": {
+        "shown": false,
+        "product_slug": null,
+        "ui_surface_id": null,
+        "tier_depicted": null,
+        "do_not_distort_check": "verified-against-current-product-entry | not-verified"
+      }
+    }
+  ],
+  "audio": {
+    "voiceover_required": false,
+    "music": {
+      "use": false,
+      "mood_or_style": null,
+      "license_basis": "REPLACE — e.g. 'royalty-free / production-music-library / generated-with-suno' (must be cited)"
+    },
+    "captions": {
+      "burned_in": true,
+      "language": "en"
+    }
+  },
+  "output_spec": {
+    "aspect_ratio": "9:16 | 16:9 | 1:1",
+    "resolution_target": "REPLACE — e.g. '1080x1920'",
+    "tool_target": "REPLACE — e.g. 'veo-3.1' | 'seedance-2' | 'gemini-video' | 'sora'"
+  },
+  "honesty_flags": {
+    "feature_claims": "measured | overclaimed | uncertain",
+    "demo_authenticity": "replicable | operator-only | mixed | n/a-no-product-shown",
+    "tier_alignment": "verified | not-yet-checked | n/a",
+    "persona_disclosure": "labeled | exempt-minor-edit-only | n/a-no-person-depicted",
+    "credential_claims": [],
+    "real_person_check": "verified-no-likeness",
+    "regulated_domain_check": "clear | flagged-medical | flagged-financial | flagged-legal",
+    "voice_profile_match": "verified | not-verified | n/a-no-voice"
+  },
+  "render_provenance": {
+    "composed_at": null,
+    "composed_by": null,
+    "tool_used": null,
+    "seed": null,
+    "prompt_text_submitted": null,
+    "output_uri": null
+  }
+}

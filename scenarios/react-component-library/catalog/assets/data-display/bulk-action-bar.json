@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.bulk-action-bar",
+    "name": "BulkActionBar",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.button",
+        "reason": "The action surface uses the shared button primitive."
+      },
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions and overflow are shared."
+      },
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions are laid out through the shared button group."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "destructive-confirmation",
+    "status-announced",
+    "recovery-path",
+    "partial-degradation",
+    "safe-area-respected"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "partial",
+    "request-error",
+    "retry"
+  ],
+  "rationale": "Partial failure is the defining case: a bulk operation over two hundred records where six fail must report which six and offer a path for them, not a single red banner."
+}

@@ -1,657 +1,174 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"crypto/ed25519"
 	"net/http"
-	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 
-	"scenario-authenticator/auth"
-	"scenario-authenticator/handlers"
+	"scenario-authenticator/internal/realm"
+
+	coreidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/trustposture"
 )
 
-// TestMain sets up test environment
-func TestMain(m *testing.M) {
-	// Initialize JWT keys for testing
-	os.Setenv("JWT_PUBLIC_KEY_PATH", "../data/keys/public.pem")
-	os.Setenv("JWT_PRIVATE_KEY_PATH", "../data/keys/private.pem")
-
-	// Try to load JWT keys, but don't fail if they don't exist
-	_ = auth.LoadJWTKeys()
-
-	// Run tests
-	code := m.Run()
-	os.Exit(code)
+type fixedCloudflareProvider struct {
+	principal coreidentity.Principal
 }
 
-// TestHealthHandler tests the health check endpoint
-func TestHealthHandler(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("Success", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/health", nil)
-		w := httptest.NewRecorder()
-
-		handlers.HealthHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Fatalf("Expected status 200, got %d", w.Code)
-		}
-
-		var response map[string]interface{}
-		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-			t.Fatalf("Failed to parse response: %v", err)
-		}
-
-		if status, ok := response["status"].(string); !ok || status == "" {
-			t.Fatalf("Expected non-empty status string, got %v", response["status"])
-		}
-
-		if service, ok := response["service"].(string); !ok || service == "" {
-			t.Fatalf("Expected service identifier, got %v", response["service"])
-		}
-
-		if _, ok := response["timestamp"].(string); !ok {
-			t.Fatalf("Expected timestamp string, got %v", response["timestamp"])
-		}
-
-		if _, ok := response["readiness"].(bool); !ok {
-			t.Fatalf("Expected readiness boolean, got %v", response["readiness"])
-		}
-
-		dependencies, ok := response["dependencies"].(map[string]interface{})
-		if !ok {
-			t.Fatalf("Expected dependencies object, got %v", response["dependencies"])
-		}
-
-		for _, key := range []string{"database", "redis"} {
-			dep, ok := dependencies[key].(map[string]interface{})
-			if !ok {
-				t.Fatalf("Expected %s dependency object, got %v", key, dependencies[key])
-			}
-
-			if _, ok := dep["connected"].(bool); !ok {
-				t.Fatalf("Expected %s.connected boolean, got %v", key, dep["connected"])
-			}
-		}
-
-		metrics, ok := response["metrics"].(map[string]interface{})
-		if !ok {
-			t.Fatalf("Expected metrics object, got %v", response["metrics"])
-		}
-
-		if _, ok := metrics["goroutines"].(float64); !ok {
-			t.Fatalf("Expected metrics.goroutines number, got %v", metrics)
-		}
-	})
+func (fixedCloudflareProvider) Source() coreidentity.AuthSource {
+	return coreidentity.SourceCloudflareAccess
 }
 
-// TestRegisterHandler_Security tests registration endpoint with security payloads
-func TestRegisterHandler_Security(t *testing.T) {
-	if os.Getenv("POSTGRES_URL") == "" {
-		t.Skip("POSTGRES_URL not set, skipping database tests")
+func (p fixedCloudflareProvider) VerifyRequest(_ context.Context, req *http.Request) (coreidentity.Principal, error) {
+	if req == nil || req.Header.Get("Cf-Access-Jwt-Assertion") != "verified-assertion" {
+		return coreidentity.Principal{}, coreidentity.NewFailure(coreidentity.FailureInvalid, p.Source())
+	}
+	return p.principal, nil
+}
+
+func TestCloudflareOwnerAuthUsesTargetedSharedBindingsOnly(t *testing.T) {
+	provider := fixedCloudflareProvider{principal: coreidentity.Principal{
+		Kind: coreidentity.ActorHuman, Subject: "cf-subject", Email: "operator@example.test",
+		Verified: true, Source: coreidentity.SourceCloudflareAccess, ExpiresAt: time.Now().Add(time.Hour),
+	}}
+	rawBindings := `[
+		{"source":"cloudflare_access","subject":"cf-subject","canonical_subject":"owner-account","scopes":["agent-manager:read","agent-manager:write"],"resources":["agent-manager"]},
+		{"source":"cloudflare_access","subject":"cf-subject","canonical_subject":"wrong-resource","scopes":["prompt-manager:write"],"resources":["prompt-manager"]},
+		{"source":"scenario_authenticator","subject":"cf-subject","canonical_subject":"wrong-source","scopes":["agent-manager:destructive"],"resources":["agent-manager"]}
+	]`
+	env := map[string]string{
+		"VROOLI_AUTH_PROVIDERS":      "scenario_authenticator",
+		"VROOLI_AUTH_OWNER_BINDINGS": rawBindings,
+		"VROOLI_SCENARIO":            "scenario-authenticator",
+		"SCENARIO_NAME":              "scenario-authenticator",
+	}
+	config, err := cloudflareOwnerAuthConfig(provider, func(key string) string { return env[key] })
+	if err != nil {
+		t.Fatalf("load targeted owner bindings: %v", err)
+	}
+	if len(config.Providers) != 1 || config.Providers[0].Source() != coreidentity.SourceCloudflareAccess {
+		t.Fatalf("providers = %v, want only Cloudflare", config.Providers)
+	}
+	if len(config.OwnerBindings) != 2 {
+		t.Fatalf("agent-manager owner bindings = %+v, want only the two entries targeted to agent-manager", config.OwnerBindings)
+	}
+	for _, binding := range config.OwnerBindings {
+		if binding.CanonicalSubject == "wrong-resource" {
+			t.Fatalf("binding for another relying resource leaked into config: %+v", binding)
+		}
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDatabase(t)
-	defer env.Cleanup()
-
-	// Test SQL injection in email field
-	t.Run("SQLInjection_Email", func(t *testing.T) {
-		securityPatterns := NewSecurityTestBuilder().AddSQLInjectionTests().Build()
-
-		for _, pattern := range securityPatterns {
-			t.Run(pattern.Name, func(t *testing.T) {
-				reqData := HTTPTestRequest{
-					Method: "POST",
-					Path:   "/api/v1/auth/register",
-					Body: map[string]interface{}{
-						"email":    pattern.Payload,
-						"password": "ValidPassword123!",
-					},
-				}
-
-				req, err := makeHTTPRequest(reqData)
-				if err != nil {
-					t.Fatalf("Failed to create request: %v", err)
-				}
-
-				w := executeRequest(handlers.RegisterHandler, req)
-
-				// Should reject invalid email format
-				if w.Code == http.StatusOK || w.Code == http.StatusCreated {
-					t.Errorf("SQL injection payload was not blocked: %s", pattern.Payload)
-				}
-			})
-		}
-	})
-
-	// Test XSS in username field
-	t.Run("XSS_Username", func(t *testing.T) {
-		securityPatterns := NewSecurityTestBuilder().AddXSSTests().Build()
-
-		for _, pattern := range securityPatterns {
-			t.Run(pattern.Name, func(t *testing.T) {
-				reqData := HTTPTestRequest{
-					Method: "POST",
-					Path:   "/api/v1/auth/register",
-					Body: map[string]interface{}{
-						"email":    "test@test.local",
-						"username": pattern.Payload,
-						"password": "ValidPassword123!",
-					},
-				}
-
-				req, err := makeHTTPRequest(reqData)
-				if err != nil {
-					t.Fatalf("Failed to create request: %v", err)
-				}
-
-				w := executeRequest(handlers.RegisterHandler, req)
-
-				// Verify XSS payload doesn't cause server error
-				if w.Code == http.StatusInternalServerError {
-					t.Errorf("XSS payload caused server error: %s", pattern.Payload)
-				}
-			})
-		}
-	})
-
-	// Test password validation
-	t.Run("WeakPassword_Blocked", func(t *testing.T) {
-		weakPasswords := []string{
-			"123456",
-			"password",
-			"abc123",
-			"qwerty",
-			"12345678",
-		}
-
-		for _, pwd := range weakPasswords {
-			reqData := HTTPTestRequest{
-				Method: "POST",
-				Path:   "/api/v1/auth/register",
-				Body: map[string]interface{}{
-					"email":    "weakpass@test.local",
-					"password": pwd,
-				},
-			}
-
-			req, err := makeHTTPRequest(reqData)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			w := executeRequest(handlers.RegisterHandler, req)
-
-			if w.Code == http.StatusOK || w.Code == http.StatusCreated {
-				t.Errorf("Weak password was accepted: %s", pwd)
-			}
-		}
-	})
+	verified, ok := (cloudflareHumanAssertion{config: config}).VerifyHuman(context.Background(), "verified-assertion")
+	if !ok || !verified.IsHuman() || !verified.IsVerified() {
+		t.Fatalf("verified principal = %+v, ok=%t", verified, ok)
+	}
+	if verified.Subject != "owner-account" || !reflect.DeepEqual(verified.Scopes, []string{"agent-manager:read", "agent-manager:write"}) {
+		t.Fatalf("owner-bound principal = subject %q scopes %v", verified.Subject, verified.Scopes)
+	}
+	if !verified.ExpiresAt.Equal(provider.principal.ExpiresAt) || verified.Source != coreidentity.SourceCloudflareAccess {
+		t.Fatalf("owner binding changed proof metadata: %+v", verified)
+	}
 }
 
-// TestLoginHandler_Security tests login endpoint with security payloads
-func TestLoginHandler_Security(t *testing.T) {
-	if os.Getenv("POSTGRES_URL") == "" {
-		t.Skip("POSTGRES_URL not set, skipping database tests")
+func TestCloudflareOwnerAuthLeavesUnboundHumanUnscopedAndRefusesMalformedPolicy(t *testing.T) {
+	provider := fixedCloudflareProvider{principal: coreidentity.Principal{
+		Kind: coreidentity.ActorHuman, Subject: "unbound-subject", Verified: true,
+		Source: coreidentity.SourceCloudflareAccess, ExpiresAt: time.Now().Add(time.Hour),
+	}}
+	config, err := cloudflareOwnerAuthConfig(provider, func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("load absent optional owner bindings: %v", err)
+	}
+	principal, ok := (cloudflareHumanAssertion{config: config}).VerifyHuman(context.Background(), "verified-assertion")
+	if !ok || principal.Subject != "unbound-subject" || len(principal.Scopes) != 0 {
+		t.Fatalf("unbound identity = %+v, ok=%t; want provider identity with no scopes", principal, ok)
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDatabase(t)
-	defer env.Cleanup()
-
-	// Create a test user for login attempts
-	testUser := createTestUser(t, "logintest@test.local", "ValidPassword123!", []string{"user"})
-	defer testUser.Cleanup()
-
-	// Test SQL injection in email field
-	t.Run("SQLInjection_Login_Email", func(t *testing.T) {
-		securityPatterns := NewSecurityTestBuilder().AddSQLInjectionTests().Build()
-
-		for _, pattern := range securityPatterns {
-			t.Run(pattern.Name, func(t *testing.T) {
-				reqData := HTTPTestRequest{
-					Method: "POST",
-					Path:   "/api/v1/auth/login",
-					Body: map[string]interface{}{
-						"email":    pattern.Payload,
-						"password": "anypassword",
-					},
-				}
-
-				req, err := makeHTTPRequest(reqData)
-				if err != nil {
-					t.Fatalf("Failed to create request: %v", err)
-				}
-
-				w := executeRequest(handlers.LoginHandler, req)
-
-				// Should not successfully authenticate
-				if w.Code == http.StatusOK {
-					t.Errorf("SQL injection payload bypassed authentication: %s", pattern.Payload)
-				}
-			})
+	if _, err := cloudflareOwnerAuthConfig(provider, func(key string) string {
+		if key == "VROOLI_AUTH_OWNER_BINDINGS" {
+			return "{malformed"
 		}
-	})
-
-	// Test brute force protection (rate limiting)
-	t.Run("BruteForce_Protection", func(t *testing.T) {
-		// Attempt multiple failed logins
-		for i := 0; i < 10; i++ {
-			reqData := HTTPTestRequest{
-				Method: "POST",
-				Path:   "/api/v1/auth/login",
-				Body: map[string]interface{}{
-					"email":    testUser.User.Email,
-					"password": "WrongPassword123!",
-				},
-			}
-
-			req, err := makeHTTPRequest(reqData)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			w := executeRequest(handlers.LoginHandler, req)
-
-			// Should always deny incorrect password
-			if w.Code == http.StatusOK {
-				t.Errorf("Failed login attempt %d succeeded with wrong password", i+1)
-			}
-		}
-	})
-}
-
-// TestValidateHandler_Security tests token validation with security checks
-func TestValidateHandler_Security(t *testing.T) {
-	if os.Getenv("REDIS_URL") == "" {
-		t.Skip("REDIS_URL not set, skipping Redis-dependent tests")
+		return ""
+	}); err == nil {
+		t.Fatal("malformed explicitly configured owner bindings were accepted")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDatabase(t)
-	defer env.Cleanup()
-
-	// Test with invalid token formats
-	t.Run("InvalidToken_Formats", func(t *testing.T) {
-		invalidTokens := []string{
-			"invalid",
-			"malformed.token.here",
-			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid",
+	path := filepath.Join(t.TempDir(), "owner-bindings.json")
+	if err := os.WriteFile(path, []byte("{malformed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cloudflareOwnerAuthConfig(provider, func(key string) string {
+		if key == "VROOLI_AUTH_OWNER_BINDINGS_FILE" {
+			return path
 		}
-
-		for _, token := range invalidTokens {
-			reqData := HTTPTestRequest{
-				Method:  "GET",
-				Path:    "/api/v1/auth/validate",
-				Headers: map[string]string{"Authorization": "Bearer " + token},
-			}
-
-			req, err := makeHTTPRequest(reqData)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			w := executeRequest(handlers.ValidateHandler, req)
-
-			// ValidateHandler always returns 200 OK, check response body for valid=false
-			var response map[string]interface{}
-			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-				t.Fatalf("Failed to parse response: %v", err)
-			}
-
-			if valid, ok := response["valid"].(bool); ok && valid {
-				t.Errorf("Invalid token was accepted: %s", token)
-			}
-		}
-	})
-
-	// Test token tampering
-	t.Run("TokenTampering", func(t *testing.T) {
-		// Create a valid-looking but tampered token
-		tamperedTokens := []string{
-			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJyb2xlcyI6WyJhZG1pbiJdfQ.tampered",
-			"eyJhbGciOiJub25lIn0.eyJ1c2VyX2lkIjoiYWRtaW4ifQ.",
-		}
-
-		for _, token := range tamperedTokens {
-			reqData := HTTPTestRequest{
-				Method:  "POST",
-				Path:    "/api/v1/auth/validate",
-				Headers: map[string]string{"Authorization": "Bearer " + token},
-			}
-
-			req, err := makeHTTPRequest(reqData)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			w := executeRequest(handlers.ValidateHandler, req)
-
-			// ValidateHandler always returns 200 OK, check response body for valid=false
-			var response map[string]interface{}
-			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-				t.Fatalf("Failed to parse response: %v", err)
-			}
-
-			if valid, ok := response["valid"].(bool); ok && valid {
-				t.Errorf("Tampered token was accepted: %s", token)
-			}
-		}
-	})
+		return ""
+	}); err == nil {
+		t.Fatal("malformed explicit owner-binding file was accepted")
+	}
 }
 
-// TestRegisterHandler_Validation tests input validation
-func TestRegisterHandler_Validation(t *testing.T) {
-	if os.Getenv("POSTGRES_URL") == "" {
-		t.Skip("POSTGRES_URL not set, skipping database tests")
+// TestBreakGlassIssuersConform proves the authenticated scenario issuer and
+// the operator passphrase issuer produce credentials accepted by the same real
+// verifier with the same audience, target, and scope semantics.
+func TestBreakGlassIssuersConform(t *testing.T) {
+	now := time.Unix(10_000, 0).UTC()
+	target := "host-a"
+	audience := realm.DefaultAudience
+	scopes := []string{"vrooli:uninstall"}
+
+	authDir := t.TempDir()
+	authPaths := trustposture.KeyPaths{Dir: authDir, Private: filepath.Join(authDir, "private.key"), Public: filepath.Join(authDir, "public.key"), Metadata: filepath.Join(authDir, "provisioning.json")}
+	authIssuer := breakGlassProvisioner{paths: authPaths, available: true, ttl: 10 * time.Minute, target: target}
+	if err := authIssuer.Provision(context.TODO(), "operator-1", "default", scopes, now); err != nil {
+		t.Fatal(err)
+	}
+	authToken, _, err := authIssuer.Issue(context.TODO(), "operator-1", "default", scopes, now)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDatabase(t)
-	defer env.Cleanup()
-
-	t.Run("MissingEmail", func(t *testing.T) {
-		reqData := HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/auth/register",
-			Body: map[string]interface{}{
-				"password": "ValidPassword123!",
-			},
-		}
-
-		req, err := makeHTTPRequest(reqData)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		w := executeRequest(handlers.RegisterHandler, req)
-		assertErrorResponse(t, w, http.StatusBadRequest, "required")
-	})
-
-	t.Run("MissingPassword", func(t *testing.T) {
-		reqData := HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/auth/register",
-			Body: map[string]interface{}{
-				"email": "test@test.local",
-			},
-		}
-
-		req, err := makeHTTPRequest(reqData)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		w := executeRequest(handlers.RegisterHandler, req)
-		assertErrorResponse(t, w, http.StatusBadRequest, "required")
-	})
-
-	t.Run("InvalidEmailFormat", func(t *testing.T) {
-		invalidEmails := []string{
-			"notanemail",
-			"@example.com",
-			"user@",
-			"user name@example.com",
-			"user@.com",
-		}
-
-		for _, email := range invalidEmails {
-			reqData := HTTPTestRequest{
-				Method: "POST",
-				Path:   "/api/v1/auth/register",
-				Body: map[string]interface{}{
-					"email":    email,
-					"password": "ValidPassword123!",
-				},
-			}
-
-			req, err := makeHTTPRequest(reqData)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			w := executeRequest(handlers.RegisterHandler, req)
-
-			if w.Code == http.StatusOK || w.Code == http.StatusCreated {
-				t.Errorf("Invalid email was accepted: %s", email)
-			}
-		}
-	})
-
-	t.Run("InvalidJSON", func(t *testing.T) {
-		reqData := HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/auth/register",
-			Body:   `{"email": "test@test.local", "password": "ValidPassword123!"`, // Missing closing brace
-		}
-
-		req, err := makeHTTPRequest(reqData)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		w := executeRequest(handlers.RegisterHandler, req)
-		assertErrorResponse(t, w, http.StatusBadRequest, "")
-	})
-}
-
-// TestLoginHandler_Validation tests login input validation
-func TestLoginHandler_Validation(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("MissingCredentials", func(t *testing.T) {
-		reqData := HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/auth/login",
-			Body:   map[string]interface{}{},
-		}
-
-		req, err := makeHTTPRequest(reqData)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		w := executeRequest(handlers.LoginHandler, req)
-
-		if w.Code == http.StatusOK {
-			t.Error("Login succeeded without credentials")
-		}
-	})
-
-	t.Run("InvalidJSON", func(t *testing.T) {
-		reqData := HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/auth/login",
-			Body:   `{"email": "test@test.local"`, // Malformed JSON
-		}
-
-		req, err := makeHTTPRequest(reqData)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		w := executeRequest(handlers.LoginHandler, req)
-		assertErrorResponse(t, w, http.StatusBadRequest, "")
-	})
-}
-
-// TestPasswordResetHandler_Security tests password reset security
-func TestPasswordResetHandler_Security(t *testing.T) {
-	if os.Getenv("POSTGRES_URL") == "" {
-		t.Skip("POSTGRES_URL not set, skipping database tests")
+	operatorDir := t.TempDir()
+	operatorPaths := trustposture.KeyPaths{Dir: operatorDir, Private: filepath.Join(operatorDir, "private.key"), WrappedPrivate: filepath.Join(operatorDir, "private.key"), Public: filepath.Join(operatorDir, "public.key"), Metadata: filepath.Join(operatorDir, "provisioning.json")}
+	if err := trustposture.ProvisionWrapped(operatorPaths, "correct horse", "operator-1", audience, target, scopes, now); err != nil {
+		t.Fatal(err)
+	}
+	operatorToken, err := trustposture.IssueFromWrappedProvision(operatorPaths, "correct horse", audience, target, scopes, now, 10*time.Minute)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDatabase(t)
-	defer env.Cleanup()
-
-	// Test email enumeration protection
-	t.Run("EmailEnumeration_Protection", func(t *testing.T) {
-		emails := []string{
-			"exists@test.local",
-			"doesnotexist@test.local",
-			"another@test.local",
-		}
-
-		// All requests should return similar responses to prevent email enumeration
-		for _, email := range emails {
-			reqData := HTTPTestRequest{
-				Method: "POST",
-				Path:   "/api/v1/auth/reset-password",
-				Body: map[string]interface{}{
-					"email": email,
-				},
-			}
-
-			req, err := makeHTTPRequest(reqData)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			w := executeRequest(handlers.ResetPasswordHandler, req)
-
-			// Should not reveal if email exists or not
-			if w.Code != http.StatusOK && w.Code != http.StatusAccepted {
-				t.Logf("Password reset returned status %d for email %s", w.Code, email)
-			}
-		}
-	})
-
-	// Test SQL injection in email field
-	t.Run("SQLInjection_PasswordReset", func(t *testing.T) {
-		securityPatterns := NewSecurityTestBuilder().AddSQLInjectionTests().Build()
-
-		for _, pattern := range securityPatterns {
-			t.Run(pattern.Name, func(t *testing.T) {
-				reqData := HTTPTestRequest{
-					Method: "POST",
-					Path:   "/api/v1/auth/reset-password",
-					Body: map[string]interface{}{
-						"email": pattern.Payload,
-					},
-				}
-
-				req, err := makeHTTPRequest(reqData)
-				if err != nil {
-					t.Fatalf("Failed to create request: %v", err)
-				}
-
-				w := executeRequest(handlers.ResetPasswordHandler, req)
-
-				// Should not cause server error
-				if w.Code == http.StatusInternalServerError {
-					t.Errorf("SQL injection caused server error: %s", pattern.Payload)
-				}
-			})
-		}
-	})
-}
-
-// TestSecurityHeaders tests that security headers are properly set
-func TestSecurityHeaders(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("SecurityHeaders_Present", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/health", nil)
-		w := httptest.NewRecorder()
-
-		handlers.HealthHandler(w, req)
-
-		// Note: Security headers are typically set by middleware
-		// This test documents expected behavior
-		expectedHeaders := map[string]string{
-			// These would be set by SecurityHeadersMiddleware
-			// "X-Content-Type-Options": "nosniff",
-			// "X-Frame-Options": "DENY",
-			// "X-XSS-Protection": "1; mode=block",
-		}
-
-		for header, expectedValue := range expectedHeaders {
-			actualValue := w.Header().Get(header)
-			if actualValue != expectedValue {
-				t.Logf("Security header '%s' not set (expected: %s, got: %s)", header, expectedValue, actualValue)
-			}
-		}
-	})
-}
-
-// TestConcurrentRequests tests thread safety
-func TestConcurrentRequests(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping concurrency test in short mode")
+	authPublic, err := os.ReadFile(authPaths.Public)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("ConcurrentHealthChecks", func(t *testing.T) {
-		done := make(chan bool)
-		numRequests := 100
-
-		for i := 0; i < numRequests; i++ {
-			go func() {
-				req := httptest.NewRequest("GET", "/health", nil)
-				w := httptest.NewRecorder()
-				handlers.HealthHandler(w, req)
-
-				if w.Code != http.StatusOK {
-					t.Errorf("Concurrent request failed with status %d", w.Code)
-				}
-				done <- true
-			}()
-		}
-
-		// Wait for all requests to complete
-		for i := 0; i < numRequests; i++ {
-			<-done
-		}
-	})
+	authClaims, err := trustposture.Verify(ed25519.PublicKey(authPublic), authToken, audience, target, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operatorPublic, err := os.ReadFile(operatorPaths.Public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operatorClaims, err := trustposture.Verify(ed25519.PublicKey(operatorPublic), operatorToken, audience, target, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authClaims.Subject != operatorClaims.Subject || authClaims.Audience != operatorClaims.Audience || authClaims.Target != operatorClaims.Target || len(authClaims.Scopes) != len(operatorClaims.Scopes) {
+		t.Fatalf("issuer claim shape diverged: auth=%+v operator=%+v", authClaims, operatorClaims)
+	}
 }
 
-// TestRateLimiting tests rate limiting behavior
-func TestRateLimiting(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping rate limiting test in short mode")
+func TestParseResourceAudiences(t *testing.T) {
+	got := parseResourceAudiences("bridge=scenario-authenticator:bridge, device-sync-hub=scenario-authenticator:devices, deployment-manager=scenario-authenticator:deployment-manager,broken,=missing,bad=aud|pipe")
+	if got["bridge"] != "scenario-authenticator:bridge" || got["device-sync-hub"] != "scenario-authenticator:devices" || got["deployment-manager"] != "scenario-authenticator:deployment-manager" {
+		t.Fatalf("parsed resources = %#v", got)
 	}
-
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("RateLimit_NotImplemented", func(t *testing.T) {
-		// This test documents that rate limiting should be implemented
-		// Currently scenario-authenticator may not have rate limiting
-		t.Skip("Rate limiting not yet implemented - add test when feature is added")
-	})
-}
-
-// Helper function to test a specific handler
-func testHandlerSecurity(t *testing.T, handlerName string, handler http.HandlerFunc, method, path string) {
-	suite := &HandlerTestSuite{
-		HandlerName: handlerName,
-		Handler:     handler,
-		BaseURL:     path,
+	if len(got) != 3 {
+		t.Fatalf("parsed malformed resource entries: %#v", got)
 	}
-
-	// Generate and run security tests
-	securityPatterns := GenerateSecurityTests()
-	suite.RunSecurityTests(t, securityPatterns, func(t *testing.T, pattern SecurityTestPattern) {
-		// This would test the handler with the security payload
-		t.Logf("Security test %s with payload: %s", pattern.Category, pattern.Payload)
-	})
 }

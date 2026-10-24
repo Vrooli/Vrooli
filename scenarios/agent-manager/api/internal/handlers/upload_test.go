@@ -10,6 +10,7 @@ import (
 	"net/textproto"
 	"testing"
 
+	"agent-manager/internal/orchestration"
 	"agent-manager/internal/storage"
 
 	"github.com/gorilla/mux"
@@ -46,7 +47,7 @@ func createMultipartRequest(t *testing.T, fieldName, fileName string, content []
 // The orchestration service is nil because upload handlers do not use it.
 func newUploadHandler(t *testing.T, storageSvc storage.Service) *Handler {
 	t.Helper()
-	return New(nil, WithStorage(storageSvc))
+	return New(orchestration.EmptyHandlerServices(), WithStorage(storageSvc))
 }
 
 // minimalPNG is a minimal valid PNG header (8-byte signature + enough data for detection).
@@ -150,7 +151,7 @@ func TestUploadAttachment_MissingFile(t *testing.T) {
 
 func TestUploadAttachment_NoStorage(t *testing.T) {
 	// Handler created without storage option
-	h := New(nil)
+	h := New(orchestration.EmptyHandlerServices())
 
 	req := createMultipartRequest(t, "file", "test.png", minimalPNG, "image/png")
 	rr := httptest.NewRecorder()

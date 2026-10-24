@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "description": "Every operation family is reachable headlessly with report-shaped output; the UI enhances and never gates.",
+    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "module": "capability-surface",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-001",
+      "title": "Headless composition operation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Composition draws its operation name from the scenario vocabulary and completes from the CLI with no UI, no ComfyUI, and no interactive prompt, emitting report-shaped output. Analysis and transformation are explicit later-scope capabilities.",
+      "tags": [
+        "cli",
+        "contract"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/composition/generate_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Composition is covered by the shipped headless composition tests"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/domains_test.go",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "CLI domain dispatch is covered by the shipped CLI tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-002",
+      "title": "Deterministic ops need no model",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Trim, fade, concat, format and sample-rate conversion, silence trim, and loudness measurement run with zero model download and zero GPU, so the scenario is useful before any weights are installed.",
+      "tags": [
+        "ops",
+        "zero-download"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Explicit later-scope deterministic operations; no implementation is claimed by this composition slice"
+        }
+      ]
+    }
+  ]
+}

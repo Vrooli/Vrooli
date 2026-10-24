@@ -1,0 +1,1294 @@
+{
+  "edges": [
+    {
+      "attributes": {
+        "specifier": "./gen/client",
+        "test_only": "false"
+      },
+      "from_node_id": "ts_module:src/widget.tsx",
+      "id": "import:ts_module:src/widget.tsx->ts_module:src/gen/client.ts",
+      "kind": 1,
+      "to_node_id": "ts_module:src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "specifier": "./gen/client",
+        "test_only": "false"
+      },
+      "from_node_id": "ts_module:src/widget.tsx",
+      "id": "import:ts_module:src/widget.tsx->ts_module:src/gen/client.ts",
+      "kind": 1,
+      "to_node_id": "ts_module:src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "specifier": "./lib",
+        "test_only": "false"
+      },
+      "from_node_id": "ts_module:src/widget.tsx",
+      "id": "import:ts_module:src/widget.tsx->ts_module:src/lib.ts",
+      "kind": 1,
+      "to_node_id": "ts_module:src/lib.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "attributes": {
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "16"
+      },
+      "id": "file:src/gen/client.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "client.ts",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "14"
+      },
+      "id": "file:src/lib.ts",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "lib.ts",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "18"
+      },
+      "id": "file:src/widget.tsx",
+      "kind": 1,
+      "leading_comments": [],
+      "name": "widget.tsx",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "argument_count": "0",
+        "argument_summary": "",
+        "callee": "value.toUpperCase",
+        "enclosing_declaration": "formatLabel",
+        "end_column": "29",
+        "end_line": "2",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "string",
+        "start_column": "10",
+        "start_line": "2"
+      },
+      "id": "ts_call:src/lib.ts:2:10:value.toUpperCase",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "value.toUpperCase",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "argument_count": "0",
+        "argument_summary": "",
+        "callee": "Client.createConnectClient",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "57",
+        "end_line": "10",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "{ submit(input: Client.Request): Client.Response; }",
+        "start_column": "29",
+        "start_line": "10"
+      },
+      "id": "ts_call:src/widget.tsx:10:29:Client.createConnectClient",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "Client.createConnectClient",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "argument_count": "1",
+        "argument_summary": "{ id: string; }",
+        "callee": "Client.createConnectClient().submit",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "85",
+        "end_line": "10",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "Client.Response",
+        "start_column": "29",
+        "start_line": "10"
+      },
+      "id": "ts_call:src/widget.tsx:10:29:Client.createConnectClient_.submit",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "Client.createConnectClient().submit",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "argument_count": "0",
+        "argument_summary": "",
+        "callee": "createConnectClient",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "39",
+        "end_line": "7",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "{ submit(input: Client.Request): Client.Response; }",
+        "start_column": "18",
+        "start_line": "7"
+      },
+      "id": "ts_call:src/widget.tsx:7:18:createConnectClient",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "createConnectClient",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "argument_count": "1",
+        "argument_summary": "{ id: string; }",
+        "callee": "client.submit",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "61",
+        "end_line": "8",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "Client.Response",
+        "start_column": "20",
+        "start_line": "8"
+      },
+      "id": "ts_call:src/widget.tsx:8:20:client.submit",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "client.submit",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "argument_count": "1",
+        "argument_summary": "\"abc\"",
+        "callee": "formatLabel",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "58",
+        "end_line": "8",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "string",
+        "start_column": "40",
+        "start_line": "8"
+      },
+      "id": "ts_call:src/widget.tsx:8:40:formatLabel",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "formatLabel",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "argument_count": "1",
+        "argument_summary": "\"usage\"",
+        "callee": "useFeatureFlag",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "42",
+        "end_line": "9",
+        "kind": "TS_NODE_KIND_CALL",
+        "language": "typescript",
+        "return_type": "boolean",
+        "start_column": "19",
+        "start_line": "9"
+      },
+      "id": "ts_call:src/widget.tsx:9:19:useFeatureFlag",
+      "kind": 212,
+      "leading_comments": [],
+      "name": "useFeatureFlag",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "17",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_COMPONENT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "15"
+      },
+      "id": "ts_component:src/widget.tsx:ResultView",
+      "kind": 201,
+      "leading_comments": [
+        "/** JSDoc is retained on declarations. */"
+      ],
+      "name": "ResultView",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "12",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_COMPONENT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "6"
+      },
+      "id": "ts_component:src/widget.tsx:UsageCard",
+      "kind": 201,
+      "leading_comments": [
+        "/** @vrooliWidget kind=card */"
+      ],
+      "name": "UsageCard",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "11",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_CONST",
+        "language": "typescript",
+        "start_column": "14",
+        "start_line": "9"
+      },
+      "id": "ts_const:src/lib.ts:palette",
+      "kind": 208,
+      "leading_comments": [],
+      "name": "palette",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_interface:src/gen/client.ts:Request",
+        "end_column": "2",
+        "end_line": "3",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "1"
+      },
+      "id": "ts_export:src/gen/client.ts:1:1:Request",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "Request",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_interface:src/gen/client.ts:Response",
+        "end_column": "2",
+        "end_line": "7",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "5"
+      },
+      "id": "ts_export:src/gen/client.ts:5:1:Response",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "Response",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_function:src/gen/client.ts:createConnectClient",
+        "end_column": "2",
+        "end_line": "15",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "9"
+      },
+      "id": "ts_export:src/gen/client.ts:9:1:createConnectClient",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "createConnectClient",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_type:src/lib.ts:ReactNode",
+        "end_column": "32",
+        "end_line": "13",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "13"
+      },
+      "id": "ts_export:src/lib.ts:13:1:ReactNode",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "ReactNode",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_function:src/lib.ts:formatLabel",
+        "end_column": "2",
+        "end_line": "3",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "1"
+      },
+      "id": "ts_export:src/lib.ts:1:1:formatLabel",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "formatLabel",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_hook:src/lib.ts:useFeatureFlag",
+        "end_column": "2",
+        "end_line": "7",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "5"
+      },
+      "id": "ts_export:src/lib.ts:5:1:useFeatureFlag",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "useFeatureFlag",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_const:src/lib.ts:palette",
+        "end_column": "2",
+        "end_line": "11",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "14",
+        "start_line": "9"
+      },
+      "id": "ts_export:src/lib.ts:9:14:palette",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "palette",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_component:src/widget.tsx:ResultView",
+        "end_column": "2",
+        "end_line": "17",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "15"
+      },
+      "id": "ts_export:src/widget.tsx:15:1:ResultView",
+      "kind": 214,
+      "leading_comments": [
+        "/** JSDoc is retained on declarations. */"
+      ],
+      "name": "ResultView",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_component:src/widget.tsx:UsageCard",
+        "end_column": "2",
+        "end_line": "12",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "6"
+      },
+      "id": "ts_export:src/widget.tsx:6:1:UsageCard",
+      "kind": 214,
+      "leading_comments": [
+        "/** @vrooliWidget kind=card */"
+      ],
+      "name": "UsageCard",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "15",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_FUNCTION",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "9"
+      },
+      "id": "ts_function:src/gen/client.ts:createConnectClient",
+      "kind": 206,
+      "leading_comments": [],
+      "name": "createConnectClient",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "3",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_FUNCTION",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "1"
+      },
+      "id": "ts_function:src/lib.ts:formatLabel",
+      "kind": 206,
+      "leading_comments": [],
+      "name": "formatLabel",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "7",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_HOOK",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "5"
+      },
+      "id": "ts_hook:src/lib.ts:useFeatureFlag",
+      "kind": 202,
+      "leading_comments": [],
+      "name": "useFeatureFlag",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "end_column": "69",
+        "end_line": "1",
+        "import_kind": "default",
+        "imported_name": "default",
+        "kind": "TS_NODE_KIND_IMPORT_BINDING",
+        "language": "typescript",
+        "local_name": "formatLabel",
+        "source_module": "./lib",
+        "start_column": "1",
+        "start_line": "1",
+        "type_only": "false"
+      },
+      "id": "ts_import_binding:src/widget.tsx:1:1:formatLabel",
+      "kind": 210,
+      "leading_comments": [],
+      "name": "formatLabel",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "37",
+        "end_line": "1",
+        "import_kind": "named",
+        "imported_name": "useFeatureFlag",
+        "kind": "TS_NODE_KIND_IMPORT_BINDING",
+        "language": "typescript",
+        "local_name": "useFeatureFlag",
+        "source_module": "./lib",
+        "start_column": "23",
+        "start_line": "1",
+        "type_only": "false"
+      },
+      "id": "ts_import_binding:src/widget.tsx:1:23:useFeatureFlag",
+      "kind": 210,
+      "leading_comments": [],
+      "name": "useFeatureFlag",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "53",
+        "end_line": "1",
+        "import_kind": "named",
+        "imported_name": "ReactNode",
+        "kind": "TS_NODE_KIND_IMPORT_BINDING",
+        "language": "typescript",
+        "local_name": "ReactNode",
+        "source_module": "./lib",
+        "start_column": "39",
+        "start_line": "1",
+        "type_only": "true"
+      },
+      "id": "ts_import_binding:src/widget.tsx:1:39:ReactNode",
+      "kind": 210,
+      "leading_comments": [],
+      "name": "ReactNode",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "40",
+        "end_line": "2",
+        "import_kind": "namespace",
+        "imported_name": "*",
+        "kind": "TS_NODE_KIND_IMPORT_BINDING",
+        "language": "typescript",
+        "local_name": "Client",
+        "source_module": "./gen/client",
+        "start_column": "1",
+        "start_line": "2",
+        "type_only": "false"
+      },
+      "id": "ts_import_binding:src/widget.tsx:2:1:Client",
+      "kind": 210,
+      "leading_comments": [],
+      "name": "Client",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "29",
+        "end_line": "3",
+        "import_kind": "named",
+        "imported_name": "createConnectClient",
+        "kind": "TS_NODE_KIND_IMPORT_BINDING",
+        "language": "typescript",
+        "local_name": "createConnectClient",
+        "source_module": "./gen/client",
+        "start_column": "10",
+        "start_line": "3",
+        "type_only": "false"
+      },
+      "id": "ts_import_binding:src/widget.tsx:3:10:createConnectClient",
+      "kind": 210,
+      "leading_comments": [],
+      "name": "createConnectClient",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "3",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_INTERFACE",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "1"
+      },
+      "id": "ts_interface:src/gen/client.ts:Request",
+      "kind": 204,
+      "leading_comments": [],
+      "name": "Request",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "7",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_INTERFACE",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "5"
+      },
+      "id": "ts_interface:src/gen/client.ts:Response",
+      "kind": 204,
+      "leading_comments": [],
+      "name": "Response",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "component_name": "ResultView",
+        "enclosing_declaration": "UsageCard",
+        "end_column": "81",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_JSX_USAGE",
+        "language": "typescript",
+        "props_summary": "enabled={enabled},ok={response.ok || namespaceResponse.ok}",
+        "start_column": "10",
+        "start_line": "11"
+      },
+      "id": "ts_jsx_usage:src/widget.tsx:11:10:ResultView",
+      "kind": 213,
+      "leading_comments": [],
+      "name": "ResultView",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "component_name": "section",
+        "enclosing_declaration": "ResultView",
+        "end_column": "48",
+        "end_line": "16",
+        "kind": "TS_NODE_KIND_JSX_USAGE",
+        "language": "typescript",
+        "props_summary": "data-enabled={props.enabled}",
+        "start_column": "10",
+        "start_line": "16"
+      },
+      "id": "ts_jsx_usage:src/widget.tsx:16:10:section",
+      "kind": 213,
+      "leading_comments": [],
+      "name": "section",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/gen/client.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "client.ts",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/lib.ts",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "lib.ts",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "kind": "TS_NODE_KIND_MODULE",
+        "language": "typescript"
+      },
+      "id": "ts_module:src/widget.tsx",
+      "kind": 200,
+      "leading_comments": [],
+      "name": "widget.tsx",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "submit",
+        "end_column": "17",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "input",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "12",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/gen/client.ts:11:12:input",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "input",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "submit",
+        "end_column": "26",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "Request",
+        "resolved_name": "Request",
+        "resolved_node_id": "ts_interface:src/gen/client.ts:Request",
+        "start_column": "19",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/gen/client.ts:11:19:Request",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "Request",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "submit",
+        "end_column": "37",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "Response",
+        "resolved_name": "Response",
+        "resolved_node_id": "ts_interface:src/gen/client.ts:Response",
+        "start_column": "29",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/gen/client.ts:11:29:Response",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "Response",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "submit",
+        "end_column": "25",
+        "end_line": "12",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "input",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "20",
+        "start_line": "12"
+      },
+      "id": "ts_reference:src/gen/client.ts:12:20:input",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "input",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "",
+        "end_column": "5",
+        "end_line": "2",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "id",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "3",
+        "start_line": "2"
+      },
+      "id": "ts_reference:src/gen/client.ts:2:3:id",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "id",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "",
+        "end_column": "5",
+        "end_line": "6",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "ok",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "3",
+        "start_line": "6"
+      },
+      "id": "ts_reference:src/gen/client.ts:6:3:ok",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "ok",
+      "path": "src/gen/client.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "formatLabel",
+        "end_column": "42",
+        "end_line": "1",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "value",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "37",
+        "start_line": "1"
+      },
+      "id": "ts_reference:src/lib.ts:1:37:value",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "value",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "formatLabel",
+        "end_column": "15",
+        "end_line": "2",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "value",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "10",
+        "start_line": "2"
+      },
+      "id": "ts_reference:src/lib.ts:2:10:value",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "value",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "useFeatureFlag",
+        "end_column": "36",
+        "end_line": "5",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "name",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "32",
+        "start_line": "5"
+      },
+      "id": "ts_reference:src/lib.ts:5:32:name",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "name",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "useFeatureFlag",
+        "end_column": "14",
+        "end_line": "6",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "name",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "10",
+        "start_line": "6"
+      },
+      "id": "ts_reference:src/lib.ts:6:10:name",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "name",
+      "path": "src/lib.ts"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "35",
+        "end_line": "10",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "Client",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "29",
+        "start_line": "10"
+      },
+      "id": "ts_reference:src/widget.tsx:10:29:Client",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "Client",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "29",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "enabled",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "22",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/widget.tsx:11:22:enabled",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "enabled",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "38",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "enabled",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "31",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/widget.tsx:11:31:enabled",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "enabled",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "42",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "ok",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "40",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/widget.tsx:11:40:ok",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "ok",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "52",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "response",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "44",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/widget.tsx:11:44:response",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "response",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "76",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "namespaceResponse",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "59",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/widget.tsx:11:59:namespaceResponse",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "namespaceResponse",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "87",
+        "end_line": "11",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "child",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "82",
+        "start_line": "11"
+      },
+      "id": "ts_reference:src/widget.tsx:11:82:child",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "child",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "33",
+        "end_line": "15",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "props",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "28",
+        "start_line": "15"
+      },
+      "id": "ts_reference:src/widget.tsx:15:28:props",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "props",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "44",
+        "end_line": "15",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "enabled",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "37",
+        "start_line": "15"
+      },
+      "id": "ts_reference:src/widget.tsx:15:37:enabled",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "enabled",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "57",
+        "end_line": "15",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "ok",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "55",
+        "start_line": "15"
+      },
+      "id": "ts_reference:src/widget.tsx:15:55:ok",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "ok",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "76",
+        "end_line": "15",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "children",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "68",
+        "start_line": "15"
+      },
+      "id": "ts_reference:src/widget.tsx:15:68:children",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "children",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "87",
+        "end_line": "15",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "ReactNode",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "78",
+        "start_line": "15"
+      },
+      "id": "ts_reference:src/widget.tsx:15:78:ReactNode",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "ReactNode",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "31",
+        "end_line": "16",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "data-enabled",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "19",
+        "start_line": "16"
+      },
+      "id": "ts_reference:src/widget.tsx:16:19:data-enabled",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "data-enabled",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "38",
+        "end_line": "16",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "props",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "33",
+        "start_line": "16"
+      },
+      "id": "ts_reference:src/widget.tsx:16:33:props",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "props",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "ResultView",
+        "end_column": "54",
+        "end_line": "16",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "props",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "49",
+        "start_line": "16"
+      },
+      "id": "ts_reference:src/widget.tsx:16:49:props",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "props",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "34",
+        "end_line": "6",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "child",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "29",
+        "start_line": "6"
+      },
+      "id": "ts_reference:src/widget.tsx:6:29:child",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "child",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "45",
+        "end_line": "6",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "child",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "40",
+        "start_line": "6"
+      },
+      "id": "ts_reference:src/widget.tsx:6:40:child",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "child",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "56",
+        "end_line": "6",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "ReactNode",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "47",
+        "start_line": "6"
+      },
+      "id": "ts_reference:src/widget.tsx:6:47:ReactNode",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "ReactNode",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "37",
+        "end_line": "7",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "createConnectClient",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "18",
+        "start_line": "7"
+      },
+      "id": "ts_reference:src/widget.tsx:7:18:createConnectClient",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "createConnectClient",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "26",
+        "end_line": "8",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "client",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "20",
+        "start_line": "8"
+      },
+      "id": "ts_reference:src/widget.tsx:8:20:client",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "client",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "51",
+        "end_line": "8",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "formatLabel",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "40",
+        "start_line": "8"
+      },
+      "id": "ts_reference:src/widget.tsx:8:40:formatLabel",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "formatLabel",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "enclosing_declaration": "UsageCard",
+        "end_column": "33",
+        "end_line": "9",
+        "kind": "TS_NODE_KIND_REFERENCE",
+        "language": "typescript",
+        "referenced_name": "useFeatureFlag",
+        "resolved_name": "",
+        "resolved_node_id": "",
+        "start_column": "19",
+        "start_line": "9"
+      },
+      "id": "ts_reference:src/widget.tsx:9:19:useFeatureFlag",
+      "kind": 211,
+      "leading_comments": [],
+      "name": "useFeatureFlag",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "32",
+        "end_line": "13",
+        "exported": "true",
+        "kind": "TS_NODE_KIND_TYPE",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "13"
+      },
+      "id": "ts_type:src/lib.ts:ReactNode",
+      "kind": 205,
+      "leading_comments": [],
+      "name": "ReactNode",
+      "path": "src/lib.ts"
+    }
+  ]
+}

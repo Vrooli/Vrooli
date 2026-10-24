@@ -78,6 +78,29 @@ describe("Scenarios Service", () => {
     expect(result).toEqual(mockScenario);
   });
 
+  it("normalizes scenario coverage from the goal-based API contract", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue({
+      scenario_name: "api-server",
+      goals: [{
+        name: "reliability",
+        title: "API Reliability",
+        status: "active",
+        priority: 4,
+        scope: { total: 2, completed: 1, in_progress: 1, failed: 0, pending: 0, archived: 0 },
+      }],
+      orphan_items: [],
+      rollup: { total: 2, completed: 1, in_progress: 1, failed: 0, pending: 0, archived: 0 },
+      fixes: { active: [{ name: "timeout", title: "Timeout", goal: "reliability", path: "fix/timeout" }], archived: [] },
+    });
+
+    await expect(service.getContext("api-server")).resolves.toMatchObject({
+      scenarioName: "api-server",
+      goals: [{ name: "reliability", title: "API Reliability", rollup: { total: 2, inProgress: 1 } }],
+      fixes: { active: [{ goal: "reliability" }] },
+    });
+    expect(mockApiClient.get).toHaveBeenCalledWith("/scenarios/api-server/context");
+  });
+
   it("patches scenario metadata with isGreenfield", async () => {
     const request: UpdateScenarioMetadataRequest = {
       isGreenfield: true,

@@ -1,0 +1,519 @@
+{
+  "schemaVersion": 1,
+  "kind": "experience-quality-preparation-sources",
+  "observed_at": "2026-10-16",
+  "source_role": "Dated receiving manifest; snapshots retain original authority. Native paths are current research locators, not product certification.",
+  "cloud_sources": [
+    {
+      "key": "biosphere",
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/biosphere-entry.md",
+      "source_url": "https://docs.google.com/document/d/18BJjY57nFi_bIki4x2A6lbCKILsgtspTEQIgK3MI1lc",
+      "revision": "AHj4eMSzrPjeo8YhJJxZGQE31qy287baYhL7TIUMH7b9NlKqcNSlHHt8Q_MoQCsIe8ep2oSzIJHfwiavMKOgFWFKf6ssM-ZiKXaosQC71g",
+      "role": "historical_method_source_snapshot",
+      "selected_from": "Normal work path",
+      "selected_until": "Current portfolio and infrastructure",
+      "retrieved_at": "2026-10-16"
+    },
+    {
+      "key": "guide",
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/product-improvement.md",
+      "source_url": "https://docs.google.com/document/d/1UKOuRy6oxFr9FALlQImq7eTb05-t8ms5U4_QAi49LhA",
+      "revision": "AHj4eMQk-sXUS2mh_nc63lHwXIQ-Ev3Z1OQDAq2DDCoHbU9y96dBwUFepnHxH1mFTWWK98-pz_4FnhqSb-hBTF8xLm6cD2lu5-rmqLFxnw",
+      "role": "historical_method_source_snapshot",
+      "selected_from": "Discover and load the applicable method",
+      "selected_until": "15 Adopted project-hub presentation",
+      "retrieved_at": "2026-10-16"
+    },
+    {
+      "key": "protocol",
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/capture-and-transfer.md",
+      "source_url": "https://docs.google.com/document/d/1pMRyhkwaJ60uUxJAK-nOzkUWt0HeC1RFK7laGQE804I",
+      "revision": "AHj4eMR_A2RXYq0ilprvDChjhu0AfYkzDWFP7jWXd8NlGUy1uf9DAvc7F0PQ7O95JkX3HXb7WmaRy_lHMjgtLq0c9wJpEejfTVxRtVwG7g",
+      "role": "historical_method_source_snapshot",
+      "selected_from": "F. HORIZONTAL ARTIFACT TRANSFER",
+      "selected_until": "end",
+      "retrieved_at": "2026-10-16"
+    },
+    {
+      "key": "adapter",
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/vrooli-capture-adapter.md",
+      "source_url": "https://docs.google.com/document/d/152DaKTk-lBAiy2GXHf-1Bpp3GalY0xXj8EolzhYECrc",
+      "revision": "AHj4eMQ6SS23c7n5URSXepO-oDFDz_oZUOsvOvbba1D9V_3glHeJbuE_i9GaSXvcMVBwYygm-__oX8-ceS8QZbJ5uq7ZsYWjOXDjdvqElg",
+      "role": "historical_method_source_snapshot",
+      "selected_from": "Current capture adapter",
+      "selected_until": "Objective team observation",
+      "retrieved_at": "2026-10-16"
+    }
+  ],
+  "archive": {
+    "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3.zip",
+    "sha256": "e66af31cc1dd916dbbe53d8b22463a233ac2dadd92bca77fa96ca04c291ef7fb",
+    "source_url": "https://drive.google.com/file/d/1EErBTJMJWiOBx6u4hoBmR3rcI6A4nKLt/view",
+    "method_revision": "1.3",
+    "source_revision": "17b26cdb3e5d5ac6c94cbcd5a1b88f1c20908e37",
+    "role": "complete_read_only_method_snapshot"
+  },
+  "governing_visual_assets": {
+    "required_for_preparation": false,
+    "reason": "No new Web Console visual design selected. Runtime baseline, current direction and later selected originals must be qualified at epoch admission."
+  },
+  "github": {
+    "repository": "Vrooli/Vrooli",
+    "observed_route": "connected GitHub FetchFile; docs/reference/experience-alignment.md; default ref",
+    "result": "HTTP 404; no published matching content or receiver access established",
+    "fallback": "verified received method sources; cloud-native design/research with local runtime proof pending"
+  },
+  "files": [
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/README.md",
+      "bytes": 3005,
+      "sha256": "c0c92427cf814a8b882023e2484b930f728c2e9859a489c22934cc07b4aa4319",
+      "role": "receiving_source_index",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/biosphere-entry.md",
+      "bytes": 6774,
+      "sha256": "f84313070a7ab043b8d918ba8de49e61840b73e9936b0a5ee05ec32237f1dccf",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/capture-and-transfer.md",
+      "bytes": 45143,
+      "sha256": "593ddf1bf37fefbac7bffca90021e573631a52d5f8fb8232fe0297d293363c25",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/SKILL.md",
+      "bytes": 9767,
+      "sha256": "802449de08d25fa268af0358fc1ac47b9823ba66504b4747f8e5036248b75285",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/agents/openai.yaml",
+      "bytes": 455,
+      "sha256": "2e00bd2f3036e8c338b11293920e5e4189a465aa035fb40d6f205ca6810505ee",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/assets/icon.svg",
+      "bytes": 420,
+      "sha256": "e9301497fa98ef56aaca7ede0857b9a18dc06c34040f0679c609a6bf49b1d38b",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/manifest.json",
+      "bytes": 1956,
+      "sha256": "9a9969a9c3da9723df6c4718ad2508423b290c702c52b314935306a98aabf35f",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/coverage-and-traceability.md",
+      "bytes": 7883,
+      "sha256": "dbdd989c3d69c87da6e321f455fd4a76ae2dbd6fdf231c51fe0f21bcccc9c016",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/critical-review.md",
+      "bytes": 4660,
+      "sha256": "619fa9434f621deb76fcf5689329a0e9bfaa6b5befc4887617ea1a4176c3a4dd",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/document-and-visual-craft.md",
+      "bytes": 9360,
+      "sha256": "441085257ce8bc15867908bf8390ed0e8e8ddb16cd19ee57e13e267975b825b9",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/mockup-craft-and-lifecycle.md",
+      "bytes": 7556,
+      "sha256": "de9c82c4011552edff3ca5a37def8269f5bffaa85bc15d1f8e4144801f830e4c",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/service-and-business-design.md",
+      "bytes": 4542,
+      "sha256": "1565aed9ba65e2b4236e4f2180c2ee565eae6860159c4f0c6cabb2a8478b2c91",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/sources-and-adoption.md",
+      "bytes": 3664,
+      "sha256": "eae32caa98a0358b22b5ade1531de2adf68b5c8aaf65120a1c61d3bd3395077c",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3/references/systems-and-infrastructure-design.md",
+      "bytes": 5465,
+      "sha256": "80ea59b4fd3b43de4e3abf709eaa193210d8e41e8864b7dfbf8a33f5c5fcef8f",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/design-product-dossier-1.3.zip",
+      "bytes": 25732,
+      "sha256": "e66af31cc1dd916dbbe53d8b22463a233ac2dadd92bca77fa96ca04c291ef7fb",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/product-improvement.md",
+      "bytes": 24600,
+      "sha256": "e7085c23517e3f798c4793310814fd6b3de4b1a1a9c0526aba4a61e08a95f49c",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/sources/vrooli-capture-adapter.md",
+      "bytes": 19425,
+      "sha256": "87ba953fdd19bf9a7f88b19cdfff1532bb05ec6fcae3c9b184e1959fbd6446f7",
+      "role": "received_source_snapshot",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "docs/reference/experience-alignment.md",
+      "bytes": 27450,
+      "sha256": "37a825b51011820ae9d609edaf4256831f848803cbfe6bbbbb7de8e7e258e4ba",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "docs/reference/experience-readiness.md",
+      "bytes": 4557,
+      "sha256": "ea37c0db9a5a45d9dba503c19f4b6724556a60c1b48408f405aae52f68d99b9e",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "docs/design/governance.md",
+      "bytes": 2237,
+      "sha256": "40348690d95d964b8fe602bd6f2bb0b75a0ca713c2676888dec2dde96e7fa116",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "docs/TESTING.md",
+      "bytes": 17768,
+      "sha256": "e86be65f329cb973c849e308040237367293fd20cb2a4fd9620a214b0eac1efe",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "docs/package-governance.md",
+      "bytes": 9763,
+      "sha256": "9e9d1fb9062583d8c778ae197b5c57c2623003fa299f945858105f4d36c89699",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "packages/proto/README.md",
+      "bytes": 14940,
+      "sha256": "cc6b9466e0ec73c822ba5615ffa3f17823719b65c0da1c0bebb10d4b826638da",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/experience-manager/PRD.md",
+      "bytes": 9316,
+      "sha256": "cdf0d699f61fa6ba5f8686e36f6d68b0ce1e3dfd7f22e8b87603f27fe3d918f3",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/experience-manager/api/internal/reconcile/run.go",
+      "bytes": 13766,
+      "sha256": "ccc0d680963e48ccf4452ec1ee95d1cad87f97af32f3c274434e3f3475afd7a3",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/experience-manager/api/internal/reconcile/bas_capturer.go",
+      "bytes": 10693,
+      "sha256": "c7df498c623dd7a63cf0069b27951baa6b707c9988dca02e8b4294fd4913fa2b",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/experience-manager/api/internal/reconcile/capture_axes.go",
+      "bytes": 5427,
+      "sha256": "43f9bf8897523580f0485ad872c080dcee585ac51a4861a3e9313a2d698eb2a4",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/ui-health/docs/concepts/VALIDATION_OWNERSHIP.md",
+      "bytes": 4725,
+      "sha256": "51902f8b465a071e8e0c920b4f820fcf2ea0a0802e6b61f32e353bbb32c8ff6f",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/ui-health/PRD.md",
+      "bytes": 15805,
+      "sha256": "53d639822342f2c6a55a6fd70ca5eb2b13423241cdfb71a517cb1d5368b3349e",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/browser-automation-studio/.vrooli/program-runtime/capture-surface.json",
+      "bytes": 4212,
+      "sha256": "cd92b4adf1c2be006c72ff07b2e5ee66d9db8dcb936d6e61e6fe3498906ab820",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/browser-automation-studio/docs/nodes/screenshot.md",
+      "bytes": 5095,
+      "sha256": "b0beb82436298d6607915e24e32e4ec03b5a826b9a44b06fbd40ade8a2116977",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/workflow-health/PRD.md",
+      "bytes": 5883,
+      "sha256": "27dbae55f9ee3c221fe2e1e4011f35775d317681028b3593ecb24f7eef57bd9b",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/deployment-manager/api/readiness/readiness-policy.json",
+      "bytes": 20496,
+      "sha256": "80763df50eb8bb38c8cf2fe7efba0257952fecbecb0157586a5419ccde1bc687",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/deployment-manager/docs/DEPLOYMENT-GUIDE.md",
+      "bytes": 19422,
+      "sha256": "e40324bc64e4d5533ea89ca926bffa045de9ae9706243a95c1adb1cd4df2eaae",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/deployment-manager/api/readiness/review.go",
+      "bytes": 10606,
+      "sha256": "e2d40033395ea58f58f4328d9df68b5afa180941e83dc428045db0dd3956403d",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/experience/index.json",
+      "bytes": 2776,
+      "sha256": "d81a3cdcce96cc5efced86755e981ad05d7e2fa7db4b6bb14d50eea0bf16b156",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/experience/pages/workspace.json",
+      "bytes": 10348,
+      "sha256": "6ff2acc305089bfe4deb7905a378391ef711026652fca13c1c533fbaa98589d5",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/experience/pages/account.json",
+      "bytes": 2264,
+      "sha256": "93e624974e8d7eb4e8e64a2619233ffdeac7c2dfa8fe66d2d00a4ff1274b469c",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/ui/src/hooks/useSessionManager.ts",
+      "bytes": 31146,
+      "sha256": "1d1033fb6568f3e958a399f042437c767b9979993cdfbe43d129bf6ee70b1b83",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/ui/src/components/TerminalLauncher.tsx",
+      "bytes": 29159,
+      "sha256": "618436e492b701ba7706b18bfdf89b52655105a72dd9b43043e88ddfb4a36ae9",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/ui/src/components/MobileToolbar.tsx",
+      "bytes": 44263,
+      "sha256": "570faaa1e89c042b65451d761a356d6341c6f0182ebbf2c8eef6d9253d958380",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/ui/src/components/Workspace.tsx",
+      "bytes": 124182,
+      "sha256": "62093f7e49bd12333db02bd188e94a2b7ff6d262d785b7afa7302b547d4d6b2a",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/web-console/docs/internal/INVARIANTS.md",
+      "bytes": 18942,
+      "sha256": "1875eca77c22c3d45aa18ff6f7a13a638b285d346ef10b1e6590fdec192e4082",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md",
+      "bytes": 25562,
+      "sha256": "409222bd1d368ad637a30b50fcbfbe9a7d7727f17e9f39290ef3a8d4cd060f95",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md",
+      "bytes": 6251,
+      "sha256": "f186e2447a00e9868c18e26af23ff8cb16c9920059f5dc0567f66e1b85465680",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/harness-goal-authoring/SKILL.md",
+      "bytes": 19933,
+      "sha256": "bb46361592040f2e8d9c4ba8f22c2c65d3035de34c264cd3d5eddbf0411a549b",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/ux/SKILL.md",
+      "bytes": 10902,
+      "sha256": "2053d930fa4676aab756a80b59d92fa9bb4eacb9b843cf589905d3c1c912cdf8",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/polish/SKILL.md",
+      "bytes": 6100,
+      "sha256": "834fdc6367892a664f6bedd24e263a6b12eff5a0a1187323defe44de5a44ea5d",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/experiential-ui-design/SKILL.md",
+      "bytes": 13608,
+      "sha256": "8742d34b3a06837f848d73f810123490621b25efd994625082be229d11a75c22",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/store/skills/packs/core/launch-video/SKILL.md",
+      "bytes": 46194,
+      "sha256": "cbd1d35def719763fea5c1247aea558ab3b8860f46bba8c671af09559fe78847",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": ".vrooli/work/delivery/external-knowledge-delivery/archive/v1/GOAL.md",
+      "bytes": 2041,
+      "sha256": "2e17f8bab7f61a233c07dc6c81ee9f54140629ad91ab2cde763ff15003a5e736",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred",
+      "historicalPath": ".vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+      "custody": "Retained pre-reorganization source; recorded version is historical, not current acceptance."
+    },
+    {
+      "path": ".vrooli/work/delivery/external-knowledge-delivery/archive/v1/QUEUE.md",
+      "bytes": 9745,
+      "sha256": "de208c86019c654a6f1de5f3d3153bd56f8ee865c37ffa87bdd658de62979d4d",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred",
+      "historicalPath": ".vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+      "custody": "Retained pre-reorganization source; recorded version is historical, not current acceptance."
+    },
+    {
+      "path": ".vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+      "bytes": 8911,
+      "sha256": "ccfac698bc2f85b39adc2b105cf6cfeea1b785cc6bba8ebe6cb875b09d425b88",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/docs/reference/heartbeat-cli.md",
+      "bytes": 22479,
+      "sha256": "fa97a5d09a1ef8f3d016211447d17851fe54b1f1522350829b26d3e88ae4cc9c",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/cli/teams/teams.go",
+      "bytes": 133659,
+      "sha256": "cba9163199f5031a96dbeec9d26c43672dde62bc36d486d56bbb1c3de95a1305",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "scenarios/prompt-manager/api/internal/heartbeat/models.go",
+      "bytes": 13482,
+      "sha256": "ca89702ec03141000c233bc9fe952468ed3958b5e1dc99646b3714503f901652",
+      "role": "native_research_reference",
+      "verification": "bytes_read_2026-10-16; runtime not inferred"
+    },
+    {
+      "path": "docs/architecture/experience-quality.md",
+      "bytes": 21231,
+      "sha256": "e4cba472f2d45f77bbffb30a848412fa562e745b7f44fa59b7e06cce1fa88d0e",
+      "role": "prepared_commission_material",
+      "verification": "bytes_read_2026-10-16; disabled preparation only"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/archive/v1/GOAL.md",
+      "bytes": 1935,
+      "sha256": "129a34537d3580f8aefbf64faf57d5af4f23e32e318aac0b52c5094e77b6eddc",
+      "role": "prepared_commission_material",
+      "verification": "bytes_read_2026-10-16; disabled preparation only",
+      "historicalPath": ".vrooli/work/delivery/experience-quality-delivery/GOAL.md",
+      "custody": "Retained pre-reorganization source; recorded version is historical, not current acceptance."
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/COMMISSION.md",
+      "bytes": 9917,
+      "sha256": "4f56e96d99c48e0e823f43d3a0d2a648fe1591b632f7985a6e1957f914e4b276",
+      "role": "prepared_commission_material",
+      "verification": "bytes_read_2026-10-16; disabled preparation only"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/native/operating-contract.json",
+      "bytes": 7907,
+      "sha256": "1ef87bebc7091f5f6418506d43caf1e60466cad5b73357e34d01e9c6618efab0",
+      "role": "prepared_commission_material",
+      "verification": "bytes_read_2026-10-16; disabled preparation only"
+    },
+    {
+      "path": ".vrooli/work/delivery/experience-quality-delivery/native/create-team.request.json",
+      "bytes": 9942,
+      "sha256": "9f377e632d764842be4e1380ece3edfd998d875767e8a1bdc1f00cb301655160",
+      "role": "prepared_commission_material",
+      "verification": "bytes_read_2026-10-16; disabled preparation only"
+    }
+  ],
+  "unreceived_workflow_dependencies": [
+    {
+      "name": "craft-review-artifacts / Native review surfaces",
+      "state": "unreceived; exact adopted owned source not verified",
+      "owner": "existing personal/shared craft capability owner",
+      "locator": "https://docs.google.com/document/d/1Xa_n6J_LyskwhqbhoRb2GyUETCByv82uPwz1TtwRYw4/edit",
+      "gap": "G06a",
+      "boundary": "No dependent dossier/review epoch before applicable complete source/material receiving proof."
+    },
+    {
+      "name": "commission-useful-work",
+      "state": "unreceived; exact adopted owned source not verified",
+      "owner": "existing personal/shared commissioning method owner",
+      "gap": "G06a",
+      "boundary": "No dependent commissioning-method work before applicable source receiving proof."
+    }
+  ],
+  "custodyReviewedAt": "2026-10-23"
+}

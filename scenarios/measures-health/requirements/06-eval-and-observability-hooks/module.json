@@ -1,0 +1,86 @@
+{
+  "description": "Surface match and param-extraction accuracy signals feeding the Phase 8 eval harness, expose the auto-exec confidence threshold theta as a config lever, and support an optional architecture-cartographer DomainsService cross-check to enrich domain derivation.",
+  "module_id": "MOD-P2-006",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P1-001",
+        "REQ-P0-003"
+      ],
+      "description": "Surface match accuracy and parameter-extraction accuracy signals from the behavioral probe pipeline, feeding them into the Phase 8 eval harness as named metrics. Expose the auto-execution confidence threshold theta as a named configuration lever (environment variable or config file key) with a documented default value. Optionally support an architecture-cartographer DomainsService cross-check RPC call to enrich domain derivation when the DomainsService is available, falling back gracefully to proto-schema-only derivation when it is not.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "Eval and Observability Hooks for Match and Param-Extraction Accuracy",
+      "validation": [
+        {
+          "notes": "Go unit test: match accuracy metric is computed as matched_questions / total_questions and emitted as a named eval signal for each probe run",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: param-extraction accuracy metric is computed as correctly_extracted_params / total_params and emitted as a named eval signal",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: confidence threshold theta is read from config with correct default value and applied to auto-exec gate decisions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: when DomainsService is unavailable (connection refused), domain derivation falls back to proto-schema-only path without error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run the behavioral probe against a fixture scenario; assert the eval harness receives match_accuracy and param_extraction_accuracy metric events with float64 values in [0.0, 1.0]",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Set theta config to 0.9 and run a probe where confidence is 0.85; assert auto-exec is NOT triggered; set theta to 0.8 and assert auto-exec IS triggered for the same measure",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot measures-health with DomainsService address configured to a live stub; assert domain derivation report includes enriched domain metadata from DomainsService; shut down DomainsService and assert derivation still succeeds using proto schemas",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Eval metric emission adds no more than 100ms overhead to a single probe run",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Theta configuration lever is documented in the service README with its default value, valid range, and effect on auto-exec behavior",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Eval and Observability Hooks"
+}

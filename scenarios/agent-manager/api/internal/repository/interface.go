@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -27,12 +28,22 @@ type ListFilter struct {
 // RunListFilter extends ListFilter with run-specific filters.
 type RunListFilter struct {
 	ListFilter
+	// RunnerPIDs narrows owner checks to exact process IDs already observed in a peer ancestry.
+	RunnerPIDs []int
+	// NonTerminalOnly narrows lifecycle-owner lookups to statuses that can
+	// still own a live executor. It is used by security-sensitive peer/run
+	// binding and avoids paging historical terminal runs.
+	NonTerminalOnly           bool
 	TaskID                    *uuid.UUID
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
+	EndedFrom                 *time.Time
+	EndedTo                   *time.Time
 	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager" to drain runs targeting a scenario)
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
+	ParentRunID               *uuid.UUID // Filter to direct child runs of one parent run
 }
 
 // -----------------------------------------------------------------------------
@@ -63,6 +74,53 @@ type ProfileRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+// WorkflowRepository stores immutable, digest-addressed workflow revisions.
+// ActivateBatch validates and activates an entire scenario reload atomically;
+// a failed reload therefore leaves every previously active revision intact.
+type WorkflowRepository interface {
+	ActivateBatch(ctx context.Context, revisions []*domain.WorkflowRevision) error
+	GetActive(ctx context.Context, owner, key string) (*domain.WorkflowRevision, error)
+	GetByDigest(ctx context.Context, digest string) (*domain.WorkflowRevision, error)
+	List(ctx context.Context, owner, key string, filter ListFilter) ([]*domain.WorkflowRevision, error)
+}
+
+type WorkflowCommit struct {
+	ExpectedVersion int64
+	Execution       *domain.WorkflowExecution
+	Attempt         *domain.WorkflowNodeAttempt
+	Attempts        []*domain.WorkflowNodeAttempt
+	Journal         []*domain.WorkflowJournalEntry
+}
+
+// WorkflowExecutionListFilter bounds operator history queries. Empty owner,
+// workflow key, and status values mean "all"; pagination is always bounded by
+// the repository implementation.
+type WorkflowExecutionListFilter struct {
+	ListFilter
+	Owner       string
+	WorkflowKey string
+	Status      domain.WorkflowExecutionStatus
+}
+
+// WorkflowExecutionRepository is the durable interpreter commit boundary.
+// Commit is compare-and-swap and atomically persists execution state, one
+// attempt projection, and append-only journal entries.
+type WorkflowExecutionRepository interface {
+	Create(ctx context.Context, execution *domain.WorkflowExecution, initial *domain.WorkflowJournalEntry) error
+	Get(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
+	GetByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowExecution, error)
+	List(ctx context.Context, filter WorkflowExecutionListFilter) ([]*domain.WorkflowExecution, error)
+	Commit(ctx context.Context, commit WorkflowCommit) (bool, error)
+	GetAttemptByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowNodeAttempt, error)
+	ListAttempts(ctx context.Context, executionID uuid.UUID) ([]*domain.WorkflowNodeAttempt, error)
+	// ExecutionIDForRun resolves the workflow execution that dispatched the
+	// given run through a node attempt. Returns uuid.Nil (nil error) when the
+	// run does not belong to any workflow attempt — the common non-workflow run.
+	ExecutionIDForRun(ctx context.Context, runID uuid.UUID) (uuid.UUID, error)
+	ListJournal(ctx context.Context, executionID uuid.UUID, afterSequence int64, limit int) ([]*domain.WorkflowJournalEntry, error)
+	ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error)
+}
+
 // -----------------------------------------------------------------------------
 // TaskRepository - Task persistence
 // -----------------------------------------------------------------------------
@@ -83,7 +141,10 @@ type TaskRepository interface {
 
 	// Update modifies an existing task.
 	Update(ctx context.Context, task *domain.Task) error
-
+	// UpdateQueuedBrief updates only title and description when the exact task
+	// is still queued, undispatched, and owned by createdBy. It returns false
+	// when the owner/status fence no longer matches.
+	UpdateQueuedBrief(ctx context.Context, id uuid.UUID, createdBy, expectedTitle, expectedDescription, title, description string) (bool, error)
 	// Delete removes a task by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -94,8 +155,27 @@ type TaskRepository interface {
 
 // RunRepository provides persistence for Run entities.
 type RunRepository interface {
-	// Create stores a new run.
+	// Create stores a run that is not claiming a Task attempt (for example an import).
 	Create(ctx context.Context, run *domain.Run) error
+	// CreateTaskAttempt atomically claims the Task and inserts the Run/creation
+	// receipt only if the prompt-bearing fields still match expectedTaskSnapshot.
+	// That snapshot must be the persisted task before admission-time normalization
+	// or recovery overrides. expectedCurrentRunID is nil for an unowned queued or
+	// legacy task with no live historical attempt, or the exact terminal attempt
+	// being replaced.
+	CreateTaskAttempt(ctx context.Context, task, expectedTaskSnapshot *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID) error
+	// CancelTaskAttempt atomically records explicit Task cancellation and fences
+	// the exact current Run. Pending Runs become terminal before recovery can
+	// enqueue them; active Runs receive the ordinary cancellation intent and
+	// must still be stopped through the existing StopRun path.
+	CancelTaskAttempt(ctx context.Context, taskID uuid.UUID, runID *uuid.UUID, activeMayHaveStarted bool, at time.Time) (domain.RunStatus, bool, error)
+	// EnsureCurrentRun accepts only the exact requested Run. A legacy NULL
+	// pointer is lazily bound only when no competing nonterminal Run exists.
+	EnsureCurrentRun(ctx context.Context, taskID, runID uuid.UUID, at time.Time) (bool, error)
+	// AdmitCurrentRun reactivates only the exact current Run while its owning
+	// Task remains nonterminal, preventing stale ResumeRun snapshots from
+	// resurrecting a canceled attempt.
+	AdmitCurrentRun(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, at time.Time) (bool, error)
 
 	// Get retrieves a run by ID.
 	Get(ctx context.Context, id uuid.UUID) (*domain.Run, error)
@@ -106,61 +186,170 @@ type RunRepository interface {
 	// ListByTask retrieves runs for a specific task.
 	ListByTask(ctx context.Context, taskID uuid.UUID, filter ListFilter) ([]*domain.Run, error)
 
-	// Update modifies an existing run.
+	// Update modifies an existing run. A transition into an active status is
+	// checked against the durable effort coordinator owner in the same
+	// transaction, including retained-session continuation lifecycle updates.
 	Update(ctx context.Context, run *domain.Run) error
+	// UpdateInteractiveContinuation atomically commits a new invocation stamp for
+	// a running, parked, or terminal interactive run. The caller supplies the
+	// exact prior status and invocation observed before mutation so the database
+	// can reject a stale continuation without weakening ordinary Update's
+	// current-invocation guard.
+	UpdateInteractiveContinuation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedInvocationStartedAt *time.Time) error
 
-	// Delete removes a run by ID.
-	Delete(ctx context.Context, id uuid.UUID) error
+	// TouchHeartbeat atomically updates ONLY a run's last_heartbeat (and
+	// updated_at), and ONLY while it is still in an actively-executing status
+	// (running or starting). It returns true when a row was updated.
+	//
+	// This exists so a heartbeat tick can never resurrect a run that has moved
+	// on. The heartbeat loop holds an in-memory *Run whose Status is whatever it
+	// was when the loop started; a full-row Update from that stale pointer would
+	// clobber a concurrent park/stop transition (e.g. running→parked written by
+	// another goroutine), rewriting status back to running. The status-guarded,
+	// single-column update closes that race at the SQL layer (no TOCTOU).
+	TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
+
+	// BeginInteractiveInvocation atomically advances the invocation evidence for
+	// the exact current interactive owner before its first prompt or a continuation
+	// is sent. The expected status and prior stamp fence stale callers. It updates
+	// no transcript, heartbeat, or task fields, so concurrent tail callbacks
+	// cannot overwrite their stream state.
+	BeginInteractiveInvocation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedStartedAt *time.Time, at time.Time) (bool, error)
+
+	// RequestCancellation atomically stamps the durable cancellation intent on
+	// a run that is still actively executing (running or starting). It returns
+	// true when the intent was newly recorded and false when it was already
+	// stamped or the run is no longer active. Like TouchHeartbeat, the guard is
+	// applied in SQL so a stale caller cannot stamp a terminal run, and the
+	// intent is monotonic (a repeat stop request is a no-op). The persisted
+	// stamp lets a delayed process exit reconcile to cancelled exactly once
+	// instead of resurrecting the run to a different terminal state.
+	RequestCancellation(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
+
+	// UpdateRunnerStreamState atomically persists ONLY the runner streaming
+	// columns (session id, runner pid/pgid, transcript path/cursor/seq) from the
+	// supplied run, and ONLY while it is still actively executing (running or
+	// starting). It returns true when a row was updated.
+	//
+	// Same race class as TouchHeartbeat: the executor's OnAdvance/OnProcessStart/
+	// OnSessionID transcript callbacks fire on every agent output chunk and hold
+	// an in-memory *Run whose Status is the stale "running" value. A full-row
+	// Update from that pointer during the park turn-end grace window would rewrite
+	// a just-persisted running→parked transition back to running (clobbering the
+	// park before detectParked ever reads it). The status-guarded targeted update
+	// closes that race at the SQL layer (no TOCTOU): once the run is parked/
+	// terminal, the streaming write no-ops instead of resurrecting it.
+	UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error)
+
+	// Delete removes a terminal run only if the observed status and lifecycle version still match.
+	Delete(ctx context.Context, id uuid.UUID, expectedStatus domain.RunStatus, expectedLifecycleVersion int64) error
 
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
 
-	// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
-	// Returns runs with status=pending or status=failed (with attempts < maxRetries),
-	// ordered by queued_at ascending (oldest first).
-	ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error)
-
-	// ClaimRecommendationExtraction atomically marks a run as "extracting".
-	// Returns true if claim succeeded (no concurrent extractor got it first).
-	// This prevents duplicate extraction if multiple workers exist.
-	ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error)
-
-	// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
-	// recommendations extracted yet (status is empty or "none").
-	// Used on startup to seed the extraction queue with existing runs.
-	// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
-	ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error)
-
-	// ListStaleExtractions returns runs that have been stuck in "extracting" status
-	// for longer than the stale timeout. These are likely from crashed workers.
-	// Used by the worker to recover stuck extractions.
-	ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error)
+	// CountCapacityByStatus counts runs in status that hold a dispatch slot.
+	// Attached runs are excluded: they record sessions Agent Manager did not
+	// launch, whose resources the agent session slice already bounds.
+	CountCapacityByStatus(ctx context.Context, status domain.RunStatus) (int, error)
 
 	// GetByTokenHash retrieves a run by its identity token hash.
 	// Returns nil, nil if no matching run is found.
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error)
+
+	// GetByImportProvenance returns the run that adopted an external source
+	// session, or nil when that session has not been imported.
+	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
+
+	// ListByWebConsoleSessionIDs returns every run whose web_console_session_id
+	// is one of sessionIDs (several runs may share one session). Unknown and
+	// empty ids contribute nothing; an empty input returns no runs.
+	ListByWebConsoleSessionIDs(ctx context.Context, sessionIDs []string) ([]*domain.Run, error)
+
+	// ListImportedRunIDsOldestFirst returns up to limit imported runs that still
+	// have events, oldest-content-first, for recall-corpus eviction. Runs whose
+	// events were already evicted are excluded so eviction makes progress instead
+	// of re-selecting the same empty runs.
+	ListImportedRunIDsOldestFirst(ctx context.Context, limit int) ([]uuid.UUID, error)
+
+	// DeleteImportedRun hard-deletes one imported run row. Restricted to
+	// execution_mode='imported' so canonical runs can never be removed this way.
+	// Eviction calls it after clearing the run's events and search docs so the
+	// whole unit is gone and its import provenance no longer blocks re-import.
+	DeleteImportedRun(ctx context.Context, id uuid.UUID) error
+
+	// DeleteEmptyImportedRuns bulk-deletes imported run rows that have no events
+	// (eviction stubs). An imported run with no events carries nothing but its
+	// provenance, which would otherwise permanently block re-importing that
+	// session. Returns the number of rows removed.
+	DeleteEmptyImportedRuns(ctx context.Context) (int, error)
+
+	// GetByIdempotencyKey resolves the run durably created under a creation
+	// idempotency key, or nil when no creation was accepted. A retained receipt
+	// with a missing run returns an error, never permission to create again.
+	// It exists so a
+	// caller that lost the accepted start response can reconcile the original
+	// dispatch from durable owner state instead of starting a duplicate.
+	GetByIdempotencyKey(ctx context.Context, key string) (*domain.Run, error)
+
+	// GetCreationReceipt returns immutable accepted-creation identity, including
+	// when the original run was deleted. Nil means no retained acceptance.
+	GetCreationReceipt(ctx context.Context, key string) (*domain.RunCreationReceipt, error)
 }
 
-// -----------------------------------------------------------------------------
-// EventRepository - RunEvent persistence
-// -----------------------------------------------------------------------------
+// EffortSignalCursorRepository stores the per-effort sequence positions used
+// by a retained orchestrator. Cursor writes are narrow so owner check-ins do
+// not rewrite unrelated live Run state.
+type EffortSignalCursorRepository interface {
+	// QueueEffortSignalCursor raises the queued high-water without moving the
+	// delivered position. It returns false when the run no longer owns the exact
+	// active orchestrator reference. An absent cursor coalesces one latest-row
+	// catch-up because preexisting native consumption cannot be proven.
+	QueueEffortSignalCursor(ctx context.Context, runID uuid.UUID, effortRef string, through int64) (domain.EffortSignalCursor, bool, error)
+}
 
-// EventRepository provides persistence for RunEvent entities.
-type EventRepository interface {
-	// Append adds events to a run's event stream.
-	Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error
+// RunRecoveryAttacher records ownership of an existing live executor. The
+// lifecycle/status/cancellation fence and field-limited write are atomic:
+// attaching cannot replace a run or overwrite concurrent progress/stream data.
+type RunRecoveryAttacher interface {
+	AttachRecovery(ctx context.Context, id uuid.UUID, lifecycleVersion int64, at time.Time) (bool, error)
+}
 
-	// Get retrieves events for a run.
-	Get(ctx context.Context, runID uuid.UUID, afterSequence int64, limit int) ([]*domain.RunEvent, error)
+// RunRecoveryProcessIdentityClearer retires a runner PID/PGID from a terminal
+// run after recovery has positively established that the executor is absent.
+// The guarded write prevents a stale recovery observation from clearing a
+// newly attached executor.
+type RunRecoveryProcessIdentityClearer interface {
+	ClearTerminalRunnerProcessIdentity(ctx context.Context, id uuid.UUID, lifecycleVersion, ownerEpoch, runnerPID, runnerPGID int64) (bool, error)
+}
 
-	// GetByType retrieves events of specific types.
-	GetByType(ctx context.Context, runID uuid.UUID, types []domain.RunEventType, limit int) ([]*domain.RunEvent, error)
+// RunRecoveryOwnerClaimer atomically transfers the right to advance a live
+// run to a new Agent Manager owner. The returned epoch must be carried by all
+// subsequent lifecycle, stream, and finalization writes.
+type RunRecoveryOwnerClaimer interface {
+	ClaimRecoveryOwnership(ctx context.Context, id uuid.UUID, lifecycleVersion int64, ownerIdentity string, at time.Time) (int64, bool, error)
+}
 
-	// Count returns the number of events for a run.
-	Count(ctx context.Context, runID uuid.UUID) (int64, error)
+// RunFreshRecoveryClaimer consumes a source lifecycle exactly once before a
+// replacement may have effects. The request hash never expires or resets when
+// the replacement or the idempotency cache is deleted. Only a definitive
+// pre-effect refusal permits guarded release; missing acceptance alone does not.
+type RunFreshRecoveryClaimer interface {
+	ClaimFreshRecovery(ctx context.Context, sourceID uuid.UUID, lifecycleVersion int64, requestHash string, allowCancelled bool) (bool, error)
+	GetFreshRecoveryClaim(ctx context.Context, sourceID uuid.UUID) (string, error)
+	ReleaseFreshRecoveryClaim(ctx context.Context, sourceID uuid.UUID, claimedLifecycleVersion int64, requestHash string) (bool, error)
+}
 
-	// Delete removes all events for a run.
-	Delete(ctx context.Context, runID uuid.UUID) error
+// RunLabelUpdater is an intentionally narrow maintenance seam. Label
+// backfills must not use RunRepository.Update because that would rewrite the
+// complete run row, including identity and attribution fields.
+type RunLabelUpdater interface {
+	UpdateRunLabel(ctx context.Context, id uuid.UUID, label string, source domain.RunLabelSource) error
+}
+
+// RunSubjectUpdater updates only the derived subject projection. Keeping this
+// seam separate prevents analytics projection from overwriting live run state.
+type RunSubjectUpdater interface {
+	UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error
 }
 
 // -----------------------------------------------------------------------------
@@ -189,31 +378,6 @@ type PolicyRepository interface {
 
 	// FindByScope finds policies matching a scope pattern.
 	FindByScope(ctx context.Context, scopePath string) ([]*domain.Policy, error)
-}
-
-// -----------------------------------------------------------------------------
-// LockRepository - ScopeLock persistence
-// -----------------------------------------------------------------------------
-
-// LockRepository provides persistence for ScopeLock entities.
-type LockRepository interface {
-	// Acquire attempts to acquire a lock.
-	Acquire(ctx context.Context, lock *domain.ScopeLock) error
-
-	// Release releases a lock by ID.
-	Release(ctx context.Context, id uuid.UUID) error
-
-	// ReleaseByRun releases all locks for a run.
-	ReleaseByRun(ctx context.Context, runID uuid.UUID) error
-
-	// Check finds overlapping locks for a scope.
-	Check(ctx context.Context, scopePath, projectRoot string) ([]*domain.ScopeLock, error)
-
-	// Refresh extends a lock's expiration.
-	Refresh(ctx context.Context, id uuid.UUID, newExpiry int64) error
-
-	// CleanupExpired removes expired locks.
-	CleanupExpired(ctx context.Context) (int, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -265,6 +429,30 @@ type IdempotencyRepository interface {
 	CleanupExpired(ctx context.Context) (int, error)
 }
 
+// ContinuationIdempotencyRepository provides the stronger receipt semantics
+// required by run continuation, whose input may have reached an external
+// runner before the caller receives a response. Implementations must retain
+// typed continuation records past expiry and must never reclaim a pending
+// continuation by timeout alone.
+type ContinuationIdempotencyRepository interface {
+	// CheckContinuation reads a receipt regardless of its expiry. A legacy
+	// untyped pending row is returned so the owner can fail closed on ambiguity.
+	CheckContinuation(ctx context.Context, key string) (*domain.IdempotencyRecord, error)
+
+	// ReserveContinuation atomically binds a fresh/pre-effect-failed key to the
+	// exact run and request hash before effects. acquired is true only when this
+	// call acquired the key; otherwise record describes the existing owner.
+	ReserveContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte, ttl time.Duration) (record *domain.IdempotencyRecord, acquired bool, err error)
+
+	// CompleteContinuation records confirmed completion only if the pending
+	// receipt still has the exact run and request identity supplied here.
+	CompleteContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte) error
+
+	// FailContinuation makes a receipt reusable only after the caller proves
+	// that no continuation effect occurred.
+	FailContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte) error
+}
+
 // -----------------------------------------------------------------------------
 // StatsRepository - Aggregation queries for analytics
 // -----------------------------------------------------------------------------
@@ -277,7 +465,11 @@ type StatsTimeWindow struct {
 
 // StatsFilter specifies filtering options for stats queries.
 type StatsFilter struct {
-	Window      StatsTimeWindow
+	Window StatsTimeWindow
+	// RunIDs scopes aggregates to explicit runs. It is intentionally additive to
+	// the existing window and dimension filters so run inspection can reuse the
+	// same SQL aggregation seam as cross-run analytics.
+	RunIDs      []uuid.UUID
 	RunnerTypes []domain.RunnerType // Filter by specific runners
 	ProfileIDs  []uuid.UUID         // Filter by specific profiles
 	Models      []string            // Filter by specific models
@@ -309,19 +501,16 @@ type DurationStats struct {
 
 // CostStats contains cost aggregation data.
 type CostStats struct {
-	TotalCostUSD              float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalCostUSDAuthoritative float64 `json:"totalCostUsdAuthoritative" db:"total_cost_usd_authoritative"`
-	TotalCostUSDEstimated     float64 `json:"totalCostUsdEstimated" db:"total_cost_usd_estimated"`
-	TotalCostUSDUnknown       float64 `json:"totalCostUsdUnknown" db:"total_cost_usd_unknown"`
-	InputCostUSD              float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD             float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD          float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD      float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	AvgCostUSD                float64 `json:"avgCostUsd" db:"avg_cost_usd"`
-	InputTokens               int64   `json:"inputTokens" db:"input_tokens"`
-	OutputTokens              int64   `json:"outputTokens" db:"output_tokens"`
-	CacheReadTokens           int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
-	TotalTokens               int64   `json:"totalTokens" db:"total_tokens"`
+	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
+	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
+	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
+	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
+	AvgCostUSD           float64 `json:"avgCostUsd" db:"avg_cost_usd"`
+	InputTokens          int64   `json:"inputTokens" db:"input_tokens"`
+	OutputTokens         int64   `json:"outputTokens" db:"output_tokens"`
+	CacheReadTokens      int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
+	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
 }
 
 // RunnerBreakdown contains stats grouped by runner type.
@@ -336,36 +525,37 @@ type RunnerBreakdown struct {
 
 // ProfileBreakdown contains stats grouped by agent profile.
 type ProfileBreakdown struct {
-	ProfileID    uuid.UUID `json:"profileId" db:"profile_id"`
-	ProfileName  string    `json:"profileName" db:"profile_name"`
-	RunCount     int       `json:"runCount" db:"run_count"`
-	SuccessCount int       `json:"successCount" db:"success_count"`
-	FailedCount  int       `json:"failedCount" db:"failed_count"`
-	TotalCostUSD float64   `json:"totalCostUsd" db:"total_cost_usd"`
+	// ProfileID is intentionally text. Historical read-model rows may contain
+	// sentinel values such as "unknown" instead of UUIDs, and stats must report
+	// those rows rather than making the whole projection unreadable.
+	ProfileID    string  `json:"profileId" db:"profile_id"`
+	ProfileName  string  `json:"profileName" db:"profile_name"`
+	RunCount     int     `json:"runCount" db:"run_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	FailedCount  int     `json:"failedCount" db:"failed_count"`
+	TotalCostUSD float64 `json:"totalCostUsd" db:"total_cost_usd"`
 }
 
 // ModelBreakdown contains stats grouped by model.
 type ModelBreakdown struct {
-	Model                     string  `json:"model" db:"model"`
-	RunCount                  int     `json:"runCount" db:"run_count"`
-	SuccessCount              int     `json:"successCount" db:"success_count"`
-	TotalCostUSD              float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalCostUSDAuthoritative float64 `json:"totalCostUsdAuthoritative" db:"total_cost_usd_authoritative"`
-	TotalCostUSDEstimated     float64 `json:"totalCostUsdEstimated" db:"total_cost_usd_estimated"`
-	TotalCostUSDUnknown       float64 `json:"totalCostUsdUnknown" db:"total_cost_usd_unknown"`
-	InputCostUSD              float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD             float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD          float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD      float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	TotalTokens               int64   `json:"totalTokens" db:"total_tokens"`
+	Model                string  `json:"model" db:"model"`
+	RunCount             int     `json:"runCount" db:"run_count"`
+	SuccessCount         int     `json:"successCount" db:"success_count"`
+	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
+	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
+	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
+	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
+	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
 }
 
 // ToolUsageStats contains tool call frequency data.
 type ToolUsageStats struct {
-	ToolName     string `json:"toolName" db:"tool_name"`
-	CallCount    int    `json:"callCount" db:"call_count"`
-	SuccessCount int    `json:"successCount" db:"success_count"`
-	FailedCount  int    `json:"failedCount" db:"failed_count"`
+	ToolName     string  `json:"toolName" db:"tool_name"`
+	CallCount    int     `json:"callCount" db:"call_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	FailedCount  int     `json:"failedCount" db:"failed_count"`
+	FailureRate  float64 `json:"failureRate" db:"failure_rate"`
 }
 
 // ToolUsageModelBreakdown contains tool usage grouped by model.
@@ -489,4 +679,12 @@ type StatsRepository interface {
 
 	// GetRecentModels returns recently used models ordered by most recent use (system-wide).
 	GetRecentModels(ctx context.Context, limit int) ([]string, error)
+}
+
+// AttachedIdentityRenewalRepository is the narrow persistence seam for
+// same-run ordinary identity rotation. It is optional so unrelated in-memory
+// RunRepository implementations do not acquire renewal authority implicitly.
+type AttachedIdentityRenewalRepository interface {
+	GetByIdentityRenewalAnchorHash(context.Context, string) (*domain.Run, error)
+	RenewAttachedIdentity(context.Context, *domain.Run, string, string, time.Time) (bool, error)
 }

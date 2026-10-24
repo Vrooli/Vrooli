@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "artifact": "vrooli-onboarding",
+  "target": "local",
+  "normalization": ["updated_at", "revision-like timestamps"],
+  "journeys": [
+    {
+      "id": "surface-parity-selection",
+      "requirements": ["OT-P0-002", "OT-P0-003", "OT-P0-008", "D15"],
+      "surfaces": ["ui", "cli-pty", "cli-unattended", "api"],
+      "choices": {
+        "scenarios": {"writer": {"enabled": true, "auto_restart": true}},
+        "resources": {"ollama": {"enabled": false}},
+        "host_tools": {"git": {"opted_in": true}},
+        "host_safeguards": {"firewall": {"opted_in": false}}
+      },
+      "expected_state": {
+        "scenarios.writer.enabled": true,
+        "scenarios.writer.auto_restart": true,
+        "resources.ollama.enabled": false,
+        "host_tools.git.opted_in": true,
+        "host_safeguards.firewall.opted_in": false
+      },
+      "expected_effects": ["operator-state merge preserves fields outside the update mask"]
+    }
+  ],
+  "negative_controls": [
+    {
+      "id": "malformed-patch",
+      "surface": "cli-unattended",
+      "input": "{",
+      "expected_failure": "the real CLI rejects malformed JSON before mutation"
+    },
+    {
+      "id": "wrong-expected-state",
+      "surface": "parity-harness",
+      "input": "resources.ollama.enabled=true",
+      "expected_failure": "the exact expected-state assertion fails when the expected outcome is deliberately wrong"
+    }
+  ]
+}

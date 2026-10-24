@@ -1,5 +1,3 @@
-//go:build integration
-
 package smoketest_test
 
 import (
@@ -130,7 +128,7 @@ func TestIntegration_TimeoutBehavior(t *testing.T) {
 	logger := mocks.NewMockLogger()
 
 	// Create service with very short timeout (1 second)
-	config := smoketest.Config{
+	config := smoketest.SmokeTestConfig{
 		TimeoutSeconds:      1, // 1 second timeout
 		TelemetryPathMarker: "[Desktop App] Telemetry initialized at ",
 		SuccessMarker:       "SMOKE_TEST_RESULT=passed",
@@ -182,8 +180,9 @@ func TestIntegration_TimeoutBehavior(t *testing.T) {
 	ctx := context.Background()
 
 	// Set the delay via environment variable to cause timeout
-	// The fixture will delay for 5 seconds, but our timeout is 1 second
-	os.Setenv("SMOKE_TEST_DELAY_MS", "5000")
+	// The executor allows five seconds for bounded diagnostics after the
+	// configured one-second readiness budget. Keep the fixture beyond both.
+	os.Setenv("SMOKE_TEST_DELAY_MS", "10000")
 	defer os.Unsetenv("SMOKE_TEST_DELAY_MS")
 
 	service.PerformSmokeTest(ctx, "integration-timeout", "test-scenario", absPath, "linux")

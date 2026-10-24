@@ -1,0 +1,132 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.scenario-triage",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read one scenario's status, freshness, and a bounded log tail together and return advisory hypotheses (schema drift, port, dependency, stale artifact) so a supervisor triages a flagged scenario in one call.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "The single scenario slug to triage."
+    },
+    "tail": {
+      "type": "integer",
+      "required": false,
+      "default": 80,
+      "description": "How many lifecycle log lines to read (bounded 1..200)."
+    }
+  },
+  "assumptions": [
+    "the vrooli project control-plane API is reachable (it serves vrooli/scenario/status, /logs, /freshness)",
+    "the hypotheses are advisory keyword heuristics over the log tail, never a verdict; a caller confirms before acting"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called; the scenario is never restarted or mutated",
+    "status is the one required read; freshness and logs are optional and degrade to a partial result when unavailable",
+    "the log tail is bounded to at most 200 lines",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli/scenario/status",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli/scenario/freshness",
+      "effect": "read",
+      "optional": true,
+      "note": "artifact-freshness verdict; absence degrades to partial, never fails the triage"
+    },
+    {
+      "id": "vrooli/scenario/logs",
+      "effect": "read",
+      "optional": true,
+      "note": "bounded lifecycle log tail for keyword classification; absence degrades to partial"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ],
+      "note": "ok when status was readable (an unhealthy scenario with hypotheses is a domain result, not a failure); partial when an optional read (freshness/logs) was unavailable; unavailable when the required status read could not be performed; failed on invalid input."
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "scenario": "the triaged slug",
+      "lifecycle_status": "the scenario's lifecycle/runtime status",
+      "health": "the scenario's health status",
+      "freshness": "the artifact-freshness verdict, or unavailable",
+      "attention": "true when the scenario is not running or not healthy",
+      "log_lines_read": "count of log lines read for classification",
+      "hypotheses": "advisory list of {cause, evidence} where cause is schema_drift|port_conflict|dependency|permission|disk and evidence is the matching log line; empty when healthy or no pattern matched"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "binding ids read"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 256
+  },
+  "fixtures": [
+    {
+      "id": "live-self",
+      "inputs": {
+        "scenario": "program-runtime"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "Triage a running scenario; status is readable so the result is ok (or partial if a log/freshness read is unavailable). A healthy scenario returns an empty hypotheses list."
+    },
+    {
+      "id": "empty-request",
+      "inputs": {
+        "scenario": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "An empty scenario slug is an invalid input the program reports as failed with class invalid_input before any read."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

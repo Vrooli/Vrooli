@@ -1,0 +1,248 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-regression-oracle.schema.json",
+  "schema_version": "1.0.0",
+  "scenario": "git-control-tower",
+  "fixture_id": "gct-mobile-iframe-regression-v1",
+  "status": "verified_installed_client_geometry_and_operator_confirmation",
+  "profile": {
+    "id": "mobile-observed-phone-replay",
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "embedded": false,
+    "route": "/",
+    "capture_scope": "Chromium CSS safe-area emulation; Safari and installed iOS native chrome require device evidence",
+    "safe_area": {
+      "top": 59,
+      "bottom": 34,
+      "left": 0,
+      "right": 0
+    }
+  },
+  "required_artifacts": [
+    "source_snapshot",
+    "screenshot_png",
+    "dom_html",
+    "layout_json",
+    "interaction_trace"
+  ],
+  "cases": [
+    {
+      "id": "GCT-MOBILE-001",
+      "name": "viewport-fill",
+      "owner": "ui-health",
+      "claim": "The app shell fills its allocated viewport with a measured frame and one bounded panel scroll region.",
+      "evidence": [
+        "source_snapshot",
+        "layout_json",
+        "screenshot_png"
+      ],
+      "expected_before_repair": "fail",
+      "remediation": "Measure the allocated viewport once and keep navigation in a nonshrinking structural row."
+    },
+    {
+      "id": "GCT-MOBILE-002",
+      "name": "chrome-declaration-and-render-alignment",
+      "owner": "brand-manager + ui-health",
+      "claim": "Declared theme/status chrome metadata matches the rendered top safe-area surface.",
+      "evidence": [
+        "source_snapshot",
+        "screenshot_png",
+        "layout_json"
+      ],
+      "expected_before_repair": "fail",
+      "remediation": "Declare theme-color, viewport-fit, and mobile status metadata that matches the shell's top surface."
+    },
+    {
+      "id": "GCT-MOBILE-003",
+      "name": "changes-scroll-restoration",
+      "owner": "experience-manager",
+      "claim": "Changes scroll position is restored after Changes \u2192 Diff \u2192 Changes once list layout is ready.",
+      "evidence": [
+        "interaction_trace",
+        "dom_html",
+        "layout_json",
+        "screenshot_png"
+      ],
+      "expected_before_repair": "fail",
+      "remediation": "Persist and restore the owned list scroller after content readiness, not the document viewport."
+    },
+    {
+      "id": "GCT-MOBILE-004",
+      "name": "selection-toolbar-scroll-behavior",
+      "owner": "experience-manager",
+      "claim": "The selection toolbar belongs to Changes content and scrolls away with the selected rows.",
+      "evidence": [
+        "interaction_trace",
+        "layout_json",
+        "screenshot_png"
+      ],
+      "expected_before_repair": "fail",
+      "remediation": "Keep selection controls in the owned content flow instead of making them sticky."
+    },
+    {
+      "id": "GCT-MOBILE-005",
+      "name": "diff-action-footer-placement",
+      "owner": "experience-manager",
+      "claim": "Mobile diff actions are bounded by the panel footer and remain reachable without covering diff content.",
+      "evidence": [
+        "interaction_trace",
+        "layout_json",
+        "screenshot_png"
+      ],
+      "expected_before_repair": "fail",
+      "remediation": "Place diff actions in a constrained footer inside the selected panel."
+    },
+    {
+      "id": "GCT-MOBILE-006",
+      "name": "bottom-nav-geometry",
+      "owner": "experience-manager + ui-health",
+      "claim": "Bottom navigation clears its observed bottom inset exactly once, keeps icons and labels unclipped and hit-testable, and restores its canvas after menu and Settings dismissal.",
+      "evidence": [
+        "layout_json",
+        "screenshot_png",
+        "interaction_trace"
+      ],
+      "expected_before_repair": "fail",
+      "remediation": "Reserve a structural bottom-nav row and safe-area padding in the mobile shell."
+    }
+  ],
+  "qualification": {
+    "date": "2026-10-15",
+    "execution_id": "6f99457c-6cf7-4992-ab0e-381db5e66475",
+    "execution_status": "EXECUTION_STATUS_COMPLETED",
+    "executed_steps": 49,
+    "browser_provider": "browser-automation-studio@shadow",
+    "profiles": [
+      {
+        "kind": "chromium_css_safe_area",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed_insets": {
+          "top": 59,
+          "bottom": 34
+        },
+        "effective_bottom_inset": 34
+      },
+      {
+        "kind": "simulated_installed_stops_short",
+        "screen": {
+          "width": 390,
+          "height": 903
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed_insets": {
+          "top": 59,
+          "bottom": 34
+        },
+        "effective_bottom_inset": 0
+      }
+    ],
+    "screenshot_nodes": [
+      "bottom-edge-resting",
+      "bottom-edge-menu",
+      "bottom-edge-settings",
+      "capture-installed-navigation",
+      "capture-installed-drawer",
+      "capture-installed-restored"
+    ],
+    "pixel_analysis": {
+      "provider": "ui-health",
+      "passed_states": 6,
+      "negative_control": {
+        "changed_expectation": "bottom owner #ff0000",
+        "observed_pixel_color": "#020617",
+        "verdict": "failed",
+        "finding": "visual_safe_area_color_mismatch"
+      }
+    },
+    "limitations": [
+      "Physical 393x852 installed-app screenshots at 2026-10-15 11:45 EDT contradict fix completion. Simulated screen geometry is not qualified for this phone.",
+      "Chromium emulates CSS insets; it does not capture the physical iPhone home-indicator or native status bar.",
+      "BAS live remains frozen by the pre-existing bas-goal engagement; the repaired driver is running in its shadow.",
+      "Scoped Test Genie run 20261015-151502-3513bec9 failed with existing CLI, policy, UI-governance, workflow-schema, and experience-binding debt."
+    ]
+  },
+  "native_screen_requirement": {
+    "status": "unverified",
+    "required": true,
+    "ui_health_contract": {
+      "chrome": {
+        "requireNativeScreen": true
+      }
+    },
+    "accepted_capture_kind": "physical_screen",
+    "browser_emulation_qualifies": false
+  },
+  "observed_installed_client": {
+    "received_at": "2026-10-15T16:06:35.782857848Z",
+    "observation_id": "9f5d79f0da36073c97f4f9427936726d",
+    "capture_kind": "browser_geometry",
+    "screen": {
+      "width": 393,
+      "height": 852
+    },
+    "layout_height": 793,
+    "visual_height": 793,
+    "css_dynamic_height": 793,
+    "css_large_height": 852,
+    "raw_insets": {
+      "top": 59,
+      "bottom": 34
+    },
+    "before_repair": {
+      "shell_bottom": 793,
+      "nav_top": 742,
+      "nav_bottom": 793,
+      "effective_bottom_inset": 0
+    },
+    "expected_after_repair": {
+      "shell_bottom": 852,
+      "nav_top": 767,
+      "nav_bottom": 852,
+      "effective_bottom_inset": 34
+    },
+    "native_pixels_captured": false,
+    "after_repair": {
+      "observation_id": "2162035af13965de10fdba14daf83e80",
+      "received_at": "2026-10-15T16:20:54.385809313Z",
+      "build_id": "index--YIPbwyE.js",
+      "viewport_height": 852,
+      "shell_bottom": 852,
+      "nav_top": 767,
+      "nav_bottom": 852,
+      "effective_bottom_inset": 34,
+      "nav_center_hit_tests": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    "push_drawer_after_repair": {
+      "observation_id": "1bae2b98771fe2b47b56528308582bad",
+      "panel_bottom": 852,
+      "panel_color": "rgb(23, 32, 51)",
+      "body_color": "rgb(23, 32, 51)"
+    },
+    "operator_confirmation": "Looks great! The top navbar could still use some tightening up perhaps, but everything else looks great"
+  },
+  "follow_up_replay": {
+    "execution_id": "a89d764a-f725-4e3f-8436-2dbf9c2bb84a",
+    "status": "EXECUTION_STATUS_COMPLETED",
+    "steps": 50,
+    "kind": "chromium_replay_of_observed_phone_geometry",
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "native_pixels_captured": false
+  }
+}

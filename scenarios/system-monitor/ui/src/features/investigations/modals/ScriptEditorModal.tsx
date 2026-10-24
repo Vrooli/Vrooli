@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Play, Save, Eye, Edit, Loader } from 'lucide-react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { ScriptHighlighter } from '../../../shared/components/LazyScriptHighlighter';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
 import type { InvestigationScript } from '../../../types';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
@@ -82,20 +81,12 @@ export const ScriptEditorModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="modal-lg" ariaLabel="Script editor">
       <ModalHeader onClose={onClose}>
-        <div className="icon-text" style={{ gap: 'var(--spacing-md)' }}>
-          <div style={{ flex: 1 }}>
-            <h3 style={{
-              margin: '0 0 var(--spacing-xs) 0',
-              color: 'var(--color-text-heading)',
-              fontSize: 'var(--text-xl)'
-            }}>
+        <div className="icon-text" data-sm-style="sm-style-8322eb66c1">
+          <div data-sm-style="sm-style-634a28bea4">
+            <h3 data-sm-style="sm-style-bd3930e88e">
               {script?.name || 'New Investigation Script'}
             </h3>
-            <p style={{
-              margin: 0,
-              color: 'var(--color-text-secondary)',
-              fontSize: 'var(--text-sm)'
-            }}>
+            <p data-sm-style="sm-style-5c239e09c9">
               {script?.description || 'Enter script description...'}
             </p>
           </div>
@@ -115,7 +106,7 @@ export const ScriptEditorModal = ({
             {scriptContent && (
               <button
                 className="btn btn-primary"
-                onClick={handleExecute}
+                onClick={() => { void handleExecute(); }}
                 disabled={isExecuting}
                 title="Execute Script"
               >
@@ -127,7 +118,7 @@ export const ScriptEditorModal = ({
             {(currentMode === 'edit' || mode === 'create') && onSave && (
               <button
                 className="btn btn-action"
-                onClick={handleSave}
+                onClick={() => { void handleSave(); }}
                 disabled={isSaving}
                 title="Save Script"
               >
@@ -139,33 +130,19 @@ export const ScriptEditorModal = ({
         </div>
       </ModalHeader>
 
-      <div className="modal-body" style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        padding: 0
-      }}>
+      <div className="modal-body" data-sm-style="sm-style-500d25478f">
 
         {/* Script Metadata (when editing) */}
         {(currentMode === 'edit' || mode === 'create') && (
-          <div className="script-metadata" style={{
-            padding: 'var(--spacing-md)',
-            borderBottom: '1px solid var(--color-primary-muted)',
-            background: 'var(--overlay-medium)'
-          }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: 'var(--spacing-md)'
-            }}>
+          <div className="script-metadata" data-sm-style="sm-style-36227d717f">
+            <div data-sm-style="sm-style-be85f48eed">
               <div>
                 <label className="input-label">Script ID:</label>
                 <input
                   type="text"
                   className="input-field"
                   value={scriptData.id}
-                  onChange={(e) => setScriptData({...scriptData, id: e.target.value})}
+                  onChange={(e) => { setScriptData({...scriptData, id: e.target.value}); }}
                   placeholder="script-name"
                 />
               </div>
@@ -176,7 +153,7 @@ export const ScriptEditorModal = ({
                   type="text"
                   className="input-field"
                   value={scriptData.name}
-                  onChange={(e) => setScriptData({...scriptData, name: e.target.value})}
+                  onChange={(e) => { setScriptData({...scriptData, name: e.target.value}); }}
                   placeholder="Human readable name"
                 />
               </div>
@@ -186,7 +163,7 @@ export const ScriptEditorModal = ({
                 <select
                   className="input-field"
                   value={scriptData.category}
-                  onChange={(e) => setScriptData({...scriptData, category: e.target.value})}
+                  onChange={(e) => { setScriptData({...scriptData, category: e.target.value}); }}
                 >
                   <option value="performance">Performance</option>
                   <option value="process-analysis">Process Analysis</option>
@@ -197,89 +174,38 @@ export const ScriptEditorModal = ({
               </div>
             </div>
 
-            <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <div data-sm-style="sm-style-323fdcc1e0">
               <label className="input-label">Description:</label>
               <textarea
                 className="input-field"
                 value={scriptData.description}
-                onChange={(e) => setScriptData({...scriptData, description: e.target.value})}
+                onChange={(e) => { setScriptData({...scriptData, description: e.target.value}); }}
                 placeholder="Brief description of what this script investigates"
                 rows={2}
-                style={{ resize: 'vertical' }}
+                data-sm-style="sm-style-d378f0446f"
               />
             </div>
           </div>
         )}
 
         {/* Code Editor/Viewer */}
-        <div className="code-section" style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
-          <div className="code-header" style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: 'var(--spacing-sm) var(--spacing-md)',
-            background: 'var(--color-primary-muted)',
-            borderBottom: '1px solid var(--color-primary-muted)',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--color-text-heading)'
-          }}>
+        <div className="code-section" data-sm-style="sm-style-79f4859d20">
+          <div className="code-header" data-sm-style="sm-style-f6a9ea2964">
             <span>Script Code</span>
-            <div style={{ color: 'var(--color-text-secondary)' }}>
+            <div data-sm-style="sm-style-a6b497e153">
               {currentMode === 'view' ? 'Read Only' : 'Editable'} | {scriptContent.length} chars
             </div>
           </div>
 
-          <div style={{ flex: 1, overflow: 'auto' }}>
+          <div data-sm-style="sm-style-7cd8982c82">
             {currentMode === 'view' ? (
-              <SyntaxHighlighter
-                language="bash"
-                style={{
-                  ...tomorrow,
-                  'pre[class*="language-"]': {
-                    ...tomorrow['pre[class*="language-"]'],
-                    background: 'var(--overlay-backdrop)',
-                    margin: 0,
-                    padding: 'var(--spacing-md)',
-                    fontSize: 'var(--text-sm)',
-                    fontFamily: 'var(--font-mono)',
-                    lineHeight: '1.5'
-                  }
-                }}
-                customStyle={{
-                  background: 'var(--overlay-backdrop)',
-                  margin: 0,
-                  fontSize: 'var(--text-sm)',
-                  fontFamily: 'var(--font-mono)'
-                }}
-              >
-                {scriptContent || '# No script content available'}
-              </SyntaxHighlighter>
+              <ScriptHighlighter content={scriptContent || '# No script content available'} />
             ) : (
               <textarea
                 value={scriptContent}
-                onChange={(e) => setScriptContent(e.target.value)}
+                onChange={(e) => { setScriptContent(e.target.value); }}
                 placeholder="#!/bin/bash&#10;# Your investigation script here..."
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  padding: 'var(--spacing-md)',
-                  background: 'var(--overlay-backdrop)',
-                  border: 'none',
-                  color: 'var(--color-text)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--text-sm)',
-                  lineHeight: '1.5',
-                  resize: 'none',
-                  outline: 'none',
-                  whiteSpace: 'pre',
-                  overflowWrap: 'normal',
-                  tabSize: 2
-                }}
+                data-sm-style="sm-style-799c3e1860"
               />
             )}
           </div>

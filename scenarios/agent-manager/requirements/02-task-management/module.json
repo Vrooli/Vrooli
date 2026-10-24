@@ -1,81 +1,86 @@
 {
-  "description": "Implement CRUD operations for tasks with status tracking",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-003",
+      "title": "Task Creation API",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
       "category": "api",
       "description": "Implement REST API endpoint for creating tasks with required metadata and validation",
-      "id": "REQ-P0-003",
-      "prd_ref": "OT-P0-002",
-      "status": "implemented",
-      "title": "Task Creation API",
       "validation": [
         {
-          "notes": "Test task creation with valid payload",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_Success",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Verify validation errors for invalid data",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Test task creation with valid payload"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_ValidationError",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify validation errors for invalid data"
         },
         {
-          "notes": "Test task retrieval by ID",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetTask_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Test task retrieval by ID"
         },
         {
-          "notes": "Test listing tasks",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestListTasks",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Test listing tasks"
         }
       ]
     },
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-003"
-      ],
-      "description": "System must track and persist task status changes with timestamps",
       "id": "REQ-P0-004",
-      "prd_ref": "OT-P0-002",
-      "status": "implemented",
       "title": "Task Status Updates",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "System must track and persist task status changes with timestamps",
       "validation": [
         {
-          "notes": "Test task cancellation (status transition)",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCancelTask_Success",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test orchestrator-level task CRUD and status",
           "phase": "unit",
-          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_TaskCRUD",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test task cancellation (status transition)"
         },
         {
-          "notes": "Verify repository-level task operations",
-          "phase": "integration",
-          "ref": "api/internal/repository/memory_test.go::TestMemoryTaskRepository_CRUD",
-          "status": "passing",
-          "type": "test"
+          "type": "test",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_TaskCRUD",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test orchestrator-level task CRUD and status"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-015",
+      "title": "Bounded batch task operations",
+      "status": "planned",
+      "prd_ref": "OT-P2-006",
+      "category": "core",
+      "description": "Where batch management is requested, Agent Manager may apply one bounded operation to an explicit task set and return an outcome for every member.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Verify cardinality bounds, explicit membership, partial outcomes, and idempotency when implemented"
         }
       ]
     }
-  ],
-  "title": "Task Management"
+  ]
 }

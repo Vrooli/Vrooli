@@ -1,0 +1,16 @@
+{
+  "id": "vrooli-default",
+  "name": "Vrooli Operational Console",
+  "privateTokens": ["w-sidebar", "sidebar", "font-sans", "sans"],
+  "version": "0.2.0",
+  "inherits": "_base",
+  "default": true,
+  "description": "Default Vrooli scenario UI language for dense, responsive, customizable operational applications.",
+  "tags": ["vrooli", "application", "dashboard", "operational", "responsive", "professional"],
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind",
+      "supports": ["templates/scenarios/react-vite"]
+    }
+  }
+}

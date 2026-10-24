@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.optimization;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/optimization;optimization_v1";
+
+// OptimizationService owns baseline/candidate/after measurement runs.
+service OptimizationService {
+  rpc CreateOptimizationRun(CreateOptimizationRunRequest) returns (CreateOptimizationRunResponse);
+  rpc RunCandidate(RunCandidateRequest) returns (RunCandidateResponse);
+  rpc ScoreCandidates(ScoreCandidatesRequest) returns (ScoreCandidatesResponse);
+  rpc ApproveCandidate(ApproveCandidateRequest) returns (ApproveCandidateResponse);
+  rpc RollbackOptimization(RollbackOptimizationRequest) returns (RollbackOptimizationResponse);
+}
+
+message Candidate {
+  string id = 1;
+  string description = 2;
+  string status = 3;
+  double score = 4;
+  repeated string evidence = 5;
+  bool approval_required = 6;
+}
+
+message OptimizationRun {
+  string id = 1;
+  string status = 2;
+  string scoring_profile = 3;
+  repeated Candidate candidates = 4;
+  string recommendation = 5;
+}
+
+message CreateOptimizationRunRequest {
+  string scoring_profile = 1;
+  bool dry_run = 2;
+}
+
+message CreateOptimizationRunResponse {
+  OptimizationRun run = 1;
+}
+
+message RunCandidateRequest {
+  string run_id = 1;
+  string candidate_id = 2;
+}
+
+message RunCandidateResponse {
+  OptimizationRun run = 1;
+}
+
+message ScoreCandidatesRequest {
+  string run_id = 1;
+}
+
+message ScoreCandidatesResponse {
+  OptimizationRun run = 1;
+}
+
+message ApproveCandidateRequest {
+  string run_id = 1;
+  string candidate_id = 2;
+  bool approved = 3;
+}
+
+message ApproveCandidateResponse {
+  OptimizationRun run = 1;
+}
+
+message RollbackOptimizationRequest {
+  string run_id = 1;
+}
+
+message RollbackOptimizationResponse {
+  OptimizationRun run = 1;
+}

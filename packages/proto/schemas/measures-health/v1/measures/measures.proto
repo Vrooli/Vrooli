@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.measures_health.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/measures;measures_v1";
+
+// =============================================================================
+// MEASURES DOMAIN — measures-health's own declared analytical measures
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain measures
+// @stability beta
+//
+// measures-health dogfoods the capability it enforces: it declares full-tier
+// measures over its own persisted validation_run history (api/internal/runhistory),
+// so `measures-health validate scenario measures-health --probe` reports 0
+// findings at full tier with a passing probe — the gold-star reference.
+//
+// Each RPC answers ONE question-family, parameterized by the shared canonical
+// vrooli.measures.v1.TimeWindow so natural-language date extraction targets a
+// typed, deterministically-resolvable field (no LLM) — that canonical param is
+// what makes every measure full tier. Every method is read-only and run-eligible
+// (governance.effect=read), so search-hub may auto-execute it at high confidence.
+//
+// The same compute path backs both these RPCs and the packages/measures-go serve
+// registry mounted at /measures (GET /measures/declarations + POST
+// /measures/execute), so a measure and its RPC can never report different numbers.
+// Counts are real SQL aggregates over the validation_runs table
+// (SELECT COUNT(*) … WHERE ran_at IN [from, to)), never a list-and-filter.
+//
+// Procedure paths:
+//   /vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations
+//   /vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage
+// =============================================================================
+
+// CountFailedValidationsRequest scopes the failed-validation count to a window.
+message CountFailedValidationsRequest {
+  // Time window the count is scoped to. The shared canonical TimeWindow makes
+  // this the `time_window` measure param: the manifest annotates a `this_week`
+  // default and packages/measures-go resolves the token to a concrete [from, to)
+  // range deterministically. An unset window resolves to the manifest default.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountFailedValidationsResponse carries the scalar value_field `count`.
+message CountFailedValidationsResponse {
+  // Number of validation runs that FAILED (>=1 ERROR finding) within the window.
+  int64 count = 1;
+}
+
+// CountValidationCoverageRequest scopes the passing-validation count to a window.
+message CountValidationCoverageRequest {
+  // Time window the count is scoped to (see CountFailedValidationsRequest).
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountValidationCoverageResponse carries the scalar value_field `count`.
+message CountValidationCoverageResponse {
+  // Number of validation runs that PASSED (zero ERROR findings) within the
+  // window — the fleet's measure-coverage signal over time.
+  int64 count = 1;
+}
+
+// MeasuresService exposes measures-health's declared analytical measures as
+// read-only, run-eligible Connect-RPC methods. Each is bound from a manifest
+// `measure` block (cli/manifest.json) and shares its compute path with the
+// /measures serve registry.
+service MeasuresService {
+  // CountFailedValidations answers "how many scenarios failed measures
+  // validation in <window>". Bound to the `validation_run.failed` measure.
+  rpc CountFailedValidations(CountFailedValidationsRequest) returns (CountFailedValidationsResponse);
+
+  // CountValidationCoverage answers "how many scenarios passed measures
+  // validation in <window>". Bound to the `validation_run.coverage` measure.
+  rpc CountValidationCoverage(CountValidationCoverageRequest) returns (CountValidationCoverageResponse);
+}

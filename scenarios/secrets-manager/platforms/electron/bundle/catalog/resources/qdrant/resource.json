@@ -1,0 +1,344 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "qdrant",
+  "storage": {
+    "entries": {
+      "storage": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/qdrant",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/qdrant",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/qdrant"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Qdrant collections and WAL data are bind-mounted to /qdrant/storage.",
+        "budget": {
+          "max_bytes": "100GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "snapshots": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "rationale": "Qdrant snapshots are persisted separately from live collection storage.",
+        "subpath": "snapshots",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "Durable state storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "health_log": {
+        "rung": "relocatable",
+        "kind": "file",
+        "class": "state",
+        "subpath": "health.log",
+        "regenerable": true,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Qdrant health diagnostics are regenerable and observed in the state root."
+        },
+        "relocation": {
+          "key": "QDRANT_HEALTH_LOG",
+          "scope": "process-tree"
+        },
+        "reclaim": {
+          "pruner": "builtin"
+        },
+        "rationale": "The resource health probe appends diagnostics outside the snapshot directory."
+      },
+      "managed_service_state": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "managed-service.json",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The control-plane supervisor owns this small runtime identity record and rewrites it during managed-service lifecycle transitions."
+        },
+        "rationale": "The managed-service supervisor persists ownership and process identity under the resource state namespace."
+      }
+    }
+  },
+  "display_name": "Qdrant Vector Database",
+  "description": "Vector database for embeddings and semantic search workloads, supervised from a checksum-verified native binary.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-qdrant",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-qdrant_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-qdrant"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native artifact availability is verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native artifact availability is verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "limitations": [
+            "Native artifact availability is verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        }
+      }
+    }
+  },
+  "category": "storage",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "network": "optional",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 6333,
+      "host": 6333
+    },
+    {
+      "name": "grpc",
+      "container": 6334,
+      "host": 6334
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:6333/readyz",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:6333/readyz",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "volumes": []
+  },
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-shared",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/qdrant",
+      "version": "1.15.3",
+      "sha256_by_platform": {
+        "linux-amd64": "b718cd58cad3ce91fd7ec33f042d873fc3246b004ba90bb9471a7fee557afa1a",
+        "linux-arm64": "f8dc09f985d4614c3ebd606e7c533bb9fa4cd61a639f79f94c3fcbaeaf0aa94a",
+        "macos-amd64": "67c01e3148a9df8c36b17275d107b08ca28281dd354db1f9b604c6676834c6f8",
+        "macos-arm64": "5d56d468e642b9e09394695632e37fac3583d34c7f0ac969154ce4d79490f3ec",
+        "windows-amd64": "239b4d868973ff16fc8501be73cac1c6520c9b067abc60deb18d11b53d110925"
+      },
+      "bundle_artifact": "qdrant_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "Apache-2.0",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-unknown-linux-gnu.tar.gz", "sha256": "26d7b7fa397a8f936721038b99f6c6557ea7540768e902db97dfc6f83f72eb69", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-aarch64-unknown-linux-musl.tar.gz", "sha256": "b9ac8d2989904c2b9d44ac396c64241d5b97733a32f23c5f52667cf4ef67b072", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-apple-darwin.tar.gz", "sha256": "9ddaa9dd670431b15a42f868582fffd1291f3898d28c9c7185c357e62f393e1b", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-aarch64-apple-darwin.tar.gz", "sha256": "c8404af1727aab1ccb0a7dd4c644091954d056ec4e4ec898987fc0647f5128c6", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-pc-windows-msvc.zip", "sha256": "5049d33ed8f0640b3f80feea08c55fcb5cd155f75ed91c5e5e40b2e90570a62b", "archive": "zip", "layout": "file", "bin_path": "qdrant.exe"}
+      ]
+    },
+    "attach_health_path": "/readyz",
+    "arguments": [
+      "--config-path",
+      "${RESOURCE_CONFIG_DIR}/config.yaml"
+    ],
+    "environment": {
+      "QDRANT__STORAGE__STORAGE_PATH": "${RESOURCE_DATA_DIR}",
+      "QDRANT__SERVICE__HTTP_PORT": "${RESOURCE_PORT_HTTP}",
+      "QDRANT__SERVICE__GRPC_PORT": "${RESOURCE_PORT_GRPC}",
+      "QDRANT__SERVICE__HOST": "127.0.0.1"
+    },
+    "config": {
+      "path": "config.yaml",
+      "content": "storage:\n  storage_path: ${RESOURCE_DATA_DIR}\nservice:\n  host: 127.0.0.1\n  http_port: ${RESOURCE_PORT_HTTP}\n  grpc_port: ${RESOURCE_PORT_GRPC}\n"
+    }
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Qdrant dependency settings.",
+    "properties": {
+      "collection": {
+        "type": "string"
+      },
+      "dimensions": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "distance": {
+        "type": "string",
+        "enum": [
+          "Cosine",
+          "Dot",
+          "Euclid",
+          "Manhattan"
+        ]
+      },
+      "estimated_vectors": {
+        "type": "string"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "QDRANT_HOST": "localhost"
+    },
+    "from_ports": {
+      "QDRANT_PORT": "http",
+      "QDRANT_GRPC_PORT": "grpc"
+    },
+    "from_runtime_env": [
+      "QDRANT_API_KEY"
+    ],
+    "derived": {
+      "QDRANT_URL": {
+        "template": "http://${QDRANT_HOST}:${QDRANT_PORT}"
+      },
+      "QDRANT_BASE_URL": {
+        "template": "${QDRANT_URL}"
+      },
+      "QDRANT_GRPC_URL": {
+        "template": "grpc://${QDRANT_HOST}:${QDRANT_GRPC_PORT}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 850,
+    "startup_timeout_seconds": 90,
+    "startup_time_estimate": "measured warm start 26-28s with 22 collections; budgeted to 90s with growth headroom",
+    "startup_budget": {
+      "kind": "qdrant_collection_count",
+      "base_seconds": 30,
+      "per_unit_seconds": 2,
+      "max_seconds": 600
+    },
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 90,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

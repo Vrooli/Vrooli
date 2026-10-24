@@ -1,0 +1,9 @@
+{
+  "cols": 79,
+  "rows": 47,
+  "in_alt_buffer": true,
+  "scrollback_lines": 0,
+  "cursor_x": 1,
+  "cursor_y": 23,
+  "plain_text": "\n ▐▛███▛█   Claude Code v2.1.268\n▝▜██████▀  Fable 5.1 with high effort · Claude Max\n  ▝▝ ▝▝    /…/scratchpad/claude-perm-fixture2 · /rc\n\n\n❯ Use the Bash tool to run exactly this command and nothing else: touch\n  perm-probe.txt\n\n● Running the requested command now.\n\n● Creating empty file perm-probe.txt\n  ⎿  $ touch perm-probe.txt\n\n───────────────────────────────────────────────────────────────────────────────\n Bash command\n Tip: auto mode handles these prompts for you — choose \"switch to auto mode\"\n below\n\n   touch perm-probe.txt\n   Create empty file perm-probe.txt\n\n Do you want to proceed?\n ❯ 1. Yes\n   2. Yes, and always allow access to /tmp/claude-1000/-home-matthalloran8-Vroo\n      li/52bc7618-3003-43c0-b94d-98442d2bf96a/scratchpad/claude-perm-fixture2\n      from this project\n   3. Yes, and switch to auto mode · auto mode handles these prompts for you\n   4. No\n\n Esc to cancel · Tab to amend\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[wc-91a9450:claude*                    [0,0] \"✳ perm-probe.txt\" 07:07 11-Sep-26"
+}

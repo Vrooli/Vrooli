@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "name": "perf-terminal-stream",
+    "description": "Perf-capture flow (intent:performance). Assertion-free and READ-ONLY: it creates, deletes and modifies nothing, because the capture runs against the operator's live workspace rather than a routed test pool. Desktop viewport: wait for the real mounted workspace (not the lazy-load 'Loading...' fallback), then hold the trace window open while already-running sessions stream output. Traces the steady-state cost of terminal output and conversation events reaching the workspace: store writes, persisted-state serialization, and re-renders of the workspace root, sidebar and panes. If no session is streaming, the trace still measures idle steady-state churn. NEVER bind as a requirement automation case.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "version": "2",
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "wait-workspace-mounted",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const shell = document.querySelector('[data-testid=\"workspace-top-edge\"], [data-testid=\"pane-grid\"], [data-testid=\"workspace-sidebar\"]'); const pane = document.querySelector('[data-testid=\"terminal-pane\"]'); if (shell && pane) return true; const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) retry.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('perf-terminal-stream: workspace with a mounted terminal pane did not appear'); })()"
+        },
+        "metadata": { "label": "Wait for the mounted workspace and a terminal pane" }
+      }
+    },
+    {
+      "id": "record-surface",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const panes = document.querySelectorAll('[data-testid=\"terminal-pane\"]').length; const messages = document.querySelectorAll('[data-event-id]').length; document.body.setAttribute('data-perf-panes', String(panes)); document.body.setAttribute('data-perf-message-rows', String(messages)); return { panes: panes, messageRows: messages }; })()"
+        },
+        "metadata": { "label": "Record how much surface is mounted (diagnostic)" }
+      }
+    },
+    {
+      "id": "hold-steady-state",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { await new Promise((resolve) => setTimeout(resolve, 12000)); return true; })()"
+        },
+        "metadata": { "label": "Hold the trace window open for 12s of steady state" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "wait-workspace-mounted", "target": "record-surface", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "record-surface", "target": "hold-steady-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

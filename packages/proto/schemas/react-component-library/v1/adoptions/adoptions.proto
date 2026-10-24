@@ -1,0 +1,683 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.adoptions;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions;adoptions_v1";
+
+// =============================================================================
+// ADOPTIONS DOMAIN — tracks which scenarios have adopted which components
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @stability stable
+//
+// Wire contract for the AdoptionsService Connect-RPC service. An
+// adoption record is a soft link from a registry component (by id) to a
+// concrete copy of its source under a target scenario's tree. Refresh
+// compares the adopted bytes against the library's current snapshot to
+// compute a drift status: current / behind / modified / unknown.
+//
+// Consumed by:
+//   - API: handlers/adoptions/connect_handler.go implements
+//          AdoptionsServiceHandler.
+//   - UI:  ui/src/api/adoptions.ts (Connect-Web client).
+//   - CLI: cli/domains/adoptions/handlers.go (Connect-Go client).
+// =============================================================================
+
+service AdoptionsService {
+  // ListScenarios exposes the scenario-root inventory for typed workflow and
+  // adoption pickers. It is read-only and returns a stable lexical ordering.
+  rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
+  rpc ListAdoptions(ListAdoptionsRequest) returns (ListAdoptionsResponse);
+  rpc ListEffectiveAdoptions(ListEffectiveAdoptionsRequest) returns (ListEffectiveAdoptionsResponse);
+  rpc PreflightAdoption(PreflightAdoptionRequest) returns (PreflightAdoptionResponse);
+  rpc SyncScenarioTokens(SyncScenarioTokensRequest) returns (SyncScenarioTokensResponse);
+  rpc PruneScenarioTokens(PruneScenarioTokensRequest) returns (PruneScenarioTokensResponse);
+  // LinkAdoption records a package-backed adoption. It changes the target
+  // scenario manifest and never writes a vendored source file.
+  rpc LinkAdoption(LinkAdoptionRequest) returns (LinkAdoptionResponse);
+  // EjectAdoption is the explicit, reason-bearing escape hatch for consumers
+  // whose required behavior cannot be expressed by the linked contract.
+  rpc EjectAdoption(EjectAdoptionRequest) returns (EjectAdoptionResponse);
+  rpc ApplyAdoption(ApplyAdoptionRequest) returns (ApplyAdoptionResponse);
+  rpc BatchApplyAdoptions(BatchApplyAdoptionsRequest) returns (BatchApplyAdoptionsResponse);
+  rpc ReapplyAdoption(ReapplyAdoptionRequest) returns (ReapplyAdoptionResponse);
+  rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
+  rpc RefreshAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
+  // ForkReportAdoptions classifies the full registry without rewriting source
+  // files. apply=true persists only the observed fork metadata.
+  rpc ForkReportAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
+  rpc ReconcileAdoptions(ReconcileAdoptionsRequest) returns (ReconcileAdoptionsResponse);
+  // ReconvergeAdoptions closes the fleet drift loop: it batch-reconverges
+  // BEHIND adoptions to the current library version. A copy that is still
+  // CLEAN (unmodified vs its recorded snapshot) is re-applied through the same
+  // validated Reapply path; a MODIFIED copy is flagged for human review and
+  // never overwritten. Dry-run is the default; apply=true performs the writes.
+  // Output reports per-adoption and per-file outcomes.
+  rpc ReconvergeAdoptions(ReconvergeAdoptionsRequest) returns (ReconvergeAdoptionsResponse);
+  // ResolveAdoptionPath returns the canonical filesystem path for an adopted
+  // component, computed from the target scenario's UI manifest (or a
+  // heuristic / fallback when the manifest is missing). Read-only.
+  rpc ResolveAdoptionPath(ResolveAdoptionPathRequest) returns (ResolveAdoptionPathResponse);
+  // SuggestAdoptions ranks catalog components against scenario UI inventory.
+  // Results are explainable and exclude pairs already present in the adoption registry.
+  rpc SuggestAdoptions(SuggestAdoptionsRequest) returns (SuggestAdoptionsResponse);
+  // DiscoverAdoptions finds header-less scenario UI files whose content is
+  // content-similar to a library component version, surfacing them as
+  // candidates for provenance backfill. Read-only: it never writes. The
+  // signal is a Sørensen–Dice line-similarity score with a threshold; the
+  // operator confirms a candidate with ConfirmDiscovery.
+  rpc DiscoverAdoptions(DiscoverAdoptionsRequest) returns (DiscoverAdoptionsResponse);
+  // ConfirmDiscovery injects an @vrooliComponentSource provenance header into a
+  // header-less scenario file and creates its adoption record, attributed to
+  // the exact component + version echoed from a DiscoverAdoptions candidate.
+  rpc ConfirmDiscovery(ConfirmDiscoveryRequest) returns (ConfirmDiscoveryResponse);
+}
+
+message ListScenariosRequest {}
+
+message ListScenariosResponse {
+  repeated ScenarioOption scenarios = 1;
+}
+
+// ScenarioOption is the typed display contract for a selectable scenario.
+// `name` is the stable scenario slug; `display_name` is presentation metadata
+// for picker clients and currently defaults to the slug when no richer source
+// metadata is available.
+message ScenarioOption {
+  string name = 1;
+  string display_name = 2;
+}
+
+enum LibraryVersionStatus {
+  LIBRARY_VERSION_STATUS_UNSPECIFIED = 0;
+  LIBRARY_VERSION_STATUS_CURRENT = 1;
+  LIBRARY_VERSION_STATUS_BEHIND = 2;
+  LIBRARY_VERSION_STATUS_DEPRECATED = 3;
+  LIBRARY_VERSION_STATUS_MISSING = 4;
+  LIBRARY_VERSION_STATUS_UNKNOWN = 5;
+  LIBRARY_VERSION_STATUS_SOURCE_DRIFTED = 6;
+}
+
+enum LocalStatus {
+  LOCAL_STATUS_UNSPECIFIED = 0;
+  LOCAL_STATUS_CLEAN = 1;
+  LOCAL_STATUS_MODIFIED = 2;
+  LOCAL_STATUS_MISSING = 3;
+  LOCAL_STATUS_UNKNOWN = 4;
+}
+
+message Adoption {
+  // UUID assigned by the API on create.
+  string id = 1;
+
+  // Soft FK to components.id. No SQL constraint, per per-domain rule.
+  string component_id = 2;
+
+  // Echoed @libraryId of the component at the time of create. Lets
+  // the UI render rows whose component_id has since been deleted.
+  string library_id = 3;
+
+  // Target scenario name (e.g., "swarm-manager"). Free-form string;
+  // the library does not validate against a scenario registry here.
+  string scenario = 4;
+
+  // Filesystem path within the target scenario where the adopted
+  // copy lives. Resolved relative to a configured scenarios root by
+  // the refresh service.
+  string adopted_path = 5;
+
+  // Library version stamped on the adopted copy at apply time.
+  string adopted_version = 6;
+
+  // Version drift from the most recent Refresh.
+  LibraryVersionStatus library_version_status = 7;
+
+  // Local edit drift from the most recent Refresh.
+  LocalStatus local_status = 8;
+
+  // Notes attached by Refresh, such as the newer version or missing path.
+  string status_detail = 11;
+
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp refreshed_at = 10;
+
+  string source_sha256 = 12;
+  string applied_at = 13;
+  repeated AdoptionFile files = 14;
+  // Explicit fork classification. A declared fork is never overwritten by
+  // reconverge; the reason and extension points make the divergence reviewable.
+  string fork_status = 15;
+  string fork_reason = 16;
+  repeated string extension_points = 17;
+  string mode = 18;
+}
+
+message AdoptionFile {
+  string library_path = 1;
+  string adopted_path = 2;
+  string source_sha256 = 3;
+  string adopted_snapshot_sha256 = 4;
+  // Immutable identity of the catalog asset that supplied this file. Empty
+  // means a legacy row whose attribution could not be derived safely.
+  string source_asset_id = 5;
+  string source_library_id = 6;
+  string source_version = 7;
+}
+
+message ListAdoptionsRequest {
+  // Optional filter: only return adoptions for this component.
+  string component_id = 1;
+  // Optional filter: only return adoptions in this target scenario.
+  string scenario = 2;
+  // Max rows. 0 = server default.
+  int32 limit = 3;
+}
+
+message ListAdoptionsResponse {
+  repeated Adoption adoptions = 1;
+}
+
+// EffectiveAdoption identifies an asset use through a root adoption. When
+// mediated is true, the asset was materialized as a dependency file and the
+// parent_adoption is the direct component adoption that caused it.
+message EffectiveAdoption {
+  string source_asset_id = 1;
+  string source_library_id = 2;
+  string source_version = 3;
+  bool mediated = 4;
+  Adoption parent_adoption = 5;
+}
+
+message ListEffectiveAdoptionsRequest {
+  string component_id = 1;
+  int32 limit = 2;
+}
+
+message ListEffectiveAdoptionsResponse {
+  repeated EffectiveAdoption adoptions = 1;
+}
+
+message ApplyAdoptionRequest {
+  // Required. Soft FK to components.id; server validates the
+  // component exists at create time.
+  string component_id = 1;
+  // Required. Target scenario name.
+  string scenario = 2;
+  // Required. Adopted path within the target scenario.
+  string adopted_path = 3;
+  // Optional. Defaults to component.latest.
+  string version = 4;
+  // Required to overwrite an existing target file.
+  bool confirm_overwrite = 5;
+  // Explicitly permits an apply that dependency validation classifies as
+  // blocking. Both dependency and style-fit validation still run and remain
+  // visible to callers; this flag records the operator's deliberate choice.
+  bool override_validation = 6;
+  // Declares that this apply intentionally replaces a previously existing
+  // scenario source file. When its source body differs from the selected
+  // library source, confirm_overwrite is required before any write occurs.
+  bool replace_existing = 7;
+  // Optional catalog asset library ids to include from `suggests` edges.
+  repeated string include_suggestions = 8;
+  string fork_reason = 9;
+  repeated string extension_points = 10;
+}
+
+message PreflightAdoptionRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+}
+
+message PreflightAdoptionResponse {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+  repeated string required_tokens = 4;
+  repeated string required_token_patterns = 5;
+  repeated string defined_tokens = 6;
+  repeated string unsatisfied_tokens = 7;
+  string dependency_verdict = 8;
+  string style_fit = 9;
+  bool blocking = 10;
+  string version_status = 11;
+  string maturity_rung = 12;
+  string maturity_floor = 13;
+  repeated string warnings = 14;
+  // Derived i18n coverage is explicitly reported once its catalog gate is enabled.
+  string i18n_verdict = 15;
+  // Derived selector coverage is explicitly reported once its catalog gate is enabled.
+  string selector_verdict = 16;
+}
+
+message SyncScenarioTokensRequest {
+  string scenario = 1;
+  bool dry_run = 2;
+}
+
+message SyncScenarioTokensResponse {
+  string scenario = 1;
+  repeated string added = 2;
+  repeated string collisions = 3;
+  bool changed = 4;
+}
+
+message PruneScenarioTokensRequest {
+  string scenario = 1;
+  bool apply = 2;
+}
+
+message PruneScenarioTokensResponse {
+  string scenario = 1;
+  repeated string removed = 2;
+  repeated string retained = 3;
+  bool changed = 4;
+}
+
+message LinkAdoptionRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+  // Optional import subpath. Empty uses the canonical component/version
+  // export generated by @vrooli/react-component-library.
+  string import_subpath = 4;
+  bool confirm_existing = 5;
+}
+
+message LinkAdoptionResponse {
+  Adoption adoption = 1;
+  string package_path = 2;
+  string import_subpath = 3;
+  repeated string updated_files = 4;
+}
+
+message EjectAdoptionRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string adopted_path = 3;
+  string version = 4;
+  string reason = 5;
+  bool confirm_overwrite = 6;
+  bool override_validation = 7;
+  bool replace_existing = 8;
+  repeated string include_suggestions = 9;
+  repeated string extension_points = 10;
+}
+
+message EjectAdoptionResponse {
+  Adoption adoption = 1;
+  string written_path = 2;
+  repeated string copied_assets = 3;
+}
+
+message ApplyAdoptionResponse {
+  Adoption adoption = 1;
+  string written_path = 2;
+  // Scenario-relative files that import the written target. This lets an
+  // operator see the immediate replacement blast radius in the apply result.
+  repeated string import_sites = 3;
+  // The style-fit decision evaluated for this apply. A discouraged verdict
+  // requires override_validation=true before this response can be produced.
+  string style_fit_affinity = 4;
+  string style_fit_detail = 5;
+  repeated string copied_assets = 6;
+  repeated string satisfied_ports = 7;
+  repeated string available_suggestions = 8;
+}
+
+message BatchApplyItem {
+  string component_id = 1;
+  string scenario = 2;
+  string adopted_path = 3;
+  string version = 4;
+  bool confirm_overwrite = 5;
+  bool override_validation = 6;
+  bool replace_existing = 7;
+  repeated string include_suggestions = 8;
+  string fork_reason = 9;
+  repeated string extension_points = 10;
+}
+
+message BatchApplyAdoptionsRequest { repeated BatchApplyItem items = 1; }
+
+message BatchApplyItemResult {
+  Adoption adoption = 1;
+  string written_path = 2;
+  repeated string import_sites = 3;
+  string style_fit_affinity = 4;
+  string style_fit_detail = 5;
+  repeated string copied_assets = 6;
+  repeated string satisfied_ports = 7;
+  repeated string available_suggestions = 8;
+}
+
+message BatchApplyAdoptionsResponse {
+  repeated BatchApplyItemResult results = 1;
+  repeated string shared_dependencies = 2;
+}
+
+message ReapplyAdoptionRequest {
+  string id = 1;
+  // Optional. Defaults to component.latest.
+  string version = 2;
+  // Required when the adopted target has local modifications.
+  bool confirm_local_overwrite = 3;
+  // Explicitly permits a reapply that dependency validation classifies as
+  // blocking. Both validation checks still run.
+  bool override_validation = 4;
+  // Validate the replacement closure without writing files or the registry.
+  bool dry_run = 5;
+}
+
+message ReapplyAdoptionResponse {
+  Adoption adoption = 1;
+  string written_path = 2;
+}
+
+message DeleteAdoptionRequest {
+  string id = 1;
+  bool confirm_remove_files = 2;
+}
+
+message DeleteAdoptionResponse {
+  repeated string removable_files = 1;
+  repeated string removed_files = 2;
+  bool requires_confirmation = 3;
+}
+
+message RefreshAdoptionsRequest {
+  // Optional: scope the refresh to a single component_id. Empty =
+  // every adoption in the registry.
+  string component_id = 1;
+  // When true, return the four-way fork classification report. The report is
+  // read-only unless apply is also true.
+  bool fork_report = 2;
+  // Persist the refreshed fork classifications. Ordinary refresh commands
+  // always apply; fork-report defaults to dry-run.
+  bool apply = 3;
+}
+
+// Source enum for ResolveAdoptionPath. The UI renders this as a badge so users
+// know whether to trust the pre-filled path.
+enum ResolveSource {
+  RESOLVE_SOURCE_UNSPECIFIED = 0;
+  RESOLVE_SOURCE_EXPLICIT = 1; // Caller supplied an override.
+  RESOLVE_SOURCE_TEMPLATE_MANIFEST = 2; // Resolved via the template's ui/manifest.json.
+  RESOLVE_SOURCE_HEURISTIC = 3; // Manifest absent; matched directory by name.
+  RESOLVE_SOURCE_FALLBACK = 4; // No manifest, no heuristic match — last resort.
+}
+
+message ResolveAdoptionPathRequest {
+  // Required. Soft FK to components.id.
+  string component_id = 1;
+  // Required unless template is set. Target scenario name; the resolver
+  // chases its service.json to the owning template manifest.
+  string scenario = 2;
+  // Optional. When non-empty, bypasses the manifest and is returned as-is
+  // (after a path-safety check) with source = EXPLICIT.
+  string override_path = 3;
+  // Optional. Feature folder name; required when the slot's manifest entry
+  // sets requiresFeature.
+  string feature = 4;
+  // Optional. Version to resolve the full file set for (entry + companions).
+  // Empty resolves against the component's latest indexed version. Only the
+  // per-file `files` output depends on this; the summary `path` always
+  // resolves the entry slot.
+  string version = 5;
+  // Optional. Resolve placement directly against this template's UI manifest
+  // (scenario-agnostic), instead of chasing a scenario's service.json. When
+  // set, `scenario` is used only for echo/labeling. This is the seam the code
+  // panel uses to preview placement for a template with no concrete scenario.
+  string template = 6;
+}
+
+// ResolvedVersionFile is one member of a version unit placed at its
+// slot-derived target path in the adopting scenario/template.
+message ResolvedVersionFile {
+  // Library-side basename within the version unit (e.g. "useFocusTrap.ts").
+  string library_path = 1;
+  // Resolved scenario-relative target path (e.g. "ui/src/hooks/useFocusTrap.ts").
+  string target_path = 2;
+  // Slot used to place this file.
+  string slot = 3;
+  // How the target PATH was resolved (template-manifest / heuristic / fallback).
+  ResolveSource source = 4;
+  // How the SLOT was chosen: "explicit" (authored metadata), "heuristic"
+  // (extension rule, e.g. use*.ts -> hook), "component" (the component's
+  // declared slot), or "entry" (entry file inherits the component slot).
+  string slot_source = 5;
+  // True for the version's entry file.
+  bool is_entry = 6;
+  // Per-file non-fatal warnings.
+  repeated string warnings = 7;
+}
+
+message ResolveAdoptionPathResponse {
+  // Resolved path of the ENTRY file, relative to the scenario root. Retained
+  // for callers that only need the single renderable artifact.
+  string path = 1;
+  // How the resolver arrived at the entry path.
+  ResolveSource source = 2;
+  // Slot name used during entry resolution (echoed for UI badge rendering).
+  string slot = 3;
+  // Non-fatal warnings (e.g. "manifest unavailable; using heuristic match").
+  repeated string warnings = 4;
+  // Full file set placed at slot-derived target paths. Includes the entry
+  // file. Empty when the version has no indexed files (falls back to `path`).
+  repeated ResolvedVersionFile files = 5;
+  // Template id whose manifest drove placement (e.g. "react-vite"). Empty
+  // when no manifest resolved and placement used heuristics/fallback.
+  string template = 6;
+  // True when a template UI manifest authoritatively placed the files. False
+  // signals the UI to render its flat fallback tree.
+  bool manifest_resolved = 7;
+}
+
+message SuggestAdoptionsRequest {
+  // Optional target scenario. Empty scans the available scenario inventory.
+  string scenario = 1;
+  // Cap results. 0 uses the server default.
+  int32 limit = 2;
+  // Optional catalog component. When supplied, suggestions answer “where
+  // should this component be adopted?” instead of considering every component.
+  string component_id = 3;
+}
+
+// RecommendationClass distinguishes read-only inventory heuristics from the
+// separately returned, content-verified discovery candidates. No class grants
+// authority to mutate a target scenario.
+enum RecommendationClass {
+  RECOMMENDATION_CLASS_UNSPECIFIED = 0;
+  RECOMMENDATION_CLASS_HEURISTIC = 1;
+  RECOMMENDATION_CLASS_UNAVAILABLE = 2;
+}
+
+message AdoptionSuggestion {
+  string scenario = 1;
+  string component_id = 2;
+  string library_id = 3;
+  string display_name = 4;
+  // Scenario-relative inventory surface that triggered this candidate.
+  string inventory_path = 5;
+  repeated string reasons = 7;
+  RecommendationClass classification = 8;
+}
+
+message SuggestAdoptionsResponse {
+  repeated AdoptionSuggestion suggestions = 1;
+}
+
+message RefreshAdoptionsResponse {
+  // Updated rows after the refresh, in the same order ListAdoptions
+  // would return them.
+  repeated Adoption adoptions = 1;
+  // Summary counters for CLI/UI display.
+  int32 library_current = 2;
+  int32 library_behind = 3;
+  int32 library_deprecated = 4;
+  int32 library_missing = 5;
+  int32 library_unknown = 6;
+  int32 library_source_drifted = 11;
+  int32 local_clean = 7;
+  int32 local_modified = 8;
+  int32 local_missing = 9;
+  int32 local_unknown = 10;
+  map<string, int32> fork_disposition_counts = 12;
+  map<string, int32> fork_scenario_counts = 13;
+  map<string, int32> fork_library_counts = 14;
+}
+
+// ReconcileAdoptions inventories existing provenance-headed scenario UI files.
+// Dry-run is the default; apply=true only writes RCL's adoption store.
+message ReconcileAdoptionsRequest {
+  bool apply = 1;
+}
+
+message ReconcileFinding {
+  string scenario = 1;
+  string adopted_path = 2;
+  string library_id = 3;
+  string version = 4;
+  string detail = 5;
+}
+
+message ReconcileAdoptionsResponse {
+  int32 scanned = 1;
+  int32 already_recorded = 2;
+  int32 created = 3;
+  repeated ReconcileFinding findings = 4;
+}
+
+// ReconvergeAction is the per-adoption disposition of a reconverge pass.
+enum ReconvergeAction {
+  RECONVERGE_ACTION_UNSPECIFIED = 0;
+  // BEHIND + CLEAN copy that was re-applied to the current library version.
+  RECONVERGE_ACTION_REAPPLIED = 1;
+  // Dry-run disposition for a BEHIND + CLEAN copy that would be re-applied.
+  RECONVERGE_ACTION_WOULD_REAPPLY = 2;
+  // BEHIND but the copy carries local edits — flagged for human review,
+  // never overwritten.
+  RECONVERGE_ACTION_FLAGGED_MODIFIED = 3;
+  // BEHIND but the copy is missing or its status is otherwise unresolved —
+  // left untouched for human review.
+  RECONVERGE_ACTION_SKIPPED_UNRESOLVED = 4;
+  // An apply-mode re-apply attempt failed (e.g. dependency validation blocked).
+  RECONVERGE_ACTION_ERROR = 5;
+  // An apply-mode re-apply was blocked by unsatisfied target CSS tokens.
+  RECONVERGE_ACTION_BLOCKED_TOKENS = 6;
+}
+
+// ReconvergeAdoptions batch-reconverges BEHIND adoptions. Dry-run by default.
+message ReconvergeAdoptionsRequest {
+  // Optional adopter-scenario filter. Empty reconverges every BEHIND adoption.
+  string scenario = 1;
+  // Dry-run by default. apply=true re-applies CLEAN BEHIND copies.
+  bool apply = 2;
+}
+
+// ReconvergeFileOutcome is the per-file drift disposition inside one adoption.
+message ReconvergeFileOutcome {
+  string library_path = 1;
+  string adopted_path = 2;
+  LocalStatus local_status = 3;
+}
+
+// ReconvergeOutcome is the per-adoption result of a reconverge pass.
+message ReconvergeOutcome {
+  string adoption_id = 1;
+  string scenario = 2;
+  string component_id = 3;
+  string library_id = 4;
+  // Version stamped on the copy before reconverge.
+  string adopted_version = 5;
+  // Current library version reconverge targets (or the version actually
+  // re-applied to, in apply mode).
+  string target_version = 6;
+  LibraryVersionStatus library_version_status = 7;
+  LocalStatus local_status = 8;
+  ReconvergeAction action = 9;
+  string detail = 10;
+  repeated ReconvergeFileOutcome files = 11;
+  // Named classification for modified copies: translation_only,
+  // local_addition, local_fork, or token_blocked.
+  string disposition = 12;
+  string fork_status = 13;
+}
+
+message ReconvergeAdoptionsResponse {
+  // Adoptions inspected.
+  int32 scanned = 1;
+  // Adoptions found BEHIND (the reconverge candidate set).
+  int32 behind = 2;
+  // Apply-mode: copies successfully re-applied.
+  int32 reapplied = 3;
+  // MODIFIED copies flagged for human review.
+  int32 flagged = 4;
+  // Missing/unresolved copies left for human review.
+  int32 skipped = 5;
+  // Apply attempts that failed.
+  int32 errored = 6;
+  repeated ReconvergeOutcome outcomes = 7;
+  int32 translation_only = 8;
+  int32 local_addition = 9;
+  int32 local_fork = 10;
+  int32 token_blocked = 11;
+}
+
+// DiscoverAdoptions surfaces header-less scenario UI files that resemble a
+// library component version. Unlike ReconcileAdoptions (which trusts the
+// on-disk provenance header), discovery has no header to trust — it relies on
+// a content-similarity score and always defers the write to ConfirmDiscovery.
+message DiscoverAdoptionsRequest {
+  // Optional scenario filter. Empty scans every scenario UI tree.
+  string scenario = 1;
+  // Minimum Sørensen–Dice line similarity in [0,1] to surface a candidate.
+  // 0 uses the server default.
+  double min_similarity = 2;
+  // Cap results. 0 uses the server default.
+  int32 limit = 3;
+}
+
+// DiscoveryCandidate is one header-less file matched to a library version,
+// carrying the similarity evidence an operator reviews before confirming.
+message DiscoveryCandidate {
+  string scenario = 1;
+  string adopted_path = 2;
+  string component_id = 3;
+  string library_id = 4;
+  string version = 5;
+  string display_name = 6;
+  // Sørensen–Dice line similarity in [0,1] against the matched version file.
+  double similarity = 7;
+  int32 shared_lines = 8;
+  int32 candidate_lines = 9;
+  int32 source_lines = 10;
+  // True when the candidate file basename equals the library file basename.
+  bool basename_match = 11;
+  repeated string evidence = 12;
+}
+
+message DiscoverAdoptionsResponse {
+  int32 scanned = 1;
+  double min_similarity = 2;
+  repeated DiscoveryCandidate candidates = 3;
+}
+
+// ConfirmDiscovery names the exact component + version to attribute (echoed
+// from a prior DiscoveryCandidate). The server re-reads the file, verifies it
+// is still header-less, injects the provenance header, and creates the record.
+message ConfirmDiscoveryRequest {
+  string scenario = 1;
+  string adopted_path = 2;
+  string component_id = 3;
+  string version = 4;
+}
+
+message ConfirmDiscoveryResponse {
+  Adoption adoption = 1;
+  string written_path = 2;
+  double similarity = 3;
+}

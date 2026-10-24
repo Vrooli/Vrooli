@@ -17,7 +17,8 @@ const SETTINGS_KEY = "agent-inbox:suggestions-settings";
 
 const DEFAULT_SETTINGS: SuggestionsSettings = {
   visible: false,
-  mergeModel: "anthropic/claude-3-haiku-20240307",
+  // OpenRouter policy role; the backend resolves it to a concrete model.
+  mergeModel: "chat.small",
 };
 
 const DEFAULT_AUTO_SUGGEST: SuggestionsAutoSuggestConfig = {
@@ -91,7 +92,7 @@ export function useSuggestionsSettings(): UseSuggestionsSettingsReturn {
   }, []);
 
   useEffect(() => {
-    loadAutoSuggest();
+    void loadAutoSuggest();
   }, [loadAutoSuggest]);
 
   const setVisible = useCallback((visible: boolean) => {

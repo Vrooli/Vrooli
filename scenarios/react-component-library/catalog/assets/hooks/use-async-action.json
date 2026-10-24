@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-async-action",
+    "name": "useAsyncAction",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "The standardized async-operation controller covering pending, progress, success, failure, cancellation, retry, optimistic update, rollback, and stale-result protection behind one contract.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Implements the shared AsyncAction and AsyncActionContext contract."
+      },
+      {
+        "asset": "hooks.use-abortable-task",
+        "reason": "Supersession and cancellation are delegated rather than reimplemented."
+      },
+      {
+        "asset": "hooks.use-delayed-pending",
+        "reason": "Suppresses indicator flashes for fast work."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "hooks.use-retry",
+        "reason": "Retry policy is valuable for network-backed actions but pointless for local ones, so it stays opt-in."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "telemetry-adapter",
+      "optional": true
+    }
+  ],
+  "rationale": "The single contract that buttons, forms, uploads, exports, and agent operations all route through. Without it every async surface reinvents delayed spinners and stale-result handling, inconsistently."
+}

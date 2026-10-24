@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking Performance Health operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-scenario-boundary/module.json",
+    "02-tier-and-readiness/module.json",
+    "03-capture-orchestration/module.json",
+    "04-analysis/module.json",
+    "05-lighthouse-and-benchmarks/module.json",
+    "06-budgets-trends-fleet/module.json",
+    "07-startup/module.json",
+    "08-integration-and-cli/module.json"
+  ]
+}

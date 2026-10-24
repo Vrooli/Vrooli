@@ -1,0 +1,9 @@
+-- System schema for compute-manager.
+--
+-- This file is empty by default. It's the home for SQL that doesn't
+-- belong to any one domain — postgres extensions, custom types,
+-- cross-domain views, the schema_migrations table when versioned
+-- migrations land. Tables owned by a single domain go in
+-- internal/<dom>/schema.sql.
+--
+-- SQLite scenarios usually leave this empty.

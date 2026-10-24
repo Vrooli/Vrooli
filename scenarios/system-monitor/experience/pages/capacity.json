@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "capacity", "title": "Capacity", "routes": ["/capacity"], "purpose": "Show observed and claimed capacity with explicit sensing warnings.", "prd_refs": ["OT-P0-005"] } }

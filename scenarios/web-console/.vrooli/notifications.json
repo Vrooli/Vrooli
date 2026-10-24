@@ -1,0 +1,9 @@
+{
+  "displayName": "Web Console",
+  "icon": "web-console",
+  "categories": [
+    { "key": "session.input_needed", "displayName": "Session needs your input", "description": "An agent session is blocked waiting on you — a permission prompt, a question, or an approval.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "session.agent_interrupted", "displayName": "Agent interrupted — needs recovery", "description": "An agent session was stopped by a retryable provider condition (for example the selected model is at capacity) and is waiting on a recovery command.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "session.turn_completed", "displayName": "Session finished its turn", "description": "An agent session finished its turn and is idle, waiting for your next instruction.", "defaultEnabled": true, "defaultMinUrgency": "normal" }
+  ]
+}

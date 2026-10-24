@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "projects.surface": {
+      "testId": "projects-surface",
+      "selector": "[data-testid=\"projects-surface\"]"
+    },
+    "projects.loading": {
+      "testId": "projects-loading",
+      "selector": "[data-testid=\"projects-loading\"]"
+    },
+    "projects.error": {
+      "testId": "projects-error",
+      "selector": "[data-testid=\"projects-error\"]"
+    },
+    "projects.empty": {
+      "testId": "projects-empty",
+      "selector": "[data-testid=\"projects-empty\"]"
+    },
+    "projects.list": {
+      "testId": "projects-list",
+      "selector": "[data-testid=\"projects-list\"]"
+    },
+    "projects.nameInput": {
+      "testId": "projects-name-input",
+      "selector": "[data-testid=\"projects-name-input\"]"
+    },
+    "projects.createButton": {
+      "testId": "projects-create-button",
+      "selector": "[data-testid=\"projects-create-button\"]"
+    },
+    "projects.renameInput": {
+      "testId": "project-rename-input",
+      "selector": "[data-testid=\"project-rename-input\"]"
+    },
+    "projects.renameButton": {
+      "testId": "project-rename-button",
+      "selector": "[data-testid=\"project-rename-button\"]"
+    },
+    "projects.conflict": {
+      "testId": "project-rename-conflict",
+      "selector": "[data-testid=\"project-rename-conflict\"]"
+    },
+    "projects.reloadButton": {
+      "testId": "project-reload-button",
+      "selector": "[data-testid=\"project-reload-button\"]"
+    },
+    "media.panel": {
+      "testId": "project-source-media",
+      "selector": "[data-testid=\"project-source-media\"]"
+    },
+    "media.fileInput": {
+      "testId": "project-source-media-file",
+      "selector": "[data-testid=\"project-source-media-file\"]"
+    },
+    "media.fileHelp": {
+      "testId": "project-source-media-file-help",
+      "selector": "[data-testid=\"project-source-media-file-help\"]"
+    },
+    "media.uploadButton": {
+      "testId": "project-source-media-upload",
+      "selector": "[data-testid=\"project-source-media-upload\"]"
+    },
+    "media.pending": {
+      "testId": "project-source-media-pending",
+      "selector": "[data-testid=\"project-source-media-pending\"]"
+    },
+    "media.uploadError": {
+      "testId": "project-source-media-upload-error",
+      "selector": "[data-testid=\"project-source-media-upload-error\"]"
+    },
+    "media.listHeading": {
+      "testId": "project-source-media-heading",
+      "selector": "[data-testid=\"project-source-media-heading\"]"
+    },
+    "media.loading": {
+      "testId": "project-source-media-loading",
+      "selector": "[data-testid=\"project-source-media-loading\"]"
+    },
+    "media.empty": {
+      "testId": "project-source-media-empty",
+      "selector": "[data-testid=\"project-source-media-empty\"]"
+    },
+    "media.list": {
+      "testId": "project-source-media-list",
+      "selector": "[data-testid=\"project-source-media-list\"]"
+    },
+    "media.loadMore": {
+      "testId": "project-source-media-load-more",
+      "selector": "[data-testid=\"project-source-media-load-more\"]"
+    },
+    "media.preview": {
+      "testId": "project-source-media-preview",
+      "selector": "[data-testid=\"project-source-media-preview\"]"
+    },
+    "media.image": {
+      "testId": "project-source-media-image",
+      "selector": "[data-testid=\"project-source-media-image\"]"
+    },
+    "media.videoPreview": {
+      "testId": "project-source-media-video",
+      "selector": "[data-testid=\"project-source-media-video\"]"
+    },
+    "shot.videoTiming": {
+      "testId": "shot-video-timing",
+      "selector": "[data-testid=\"shot-video-timing\"]"
+    },
+    "shot.videoSampleAccept": {
+      "testId": "shot-video-sample-accept",
+      "selector": "[data-testid=\"shot-video-sample-accept\"]"
+    },
+    "shot.videoFinalStage": {
+      "testId": "shot-video-final-stage",
+      "selector": "[data-testid=\"shot-video-final-stage\"]"
+    },
+    "shot.videoSourcePreview": {
+      "testId": "shot-video-source-preview",
+      "selector": "[data-testid=\"shot-video-source-preview\"]"
+    },
+    "physical.create": {
+      "testId": "physical-shot-create",
+      "selector": "[data-testid=\"physical-shot-create\"]"
+    },
+    "physical.editor": {
+      "testId": "physical-shot-editor",
+      "selector": "[data-testid=\"physical-shot-editor\"]"
+    },
+    "physical.source": {
+      "testId": "physical-shot-source",
+      "selector": "[data-testid=\"physical-shot-source\"]"
+    },
+    "physical.backend": {
+      "testId": "physical-shot-backend",
+      "selector": "[data-testid=\"physical-shot-backend\"]"
+    },
+    "physical.compile": {
+      "testId": "physical-shot-compile",
+      "selector": "[data-testid=\"physical-shot-compile\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.navigation": {
+      "testId": "layout-shell-navigation",
+      "selector": "[data-testid=\"layout-shell-navigation\"]"
+    },
+    "layout.tabs": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "layout.brand": {
+      "testId": "layout-shell-brand",
+      "selector": "[data-testid=\"layout-shell-brand\"]"
+    },
+    "layout.skip": {
+      "testId": "layout-shell-skip",
+      "selector": "[data-testid=\"layout-shell-skip\"]"
+    },
+    "settingsPage.themeSelect": {
+      "testId": "page-settings-theme",
+      "selector": "[data-testid=\"page-settings-theme\"]"
+    },
+    "settingsPage.localeSelect": {
+      "testId": "page-settings-locale",
+      "selector": "[data-testid=\"page-settings-locale\"]"
+    },
+    "settingsPage.accountPanel": {
+      "testId": "page-settings-account",
+      "selector": "[data-testid=\"page-settings-account\"]"
+    },
+    "settingsPage.accountStatus": {
+      "testId": "page-settings-account-status",
+      "selector": "[data-testid=\"page-settings-account-status\"]"
+    },
+    "settingsPage.accountConnect": {
+      "testId": "page-settings-account-connect",
+      "selector": "[data-testid=\"page-settings-account-connect\"]"
+    },
+    "settingsPage.accountDisconnect": {
+      "testId": "page-settings-account-disconnect",
+      "selector": "[data-testid=\"page-settings-account-disconnect\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.dashboardHeader": {
+      "testId": "page-dashboard-header",
+      "selector": "[data-testid=\"page-dashboard-header\"]"
+    },
+    "pages.dashboardPlaceholder": {
+      "testId": "page-dashboard-placeholder",
+      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
+    },
+    "pages.project": {
+      "testId": "page-project",
+      "selector": "[data-testid=\"page-project\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "projects.openButton": {
+      "description": "Open action for one project by stable project id",
+      "selectorPattern": "[data-testid=\"projects-open-${id}\"]",
+      "testIdPattern": "projects-open-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}\"]",
+      "testIdPattern": "layout-nav-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.navTab": {
+      "description": "Phone tab-bar item by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}-tab\"]",
+      "testIdPattern": "layout-nav-${key}-tab",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "media.selectButton": {
+      "description": "Select one saved source image by stable media ID",
+      "selectorPattern": "[data-testid=\"project-source-media-select-${id}\"]",
+      "testIdPattern": "project-source-media-select-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "8ef4fcde5d1cbf037a85b55c9a8ae7bd18a72223e047cf1ba60c4aff55d0fa5a"
+  }
+}

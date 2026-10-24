@@ -1,0 +1,8 @@
+{
+  "gate": "harness-manifest",
+  "assetId": "__corpus__.harnesses",
+  "runner": "static",
+  "requiredFailureCode": "catalog.harness_manifest",
+  "mutation": "harness-missing-implementation",
+  "description": "Removes one registered preview harness implementation from the isolated corpus."
+}

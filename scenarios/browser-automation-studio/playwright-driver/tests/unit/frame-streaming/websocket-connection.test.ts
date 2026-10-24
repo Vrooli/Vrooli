@@ -23,7 +23,6 @@ jest.mock('ws', () => ({
 
 import {
   WebSocketConnectionManager,
-  buildWebSocketUrl,
 } from '../../../src/frame-streaming/websocket';
 
 describe('WebSocket connection manager', () => {
@@ -69,6 +68,30 @@ describe('WebSocket connection manager', () => {
     expect(mockInstances.length).toBe(2);
   });
 
+  it('ignores a stale socket close after a replacement is ready', () => {
+    const manager = new WebSocketConnectionManager({
+      url: 'ws://localhost:1234/ws',
+      sessionId: 'session-1',
+      reconnectDelayMs: 10,
+    });
+
+    manager.connect();
+    const first = mockInstances[0];
+    if (!first) throw new Error('first socket was not created');
+    manager.connect();
+    const replacement = mockInstances[1];
+    if (!replacement) throw new Error('replacement socket was not created');
+    replacement.readyState = 1;
+    replacement.emit('open');
+
+    first.emit('close');
+    jest.advanceTimersByTime(10);
+
+    expect(manager.getWebSocket()).toBe(replacement);
+    expect(manager.isReady()).toBe(true);
+    expect(mockInstances).toHaveLength(2);
+  });
+
   it('stops reconnection when closed', () => {
     const manager = new WebSocketConnectionManager({
       url: 'ws://localhost:1234/ws',
@@ -88,20 +111,4 @@ describe('WebSocket connection manager', () => {
     expect(mockInstances.length).toBe(1);
   });
 
-  it('builds correct WebSocket URLs from callback URLs', () => {
-    const recordingUrl = buildWebSocketUrl(
-      'http://localhost:8080/api/v1/recordings/live/session-1/frame',
-      'session-1'
-    );
-    expect(recordingUrl).toBe('ws://localhost:8080/ws/recording/session-1/frames');
-
-    const executionUrl = buildWebSocketUrl(
-      'https://api.example.com/api/v1/executions/exec-123/frames',
-      'session-1'
-    );
-    expect(executionUrl).toBe('wss://api.example.com/ws/execution/exec-123/frames');
-
-    const fallbackUrl = buildWebSocketUrl('not-a-url', 'session-1');
-    expect(fallbackUrl).toBe('ws://127.0.0.1:8080/ws/recording/session-1/frames');
-  });
 });

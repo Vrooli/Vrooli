@@ -1,117 +1,35 @@
-# SearXNG - Privacy-Respecting Metasearch Engine
+# SearXNG resource
 
-SearXNG is a privacy-respecting metasearch engine that aggregates results from multiple search engines without tracking users. This resource provides a local instance perfect for AI agents and automation workflows.
+SearXNG is Vrooli's privacy-conscious local metasearch resource. It is a
+manifest-declared managed service composed from a checksum-pinned portable
+Python runtime, locked wheels, and a reviewed SearXNG source tree. The native
+supervisor exposes an HTTP endpoint on port 8280 with no external runtime
+daemon required.
 
-## Quick Reference
-- **Category**: Search
-- **Port**: 8280 (defined in port_registry.sh)
-- **Container**: searxng
-- **API Docs**: [Complete API Reference](docs/API.md)
-- **Status**: Production Ready
-
-## When to Use
-- **Privacy-sensitive searches** without tracking or data collection
-- **Local search API** for AI agents and automation workflows
-- **Aggregated results** from multiple search engines (Google, Bing, DuckDuckGo, Startpage)
-- **Research and information gathering** workflows requiring diverse sources
-
-**Alternative**: Direct search engine APIs for specific providers, cloud search services for scale
-
-## 🚀 Quick Start
+`resource.json` is the runtime authority. The shared Go control plane owns
+install, start, stop, restart, status, and logs; the resource Go CLI provides
+only safe configuration and engine-level diagnostics.
 
 ```bash
-# Install SearXNG
-resource-searxng manage install
-
-# Check status
-resource-searxng status
-
-# View logs
-resource-searxng logs
-
-# Enhanced search capabilities
-resource-searxng content execute --name search --query "AI" --limit 5 --output-format title-only
-resource-searxng content execute --name headlines --topic "tech"
-resource-searxng content execute --name lucky --query "Python documentation"
+vrooli resource install searxng
+resource-searxng config-apply
+resource-searxng start
+resource-searxng engine-health --json
 ```
 
-## Basic API Usage
+Configuration and cache are separate durable mounts:
 
-```bash
-# Simple search
-curl "http://localhost:8280/search?q=artificial+intelligence&format=json"
+- `RESOURCE_CONFIG_DIR` → the durable SearXNG settings directory
+- `RESOURCE_DATA_DIR` → the regenerable SearXNG cache directory
 
-# Search with specific parameters
-curl "http://localhost:8280/search?q=tech+news&format=json&categories=general&language=en"
-```
+`config-apply` imports and backs up existing settings, preserves unknown
+upstream YAML and existing secrets, and redacts secrets from output. The
+consumer interface is HTTP JSON (`/search?format=json`), documented in
+[docs/API.md](docs/API.md). Compose, Redis, shell scripts, and terminal search
+convenience commands are deliberately unsupported.
 
-## 📚 Documentation
+See [operations](docs/OPERATIONS.md) and [configuration](docs/CONFIGURATION.md)
+for the operator contract.
+## Maturity
 
-- 📖 [**Complete API Reference**](docs/API.md) - Full API documentation, enhanced management script, batch operations
-- ⚙️ [**Configuration Guide**](docs/CONFIGURATION.md) - Settings, security, performance tuning
-- 🔧 [**Troubleshooting**](docs/TROUBLESHOOTING.md) - Common issues, diagnostics, and solutions
-- 🏗️ [**Advanced Integration**](docs/ADVANCED.md) - Programming examples, automation, multi-resource workflows
-- 🔌 [**Integration Examples**](docs/INTEGRATIONS.md) - Complete n8n, Ollama, LangChain, Python, Node.js integration guides
-
-## Service Management
-
-```bash
-# Install and setup
-resource-searxng manage install
-
-# Start/stop/restart
-resource-searxng manage start
-resource-searxng manage stop
-resource-searxng manage restart
-
-# Status and health
-resource-searxng status
-resource-searxng logs
-
-# Advanced operations
-resource-searxng test integration
-resource-searxng content execute --name benchmark
-resource-searxng content execute --name diagnose
-```
-
-## Access Points
-
-After installation:
-- **Web Interface**: http://localhost:8280 (search interface)
-- **API Endpoint**: http://localhost:8280/search (JSON API)
-- **Stats/Health**: http://localhost:8280/stats (service statistics)
-
-## Integration Examples
-
-### With AI (Ollama)
-```bash
-# Search and analyze pipeline
-RESULTS=$(resource-searxng content execute --name search --query "AI trends" --output-format json)
-echo "$RESULTS" | curl -X POST http://localhost:11434/api/generate -d @-
-```
-
-### With n8n Workflows
-```bash
-# HTTP Request Node URL: http://localhost:8280/search
-# Parameters: q={{ $json.query }}, format=json
-```
-
-### With Vrooli AI Tiers
-- **Tier 1**: Strategic information discovery and research planning
-- **Tier 2**: Automated research workflows and information filtering  
-- **Tier 3**: Direct search execution and result processing
-
-## Default Search Engines
-- Google
-- Bing
-- DuckDuckGo
-- Startpage
-- Wikipedia
-
-## Security Features
-- **Local Access Only**: Binds to 127.0.0.1 by default
-- **No Tracking**: Doesn't store searches or track users
-- **Privacy-First**: Aggregates results without exposing user data
-- **Rate Limiting**: Configurable for production use
-
-For detailed usage instructions, integration patterns, and troubleshooting, see the documentation links above.
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

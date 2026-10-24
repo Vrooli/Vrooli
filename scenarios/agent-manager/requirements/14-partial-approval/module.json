@@ -12,7 +12,7 @@
       "description": "Enable approval of individual files and hunks within runs",
       "id": "REQ-P1-003",
       "prd_ref": "OT-P1-003",
-      "status": "draft",
+      "status": "planned",
       "title": "Selective Approval Flow",
       "validation": [
         {

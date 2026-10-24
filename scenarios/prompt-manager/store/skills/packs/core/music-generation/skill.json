@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-09-18T20:00:00Z",
+  "description": "Choose a governed local music model for the sound brief, preserve generation provenance, and compare actual audio before selection. Covers instrumental launch scores and ordinary songs with explicit lyrics.",
+  "entry": "SKILL.md",
+  "icon": "music",
+  "id": "music-generation",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "music-generation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "music-tools styles list",
+      "music-tools compose run",
+      "music-tools jobs wait",
+      "music-tools takes list"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 8,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "marketing",
+    "audio",
+    "music",
+    "video"
+  ],
+  "updatedAt": "2026-10-17T00:00:00Z"
+}

@@ -4,24 +4,19 @@
   "teamId": "marketing-crew",
   "roles": [
     {
-      "id": "lead",
-      "name": "Lead",
-      "description": "Plans content strategy, reviews output, manages the content calendar."
+      "id": "producer",
+      "name": "Producer",
+      "description": "Sole draft producer. Draws open work from active campaigns in content-desk, gathers the evidence that work needs, and drafts against it with every factual assertion declared as a claim. Merges the former oss-advertiser, subscription-advertiser, and researcher roles — lane is a field on the draft, not a separate agent. Never publishes and never approves its own work."
     },
     {
-      "id": "creator",
-      "name": "Creator",
-      "description": "Writes dev logs, social posts, and blog drafts in builder voice."
+      "id": "brand-manager",
+      "name": "Brand Manager",
+      "description": "Owns brand canon — voice, positioning, campaign themes, audience definitions. Curates typed marketing-craft observations into permanent structure via work items and retires obsolete entries. Strategic long-horizon voice, not per-post review. Holds channel-update until account operations have a home on the scheduler side."
     },
     {
-      "id": "researcher",
-      "name": "Researcher",
-      "description": "Researches audience, competitors, and trends for content strategy."
-    },
-    {
-      "id": "editor",
-      "name": "Editor",
-      "description": "Polishes content for tone, accuracy, and platform formatting."
+      "id": "marketing-contrarian",
+      "name": "Marketing Contrarian",
+      "description": "Mandatory skeptic. Scores proposals against the domain failure-mode framework (hype drift, voice drift, hallucinated engagement metrics, paywall framing, OSS-as-leak framing, coverage-gap-ignorance, acquisition-only hypothesis, capability-workaround-without-gap) and owns the aging scan. Additionally charged with hunting claims the producer did not declare — the compensating control for author self-reporting. Deliberately not merged into producer: this separation is what keeps the verification gate honest."
     }
   ]
 }

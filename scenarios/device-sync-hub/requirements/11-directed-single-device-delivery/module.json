@@ -1,0 +1,79 @@
+{
+  "description": "A sender can target a specific trusted device instead of broadcasting to the whole trust group; the selection is exposed as a control on each staged item in the Send pane.",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-009",
+        "REQ-P0-001"
+      ],
+      "description": "A sender can target a specific trusted device as the sole recipient of an item instead of broadcasting to the entire trust group. The target device selector is exposed as a dropdown or segmented control on each staged item in the Send pane. When a target is set, the relay engine delivers the item only to that device and records the target in item metadata. Items targeted to an offline device are held according to their retention policy and delivered when the device reconnects, subject to TTL not expiring.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Directed Single-Device Delivery",
+      "validation": [
+        {
+          "notes": "Unit test: relay dispatcher delivers item only to the specified target device_id when target is set",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: relay dispatcher delivers item to all trusted devices except sender when target is not set",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: directed item is stored with target_device_id in metadata and is not readable via list endpoint by non-target devices",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: directed item to an offline device is queued and delivered when that device reconnects, if retention policy has not expired",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: send item targeted to Device B; assert Device C (also trusted) does not receive delivery WebSocket event",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device B is offline; send targeted item; Device B comes online; assert Device B receives the item",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device C calls list endpoint; assert targeted item does not appear in Device C's item list",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: stage a file; select a specific device as target; send; confirm only that device's Receive pane shows the item",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Directed Single-Device Delivery"
+}

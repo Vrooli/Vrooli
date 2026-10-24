@@ -54,3 +54,26 @@ func TestScenarioToProtoWithReview(t *testing.T) {
 		t.Fatalf("expected %s, got %s", reviewTime.Format(time.RFC3339), *proto.LastReviewAt)
 	}
 }
+
+func TestScenarioToProtoPreservesHealthProjection(t *testing.T) {
+	proto := scenarioToProto(Scenario{
+		Name: "test", Status: StatusRunning, Priority: 1,
+		Health: &ScenarioHealthSnapshot{
+			EvidenceState: HealthEvidenceStale,
+			Reason:        "The latest comparable run is older than the freshness window.",
+			SourceRunID:   "run-42",
+			Phases: []ScenarioHealthPhase{{
+				Phase: "unit", CurrentRung: "L1", NextRung: "L2", PriorityCapabilityID: "coverage",
+			}},
+		},
+	}, nil)
+	if proto.Health == nil || proto.Health.EvidenceState != string(HealthEvidenceStale) {
+		t.Fatalf("health projection = %#v", proto.Health)
+	}
+	if proto.Health.SourceRunId == nil || *proto.Health.SourceRunId != "run-42" {
+		t.Fatalf("source run id = %#v", proto.Health.SourceRunId)
+	}
+	if len(proto.Health.Phases) != 1 || proto.Health.Phases[0].PriorityCapabilityId == nil || *proto.Health.Phases[0].PriorityCapabilityId != "coverage" {
+		t.Fatalf("phase projection = %#v", proto.Health.Phases)
+	}
+}

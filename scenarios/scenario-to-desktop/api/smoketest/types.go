@@ -3,6 +3,7 @@ package smoketest
 import (
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/procmetrics"
 )
 
@@ -104,17 +105,23 @@ type StateTransition struct {
 
 // Status represents the status of a desktop smoke test run.
 type Status struct {
-	SmokeTestID          string     `json:"smoke_test_id"`
-	ScenarioName         string     `json:"scenario_name"`
-	Platform             string     `json:"platform"`
-	Status               string     `json:"status"` // running, passed, failed
-	ArtifactPath         string     `json:"artifact_path,omitempty"`
-	StartedAt            time.Time  `json:"started_at"`
-	CompletedAt          *time.Time `json:"completed_at,omitempty"`
-	Logs                 []string   `json:"logs,omitempty"`
-	Error                string     `json:"error,omitempty"`
-	TelemetryUploaded    bool       `json:"telemetry_uploaded,omitempty"`
-	TelemetryUploadError string     `json:"telemetry_upload_error,omitempty"`
+	SmokeTestID           string                              `json:"smoke_test_id"`
+	ScenarioName          string                              `json:"scenario_name"`
+	Platform              string                              `json:"platform"`
+	DeploymentMode        string                              `json:"deployment_mode,omitempty"`
+	ProxyURL              string                              `json:"proxy_url,omitempty"`
+	PipelineID            string                              `json:"pipeline_id,omitempty"`
+	ScreenContentSource   string                              `json:"screen_content_source,omitempty"`
+	IsolationObservations []deliveryramp.IsolationObservation `json:"isolation_observations,omitempty"`
+	ProtocolPassed        bool                                `json:"protocol_passed,omitempty"`
+	Status                string                              `json:"status"` // running, passed, failed
+	ArtifactPath          string                              `json:"artifact_path,omitempty"`
+	StartedAt             time.Time                           `json:"started_at"`
+	CompletedAt           *time.Time                          `json:"completed_at,omitempty"`
+	Logs                  []string                            `json:"logs,omitempty"`
+	Error                 string                              `json:"error,omitempty"`
+	TelemetryUploaded     bool                                `json:"telemetry_uploaded,omitempty"`
+	TelemetryUploadError  string                              `json:"telemetry_upload_error,omitempty"`
 
 	// Structured error for programmatic handling
 	ErrorKind       *ErrorKind        `json:"error_kind,omitempty"`
@@ -126,11 +133,12 @@ type Status struct {
 	Transitions  []StateTransition `json:"transitions,omitempty"`
 
 	// Execution details for debugging
-	LastStdout              string `json:"last_stdout,omitempty"`
-	LastStderr              string `json:"last_stderr,omitempty"`
-	RetryCount              int    `json:"retry_count,omitempty"`
-	OutputTruncated         bool   `json:"output_truncated,omitempty"`
-	ExtractedLifecycleState string `json:"extracted_lifecycle_state,omitempty"` // Debug: lifecycle state extracted from output
+	LastStdout              string                 `json:"last_stdout,omitempty"`
+	LastStderr              string                 `json:"last_stderr,omitempty"`
+	RetryCount              int                    `json:"retry_count,omitempty"`
+	OutputTruncated         bool                   `json:"output_truncated,omitempty"`
+	ProcessLifetimeChecks   []ProcessLifetimeCheck `json:"process_lifetime_checks,omitempty"`
+	ExtractedLifecycleState string                 `json:"extracted_lifecycle_state,omitempty"` // Debug: lifecycle state extracted from output
 
 	// AppReportedError contains the actual error from the app's telemetry
 	// when available. This provides more specific diagnostic information
@@ -150,13 +158,91 @@ type Status struct {
 	ErrorSessionMismatch bool `json:"error_session_mismatch,omitempty"`
 
 	// Screen recording configuration and results
-	RecordingConfig *ScreenRecordingConfig `json:"recording_config,omitempty"`
-	ScreenRecording *ScreenRecordingResult `json:"screen_recording,omitempty"`
+	RecordingConfig           *ScreenRecordingConfig `json:"recording_config,omitempty"`
+	ScreenRecording           *RecordingStatus       `json:"screen_recording,omitempty"`
+	JourneyCaptureID          string                 `json:"journey_capture_id,omitempty"`
+	JourneyDisposition        string                 `json:"journey_disposition,omitempty"`
+	JourneyDegradedReason     string                 `json:"journey_degraded_reason,omitempty"`
+	EvidenceReportDisposition string                 `json:"evidence_report_disposition,omitempty"`
+	EvidenceReportError       string                 `json:"evidence_report_error,omitempty"`
+	EvidenceReview            *JourneyReview         `json:"evidence_review,omitempty"`
 
 	// Process metrics from app execution
-	SplashDurationMs *int64               `json:"splash_duration_ms,omitempty"`
-	ReadyDurationMs  *int64               `json:"ready_duration_ms,omitempty"`
-	ResourceSummary  *procmetrics.Summary `json:"resource_summary,omitempty"`
+	SplashDurationMs              *int64                         `json:"splash_duration_ms,omitempty"`
+	ReadyDurationMs               *int64                         `json:"ready_duration_ms,omitempty"`
+	ResourceSummary               *procmetrics.Summary           `json:"resource_summary,omitempty"`
+	ProtocolResourceSummary       *procmetrics.Summary           `json:"protocol_resource_summary,omitempty"`
+	ProtocolProcessTree           *procmetrics.ProcessTreeReport `json:"protocol_process_tree,omitempty"`
+	DemoResourceSummary           *procmetrics.Summary           `json:"demo_resource_summary,omitempty"`
+	DemoProcessTree               *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
+	InteractiveProcessTree        *procmetrics.ProcessTreeReport `json:"interactive_process_tree,omitempty"`
+	IdleCPUWindow                 *procmetrics.ProcessTreeWindow `json:"idle_cpu_window,omitempty"`
+	SteadyPSSWindow               *procmetrics.ProcessTreeWindow `json:"steady_pss_window,omitempty"`
+	ProtocolTracePath             string                         `json:"protocol_trace_path,omitempty"`
+	DemoTracePath                 string                         `json:"demo_trace_path,omitempty"`
+	ProtocolProfileDir            string                         `json:"protocol_profile_dir,omitempty"`
+	DemoProfileDir                string                         `json:"demo_profile_dir,omitempty"`
+	Measured                      bool                           `json:"measured,omitempty"`
+	Condition                     string                         `json:"condition,omitempty"`
+	Strategy                      string                         `json:"strategy,omitempty"`
+	ExperimentID                  string                         `json:"experiment_id,omitempty"`
+	ArtifactDigest                string                         `json:"artifact_digest,omitempty"`
+	ArtifactPageCacheResidencyPct *float64                       `json:"artifact_page_cache_residency_pct,omitempty"`
+	PerformanceStatus             string                         `json:"performance_status,omitempty"`
+	PerformanceReason             string                         `json:"performance_reason,omitempty"`
+	ProtocolPhases                []PerformancePhase             `json:"protocol_phases,omitempty"`
+	DemoPhases                    []PerformancePhase             `json:"demo_phases,omitempty"`
+}
+
+// ProcessLifetimeCheck is retained per packaged launch so smoke and measured
+// evidence records the session marker and the post-cleanup descendant result.
+type ProcessLifetimeCheck struct {
+	Stage     string `json:"stage"`
+	SessionID string `json:"session_id,omitempty"`
+	Passed    bool   `json:"passed"`
+	Remaining []int  `json:"remaining_descendant_pids,omitempty"`
+	Assertion string `json:"assertion,omitempty"`
+}
+
+type PerformancePhase struct {
+	Name       string `json:"name"`
+	Available  bool   `json:"available"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+type JourneyReview struct {
+	SchemaVersion     string                                   `json:"schema_version"`
+	Capability        string                                   `json:"capability"`
+	Selection         *deliveryramp.CapabilitySelection        `json:"selection,omitempty"`
+	PlanID            string                                   `json:"plan_id"`
+	Profile           string                                   `json:"profile"`
+	Disposition       string                                   `json:"disposition"`
+	Reason            string                                   `json:"reason,omitempty"`
+	EventCount        int                                      `json:"event_count"`
+	DeploymentMode    string                                   `json:"deployment_mode,omitempty"`
+	ProviderTier      string                                   `json:"provider_tier,omitempty"`
+	ServiceIdentity   string                                   `json:"service_identity,omitempty"`
+	Readiness         string                                   `json:"readiness,omitempty"`
+	FallbackDecision  string                                   `json:"fallback_decision,omitempty"`
+	SafeRouteClass    string                                   `json:"safe_route_class,omitempty"`
+	WorkflowRequired  bool                                     `json:"workflow_required,omitempty"`
+	WorkflowReference *deliveryramp.WorkflowExecutionReference `json:"workflow_reference,omitempty"`
+	Chapters          []JourneyChapter                         `json:"chapters"`
+}
+
+type JourneyChapter struct {
+	ID                 string   `json:"id"`
+	Purpose            string   `json:"purpose"`
+	Action             string   `json:"action"`
+	Disposition        string   `json:"disposition"`
+	AssertionID        string   `json:"assertion_id,omitempty"`
+	Expected           string   `json:"expected,omitempty"`
+	Observed           string   `json:"observed,omitempty"`
+	Error              string   `json:"error,omitempty"`
+	VideoStartOffsetMs *int64   `json:"video_start_offset_ms,omitempty"`
+	VideoEndOffsetMs   *int64   `json:"video_end_offset_ms,omitempty"`
+	EvidenceIDs        []string `json:"evidence_ids,omitempty"`
 }
 
 // ScreenRecordingConfig controls whether the smoke test records the display.
@@ -168,13 +254,13 @@ type ScreenRecordingConfig struct {
 	MaxDurationSec int  `json:"max_duration_sec,omitempty"`
 }
 
-// ScreenRecordingResult holds the outcome of a screen recording during a smoke test.
-type ScreenRecordingResult struct {
-	Recorded      bool   `json:"recorded"`
-	VideoPath     string `json:"video_path,omitempty"`
-	DurationMs    int64  `json:"duration_ms,omitempty"`
-	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
-	Error         string `json:"error,omitempty"`
+// RecordingStatus holds only the durable capture identity and producer-side
+// checksum for a screen recording. Artifact paths and bytes never live here.
+type RecordingStatus struct {
+	Recorded  bool   `json:"recorded"`
+	CaptureID string `json:"capture_id,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // CancelResponse represents the response from cancelling a smoke test.

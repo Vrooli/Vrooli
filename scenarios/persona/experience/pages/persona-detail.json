@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "persona-detail",
+    "title": "Persona",
+    "routes": [
+      "/personas/:personaId"
+    ],
+    "purpose": "Read one identity as a record: what it is, who may act as it, what it can receive, what it points at, and what it has left behind in the world.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-004",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P1-001",
+      "OT-P1-002",
+      "OT-P1-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The legal basis is stated prominently and shown as immutable \u2014 this is the fact everything else depends on."
+    },
+    {
+      "statement": "Access, channels, documents, and accounts are sections of one record, not four disconnected tools."
+    },
+    {
+      "statement": "Document bindings show that a document exists and where it lives \u2014 never its contents, under any viewer role.",
+      "notes": "There is no agent-readable read path and no operator preview; release targets a named handoff only."
+    },
+    {
+      "statement": "What is missing is as visible as what is configured, because a half-configured persona fails mid-enrolment."
+    },
+    {
+      "statement": "Every destructive or disclosing action (revoke, release, retire) states its consequence before it is taken."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A fully configured, healthy persona."
+    },
+    {
+      "id": "partial",
+      "description": "Configured, but one or more sections are incomplete \u2014 no channel bound, or no document bound."
+    },
+    {
+      "id": "loading",
+      "description": "Record resolving."
+    },
+    {
+      "id": "degraded",
+      "description": "A configured capability has stopped working: mailbox auth failing, code route unreachable, document past validity."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The viewer may see the record but not act as it; act-as controls are absent with a stated reason rather than disabled without explanation."
+    },
+    {
+      "id": "retired",
+      "description": "A retired persona, read-only, retained because the journal references it."
+    },
+    {
+      "id": "retire-blocked",
+      "description": "Retirement was attempted while linked accounts lack a recovery path; the blocking accounts are listed."
+    },
+    {
+      "id": "request-error",
+      "description": "The record cannot be loaded."
+    },
+    {
+      "id": "stale",
+      "description": "The record is cached during a dependency outage; health and binding status may lag and say so."
+    },
+    {
+      "id": "empty",
+      "description": "A persona exists but nothing is configured yet \u2014 no channel, no documents, no ACL entries. Reads as a setup checklist rather than a broken record."
+    }
+  ]
+}

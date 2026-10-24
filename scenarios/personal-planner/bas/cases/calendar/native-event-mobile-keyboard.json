@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "name": "native-event-mobile-keyboard",
+    "description": "Create a synthetic all-day event and revise its context using the ordinary narrow-screen Planner UI and keyboard submission under routed test storage.",
+    "requirement": "PLAN-P0-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "safety": "fixture-only",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-plan-mobile",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/plan",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Planner at a narrow viewport"
+        }
+      }
+    },
+    {
+      "id": "open-mobile-view-menu",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.mobileMore"
+        },
+        "metadata": {
+          "label": "Open the compact planning-view menu"
+        }
+      }
+    },
+    {
+      "id": "select-mobile-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.monthView"
+        },
+        "metadata": {
+          "label": "Select Month in the mobile planning-view menu"
+        }
+      }
+    },
+    {
+      "id": "assert-empty-month-mobile",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.grid",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The narrow-screen Month grid should remain usable with synthetic events already present"
+        },
+        "metadata": {
+          "label": "Verify the populated month remains usable at narrow width"
+        }
+      }
+    },
+    {
+      "id": "open-first-date-mobile",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.addFirstInMonth"
+        },
+        "metadata": {
+          "label": "Open the event form at narrow width"
+        }
+      }
+    },
+    {
+      "id": "type-and-submit-event-title",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventTitle",
+          "value": "E1 mobile keyboard synthetic",
+          "clear_first": true,
+          "submit": true
+        },
+        "metadata": {
+          "label": "Create by keyboard from the title field"
+        }
+      }
+    },
+    {
+      "id": "assert-mobile-create",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.message",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Saved E1 mobile keyboard synthetic as event"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Keyboard submission should create a real synthetic event through the ordinary UI"
+        },
+        "metadata": {
+          "label": "Verify keyboard create feedback"
+        }
+      }
+    },
+    {
+      "id": "reopen-mobile-event",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.eventByTitle(title=\"E1 mobile keyboard synthetic\")"
+        },
+        "metadata": {
+          "label": "Reopen the mobile event"
+        }
+      }
+    },
+    {
+      "id": "edit-mobile-subject-and-submit",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventSubject",
+          "value": "keyboard revision",
+          "clear_first": true,
+          "submit": true
+        },
+        "metadata": {
+          "label": "Revise event context and submit by keyboard"
+        }
+      }
+    },
+    {
+      "id": "assert-mobile-revision",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.message",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Updated E1 mobile keyboard synthetic to revision 2"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Keyboard edit should advance the durable event revision"
+        },
+        "metadata": {
+          "label": "Verify keyboard edit feedback"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-plan-mobile",
+      "target": "open-mobile-view-menu"
+    },
+    {
+      "id": "e2",
+      "source": "open-mobile-view-menu",
+      "target": "select-mobile-month"
+    },
+    {
+      "id": "e3",
+      "source": "select-mobile-month",
+      "target": "assert-empty-month-mobile"
+    },
+    {
+      "id": "e4",
+      "source": "assert-empty-month-mobile",
+      "target": "open-first-date-mobile"
+    },
+    {
+      "id": "e5",
+      "source": "open-first-date-mobile",
+      "target": "type-and-submit-event-title"
+    },
+    {
+      "id": "e6",
+      "source": "type-and-submit-event-title",
+      "target": "assert-mobile-create"
+    },
+    {
+      "id": "e7",
+      "source": "assert-mobile-create",
+      "target": "reopen-mobile-event"
+    },
+    {
+      "id": "e8",
+      "source": "reopen-mobile-event",
+      "target": "edit-mobile-subject-and-submit"
+    },
+    {
+      "id": "e9",
+      "source": "edit-mobile-subject-and-submit",
+      "target": "assert-mobile-revision"
+    }
+  ]
+}

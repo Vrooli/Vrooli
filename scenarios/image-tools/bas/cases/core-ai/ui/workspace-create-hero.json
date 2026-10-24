@@ -1,0 +1,120 @@
+{
+  "metadata": {
+    "name": "workspace-create-hero",
+    "description": "Stage-3 Create-hero journey driving the AI text-to-image surface end-to-end against the real backend: navigates to /workspace, switches to Create mode, and asserts the Create panel composes with the one-tap generation actions discovered from AIService.ListAIOperations filtered to the generation category (Generate / Transform / Inpaint / Remove object). It then types a prompt and runs Generate — and because heavy generation models are opt-in downloads that are absent in CI (the headless-acceptance decision), the run resolves to the model-install gate via ModelsService.SelectModel (install.installed == false). Asserting the install gate appears proves the full prompt -> discovery -> select-model -> hardware-fit -> install-gate wiring works against the live API. A broken AI generation-discovery RPC, a Create panel that fails to compose, a SelectModel regression, or an install gate that never surfaces all fail here. The post-install N-variation generation + send-to-canvas is the ATTENDED acceptance gate (after a real model download) per docs/internal/DECISIONS.md; the lifecycle itself (submit -> WatchJob -> fetch-variations -> compose) is unit-covered by useCreate.test/Workspace.create.test.",
+    "requirement": "IMG-P0-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "workspace-create-hero"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Workspace" }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Mode switcher visible" }
+      }
+    },
+    {
+      "id": "switch-to-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.modeOption(mode=\"create\")" },
+        "metadata": { "label": "Switch to Create mode" }
+      }
+    },
+    {
+      "id": "wait-create-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Create panel composes" }
+      }
+    },
+    {
+      "id": "assert-text-to-image-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createAction(name=\"text_to_image\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The Generate (text-to-image) action did not render — AIService.ListAIOperations generation-category discovery or the Create panel regressed."
+        },
+        "metadata": { "label": "Discovery populated the Generate action" }
+      }
+    },
+    {
+      "id": "fill-prompt",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.prompt",
+          "value": "a serene mountain lake at golden hour",
+          "clear_first": true
+        },
+        "metadata": { "label": "Describe the image in the prompt field" }
+      }
+    },
+    {
+      "id": "run-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workspace.create.run" },
+        "metadata": { "label": "Run the generation" }
+      }
+    },
+    {
+      "id": "assert-install-gate",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.installGate",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "The model-install gate did not surface after running a generation on a host with no generation model installed — ModelsService.SelectModel, the hardware-fit decode, or the needs-install lifecycle branch regressed. (With a model installed, this run instead produces N variations — that post-install path is the attended acceptance gate per docs/internal/DECISIONS.md, and the submit -> WatchJob -> fetch-variations lifecycle is unit-covered by useCreate.test/Workspace.create.test.)"
+        },
+        "metadata": { "label": "Install gate surfaces (no generation model installed on this host)" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-workspace", "target": "wait-mode-switcher", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-mode-switcher", "target": "switch-to-create", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "switch-to-create", "target": "wait-create-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "wait-create-panel", "target": "assert-text-to-image-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-text-to-image-action", "target": "fill-prompt", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "fill-prompt", "target": "run-create", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "run-create", "target": "assert-install-gate", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

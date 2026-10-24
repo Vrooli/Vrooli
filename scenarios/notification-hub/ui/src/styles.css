@@ -1,0 +1,140 @@
+@import "./design-tokens.css";
+@import "./theme/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
+  --border-focus: var(--border-strong);
+  --rcl-safe-top: var(--safe-area-inset-top);
+  --rcl-safe-right: var(--safe-area-inset-right);
+  --rcl-safe-bottom: var(--safe-area-inset-bottom);
+  --rcl-safe-left: var(--safe-area-inset-left);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+/* The shared shell owns its phone header, skip link, and bottom navigation.
+   Start the shell below the status area; BottomNav applies the bottom inset. */
+[data-rcl-app-shell] {
+  --rcl-app-shell-block-size: calc(100dvh - var(--safe-area-inset-top));
+  block-size: var(--rcl-app-shell-block-size);
+  margin-block-start: var(--safe-area-inset-top);
+  margin-inline: var(--safe-area-inset-left) var(--safe-area-inset-right);
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-skip] {
+  inset-block-start: var(--space-2xs);
+  transform: translateY(calc(-200% - var(--safe-area-inset-top) - var(--space-2xs)));
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-skip]:focus-visible {
+  transform: none;
+}
+
+@media (max-width: 47.999rem) {
+  [data-rcl-app-shell-header][data-mobile-only="false"] {
+    display: flex;
+    padding-inline: var(--space-xs);
+  }
+
+  [data-rcl-app-shell-header][data-mobile-only="false"] > :last-child {
+    display: none;
+  }
+
+  .history-state-filters[data-search-active="true"] {
+    display: none;
+  }
+
+  .nh-mobile-header-content {
+    order: -1;
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: auto;
+  }
+
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu] {
+    inline-size: max-content !important;
+    min-inline-size: var(--tap-target-min);
+    padding-inline: var(--space-xs);
+  }
+
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu] [data-rcl-icon-button-glyph] {
+    display: none;
+  }
+
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu]::after {
+    content: attr(aria-label);
+    font: var(--text-label);
+    white-space: nowrap;
+  }
+
+  html:lang(en) [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu][aria-expanded="false"]::after {
+    content: "Menu";
+  }
+
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu-panel] {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+  }
+
+
+}
+
+@media (min-width: 48rem) {
+  [data-rcl-app-shell-header][data-mobile-only="false"] {
+    display: none;
+  }
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@layer utilities {
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .pt-safe {
+    padding-top: var(--safe-area-inset-top);
+  }
+
+  .pr-safe {
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  .pl-safe {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

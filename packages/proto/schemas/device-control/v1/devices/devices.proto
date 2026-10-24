@@ -1,0 +1,123 @@
+syntax = "proto3";
+package vrooli.device_control.v1.devices;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1";
+service DeviceService {
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc ConnectDevice(ConnectDeviceRequest) returns (ConnectDeviceResponse);
+  rpc ReconnectDevice(ReconnectDeviceRequest) returns (ReconnectDeviceResponse);
+  rpc ExecuteVolume(ExecuteVolumeRequest) returns (ExecuteVolumeResponse);
+  // Read-only hardware/runtime qualification. No arbitrary device commands.
+  rpc InspectDevice(InspectDeviceRequest) returns (InspectDeviceResponse);
+}
+message InspectDeviceRequest { string device_id = 1; string transport = 2; }
+message InspectDeviceResponse {
+  string device_id = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  repeated string abis = 3;
+  optional uint64 memory_total_bytes = 4;
+  optional uint64 data_total_bytes = 5;
+  optional uint64 data_available_bytes = 6;
+  string webview_package = 7;
+  string webview_version = 8;
+  string home_component = 9;
+  optional bool low_ram = 10;
+  map<string, string> unavailable = 11;
+  string transport = 12;
+  VoiceInspection voice = 13;
+}
+// Reported configuration only: no audio capture or claim of app microphone access.
+message VoiceInspection {
+  optional bool microphone_feature = 1;
+  repeated string assistant_role_holders = 2;
+  optional string assistant_component = 3;
+  optional string voice_interaction_component = 4;
+  repeated string voice_interaction_services = 5;
+  // Names mentioned by OEM policy, not proof that an input is connected/usable.
+  repeated string policy_input_types = 6;
+  map<string, string> unavailable = 7;
+}
+message ListDevicesRequest {}
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+message ConnectDeviceRequest {
+  string kind = 1;
+}
+message ConnectDeviceResponse {
+  repeated OnboardingRung rungs = 1;
+  string first_next_action = 2;
+}
+message ReconnectDeviceRequest { string device_id = 1; }
+message ReconnectDeviceResponse { Device device = 1; }
+message ExecuteVolumeRequest {
+  string device = 1;
+  string actor = 2;
+  string goal = 3;
+  string operation = 4;
+  optional double value = 5;
+  string direction = 6;
+  string verification_policy = 7;
+  string operation_id = 8;
+}
+message ExecuteVolumeResponse {
+  string status = 1;
+  string operation_id = 2;
+  string device_id = 3;
+  string device_name = 4;
+  google.protobuf.Struct plan = 5;
+  google.protobuf.Struct before = 6;
+  google.protobuf.Struct after = 7;
+  string verification_class = 8;
+  repeated string evidence = 9;
+  int32 recovery_attempts = 10;
+  string next_action = 11;
+}
+message Device {
+  string id = 1;
+  string name = 2;
+  string kind = 3;
+  string strategy_id = 4;
+  string status = 5;
+  string health_reason = 6;
+  string host_node_id = 7;
+  repeated CapabilitySnapshot capabilities = 8;
+  google.protobuf.Timestamp observed_at = 9;
+  string serial = 10;
+  string model = 11;
+  string os_version = 12;
+  string transport = 13;
+  string health = 14;
+  string first_seen_at = 15;
+  string last_seen_at = 16;
+  repeated TransportProfile transports = 17;
+  string identity_key = 18;
+  string identity_reason = 19;
+}
+message CapabilitySnapshot {
+  string name = 1;
+  string status = 2;
+  string prerequisite = 3;
+  string next_action = 4;
+}
+message TransportProfile {
+  string strategy_id = 1;
+  string name = 2;
+  string role = 3;
+  string endpoint = 4;
+  string health = 5;
+  string health_reason = 6;
+  repeated CapabilitySnapshot capabilities = 7;
+  repeated string operations = 8;
+  repeated string endpoints = 9;
+}
+message OnboardingRung {
+  string id = 1;
+  string prerequisite = 2;
+  string owner = 3;
+  string status = 4;
+  string next_action = 5;
+}

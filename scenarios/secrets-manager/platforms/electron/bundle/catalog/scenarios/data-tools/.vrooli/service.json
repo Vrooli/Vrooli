@@ -1,0 +1,197 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "data-tools",
+    "displayName": "Data Tools",
+    "description": "Comprehensive data processing and analysis toolkit",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "productivity",
+    "tags": [
+      "tools",
+      "utilities",
+      "developers"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/data-tools"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Main API port"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Application health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "metrics": "/api/metrics"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Application",
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
+          "description": "Generate code embeddings for AI assistance",
+          "condition": {
+            "resource_enabled": "qdrant"
+          }
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store tool configurations and processing results",
+        "startup_policy": "must_start"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Object storage for files and artifacts",
+        "startup_policy": "try_start"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector database for semantic search and AI features",
+        "startup_policy": "try_start"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Local AI inference for intelligent features",
+        "startup_policy": "try_start"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered development assistance and code generation",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "data-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "data-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "entry": "./cmd/server"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "data_dirs": [
+          "data",
+          "logs",
+          "temp"
+        ],
+        "cwd": "api"
+      }
+    }
+  }
+}

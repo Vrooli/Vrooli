@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 const (
@@ -58,23 +60,12 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("OLLAMA_URL environment variable is required")
 	}
 
-	// Database configuration - try POSTGRES_URL first
-	cfg.DatabaseURL = os.Getenv("POSTGRES_URL")
-	if cfg.DatabaseURL == "" {
-		// Build from components - ALL REQUIRED
-		cfg.DatabaseHost = os.Getenv("POSTGRES_HOST")
-		cfg.DatabasePort = os.Getenv("POSTGRES_PORT")
-		cfg.DatabaseUser = os.Getenv("POSTGRES_USER")
-		cfg.DatabasePass = os.Getenv("POSTGRES_PASSWORD")
-		cfg.DatabaseName = os.Getenv("POSTGRES_DB")
-
-		if cfg.DatabaseHost == "" || cfg.DatabasePort == "" ||
-			cfg.DatabaseUser == "" || cfg.DatabasePass == "" || cfg.DatabaseName == "" {
-			return nil, fmt.Errorf("database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		cfg.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			cfg.DatabaseUser, cfg.DatabasePass, cfg.DatabaseHost, cfg.DatabasePort, cfg.DatabaseName)
+	// Database configuration is owned by api-core/database. Keeping the
+	// precedence and SSL mode in one seam prevents variant and platform drift.
+	var err error
+	cfg.DatabaseURL, err = database.ResolvePostgresDSN(os.Getenv)
+	if err != nil {
+		return nil, fmt.Errorf("database configuration missing: %w", err)
 	}
 
 	return cfg, nil

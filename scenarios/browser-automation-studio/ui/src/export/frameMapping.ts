@@ -5,13 +5,7 @@
  * and resolving asset URLs.
  */
 
-import type {
-  ReplayMovieAsset,
-  ReplayMovieFrame,
-  ExportIntroCard,
-  ExportOutroCard,
-  ExportWatermark,
-} from "@/types/export";
+import type { ReplayAsset as ReplayMovieAsset, ReplayFrame as ReplayMovieFrame, ReplayIntroCard as ExportIntroCard, ReplayOutroCard as ExportOutroCard, ReplayWatermark as ExportWatermark } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import type { ReplayFrame } from "@/domains/exports/replay/ReplayPlayer";
 import type {
   IntroCardSettings,
@@ -113,7 +107,7 @@ export const mapWatermarkSettings = (
   return {
     ...DEFAULT_WATERMARK_SETTINGS,
     enabled: Boolean(watermark.enabled),
-    assetId: watermark.asset_id ?? DEFAULT_WATERMARK_SETTINGS.assetId,
+    assetId: watermark.assetId ?? DEFAULT_WATERMARK_SETTINGS.assetId,
     position,
     size: watermark.size ?? DEFAULT_WATERMARK_SETTINGS.size,
     opacity: watermark.opacity ?? DEFAULT_WATERMARK_SETTINGS.opacity,
@@ -135,13 +129,13 @@ export const mapIntroCardSettings = (
     enabled: Boolean(intro.enabled),
     title: intro.title ?? DEFAULT_INTRO_CARD_SETTINGS.title,
     subtitle: intro.subtitle ?? DEFAULT_INTRO_CARD_SETTINGS.subtitle,
-    logoAssetId: intro.logo_asset_id ?? DEFAULT_INTRO_CARD_SETTINGS.logoAssetId,
+    logoAssetId: intro.logoAssetId ?? DEFAULT_INTRO_CARD_SETTINGS.logoAssetId,
     backgroundAssetId:
-      intro.background_asset_id ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundAssetId,
+      intro.backgroundAssetId ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundAssetId,
     backgroundColor:
-      intro.background_color ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundColor,
-    textColor: intro.text_color ?? DEFAULT_INTRO_CARD_SETTINGS.textColor,
-    duration: intro.duration_ms ?? DEFAULT_INTRO_CARD_SETTINGS.duration,
+      intro.backgroundColor ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundColor,
+    textColor: intro.textColor ?? DEFAULT_INTRO_CARD_SETTINGS.textColor,
+    duration: intro.durationMs ?? DEFAULT_INTRO_CARD_SETTINGS.duration,
   };
 };
 
@@ -158,15 +152,15 @@ export const mapOutroCardSettings = (
     ...DEFAULT_OUTRO_CARD_SETTINGS,
     enabled: Boolean(outro.enabled),
     title: outro.title ?? DEFAULT_OUTRO_CARD_SETTINGS.title,
-    ctaText: outro.cta_text ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaText,
-    ctaUrl: outro.cta_url ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaUrl,
-    logoAssetId: outro.logo_asset_id ?? DEFAULT_OUTRO_CARD_SETTINGS.logoAssetId,
+    ctaText: outro.ctaText ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaText,
+    ctaUrl: outro.ctaUrl ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaUrl,
+    logoAssetId: outro.logoAssetId ?? DEFAULT_OUTRO_CARD_SETTINGS.logoAssetId,
     backgroundAssetId:
-      outro.background_asset_id ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundAssetId,
+      outro.backgroundAssetId ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundAssetId,
     backgroundColor:
-      outro.background_color ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundColor,
-    textColor: outro.text_color ?? DEFAULT_OUTRO_CARD_SETTINGS.textColor,
-    duration: outro.duration_ms ?? DEFAULT_OUTRO_CARD_SETTINGS.duration,
+      outro.backgroundColor ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundColor,
+    textColor: outro.textColor ?? DEFAULT_OUTRO_CARD_SETTINGS.textColor,
+    duration: outro.durationMs ?? DEFAULT_OUTRO_CARD_SETTINGS.duration,
   };
 };
 
@@ -179,38 +173,40 @@ export const toReplayFrame = (
   assetMap: Map<string, ReplayMovieAsset>,
 ): ReplayFrame => {
   const screenshotId =
-    typeof frame.screenshot_asset_id === "string"
-      ? frame.screenshot_asset_id
+    typeof frame.screenshotAssetId === "string"
+      ? frame.screenshotAssetId
       : undefined;
   const asset = screenshotId ? assetMap.get(screenshotId) : undefined;
   const screenshotUrl = resolveAssetUrl(asset);
-  const durationMs = toNumber(frame.duration_ms) ?? DEFAULT_FRAME_DURATION_MS;
-  const holdMs = toNumber(frame.hold_ms) ?? 0;
+  const durationMs = toNumber(frame.durationMs) ?? DEFAULT_FRAME_DURATION_MS;
+  const holdMs = toNumber(frame.holdMs) ?? 0;
   const totalDurationMs = durationMs + holdMs;
-  const boundingBox = toBoundingBox(frame.element_bounding_box);
-  const focusedElementBox = frame.focused_element?.bounding_box;
+  const boundingBox = toBoundingBox(frame.elementBoundingBox);
+  const focusedElementBox = frame.focusedElement?.boundingBox;
   const focusedBoundingBox = toBoundingBox(focusedElementBox);
-  const clickPosition = toPoint(frame.click_position);
+  const clickPosition = toPoint(frame.clickPosition);
   const cursorTrail = mapTrail(
-    frame.cursor_trail ?? frame.normalized_cursor_trail,
+    frame.cursorTrail ?? frame.normalizedCursorTrail,
   );
+  const viewportWidth = toNumber(frame.viewport?.width);
+  const viewportHeight = toNumber(frame.viewport?.height);
   const retry = frame.resilience;
 
   return {
     id: frame.index != null ? String(frame.index) : `frame-${index}`,
-    stepIndex: toNumber(frame.step_index) ?? index,
-    nodeId: typeof frame.node_id === "string" ? frame.node_id : undefined,
-    stepType: typeof frame.step_type === "string" ? frame.step_type : undefined,
+    stepIndex: toNumber(frame.stepIndex) ?? index,
+    nodeId: typeof frame.nodeId === "string" ? frame.nodeId : undefined,
+    stepType: typeof frame.stepType === "string" ? frame.stepType : undefined,
     status: typeof frame.status === "string" ? frame.status : undefined,
     success: (frame.status ?? "").toLowerCase() !== "failed",
     durationMs,
     totalDurationMs,
     progress: 0,
-    finalUrl: typeof frame.final_url === "string" ? frame.final_url : undefined,
+    finalUrl: typeof frame.finalUrl === "string" ? frame.finalUrl : undefined,
     error: typeof frame.error === "string" ? frame.error : undefined,
     extractedDataPreview: undefined,
-    consoleLogCount: toNumber(frame.console_log_count),
-    networkEventCount: toNumber(frame.network_event_count),
+    consoleLogCount: toNumber(frame.consoleLogCount),
+    networkEventCount: toNumber(frame.networkEventCount),
     screenshot: screenshotUrl
       ? {
           artifactId: screenshotId ?? `artifact-${index}`,
@@ -220,16 +216,19 @@ export const toReplayFrame = (
           height: toNumber(asset?.height),
           contentType:
             typeof asset?.type === "string" ? asset?.type : undefined,
-          sizeBytes: toNumber(asset?.size_bytes),
+          sizeBytes: toNumber(asset?.sizeBytes),
         }
       : undefined,
-    highlightRegions: mapRegions(frame.highlight_regions),
-    maskRegions: mapRegions(frame.mask_regions),
+    viewport: viewportWidth && viewportHeight
+      ? { width: viewportWidth, height: viewportHeight }
+      : undefined,
+    highlightRegions: mapRegions(frame.highlightRegions),
+    maskRegions: mapRegions(frame.maskRegions),
     focusedElement: focusedBoundingBox
       ? {
           selector:
-            typeof frame.focused_element?.selector === "string"
-              ? frame.focused_element.selector
+            typeof frame.focusedElement?.selector === "string"
+              ? frame.focusedElement.selector
               : undefined,
           boundingBox: focusedBoundingBox,
         }
@@ -237,13 +236,16 @@ export const toReplayFrame = (
     elementBoundingBox: boundingBox ?? null,
     clickPosition: clickPosition ?? null,
     cursorTrail,
-    zoomFactor: toNumber(frame.zoom_factor),
+    cursorProvenance: viewportWidth && viewportHeight && (clickPosition || cursorTrail.length > 0)
+      ? "observed"
+      : "missing",
+    zoomFactor: toNumber(frame.zoomFactor),
     assertion: mapAssertion(frame.assertion),
     retryAttempt: toNumber(retry?.attempt),
-    retryMaxAttempts: toNumber(retry?.max_attempts),
-    retryConfigured: toNumber(retry?.configured_retries),
-    retryDelayMs: toNumber(retry?.delay_ms),
-    retryBackoffFactor: toNumber(retry?.backoff_factor),
+    retryMaxAttempts: toNumber(retry?.maxAttempts),
+    retryConfigured: toNumber(retry?.configuredRetries),
+    retryDelayMs: toNumber(retry?.delayMs),
+    retryBackoffFactor: toNumber(retry?.backoffFactor),
     retryHistory: mapRetryHistory(retry?.history),
     domSnapshotPreview: undefined,
     domSnapshotHtml: undefined,

@@ -1,0 +1,180 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "content-desk.capabilities-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read the marketing capability catalog once and report readiness gaps, limitations and next actions; a requested capability that is absent is reported as absent, never as an empty board.",
+  "inputs": {
+    "medium": {
+      "type": "string",
+      "required": false,
+      "enum": [
+        "text",
+        "image",
+        "video",
+        "audio",
+        "distribution",
+        "measurement",
+        "governance"
+      ],
+      "description": "Optional medium filter applied to the whole-board read; omitted means every medium."
+    },
+    "capability": {
+      "type": "string",
+      "required": false,
+      "description": "Optional capability id or alias to resolve in addition to the board. An unresolved value is reported as focus_found=false."
+    }
+  },
+  "assumptions": [
+    "Content Desk CapabilitiesService is the team's single declared address for capability definition, readiness and priority state.",
+    "A readiness dimension is only as strong as its source; the caller reads readiness_limitations and never treats a limited dimension as verified.",
+    "A missing qualification is the explicit unknown sentinel, not a zero or a healthy state."
+  ],
+  "invariants": [
+    "No writes: every declared binding has effect read.",
+    "At most 80 capabilities are materialized; a larger catalog sets partial and says so.",
+    "A requested capability that does not exist is reported as focus_found=false with status ok, never as an empty board.",
+    "readiness_limitations and the unknown qualification sentinel are copied verbatim from the owner response; they are never recomputed.",
+    "The envelope is printed exactly once, on every path."
+  ],
+  "bindings": [
+    {
+      "id": "content-desk/capabilities/list",
+      "effect": "read"
+    },
+    {
+      "id": "content-desk/capabilities/get",
+      "effect": "read",
+      "optional": true,
+      "note": "Only called when the caller requests a focus; the whole-board read still succeeds without it."
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ],
+      "note": "refused is unreachable: both bindings are read-only and run-eligible, so governance never withholds them."
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "total": "Capabilities the board reported after the medium filter.",
+      "materialized": "Capabilities included in this envelope; capped at 80.",
+      "truncated": "True when the catalog exceeded the materialize cap.",
+      "by_medium": "Count of capabilities per medium.",
+      "readiness": "Counts per readiness dimension value for definition, implementation, operational, output and distribution.",
+      "unknown_qualification": "Capabilities whose latest qualification is absent (unknown sentinel).",
+      "ownerless": "Capabilities with no named owner.",
+      "with_limitations": "Capabilities carrying one or more readiness_limitations.",
+      "limitations": "Bounded deduplicated sample of readiness_limitations.",
+      "next_actions": "Bounded deduplicated sample of next_action strings.",
+      "focus_found": "True when the requested capability resolved; false when it did not; null when no focus was requested.",
+      "focus": "Resolved capability summary when a focus was requested, else null."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "no_governed_binding",
+        "remote_error",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "capability_absent",
+        "row_cap_reached"
+      ]
+    },
+    "evidence": "Capability ids and the binding id read for this run."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 80,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live-board",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "Partial only when the catalog exceeds the materialize cap.",
+      "requires": [
+        "content-desk"
+      ]
+    },
+    {
+      "id": "focused-alias",
+      "inputs": {
+        "capability": "written-marketing"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "focus_found": true
+        }
+      },
+      "note": "A canonical catalog alias resolves through GetCapability to a live capability.",
+      "requires": [
+        "content-desk"
+      ]
+    },
+    {
+      "id": "absent-capability",
+      "inputs": {
+        "capability": "does-not-exist-xyz"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "focus_found": false
+        }
+      },
+      "note": "An unresolved focus is a reported absence, never an empty board or a failed read.",
+      "requires": [
+        "content-desk"
+      ]
+    },
+    {
+      "id": "invalid-medium",
+      "inputs": {
+        "medium": "bogus"
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "note": "The closed medium set is rejected before source execution."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "content-desk"
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "dirty-state-guard",
+    "title": "DirtyStateGuard",
+    "purpose": "Protect meaningful unsaved work while keeping save, discard, and continue-editing recovery explicit.",
+    "storyRef": "../../../react-component-library/library/components/DirtyStateGuard/versions/1.0.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "An editable draft with no prompt until a leave request is made."
+    },
+    {
+      "id": "prompt-open",
+      "example": "prompt-open",
+      "description": "A blocking recovery prompt with save, discard, and continue editing actions."
+    }
+  ],
+  "elements": [
+    { "id": "leave-dialog", "role": "alertdialog", "name": "You have unsaved changes" },
+    { "id": "save-action", "role": "button", "name": "Save changes" },
+    { "id": "discard-action", "role": "button", "name": "Discard changes" },
+    { "id": "continue-action", "role": "button", "name": "Keep editing" }
+  ],
+  "claims": [
+    {
+      "id": "prompt-recovery-actions",
+      "type": "affordance-present",
+      "statement": "The unsaved-work prompt exposes save, discard, and continue-editing actions.",
+      "tier": "machine",
+      "elements": ["leave-dialog"],
+      "states": ["prompt-open"],
+      "params": { "affordances": ["save changes", "discard changes", "keep editing"] }
+    },
+    {
+      "id": "prompt-actions-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Every unsaved-work recovery action is keyboard reachable.",
+      "tier": "machine",
+      "elements": ["save-action", "discard-action", "continue-action"],
+      "states": ["prompt-open"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "leave-dialog": { "selector": "[data-rcl-dirty-guard-dialog]" },
+      "save-action": { "selector": "[data-rcl-dirty-guard-save]" },
+      "discard-action": { "selector": "[data-rcl-dirty-guard-discard]" },
+      "continue-action": { "selector": "[data-rcl-dirty-guard-continue]" }
+    }
+  }
+}

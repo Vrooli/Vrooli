@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-delayed-pending",
+    "name": "useDelayedPending",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A loading-state primitive that suppresses indicators for operations fast enough not to need them, avoiding transient spinner flashes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  }
+}

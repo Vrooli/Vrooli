@@ -1,0 +1,19 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "ssh-core",
+    "display_name": "github.com/vrooli/ssh-core",
+    "description": "Shared SSH host-key and transport primitives.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/ssh-core"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false}
+  }
+}

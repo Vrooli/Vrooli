@@ -7,14 +7,19 @@ This document identifies the **primary axes of change** for the workspace-sandbo
 ### 1. Driver Implementation Variants
 
 **Likelihood of Change**: High
-**Current Status**: Well-localized via `Driver` interface
+**Current Status**: Well-localized via `Driver` interface. Cross-platform
+support is **shipped at the compile + unit level** for darwin and windows
+(CGO-free builds gated by `make cross-compile` and `TestCrossCompile`; copy
+driver proven end-to-end on Linux, macOS Seatbelt containment + rlimit shim
+unit-verified). The remaining gap is a real-Mac field shakeout — see
+`docs/internal/PORTABILITY_AUDIT.md` and `docs/guides/macos-shakeout.md`.
 
-| Variation | Description |
-|-----------|-------------|
-| overlayfs (kernel) | Primary Linux driver, requires privileges |
-| fuse-overlayfs | Unprivileged operation, slower |
-| bind-mount fallback | Simple copy-based fallback for limited systems |
-| Cross-platform | macOS/Windows drivers (future) |
+| Variation | Description | Status |
+|-----------|-------------|--------|
+| overlayfs (kernel, userns/root) | Primary Linux driver | Shipped |
+| fuse-overlayfs | Unprivileged operation, slower | Shipped |
+| copy (file-copy fallback) | Cross-platform; the driver every non-Linux host lands on | Shipped |
+| Cross-platform containment | macOS Seatbelt backend; windows single-process fallback | Compile + unit level; real-Mac shakeout deferred |
 
 **Extension Point**: `api/internal/driver/driver.go` - `Driver` interface
 

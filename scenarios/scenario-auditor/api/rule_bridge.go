@@ -7,11 +7,13 @@ import (
 )
 
 // Compatibility aliases for legacy code paths.
-type RuleInfo = re.Info
-type RuleImplementationStatus = re.ImplementationStatus
-type RuleExecutionInfo = re.ExecutionInfo
-type RuleArgumentInfo = re.ArgumentInfo
-type RuleExecutionCall = re.ExecutionCall
+type (
+	RuleInfo                 = re.Info
+	RuleImplementationStatus = re.ImplementationStatus
+	RuleExecutionInfo        = re.ExecutionInfo
+	RuleArgumentInfo         = re.ArgumentInfo
+	RuleExecutionCall        = re.ExecutionCall
+)
 
 func LoadRulesFromFiles() (map[string]RuleInfo, error) {
 	svc, err := ruleService()

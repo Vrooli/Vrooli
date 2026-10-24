@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.container",
+  "deprecatedVersions": [
+    "1.1.2",
+    "1.1.0"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.1.2",
+    "1.1.3"
+  ],
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:Container"
+}

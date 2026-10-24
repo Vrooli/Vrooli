@@ -5,11 +5,23 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { FilePreview } from "./file-preview";
 import { FileServiceProvider } from "../../contexts/FileServiceContext";
 import type { IFileService } from "../../services/file-service-types";
+import { selectors } from "../../consts/selectors";
+import { createTestQueryClient, renderWithProviders } from "../../test-utils";
+
+vi.mock("../../lib", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib")>();
+  return {
+    ...actual,
+    defaultQueryOptions: {
+      ...actual.defaultQueryOptions,
+      retry: false,
+    },
+  };
+});
 
 function createMockFileService(overrides?: Partial<IFileService>): IFileService {
   return {
@@ -29,24 +41,12 @@ function createMockFileService(overrides?: Partial<IFileService>): IFileService 
   };
 }
 
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-const renderWithProviders = (ui: React.ReactElement, fileService?: IFileService) => {
+const renderFilePreview = (ui: React.ReactElement, fileService?: IFileService) => {
   const queryClient = createTestQueryClient();
   const svc = fileService ?? createMockFileService();
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <FileServiceProvider value={svc}>
-        {ui}
-      </FileServiceProvider>
-    </QueryClientProvider>
+  return renderWithProviders(
+    <FileServiceProvider value={svc}>{ui}</FileServiceProvider>,
+    { queryClient },
   );
 };
 
@@ -60,7 +60,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Test Content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="docs/readme.md"
         fileName="readme.md"
@@ -76,7 +76,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockReturnValue(new Promise(() => {})),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="test.txt"
         fileName="test.txt"
@@ -92,7 +92,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Hello World\n\nThis is a test."),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="README.md"
         fileName="README.md"
@@ -107,7 +107,8 @@ describe("FilePreview", () => {
     fireEvent.click(screen.getByLabelText("Show rendered markdown"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Hello World" })).toBeInTheDocument();
+      expect(screen.queryByTestId("file-preview-editor")).not.toBeInTheDocument();
     });
   });
 
@@ -116,7 +117,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Hello World\n\nThis is a test."),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="README.md"
         fileName="README.md"
@@ -132,7 +133,8 @@ describe("FilePreview", () => {
     fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Hello World" })).toBeInTheDocument();
+      expect(screen.queryByTestId("file-preview-editor")).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByLabelText("Show raw markdown"));
@@ -147,7 +149,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("function test() {\n  return true;\n}"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="src/test.ts"
         fileName="test.ts"
@@ -165,7 +167,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("Plain text content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="notes.txt"
         fileName="notes.txt"
@@ -190,7 +192,7 @@ describe("FilePreview", () => {
       }),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="notes.txt"
         fileName="notes.txt"
@@ -222,7 +224,7 @@ describe("FilePreview", () => {
   it("renders image preview for image files", () => {
     const svc = createMockFileService();
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="images/logo.png"
         fileName="logo.png"
@@ -235,12 +237,12 @@ describe("FilePreview", () => {
     expect(image).toHaveAttribute("src", "/api/v1/backlog/idea/test-idea/files/images/logo.png");
   });
 
-  it.skip("shows error state when file fetch fails", async () => {
+  it("shows error state when file fetch fails", async () => {
     const svc = createMockFileService({
       getFileContent: vi.fn().mockRejectedValue(new Error("File not found")),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="missing.txt"
         fileName="missing.txt"
@@ -250,10 +252,71 @@ describe("FilePreview", () => {
 
     await waitFor(
       () => {
-        expect(screen.getByTestId("error-state")).toBeInTheDocument();
+        expect(screen.getByTestId(selectors.error.container)).toBeInTheDocument();
       },
       { timeout: 3000 }
     );
+    expect(screen.getByTestId(selectors.error.title)).toHaveTextContent("Unable to load file");
+  });
+
+  it("renders read-only file content instead of a blank pane", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue('{"title":"Protected spec"}'),
+    });
+
+    renderFilePreview(
+      <FilePreview filePath="spec.json" fileName="spec.json" readOnly />,
+      svc,
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    expect(editor).toHaveValue('{"title":"Protected spec"}');
+    expect(editor).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("renders read-only markdown in its raw default view", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("# Protected"),
+    });
+
+    renderFilePreview(
+      <FilePreview filePath="NOTES.md" fileName="NOTES.md" readOnly />,
+      svc,
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    expect(editor).toHaveValue("# Protected");
+    expect(editor).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("hides save and discard controls for read-only files", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("content"),
+    });
+
+    renderFilePreview(
+      <FilePreview filePath="spec.json" fileName="spec.json" readOnly />,
+      svc,
+    );
+
+    await screen.findByTestId("file-preview-editor");
+    expect(screen.queryByTestId("file-preview-save")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("file-preview-discard")).not.toBeInTheDocument();
+  });
+
+  it("keeps editable files writable", async () => {
+    const svc = createMockFileService({
+      getFileContent: vi.fn().mockResolvedValue("content"),
+    });
+
+    renderFilePreview(
+      <FilePreview filePath="notes.txt" fileName="notes.txt" />,
+      svc,
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    expect(editor).toHaveAttribute("data-read-only", "false");
+    expect(screen.getByTestId("file-preview-save")).toBeInTheDocument();
   });
 
   it("displays file path in header", async () => {
@@ -261,7 +324,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="src/components/Button.tsx"
         fileName="Button.tsx"

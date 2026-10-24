@@ -1,25 +1,19 @@
 # Progress Log
 
+Historical execution details are preserved beneath the protected runtime home:
+`plan-artifacts/docs-html-progress-20260908/scenarios/vrooli-autoheal/docs/internal/PROGRESS.md`.
+The archive retains exact entries, validation receipts, and unresolved qualifications;
+relocation does not resolve a finding or establish current readiness.
+The table retains selected dated milestones. Other milestones and their limitations
+remain in the archive; consult it before resuming historical work.
+
 | Date | Author | Status Snapshot | Notes |
 |------|--------|-----------------|-------|
-| 2025-12-03 | Generator Agent | Initialization complete | Scenario scaffold + PRD seeded |
-| 2025-12-03 | Generator Agent | Requirements seeded | 11 requirement modules with 60+ requirements mapped to PRD targets |
-| 2025-12-03 | Generator Agent | Documentation complete | README, RESEARCH, PROBLEMS created |
-| 2025-12-03 | Improver Agent | Scenario runnable | Fixed go.mod, built API & UI, scenario starts successfully with health endpoints responding |
-| 2025-12-03 | Improver Agent | Core implementation | Platform detection, health registry, tick/loop/status CLI, React dashboard |
-| 2025-12-03 | Improver Agent | DB + Test Infra | Fixed database schema (health_results, autoheal_actions, autoheal_config tables), installed jsdom/vitest-reporter, created selectors.manifest.json |
-| 2025-12-03 | Improver Agent | Test Suite | Added 48 Go unit tests (platform detection, health registry, checks), 36 API integration tests, 10 UI tests |
-| 2025-12-03 | Improver Agent | Experience Architecture | Events timeline, per-check history, uptime stats - answers "did anything fail overnight?" |
-| 2025-12-03 | Improver Agent | UX Audit | Experience Architecture Audit: Added check history API endpoint, enriched check cards with descriptions/intervals/relative timestamps, improved expand/collapse UX |
-| 2025-12-03 | Improver Agent | Decision Boundary Extraction | Extracted CLI status classifier, RDP/Cloudflared decision functions, UI status helpers; Added 18 new tests |
-| 2025-12-03 | Improver Agent | Architecture Audit | Screaming Architecture refactor - split monolithic main.go (354→155 lines), organized checks by domain (infra/, vrooli/), added config/handlers/persistence packages |
-| 2025-12-03 | Improver Agent | Failure Topography | Mapped failure modes, fixed swallowed errors, added structured error responses with codes, retry UX in UI |
-| 2025-12-03 | Improver Agent | Test Infrastructure | Fixed UI test REQ tags (moved from comments to test names), split monolithic BATS into focused files, updated requirement modules |
-| 2025-12-03 | Improver Agent | Documentation Tab | Added Docs tab with in-app documentation browser, markdown + mermaid rendering, searchable sidebar navigation |
 | 2025-12-03 | Improver Agent | Check-Level Docs | Added individual documentation for each health check with "Learn more" button on check cards for direct navigation |
 | 2025-12-04 | Claude | Auto-Heal Verification | Added post-action verification to all recovery actions - restarts now confirm success by re-running checks |
 | 2026-02-18 | Codex | Seam Enforcement (Watchdog Installer) | Routed watchdog install/uninstall side effects through `detectorProbe` (commands, privileged writes, fs mutations, temp-file writes) and added seam-focused unit tests |
 | 2026-02-18 | Codex | Seam Enforcement (User Config I/O) | Added `configIO` seam for `userconfig.Manager` file/home-dir interactions (load/save/schema/default-path), plus seam-focused tests for missing-config behavior, temp-file cleanup on atomic-save failure, and default-path fallback when home resolution fails |
+| 2026-08-25 | Codex | Host capability coupling and notification reach | Added invariant-backed host verdicts, transition-only incident facts, live notification approval verification, one-time remediation authorization records, evidence-backed incident disposition, and remediation/delivery reach sensors. |
 
 ## Completed Features
 
@@ -76,7 +70,8 @@
 
 ### Database Schema (PERSIST-*)
 - `health_results` table for check history
-- `autoheal_actions` table for auto-heal log
+- `action_logs` is the sole action ledger; the never-written
+  `autoheal_actions` duplicate was retired in 2026-08
 - `autoheal_config` table for settings
 - Cleanup function for 24-hour retention
 
@@ -196,8 +191,8 @@ Key decision points are extracted into named, testable functions:
 - `CLIStatusToCheckStatus(cliStatus, isCritical)` → Maps CLI status to health check status
 - Stopped indicators checked first (handles "not running" containing "running")
 
-### RDP Service Selection (`infra/rdp.go`)
-- `SelectRDPService(caps)` → Decides which RDP service to check based on platform
+### RDP Service Detection (`infra/rdp_service.go`)
+- `detectRDPService(ctx)` → Detects the configured RDP provider using the shared executor seam
 - Linux with systemd → xrdp service
 - Windows → TermService
 - Other → not checkable
@@ -263,18 +258,17 @@ All errors are logged with structured format:
 ### Test Suite Summary
 - **Go Unit Tests**: 111 tests (69.6% coverage)
 - **UI Tests**: 38 tests (vitest with jest-dom)
-- **CLI Tests**: 17 BATS tests across 4 files
-- **Total**: 166 tests
+- **CLI Tests**: Go tests under `cli/` (app + loop), `[REQ:xxx]` tagged
+- **Total**: 149 tests
 
 ### Test Files by Type
 - `api/**/*_test.go` - Go unit tests for platform, registry, checks
+- `cli/**/*_test.go` - Go tests for CLI commands and loop
 - `ui/src/**/*.test.{ts,tsx}` - React component tests
-- `cli/*.bats` - CLI integration tests with REQ tags
 
 ### Coverage Tracking
 - UI tests use `[REQ:xxx]` tags in test descriptions for auto-sync
-- CLI tests use `[REQ:xxx]` in test names for tracking
-- Go tests have REQ comments (manual sync needed)
+- Go tests use `[REQ:xxx]` tags in test names/comments for tracking
 
 ### Completeness Score: 17/100
 - 12/74 requirements passing (16%)

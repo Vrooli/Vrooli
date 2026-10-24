@@ -134,6 +134,8 @@ export const GenerateKeyResponseSchema = z.object({
   public_key: z.string().optional(),
   config_path: z.string().optional(),
   public_key_path: z.string().optional(),
+  logical_id: z.string().optional(),
+  message: z.string().optional(),
 });
 
 // ==================== Inline response types ====================

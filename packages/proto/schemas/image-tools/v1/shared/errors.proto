@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/shared;shared_v1";
+
+// =============================================================================
+// SHARED DOMAIN — canonical REST-exception non-2xx body
+// =============================================================================
+//
+// @stability stable
+//
+// Connect-RPC methods use Connect's canonical error envelope and code set.
+// Deliberate REST exceptions (multipart uploads, operational/probe endpoints,
+// the async submit + analyze edges) return this shape for non-2xx responses.
+// Because the envelope is shared across every REST-exception domain (ai,
+// analysis, ops), it lives in the handler-less `shared` package rather than a
+// per-domain proto — see proto-health's shared_type_misplaced rule.
+//
+// The thin writer at api/internal/httpx/errors.go::WriteError marshals it with
+// protojson; UI and CLI REST clients decode via fromJson / protojson.Unmarshal
+// and surface the typed `code` + `message` to callers.
+//
+// Codes are short snake_case strings categorising the failure ("invalid_request",
+// "not_found", "internal"). Add new codes by extending the canonical list in
+// api/internal/httpx/errors.go — keep wire-side and writer-side in sync.
+//
+// `details` is reserved for structured field-violation reporting once a
+// validation framework lands; ship empty for now.
+// =============================================================================
+
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}

@@ -1,9 +1,29 @@
+---
+name: "skill-authoring-search"
+description: "Authoring guide for Search skills focused on discovery, evidence, and output contracts."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","search"]
+  tags: ["skill","authoring"]
+  icon: "search"
+  status: "active"
+  revision: 43
+  createdAt: "2026-01-28T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Search Skill Authoring
 
-Guide for creating **Search** skills (where `modes[0] = "Search"`). Search skills focus on discovery, mapping, and evidence gathering, not implementation.
+Guide for creating **search** skills (the authored skill declares `modes[0] = "search"`). Search skills focus on discovery, mapping, and evidence gathering, not implementation.
 
 Required reading:
-- `prompt-manager skills read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 
@@ -97,21 +117,15 @@ If output is not JSON, specify the exact headings and required fields.
 
 ---
 
-### **7. Registration Notes**
-
-Follow **Skill Principles** and ensure:
-- `modes[0]` is **Search**
-- The description reflects the search intent and output contract
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 - Search skills to improve clarity, accuracy, or output contracts
-- `metadata.json` entries for Search skills
+- `skill.json` entries for Search skills
 
 You must:
 - Keep search skills evidence-driven and non-speculative
 - Define a clear output contract and stop conditions
 - Avoid prescribing implementation or code changes
+
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "search"` and a description that reflects the search intent and output contract.

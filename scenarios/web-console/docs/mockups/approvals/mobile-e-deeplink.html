@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Mobile deep-link landed on detail + expired/denied styling</title>
+<style>
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59; --wc-card:23 32 51;
+  --wc-text-primary:248 250 252; --wc-text-secondary:226 232 240; --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-accent:34 211 238; --wc-accent-fg:15 23 42; --wc-accent-border:6 182 212;
+  --wc-success:74 222 128; --wc-warning:245 178 63; --wc-error-detail:248 113 113; --wc-error-border:239 68 68; --wc-error-text:252 165 165; --wc-error-surface:69 10 10;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,Menlo,Monaco,Consolas,monospace;
+  --r-ctrl:.375rem;--r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:#0a0f1e;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;color:rgb(var(--wc-text-faint))}
+.caption{font-size:12px;text-align:center;max-width:400px}
+.phone{width:390px;height:810px;background:rgb(var(--wc-surface-base));border-radius:34px;border:1px solid rgb(var(--wc-border-default)/.12);overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.6);display:flex;flex-direction:column}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:26px;background:#000;border-radius:0 0 16px 16px;z-index:40}
+/* deep-link context strip */
+.dl{padding:32px 14px 8px;background:rgb(var(--wc-accent)/.08);border-bottom:1px solid rgb(var(--wc-accent)/.2);display:flex;align-items:center;gap:9px;font-size:12px;color:rgb(var(--wc-accent))}
+.dl .back{font-size:17px}.dl .all{margin-left:auto;color:rgb(var(--wc-text-muted));text-decoration:none;font-size:12px}
+.dhead{padding:14px 16px;background:rgb(var(--wc-surface-raised));border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.dh-top{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.src{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:var(--r-pill);background:rgb(var(--wc-accent)/.14);color:rgb(var(--wc-accent))}
+.src .dot{width:7px;height:7px;border-radius:50%;background:rgb(var(--wc-accent))}
+.countdown{margin-left:auto;font-size:11px;font-weight:600;color:rgb(var(--wc-error-text));background:rgb(var(--wc-error-surface)/.5);padding:3px 9px;border-radius:var(--r-pill);border:1px solid rgb(var(--wc-error-border)/.3)}
+.dsubject{font-size:19px;font-weight:600;color:rgb(var(--wc-text-primary));line-height:26px}
+.badges{display:flex;gap:7px;margin-top:9px}
+.pill{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:var(--r-pill)}
+.pill-irr{color:rgb(var(--wc-error-text));background:rgb(var(--wc-error-surface)/.5);border:1px solid rgb(var(--wc-error-border)/.3)}
+.scroll{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px}
+.question{font-size:15px;line-height:23px;color:rgb(var(--wc-text-secondary))}
+.sect{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgb(var(--wc-text-faint));margin-bottom:9px}
+.ctx{background:rgb(var(--wc-card));border:1px solid rgb(var(--wc-border-default)/.1);border-left:3px solid rgb(var(--wc-accent));border-radius:12px;padding:14px}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:13px}
+.kv dt{color:rgb(var(--wc-text-faint))}.kv dd{color:rgb(var(--wc-text-secondary))}
+.scopetag{font-size:11.5px;padding:2px 9px;border-radius:var(--r-pill);background:rgb(var(--wc-accent)/.12);color:rgb(var(--wc-accent));font-family:var(--mono)}
+/* EXPIRED/DENIED resolved banner, error tone */
+.resolved{margin:0;border-radius:12px;background:rgb(var(--wc-error-surface)/.5);border:1px solid rgb(var(--wc-error-border)/.3);padding:14px;display:flex;gap:11px;align-items:flex-start}
+.resolved .ic{color:rgb(var(--wc-error-detail));font-size:18px}
+.resolved .t1{font-size:14px;font-weight:600;color:rgb(var(--wc-error-text))}
+.resolved .t2{font-size:12.5px;color:rgb(var(--wc-text-muted));margin-top:2px;line-height:18px}
+/* disabled answer dock */
+.dock{padding:14px 16px 24px;background:rgb(var(--wc-surface-raised));border-top:1px solid rgb(var(--wc-border-default)/.1)}
+.btn{width:100%;border-radius:14px;font-size:15px;font-weight:600;padding:15px;min-height:52px;border:1px solid rgb(var(--wc-border-default)/.1);background:rgb(var(--wc-surface-input));color:rgb(var(--wc-text-faint));display:flex;align-items:center;justify-content:center;gap:8px;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="caption">Mobile · opened directly from a push/chat deep link onto one decision (no router — intent parsed at boot). This one EXPIRED before it was answered, so it shows the resolved/denied (--wc-error-*) state and a disabled dock. A "View all approvals" link returns to the list.</div>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="dl"><span class="back">‹</span><span>Opened from a notification link</span><a class="all" href="#">View all ›</a></div>
+  <div class="dhead">
+    <div class="dh-top"><span class="src"><span class="dot"></span>agent-manager · authorization</span><span class="countdown">Expired 6m ago</span></div>
+    <div class="dsubject">Grant deploy scope to agent "codec-pipe-worker"?</div>
+    <div class="badges"><span class="pill pill-irr">Not reversible</span></div>
+  </div>
+  <div class="scroll">
+    <div class="resolved"><span class="ic">⊘</span><div><div class="t1">This decision expired before it was answered</div><div class="t2">No action was taken — the scope was NOT granted. The agent was notified and may re-request if still needed.</div></div></div>
+    <div class="question">Agent "codec-pipe-worker" requested <b>deployment.write</b> for 2h to publish a canary.</div>
+    <div>
+      <div class="sect">Authorization context</div>
+      <div class="ctx">
+        <dl class="kv">
+          <dt>Agent</dt><dd>codec-pipe-worker (run r-91b4)</dd>
+          <dt>Scope</dt><dd><span class="scopetag">deployment.write · 2h</span></dd>
+          <dt>Target</dt><dd>codec-pipe / canary</dd>
+          <dt>Raised</dt><dd>14m ago · deadline 8m ago</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="dock"><button class="btn" disabled>No longer actionable — expired</button></div>
+</div>
+</body>
+</html>

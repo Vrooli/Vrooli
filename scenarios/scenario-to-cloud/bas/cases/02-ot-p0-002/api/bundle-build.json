@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "name": "Bundle inventory surface",
+    "description": "Observer check of the bundle inventory and stats endpoints that a deterministic bundle build populates; the build itself is exercised by api/bundle package tests, not by this read-only case.",
+    "tags": [
+      "e2e",
+      "api",
+      "bundle"
+    ],
+    "requirements": [
+      "STC-P0-002",
+      "STC-P0-008"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-002\", \"STC-P0-008\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"list-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/bundles","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/bundles"}}},
+      {"id":"stats-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/bundles/stats","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/bundles/stats"}}}
+    ],
+    "edges":[{"source":"list-open","target":"stats-open"}]
+  }
+}

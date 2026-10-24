@@ -114,11 +114,11 @@ var File_swarm_manager_v1_api_agent_activity_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_agent_activity_proto_rawDesc = "" +
 	"\n" +
-	")swarm-manager/v1/api/agent_activity.proto\x12\x10swarm_manager.v1\x1a,swarm-manager/v1/domain/agent_activity.proto\"T\n" +
-	"\x1bListAgentActivitiesResponse\x125\n" +
-	"\x05items\x18\x01 \x03(\v2\x1f.swarm_manager.v1.AgentActivityR\x05items\"T\n" +
-	"\x15AgentActivityResponse\x12;\n" +
-	"\bactivity\x18\x01 \x01(\v2\x1f.swarm_manager.v1.AgentActivityR\bactivityBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	")swarm-manager/v1/api/agent_activity.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a,swarm-manager/v1/domain/agent_activity.proto\"b\n" +
+	"\x1bListAgentActivitiesResponse\x12C\n" +
+	"\x05items\x18\x01 \x03(\v2-.vrooli.swarm_manager.v1.domain.AgentActivityR\x05items\"b\n" +
+	"\x15AgentActivityResponse\x12I\n" +
+	"\bactivity\x18\x01 \x01(\v2-.vrooli.swarm_manager.v1.domain.AgentActivityR\bactivityBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_agent_activity_proto_rawDescOnce sync.Once
@@ -134,13 +134,13 @@ func file_swarm_manager_v1_api_agent_activity_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_agent_activity_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_swarm_manager_v1_api_agent_activity_proto_goTypes = []any{
-	(*ListAgentActivitiesResponse)(nil), // 0: swarm_manager.v1.ListAgentActivitiesResponse
-	(*AgentActivityResponse)(nil),       // 1: swarm_manager.v1.AgentActivityResponse
-	(*domain.AgentActivity)(nil),        // 2: swarm_manager.v1.AgentActivity
+	(*ListAgentActivitiesResponse)(nil), // 0: vrooli.swarm_manager.v1.api.ListAgentActivitiesResponse
+	(*AgentActivityResponse)(nil),       // 1: vrooli.swarm_manager.v1.api.AgentActivityResponse
+	(*domain.AgentActivity)(nil),        // 2: vrooli.swarm_manager.v1.domain.AgentActivity
 }
 var file_swarm_manager_v1_api_agent_activity_proto_depIdxs = []int32{
-	2, // 0: swarm_manager.v1.ListAgentActivitiesResponse.items:type_name -> swarm_manager.v1.AgentActivity
-	2, // 1: swarm_manager.v1.AgentActivityResponse.activity:type_name -> swarm_manager.v1.AgentActivity
+	2, // 0: vrooli.swarm_manager.v1.api.ListAgentActivitiesResponse.items:type_name -> vrooli.swarm_manager.v1.domain.AgentActivity
+	2, // 1: vrooli.swarm_manager.v1.api.AgentActivityResponse.activity:type_name -> vrooli.swarm_manager.v1.domain.AgentActivity
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `resource list` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape of `vrooli resource list --json`. This is a
+// platform-level (non-scenario) contract: the root vrooli CLI marshals it with
+// protojson (UseProtoNames=true, EmitUnpopulated=true), and every consumer —
+// the swarm-manager API (Go), the operator UI (TypeScript), and any future
+// language — decodes the generated type instead of re-deriving the shape. A
+// field change here is a compile/build error on every consumer at once, instead
+// of a silently empty result.
+//
+// Bump @stability to `stable` once both consumers are migrated and the output
+// golden is locked.
+// =============================================================================
+
+// ResourceListResponse is the top-level envelope of `vrooli resource list --json`.
+message ResourceListResponse {
+  // True when discovery completed; mirrors the standard CLI success envelope.
+  bool success = 1;
+
+  // All discovered resources, ordered by name.
+  repeated Resource resources = 2;
+
+  // Resources skipped due to discovery errors; empty on a clean sweep.
+  repeated DiscoveryFailure discovery_failures = 3;
+}
+
+// Resource is one entry from the resource catalog. Field numbers follow the
+// natural order of the legacy JSON output so the migration is a byte-for-byte
+// superset (additive only — no field is removed, renamed, or revalued).
+message Resource {
+  // Resource slug (e.g. "redis", "ollama").
+  string name = 1;
+
+  // Absolute path to the resource directory on disk.
+  string path = 2;
+
+  // True when the resource directory exists on disk.
+  bool exists = 3;
+
+  // True when the resource is registered in the service manifest.
+  bool registered = 4;
+
+  // True when the resource is enabled for installation.
+  bool enabled = 5;
+
+  // True when the resource is required (not optional).
+  bool required = 6;
+
+  reserved 7;
+  reserved "has_cli";
+
+  // True when the resource declares a CLI in its manifest.
+  bool declares_cli = 14;
+
+  // True when the declared resource CLI resolves on the host PATH.
+  bool cli_installed = 15;
+
+  // Why the CLI is not installed; empty when installed.
+  string cli_state_reason = 16;
+
+  // Manifest config block for the resource; always present.
+  ResourceConfig config = 8;
+
+  // Lifecycle control mode (e.g. "manifest-native", "external"); empty if unset.
+  string control_mode = 9;
+
+  // Backing driver identifier (e.g. "compose-service"); empty if unset.
+  string driver = 10;
+
+  // Scaffold template the resource was generated from; empty if unset.
+  string template = 11;
+
+  // Portability tier label (e.g. "partial", "full"); empty if unset.
+  string portability_tier = 12;
+
+  // Path to the resource's manifest file; empty if none.
+  string manifest_path = 13;
+
+  // Scenario declarations that name this resource while it is explicitly
+  // disabled by the project or operator state.
+  repeated DisabledDependencyConsumer disabled_dependency_consumers = 17;
+}
+
+message DisabledDependencyConsumer {
+  string scenario = 1;
+  string startup_policy = 2;
+}
+
+// DiscoveryFailure is defined in cli/v1/common.proto (shared with scenario_list).
+
+// ResourceConfig mirrors the resource's manifest config block.
+message ResourceConfig {
+  // True when the resource is enabled in its manifest.
+  bool enabled = 1;
+
+  // True when the resource is marked required in its manifest.
+  bool required = 2;
+
+  // Human-readable description from the manifest; empty if unset.
+  string description = 3;
+}

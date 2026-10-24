@@ -31,11 +31,16 @@
 | broker.cleanup() | Yes — second call is no-op | Subscriber map key | `TestCleanupIdempotent` |
 | context.CancelFunc | Yes — Go guarantees idempotent cancel | Context tree | `TestContextCancellationStopsDelivery` |
 | Meta reconciliation | Yes — recalculates from actual data | SUM(LENGTH(payload)) | `TestReconcileMeta`, `TestMetaConsistencyThroughPruneCycle` |
+| Webhook admission | Yes — one durable delivery row per subscription/event pair | `(subscription_id, event_id)` unique key | `TestIngest_FansOutDurablyWithSignatureAndHealth` |
+| Dead-letter retry | Yes for a request replay — only a fully exhausted dead-letter row with the expected cumulative failed-attempt count can start one new bounded cycle | `(subscription_id, event_id, expected_attempts)` | `TestSQLiteStore_RetryDeadLetterUsesExpectedGenerationAndNewBoundedCycle` |
+| Direct webhook delivery | No queue reconciliation — repeats send the supplied payload and leave durable delivery/health rows unchanged | None | `TestDeliverSubscription...` |
 
 ### Safe vs Unsafe Retry Patterns
 
-- **Safe to retry**: Query, GetSince, Stats, Health, Subscribe (creates new subscription), Prune
+- **Safe to retry**: Query, GetSince, Stats, Health, Prune, and an exact dead-letter retry with the same expected attempt count. The first exact retry changes `dead_letter` to `pending`; repeated requests conflict and do not start a second cycle.
 - **Unsafe to retry without dedup**: Insert (duplicate event_id causes error, which is the correct behavior — callers should handle UNIQUE constraint errors as "already ingested")
+- **One-shot, not queue retry**: `POST /subscriptions/:id/deliver` sends caller-supplied payload directly. It does not update a queued row or health counters and must not be used to claim a dead-letter was recovered.
+- **Bounded delivery retry**: The dispatcher allows five failures per cycle using cumulative failed attempts modulo `DeliveryAttemptsPerCycle`. An explicit retry is accepted only for an exhausted cycle, so retry starts at a multiple of five without another stored boundary. Early terminal failures such as invalid queued payloads remain non-retryable because the endpoint cannot replace their immutable payload. `attempts` and `subscription_health.total_failed` remain cumulative; backoff resets for the newly opened cycle. A successful queued delivery increments `total_delivered` but does not increment the existing failed-attempt counter, retains historical failures, resets consecutive failures, and returns health to `active`.
 - **Fire-and-forget (no retry)**: Broadcast to SSE subscribers from `handleIngest` goroutine. Failed broadcasts are not retried; subscribers catch up via Last-Event-ID on reconnect.
 
 ### Idempotency Keys

@@ -1,0 +1,86 @@
+{
+  "service": {
+    "name": "ledger-service",
+    "version": "2.3.1"
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
+  "dependencies": {
+    "resources": {
+      "ledger-store": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start"
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "fixture/ledger",
+        "field": "api-token",
+        "env": "LEDGER_API_TOKEN",
+        "required": true,
+        "label": "Ledger API token"
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {},
+      "run": {
+        "argv": [
+          "api"
+        ],
+        "port": "api",
+        "readiness": {
+          "type": "http",
+          "path": "/health"
+        }
+      }
+    }
+  },
+  "tier_feasibility": {
+    "tiers": {
+      "tier-1-local": {
+        "requirements": {
+          "ram_mb": 256,
+          "disk_mb": 256,
+          "cpu_cores": 0.25
+        }
+      }
+    }
+  },
+  "deployment": {
+    "supported_targets": [
+      {
+        "os": "linux",
+        "distribution": "ubuntu",
+        "version": "24.04",
+        "architectures": [
+          "amd64",
+          "arm64"
+        ]
+      }
+    ],
+    "listeners": [
+      {
+        "id": "ledger-api",
+        "port": "api",
+        "visibility": "private"
+      }
+    ],
+    "recovery": {
+      "code_rollback": "any_predecessor",
+      "schema_strategy": "none"
+    }
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "project-settings",
+    "title": "Project privacy and limits",
+    "routes": [
+      "/projects/:projectId/settings"
+    ],
+    "purpose": "Control project-local data egress, aggregate budgets, worker and output defaults before any costly or external task begins.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "See where project media can go."
+    },
+    {
+      "statement": "Set enforceable aggregate limits and understand unknown costs."
+    },
+    {
+      "statement": "Choose supported defaults without triggering work."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "consent-required",
+      "description": "Explain exact media/destination and wait for affirmative decision."
+    },
+    {
+      "id": "budget-blocked",
+      "description": "A policy requiring hard monetary enforcement cannot run on an unsupported unknown-price route."
+    },
+    {
+      "id": "unsaved",
+      "description": "Show changed policy separately from last durably saved policy."
+    },
+    {
+      "id": "external-in-flight",
+      "description": "Identify requests already transmitted and the limits of cancellation/revocation."
+    }
+  ],
+  "claims": [
+    {
+      "id": "project-settings-intent-1",
+      "type": "custom",
+      "statement": "External-media use starts disabled per project and includes remote vision, derived screenshots/text and agent/provider hops, not only raw recordings.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "project-settings-intent-2",
+      "type": "custom",
+      "statement": "Budget and privacy settings are independently enforced on all nested work and are never inferred from account or key availability.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Privacy and data scope first, budgets/funding second, workers/output/retention thereafter; explicit saved state and effect on existing versus future operations.",
+    "controls": [
+      "Default local-only external-media policy; explicit opt-in per project with provider/destination and media classes",
+      "Inspect source/derived image, audio, text and vision upload manifest and redactions",
+      "Set aggregate nested budget, reservations, per-step caps and behavior when price/enforcement unavailable",
+      "Select local CPU/qualified GPU/remote worker with capability and privacy constraints",
+      "Set output color/resolution/fps/audio defaults, retention/cache and workspace path",
+      "Revoke future external use and inspect in-flight requests that cannot be recalled"
+    ],
+    "details": [
+      "Privacy opt-in, money cap, selected funding, operator authority and agent grant remain independent.",
+      "A parent cap includes child calls/jobs; split operations cannot bypass it.",
+      "Revocation stops future sends; already transmitted data cannot be promised erased without provider support.",
+      "Defaults affect new snapshots only unless user explicitly migrates a draft; active job recipes remain immutable.",
+      "Offline saves remain local with explicit pending synchronization, never queued hidden external work."
+    ]
+  },
+  "x-requirements": [
+    "DS-SAFETY-BUDGET",
+    "DS-SAFETY-EGRESS",
+    "DS-COMMERCE-FUNDING"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

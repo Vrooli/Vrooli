@@ -1,21 +1,33 @@
 package vision
 
 // NavigationRequest contains all parameters needed to start an AI navigation.
+type NavigationPostcondition struct {
+	Selector string `json:"selector"`
+	Mode     string `json:"mode"`
+	Expected string `json:"expected"`
+}
+type NavigationExtraction struct {
+	Name      string `json:"name"`
+	Selector  string `json:"selector"`
+	Attribute string `json:"attribute"`
+	Limit     int    `json:"limit"`
+}
 type NavigationRequest struct {
+	EffectPolicy   string                    `json:"effect_policy,omitempty"`
+	Postconditions []NavigationPostcondition `json:"postconditions,omitempty"`
+	Extraction     []NavigationExtraction    `json:"extraction,omitempty"`
 	// SessionID is the browser session to navigate.
 	SessionID string `json:"session_id"`
 
 	// Prompt is the natural language instruction for the AI.
 	Prompt string `json:"prompt"`
 
-	// Model is the vision model to use (e.g., "gpt-4o", "claude-sonnet-4").
+	// Model is the provider-neutral AI Gateway route profile (local_first or
+	// remote_only). It is retained as a wire field for UI compatibility.
 	Model string `json:"model"`
 
 	// MaxSteps limits the number of navigation steps.
 	MaxSteps int `json:"max_steps,omitempty"`
-
-	// APIKey is an optional BYOK key for the AI provider.
-	APIKey string `json:"api_key,omitempty"`
 
 	// NavigatorType optionally specifies which navigator to use.
 	// If not specified, the registry will auto-select.
@@ -27,6 +39,15 @@ type NavigationRequest struct {
 	// CallbackURL is the URL for step event callbacks.
 	CallbackURL string `json:"-"`
 }
+
+// CredentialProvenance identifies how the provider credential was obtained.
+// The value is deliberately an internal provenance marker, never a secret.
+type CredentialProvenance string
+
+const (
+	CredentialProvenanceNone      CredentialProvenance = "none"
+	CredentialProvenanceAuthority CredentialProvenance = "authority_provisioned" // #nosec G101 -- provenance label, not a secret
+)
 
 // NavigationStep represents a single step in the navigation process.
 type NavigationStep struct {
@@ -55,14 +76,17 @@ type TokenUsage struct {
 
 // NavigationResult represents the outcome of a completed navigation.
 type NavigationResult struct {
-	NavigationID    string           `json:"navigationId"`
-	Status          NavigationStatus `json:"status"`
-	TotalSteps      int              `json:"totalSteps"`
-	TotalTokens     int              `json:"totalTokens"`
-	TotalDurationMs int64            `json:"totalDurationMs"`
-	FinalURL        string           `json:"finalUrl"`
-	Error           string           `json:"error,omitempty"`
-	Summary         string           `json:"summary,omitempty"`
+	VerifiedSuccess   bool                   `json:"verifiedSuccess"`
+	ExtractedData     map[string]interface{} `json:"extractedData,omitempty"`
+	VerificationError string                 `json:"verificationError,omitempty"`
+	NavigationID      string                 `json:"navigationId"`
+	Status            NavigationStatus       `json:"status"`
+	TotalSteps        int                    `json:"totalSteps"`
+	TotalTokens       int                    `json:"totalTokens"`
+	TotalDurationMs   int64                  `json:"totalDurationMs"`
+	FinalURL          string                 `json:"finalUrl"`
+	Error             string                 `json:"error,omitempty"`
+	Summary           string                 `json:"summary,omitempty"`
 }
 
 // NavigatorInfo provides information about a navigator for the list endpoint.

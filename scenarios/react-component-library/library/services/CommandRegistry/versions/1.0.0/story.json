@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": []
+    }
+  ]
+}

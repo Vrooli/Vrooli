@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "purpose": "Offline desktop import, persistence, preview and PNG export fixture set",
+  "files": [
+    {
+      "path": "scene-plate.png",
+      "role": "scene_plate",
+      "media_type": "image/png",
+      "width": 1920,
+      "height": 1080,
+      "size_bytes": 12681,
+      "sha256": "b0032138d0b72cffff1d13d231b3eb4f59b60ebdd86876e6b0b1cdcd0192728c",
+      "source": "accepted E2V p8-matrix browser-wide-plate fixture; copied byte-for-byte"
+    },
+    {
+      "path": "active-mask.png",
+      "role": "active_mask",
+      "media_type": "image/png",
+      "width": 1920,
+      "height": 1080,
+      "size_bytes": 4154,
+      "sha256": "dbff35d69126f031029546b9ed12421e6c7685c03c9a13035bd6ae9ba2c64f9c",
+      "source": "accepted E2V p8-matrix browser-wide-active fixture; copied byte-for-byte"
+    },
+    {
+      "path": "screen-source.png",
+      "role": "screen_source",
+      "media_type": "image/png",
+      "width": 1440,
+      "height": 800,
+      "size_bytes": 406368,
+      "sha256": "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d",
+      "source": "existing demo's authentic local capture of fictional Vrooli UI fixtures; copied byte-for-byte from scenarios/device-studio/examples/demos/assets/source/laptop-app-capture.png; no external image source"
+    }
+  ],
+  "staging": {
+    "destination": "/tmp/device-studio-offline-roundtrip-fixtures",
+    "runtime_paths": [
+      "/tmp/device-studio-offline-roundtrip-fixtures/scene-plate.png",
+      "/tmp/device-studio-offline-roundtrip-fixtures/active-mask.png",
+      "/tmp/device-studio-offline-roundtrip-fixtures/screen-source.png"
+    ],
+    "verify_sha256_before_run": true
+  }
+}

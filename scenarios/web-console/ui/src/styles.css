@@ -2,8 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Rich markdown labels belong to their link: inline-code chips and bold text
+ * otherwise override the anchor's accent color with ordinary body text. */
+.markdown-content a span,
+.markdown-content a code,
+.markdown-content a strong,
+.markdown-content a em {
+  color: inherit;
+}
+
+
+/* The voice control keeps a short amplitude history in the host component and
+ * paints it as button background layers. The icon and the control chrome stay
+ * in the component library; this only supplies the mobile-friendly activity
+ * treatment. */
+.voice-waveform-host {
+  position: relative;
+}
+
+.voice-waveform-host [data-voice-waveform] {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  inline-size: 100%;
+  block-size: 100%;
+  color: rgb(34 211 238 / 72%);
+  opacity: 0;
+  pointer-events: none;
+  /* Match the rounded microphone, including the trace’s end caps. */
+  clip-path: inset(0 round var(--radius-control, 0.375rem));
+  transition: opacity 120ms ease;
+}
+
+.voice-waveform-host[data-voice-waveform-active="true"] [data-voice-waveform] {
+  opacity: 1;
+}
+
+.voice-waveform-control [data-rcl-voice-level] {
+  /* The rolling waveform replaces the old single rising level fill. */
+  opacity: 0;
+}
+
+/* The message navigator's sheet header is its search field: let the title
+ * slot the sheet puts it in take the row beside the Export action. */
+.wc-nav-sheet .rcl-bottom-sheet__header > :first-child {
+  flex: 1 1 auto;
+}
+
+/* The terminal grid must be measured against the same face on every host.
+ * The font is bundled by @fontsource and emitted by Vite from this origin;
+ * `block` prevents xterm's first fit from observing a fallback face. */
+@font-face {
+  font-family: "Web Console JetBrains Mono";
+  src: url("@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   color-scheme: dark;
+
+  /* The Messages reader's footer height; the playback pill rises by it while
+   * a reader is open so the two never overlap. */
+  --wc-reader-footer-h: 3.25rem;
 
   /* ── Design Tokens ──
    * Semantic palette used throughout the app.
@@ -28,6 +90,7 @@
 
   /* Accent */
   --wc-accent: 34 211 238;             /* cyan-400 */
+  --wc-accent-fg: 15 23 42;            /* slate-900 */
   --wc-accent-border: 6 182 212 / 0.4; /* cyan-500/40 */
   --wc-accent-active: 14 116 144 / 0.4; /* cyan-700/40 */
 
@@ -36,6 +99,16 @@
   --wc-error-detail: 248 113 113;      /* red-400 */
   --wc-error-border: 239 68 68 / 0.3;  /* red-500/30 */
   --wc-error-surface: 69 10 10 / 0.5;  /* red-950/50 */
+
+  /* Semantic: success and warning.
+   *
+   * These sit alongside error so state can be read as a set. They are
+   * deliberately not the accent hue: the accent means "chosen", and a card
+   * that borrowed it to say "installed" would read as selected. Every state
+   * surface derives from these with a Tailwind alpha, so a theme that
+   * restates them restates the whole vocabulary. */
+  --wc-success: 74 222 128;            /* green-400 */
+  --wc-warning: 245 178 63;            /* amber-400, warmed */
 
   /* Header surface */
   --wc-surface-header: var(--wc-surface-raised);
@@ -46,6 +119,15 @@
   /* Overlay */
   --wc-backdrop: 0 0 0 / 0.4;
   --wc-backdrop-heavy: 0 0 0 / 0.6;
+
+  /* Safe-area insets. These CSS defaults make env(safe-area-inset-*) available
+   * before/independent of JS (avoids a pre-hydration flash of un-inset chrome
+   * on notched devices). useAppViewport.ts overrides them imperatively at
+   * runtime (e.g. forcing --wc-safe-bottom to 0 while the keyboard is open). */
+  --wc-safe-top: env(safe-area-inset-top, 0px);
+  --wc-safe-right: env(safe-area-inset-right, 0px);
+  --wc-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --wc-safe-left: env(safe-area-inset-left, 0px);
 }
 
 /* ── Viewport locking ──
@@ -67,19 +149,112 @@
  *    position: fixed + scrollTo(0,0) in the hook prevents this.
  *
  * DO NOT remove these without also updating useAppViewport.ts. */
+/* Size the document canvas as well as its fixed body. The shared drawable
+ * frame can exceed innerHeight in an installed translucent iOS app; leaving
+ * html auto-sized gives it zero height and a different overflow boundary from
+ * the workspace and the library's portaled drawers. */
+html,
+body,
+#root {
+  height: var(--wc-app-height, 100dvh);
+  min-height: 0;
+}
+
 html {
   overflow: hidden;
   overscroll-behavior: none;
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Backs the iOS notch / status-bar region (which has no element of its own).
+   * --wc-chrome-color is set imperatively by lib/chromeTheme.ts when adaptive
+   * chrome is active; otherwise it falls back to the slate header surface. */
+  background: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+  transition: background-color 200ms ease;
+  font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
   position: fixed;
   inset: 0;
 }
+
+
+/* ── Adaptive app chrome ──
+ * Surfaces that tint to the focused terminal background (status bar, top bar,
+ * bottom toolbar, desktop sidebar) in single-focus display modes. Each falls
+ * back to its normal slate design token when --wc-chrome-color is unset (grid
+ * mode or adaptive chrome disabled), so the default appearance is unchanged.
+ * The color is applied imperatively (see lib/chromeTheme.ts) — never through
+ * React state — so a busy TUI repaint never re-renders the terminal subtree. */
+.wc-chrome-surface {
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+  transition: background-color 200ms ease;
+}
+.wc-chrome-surface-raised {
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-raised)));
+  transition: background-color 200ms ease;
+}
+/* Contrast-correct foreground for inherited text on a tinted surface. Children
+ * with their own explicit text-* token keep it; this only adapts inheritors. */
+.wc-chrome-fg {
+  color: var(--wc-chrome-fg, inherit);
+}
+
+.wc-ios-tint-edge {
+  position: fixed;
+  display: none;
+  left: 0;
+  right: 0;
+  /* Sits BEHIND app chrome (z-index: 0), not above it. The always-present
+   * tinted top/bottom bars and the body background already satisfy Safari 26's
+   * edge sampler; this strip is only a fallback for any edge a chrome bar does
+   * not cover. A high z-index here would overpaint chrome that reaches the very
+   * edge (e.g. the hamburger's unread badge), so it is deliberately kept low. */
+  z-index: 0;
+  height: 4px;
+  width: 100%;
+  pointer-events: none;
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+}
+
+html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
+  display: block;
+}
+
+.wc-ios-tint-edge-top {
+  top: 0;
+}
+
+.wc-ios-tint-edge-bottom {
+  bottom: 0;
+}
+
+.wc-stable-theme {
+  color-scheme: dark;
+  --wc-surface-base: 2 6 23;
+  --wc-surface-raised: 15 23 42;
+  --wc-surface-input: 30 41 59;
+  --wc-surface-header: var(--wc-surface-raised);
+  --wc-text-primary: 248 250 252;
+  --wc-text-secondary: 226 232 240;
+  --wc-text-muted: 148 163 184;
+  --wc-text-faint: 100 116 139;
+  --wc-border-default: 255 255 255 / 0.1;
+  --wc-border-hover: 255 255 255 / 0.3;
+  --wc-accent: 34 211 238;
+  --wc-accent-fg: 15 23 42;
+  --wc-accent-border: 6 182 212 / 0.4;
+  --wc-accent-active: 14 116 144 / 0.4;
+}
+
+/* Top-chrome banners are the library's — react-component-library:Banner owns
+ * the visual base, the tone palettes, and the safe-area strip's tint. Nothing
+ * here emits `data-wc-banner*` any more, so the local copies of those rules
+ * were removed rather than left to rot alongside rules that do apply.
+ *
+ * `.wc-stable-theme` below is still ours: it is the token pin the region is
+ * rendered under, not banner styling. */
 
 /* ── Tab bar: prevent text selection ──
  * On mobile, long-pressing a tab triggers the context menu (rename,
@@ -105,6 +280,72 @@ body {
   border: 2px dashed rgba(122, 160, 255, 0.94);
   pointer-events: none;
   z-index: 8;
+}
+
+/* RCL controls consume the library's semantic --color-* contract while
+ * web-console's adaptive chrome publishes the live terminal palette as
+ * --wc-* RGB triples. Keep the adapter at the app boundary so the library
+ * stays host-agnostic and every adopted control (including arrows and voice)
+ * follows the same terminal-derived theme. */
+[data-testid="mobile-toolbar"],
+[data-testid="audio-preview-player"],
+.wc-artifact-preview {
+  --color-background: rgb(var(--wc-surface-base));
+  --color-foreground: rgb(var(--wc-text-secondary));
+  --color-primary: rgb(var(--wc-accent));
+  --color-primary-foreground: rgb(var(--wc-accent-fg));
+  --color-secondary: rgb(var(--wc-accent));
+  --color-surface: rgb(var(--wc-surface-input));
+  --color-surface-raised: rgb(var(--wc-surface-raised));
+  --color-surface-muted: rgb(var(--wc-surface-base));
+  --color-border: rgb(var(--wc-border-default));
+  --color-border-strong: rgb(var(--wc-border-hover));
+  --color-muted-foreground: rgb(var(--wc-text-muted));
+  --color-accent: rgb(var(--wc-accent));
+  --color-focus: rgb(var(--wc-accent));
+  --color-danger: rgb(var(--wc-error-detail));
+  --color-info: rgb(var(--wc-accent));
+  --color-success: rgb(var(--wc-accent));
+  --color-on-primary: rgb(var(--wc-accent-fg));
+}
+
+/* Keep the first mobile paint single-column even if the browser applies its
+ * emulated viewport after React's initial width read. The JS layout state will
+ * converge as soon as the resize listener runs; this CSS guard prevents an
+ * intrinsic xterm width from escaping horizontally during that handoff. */
+@media (max-width: 767px) {
+  [data-testid="pane-grid"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="pane-grid"] > [data-testid="terminal-pane-container"] {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="pane-grid"] [data-testid="terminal-pane"] {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* xterm's helper textarea is the real mobile keyboard surface. It is
+   * visually hidden, but remains focusable and therefore appears in the
+   * accessibility tree; keep its hit box comfortable without changing the
+   * desktop cursor/input geometry. */
+  [data-testid="pane-grid"] .xterm-helper-textarea {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  [data-testid="pane-grid"] > [data-testid^="grid-splitter-"] {
+    display: none;
+  }
 }
 
 /* Hide native scrollbar when minimap is active */
@@ -175,7 +416,142 @@ body {
   50% { opacity: 0.7; }
 }
 
+/* ── Machine status lamp ──
+ * A dispatchable machine's lamp halo breathes, which is the one moving part of
+ * the fleet drawer. Reachability is the only fact about a machine that changes
+ * without the operator doing anything, so it is the only one that animates.
+ * The reduced-motion block below neutralizes it. */
+@keyframes wcMachineLampBreathe {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.68; }
+}
+
+.wc-machine-lamp-halo {
+  animation: wcMachineLampBreathe 3.4s ease-in-out infinite;
+}
+
 /* ── Floating toolbar dock/undock animation ── */
 .wc-dock-transition {
   transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);
 }
+
+/* ── File-preview markdown: skip off-screen blocks ──
+ * A markdown file arrives as one string (up to 1 MiB) and renders as one tall
+ * DOM tree with no virtualization, so every block is laid out and painted even
+ * though only a screenful is visible. `content-visibility: auto` lets the
+ * browser skip layout and paint for blocks outside the viewport, and the
+ * intrinsic size keeps the scrollbar stable for the ones it skipped. Scoped to
+ * the file preview: the message list has its own virtualizer, and applying
+ * this to a row it is measuring would fight that measurement. */
+[data-testid="file-preview-markdown"] .markdown-content > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+/* ── File-preview markdown: give the reader its own scroll layer ──
+ * On iOS WebKit the file viewer is a position:fixed, transform-animated drawer.
+ * A very tall overflow:auto area inside that composited/clipped ancestor is
+ * scrolled by repainting the whole area synchronously, so scrolling a long
+ * document janks in proportion to its height — acutely on the image-heavy
+ * atlas, which is ~150,000px tall. Promoting the reading pane to its own
+ * compositing layer moves it onto WebKit's tiled async-scrolling path, where
+ * only the visible tiles are rasterized. Desktop Blink already scrolls this
+ * smoothly (measured), so the hint is inert there; `contain: paint` keeps the
+ * promoted layer's work bounded to the pane. */
+[data-testid="reader-reading-pane"] {
+  transform: translateZ(0);
+  will-change: transform;
+  contain: paint;
+}
+
+/* ── Reduced motion ──
+ * Users who request reduced motion (often for vestibular sensitivity) should
+ * not receive non-essential animation/transition. We neutralize durations
+ * globally rather than per-component so new motion is covered by default; the
+ * breathing wake-word indicator and dock slide degrade to an instant state
+ * change. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Artifact inspection backgrounds are content surfaces, separate from chrome. */
+.wc-image-checkerboard {
+  background-color: rgb(var(--wc-surface-base));
+  background-image: linear-gradient(45deg, rgb(var(--wc-text-muted) / .12) 25%, transparent 25%, transparent 75%, rgb(var(--wc-text-muted) / .12) 75%), linear-gradient(45deg, rgb(var(--wc-text-muted) / .12) 25%, transparent 25%, transparent 75%, rgb(var(--wc-text-muted) / .12) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+.wc-artifact-preview:fullscreen { width: 100vw; height: 100dvh; }
+.wc-pdf-scroll { --viewer-container-height: 100%; }
+.wc-pdf-scroll .pdfViewer { padding: 12px 0; }
+.wc-pdf-scroll .pdfViewer .page { margin-bottom: 12px; }
+.wc-markdown-reader h1 { font-size: 1.75em; }
+.wc-markdown-reader h2 { font-size: 1.45em; }
+.wc-markdown-reader h3 { font-size: 1.2em; }
+.wc-markdown-reader h4, .wc-markdown-reader h5, .wc-markdown-reader h6 { font-size: 1em; }
+.wc-markdown-reader :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top: 1rem; }
+
+/* Dense source reading for a pointer; retain full line-selection touch targets. */
+@media (pointer: fine) {
+  .wc-source-line-number, .wc-source-line-text { min-height: 1.5rem; padding-block: .125rem; }
+}
+
+/* Inspection controls own their form appearance and keep mobile focus at 16px. */
+.wc-inspection-choices { display: flex; min-inline-size: 0; gap: .25rem; padding: .25rem; border: 1px solid rgb(var(--wc-border-default)); border-radius: .875rem; background: rgb(var(--wc-surface-base)); }
+.wc-inspection-picker { appearance: none; -webkit-appearance: none; border: 0; border-radius: .5rem; padding-inline: .75rem 2rem; background-color: transparent; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23899bb2' stroke-width='1.7'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .5rem center; font-size: 1rem; text-overflow: ellipsis; }
+[dir=rtl] .wc-inspection-picker { background-position: left .5rem center; }
+.wc-inspection-picker option { background: rgb(var(--wc-surface-raised)); color: rgb(var(--wc-text-primary)); }
+.wc-inspection-settings input[type=text], .wc-inspection-settings select { font-size: 1rem; }
+.wc-inspection-toggle { display: inline-flex; align-items: center; flex-shrink: 0; inline-size: 2.25rem; block-size: 1.375rem; padding: .1875rem; border-radius: 9999px; background: rgb(var(--wc-surface-input)); border: 1px solid rgb(var(--wc-border-default)); }
+.wc-inspection-toggle::after { content: ""; inline-size: .875rem; block-size: .875rem; border-radius: 50%; background: rgb(var(--wc-text-muted)); }
+.wc-inspection-toggle-on { justify-content: end; background: rgb(var(--wc-accent)); border-color: transparent; }
+.wc-inspection-toggle-on::after { background: rgb(var(--wc-accent-fg)); }
+
+/* Diff content stays dense and uses the canvas as its only scroll container.
+   One grid shares split track sizing and row heights across all line pairs. */
+.wc-diff-line { display: flex; align-items: stretch; min-inline-size: 0; min-block-size: 24px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 20px; tab-size: 4; }
+.wc-diff-number { flex: 0 0 auto; inline-size: calc(var(--wc-diff-digits, 2) * 1ch + .5rem); padding: 2px .25rem; border-inline-end: 1px solid rgb(var(--wc-border-default)); background: rgb(var(--wc-surface-raised) / .3); color: inherit; opacity: .75; font-size: 11px; text-align: end; font-variant-numeric: tabular-nums; user-select: none; }
+.wc-diff-code { margin: 0; padding: 2px .5rem; min-inline-size: 0; flex: 1; background: transparent; font: inherit; overflow: visible; }
+.wc-diff-line[data-diff-kind=context] .wc-diff-number { color: rgb(var(--wc-text-muted)); }
+.wc-diff-line[data-diff-kind=note] { color: rgb(var(--wc-text-muted)); font-style: italic; }
+.wc-diff-line[data-diff-kind=empty] { background: repeating-linear-gradient(135deg, transparent, transparent 4px, rgb(var(--wc-text-muted) / .04) 4px, rgb(var(--wc-text-muted) / .04) 5px); }
+.wc-diff-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-inline-size: 44rem; }
+.wc-diff-column { margin: 0; padding: .5rem .75rem; background: rgb(var(--wc-surface-raised)); color: rgb(var(--wc-text-muted)); font-size: 11px; font-weight: 600; }
+.wc-diff-nowrap { inline-size: max-content; min-inline-size: 100%; }
+.wc-diff-split.wc-diff-nowrap { grid-template-columns: repeat(2, minmax(max-content, 1fr)); min-inline-size: max(44rem, 100%); }
+.wc-diff-nowrap .wc-diff-code { min-inline-size: max-content; }
+
+
+/* Reflowing Word reader: app typography, inert document content. */
+.wc-document-reader { color: rgb(var(--wc-text-secondary)); line-height: 1.85; overflow-wrap: anywhere; }
+.wc-document-reader > :first-child { margin-block-start: 0; }
+.wc-document-reader p { margin-block: 0 1.15em; }
+.wc-document-reader h1, .wc-document-reader h2, .wc-document-reader h3,
+.wc-document-reader h4, .wc-document-reader h5, .wc-document-reader h6 { color: rgb(var(--wc-text-primary)); font-weight: 650; line-height: 1.3; margin-block: 1.6em .65em; letter-spacing: -.025em; scroll-margin-block: 1.5rem; }
+.wc-document-reader h1 { font-size: 1.9em; }
+.wc-document-reader h2 { font-size: 1.45em; }
+.wc-document-reader h3 { font-size: 1.15em; }
+.wc-document-reader ul, .wc-document-reader ol { padding-inline-start: 1.5em; margin-block: 0 1.2em; }
+.wc-document-reader ul { list-style: disc; } .wc-document-reader ol { list-style: decimal; }
+.wc-document-reader li { padding-inline-start: .2em; margin-block: .3em; }
+.wc-document-reader strong { color: rgb(var(--wc-text-primary)); font-weight: 650; }
+.wc-document-reader blockquote { border-inline-start: 3px solid rgb(var(--wc-border-default)); padding-inline-start: 1.2em; margin-block: 1.5em; color: rgb(var(--wc-text-muted)); }
+.wc-document-reader a[href] { color: rgb(var(--wc-accent)); text-decoration: underline; text-underline-offset: .2em; }
+.wc-document-reader a[href]:focus-visible { outline: 2px solid rgb(var(--wc-accent)); outline-offset: 3px; }
+.wc-document-reader img { max-inline-size: 100%; block-size: auto; margin-block: 1em; }
+.wc-document-reader pre { overflow: auto; padding: 1em; background: rgb(var(--wc-surface-input)); border-radius: .5rem; }
+.wc-document-reader hr { border: 0; border-block-start: 1px solid rgb(var(--wc-border-default)); margin-block: 2em; }
+.wc-document-table { max-inline-size: 100%; overflow-x: auto; margin-block: 1.5em; }
+.wc-document-table table { border-collapse: collapse; min-inline-size: 100%; font-size: .875em; line-height: 1.65; }
+.wc-document-table td, .wc-document-table th { padding: .75em 1em; border: 1px solid rgb(var(--wc-border-default)); vertical-align: top; min-inline-size: 6rem; }
+.wc-document-table th { background: rgb(var(--wc-surface-raised)); color: rgb(var(--wc-text-primary)); text-align: start; font-weight: 600; }
+.wc-document-table p:last-child { margin-block-end: 0; }
+
+.wc-folder-columns { display: grid; grid-template-columns: minmax(0, 1fr) 6rem 8rem 1rem; align-items: center; gap: .75rem; }

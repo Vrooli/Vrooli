@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "investigation-triggers",
+    "description": "OT-P1-003 — versioned trigger policy, durable incidents, and bounded automatic composition.",
+    "prd_ref": "OT-P1-003",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-INV-001",
+      "title": "Versioned investigation policy and incident identity",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "policy",
+      "description": "Plan Manager shall validate versioned shadow or automatic trigger policy, evaluate bounded progress rules with exclusions and limits, and persist one deduplicated incident fingerprint with the effective policy version.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/investigationpolicy/policy_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused policy tests cover rule defaults, exclusions, cooldown, budget, and shadow behavior."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/investigationpolicy/repository_test.go::TestPolicyAndIncidentPersistenceIsIdempotent",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Incident fingerprint persistence and manual linkage are idempotent."
+        }
+      ]
+    },
+    {
+      "id": "PM-INV-002",
+      "title": "Automatic bounded composition",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "integration",
+      "description": "In automatic mode, one eligible incident shall compose the declared plan-manager.investigate program through Program Runtime with explicit execution, phase, question, brief, and run IDs, persist the returned program identity, and preserve retry-safe caller identity on dispatch failure or acknowledgement loss.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "handlers/investigation/connect_test.go::TestAutomaticTriggerDispatchesOnceAndPersistsProgramIdentity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Handler seam proves one automatic composition, durable program linkage, and duplicate-record suppression. Live Program Runtime and policy smoke receipts are retained in the plan evidence index."
+        }
+      ]
+    }
+  ],
+  "title": "Investigation Triggers"
+}

@@ -1,0 +1,242 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Device Sync Hub are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Device Sync Hub"
+  },
+  "layout": {
+    "sidebarLabel": "Primary",
+    "bottomNavLabel": "Primary (compact)",
+    "nav": {
+      "transfer": "Transfer",
+      "devices": "Devices",
+      "settings": "Settings"
+    },
+    "mainLabel": "Main content"
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "realtime": {
+    "label": "Live connection",
+    "connecting": "Connecting…",
+    "open": "Live",
+    "closed": "Offline"
+  },
+  "pages": {
+    "devices": {
+      "title": "Devices"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "ownerHeading": "Owner sign-in",
+      "sessionHeading": "This device",
+      "statusHeading": "Service status"
+    }
+  },
+  "join": {
+    "title": "Join this device",
+    "intro": "Pair this browser with your hub to send and receive. Enter a pairing code, or request approval from a device that's already trusted.",
+    "codeLabel": "Pairing code",
+    "codePlaceholder": "Enter your pairing code",
+    "redeem": "Pair with code",
+    "deviceNameLabel": "Device name",
+    "deviceNamePlaceholder": "e.g. Work Laptop",
+    "requestTitle": "No code?",
+    "requestIntro": "Request approval instead. A trusted device gets a prompt to let you in.",
+    "request": "Request approval",
+    "waitingTitle": "Waiting for approval",
+    "waitingIntro": "Your request was sent. Approve it from a device that's already trusted, then this screen continues automatically.",
+    "waitingOwnerAction": "Signed in as the owner? You can approve this request on this device.",
+    "approveThisDevice": "Approve this device",
+    "missingCode": "Enter a pairing code first.",
+    "missingName": "Name this device first."
+  },
+  "transfer": {
+    "receive": {
+      "heading": "Receive",
+      "description": "Hub relay storage for the permitted trusted devices. Each item stays here until its retention expires.",
+      "loading": "Loading items…",
+      "empty": "Nothing here yet. Send something from another device.",
+      "searchLabel": "Search items",
+      "searchPlaceholder": "Search by name or text",
+      "sortLabel": "Sort",
+      "sortNewest": "Newest",
+      "sortName": "Name",
+      "sortSize": "Size",
+      "filterLabel": "Filter",
+      "filterAll": "All",
+      "filterFile": "Files",
+      "filterText": "Text",
+      "viewCards": "Card view",
+      "viewList": "List view",
+      "download": "Download",
+      "copy": "Copy",
+      "copied": "Copied",
+      "remove": "Remove",
+      "expiresLabel": "Expires {{when}}",
+      "relayStored": "Stored on this Hub",
+      "audienceAll": "Available to all your trusted devices",
+      "audienceDirect": "Available to one trusted device",
+      "retentionDetail": "{{retention}}: the Hub removes this relay copy at the expiry shown."
+    },
+    "retention": {
+      "live": "Live",
+      "held": "Held",
+      "pinned": "Pinned"
+    },
+    "send": {
+      "heading": "Send",
+      "description": "Drop files, pick files, or paste text.",
+      "dropHint": "Drag files here, or",
+      "browse": "Browse files",
+      "fileInputLabel": "Choose files to send",
+      "textLabel": "Text snippet",
+      "textPlaceholder": "Paste or type text to send…",
+      "addText": "Stage text",
+      "stagedHeading": "Ready to send",
+      "stagedEmpty": "Nothing staged yet.",
+      "retentionLabel": "Keep",
+      "targetLabel": "Send to",
+      "targetBroadcast": "All devices",
+      "removeStaged": "Remove",
+      "send": "Send {{count}} item",
+      "send_other": "Send {{count}} items",
+      "sending": "Sending…",
+      "sent": "Sent.",
+      "needText": "Type something to stage."
+    }
+  },
+  "devices": {
+    "loading": "Loading devices…",
+    "empty": "No devices yet.",
+    "signInPrompt": "Sign in as the owner to manage your devices.",
+    "onlineLabel": "Online",
+    "offlineLabel": "Offline",
+    "trust": {
+      "pending": "Pending",
+      "trusted": "Trusted",
+      "revoked": "Revoked",
+      "unspecified": "Unknown"
+    },
+    "rename": "Rename",
+    "renameLabel": "New name",
+    "renameSave": "Save",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke {{name}}? This severs its access immediately.",
+    "approve": "Approve",
+    "issue": {
+      "heading": "Add a device",
+      "description": "Issue a pairing code, then enter or scan it on the new device.",
+      "deviceNameLabel": "Device name (optional)",
+      "deviceNamePlaceholder": "e.g. Phone",
+      "issue": "Issue pairing code",
+      "codeHeading": "Pairing code",
+      "codeHint": "Enter this code on the new device, or scan the QR.",
+      "expiresLabel": "Expires {{when}}",
+      "qrLabel": "Pairing code QR"
+    },
+    "pendingBanner": {
+      "title": "{{name}} wants to pair",
+      "subtitle": "{{kind}} requesting access",
+      "approve": "Approve",
+      "dismiss": "Dismiss"
+    }
+  },
+  "owner": {
+    "intro": "Owner actions (managing devices, issuing codes) need you to be signed in.",
+    "signedIn": "Signed in as the owner.",
+    "signOut": "Sign out"
+  },
+  "onboarding": {
+    "welcomeTitle": "Set up Device Sync Hub",
+    "welcomeIntro": "Sync files and text across your devices. Set up this hub if it's new, or join one that already exists.",
+    "setupTitle": "Set up this hub",
+    "setupDescription": "I'm the owner. Sign in and make this my first device.",
+    "joinTitle": "Join an existing hub",
+    "joinDescription": "This hub already has an owner. Pair this device with a code or request approval.",
+    "back": "Back"
+  },
+  "login": {
+    "title": "Owner sign-in",
+    "intro": "Sign in or create your owner account to set up this hub.",
+    "tabSignIn": "Sign in",
+    "tabCreate": "Create account",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Your password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "missingFields": "Enter your email and password.",
+    "invalidCredentials": "Sign-in failed — check your email and password.",
+    "unavailable": "Couldn't reach the sign-in service. Is scenario-authenticator running?"
+  },
+  "register": {
+    "usernameLabel": "Display name (optional)",
+    "usernamePlaceholder": "e.g. Alex",
+    "submit": "Create account",
+    "submitting": "Creating account…",
+    "emailTaken": "That email is already registered — switch to Sign in.",
+    "invalidInput": "Couldn't create the account: {{detail}}"
+  },
+  "setupDevice": {
+    "title": "Make this your first device",
+    "intro": "Trust this browser as the hub's first device. You can add more devices afterward.",
+    "signedInAs": "Signed in as {{owner}}",
+    "deviceNameLabel": "Device name",
+    "deviceNamePlaceholder": "e.g. Work Laptop",
+    "submit": "Make this my first device",
+    "submitting": "Setting up…",
+    "alreadyOwned": "This hub is already owned by another account. Sign in as that owner, or reset this local hub before setting it up with a new account.",
+    "signInExpired": "Your sign-in session expired. Sign out, then sign in again to set up this device.",
+    "joinInstead": "Join with a pairing code instead",
+    "signOut": "Sign out"
+  },
+  "session": {
+    "tokenPresent": "This browser is paired.",
+    "signOut": "Sign out this device",
+    "notPaired": "This browser is not paired."
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

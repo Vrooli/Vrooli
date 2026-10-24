@@ -77,7 +77,6 @@ export interface StreamingEvent {
   /** Server request ID for debugging */
   request_id?: string;
   /** Signal to deactivate active template (type: "tool_call_result") */
-  deactivate_template?: boolean;
 }
 
 /**
@@ -130,10 +129,10 @@ export async function processSSEStream(
   });
 
   try {
-    while (true) {
+    for (;;) {
       // Check for abort before each read
       if (options?.signal?.aborted) {
-        reader.cancel();
+        void reader.cancel();
         throw new DOMException("Aborted", "AbortError");
       }
 
@@ -173,6 +172,11 @@ export interface SkillPayloadForAPI {
   targetToolId?: string;
 }
 
+/**
+ * Streaming path return type - callbacks deliver content, no message value.
+ */
+type StreamCompletionResult = ReturnType<() => void>;
+
 export async function completeChat(
   chatId: string,
   options?: {
@@ -180,16 +184,12 @@ export async function completeChat(
     onChunk?: (content: string) => void;
     onEvent?: (event: StreamingEvent) => void;
     signal?: AbortSignal;
-    forcedTool?: { scenario: string; toolName: string };
     skills?: SkillPayloadForAPI[];
   }
-): Promise<Message | void> {
+): Promise<Message | StreamCompletionResult> {
   const stream = options?.stream ?? true;
   const params = new URLSearchParams();
   params.set("stream", String(stream));
-  if (options?.forcedTool) {
-    params.set("force_tool", `${options.forcedTool.scenario}:${options.forcedTool.toolName}`);
-  }
   const url = buildApiUrl(`/chats/${chatId}/complete?${params.toString()}`, { baseUrl: API_BASE });
 
   // Build request body with skills if provided

@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "offer-desk.learning-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read Offer Desk usage attempt outcomes from the declared memory scope and report whether the cohort is comparable, preserving an empty scope as a real reading.",
+  "inputs": {
+    "operation": {
+      "type": "string",
+      "required": false,
+      "description": "Restrict the read to one operation, for example board-read. Omitted reads every operation in the scope.",
+      "default": ""
+    }
+  },
+  "assumptions": [
+    "vrooli-memory owns attempt validity; this program copies its verdict and never recomputes it.",
+    "The offer-desk-usage scope is registered before this program is called."
+  ],
+  "invariants": [
+    "No writes.",
+    "An empty scope is reported as zero eligible attempts with comparable false; it is never reported as a measured result.",
+    "Reliability and truncation are copied from the producer verbatim."
+  ],
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "eligible_attempts": "Attempts the producer considered eligible in the window.",
+      "cohorts": "Up to twelve comparison cohorts as the producer returned them.",
+      "comparable": "True only when the producer called the sample reliable, it was not truncated, and at least one attempt is eligible.",
+      "comparability_reason": "Why the cohort is not comparable; null when it is."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "The learning binding id."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 12,
+    "output_bytes": 65536
+  },
+  "memory": {
+    "scope": "offer-desk-usage",
+    "reads_in": "collect",
+    "writes_in": "none",
+    "entry_kinds": []
+  },
+  "fixtures": [
+    {
+      "id": "live-all-operations",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "note": "A newly registered scope returns zero eligible attempts and comparable false; that is ok, not partial.",
+      "requires": [
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "offer-desk-improve"
+}

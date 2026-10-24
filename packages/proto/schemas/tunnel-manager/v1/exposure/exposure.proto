@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.exposure;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/exposure;exposure_v1";
+
+// =============================================================================
+// EXPOSURE DOMAIN — tiered exposure broker (the heart)
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for ExposureService. Turns "should this scenario be reachable,
+// for how long?" into manifest + ingress + run state. CORE scenarios (the
+// api-core/coreset closure) are always exposed; LEASED scenarios are exposed
+// on demand with a TTL and reaped on expiry. Process lifecycle is delegated to
+// internal/lifecycle, the manifest to the routes domain, Cloudflare calls to
+// the config domain — this domain owns only the leases table and the policy.
+//
+// IsExposed / ExposeAndGetURL back the app-monitor "open in new tab" feature.
+//
+// Consumed by:
+//   - API: handlers/exposure/connect_handler.go implements ExposureServiceHandler.
+//   - CLI: cli/domains/exposure/handlers.go (expose, lease {extend,revoke,list}).
+//   - UI:  ui/src/features/exposure/ (the primary operations surface).
+// =============================================================================
+
+service ExposureService {
+  // Expose ensures the scenario has a LEASED route, is running, and has live
+  // ingress; returns the lease and the reachable public URL. Idempotent:
+  // calling twice for an already-exposed scenario extends/returns the lease
+  // rather than duplicating ingress.
+  rpc Expose(ExposeRequest) returns (ExposeResponse);
+
+  // ExtendLease pushes a lease's expiry out by ttl_seconds from now.
+  rpc ExtendLease(ExtendLeaseRequest) returns (ExtendLeaseResponse);
+
+  // RevokeLease ends a lease immediately and retracts ingress unless the
+  // scenario is also CORE.
+  rpc RevokeLease(RevokeLeaseRequest) returns (RevokeLeaseResponse);
+
+  // Unexpose revokes a scenario's active lease BY SCENARIO NAME (a friendlier
+  // surface than looking up a lease id), retracting ingress and the TM-created
+  // DNS record unless the scenario is also CORE. NotFound when no active lease
+  // exists. It is the thin server-side primitive behind the `unexpose` alias.
+  rpc Unexpose(UnexposeRequest) returns (UnexposeResponse);
+
+  // ListLeases returns leases, optionally filtered by status.
+  rpc ListLeases(ListLeasesRequest) returns (ListLeasesResponse);
+
+  // ListExposures returns the reconciled exposure state per scenario (tier,
+  // route, lease, reachability) — the data behind the Exposure UI surface.
+  rpc ListExposures(ListExposuresRequest) returns (ListExposuresResponse);
+
+  // IsExposed reports whether a scenario is currently reachable and, if so,
+  // its public URL — the read backing app-monitor new-tab.
+  rpc IsExposed(IsExposedRequest) returns (IsExposedResponse);
+
+  // Reconcile re-derives CORE routes from the coreset closure and reaps
+  // expired leases. Safe to call repeatedly (idempotent); also run on a timer.
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse);
+}
+
+// LeaseStatus is the lifecycle state of a lease.
+enum LeaseStatus {
+  LEASE_STATUS_UNSPECIFIED = 0;
+  LEASE_STATUS_ACTIVE = 1;
+  LEASE_STATUS_EXPIRED = 2;
+  LEASE_STATUS_REVOKED = 3;
+}
+
+// Lease records an on-demand exposure grant for a scenario.
+message Lease {
+  string id = 1;
+  string scenario = 2;
+  // Who requested the exposure (a scenario name or operator identifier).
+  string requested_by = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  // How many times the lease has been extended.
+  int32 extended_count = 6;
+  LeaseStatus status = 7;
+}
+
+// Exposure is the reconciled view of one scenario's exposure state.
+message Exposure {
+  string scenario = 1;
+  string subdomain = 2;
+  string public_url = 3;
+  int32 local_port = 4;
+  // "core" or "leased".
+  string tier = 5;
+  bool enabled = 6;
+  // Set when tier == leased.
+  Lease lease = 7;
+}
+
+message ExposeRequest {
+  string scenario = 1;
+  // Requested lease duration in seconds; 0 uses the default (~1 week).
+  int64 ttl_seconds = 2;
+  // Optional caller identity recorded on the lease.
+  string requested_by = 3;
+}
+
+message ExposeResponse {
+  Lease lease = 1;
+  // Reachable URL for the scenario (https://<subdomain>.<domain>).
+  string public_url = 2;
+  // The local port that ingress forwards to (the scenario's fixed UI port).
+  int32 local_port = 3;
+  // True if Tunnel Manager just assigned/pinned a fixed port for a scenario
+  // that previously only declared a port *range*. In this case the scenario
+  // process is restarted so it binds the newly pinned port.
+  bool port_assigned = 4;
+}
+
+message ExtendLeaseRequest {
+  string lease_id = 1;
+  // New duration from now in seconds; 0 uses the default.
+  int64 ttl_seconds = 2;
+}
+
+message ExtendLeaseResponse {
+  Lease lease = 1;
+}
+
+message RevokeLeaseRequest {
+  string lease_id = 1;
+}
+
+message RevokeLeaseResponse {
+  // True when ingress was retracted; false when the scenario is also CORE and
+  // stays exposed.
+  bool retracted = 1;
+}
+
+message UnexposeRequest {
+  // Scenario whose active lease should be revoked.
+  string scenario = 1;
+}
+
+message UnexposeResponse {
+  // True when ingress (and the TM-created DNS record) was retracted; false when
+  // the scenario is also CORE and stays exposed.
+  bool retracted = 1;
+  // The revoked lease id, for operator confirmation.
+  string lease_id = 2;
+}
+
+message ListLeasesRequest {
+  // Optional status filter; LEASE_STATUS_UNSPECIFIED returns all.
+  LeaseStatus status = 1;
+}
+
+message ListLeasesResponse {
+  repeated Lease leases = 1;
+}
+
+message ListExposuresRequest {}
+
+message ListExposuresResponse {
+  repeated Exposure exposures = 1;
+}
+
+message IsExposedRequest {
+  string scenario = 1;
+}
+
+message IsExposedResponse {
+  bool exposed = 1;
+  string public_url = 2;
+}
+
+message ReconcileRequest {}
+
+message ReconcileResponse {
+  // Number of CORE routes ensured during reconciliation.
+  int32 core_ensured = 1;
+  // Number of expired leases reaped.
+  int32 leases_reaped = 2;
+}

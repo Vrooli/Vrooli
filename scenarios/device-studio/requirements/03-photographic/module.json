@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "module": "photographic",
+    "description": "Photographic device composition. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-PHOTO-CALIBRATION",
+      "title": "The compositor shall retain explicit plate calibration.",
+      "description": "The photographic shot shall pin plate bytes and provenance, display mapping, mask, source fit, output crop and calibration evidence separately from authentic app media.",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "photographic",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-PHOTO-CALIBRATION protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-PHOTO-CALIBRATION",
+            "planned_automation": "Perspective/mask fixtures and manual calibration review.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/composition/composition_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestComposePerspectiveQuadMapsCornersAndGrid. This does not establish the full requirement."
+        }
+      ]
+    },
+    {
+      "id": "DS-PHOTO-ELIGIBILITY",
+      "title": "The compiler shall refuse unsupported photographic motion.",
+      "description": "When photographic strategy is selected, the compiler shall allow changing screen content and declared crop moves while refusing true parallax, rotation, articulation or physical relighting outside its qualified envelope.",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "photographic",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-PHOTO-ELIGIBILITY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-PHOTO-ELIGIBILITY",
+            "planned_automation": "Strategy eligibility and negative API/UI tests.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/shots/service_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestDraftUnsupportedAndMalformedGeometryPolicies. This does not establish the full requirement."
+        }
+      ]
+    },
+    {
+      "id": "DS-PHOTO-REPLAY",
+      "title": "The compositor shall replay pinned photographic shots.",
+      "description": "The compositor shall evaluate each output sample from pinned plate, mapping, mask, presentation and source clocks and produce a saved receipt without regenerating the plate.",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "photographic",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-PHOTO-REPLAY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-PHOTO-REPLAY",
+            "planned_automation": "Deterministic frame/receipt tests and reopen integration.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/rendering/worker_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRetainedPhoneV2PublicManifestReplaysExactOutput. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/coordinator_integration_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestSuccessPublishesVerifiedPNGAndTamperFailsAfterNativeQuiescence. This does not establish the full requirement."
+        }
+      ]
+    },
+    {
+      "id": "DS-PHOTO-GENERATION",
+      "title": "The creation adapter shall generate reviewable scene plates.",
+      "description": "When AI photographic scene generation is requested, the adapter shall use a configured supported owner route, retain prompt/requested-versus-honored controls, provider/model and actual-or-unknown cost, and require final-look/calibration review before use while preserving imported-plate workflows.",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "photographic",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-PHOTO-GENERATION protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-PHOTO-GENERATION",
+            "planned_automation": "Owner adapter/receipt/cost-policy tests plus later explicitly configured capped generation proof.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

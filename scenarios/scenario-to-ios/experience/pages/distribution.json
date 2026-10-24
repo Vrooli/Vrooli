@@ -1,0 +1,319 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "distribution",
+    "title": "Distribution",
+    "routes": [
+      "/distribution"
+    ],
+    "purpose": "Answer where this artifact may legitimately go. Apple's channels — simulator-only, development device, TestFlight, and App Store — have genuinely different signing, enrollment, and review requirements, and each reports its own availability independently of the others.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every channel reports its own availability, and none inherits a sibling's.",
+      "notes": "A signed development build proves nothing about TestFlight, which needs enrollment and an App Store Connect record. Presenting the channels as one 'can distribute' verdict is how an owner discovers at upload time that they cannot publish."
+    },
+    {
+      "statement": "A blocked channel names the readiness rung that would unblock it.",
+      "notes": "Channel availability and the readiness ladder are the same underlying probe seen from two directions. A blocked channel that does not point at its rung forces the operator to guess which of six rungs is the one."
+    },
+    {
+      "statement": "Simulator-only is presented as a validation destination, never as distribution.",
+      "notes": "It reaches no person. Listing it beside TestFlight without that distinction makes an owner with zero shipping capability read as having one channel available."
+    },
+    {
+      "statement": "An artifact whose evidence cannot gate a release is blocked from every channel that reaches a person.",
+      "notes": "A build proven only by the pixel-grade mirror strategy must not become shippable by navigating to a different page."
+    },
+    {
+      "statement": "A channel waiting on an Apple decision is distinguishable from one waiting on the owner.",
+      "notes": "One is a queue and the other is a task. Rendering them the same produces either idle waiting or pointless re-submission."
+    }
+  ],
+  "elements": [
+    {
+      "id": "channel-list",
+      "role": "list",
+      "name": "Distribution channels",
+      "description": "One entry per channel — simulator-only, development device, TestFlight, App Store — each carrying its own availability."
+    },
+    {
+      "id": "channel-availability",
+      "role": "status",
+      "name": "Channel availability",
+      "description": "The closed-vocabulary disposition for one channel, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "channel-requirement",
+      "role": "note",
+      "name": "Channel requirement",
+      "description": "What this specific channel requires — signing identity, enrollment, App Store Connect record, or review submission."
+    },
+    {
+      "id": "channel-blocking-rung",
+      "role": "note",
+      "name": "Blocking rung",
+      "description": "The named release-readiness rung that stands between the owner and this channel."
+    },
+    {
+      "id": "channel-next-action",
+      "role": "button",
+      "name": "Next action",
+      "description": "The single action that would advance this channel toward availability."
+    },
+    {
+      "id": "artifact-identity",
+      "role": "note",
+      "name": "Artifact",
+      "description": "The bundle identity, version, and build that these channel verdicts describe."
+    },
+    {
+      "id": "promotability-block",
+      "role": "status",
+      "name": "Evidence grade block",
+      "description": "The notice shown when an artifact's supporting evidence cannot gate a release, and the person-reaching channels are therefore closed."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Enrollment complete and an artifact built from semantic evidence. Some channels available, others requiring a further step, each stating which.",
+      "setup": {
+        "route": "/distribution"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Channel availability is being probed; no channel verdict is asserted yet.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No artifact has been built yet. Explains that channels are evaluated against an artifact rather than showing an empty channel list.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some channel probes succeeded and others could not be reached; unprobed channels are explicitly unknown rather than assumed blocked.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Channel verdicts are from a probe old enough that an enrollment or certificate may have lapsed since. Age is shown rather than the data being presented as current.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The channel probe failed. Reported as a failure rather than as every channel being unavailable.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "no-enrollment",
+      "description": "No Apple Developer Program membership. Simulator-only is available as a validation destination; every person-reaching channel is blocked and names the enrollment rung.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "no-enrollment"
+        }
+      }
+    },
+    {
+      "id": "testflight-ready",
+      "description": "Enrollment, certificates, and an App Store Connect record all hold. TestFlight is available while App Store still requires review submission.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "testflight-ready"
+        }
+      }
+    },
+    {
+      "id": "review-pending",
+      "description": "An App Store submission is awaiting an Apple decision. The channel is neither available nor actionable by the owner.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "review-pending"
+        }
+      }
+    },
+    {
+      "id": "non-promotable-artifact",
+      "description": "The artifact is supported only by pixel-grade mirror evidence. Every person-reaching channel is closed on evidence grade rather than on a missing credential.",
+      "setup": {
+        "route": "/distribution",
+        "query": {
+          "fixture": "non-promotable-artifact"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-channel-reports-its-own-availability",
+      "type": "element-present",
+      "elements": [
+        "channel-list",
+        "channel-availability",
+        "channel-requirement"
+      ],
+      "states": [
+        "default",
+        "no-enrollment",
+        "testflight-ready",
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "Every channel displays its own availability and its own requirement, in every state where channels are listed.",
+      "rationale": "S2I-P0-008. A channel is never presented as available because a sibling channel is. One collapsed 'can distribute' verdict is the exact failure this target exists to prevent."
+    },
+    {
+      "id": "blocked-channel-names-its-rung",
+      "type": "element-present",
+      "elements": [
+        "channel-blocking-rung",
+        "channel-next-action"
+      ],
+      "states": [
+        "no-enrollment",
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "Every blocked channel names the readiness rung that would unblock it and offers one next action.",
+      "rationale": "S2I-P0-009. Channel availability and the readiness ladder are the same probe seen from two directions; a block that does not name its rung forces the operator to guess."
+    },
+    {
+      "id": "channels-do-not-inherit-availability",
+      "type": "state-distinct",
+      "states": [
+        "no-enrollment",
+        "testflight-ready"
+      ],
+      "tier": "machine",
+      "statement": "A board where only the non-distributing channel is available renders distinguishably from one where a person-reaching channel is available.",
+      "rationale": "S2I-P0-008. If these read the same, an owner with no enrollment sees an available channel and concludes they can ship."
+    },
+    {
+      "id": "evidence-grade-can-close-every-channel",
+      "type": "element-present",
+      "elements": [
+        "promotability-block"
+      ],
+      "states": [
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "An artifact whose evidence cannot gate a release presents an explicit evidence-grade block on this page.",
+      "rationale": "S2I-P0-010. Without it, a mirror-proven build becomes shippable simply by navigating away from run review."
+    },
+    {
+      "id": "credential-block-differs-from-grade-block",
+      "type": "state-distinct",
+      "states": [
+        "no-enrollment",
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "A channel blocked for a missing credential renders distinguishably from one blocked on evidence grade.",
+      "rationale": "S2I-P0-008. They have unrelated remedies — one is a purchase, the other is a re-run on a semantic strategy — and a single generic 'blocked' makes both undiagnosable."
+    },
+    {
+      "id": "waiting-on-apple-differs-from-waiting-on-you",
+      "type": "state-distinct",
+      "states": [
+        "review-pending",
+        "no-enrollment"
+      ],
+      "tier": "machine",
+      "statement": "A channel awaiting an Apple decision renders distinguishably from one awaiting an owner action.",
+      "rationale": "One is a queue and the other is a task. Rendering them alike produces either idle waiting or pointless re-submission."
+    },
+    {
+      "id": "artifact-identity-is-explicit",
+      "type": "element-present",
+      "elements": [
+        "artifact-identity"
+      ],
+      "states": [
+        "default",
+        "testflight-ready",
+        "non-promotable-artifact"
+      ],
+      "tier": "machine",
+      "statement": "Channel verdicts name the artifact they describe.",
+      "rationale": "Channel availability is a property of a specific build, not of the scenario. An unattributed verdict cannot be trusted after a rebuild."
+    },
+    {
+      "id": "simulator-only-is-not-distribution",
+      "type": "custom",
+      "statement": "Simulator-only is presented as a validation destination and is never counted toward the number of available distribution channels.",
+      "tier": "manual",
+      "rationale": "S2I-P0-008. It reaches no person. Counting it would let an owner with zero shipping capability read as having one channel available, which is the collapsed-verdict failure in a different costume."
+    },
+    {
+      "id": "channel-availability-not-colour-alone",
+      "type": "custom",
+      "statement": "Every channel availability is distinguishable without relying on hue — each carries a shape or text label as well as a status colour.",
+      "tier": "manual",
+      "rationale": "DESIGN.md accessibility floor. This page's whole purpose is distinguishing kinds of 'no' from each other, which cannot depend on colour discrimination."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "channel-list": {
+        "testid": "distribution-channel-list"
+      },
+      "channel-availability": {
+        "testid": "distribution-channel-availability"
+      },
+      "channel-requirement": {
+        "testid": "distribution-channel-requirement"
+      },
+      "channel-blocking-rung": {
+        "testid": "distribution-channel-blocking-rung"
+      },
+      "channel-next-action": {
+        "testid": "distribution-channel-next-action"
+      },
+      "artifact-identity": {
+        "testid": "distribution-artifact-identity"
+      },
+      "promotability-block": {
+        "testid": "distribution-promotability-block"
+      }
+    }
+  }
+}

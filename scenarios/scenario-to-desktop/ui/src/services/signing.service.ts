@@ -11,7 +11,7 @@ import type {
   WindowsSigningConfig,
   MacOSSigningConfig,
   LinuxSigningConfig,
-} from "../lib/api";
+} from "../domain/signing";
 
 // ============================================================================
 // Types
@@ -64,7 +64,7 @@ export const PLATFORM_DISPLAY_NAMES: Record<SigningPlatform, string> = {
 export function applyCertificateToConfig(
   platform: SigningPlatform,
   cert: DiscoveredCertificate,
-  existingConfig: SigningConfig
+  existingConfig: SigningConfig,
 ): SigningConfig {
   const next: SigningConfig = { ...existingConfig, enabled: true };
 
@@ -72,7 +72,9 @@ export function applyCertificateToConfig(
     next.windows = {
       certificate_source: "store",
       certificate_thumbprint: cert.id || cert.name || "",
-      timestamp_server: existingConfig.windows?.timestamp_server || "http://timestamp.digicert.com",
+      timestamp_server:
+        existingConfig.windows?.timestamp_server ||
+        "http://timestamp.digicert.com",
       sign_algorithm: existingConfig.windows?.sign_algorithm || "sha256",
       dual_sign: existingConfig.windows?.dual_sign,
     };
@@ -90,7 +92,7 @@ export function applyCertificateToConfig(
       apple_id_env: existingConfig.macos?.apple_id_env,
       apple_id_password_env: existingConfig.macos?.apple_id_password_env,
     };
-  } else if (platform === "linux") {
+  } else {
     next.linux = {
       gpg_key_id: cert.id || cert.name || "",
       keyring_path: existingConfig.linux?.keyring_path,
@@ -111,12 +113,15 @@ export function applyCertificateToConfig(
  */
 export function detectExpiryWarnings(
   certificates: DiscoveredCertificate[],
-  thresholdDays: number = EXPIRY_WARNING_THRESHOLD_DAYS
+  thresholdDays: number = EXPIRY_WARNING_THRESHOLD_DAYS,
 ): ExpiryWarning[] {
   return certificates
     .filter((cert) => {
       if (cert.is_expired) return true;
-      if (typeof cert.days_to_expiry === "number" && cert.days_to_expiry <= thresholdDays) {
+      if (
+        typeof cert.days_to_expiry === "number" &&
+        cert.days_to_expiry <= thresholdDays
+      ) {
         return true;
       }
       return false;
@@ -132,12 +137,14 @@ export function detectExpiryWarnings(
 /**
  * Check if any certificates have imminent expiry (within critical threshold).
  */
-export function hasImminentExpiry(certificates: DiscoveredCertificate[]): boolean {
+export function hasImminentExpiry(
+  certificates: DiscoveredCertificate[],
+): boolean {
   return certificates.some(
     (cert) =>
       !cert.is_expired &&
       typeof cert.days_to_expiry === "number" &&
-      cert.days_to_expiry <= EXPIRY_CRITICAL_THRESHOLD_DAYS
+      cert.days_to_expiry <= EXPIRY_CRITICAL_THRESHOLD_DAYS,
   );
 }
 
@@ -145,15 +152,17 @@ export function hasImminentExpiry(certificates: DiscoveredCertificate[]): boolea
  * Get the soonest expiring certificate.
  */
 export function getSoonestExpiring(
-  certificates: DiscoveredCertificate[]
+  certificates: DiscoveredCertificate[],
 ): DiscoveredCertificate | null {
   const nonExpired = certificates.filter(
-    (cert) => !cert.is_expired && typeof cert.days_to_expiry === "number"
+    (cert) => !cert.is_expired && typeof cert.days_to_expiry === "number",
   );
   if (nonExpired.length === 0) return null;
 
   return nonExpired.reduce((soonest, cert) =>
-    (cert.days_to_expiry ?? Infinity) < (soonest.days_to_expiry ?? Infinity) ? cert : soonest
+    (cert.days_to_expiry ?? Infinity) < (soonest.days_to_expiry ?? Infinity)
+      ? cert
+      : soonest,
   );
 }
 
@@ -166,7 +175,7 @@ export function getSoonestExpiring(
  */
 export function hasUnsavedConfigChanges(
   localConfig: SigningConfig,
-  serverConfig: SigningConfig | null | undefined
+  serverConfig: SigningConfig | null | undefined,
 ): boolean {
   if (!serverConfig) {
     // If no server config, any local config with values is unsaved
@@ -192,7 +201,7 @@ export function hasAnyPlatformConfig(config: SigningConfig): boolean {
  */
 export function isPlatformReady(
   readiness: SigningReadinessResponse | null | undefined,
-  platform: SigningPlatform
+  platform: SigningPlatform,
 ): boolean {
   if (!readiness) return false;
   return readiness.platforms?.[platform]?.ready ?? false;
@@ -203,7 +212,7 @@ export function isPlatformReady(
  */
 export function getPlatformNotReadyReason(
   readiness: SigningReadinessResponse | null | undefined,
-  platform: SigningPlatform
+  platform: SigningPlatform,
 ): string | null {
   if (!readiness) return null;
   const status = readiness.platforms?.[platform];
@@ -216,10 +225,12 @@ export function getPlatformNotReadyReason(
  * Count how many platforms are ready.
  */
 export function countReadyPlatforms(
-  readiness: SigningReadinessResponse | null | undefined
+  readiness: SigningReadinessResponse | null | undefined,
 ): number {
   if (!readiness) return 0;
-  return PLATFORM_ORDER.filter((platform) => readiness.platforms?.[platform]?.ready).length;
+  return PLATFORM_ORDER.filter(
+    (platform) => readiness.platforms?.[platform]?.ready,
+  ).length;
 }
 
 // ============================================================================
@@ -229,23 +240,29 @@ export function countReadyPlatforms(
 /**
  * Get validation error count.
  */
-export function getValidationErrorCount(result: SigningValidationResult | null): number {
+export function getValidationErrorCount(
+  result: SigningValidationResult | null,
+): number {
   if (!result) return 0;
-  return result.errors?.length ?? 0;
+  return result.errors.length;
 }
 
 /**
  * Get validation warning count.
  */
-export function getValidationWarningCount(result: SigningValidationResult | null): number {
+export function getValidationWarningCount(
+  result: SigningValidationResult | null,
+): number {
   if (!result) return 0;
-  return result.warnings?.length ?? 0;
+  return result.warnings.length;
 }
 
 /**
  * Check if validation passed.
  */
-export function isValidationPassed(result: SigningValidationResult | null): boolean {
+export function isValidationPassed(
+  result: SigningValidationResult | null,
+): boolean {
   if (!result) return false;
   return result.valid;
 }
@@ -305,7 +322,7 @@ export function getDefaultLinuxConfig(): LinuxSigningConfig {
  */
 export function filterCertificatesByPlatform(
   certificates: DiscoveredCertificate[],
-  platform: SigningPlatform
+  platform: SigningPlatform,
 ): DiscoveredCertificate[] {
   return certificates.filter((cert) => cert.platform === platform);
 }
@@ -314,7 +331,7 @@ export function filterCertificatesByPlatform(
  * Filter to get only code signing certificates.
  */
 export function filterCodeSigningCertificates(
-  certificates: DiscoveredCertificate[]
+  certificates: DiscoveredCertificate[],
 ): DiscoveredCertificate[] {
   return certificates.filter((cert) => cert.is_code_sign !== false);
 }
@@ -323,7 +340,7 @@ export function filterCodeSigningCertificates(
  * Filter to get only non-expired certificates.
  */
 export function filterNonExpiredCertificates(
-  certificates: DiscoveredCertificate[]
+  certificates: DiscoveredCertificate[],
 ): DiscoveredCertificate[] {
   return certificates.filter((cert) => !cert.is_expired);
 }
@@ -335,12 +352,17 @@ export function filterNonExpiredCertificates(
 /**
  * Build an expiry warning message for storage/display.
  */
-export function buildExpiryWarningMessage(cert: DiscoveredCertificate): string | null {
+export function buildExpiryWarningMessage(
+  cert: DiscoveredCertificate,
+): string | null {
   if (cert.is_expired) {
     return `Signing certificate expired on ${cert.expires_at || "unknown date"}.`;
   }
-  if (typeof cert.days_to_expiry === "number" && cert.days_to_expiry <= EXPIRY_WARNING_THRESHOLD_DAYS) {
-    return `Signing certificate expires in ${cert.days_to_expiry} days (${cert.expires_at || "date unknown"}).`;
+  if (
+    typeof cert.days_to_expiry === "number" &&
+    cert.days_to_expiry <= EXPIRY_WARNING_THRESHOLD_DAYS
+  ) {
+    return `Signing certificate expires in ${String(cert.days_to_expiry)} days (${cert.expires_at || "date unknown"}).`;
   }
   return null;
 }

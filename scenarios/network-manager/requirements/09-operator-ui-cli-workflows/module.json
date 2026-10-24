@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "operator-ui-cli-workflows",
+    "description": "Core operator workflows across UI and CLI.",
+    "prd_ref": "OT-P0-009",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-009",
+      "title": "UI and CLI expose equivalent core operations",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "surface",
+      "criticality": "P0",
+      "description": "The scenario shall expose snapshot, resolver status, device inventory, filtering preview/apply, optimization run, approval, rollback, and report export workflows through both UI and CLI without duplicating business logic outside the API.",
+      "tags": ["ui", "cli", "workflow-parity"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add API/CLI/UI tests tagged [REQ:NM-P0-009] that verify both surfaces call the same operation contracts and represent errors consistently."
+        }
+      ]
+    }
+  ]
+}

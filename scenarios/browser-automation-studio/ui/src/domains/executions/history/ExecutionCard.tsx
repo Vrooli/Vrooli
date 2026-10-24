@@ -12,6 +12,7 @@ import {
   Folder,
 } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { selectors } from '@/constants/selectors';
 
 /** Safely check if a Date is valid */
 const isValidDate = (date: Date): boolean => {
@@ -137,7 +138,7 @@ const statusConfig: Record<ExecutionStatus, {
   },
 };
 
-export const ExecutionCard: React.FC<ExecutionCardProps> = ({
+export const ExecutionCard: React.FC<ExecutionCardProps> = React.memo(({
   execution,
   isRunning = false,
   isSelected = false,
@@ -190,6 +191,8 @@ export const ExecutionCard: React.FC<ExecutionCardProps> = ({
       data-testid={testId}
       data-execution-id={execution.id}
       data-execution-status={execution.status}
+      data-workflow-id={execution.workflowId}
+      data-workflow-name={execution.workflowName}
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       role={onClick ? 'button' : undefined}
@@ -309,6 +312,7 @@ export const ExecutionCard: React.FC<ExecutionCardProps> = ({
               }}
               className="p-1.5 text-gray-400 hover:text-surface hover:bg-gray-700 rounded-md transition-colors"
               title="View details"
+              data-testid={selectors.executions.actions.viewButton}
             >
               <Eye size={14} />
             </button>
@@ -317,6 +321,8 @@ export const ExecutionCard: React.FC<ExecutionCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ExecutionCard.displayName = 'ExecutionCard';
 
 export default ExecutionCard;

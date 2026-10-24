@@ -1,0 +1,409 @@
+{
+  "metadata": {
+    "description": "Import the retained free smartwatch GLB through the real file picker, edit only the observed display material roughness, preserve its immutable parent, and download both revisions.",
+    "execution_mode": "mutating",
+    "labels": {
+      "desktop_target": "true",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "surface": "projects",
+      "required": "true",
+      "network_profile": "offline"
+    },
+    "name": "desktop-imported-material-correction",
+    "requirement": "DS-LOCAL-GLB-MATERIAL-CORRECTION",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "id": "open-seeded-project",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "device-studio",
+          "scenario_path": "/projects/226e8120-cb29-48b3-9d18-9b3a468c92a7",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "wait-project",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"shot-workspace\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "open-physical-shot",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"New physical shot\")"
+        }
+      }
+    },
+    {
+      "id": "wait-physical-shot",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"physical-shot-create\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "choose-device-step",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": ".physical-shot__steps button:nth-child(2)"
+        }
+      }
+    },
+    {
+      "id": "wait-intake",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"physical-library-intake\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "upload-parent-glb",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "[data-testid=\"physical-library-intake\"] input[type=file]",
+          "file_paths": [
+            "/tmp/device-studio-e5c-import/smartwatch.glb"
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-parent-name",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"physical-library-intake\"] label:has-text(\"Display name\") input",
+          "value": "E5-C Grab3D smartwatch parent",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "set-source-claim",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"physical-library-intake\"] label:has-text(\"Source description\") input",
+          "value": "Local retained Grab3D smartwatch GLB from E4; imported for a private deterministic material correction check.",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "set-license-claim",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"physical-library-intake\"] label:has-text(\"License claim\") input",
+          "value": "The retained creator license file states CC0-1.0; this operator claim is not rights review.",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "set-attribution-claim",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"physical-library-intake\"] label:has-text(\"Attribution claim\") input",
+          "value": "Grab3D smartwatch model; retained source record E4 (creator attribution claim, not verified).",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "open-technical-details",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"physical-library-intake\"] details > summary:has-text(\"Technical details\")"
+        }
+      }
+    },
+    {
+      "id": "set-stable-parent-id",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"physical-library-intake\"] label:has-text(\"Candidate ID\") input",
+          "value": "zz-e5c-grab3d-watch-parent-v1",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "submit-parent",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"physical-library-intake\"] button:has-text(\"Import candidate\")"
+        }
+      }
+    },
+    {
+      "id": "wait-parent",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"physical-library-intake\"] li:has-text(\"E5-C Grab3D smartwatch parent\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 60000
+        }
+      }
+    },
+    {
+      "id": "open-material-editor",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"physical-library-intake\"] li:has-text(\"E5-C Grab3D smartwatch parent\") button:has-text(\"Edit material\")"
+        }
+      }
+    },
+    {
+      "id": "wait-material-inventory",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"intake-material-editor-zz-e5c-grab3d-watch-parent-v1\"] label:has-text(\"Observed material\") select option:nth-child(2)",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "select-observed-display-material",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "[data-testid=\"intake-material-editor-zz-e5c-grab3d-watch-parent-v1\"] label:has-text(\"Observed material\") select",
+          "label": "[1] smartwatch_glass_display_x"
+        }
+      }
+    },
+    {
+      "id": "set-roughness",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"intake-material-editor-zz-e5c-grab3d-watch-parent-v1\"] label:has-text(\"New roughness\") input",
+          "value": "0.55",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "apply-local-correction",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"intake-material-editor-zz-e5c-grab3d-watch-parent-v1\"] button:has-text(\"Create unreviewed corrected child\")"
+        }
+      }
+    },
+    {
+      "id": "wait-lineage",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"intake-material-editor-zz-e5c-grab3d-watch-parent-v1\"] details:has(> summary:has-text(\"Material edit lineage\"))",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "verify-parent-child-lineage",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const root=document.querySelector('[data-testid=\"physical-library-intake\"]');const rows=[...root.querySelectorAll('li')];const headers={'Content-Type':'application/json','X-Vrooli-Test-Mode':'1'};const r=await fetch('/vrooli.device_studio.v1.library.LibraryCatalogService/ListIntakeCandidates',{method:'POST',headers,body:JSON.stringify({pageSize:100})});if(!r.ok)throw Error('Exact intake lineage read failed');const all=(await r.json()).candidates||[];const parent=all.find(x=>x.id==='zz-e5c-grab3d-watch-parent-v1');const children=all.filter(x=>x.parentCandidateId===parent?.id&&x.importMethod==='local_material_correction');if(!parent||parent.originalSha256!=='763ba7570daad6e1024ab8242efb7c3dccb9a183b56782a564bdc748dba3d589'||parent.reviewStatus!=='unreviewed'||parent.renderStatus!=='not_reviewed'||children.length!==1)throw Error('Expected exact unreviewed imported parent and one correction child');const child=children[0];if(child.reviewStatus!=='unreviewed'||child.renderStatus!=='not_reviewed'||child.parentRevision!==parent.revision||child.parentSha256!==parent.revisionSha256||!child.originalSha256||child.originalSha256===parent.originalSha256)throw Error('Child status, changed bytes, or parent digest mismatch');const bind=(candidate,marker)=>{const found=rows.filter(row=>row.textContent.includes(candidate.displayName)&&row.textContent.includes(`SHA-256 ${candidate.originalSha256.slice(0,12)}`));if(found.length!==1)throw Error(`Expected one exact rendered row for ${marker} candidate ${candidate.id}`);found[0].setAttribute(marker,'true');return found[0]};const parentRow=bind(parent,'data-e5c-parent');const childRow=bind(child,'data-e5c-child');if(parentRow===childRow)throw Error('Parent and child download bindings resolved to one row');return {parent:{id:parent.id,revision:parent.revision,sha256:parent.originalSha256,status:parent.reviewStatus+'/'+parent.renderStatus},child:{id:child.id,revision:child.revision,sha256:child.originalSha256,status:child.reviewStatus+'/'+child.renderStatus,parentSha256:child.parentSha256},downloadBindings:{parentRows:root.querySelectorAll('li[data-e5c-parent=\"true\"]').length,childRows:root.querySelectorAll('li[data-e5c-child=\"true\"]').length},source:'owner lineage IDs and digests bound to exact rendered rows'};})()",
+          "store_result": "e5c_imported_material_lineage"
+        }
+      }
+    },
+    {
+      "id": "download-child-glb",
+      "action": {
+        "type": "ACTION_TYPE_DOWNLOAD",
+        "download": {
+          "selector": "[data-testid=\"physical-library-intake\"] li[data-e5c-child=\"true\"] button:has-text(\"Download verified original\")",
+          "save_path": "/tmp/device-studio-e5c-correction/child.glb",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "download-parent-glb",
+      "action": {
+        "type": "ACTION_TYPE_DOWNLOAD",
+        "download": {
+          "selector": "[data-testid=\"physical-library-intake\"] li[data-e5c-parent=\"true\"] button:has-text(\"Download verified original\")",
+          "save_path": "/tmp/device-studio-e5c-correction/parent.glb",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "verify-download-controls",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const rows=[...document.querySelectorAll('[data-testid=\"physical-library-intake\"] li')].filter(x=>x.textContent.includes('E5-C Grab3D smartwatch parent'));if(rows.length<2||rows.some(x=>!x.querySelector('button')))throw Error('Parent and child verified-download controls are missing');return {verifiedDownloadControls:rows.length,materialLineageVisible:document.body.textContent.includes('Child GLB SHA-256'),reviewState:'unreviewed; no render eligibility granted'};})()",
+          "store_result": "e5c_download_controls"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-seeded-project",
+      "target": "wait-project"
+    },
+    {
+      "id": "e2",
+      "source": "wait-project",
+      "target": "open-physical-shot"
+    },
+    {
+      "id": "e3",
+      "source": "open-physical-shot",
+      "target": "wait-physical-shot"
+    },
+    {
+      "id": "e4",
+      "source": "wait-physical-shot",
+      "target": "choose-device-step"
+    },
+    {
+      "id": "e5",
+      "source": "choose-device-step",
+      "target": "wait-intake"
+    },
+    {
+      "id": "e6",
+      "source": "wait-intake",
+      "target": "upload-parent-glb"
+    },
+    {
+      "id": "e7",
+      "source": "upload-parent-glb",
+      "target": "set-parent-name"
+    },
+    {
+      "id": "e8",
+      "source": "set-parent-name",
+      "target": "set-source-claim"
+    },
+    {
+      "id": "e9",
+      "source": "set-source-claim",
+      "target": "set-license-claim"
+    },
+    {
+      "id": "e10",
+      "source": "set-license-claim",
+      "target": "set-attribution-claim"
+    },
+    {
+      "id": "e11",
+      "source": "set-attribution-claim",
+      "target": "open-technical-details"
+    },
+    {
+      "id": "e12",
+      "source": "open-technical-details",
+      "target": "set-stable-parent-id"
+    },
+    {
+      "id": "e13",
+      "source": "set-stable-parent-id",
+      "target": "submit-parent"
+    },
+    {
+      "id": "e14",
+      "source": "submit-parent",
+      "target": "wait-parent"
+    },
+    {
+      "id": "e15",
+      "source": "wait-parent",
+      "target": "open-material-editor"
+    },
+    {
+      "id": "e16",
+      "source": "open-material-editor",
+      "target": "wait-material-inventory"
+    },
+    {
+      "id": "e17",
+      "source": "wait-material-inventory",
+      "target": "select-observed-display-material"
+    },
+    {
+      "id": "e18",
+      "source": "select-observed-display-material",
+      "target": "set-roughness"
+    },
+    {
+      "id": "e19",
+      "source": "set-roughness",
+      "target": "apply-local-correction"
+    },
+    {
+      "id": "e20",
+      "source": "apply-local-correction",
+      "target": "wait-lineage"
+    },
+    {
+      "id": "e21",
+      "source": "wait-lineage",
+      "target": "verify-parent-child-lineage"
+    },
+    {
+      "id": "e22",
+      "source": "verify-parent-child-lineage",
+      "target": "download-child-glb"
+    },
+    {
+      "id": "e23",
+      "source": "download-child-glb",
+      "target": "download-parent-glb"
+    },
+    {
+      "id": "e24",
+      "source": "download-parent-glb",
+      "target": "verify-download-controls"
+    }
+  ],
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  }
+}

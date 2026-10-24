@@ -119,6 +119,17 @@ func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*wireGet
 	return &result, nil
 }
 
+// GetRunReport returns the bounded, privacy-filtered run projection. It is
+// used only to attach generic work references and receipt availability to
+// provenance; transcripts and raw event payloads are never copied.
+func (c *AgentManagerClient) GetRunReport(ctx context.Context, runID string) (*wireRunReportResponse, error) {
+	var result wireRunReportResponse
+	if err := c.doGet(ctx, "/api/v1/runs/"+runID+"/report", &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // GetRunEvents calls GET /api/v1/runs/{id}/events on agent-manager.
 func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence, limit int) (*wireGetRunEventsResponse, error) {
 	path := fmt.Sprintf("/api/v1/runs/%s/events?afterSequence=%d&limit=%d", runID, afterSequence, limit)
@@ -174,41 +185,23 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*wireSt
 	return &result, nil
 }
 
-type ensureProfileDefaults struct {
-	Name                 string `json:"name"`
-	ProfileKey           string `json:"profile_key"`
-	Description          string `json:"description,omitempty"`
-	RunnerType           int    `json:"runner_type,omitempty"`
-	MaxTurns             int    `json:"max_turns,omitempty"`
-	SkipPermissionPrompt bool   `json:"skip_permission_prompt,omitempty"`
-}
-
-type ensureProfileRequest struct {
-	ProfileKey     string                 `json:"profile_key"`
-	Defaults       *ensureProfileDefaults `json:"defaults,omitempty"`
-	UpdateExisting bool                   `json:"update_existing"`
-}
-
-// EnsureDefaultProfile creates (or confirms existence of) the default
-// git-control-tower-reviewer profile in agent-manager.
-func (c *AgentManagerClient) EnsureDefaultProfile(ctx context.Context) (*wireEnsureProfileResponse, error) {
-	req := ensureProfileRequest{
-		ProfileKey: "git-control-tower-reviewer",
-		Defaults: &ensureProfileDefaults{
-			Name:                 "Git Control Tower Reviewer",
-			ProfileKey:           "git-control-tower-reviewer",
-			Description:          "Default profile for git-control-tower scenario reviews",
-			RunnerType:           1, // RUNNER_TYPE_CLAUDE_CODE
-			MaxTurns:             500,
-			SkipPermissionPrompt: true,
-		},
-		UpdateExisting: true,
+// ReconcileProfiles applies Git Control Tower's manifest-declared profile source.
+func (c *AgentManagerClient) ReconcileProfiles(ctx context.Context) error {
+	var result struct {
+		Results []struct {
+			ProfileKey string `json:"profile_key"`
+			ProfileID  string `json:"profile_id"`
+		} `json:"results"`
 	}
-	var result wireEnsureProfileResponse
-	if err := c.doJSON(ctx, "/api/v1/profiles/ensure", req, &result); err != nil {
-		return nil, err
+	if err := c.doJSON(ctx, "/api/v1/profiles/reconcile-scenario", map[string]string{"scenario": "git-control-tower"}, &result); err != nil {
+		return err
 	}
-	return &result, nil
+	for _, item := range result.Results {
+		if item.ProfileKey == "git-control-tower/reviewer" && item.ProfileID != "" {
+			return nil
+		}
+	}
+	return fmt.Errorf("profile reconciliation returned no git-control-tower/reviewer profile")
 }
 
 // ListRuns calls GET /api/v1/runs on agent-manager.

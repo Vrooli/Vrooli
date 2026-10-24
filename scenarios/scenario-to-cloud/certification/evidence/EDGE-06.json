@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "case_id": "EDGE-06",
+  "verdict": "unavailable",
+  "lane": "qemu",
+  "requirement_refs": [
+    "STC-P0-036"
+  ],
+  "candidate": {
+    "release_digest": "",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "",
+    "architecture": "amd64",
+    "os": "ubuntu-24.04"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "",
+  "artifact_refs": [],
+  "assertions": [],
+  "observed_at": "2026-09-09T15:43:05Z",
+  "limitations": [
+    "Target reboot recovery needs a real host: QEMU lane pending EXT-06, real VPS pending EXT-01",
+    "arm64 needs TCG (qemu-system-aarch64) or an arm64 host (EXT-05); the arm64 cell stays unavailable and certification remains incomplete for that architecture (P20-A06)"
+  ]
+}

@@ -12,9 +12,9 @@ This document explains the key concepts and architecture of your landing page.
 
 **Key Implementation Files:**
 - [CODE: api/variant_handlers.go] - A/B testing variant selection and management
-- [CODE: api/variant_space.go] - Variant space configuration
-- [CODE: api/stripe_handlers.go] - Stripe payment integration
-- [CODE: api/metrics_handlers.go] - Analytics event tracking
+- [CODE: api/internal/experimentation/variant_space.go] - Variant space configuration
+- [CODE: api/handlers/commerce/connect.go] - Stripe payment integration
+- [CODE: api/handlers/metrics/connect.go] - Analytics event tracking
 - [CODE: ui/src/app/providers/LandingVariantProvider.tsx] - Client-side variant handling
 
 ## Table of Contents
@@ -32,11 +32,11 @@ This document explains the key concepts and architecture of your landing page.
 
 Landing pages support whole-page A/B testing where different visitors see different variants.
 
-Variant content (copy, sections, header, SEO, axes) ships as files in `.vrooli/variants/*.json`, while weights and performance stats live in Postgres so deployments do not reset allocations or analytics.
+Variant content (copy, sections, header, SEO, axes) ships as files in `config/variants/*.json`, while weights and performance stats live in Postgres so deployments do not reset allocations or analytics.
 
 ### Variant Dimensions (Axes)
 
-Each variant is defined along three axes:
+Each variant is defined along num[sot]:three axes:
 
 ```
 +-----------------------------------------------------------------------+
@@ -67,7 +67,7 @@ Each variant is defined along three axes:
 ### Creating Effective Variants
 
 1. **Start with Control**: The default variant based on your best hypothesis
-2. **Change one axis**: Create variants that differ in one dimension
+2. **Change num[decision]:one axis**: Create variants that differ in one dimension
 3. **Measure impact**: Compare conversion rates after sufficient traffic
 
 Example test plan:
@@ -356,16 +356,16 @@ cd scenarios/<slug>
 make start
 
 # Or using Vrooli CLI
-vrooli scenario start <slug>
+vrooli scenario start "<slug>"
 
 # Stop
-vrooli scenario stop <slug>
+vrooli scenario stop "<slug>"
 
 # View logs
-vrooli scenario logs <slug> --tail 100
+vrooli scenario logs "<slug>" --tail 100
 
 # Check status
-vrooli scenario status <slug>
+vrooli scenario status "<slug>"
 ```
 
 ---
@@ -382,4 +382,18 @@ vrooli scenario status <slug>
 
 ---
 
-**Next**: [Admin Guide](../guides/ADMIN_GUIDE.md) | [API Reference](../reference/api/README.md) | [Troubleshooting](../guides/TROUBLESHOOTING.md)
+**Next**: [Admin Guide](../guides/ADMIN_GUIDE.md) | [API Reference](../reference/api/OVERVIEW.md) | [Troubleshooting](../guides/TROUBLESHOOTING.md)
+# Business analytics truth
+
+LPBS is the producer of business aggregates. A visitor key is the non-empty
+visitor id, otherwise the session id. First touch is the earliest human page
+view's attribution tuple. Events are classified as human, bot, or internal at
+ingest; only human events contribute to business counts. A completed checkout
+creates one idempotent conversion event, while unattributed checkouts remain
+in totals and are never assigned to a traffic dimension.
+
+Delivery activity records download authorizations and update-check requests per
+app. Usage activity records one finalized metered operation per app and model.
+The Business Digest owns funnel denominators, experiment verdicts, growth,
+retention, credit economy, and exclusion counts; consumers do not recompute
+those figures.

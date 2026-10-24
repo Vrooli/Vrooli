@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.floating-action-button",
+    "name": "FloatingActionButton",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The prominent contextual action that respects safe areas, responds to scrolling, supports optional expansion to a label, and offers handedness placement for frequent mobile use.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "controls.pressable",
+        "reason": "Pointer, touch, keyboard, press, and focus-visible behavior is owned once rather than reimplemented."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "safe-area-respected",
+    "responsive-transformation",
+    "reduced-motion"
+  ]
+}

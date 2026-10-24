@@ -1,0 +1,17 @@
+{
+  "scenario": "audio-tools",
+  "started_at": "2026-09-16T13:32:13.479286473Z",
+  "finished_at": "2026-09-16T14:32:13.4921379Z",
+  "duration": "1h0m0.012851427s",
+  "duration_seconds": 3600.012851427,
+  "tts_requests": 360,
+  "tts_frames": 360,
+  "tts_bytes": 103918274,
+  "stt_chunks": 1,
+  "stt_bytes": 3200,
+  "stt_events": 2,
+  "checks": [
+    "hour-scale TTS streaming remained available for the full qualification duration",
+    "continuous synthetic PCM dictation streamed in real time without a terminal transport error"
+  ]
+}

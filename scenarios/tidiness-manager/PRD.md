@@ -1,34 +1,35 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
 - **Purpose**: Central code tidiness orchestrator that prevents scenarios from decaying into unmaintainable chaos through progressive, multi-tier scanning (cheap static + expensive AI) and campaign-based cleanup
 - **Primary users/verticals**: Development agents, maintenance scenarios, human developers managing code health across 100+ scenarios
 - **Deployment surfaces**: CLI (agent integration), API (programmatic access), UI (human management dashboard), auto-campaigns (background enforcement)
-- **Value promise**: Surfaces refactor opportunities before they become emergencies; ensures comprehensive coverage without redundant work; prevents "1000-line file syndrome" across the ecosystem
+- **Value promise**: Surfaces refactor opportunities before they become emergencies; ensures comprehensive maintainability coverage without redundant static-quality ownership; prevents "1000-line file syndrome" across the ecosystem
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Makefile-based light scanning | Execute `make lint` and `make type` for any scenario and parse outputs into structured issues
-- [x] OT-P0-002 | Code quality metrics | Detect languages (Go/TS/JS/Python/Rust), compute line counts, technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity (via gocyclo), and code duplication (via dupl/jscpd) with graceful tool degradation
+- [ ] OT-P0-001 | Maintainability scanning | Detect long files, technical debt markers, coupling, complexity, and duplication, then return normalized tidiness findings for agents and Test Genie
+- [ ] OT-P0-002 | Code quality metrics | Detect languages (Go/TS/JS/Python/Rust), compute line counts, technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity (via gocyclo), and code duplication (via dupl/jscpd) with graceful tool degradation
 - [x] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
-- [x] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
-- [x] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
-- [x] OT-P0-006 | No file hammering | Prevent analyzing the same file twice within a session or beyond configurable max visits
-- [x] OT-P0-007 | Agent API | Expose HTTP/CLI interface for other agents to request top N tidiness issues by scenario/file/folder/category
-- [x] OT-P0-008 | Issue storage | Record AI-generated issues with scenario, file path, category, severity, agent notes, remediation steps, and campaign metadata
+- [ ] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
+- [ ] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
+- [ ] OT-P0-006 | No file hammering | Prevent analyzing the same file twice within a session or beyond configurable max visits
+- [ ] OT-P0-007 | Agent API | Expose HTTP/CLI interface for other agents to request top N tidiness issues by scenario/file/folder/category
+- [ ] OT-P0-008 | Issue storage | Record AI-generated issues with scenario, file path, category, severity, agent notes, remediation steps, and campaign metadata
 - [ ] OT-P0-009 | Global dashboard | Display per-scenario counts of light issues, AI issues, long files, visit %, and campaign status
 - [ ] OT-P0-010 | Scenario detail view | Show file table with paths, line counts, issue counts, visit counts, and sortable columns
+- [ ] OT-P0-011 | Declarative canonical seams | When a scanned tree declares canonical seams, Tidiness Manager shall parse Go source with the AST, report in-scope call and literal bypasses, ignore text lookalikes, and enforce each seam's budget
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Auto-tidiness campaigns | Run automatic agent scan campaigns across up to K scenarios with session limits and priority rules
-- [x] OT-P1-002 | Campaign lifecycle | Auto-complete campaigns when all files visited or max sessions reached; support pause/resume/terminate
-- [x] OT-P1-003 | Campaign safety | Mark campaigns as "error" on repeated failures; enforce global concurrency limit K
+- [ ] OT-P1-001 | Auto-tidiness campaigns | Run automatic agent scan campaigns across up to K scenarios with session limits and priority rules
+- [ ] OT-P1-002 | Campaign lifecycle | Auto-complete campaigns when all files visited or max sessions reached; support pause/resume/terminate
+- [ ] OT-P1-003 | Campaign safety | Mark campaigns as "error" on repeated failures; enforce global concurrency limit K
 - [ ] OT-P1-004 | Issue management UI | Allow mark-as-resolved, mark-as-ignored, filter by status, view agent notes and suggested remediation
 - [ ] OT-P1-005 | Issue de-duplication | Group/link same logical issue from multiple sources (lint + type + AI) to reduce clutter
 - [ ] OT-P1-006 | Trigger controls | Enable one-off light scans, one-off smart scans, and campaign enable/disable from UI
@@ -40,7 +41,6 @@
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Trend analysis | Display code health metrics over time (% files long, % files with issues, avg issues per file)
 - [ ] OT-P2-002 | Issue-tracker integration | Create tasks in app-issue-tracker for high-severity tidiness issues
-- [ ] OT-P2-003 | code-smell integration | Call code-smell scenario for deeper pattern analysis beyond structural issues
 - [ ] OT-P2-004 | Remediation automation | Auto-apply safe fixes (e.g., dead import removal) with approval workflow
 - [ ] OT-P2-005 | Custom rule engine | Allow humans to define custom tidiness rules (e.g., "no files >X lines in api/handlers/")
 - [ ] OT-P2-006 | Multi-scenario reports | Generate fleet-wide tidiness reports showing worst offenders across all scenarios
@@ -50,12 +50,13 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Makefile execution, language detection, file traversal, AI orchestration), React UI (dashboard, campaign management, metrics visualization), CLI (agent integration)
 - Data + storage expectations: PostgreSQL (issue tracking, campaign state, audit trail), file-based JSON (light scan caching for portability), optional Redis (expensive operation caching)
-- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional static analysis tools (gocyclo, dupl, jscpd) → optional code-smell for pattern detection
-- Non-goals / guardrails: Not auto-fixing code (that's code-smell's domain); not standards enforcement (that's scenario-auditor's domain); not replacing existing linters/type checkers (orchestrating and extending them); not real-time IDE integration (batch-oriented)
+- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional static analysis tools (gocyclo, dupl, jscpd)
+- Non-goals / guardrails: Not auto-fixing code; not pattern/anti-pattern detection; not standards enforcement (that's scenario-auditor's domain); not lint/type/static-quality contract enforcement (that's quality-health's domain); not real-time IDE integration (batch-oriented)
+- **Unowned capability gap (2026-08-18):** auto-fix and pattern-based smell detection previously belonged to the `code-smell` scenario, which was retired as abandoned (no dependents, no registry entry, source stale since 2025-12; the planned integration was never built). These two capabilities now have **no owner**. Tidiness Manager still declines them by design — adopting them would be a deliberate scope expansion requiring a PRD revision, not a bugfix.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: postgres (data storage), resource-claude-code (AI analysis), resource-codes (additional AI capabilities)
-- Optional resources: redis (caching), visited-tracker (campaign management, file prioritization), code-smell (pattern analysis integration)
+- Optional resources: redis (caching), visited-tracker (campaign management, file prioritization)
 - Optional tools: gocyclo (Go complexity analysis), dupl (Go duplication detection), jscpd (TS/JS duplication detection)
 - Scenario dependencies: visited-tracker (file tracking), scenario-auditor (complementary standards checks), app-issue-tracker (task creation integration for P2)
 - Operational risks: AI cost runaway (mitigate with strict batching + session limits); false positive noise (mitigate with configurable thresholds); Makefile inconsistency across scenarios (document standards); campaign resource exhaustion (enforce global concurrency limit K)
@@ -75,7 +76,7 @@
 
 **scenario-auditor**: Complementary - auditor enforces standards compliance (security, schema, best practices); tidiness enforces cleanliness (length, organization, duplication)
 
-**code-smell**: Integration partner - tidiness focuses on structure (WHERE messy); code-smell focuses on patterns (WHAT wrong); tidiness can call code-smell for deeper analysis in P2
+**quality-health**: Complementary - quality-health owns lint/type/static-quality contracts, strict config policy, suppressions, and static-quality autofix. Tidiness Manager must not duplicate those findings.
 
 **app-issue-tracker**: Consumer in P2 - high-severity tidiness issues can auto-create tasks for human/agent follow-up
 
@@ -101,8 +102,6 @@ Higher score = higher priority for next smart scan
 - **coupling**: Excessive imports/dependencies (detected via import counting)
 - **dead_code**: Unused functions, imports, components (AI-powered)
 - **style**: Inconsistent naming, patterns (AI-powered)
-- **lint**: Issues from `make lint`
-- **type**: Issues from `make type`
 
 ### Campaign State Machine
 

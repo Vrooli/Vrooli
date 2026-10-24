@@ -1,0 +1,226 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "rcl-delivery-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": false
+    }
+  },
+  "createdAt": "2026-09-14T05:12:54Z",
+  "displayName": "React Component Library Rehabilitation",
+  "effortRefs": [
+    "effort:react-component-library-rehabilitation"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "id": "rcl-prompt-manager-ux-design-campaign",
+  "homePath": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver the selected dependable React core, complete discoverable studio and safe component adoption and evolution in two real consumers.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "rcl-goal",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/CHARTER.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/archive/v1/TARGETS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/HISTORY.md"
+            }
+          ],
+          "writePolicy": "Orchestrator maintains the goal home; operator amendments change the destination.",
+          "consumers": [
+            "rcl-prompt-manager-ux-design-campaign",
+            "effort-supervision"
+          ],
+          "useFor": "Approved selected-core destination, constraints, proving journeys, cleanup gates and revision history."
+        },
+        {
+          "id": "delivery-worker-card",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+            }
+          ],
+          "writePolicy": "Owner-authorized amendments only.",
+          "consumers": [
+            "rcl-prompt-manager-ux-design-campaign"
+          ],
+          "useFor": "The epoch worker's rules; workers read this card, not the full skill."
+        },
+        {
+          "id": "delivery-reference",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/react-component-library/docs/internal/TESTING.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/react-component-library/DESIGN.md"
+            }
+          ],
+          "writePolicy": "Owner-authorized amendments only.",
+          "consumers": [
+            "rcl-prompt-manager-ux-design-campaign",
+            "effort-supervision"
+          ],
+          "useFor": "Canonical epoch protocol, supervision, RCL testing and design intent.",
+          "required": false,
+          "optionalReason": "Read on demand; canonical references are not duplicated in team prompts."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "delivery-status",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/STATUS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-log",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "rcl-prompt-manager-ux-design-coordinator": {
+        "lane": "Inactive historical coordinator; retain old evidence and immutable binding. No delivery assignments for the rehabilitation revision.",
+        "allowedWrites": [],
+        "safetyCriticalRules": [
+          "Do not dispatch, resume old work or treat old acceptance as current certification."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": false
+        }
+      },
+      "rcl-delivery-orchestrator": {
+        "lane": "Own the whole product destination, technical strategy, evolving outcome allocation and independent acceptance. Delegate substantial independent implementation to workers; coordinate shared components, API contracts and dependencies within native limits.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign/archive"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never implement product work; spawn an epoch worker on prompt-manager/delivery-epoch-worker (Luna medium) with run create --until.",
+          "Accept an epoch only through the mechanical gate (large-effort-orchestration \u00a74.4); never silently lower a gate so a worker can pass.",
+          "Park with --producer children between check-ins; never poll children in a loop or claim to be parked from prompt text.",
+          "Infrastructure never blocks: record a STATUS.md entry, use the fallback and stop retrying the broken tool.",
+          "Only the orchestrator authorizes external installs and records them in STATUS.md; dependency installs go through Scenario Dependency Analyzer.",
+          "Do not use Swarm Manager or Plan Manager, do not run git, and preserve user data and other agents' changes.",
+          "Preserve authored designs, saved user data and active consumers; use isolated validation before disruptive restarts. Assets use governed drafts, never release-directory edits.",
+          "Operator execution authorization was granted 2026-10-01 for this exact revision; dispatch governed epochs within its scope. Historical UX acceptance is not rehabilitation acceptance.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      },
+      "rcl-rehabilitation-orchestrator": {
+        "lane": "Inactive unused provisioning attempt; preserve disabled binding that conflicts with historical effort reservation. No task or run admitted.",
+        "allowedWrites": [],
+        "safetyCriticalRules": [
+          "Never dispatch from this binding; successor leader owns current delivery."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": false
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 18,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

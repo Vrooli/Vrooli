@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-heartbeat",
+  "profileKey": "prompt-manager/heartbeat-judgment",
+  "description": "Portable profile for Prompt Manager judgment heartbeats and autonomous supervisor dispatch. The resource-owned role policy selects the economical Codex subscription route at medium effort; this generic heartbeat does not authorize the restricted supervision role or provider fallback.",
+  "roleRef": "code.economy.judgment",
+  "maxTurns": 50,
+  "timeout": "600s",
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "prompt-manager",
+  "effort": "medium"
+}

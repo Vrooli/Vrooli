@@ -1,53 +1,17 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func resolveScenariosRoot() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_ROOT")); root != "" {
-		if isDir(root) {
-			return root
-		}
-	}
-	if repo := strings.TrimSpace(os.Getenv("VROOLI_REPO_ROOT")); repo != "" {
-		candidate := filepath.Join(repo, "scenarios")
-		if isDir(candidate) {
-			return candidate
-		}
-	}
-	if inferred := inferScenariosRoot(); inferred != "" {
-		return inferred
-	}
-	return ""
-}
-
-func inferScenariosRoot() string {
-	wd, err := os.Getwd()
+	contract, root, err := repocontract.LoadDefaultFromEnvOrCWD()
 	if err != nil {
 		return ""
 	}
-	current := wd
-	for i := 0; i < 8; i++ {
-		if filepath.Base(current) == "scenarios" && isDir(current) {
-			return current
-		}
-		candidate := filepath.Join(current, "scenarios")
-		if isDir(candidate) {
-			return candidate
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
+	scenariosRoot, err := contract.TopLevelDir(root, "scenarios")
+	if err != nil {
+		return ""
 	}
-	return ""
-}
-
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
+	return scenariosRoot
 }

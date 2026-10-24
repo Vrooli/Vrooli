@@ -6,13 +6,26 @@ import (
 	"context"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // =============================================================================
 // ResolvedCheck Unit Tests with Mock Interfaces
 // =============================================================================
+
+func TestResolvedCheckNonLinuxIsNotApplicable(t *testing.T) {
+	originalOS := resolvedOS
+	resolvedOS = "darwin"
+	t.Cleanup(func() { resolvedOS = originalOS })
+
+	result := NewResolvedCheck(&platform.Capabilities{}).Run(context.Background())
+	if result.Status != checks.StatusNotApplicable {
+		t.Fatalf("status = %v, want %v", result.Status, checks.StatusNotApplicable)
+	}
+}
 
 // TestResolvedCheckRunWithMock_Active tests when systemd-resolved is active
 // [REQ:INFRA-RESOLVED-001] [REQ:TEST-SEAM-001]
@@ -22,19 +35,19 @@ func TestResolvedCheckRunWithMock_Active(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Service exists
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte("UNIT FILE                 STATE\nsystemd-resolved.service  enabled\n\n1 unit files listed."),
 		Error:  nil,
 	}
 	// Service is active
-	mockExec.Responses["systemctl is-active systemd-resolved"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
 	// Stats available
-	mockExec.Responses["resolvectl statistics"] = checks.MockResponse{
+	mockExec.Responses["resolvectl statistics"] = testutil.MockResponse{
 		Output: []byte("Current Transactions: 0\n  Cache size: 1234"),
 		Error:  nil,
 	}
@@ -60,12 +73,12 @@ func TestResolvedCheckRunWithMock_Inactive(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte("UNIT FILE                 STATE\nsystemd-resolved.service  enabled\n"),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl is-active systemd-resolved"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("inactive"),
 		Error:  nil,
 	}
@@ -88,12 +101,12 @@ func TestResolvedCheckRunWithMock_Failed(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte("UNIT FILE                 STATE\nsystemd-resolved.service  enabled\n"),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl is-active systemd-resolved"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("failed"),
 		Error:  nil,
 	}
@@ -116,12 +129,12 @@ func TestResolvedCheckRunWithMock_Activating(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte("UNIT FILE                 STATE\nsystemd-resolved.service  enabled\n"),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl is-active systemd-resolved"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("activating"),
 		Error:  nil,
 	}
@@ -144,9 +157,9 @@ func TestResolvedCheckRunWithMock_NotInstalled(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// Service does not exist
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -169,7 +182,7 @@ func TestResolvedCheckRunWithMock_NoSystemd(t *testing.T) {
 		SupportsSystemd: false,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewResolvedCheck(caps, WithResolvedExecutor(mockExec))
 	result := check.Run(context.Background())
 
@@ -192,10 +205,9 @@ func TestResolvedCheckRecoveryActions(t *testing.T) {
 			name:       "nil result",
 			lastResult: nil,
 			expectAvailable: map[string]bool{
-				"start":       true,
-				"restart":     true,
-				"flush-cache": false, // Not running
-				"logs":        true,
+				"start":   true,
+				"restart": true,
+				"logs":    true,
 			},
 		},
 		{
@@ -206,10 +218,9 @@ func TestResolvedCheckRecoveryActions(t *testing.T) {
 				},
 			},
 			expectAvailable: map[string]bool{
-				"start":       false, // Already running
-				"restart":     true,
-				"flush-cache": true, // Available when running
-				"logs":        true,
+				"start":   false, // Already running
+				"restart": true,
+				"logs":    true,
 			},
 		},
 		{
@@ -220,10 +231,9 @@ func TestResolvedCheckRecoveryActions(t *testing.T) {
 				},
 			},
 			expectAvailable: map[string]bool{
-				"start":       true,
-				"restart":     true,
-				"flush-cache": false,
-				"logs":        true,
+				"start":   true,
+				"restart": true,
+				"logs":    true,
 			},
 		},
 	}
@@ -266,26 +276,27 @@ func TestResolvedCheckRecoveryActionsAllSafe(t *testing.T) {
 
 // TestResolvedCheckExecuteAction_Start tests start action
 func TestResolvedCheckExecuteAction_Start(t *testing.T) {
+	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl start systemd-resolved"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl start systemd-resolved"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
 	// Verification
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte("systemd-resolved.service  enabled\n"),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl is-active systemd-resolved"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -303,25 +314,26 @@ func TestResolvedCheckExecuteAction_Start(t *testing.T) {
 
 // TestResolvedCheckExecuteAction_Restart tests restart action
 func TestResolvedCheckExecuteAction_Restart(t *testing.T) {
+	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl restart systemd-resolved"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl restart systemd-resolved"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = checks.MockResponse{
+	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
 		Output: []byte("systemd-resolved.service  enabled\n"),
 		Error:  nil,
 	}
-	mockExec.Responses["systemctl is-active systemd-resolved"] = checks.MockResponse{
+	mockExec.Responses["systemctl is-active systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("active"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -334,30 +346,6 @@ func TestResolvedCheckExecuteAction_Restart(t *testing.T) {
 	}
 }
 
-// TestResolvedCheckExecuteAction_FlushCache tests flush-cache action
-func TestResolvedCheckExecuteAction_FlushCache(t *testing.T) {
-	caps := &platform.Capabilities{
-		Platform:        platform.Linux,
-		SupportsSystemd: true,
-	}
-
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo resolvectl flush-caches"] = checks.MockResponse{
-		Output: []byte(""),
-		Error:  nil,
-	}
-
-	check := NewResolvedCheck(caps, WithResolvedExecutor(mockExec))
-	result := check.ExecuteAction(context.Background(), "flush-cache")
-
-	if !result.Success {
-		t.Errorf("Success = %v, want true", result.Success)
-	}
-	if result.ActionID != "flush-cache" {
-		t.Errorf("ActionID = %q, want %q", result.ActionID, "flush-cache")
-	}
-}
-
 // TestResolvedCheckExecuteAction_Logs tests logs action
 func TestResolvedCheckExecuteAction_Logs(t *testing.T) {
 	caps := &platform.Capabilities{
@@ -365,8 +353,8 @@ func TestResolvedCheckExecuteAction_Logs(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["journalctl -u systemd-resolved -n 50 --no-pager"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["journalctl --no-pager -o short-iso -u systemd-resolved -n 50"] = testutil.MockResponse{
 		Output: []byte("systemd-resolved[123]: Listening on 127.0.0.53"),
 		Error:  nil,
 	}
@@ -397,15 +385,16 @@ func TestResolvedCheckExecuteAction_UnknownAction(t *testing.T) {
 
 // TestResolvedCheckExecuteAction_StartFailure tests start action failure
 func TestResolvedCheckExecuteAction_StartFailure(t *testing.T) {
+	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl start systemd-resolved"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo -n /usr/bin/systemctl start systemd-resolved"] = testutil.MockResponse{
 		Output: []byte("Failed to start systemd-resolved.service"),
-		Error:  checks.ErrPermissionDenied,
+		Error:  testutil.ErrPermissionDenied,
 	}
 
 	check := NewResolvedCheck(caps, WithResolvedExecutor(mockExec))
@@ -418,7 +407,7 @@ func TestResolvedCheckExecuteAction_StartFailure(t *testing.T) {
 
 // TestResolvedCheckExecutorInjection verifies executor is properly injected
 func TestResolvedCheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewResolvedCheck(testCaps(), WithResolvedExecutor(mockExec))
 
 	if check.executor != mockExec {

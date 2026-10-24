@@ -151,6 +151,11 @@ func (h *StatsHandler) parseStatsFilter(r *http.Request) (repository.StatsFilter
 		// Default to 24h if no time window specified
 		if filter.Window.Start.IsZero() && filter.Window.End.IsZero() {
 			filter = orchestration.FilterFromPreset(orchestration.TimePreset24H)
+		} else if filter.Window.End.IsZero() {
+			// A lower-bound-only query is an open interval to now. Passing a zero
+			// end time reaches SQLite as NULL and makes every `created_at < ?`
+			// aggregate unreliable.
+			filter.Window.End = time.Now().UTC()
 		}
 	}
 

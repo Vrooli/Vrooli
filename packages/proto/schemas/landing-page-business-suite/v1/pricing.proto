@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "landing-page-business-suite/v1/shared/commerce.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// Pricing owns the query surface for a bundle's current public catalog. The
+// reusable catalog values live in shared/commerce.proto because billing,
+// bundles, and landing configuration consume the same representation.
+message GetPricingRequest {
+  string bundle_key = 1;
+  bool include_hidden = 2;
+}
+
+message GetPricingResponse {
+  vrooli.landing_page_business_suite.v1.shared.PricingOverview pricing = 1;
+}
+
+service PricingService {
+  rpc GetPricing(GetPricingRequest) returns (GetPricingResponse);
+}

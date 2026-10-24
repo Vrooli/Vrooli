@@ -1,0 +1,8 @@
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+ android:description="@string/home_override_description"
+ android:accessibilityEventTypes="typeWindowStateChanged"
+ android:accessibilityFeedbackType="feedbackGeneric"
+ android:canRetrieveWindowContent="false"
+ android:canRequestFilterKeyEvents="false"
+ android:canPerformGestures="false"
+ android:notificationTimeout="0"/>

@@ -1,57 +1,47 @@
 {
-  "description": "Cooldown endpoints: GET /api/v1/investigations/cooldown, POST .../cooldown/reset, PUT .../cooldown/period. Managed in api/internal/services/investigation.go. Configurable cooldown period prevents investigation flooding.",
-  "module_id": "MOD-P1-013",
-  "prd_ref": "system-monitor-should-have-investigation-cooldown-management-configurable-period-reset-capability",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-003"
-      ],
-      "description": "Develop investigation cooldown system with configurable periods and manual reset capability to prevent investigation flooding and resource exhaustion.",
       "id": "REQ-P1-003",
-      "prd_ref": "system-monitor-should-have-investigation-cooldown-management-configurable-period-reset-capability",
-      "status": "implemented",
       "title": "Investigation Cooldown Management",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "core",
+      "description": "Develop investigation cooldown system with configurable periods and manual reset capability to prevent investigation flooding and resource exhaustion.",
       "validation": [
         {
-          "notes": "Test cooldown period enforcement",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test cooldown period enforcement"
         },
         {
-          "notes": "Verify reset functionality",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify reset functionality"
         },
         {
-          "notes": "Validate cooldown across multiple investigations",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Validate cooldown across multiple investigations"
         },
         {
-          "notes": "Cooldown state check \u003c 50ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Cooldown state check \u003c 50ms"
         },
         {
-          "notes": "Prevents investigation system overload",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Prevents investigation system overload"
         }
       ]
     }
-  ],
-  "title": "Investigation cooldown management (configurable period, reset capability)"
+  ]
 }

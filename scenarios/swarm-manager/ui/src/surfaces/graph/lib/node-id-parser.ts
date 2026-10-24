@@ -26,7 +26,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
   "agent-run": "agent-run",
   "run": "agent-run",
   "capture": "capture",
-  "initiative": "initiative",
+  "goal": "goal",
 };
 
 /**
@@ -40,7 +40,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
  * - agent-activity/{id}         → entityType: "agent-activity", identifier
  * - run/{runId}                 → entityType: "agent-run", identifier
  * - capture/{id}                → entityType: "capture", identifier
- * - initiative/{name}           → entityType: "initiative", name
+ * - goal/{name}           → entityType: "goal", name
  *
  * Legacy format (from client-side assembler):
  * - {kind}/{name}               → entityType: "backlog" (when kind matches known backlog kinds)
@@ -105,11 +105,11 @@ export function parseNodeId(nodeId: string): ParsedNodeId | null {
     return { entityType: "scenario", identifier: name, name };
   }
 
-  // Legacy format: initiative/{name}
-  if (nodeId.startsWith("initiative/")) {
-    const name = nodeId.slice("initiative/".length);
+  // Legacy format: goal/{name}
+  if (nodeId.startsWith("goal/")) {
+    const name = nodeId.slice("goal/".length);
     if (!name) return null;
-    return { entityType: "initiative", identifier: name, name };
+    return { entityType: "goal", identifier: name, name };
   }
 
   // Legacy backlog format: {kind}/{name} (from client-side assembler)
@@ -164,8 +164,8 @@ export function toCanonicalNodeId(nodeId: string): string {
       return `scenario/${parsed.name ?? parsed.identifier}`;
     case "capture":
       return `capture/${parsed.identifier}`;
-    case "initiative":
-      return `initiative/${parsed.name ?? parsed.identifier}`;
+    case "goal":
+      return `goal/${parsed.name ?? parsed.identifier}`;
     default:
       return nodeId;
   }

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.background-task-center",
+    "name": "BackgroundTaskCenter",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The consolidated view of active and recent long-running operations with progress, status, cancellation, retry, result actions, and history cleanup.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.background-task-registry",
+        "reason": "Task state, history, and cancellation belong to the registry."
+      },
+      {
+        "asset": "feedback.task-progress",
+        "reason": "Per-task rendering is shared."
+      },
+      {
+        "asset": "data-display.list",
+        "reason": "Task rows use the shared collection semantics."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "recovery-path",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "loading",
+    "partial",
+    "request-error"
+  ],
+  "rationale": "Directly relevant to a system where agents run work continuously: without a durable place for long operations, every one of them has to be represented as a toast, and the toast queue becomes the task list."
+}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -27,6 +28,11 @@ type Store interface {
 	// Get retrieves events for a run with optional filtering.
 	Get(ctx context.Context, runID uuid.UUID, opts GetOptions) ([]*domain.RunEvent, error)
 
+	// Summarize returns metadata-only statistics for the selected retained rows.
+	// A positive limit summarizes the first limit rows and reports whether an
+	// additional matching row exists; event payloads are never loaded.
+	Summarize(ctx context.Context, runID uuid.UUID, opts GetOptions) (*Summary, error)
+
 	// Stream returns a channel that receives events in real-time.
 	// The channel is closed when the context is cancelled or the run ends.
 	Stream(ctx context.Context, runID uuid.UUID, opts StreamOptions) (<-chan *domain.RunEvent, error)
@@ -36,6 +42,29 @@ type Store interface {
 
 	// Delete removes all events for a run (for cleanup).
 	Delete(ctx context.Context, runID uuid.UUID) error
+}
+
+// Summary describes the currently retained rows selected by a run-event query.
+// LatestSequence is nil when the selection is empty; Counts uses raw stored
+// event type strings so newer event categories remain visible to older clients.
+type Summary struct {
+	Counts         map[string]int64
+	LatestSequence *int64
+	HasMore        bool
+}
+
+// RetentionStore removes historical events in bounded batches. It is kept
+// separate from Store because normal execution only appends and reads events;
+// destructive retention is a reconciler capability with its own cadence.
+type RetentionStore interface {
+	DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error)
+}
+
+// PayloadCompactor bounds bulky historical payloads in place without deleting
+// events. Imported transcripts are the conversation-recall corpus and their
+// source files may no longer exist, so they are compacted, never age-deleted.
+type PayloadCompactor interface {
+	CompactImportedToolPayloads(ctx context.Context, cutoff time.Time, minBytes, limit int) (int, error)
 }
 
 // GetOptions specifies criteria for retrieving events.

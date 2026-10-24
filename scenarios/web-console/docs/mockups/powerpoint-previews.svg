@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="740" viewBox="0 0 1200 740">
+ <rect width="1200" height="740" fill="#090d13"/>
+ <g font-family="system-ui,sans-serif" fill="#e5eaf0">
+  <text x="32" y="36" font-size="18">PowerPoint · one focused slide, tools on demand</text>
+  <g transform="translate(32 64)">
+   <rect width="770" height="630" fill="#111821"/>
+   <text x="20" y="30" font-size="14">operations-review.pptx</text>
+   <path d="M0 48H770 M0 120H770" stroke="#293442"/>
+   <text x="22" y="81" font-size="15">Presentation</text><text x="22" y="101" font-size="11" fill="#99a8b9">4 slides · 16:9</text>
+   <text x="554" y="88" font-size="13">Slides     Notes     Options</text>
+   <rect x="0" y="121" width="150" height="452" fill="#141d28"/>
+   <g fill="#eaf0f4"><rect x="14" y="139" width="122" height="69"/><rect x="14" y="242" width="122" height="69"/><rect x="14" y="345" width="122" height="69"/></g>
+   <rect x="12" y="240" width="126" height="73" fill="none" stroke="#87b7d7" stroke-width="2"/>
+   <g font-size="11" fill="#a8b6c4"><text x="15" y="227">1 · Operations review</text><text x="15" y="330">2 · Delivery progress</text><text x="15" y="433">3 · Next quarter</text></g>
+   <rect x="174" y="185" width="572" height="322" fill="#f5f3ee"/>
+   <text x="212" y="242" font-size="30" fill="#153b4b">Delivery progress</text><text x="212" y="275" font-size="14" fill="#51646d">A clearer view of the quarter</text>
+   <path d="M213 425H700" stroke="#c6d3d7"/>
+   <g fill="#2b657a"><rect x="240" y="360" width="70" height="65"/><rect x="345" y="328" width="70" height="97"/><rect x="450" y="298" width="70" height="127"/><rect x="555" y="284" width="70" height="141"/></g>
+   <path d="M0 573H770" stroke="#293442"/><text x="245" y="607" font-size="13">‹       Slide 2 of 4       ›</text><text x="560" y="607" font-size="12">−     Fit     +</text>
+  </g>
+  <g transform="translate(850 64)">
+   <rect width="318" height="630" fill="#111821"/>
+   <text x="14" y="30" font-size="13">operations-review.pptx</text><path d="M0 48H318 M0 120H318" stroke="#293442"/>
+   <text x="16" y="79" font-size="14">Presentation</text><text x="16" y="100" font-size="11" fill="#99a8b9">4 slides · 16:9</text><text x="176" y="87" font-size="12">Slides   Notes   ⋯</text>
+   <rect x="8" y="249" width="302" height="170" fill="#f5f3ee"/><text x="28" y="288" font-size="19" fill="#153b4b">Delivery progress</text>
+   <g fill="#2b657a"><rect x="40" y="357" width="36" height="40"/><rect x="96" y="339" width="36" height="58"/><rect x="152" y="324" width="36" height="73"/><rect x="208" y="311" width="36" height="86"/></g>
+   <path d="M0 573H318" stroke="#293442"/><text x="25" y="607" font-size="13">‹     2 / 4     ›</text><text x="207" y="607" font-size="12">−   Fit   +</text>
+  </g>
+  <text x="32" y="723" fill="#99a8b9" font-size="12">Desktop: optional thumbnail rail. Phone: slide grid replaces the canvas; selection restores the slide. Notes/text use the same reading space.</text>
+ </g>
+</svg>

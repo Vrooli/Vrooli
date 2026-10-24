@@ -364,23 +364,30 @@ export interface AppHealthDiagnostics {
   errors?: string[];
 }
 
-export interface AppIssuesSummary {
+export interface AppFixSummary {
+  id: string;
+  kind: string;
+  name: string;
+  title: string;
+  status: string;
+  priority: number;
+  updated_at?: string;
+  archived_at?: string;
+  initiative?: string;
+  path?: string;
+  url?: string;
+}
+
+export interface AppFixesSummary {
   scenario: string;
   app_id: string;
-  issues: Array<{
-    id: string;
-    title: string;
-    status: string;
-    priority: string;
-    created_at: string;
-    updated_at: string;
-    reporter: string;
-    issue_url?: string;
-  }>;
-  open_count: number;
+  active: AppFixSummary[];
+  archived: AppFixSummary[];
+  fixes: AppFixSummary[];
   active_count: number;
+  archived_count: number;
   total_count: number;
-  tracker_url?: string;
+  swarm_url?: string;
   last_fetched: string;
   from_cache: boolean;
   stale: boolean;
@@ -395,8 +402,8 @@ export interface CompleteDiagnostics {
   scenario_status?: AppScenarioStatus;
   health_checks?: AppHealthDiagnostics;
 
-  // Issues
-  issues?: AppIssuesSummary;
+  // Fix backlog
+  fixes?: AppFixesSummary;
 
   // Compliance
   bridge_rules?: BridgeDiagnosticsReport;

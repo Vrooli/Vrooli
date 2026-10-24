@@ -9,16 +9,25 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+
+	corestorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // GetLocalBundlesDir returns the path to the local bundles directory.
 // This consolidates the repeated pattern of finding repo root and appending the bundles path.
 func GetLocalBundlesDir() (string, error) {
-	repoRoot, err := FindRepoRootFromCWD()
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("create bundle storage resolver: %w", err)
 	}
-	return filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles"), nil
+	dir, err := resolver.EnsureArtifactDir(corestorage.Options{ScenarioID: "scenario-to-cloud"}, corestorage.ArtifactRef{
+		Owner: "scenario-to-cloud", Domain: "bundles", Class: corestorage.ClassCache,
+	}, 0o755)
+	if err != nil {
+		return "", fmt.Errorf("resolve bundles directory: %w", err)
+	}
+	return dir, nil
 }
 
 // ListBundles lists all bundles in the given directory.
@@ -229,29 +238,65 @@ func DeleteAllOldBundles(bundlesDir string, keepLatestPerScenario int) ([]domain
 // FindRepoRootFromCWD finds the repository root starting from the current working directory.
 func FindRepoRootFromCWD() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_REPO_ROOT")); override != "" {
-		return filepath.Clean(override), nil
+		return repocontract.FindRepoRoot(override)
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	return FindRepoRoot(cwd)
+	return repocontract.FindRepoRootFromCWD()
 }
 
 // FindRepoRoot finds the repository root starting from the given directory.
 func FindRepoRoot(start string) (string, error) {
-	dir := filepath.Clean(start)
-	for i := 0; i < 20; i++ {
-		// Repo root detection must not depend on a committed `go.work`.
-		// Some deployments intentionally omit `go.work` to avoid workspace-mode coupling.
-		if dirExists(filepath.Join(dir, ".vrooli")) && dirExists(filepath.Join(dir, "scenarios")) && dirExists(filepath.Join(dir, "resources")) {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
+	return repocontract.FindRepoRoot(start)
+}
+
+// ResolveScenariosDir returns the contract-defined top-level scenarios directory.
+func ResolveScenariosDir(repoRoot string) (string, error) {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return "", fmt.Errorf("load repo contract: %w", err)
 	}
-	return "", fmt.Errorf("repo root not found from %q", start)
+	return contract.TopLevelDir(repoRoot, "scenarios")
+}
+
+// ResolveScenarioPath returns the contract-defined root for a scenario.
+func ResolveScenarioPath(repoRoot, scenarioID string) (string, error) {
+	path, err := repocontract.ResolveScenarioPath(repoRoot, scenarioID)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario path: %w", err)
+	}
+	return path, nil
+}
+
+// ResolveScenarioPathRelative returns a slash-normalized repo-relative scenario root.
+func ResolveScenarioPathRelative(repoRoot, scenarioID string) (string, error) {
+	path, err := ResolveScenarioPath(repoRoot, scenarioID)
+	if err != nil {
+		return "", err
+	}
+	return relativeToRepoRoot(repoRoot, path)
+}
+
+// ResolveScenarioFile returns the contract-defined well-known file/path for a scenario.
+func ResolveScenarioFile(repoRoot, scenarioID, key string) (string, error) {
+	path, err := repocontract.ResolveScenarioFile(repoRoot, scenarioID, key)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario %s path %q: %w", scenarioID, key, err)
+	}
+	return path, nil
+}
+
+// ResolveScenarioFileRelative returns a slash-normalized repo-relative well-known scenario path.
+func ResolveScenarioFileRelative(repoRoot, scenarioID, key string) (string, error) {
+	path, err := ResolveScenarioFile(repoRoot, scenarioID, key)
+	if err != nil {
+		return "", err
+	}
+	return relativeToRepoRoot(repoRoot, path)
+}
+
+func relativeToRepoRoot(repoRoot, path string) (string, error) {
+	rel, err := filepath.Rel(repoRoot, path)
+	if err != nil {
+		return "", fmt.Errorf("relative path from repo root: %w", err)
+	}
+	return filepath.ToSlash(rel), nil
 }

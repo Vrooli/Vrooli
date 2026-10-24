@@ -4,6 +4,9 @@
 //
 // [REQ:DI-001] EmittingResolver decorator
 // [REQ:DI-003] Sender-side policy cache
+//
+// DOC: docs/guides/integrating-a-scenario.md
+// DOC: docs/internal/SEAMS.md#architecture-alignment
 package resolver
 
 import (

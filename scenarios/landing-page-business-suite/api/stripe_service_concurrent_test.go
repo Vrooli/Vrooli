@@ -21,7 +21,6 @@ import (
 
 func TestConcurrent_StripeConfigRefresh(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 	ctx := context.Background()
@@ -54,7 +53,6 @@ func TestConcurrent_StripeConfigRefresh(t *testing.T) {
 
 func TestConcurrent_StripeConfigReadDuringRefresh(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 	ctx := context.Background()
@@ -113,7 +111,6 @@ func TestConcurrent_StripeConfigReadDuringRefresh(t *testing.T) {
 
 func TestConcurrent_MultipleConfigLoaders(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 	ctx := context.Background()
@@ -163,7 +160,6 @@ func TestConcurrent_MultipleConfigLoaders(t *testing.T) {
 
 func TestConcurrent_StripeServiceInitialization(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	const numGoroutines = 10
 
@@ -202,7 +198,6 @@ func TestConcurrent_StripeServiceInitialization(t *testing.T) {
 
 func TestConcurrent_HTTPClientSwap(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 
@@ -232,7 +227,6 @@ func TestConcurrent_HTTPClientSwap(t *testing.T) {
 
 func TestConcurrent_ConfigSnapshotRead_DuringConfigChanges(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 	ctx := context.Background()
@@ -306,7 +300,6 @@ func TestConcurrent_ConfigSnapshotRead_DuringConfigChanges(t *testing.T) {
 
 func TestConcurrent_WebhookSignatureVerification(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 	ctx := context.Background()
@@ -356,12 +349,7 @@ func TestConcurrent_WebhookSignatureVerification(t *testing.T) {
 }
 
 func TestConcurrent_StripeHighContention_StressTest(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping stress test in short mode")
-	}
-
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 	ctx := context.Background()

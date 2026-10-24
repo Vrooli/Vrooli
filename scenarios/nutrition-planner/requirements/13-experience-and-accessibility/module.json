@@ -1,0 +1,170 @@
+{
+  "_metadata": {
+    "description": "WCAG 2.2 AA target, keyboard and dialog behavior, device-composed layouts, bottom navigation and overlay placement, reduced motion, zoom, and complete state coverage.",
+    "module": "experience-and-accessibility",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "UX-001",
+      "title": "Accessible keyboard and focus behavior is a product target",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The product shall target WCAG 2.2 AA with complete keyboard paths, visible focus, zoom and reflow support, semantic controls, and meaningful accessible names on icon-only actions.",
+      "tags": [
+        "accessibility",
+        "keyboard",
+        "wcag"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: keyboard-only traversal of the primary flows reaches every action and focus is never lost; zoom and reflow do not hide controls (ACT-037, ACT-038)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned accessibility review against the WCAG 2.2 AA target, recorded as an implementation target rather than a certification claim."
+        }
+      ]
+    },
+    {
+      "id": "UX-002",
+      "title": "Dialogs contain focus and status uses more than color",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "While a dialog is active, the scenario shall contain focus within it, close on Escape, restore focus to its trigger, convey status with icon or text in addition to color, and announce save errors and import outcomes through appropriate live regions.",
+      "tags": [
+        "dialogs",
+        "focus",
+        "status"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: opening, tabbing, escaping, and closing a dialog returns focus to the trigger, and error states carry a non-color cue (ACT-038)."
+        }
+      ]
+    },
+    {
+      "id": "UX-003",
+      "title": "Each surface is composed for its medium",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall choose layout by container width using the R06 bands, render distinct phone component trees where the interaction model changes (Today hero, Week board versus agenda, Cooking, Equipment, Groceries sidebar versus sheets) while reflowing lists and forms, keep the primary action visible without traversing an analytics panel, and never scroll the whole page sideways, confining a wide recipe map or board to its own region.",
+      "tags": [
+        "responsive",
+        "layout",
+        "mobile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the breakpoint hook selects the agenda instead of the seven-column board below the minimum day width, and the page never overflows horizontally (ACT-037)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: Week at 390 px with large text renders a readable day agenda with no whole-page horizontal overflow (AT-011)."
+        }
+      ]
+    },
+    {
+      "id": "UX-004",
+      "title": "Motion and touch targets respect user needs",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall limit ordinary motion to brief state transitions, replace spatial slide, bounce, and parallax with instant or brief opacity changes under reduced motion, avoid animated kitchen activity by default, provide at least 44 by 44 CSS px targets for frequent touch actions, and give small scene markers a larger non-overlapping hit area.",
+      "tags": [
+        "motion",
+        "touch-targets",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: reduced-motion media preference suppresses selection and transition animation, and frequent controls measure at least 44 px (ACT-037)."
+        }
+      ]
+    },
+    {
+      "id": "UX-005",
+      "title": "Bottom navigation and overlays never hide content or actions",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "On phones, the scenario shall show five labeled bottom tabs with safe-area padding whose height is reserved in document flow, place toasts above the tab bar and safe area, keep editor and dialog actions reachable above the on-screen keyboard with a single scroll region, and give wide panels a sheet or full-page form that preserves history.",
+      "tags": [
+        "mobile",
+        "navigation",
+        "overlays",
+        "keyboard"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the last list row and sticky editor actions remain visible above the tab bar and a simulated keyboard (R06.2, R06.4)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a toast shown while a phone Shop list is open does not cover Add item or the tab bar (R03.3)."
+        }
+      ]
+    },
+    {
+      "id": "UX-006",
+      "title": "Every page covers its lifecycle states and stress conditions",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Every page shall render distinct empty, loading, no-results, error, partial-data, and offline states with calm specific recovery actions, keep drafts on errors, distinguish load failure from an empty account, and keep all primary journeys usable at 200 percent zoom, with large text, with keyboard only, and when images fail.",
+      "tags": [
+        "states",
+        "zoom",
+        "resilience",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: primary journeys complete with reduced motion, keyboard only, 200 percent zoom, and forced image failure (AT-052, R07, R26)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: state coverage per page is reviewed against DESIGN.md's UX-state contract and the experience contract."
+        }
+      ]
+    }
+  ]
+}

@@ -27,7 +27,6 @@ export function UsageDashboard() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Usage Dashboard"
           description="Monitor AI credit usage across all users"
           icon={Activity}
@@ -35,7 +34,7 @@ export function UsageDashboard() {
           iconColorClass="text-orange-400"
           testId="usage-header"
           actions={
-            <Button onClick={fetchSummary} disabled={loading} className="gap-2" variant="outline">
+            <Button onClick={() => { void fetchSummary(); }} disabled={loading} className="gap-2" variant="outline">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -46,7 +45,7 @@ export function UsageDashboard() {
         <Card className={LAYOUT.card.base}>
           <CardContent className="py-4">
             <div className="flex items-center justify-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigateMonth(-1)}>
+              <Button variant="ghost" size="sm" aria-label="Previous month" onClick={() => { navigateMonth(-1); }}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex items-center gap-2">
@@ -56,7 +55,8 @@ export function UsageDashboard() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigateMonth(1)}
+                aria-label="Next month"
+                onClick={() => { navigateMonth(1); }}
                 disabled={isCurrentPeriod}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -141,7 +141,7 @@ export function UsageDashboard() {
                         <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-blue-500 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
+                            style={{ width: `${String(percentage)}%` }}
                           />
                         </div>
                       </div>

@@ -39,6 +39,11 @@ export async function addMessage(chatId: string, data: AddMessageData): Promise<
 // =============================================================================
 
 /**
+ * Streaming path return type - callbacks deliver content, no message value.
+ */
+type StreamCompletionResult = ReturnType<() => void>;
+
+/**
  * Regenerate an assistant message, creating a new sibling response.
  * The original response is preserved and a new alternative is generated.
  * Supports streaming via the same options as completeChat.
@@ -52,7 +57,7 @@ export async function regenerateMessage(
     onEvent?: (event: StreamingEvent) => void;
     signal?: AbortSignal;
   }
-): Promise<Message | void> {
+): Promise<Message | StreamCompletionResult> {
   const stream = options?.stream ?? true;
   const url = buildApiUrl(`/chats/${chatId}/messages/${messageId}/regenerate?stream=${stream}`, { baseUrl: API_BASE });
 

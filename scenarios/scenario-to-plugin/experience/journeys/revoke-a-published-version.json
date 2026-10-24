@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "revoke-a-published-version",
+    "title": "Revoke a published version",
+    "purpose": "Let an operator withdraw a published artifact quickly under incident conditions, and understand truthfully when a withdrawal did not complete everywhere.",
+    "prd_refs": [
+      "OT-P0-008"
+    ]
+  },
+  "steps": [
+    {
+      "page": "packages",
+      "state": "default",
+      "intent": "Locate the published package."
+    },
+    {
+      "page": "publication",
+      "state": "default",
+      "intent": "See every channel that received the artifact."
+    },
+    {
+      "page": "publication",
+      "state": "submitting",
+      "intent": "Confirm the revocation and watch it fan out."
+    },
+    {
+      "page": "publication",
+      "state": "revoked-partial",
+      "intent": "Read which channels still carry the artifact and how to escalate."
+    }
+  ]
+}

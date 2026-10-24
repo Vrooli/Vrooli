@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Template Manager",
+  "short_name": "template-manager",
+  "description": "Owns the template domain: generation, validation, orientation, drift, and debt for scenario templates, design kits, and resource templates",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

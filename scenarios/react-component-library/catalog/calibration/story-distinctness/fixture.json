@@ -1,0 +1,12 @@
+{
+  "gate": "story-distinctness",
+  "assetId": "calibration.story-distinctness",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.story_sibling_duplicate",
+  "source": "broken.tsx",
+  "story": "duplicate-story.json",
+  "catalogAsset": "asset.json",
+  "description": "Two sibling frames differ only by their label.",
+  "mutation": "duplicate-story"
+}

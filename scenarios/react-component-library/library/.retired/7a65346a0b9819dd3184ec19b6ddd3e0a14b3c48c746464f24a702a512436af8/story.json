@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "default", "name": "Default", "args": {}, "role": "anatomy", "expect": [{ "kind": "visible", "selector": "[data-testid='plan-summary']" }] }, { "id": "empty", "name": "Empty plan", "args": {"items":[]}, "role": "boundary", "mode": "pinned", "expect": [{ "kind": "visible", "selector": "[data-testid='plan-summary']" }] }, { "id": "one", "name": "One plan item", "args": {"items":[{"id":"one","label":"Prepare"}]}, "role": "boundary", "mode": "pinned", "expect": [{ "kind": "visible", "selector": "[data-testid='plan-summary']" }] }, { "id": "many", "name": "Many plan items", "args": {"items":[{"id":"one","label":"Prepare"},{"id":"two","label":"Review"},{"id":"three","label":"Publish"},{"id":"four","label":"Verify"}]}, "role": "boundary", "mode": "pinned", "expect": [{ "kind": "visible", "selector": "[data-testid='plan-summary']" }] }, { "id": "overflow", "name": "Long plan item", "args": {"items":[{"id":"long","label":"A deliberately long plan item label that must wrap cleanly"}]}, "role": "boundary", "mode": "pinned", "expect": [{ "kind": "visible", "selector": "[data-testid='plan-summary']" }] }]
+}

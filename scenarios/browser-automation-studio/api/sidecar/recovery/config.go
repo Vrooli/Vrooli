@@ -5,24 +5,17 @@
 // resume from the last checkpoint.
 package recovery
 
-import (
-	"os"
-	"strconv"
-	"time"
-)
+import "time"
 
 // Config holds configuration for session recovery.
 type Config struct {
 	// Enabled determines whether checkpointing is active.
-	// Env: BAS_SIDECAR_CHECKPOINT_ENABLED (default: true)
 	Enabled bool
 
 	// CheckpointInterval is how often to save checkpoints during recording.
-	// Env: BAS_SIDECAR_CHECKPOINT_INTERVAL_MS (default: 2000)
 	CheckpointInterval time.Duration
 
 	// Retention is how long to keep old checkpoints before cleanup.
-	// Env: BAS_SIDECAR_CHECKPOINT_RETENTION_MS (default: 3600000, 1 hour)
 	Retention time.Duration
 }
 
@@ -35,37 +28,16 @@ func DefaultConfig() Config {
 	}
 }
 
-// LoadConfig loads configuration from environment variables.
-func LoadConfig() Config {
+func LoadConfig(settings map[string]any) Config {
 	cfg := DefaultConfig()
-
-	if v := os.Getenv("BAS_SIDECAR_CHECKPOINT_ENABLED"); v != "" {
-		cfg.Enabled = parseBool(v, cfg.Enabled)
+	if value, ok := settings["sidecar_checkpoint_enabled"].(bool); ok {
+		cfg.Enabled = value
 	}
-
-	if v := os.Getenv("BAS_SIDECAR_CHECKPOINT_INTERVAL_MS"); v != "" {
-		if ms, err := strconv.Atoi(v); err == nil && ms > 0 {
-			cfg.CheckpointInterval = time.Duration(ms) * time.Millisecond
-		}
+	if value, ok := settings["sidecar_checkpoint_interval_ms"].(float64); ok && value > 0 {
+		cfg.CheckpointInterval = time.Duration(value) * time.Millisecond
 	}
-
-	if v := os.Getenv("BAS_SIDECAR_CHECKPOINT_RETENTION_MS"); v != "" {
-		if ms, err := strconv.Atoi(v); err == nil && ms > 0 {
-			cfg.Retention = time.Duration(ms) * time.Millisecond
-		}
+	if value, ok := settings["sidecar_checkpoint_retention_ms"].(float64); ok && value > 0 {
+		cfg.Retention = time.Duration(value) * time.Millisecond
 	}
-
 	return cfg
-}
-
-// parseBool parses a string as a boolean, returning defaultVal on failure.
-func parseBool(s string, defaultVal bool) bool {
-	switch s {
-	case "true", "1", "yes", "on":
-		return true
-	case "false", "0", "no", "off":
-		return false
-	default:
-		return defaultVal
-	}
 }

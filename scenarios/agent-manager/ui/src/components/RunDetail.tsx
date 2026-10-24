@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { timestampMs } from "@bufbuild/protobuf/wkt";
+import { durationMs as protoDurationMs, timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
   AlertCircle,
@@ -16,6 +16,8 @@ import {
   Info,
   Link2,
   MoreVertical,
+  PauseCircle,
+  PlayCircle,
   RotateCcw,
   Search,
   Square,
@@ -30,31 +32,50 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
+import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
+import { useDocumentEscape } from "../hooks/useDocumentEscape";
+import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
 import type {
-  ApproveFormData,
   ContextAttachmentData,
-  RejectFormData,
   Run,
   RunDiff,
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+import { ApprovalState, ExecutionMode, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
 import { MarkdownRenderer } from "./markdown";
 import { ModelCostComparison } from "./ModelCostComparison";
 import { RunTimeline } from "./RunTimeline";
+import { FallbackTimeline } from "./runs/FallbackTimeline";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
 
-type TabId = "task" | "timeline" | "diff" | "cost";
+import {
+  CostBreakdown,
+  executionModeLabel,
+  formatCurrency,
+  getCostTotals,
+  isInteractiveRun,
+  MobileHeaderActions,
+  RunDetailsContent,
+  RunModelBadge,
+  STATUS_DOT_COLORS,
+  runModeLabel,
+  runPhaseLabel,
+  runStatusLabel,
+  StatusDotWithLegend,
+  TaskSummary,
+  taskStatusLabel,
+} from "./RunDetailParts";
+
+type TabId = "task" | "timeline" | "diff" | "cost" | "report";
 
 interface RunDetailProps {
   run: Run;
@@ -63,13 +84,18 @@ interface RunDetailProps {
   eventsLoading: boolean;
   diffLoading: boolean;
   initialTab?: TabId;
+  focusEventId?: string;
+  focusSequence?: string;
   task?: Task | null;
   taskTitle: string;
   profileName: string;
-  onApprove: (req: ApproveFormData) => Promise<void>;
-  onReject: (req: RejectFormData) => Promise<void>;
+  // Partial-approve (select specific diff files) is the one agent-manager-native
+  // review action the Web Console inbox does NOT offer (the inbox is binary
+  // approve/reject), so it is preserved here. Plain full-run approve/reject was
+  // retired from this UI — a human does those only in the inbox.
   onPartialApprove?: (fileIds: string[], actor?: string, commitMsg?: string) => Promise<unknown>;
   onRetry: (run: Run) => Promise<Run>;
+  onResumeFromFailure: (run: Run) => void;
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
   onStop: (run: Run) => Promise<void>;
@@ -88,13 +114,14 @@ export function RunDetail({
   eventsLoading,
   diffLoading,
   initialTab,
+  focusEventId,
+  focusSequence,
   task,
   taskTitle,
   profileName,
-  onApprove,
-  onReject,
   onPartialApprove,
   onRetry,
+  onResumeFromFailure,
   onInvestigate,
   onApplyInvestigation,
   onStop,
@@ -105,6 +132,7 @@ export function RunDetail({
   onMobileHeaderLeft,
   onMobileHeaderRight,
 }: RunDetailProps) {
+	const report = useRunReport(run.id);
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "timeline");
 
   // Reset tab when switching runs or when initialTab changes
@@ -113,27 +141,11 @@ export function RunDetail({
   }, [initialTab, run.id]);
 
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [idCopied, setIdCopied] = useState(false);
+  const { status: runIdCopyStatus, copyText: copyRunId } = useClipboardFeedback(1500);
   const [infoOpen, setInfoOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const { isDesktop } = useViewportSize();
-
-  // Inline review state
-  const [inlineAction, setInlineAction] = useState<"none" | "approve" | "reject" | "partial">("none");
-  const [inlineApprovalForm, setInlineApprovalForm] = useState({ actor: "", commitMsg: "" });
-  const [inlineRejectForm, setInlineRejectForm] = useState({ actor: "", reason: "" });
-  const [inlineSubmitting, setInlineSubmitting] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-
-  // Reset inline review state when run changes
-  useEffect(() => {
-    setInlineAction("none");
-    setInlineApprovalForm({ actor: "", commitMsg: "" });
-    setInlineRejectForm({ actor: "", reason: "" });
-    setInlineSubmitting(false);
-    setSelectedFiles(new Set());
-  }, [run.id]);
 
   // Resolve workspace-sandbox URL via embedded proxy (standard cross-scenario pattern)
   const [sandboxUrl, setSandboxUrl] = useState<string | null>(null);
@@ -154,41 +166,45 @@ export function RunDetail({
     window.open(url, "_blank", "noopener,noreferrer");
   }, [run.sandboxId, sandboxUrl]);
 
-  const handleInlineConfirm = useCallback(async () => {
-    setInlineSubmitting(true);
+  // Partial-approve state (the preserved agent-manager-native action). Plain
+  // full-run approve/reject is intentionally NOT here — it is handled in the
+  // Web Console approvals inbox.
+  const [partialActive, setPartialActive] = useState(false);
+  const [partialForm, setPartialForm] = useState({ actor: "", commitMsg: "" });
+  const [partialSubmitting, setPartialSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+
+  // Reset partial-approve state when the run changes.
+  useEffect(() => {
+    setPartialActive(false);
+    setPartialForm({ actor: "", commitMsg: "" });
+    setPartialSubmitting(false);
+    setSelectedFiles(new Set());
+  }, [run.id]);
+
+  const handlePartialConfirm = useCallback(async () => {
+    if (!onPartialApprove) return;
+    setPartialSubmitting(true);
     try {
-      if (inlineAction === "approve") {
-        await onApprove({
-          actor: inlineApprovalForm.actor.trim() || undefined,
-          commitMsg: inlineApprovalForm.commitMsg || undefined,
-        });
-      } else if (inlineAction === "reject") {
-        await onReject({
-          actor: inlineRejectForm.actor.trim() || undefined,
-          reason: inlineRejectForm.reason || undefined,
-        });
-      } else if (inlineAction === "partial" && onPartialApprove) {
-        // Collect file IDs from selected files
-        const files = diff?.files ?? [];
-        const fileIds = files
-          .filter((f) => selectedFiles.has(f.path) && f.id)
-          .map((f) => f.id);
-        if (fileIds.length > 0) {
-          await onPartialApprove(
-            fileIds,
-            inlineApprovalForm.actor.trim() || undefined,
-            inlineApprovalForm.commitMsg || undefined,
-          );
-          setSelectedFiles(new Set());
-        }
+      const files = diff?.files ?? [];
+      const fileIds = files
+        .filter((f) => selectedFiles.has(f.path) && f.id)
+        .map((f) => f.id);
+      if (fileIds.length > 0) {
+        await onPartialApprove(
+          fileIds,
+          partialForm.actor.trim() || undefined,
+          partialForm.commitMsg || undefined,
+        );
+        setSelectedFiles(new Set());
+        setPartialActive(false);
       }
-      setInlineAction("none");
     } catch (err) {
-      console.error(`Failed to ${inlineAction} run:`, err);
+      console.error("Failed to partially approve run:", err);
     } finally {
-      setInlineSubmitting(false);
+      setPartialSubmitting(false);
     }
-  }, [inlineAction, inlineApprovalForm, inlineRejectForm, onApprove, onReject, onPartialApprove, diff, selectedFiles]);
+  }, [onPartialApprove, diff, selectedFiles, partialForm]);
 
   const { isCollapsed: isDetailsCollapsed, toggle: toggleDetailsCollapsed } = useCollapsiblePanel({
     storageKey: "run.details",
@@ -237,18 +253,11 @@ export function RunDetail({
   const canDeleteRun = actions?.canDelete ?? false;
   const canApplyFixes = actions?.canApplyInvestigation ?? false;
 
-  // Close info dialog on Escape, preventing it from bubbling to DetailModal
-  useEffect(() => {
-    if (!infoOpen) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopImmediatePropagation();
-        setInfoOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handleEscape, true); // capture phase
-    return () => document.removeEventListener("keydown", handleEscape, true);
-  }, [infoOpen]);
+  // Consume Escape before an enclosing detail modal can act on it.
+  useDocumentEscape(infoOpen, (event) => {
+    event.stopImmediatePropagation();
+    setInfoOpen(false);
+  }, true);
 
   // Build mobile header left (status dot) and push to parent
   const [statusLegendOpen, setStatusLegendOpen] = useState(false);
@@ -287,6 +296,7 @@ export function RunDetail({
         canApplyFixes={canApplyFixes}
         onApplyInvestigation={() => onApplyInvestigation(run.id)}
         onRetry={() => onRetry(run)}
+        onResumeFromFailure={() => onResumeFromFailure(run)}
         onReview={() => setShowReviewModal(true)}
         canDeleteRun={canDeleteRun}
         onDelete={() => onDelete(run)}
@@ -295,7 +305,7 @@ export function RunDetail({
     );
 
     return () => onMobileHeaderRight(null);
-  }, [isDesktop, run, actions, actionsMenuOpen, onMobileHeaderRight, onStop, onDelete, onInvestigate, onApplyInvestigation, onRetry, canApplyFixes, canDeleteRun, deleteLoading]);
+  }, [isDesktop, run, actions, actionsMenuOpen, onMobileHeaderRight, onStop, onDelete, onInvestigate, onApplyInvestigation, onRetry, onResumeFromFailure, canApplyFixes, canDeleteRun, deleteLoading]);
   return (
     <div className="h-full flex flex-col" ref={containerRef}>
       {/* Details Section (collapsible) - hidden on mobile, shown via info dialog instead */}
@@ -329,19 +339,24 @@ export function RunDetail({
             >
               {runStatusLabel(run.status, run.approvalState).replace("_", " ")}
             </Badge>
+            <RunModelBadge
+              requested={run.requestedModel ?? ""}
+              actual={run.actualModel ?? ""}
+              fallbackChain={(run.resolvedConfig?.policySnapshot?.candidates ?? [])
+                .slice(1)
+                .map((candidate) => candidate.model || `${runnerTypeLabel(candidate.runnerType)} default`)}
+            />
             <button
               type="button"
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(run.id);
-                setIdCopied(true);
-                setTimeout(() => setIdCopied(false), 1500);
+                void copyRunId(run.id);
               }}
               title={`Copy run ID: ${run.id}`}
             >
               <code className="font-mono">{run.id.slice(0, 8)}</code>
-              {idCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+              {runIdCopyStatus === "copied" ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
           {/* Action buttons — stop is always primary, rest are inline on desktop / ellipsis on mobile */}
@@ -390,10 +405,22 @@ export function RunDetail({
                     size="sm"
                     onClick={() => onRetry(run)}
                     className="gap-1 h-7 px-2"
-                    title="Re-run"
+                    title="Re-run from scratch (fresh attempt, no prior context)"
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span className="hidden lg:inline">Re-run</span>
+                  </Button>
+                )}
+                {actions?.canResumeFromFailure && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onResumeFromFailure(run)}
+                    className="gap-1 h-7 px-2"
+                    title="Resume: continue this task with the prior transcript + diff as context"
+                  >
+                    <PlayCircle className="h-3 w-3" />
+                    <span className="hidden lg:inline">Resume</span>
                   </Button>
                 )}
                 {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
@@ -412,7 +439,7 @@ export function RunDetail({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { console.log("[DELETE] Desktop header delete clicked", { runId: run.id }); onDelete(run); }}
+                    onClick={() => { onDelete(run); }}
                     className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
                     disabled={deleteLoading}
                     title="Delete run"
@@ -456,9 +483,20 @@ export function RunDetail({
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        title="Fresh attempt, no prior context"
                         onClick={() => { onRetry(run); setActionsMenuOpen(false); }}
                       >
                         <RotateCcw className="h-3.5 w-3.5" /> Re-run
+                      </button>
+                    )}
+                    {actions?.canResumeFromFailure && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        title="Continue this task with the prior transcript + diff as context"
+                        onClick={() => { onResumeFromFailure(run); setActionsMenuOpen(false); }}
+                      >
+                        <PlayCircle className="h-3.5 w-3.5" /> Resume
                       </button>
                     )}
                     {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
@@ -475,7 +513,7 @@ export function RunDetail({
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
                         disabled={deleteLoading}
-                        onClick={() => { console.log("[DELETE] Desktop menu delete clicked", { runId: run.id }); onDelete(run); setActionsMenuOpen(false); }}
+                        onClick={() => { onDelete(run); setActionsMenuOpen(false); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </button>
@@ -492,6 +530,7 @@ export function RunDetail({
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 sm:p-4 sm:space-y-4">
             <RunDetailsContent
               run={run}
+              diff={diffLoading ? null : diff}
               taskTitle={taskTitle}
               profileName={profileName}
               durationMs={durationMs}
@@ -562,6 +601,13 @@ export function RunDetail({
               <span className="hidden sm:inline mr-2"><DollarSign className="h-4 w-4 inline" /></span>
               Cost
             </button>
+            <button
+              className={cn("px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap", activeTab === "report" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}
+              onClick={() => setActiveTab("report")}
+            >
+              <span className="hidden sm:inline mr-2"><Info className="h-4 w-4 inline" /></span>
+              Report
+            </button>
           </div>
 
           {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
@@ -580,13 +626,38 @@ export function RunDetail({
               </div>
             )
           ) : activeTab === "timeline" ? (
-            <RunTimeline
-              run={run}
-              events={events}
-              eventsLoading={eventsLoading}
-              onContinue={onContinue}
-              onDeleteMessage={onDeleteMessage}
-            />
+            <div data-testid="run-detail-timeline-layout" className="flex h-full min-h-0 flex-col gap-3">
+              <div className="shrink-0">
+                <FallbackTimeline runId={run.id} />
+              </div>
+              <div className="min-h-0 flex-1">
+                <RunTimeline
+                  run={run}
+                  events={events}
+                  eventsLoading={eventsLoading}
+                  focusEventId={focusEventId}
+                  focusSequence={focusSequence}
+                  onContinue={onContinue}
+                  onDeleteMessage={onDeleteMessage}
+                />
+              </div>
+            </div>
+          ) : activeTab === "report" ? (
+            report.loading ? <div className="py-8 text-center text-muted-foreground">Loading run report…</div> : report.error ? <div className="py-8 text-center text-destructive">Report unavailable: {report.error}</div> : report.data ? (
+              <div className="space-y-3 text-sm" data-testid="run-report">
+                <div><strong>Status:</strong> {report.data.status}{report.data.exit_code !== undefined ? ` (exit ${report.data.exit_code})` : ""}{report.data.error ? ` — ${report.data.error}` : ""}</div>
+                <div><strong>Timing:</strong> duration={report.data.duration_ms ?? "unavailable"}ms; heartbeat gap={report.data.heartbeat_gap_ms ?? "unavailable"}ms; turns={report.data.turns}; tokens={report.data.tokens}; cost=${report.data.cost_usd}</div>
+                <div><strong>Final output:</strong> {report.data.result.selection_status} ({report.data.result.selection_rule || "unavailable"}), candidates={report.data.result.candidate_count}</div>
+                <div><strong>Structured:</strong> {report.data.result.structured_status || "unavailable"} {report.data.result.diagnostic_codes?.join(", ")}</div>
+                <div><strong>Tools:</strong> project-owned={report.data.project_owned_tool_calls} external={report.data.external_tool_calls}; repeated={report.data.repeated_tool_calls}; files reread={report.data.files_read_more_than_once}</div>
+                <div><strong>Model:</strong> requested={report.data.requested_model || "unavailable"} actual={report.data.actual_model || "unavailable"} fallbacks={report.data.fallback_count}</div>
+                <div><strong>Diff:</strong> {report.data.diff.files} files, {report.data.diff.bytes} bytes ({report.data.diff.available.state})</div>
+                <div><strong>Events:</strong> {report.data.events_availability.state}</div>
+                <ul className="list-disc pl-5">{Object.entries(report.data.event_counts).sort(([left], [right]) => left.localeCompare(right)).map(([type, count]) => <li key={type}>{type}: {count}</li>)}</ul>
+                <div><strong>Receipts:</strong> {report.data.receipts_availability.state} ({report.data.receipt_count})</div>
+                <ul className="list-disc pl-5">{report.data.tools.map((tool) => <li key={tool.name}>{tool.name}: {tool.calls} calls, {tool.returned ?? 0} returned, {tool.failures} failed, {tool.unknown_outcome ?? 0} outcome unknown, {tool.unresolved ?? 0} unresolved</li>)}</ul>
+              </div>
+            ) : <div className="py-8 text-center text-muted-foreground">Report unavailable</div>
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">
@@ -602,7 +673,7 @@ export function RunDetail({
                       <p className="font-medium text-muted-foreground">No diff available</p>
                       <p className="text-sm text-muted-foreground/70 mt-1">
                         {run.sandboxId
-                          ? "The diff hasn't been generated yet. You can review changes directly in the sandbox."
+                          ? "No complete diff evidence is available. The file count and changes are unverified."
                           : "This run didn't use a sandbox, so no diff was collected."}
                       </p>
                     </div>
@@ -615,10 +686,14 @@ export function RunDetail({
                       )}
                     </div>
                   </div>
+                ) : diff.runId !== run.id || !diff.fileCountVerified ? (
+                  <div className="py-8 text-center text-muted-foreground" role="status">
+                    Diff evidence is incomplete; changes and file count are unverified.
+                  </div>
                 ) : (
                   <DiffViewer
                     diff={diff}
-                    selectable={inlineAction === "partial"}
+                    selectable={partialActive}
                     selectedFiles={selectedFiles}
                     onFileSelectionChange={(path, selected) => {
                       setSelectedFiles((prev) => {
@@ -631,7 +706,9 @@ export function RunDetail({
                   />
                 )}
 
-                {/* Inline review controls */}
+                {/* Review pointer — approving/rejecting a run is a human action
+                    handled only in the Web Console approvals inbox (the single
+                    operator surface), never from this read-only page. */}
                 {(actions?.canApprove || actions?.canReject) && (
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -642,17 +719,20 @@ export function RunDetail({
                         </Button>
                       )}
                       <div className="flex-1" />
+                      {/* Partial approve is the one review action the inbox cannot do
+                          (file-selective). It is preserved here; full approve/reject
+                          are handled only in the inbox. */}
                       {actions?.canApprove && onPartialApprove && diff && (diff.files?.length ?? 0) > 1 && (
                         <Button
-                          variant={inlineAction === "partial" ? "secondary" : "outline"}
+                          variant={partialActive ? "secondary" : "outline"}
                           size="sm"
                           className="gap-1.5"
                           onClick={() => {
-                            if (inlineAction === "partial") {
-                              setInlineAction("none");
+                            if (partialActive) {
+                              setPartialActive(false);
                               setSelectedFiles(new Set());
                             } else {
-                              setInlineAction("partial");
+                              setPartialActive(true);
                             }
                           }}
                         >
@@ -660,98 +740,9 @@ export function RunDetail({
                           Partial Approve
                         </Button>
                       )}
-                      {actions?.canApprove && (
-                        <Button
-                          variant={inlineAction === "approve" ? "success" : "outline"}
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => setInlineAction(inlineAction === "approve" ? "none" : "approve")}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Approve All
-                        </Button>
-                      )}
-                      {actions?.canReject && (
-                        <Button
-                          variant={inlineAction === "reject" ? "destructive" : "outline"}
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => setInlineAction(inlineAction === "reject" ? "none" : "reject")}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Reject
-                        </Button>
-                      )}
                     </div>
 
-                    {inlineAction === "approve" && (
-                      <div className="space-y-3 rounded-lg border border-success/30 bg-success/5 p-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-approve-actor">Your Name (optional)</Label>
-                          <Input
-                            id="inline-approve-actor"
-                            value={inlineApprovalForm.actor}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, actor: e.target.value })}
-                            placeholder="Leave blank to approve anonymously"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-approve-msg">Commit Message (optional)</Label>
-                          <Input
-                            id="inline-approve-msg"
-                            value={inlineApprovalForm.commitMsg}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, commitMsg: e.target.value })}
-                            placeholder="Custom commit message"
-                          />
-                        </div>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={handleInlineConfirm}
-                          disabled={inlineSubmitting}
-                          className="gap-2"
-                        >
-                          <Check className="h-4 w-4" />
-                          {inlineSubmitting ? "Approving..." : "Confirm Approval"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {inlineAction === "reject" && (
-                      <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-reject-actor">Your Name (optional)</Label>
-                          <Input
-                            id="inline-reject-actor"
-                            value={inlineRejectForm.actor}
-                            onChange={(e) => setInlineRejectForm({ ...inlineRejectForm, actor: e.target.value })}
-                            placeholder="Leave blank for anonymous"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-reject-reason">Rejection Reason</Label>
-                          <Textarea
-                            id="inline-reject-reason"
-                            value={inlineRejectForm.reason}
-                            onChange={(e) => setInlineRejectForm({ ...inlineRejectForm, reason: e.target.value })}
-                            placeholder="Why are you rejecting these changes?"
-                            rows={3}
-                          />
-                        </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleInlineConfirm}
-                          disabled={inlineSubmitting}
-                          className="gap-2"
-                        >
-                          <X className="h-4 w-4" />
-                          {inlineSubmitting ? "Rejecting..." : "Confirm Rejection"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {inlineAction === "partial" && (
+                    {partialActive && (
                       <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
                         <p className="text-sm text-muted-foreground">
                           Select files above, then approve the selected subset.
@@ -760,8 +751,8 @@ export function RunDetail({
                           <Label htmlFor="partial-approve-actor">Your Name (optional)</Label>
                           <Input
                             id="partial-approve-actor"
-                            value={inlineApprovalForm.actor}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, actor: e.target.value })}
+                            value={partialForm.actor}
+                            onChange={(e) => setPartialForm({ ...partialForm, actor: e.target.value })}
                             placeholder="Leave blank to approve anonymously"
                           />
                         </div>
@@ -769,25 +760,31 @@ export function RunDetail({
                           <Label htmlFor="partial-approve-msg">Commit Message (optional)</Label>
                           <Input
                             id="partial-approve-msg"
-                            value={inlineApprovalForm.commitMsg}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, commitMsg: e.target.value })}
+                            value={partialForm.commitMsg}
+                            onChange={(e) => setPartialForm({ ...partialForm, commitMsg: e.target.value })}
                             placeholder="Custom commit message"
                           />
                         </div>
                         <Button
                           variant="success"
                           size="sm"
-                          onClick={handleInlineConfirm}
-                          disabled={inlineSubmitting || selectedFiles.size === 0}
+                          onClick={handlePartialConfirm}
+                          disabled={partialSubmitting || selectedFiles.size === 0}
                           className="gap-2"
                         >
                           <Check className="h-4 w-4" />
-                          {inlineSubmitting
+                          {partialSubmitting
                             ? "Approving..."
                             : `Approve Selected (${selectedFiles.size} file${selectedFiles.size !== 1 ? "s" : ""})`}
                         </Button>
                       </div>
                     )}
+
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                      Approve or reject the full run from the{" "}
+                      <span className="font-medium text-foreground">Web Console approvals inbox</span> — the single
+                      place operator decisions are answered.
+                    </div>
                   </div>
                 )}
               </div>
@@ -854,18 +851,17 @@ export function RunDetail({
                   type="button"
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => {
-                    navigator.clipboard.writeText(run.id);
-                    setIdCopied(true);
-                    setTimeout(() => setIdCopied(false), 1500);
+                    void copyRunId(run.id);
                   }}
                   title={`Copy run ID: ${run.id}`}
                 >
                   <code className="font-mono">{run.id.slice(0, 8)}</code>
-                  {idCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {runIdCopyStatus === "copied" ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                 </button>
               </div>
               <RunDetailsContent
                 run={run}
+                diff={diffLoading ? null : diff}
                 taskTitle={taskTitle}
                 profileName={profileName}
                 durationMs={durationMs}
@@ -882,614 +878,13 @@ export function RunDetail({
         run={run}
         diff={diff}
         diffLoading={diffLoading}
-        onApprove={onApprove}
-        onReject={onReject}
         onOpenSandbox={run.sandboxId && sandboxUrl ? openSandboxReview : undefined}
       />
     </div>
   );
 }
 
-// Helper functions and sub-components
-function runStatusLabel(status: RunStatus, approvalState?: ApprovalState): string {
-  if (approvalState === ApprovalState.REJECTED) return "rejected";
-  switch (status) {
-    case RunStatus.PENDING:
-      return "pending";
-    case RunStatus.STARTING:
-      return "starting";
-    case RunStatus.RUNNING:
-      return "running";
-    case RunStatus.NEEDS_REVIEW:
-      return "needs_review";
-    case RunStatus.COMPLETE:
-      return "complete";
-    case RunStatus.FAILED:
-      return "failed";
-    case RunStatus.CANCELLED:
-      return "cancelled";
-    default:
-      return "pending";
-  }
-}
-
-function runModeLabel(mode: RunMode): string {
-  switch (mode) {
-    case RunMode.SANDBOXED:
-      return "sandboxed";
-    case RunMode.IN_PLACE:
-      return "in_place";
-    default:
-      return "unspecified";
-  }
-}
-
-function runPhaseLabel(phase: RunPhase): string {
-  switch (phase) {
-    case RunPhase.QUEUED:
-      return "queued";
-    case RunPhase.INITIALIZING:
-      return "initializing";
-    case RunPhase.SANDBOX_CREATING:
-      return "sandbox_creating";
-    case RunPhase.RUNNER_ACQUIRING:
-      return "runner_acquiring";
-    case RunPhase.EXECUTING:
-      return "executing";
-    case RunPhase.COLLECTING_RESULTS:
-      return "collecting_results";
-    case RunPhase.AWAITING_REVIEW:
-      return "awaiting_review";
-    case RunPhase.APPLYING:
-      return "applying";
-    case RunPhase.CLEANING_UP:
-      return "cleaning_up";
-    case RunPhase.COMPLETED:
-      return "completed";
-    default:
-      return "queued";
-  }
-}
-
-function taskStatusLabel(status: TaskStatus): string {
-  switch (status) {
-    case TaskStatus.QUEUED:
-      return "queued";
-    case TaskStatus.RUNNING:
-      return "running";
-    case TaskStatus.NEEDS_REVIEW:
-      return "needs_review";
-    case TaskStatus.APPROVED:
-      return "approved";
-    case TaskStatus.REJECTED:
-      return "rejected";
-    case TaskStatus.FAILED:
-      return "failed";
-    case TaskStatus.CANCELLED:
-      return "cancelled";
-    default:
-      return "queued";
-  }
-}
-
-function TaskSummary({ task }: { task: Task }) {
-  const [selectedAttachment, setSelectedAttachment] = useState<ContextAttachmentData | null>(null);
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-lg font-semibold">{task.title}</h3>
-          <Badge
-            variant={
-              taskStatusLabel(task.status) as
-                | "queued"
-                | "running"
-                | "needs_review"
-                | "approved"
-                | "rejected"
-                | "failed"
-                | "cancelled"
-            }
-          >
-            {taskStatusLabel(task.status).replace("_", " ")}
-          </Badge>
-        </div>
-        {task.description ? (
-          <div className="text-sm text-muted-foreground">
-            <MarkdownRenderer content={task.description} />
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No description provided</p>
-        )}
-      </div>
-
-      <div className="space-y-3 text-sm">
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Scope</h4>
-          <div className="flex items-center gap-2">
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
-            <code className="text-xs bg-muted px-2 py-1 rounded">{task.scopePath}</code>
-          </div>
-        </div>
-
-        {task.projectRoot && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">Project Root</h4>
-            <code className="text-xs bg-muted px-2 py-1 rounded">{task.projectRoot}</code>
-          </div>
-        )}
-
-        {task.contextAttachments && task.contextAttachments.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              Context Attachments
-            </h4>
-            <div className="space-y-2">
-              {task.contextAttachments.map((att, index) => (
-                <div
-                  key={`${att.key || att.label || att.type}-${index}`}
-                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm cursor-pointer hover:bg-muted/70 transition-colors"
-                  onClick={() => setSelectedAttachment(att as ContextAttachmentData)}
-                >
-                  {att.type === "file" && <File className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
-                  {att.type === "link" && <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
-                  {att.type === "note" && <StickyNote className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {att.key && (
-                        <code className="text-[10px] bg-background px-1 py-0.5 rounded">
-                          {att.key}
-                        </code>
-                      )}
-                      {att.label && <span className="font-medium">{att.label}</span>}
-                      {!att.key && !att.label && (
-                        <span className="text-muted-foreground capitalize">{att.type}</span>
-                      )}
-                    </div>
-                    {att.path && <p className="text-xs text-muted-foreground truncate">{att.path}</p>}
-                    {att.url && <p className="text-xs text-muted-foreground truncate">{att.url}</p>}
-                    {att.content && att.type === "note" && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{att.content}</p>
-                    )}
-                    {att.tags && att.tags.length > 0 && (
-                      <div className="flex gap-1 flex-wrap">
-                        {att.tags.map((tag, i) => (
-                          <Badge key={`${tag}-${i}`} variant="outline" className="text-[10px] gap-1 py-0">
-                            <Tag className="h-2.5 w-2.5" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <ContextAttachmentModal
-        attachment={selectedAttachment}
-        open={selectedAttachment !== null}
-        onOpenChange={(open) => !open && setSelectedAttachment(null)}
-      />
-    </div>
-  );
-}
-
-type CostTotals = {
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  totalCostUsd: number;
-  webSearchRequests: number;
-  serverToolUseRequests: number;
-  models: string[];
-  serviceTiers: string[];
-  events: number;
-};
-
-function getCostTotals(events: RunEvent[]): CostTotals {
-  const models = new Set<string>();
-  const serviceTiers = new Set<string>();
-  const totals: CostTotals = {
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheCreationTokens: 0,
-    cacheReadTokens: 0,
-    totalCostUsd: 0,
-    webSearchRequests: 0,
-    serverToolUseRequests: 0,
-    models: [],
-    serviceTiers: [],
-    events: 0,
-  };
-
-  for (const event of events) {
-    if (event.data.case !== "cost") continue;
-    const p = event.data.value as Record<string, unknown> | undefined;
-    if (!p) continue;
-    totals.events += 1;
-    totals.inputTokens += Number(p.inputTokens ?? 0);
-    totals.outputTokens += Number(p.outputTokens ?? 0);
-    totals.cacheCreationTokens += Number(p.cacheCreationTokens ?? 0);
-    totals.cacheReadTokens += Number(p.cacheReadTokens ?? 0);
-    totals.totalCostUsd += Number(p.totalCostUsd ?? 0);
-    totals.webSearchRequests += Number(p.webSearchRequests ?? 0);
-    totals.serverToolUseRequests += Number(p.serverToolUseRequests ?? 0);
-    if (p.model) models.add(String(p.model));
-    if (p.serviceTier) serviceTiers.add(String(p.serviceTier));
-  }
-
-  totals.models = Array.from(models);
-  totals.serviceTiers = Array.from(serviceTiers);
-  return totals;
-}
-
-function formatCurrency(value: number): string {
-  return formatUsdFixed(value, 4, { useGrouping: false });
-}
-
-const STATUS_DOT_COLORS: Record<string, string> = {
-  pending: "bg-muted-foreground",
-  cancelled: "bg-muted-foreground",
-  starting: "bg-primary",
-  running: "bg-primary",
-  complete: "bg-success",
-  needs_review: "bg-warning",
-  failed: "bg-destructive",
-  rejected: "bg-orange-500",
-};
-
-interface RunDetailsContentProps {
-  run: Run;
-  taskTitle: string;
-  profileName: string;
-  durationMs: number | null;
-  costTotals: CostTotals;
-}
-
-function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals }: RunDetailsContentProps) {
-  return (
-    <>
-      {/* Run Overview */}
-      <div className="rounded-lg border border-border bg-card/50 p-3 sm:p-4">
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Run Overview</p>
-          <h3 className="text-lg font-semibold">{taskTitle}</h3>
-          <p className="text-sm text-muted-foreground">{profileName}</p>
-        </div>
-
-        {run.errorMsg && (
-          <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-              <div className="space-y-1">
-                <p className="font-medium">Failure reason</p>
-                <p className="break-words text-xs text-destructive/90">
-                  {run.errorMsg}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <span className="text-muted-foreground">Mode: </span>
-            {runModeLabel(run.runMode)}
-          </div>
-          <div>
-            <span className="text-muted-foreground">Phase: </span>
-            {runPhaseLabel(run.phase).replace("_", " ")}
-          </div>
-          <div>
-            <span className="text-muted-foreground">Progress: </span>
-            {run.progressPercent}%
-          </div>
-          {run.resolvedConfig?.runnerType ? (
-            <div>
-              <span className="text-muted-foreground">Runner: </span>
-              {runnerTypeLabel(run.resolvedConfig.runnerType)}
-            </div>
-          ) : null}
-          {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
-            <div>
-              <span className="text-muted-foreground">Fallbacks: </span>
-              {run.resolvedConfig.fallbackRunnerTypes
-                .map((runnerType) => runnerTypeLabel(runnerType))
-                .join(", ")}
-            </div>
-          ) : null}
-          {run.resolvedConfig?.features?.enableBrowser && (
-            <div className="col-span-2 flex flex-wrap gap-1">
-              <Badge variant="outline">Browser</Badge>
-            </div>
-          )}
-          {run.resolvedConfig?.extraFlags && Object.entries(run.resolvedConfig.extraFlags).map(([rt, list]) =>
-            list.flags?.map((flag, i) => (
-              <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
-            ))
-          )}
-          {run.sandboxId && (
-            <div>
-              <span className="text-muted-foreground">Sandbox: </span>
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                {run.sandboxId}
-              </code>
-            </div>
-          )}
-          {run.changedFiles > 0 && (
-            <div>
-              <span className="text-muted-foreground">Files: </span>
-              {run.changedFiles} changed
-            </div>
-          )}
-          {durationMs !== null && (
-            <div>
-              <span className="text-muted-foreground">Duration: </span>
-              {formatDuration(durationMs)}
-            </div>
-          )}
-          <div>
-            <span className="text-muted-foreground">Tag: </span>
-            {run.tag ? (
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">{run.tag}</code>
-            ) : (
-              <span className="text-muted-foreground">None</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Highlights */}
-      <div className="grid grid-cols-3 gap-2 text-sm">
-        <div className="rounded border border-border px-3 py-2">
-          <div className="text-xs text-muted-foreground">Duration</div>
-          <div className="font-semibold">{durationMs !== null ? formatDuration(durationMs) : "—"}</div>
-        </div>
-        <div className="rounded border border-border px-3 py-2">
-          <div className="text-xs text-muted-foreground">Cost</div>
-          <div className="font-semibold">{costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}</div>
-        </div>
-        <div className="rounded border border-border px-3 py-2">
-          <div className="text-xs text-muted-foreground">Changes</div>
-          <div className="font-semibold">{run.changedFiles > 0 ? `${run.changedFiles} files` : "None"}</div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-const STATUS_LEGEND: { label: string; color: string }[] = [
-  { label: "Pending", color: "bg-muted-foreground" },
-  { label: "Starting", color: "bg-primary" },
-  { label: "Running", color: "bg-primary" },
-  { label: "Needs review", color: "bg-warning" },
-  { label: "Complete", color: "bg-success" },
-  { label: "Rejected", color: "bg-orange-500" },
-  { label: "Failed", color: "bg-destructive" },
-  { label: "Cancelled", color: "bg-muted-foreground" },
-];
-
-interface StatusDotWithLegendProps {
-  dotColor: string;
-  statusLabel: string;
-  legendOpen: boolean;
-  setLegendOpen: (open: boolean) => void;
-}
-
-function StatusDotWithLegend({ dotColor, statusLabel, legendOpen, setLegendOpen }: StatusDotWithLegendProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!legendOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setLegendOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [legendOpen, setLegendOpen]);
-
-  return (
-    <div className="relative shrink-0" ref={ref}>
-      <button
-        type="button"
-        className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-muted/50 transition-colors"
-        onClick={() => setLegendOpen(!legendOpen)}
-        title={statusLabel.replace("_", " ")}
-      >
-        <span className={cn("w-2.5 h-2.5 rounded-full", dotColor)} />
-      </button>
-      {legendOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-md border border-border bg-card p-2 shadow-lg">
-          <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Status</p>
-          {STATUS_LEGEND.map(({ label, color }) => (
-            <div
-              key={label}
-              className={cn(
-                "flex items-center gap-2 px-1 py-0.5 text-xs rounded",
-                statusLabel.replace("_", " ") === label.toLowerCase() && "bg-muted/50 font-medium"
-              )}
-            >
-              <span className={cn("w-2 h-2 rounded-full shrink-0", color)} />
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface MobileHeaderActionsProps {
-  actions: Run["actions"];
-  onInfoOpen: () => void;
-  onStop: () => void;
-  actionsMenuOpen: boolean;
-  setActionsMenuOpen: (fn: (prev: boolean) => boolean) => void;
-  actionsMenuRef: React.RefObject<HTMLDivElement>;
-  onInvestigate: () => void;
-  canApplyFixes: boolean;
-  onApplyInvestigation: () => void;
-  onRetry: () => void;
-  onReview: () => void;
-  canDeleteRun: boolean;
-  onDelete: () => void;
-  deleteLoading: boolean;
-}
-
-function MobileHeaderActions({
-  actions,
-  onInfoOpen,
-  onStop,
-  actionsMenuOpen,
-  setActionsMenuOpen,
-  actionsMenuRef,
-  onInvestigate,
-  canApplyFixes,
-  onApplyInvestigation,
-  onRetry,
-  onReview,
-  canDeleteRun,
-  onDelete,
-  deleteLoading,
-}: MobileHeaderActionsProps) {
-  return (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-7 w-7 p-0"
-        onClick={onInfoOpen}
-        title="Run details"
-      >
-        <Info className="h-4 w-4" />
-      </Button>
-      {actions?.canStop && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onStop}
-          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-          title="Stop run"
-        >
-          <Square className="h-3.5 w-3.5" />
-        </Button>
-      )}
-      <div className="relative" ref={actionsMenuRef}>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setActionsMenuOpen((prev) => !prev)}
-          className="h-7 w-7 p-0"
-          aria-label="Run actions"
-        >
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-        {actionsMenuOpen && (
-          <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-border bg-card p-1 shadow-lg">
-            {actions?.canInvestigate && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                onClick={() => { onInvestigate(); setActionsMenuOpen(() => false); }}
-              >
-                <Search className="h-3.5 w-3.5" /> Investigate
-              </button>
-            )}
-            {canApplyFixes && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                onClick={() => { onApplyInvestigation(); setActionsMenuOpen(() => false); }}
-              >
-                <Wrench className="h-3.5 w-3.5" /> Apply Fixes
-              </button>
-            )}
-            {actions?.canRetry && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                onClick={() => { onRetry(); setActionsMenuOpen(() => false); }}
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Re-run
-              </button>
-            )}
-            {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                onClick={() => { onReview(); setActionsMenuOpen(() => false); }}
-              >
-                <Eye className="h-3.5 w-3.5" /> Review
-              </button>
-            )}
-            {canDeleteRun && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
-                disabled={deleteLoading}
-                onClick={() => { console.log("[DELETE] Mobile menu delete clicked"); onDelete(); setActionsMenuOpen(() => false); }}
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
-function CostBreakdown({ totals }: { totals: CostTotals }) {
-  const totalTokens =
-    totals.inputTokens +
-    totals.outputTokens +
-    totals.cacheCreationTokens +
-    totals.cacheReadTokens;
-
-  return (
-    <div className="space-y-3 text-xs">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded border border-border p-3">
-          <div className="text-muted-foreground">Total cost</div>
-          <div className="text-lg font-semibold">{formatCurrency(totals.totalCostUsd)}</div>
-        </div>
-        <div className="rounded border border-border p-3">
-          <div className="text-muted-foreground">Total tokens</div>
-          <div className="text-lg font-semibold">{totalTokens.toLocaleString()}</div>
-        </div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded border border-border p-3 space-y-1">
-          <div className="text-muted-foreground">Token breakdown</div>
-          <div>Input: {totals.inputTokens.toLocaleString()}</div>
-          <div>Output: {totals.outputTokens.toLocaleString()}</div>
-          <div>Cache creation: {totals.cacheCreationTokens.toLocaleString()}</div>
-          <div>Cache read: {totals.cacheReadTokens.toLocaleString()}</div>
-        </div>
-        <div className="rounded border border-border p-3 space-y-1">
-          <div className="text-muted-foreground">Request breakdown</div>
-          <div>Web search: {totals.webSearchRequests.toLocaleString()}</div>
-          <div>Server tool use: {totals.serverToolUseRequests.toLocaleString()}</div>
-          <div>Cost events: {totals.events.toLocaleString()}</div>
-        </div>
-      </div>
-      {(totals.models.length > 0 || totals.serviceTiers.length > 0) && (
-        <div className="rounded border border-border p-3 space-y-1">
-          <div className="text-muted-foreground">Usage context</div>
-          {totals.models.length > 0 && <div>Models: {totals.models.join(", ")}</div>}
-          {totals.serviceTiers.length > 0 && (
-            <div>Service tiers: {totals.serviceTiers.join(", ")}</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+// RunModelBadge renders the model the executor actually ran with. When the actual
+// model differs from the originally requested one, a warning variant is shown to
+// flag that the run degraded through the preset fallback chain. Both fields are
+// optional — older runs persisted before provenance tracking appear unlabelled.

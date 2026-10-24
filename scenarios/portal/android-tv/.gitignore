@@ -1,0 +1,8 @@
+build/
+.gradle/
+local.properties
+*.jks
+*.keystore
+# Root ignores the control-plane binary named vrooli; retain this Java namespace.
+!app/src/main/java/com/vrooli/
+!app/src/main/java/com/vrooli/**/*.java

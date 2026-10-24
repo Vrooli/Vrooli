@@ -1,0 +1,21 @@
+{
+  "artifact": "Vrooli Mail specification v1.1",
+  "native_document_id": "1b-XsCToyltcrFWZuHQIo-M6DQVOASP6pjafOpPk9nbY",
+  "native_revision": "AHj4eMShh1DEhhKmSdaSyHGUTM2M3QhTeRgsV_siowfimKtfWFujyE-otBFbIlhIFAALnmSmDI1xoGYmA9rG-SiVbmR9wXZcB-0PHCFnug",
+  "native_export": "spec-v1.1-native-export.pdf",
+  "sha256": "80a8d8635a9c1915f2ba7fdc487a377ba735a0e1bdd3f0c79f193d25e7a566a9",
+  "pages": 26,
+  "bytes": 413949,
+  "checked_at": "2026-10-14T21:18:00Z",
+  "checks": [
+    "Independent semantic review of multi-account contract, identity, grants, partial results, minimal provider seam and unassigned local compose buffer passed.",
+    "Normalized complete PDF text exactly matches spec.txt.",
+    "All 26 final pages independently visually inspected, including byte-identical unchanged pages; no clipping or missing glyphs.",
+    "Drive-hosted PDF fetched back and SHA-256 matches the reviewed local file."
+  ],
+  "limits": [
+    "Static design and source inspection only; no live-provider or implementation acceptance.",
+    "No native-phone, screen-reader, runtime security or accessibility certification.",
+    "Owner endorsed prior visual direction and selected amendment; exact revised-artifact acceptance remains separate."
+  ]
+}

@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.signal_inbox.v1.triage;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/triage;triage_v1";
+
+service TriageService {
+  rpc GetTriage(GetTriageRequest) returns (GetTriageResponse);
+  rpc SetDisposition(SetDispositionRequest) returns (SetDispositionResponse);
+  rpc AddAnnotation(AddAnnotationRequest) returns (AddAnnotationResponse);
+}
+
+enum DispositionState {
+  DISPOSITION_STATE_UNSPECIFIED = 0;
+  DISPOSITION_STATE_NEW = 1;
+  DISPOSITION_STATE_TRIAGED = 2;
+  DISPOSITION_STATE_ROUTED = 3;
+  DISPOSITION_STATE_DONE = 4;
+  DISPOSITION_STATE_DROPPED = 5;
+}
+
+enum AnnotationAuthor {
+  ANNOTATION_AUTHOR_UNSPECIFIED = 0;
+  ANNOTATION_AUTHOR_OPERATOR = 1;
+  ANNOTATION_AUTHOR_AGENT = 2;
+  ANNOTATION_AUTHOR_SYSTEM = 3;
+}
+
+enum OutcomeKind {
+  OUTCOME_KIND_UNSPECIFIED = 0;
+  OUTCOME_KIND_SCENARIO = 1;
+  OUTCOME_KIND_BACKLOG = 2;
+  OUTCOME_KIND_IDEA_PIPELINE = 3;
+  OUTCOME_KIND_KNOWLEDGE_TOPIC = 4;
+}
+
+message Disposition {
+  string signal_id = 1;
+  DispositionState state = 2;
+  google.protobuf.Timestamp revisit_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message OutcomeLink {
+  OutcomeKind kind = 1;
+  string target_id = 2;
+}
+message Annotation {
+  string id = 1;
+  string signal_id = 2;
+  AnnotationAuthor author = 3;
+  string body = 4;
+  OutcomeLink outcome = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message TriageRecord {
+  Disposition disposition = 1;
+  repeated Annotation annotations = 2;
+}
+message GetTriageRequest {
+  string signal_id = 1;
+}
+message GetTriageResponse {
+  TriageRecord triage = 1;
+}
+message SetDispositionRequest {
+  string signal_id = 1;
+  DispositionState state = 2;
+  google.protobuf.Timestamp revisit_at = 3;
+}
+message SetDispositionResponse {
+  Disposition disposition = 1;
+}
+message AddAnnotationRequest {
+  string signal_id = 1;
+  AnnotationAuthor author = 2;
+  string body = 3;
+  OutcomeLink outcome = 4;
+}
+message AddAnnotationResponse {
+  Annotation annotation = 1;
+}

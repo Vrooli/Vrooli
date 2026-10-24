@@ -1,0 +1,10 @@
+{
+  "gate": "shared-style-ownership",
+  "assetId": "calibration.shared-style-ownership",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.shared-style-ownership",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Repeats the library-wide reduced-motion policy locally."
+}

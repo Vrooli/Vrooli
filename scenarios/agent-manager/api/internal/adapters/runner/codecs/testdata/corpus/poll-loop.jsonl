@@ -1,0 +1,9 @@
+{"type":"thread.started","thread_id":"poll-loop-fixture"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"poll-1","type":"command_execution","command":"test-genie runs status --json agent-manager fixture-run","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"poll-1","type":"command_execution","command":"test-genie runs status --json agent-manager fixture-run","aggregated_output":"running","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"poll-2","type":"command_execution","command":"test-genie runs status --json agent-manager fixture-run","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"poll-2","type":"command_execution","command":"test-genie runs status --json agent-manager fixture-run","aggregated_output":"running","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"poll-3","type":"command_execution","command":"test-genie runs status --json agent-manager fixture-run","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"poll-3","type":"command_execution","command":"test-genie runs status --json agent-manager fixture-run","aggregated_output":"running","exit_code":0,"status":"completed"}}
+{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":10}}

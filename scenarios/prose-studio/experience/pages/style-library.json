@@ -1,0 +1,252 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "style-library",
+    "title": "Style Library",
+    "routes": [
+      "/styles",
+      "/styles/:styleId"
+    ],
+    "purpose": "Let an operator find, read, compose, and version a writing voice, and see plainly whether a style is owned by a file in another scenario or authored here.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-002",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether this style is file-owned or operator-authored, before any edit is attempted"
+    },
+    {
+      "statement": "What this style actually instructs, resolved rather than as fragments"
+    },
+    {
+      "statement": "Which version is frozen because something shipped against it"
+    }
+  ],
+  "elements": [
+    {
+      "id": "style-list",
+      "role": "list",
+      "name": "Styles",
+      "description": "All registered styles with provenance and status."
+    },
+    {
+      "id": "authority-badge",
+      "role": "status",
+      "name": "Authority",
+      "description": "Declared-by-consumer or operator-authored. Determines whether editing is possible at all."
+    },
+    {
+      "id": "resolved-preview",
+      "role": "region",
+      "name": "Resolved style",
+      "description": "The fully merged effective style, including everything inherited through extends."
+    },
+    {
+      "id": "version-timeline",
+      "role": "list",
+      "name": "Versions",
+      "description": "Version history with frozen-on-reference markers."
+    },
+    {
+      "id": "conformance-report",
+      "role": "region",
+      "name": "Conformance",
+      "description": "Targets met or missed and anti-pattern hits located by span."
+    },
+    {
+      "id": "edit-action",
+      "role": "button",
+      "name": "Edit",
+      "description": "Unavailable for a declared style, stating the owning file path."
+    },
+    {
+      "id": "export-action",
+      "role": "button",
+      "name": "Export for commit",
+      "description": "One-way export of an operator-authored style to declaration file content."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The style list at rest.",
+      "setup": {
+        "route": "/styles"
+      }
+    },
+    {
+      "id": "declared-style",
+      "description": "A file-owned style: editing is unavailable and the owning path is named.",
+      "setup": {
+        "route": "/styles/:styleId"
+      }
+    },
+    {
+      "id": "operator-style",
+      "description": "An operator-authored style under the reserved local namespace; editable and exportable.",
+      "setup": {
+        "route": "/styles/:styleId"
+      }
+    },
+    {
+      "id": "frozen-version",
+      "description": "A version referenced by a committed output; mutation refused with a create-new-version affordance.",
+      "setup": {
+        "route": "/styles/:styleId"
+      }
+    },
+    {
+      "id": "resolution-conflict",
+      "description": "Merged targets have an empty intersection; both contributing versions and the conflicting metric are named.",
+      "setup": {
+        "route": "/styles/:styleId"
+      }
+    },
+    {
+      "id": "unregistered",
+      "description": "The owning declaration file was deleted; the style is retained for provenance and refuses new generation.",
+      "setup": {
+        "route": "/styles/:styleId"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No styles registered yet.",
+      "setup": {
+        "route": "/styles"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Data for this surface is in flight; skeleton structure is shown rather than a blank frame.",
+      "setup": {
+        "route": "/styles"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; what resolved stays usable and what failed is named rather than silently omitted.",
+      "setup": {
+        "route": "/styles"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is known to be out of date relative to its source; the surface says so rather than presenting it as current.",
+      "setup": {
+        "route": "/styles"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the specific cause is stated inline and the surface offers the action that retries it.",
+      "setup": {
+        "route": "/styles"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "authority-visible-before-edit",
+      "type": "element-present",
+      "statement": "A style's authority is visible on the style itself before any edit is attempted.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "declared-style",
+        "operator-style"
+      ],
+      "elements": [
+        "style-list",
+        "authority-badge"
+      ],
+      "rationale": "Discovering that a record is file-owned only by being refused is a worse experience than being told up front. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "declared-offers-export-not-save",
+      "type": "element-absent",
+      "statement": "A declared style offers Export for commit and never offers Save.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "declared-style"
+      ],
+      "elements": [
+        "edit-action",
+        "export-action"
+      ],
+      "rationale": "The file is the source of truth. A Save affordance would imply a round-trip sync that deliberately does not exist. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "conflict-names-both-versions",
+      "type": "element-present",
+      "statement": "A resolution conflict names both contributing versions and the conflicting metric.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "resolution-conflict"
+      ],
+      "elements": [
+        "conformance-report"
+      ],
+      "rationale": "A conflict that only says it failed is not actionable when styles compose through extends. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "frozen-version-explains-itself",
+      "type": "state-distinct",
+      "statement": "A frozen version is perceivably distinct and states that a committed output references it.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "frozen-version"
+      ],
+      "elements": [
+        "version-timeline",
+        "edit-action"
+      ],
+      "rationale": "Immutability that looks like a bug erodes trust in the whole versioning model. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "style-list": {
+        "testid": "style-list"
+      },
+      "authority-badge": {
+        "testid": "authority-badge"
+      },
+      "resolved-preview": {
+        "testid": "resolved-preview"
+      },
+      "version-timeline": {
+        "testid": "version-timeline"
+      },
+      "conformance-report": {
+        "testid": "conformance-report"
+      },
+      "edit-action": {
+        "testid": "edit-action"
+      },
+      "export-action": {
+        "testid": "export-action"
+      }
+    }
+  }
+}

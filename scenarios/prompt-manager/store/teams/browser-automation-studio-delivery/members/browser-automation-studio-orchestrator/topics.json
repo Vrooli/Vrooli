@@ -1,0 +1,7 @@
+{
+  "loop_kind": "reactive",
+  "required_read": [],
+  "output": [],
+  "external_producers": ["Agent Manager child-run wakes, epoch-check friction wakes and the liveness heartbeat"],
+  "raises_work_items": false
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "content-desk.board-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read the Content Desk marketing board once: current campaign/draft work, the deterministic next action per draft, capability readiness gaps, offer release readiness for active campaign scenarios, and the diff against a caller baseline.",
+  "inputs": {
+    "baseline": {
+      "type": "object",
+      "required": false,
+      "description": "Prior snapshot as {\"campaigns\": {id: status}, \"drafts\": {id: status}, \"captured_at\": rfc3339}. Omitted means no comparison is possible and changes_status reads no_baseline.",
+      "default": {}
+    }
+  },
+  "assumptions": [
+    "Content Desk is the team's single declared address for campaign, draft and capability state.",
+    "The lifecycle status is the sole source of the next action; the program derives it and never invents work.",
+    "The caller retains the returned snapshot in its own continuity record and supplies it as the next run's baseline."
+  ],
+  "invariants": [
+    "No writes: every declared binding has effect read.",
+    "A missing baseline is reported as no_baseline; it is never reported as an unchanged board.",
+    "A draft status outside the known lifecycle is reported as drift, never bucketed into a known next action.",
+    "readiness_limitations and the unknown qualification sentinel are copied verbatim from the owner response; they are never recomputed.",
+    "The campaign and draft reads are required; an unavailable capability read degrades the board to partial with an explicit error, never a failed board or a fabricated readiness count.",
+    "The offer release ladder is supplementary: an unavailable read degrades the board to partial with an explicit error, and a release-ladder entry whose readiness goal state the owner did not report is marked unknown, never false.",
+    "At most 80 rows per owner are materialized; a larger owner sets partial and says so.",
+    "The envelope is printed exactly once, on every path."
+  ],
+  "bindings": [
+    {
+      "id": "content-desk/campaigns/list",
+      "effect": "read"
+    },
+    {
+      "id": "content-desk/artifacts/list",
+      "effect": "read"
+    },
+    {
+      "id": "content-desk/capabilities/list",
+      "effect": "read",
+      "optional": true,
+      "note": "The capability catalog is supplementary readiness/next-action context; without it the campaign/draft board still reads and the envelope degrades to partial."
+    },
+    {
+      "id": "offer-desk/offers/release-ladder",
+      "effect": "read",
+      "optional": true,
+      "via": "binding",
+      "note": "Called as release_ladder(rows='entries') for the offer release readiness of active campaign scenarios. Supplementary: without it the board degrades to partial with offer_readiness_unavailable, never a failed board or a fabricated goal state."
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ],
+      "note": "refused is unreachable: all bindings are read-only and run-eligible, so governance never withholds them."
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "campaign_total": "Campaigns the board reported.",
+      "campaign_status_counts": "Count of campaigns per status.",
+      "campaign_snapshot": "Campaign id to status; the caller stores this as the next baseline.campaigns.",
+      "active_campaigns": "Bounded list of {id, name, scenario_names} for campaigns in the active status.",
+      "unknown_campaign_status": "Campaigns whose status is outside proposed/active/closed; drift, not a band.",
+      "draft_total": "Drafts the owner reported.",
+      "draft_status_counts": "Count of drafts per lifecycle status.",
+      "draft_snapshot": "Draft id to status; the caller stores this as the next baseline.drafts.",
+      "drafts_by_campaign": "Count of drafts per campaign id, including an empty-id bucket.",
+      "unknown_draft_status": "Drafts whose status is outside the known lifecycle; drift, not a next action.",
+      "current_work": "Bounded list of {draft_id, campaign_id, channel, status, next_action} for drafts that are not terminal.",
+      "next_actions": "Bounded deduplicated next-action guidance derived from draft status.",
+      "capability_total": "Capabilities the board reported.",
+      "capability_readiness": "Counts per readiness dimension value.",
+      "unknown_qualification": "Capabilities whose latest qualification is absent (unknown sentinel).",
+      "ownerless": "Capabilities with no named owner.",
+      "with_limitations": "Capabilities carrying one or more readiness_limitations.",
+      "limitations": "Bounded deduplicated sample of readiness_limitations.",
+      "capability_next_actions": "Bounded deduplicated sample of capability next_action strings.",
+      "changes_status": "compared or no_baseline.",
+      "changes": "added, removed and status_changed per campaigns and drafts; null when no baseline was supplied.",
+      "truncated": "True when any owner exceeded the materialize cap.",
+      "capability_read_status": "read when the optional capability catalog answered, unavailable when it did not; the campaign/draft board always reads.",
+      "offer_read_status": "read when the optional offer release ladder answered, unavailable when it did not; the campaign/draft board always reads.",
+      "offer_readiness": "Offer release readiness for active campaign scenarios: ladder_entries read, the launch scenarios matched by name, and a bounded launch_targets list of {scenario, node_id, status, release_rank, readiness_goal_reported, readiness_goal_exists, readiness_goal_closed, readiness_approved_commit, blocked_by, next_action}. unknown_goal_state counts targets whose owner did not report a goal state."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "no_governed_binding",
+        "remote_error",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "row_cap_reached",
+        "capabilities_unavailable",
+        "offer_readiness_unavailable"
+      ]
+    },
+    "evidence": "The binding ids read for this run."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 80,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live-no-baseline",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "changes_status": "no_baseline",
+          "changes": null
+        }
+      },
+      "note": "Partial only when an owner exceeds the materialize cap; no baseline is reported, never treated as no change.",
+      "requires": [
+        "content-desk"
+      ]
+    },
+    {
+      "id": "invalid-baseline",
+      "inputs": {
+        "baseline": {
+          "drafts": "not-an-object"
+        }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "A malformed baseline is invalid_input, never partial.",
+      "requires": [
+        "content-desk"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "content-desk"
+}

@@ -135,12 +135,12 @@ export function useResizableColumns(
 
   // Compute column styles
   const leftColumnStyle: React.CSSProperties = {
-    width: `${leftRatio * 100}%`,
+    width: `${String(leftRatio * 100)}%`,
     flexShrink: 0,
   };
 
   const rightColumnStyle: React.CSSProperties = {
-    width: `${(1 - leftRatio) * 100}%`,
+    width: `${String((1 - leftRatio) * 100)}%`,
     flexShrink: 0,
   };
 

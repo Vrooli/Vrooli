@@ -13,11 +13,13 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	assethttp "landing-page-business-suite-api/handlers/assets"
+	"landing-page-business-suite-api/internal/content"
 )
 
 // setupTestAssetsService creates an AssetsService with a temp upload directory
 // to prevent tests from polluting the real uploads folder.
-func setupTestAssetsService(t *testing.T, db *sql.DB) *AssetsService {
+func setupTestAssetsService(t *testing.T, db *sql.DB) *content.AssetsService {
 	t.Helper()
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
@@ -28,11 +30,10 @@ func setupTestAssetsService(t *testing.T, db *sql.DB) *AssetsService {
 
 func TestHandleAssetUpload_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetUpload(assetsService)
+	handler := assethttp.Upload(assetsHTTPDependencies(assetsService))
 
 	body, contentType := createMultipartRequest(t, "file", "test.png", createTestPNG(), "image/png", nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/assets/upload", body)
@@ -45,7 +46,7 @@ func TestHandleAssetUpload_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 
-	var resp Asset
+	var resp content.Asset
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -60,10 +61,9 @@ func TestHandleAssetUpload_Success(t *testing.T) {
 
 func TestHandleAssetUpload_InvalidFileType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetUpload(assetsService)
+	handler := assethttp.Upload(assetsHTTPDependencies(assetsService))
 
 	// Upload a text file (not allowed)
 	body, contentType := createMultipartRequest(t, "file", "test.txt", []byte("hello world"), "text/plain", nil)
@@ -80,10 +80,9 @@ func TestHandleAssetUpload_InvalidFileType(t *testing.T) {
 
 func TestHandleAssetUpload_NoFile(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetUpload(assetsService)
+	handler := assethttp.Upload(assetsHTTPDependencies(assetsService))
 
 	// Create multipart request without file
 	body := &bytes.Buffer{}
@@ -108,10 +107,9 @@ func TestHandleAssetUpload_NoFile(t *testing.T) {
 
 func TestHandleAssetUpload_InvalidMultipart(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetUpload(assetsService)
+	handler := assethttp.Upload(assetsHTTPDependencies(assetsService))
 
 	// Send non-multipart request
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/assets/upload", bytes.NewReader([]byte("invalid")))
@@ -127,11 +125,10 @@ func TestHandleAssetUpload_InvalidMultipart(t *testing.T) {
 
 func TestHandleAssetUpload_WithOptionalFields(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetUpload(assetsService)
+	handler := assethttp.Upload(assetsHTTPDependencies(assetsService))
 
 	extraFields := map[string]string{
 		"category":    "logo",
@@ -149,7 +146,7 @@ func TestHandleAssetUpload_WithOptionalFields(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 
-	var resp Asset
+	var resp content.Asset
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -167,11 +164,10 @@ func TestHandleAssetUpload_WithOptionalFields(t *testing.T) {
 
 func TestHandleAssetUpload_DefaultCategory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetUpload(assetsService)
+	handler := assethttp.Upload(assetsHTTPDependencies(assetsService))
 
 	// Upload without specifying category
 	body, contentType := createMultipartRequest(t, "file", "test.png", createTestPNG(), "image/png", nil)
@@ -185,7 +181,7 @@ func TestHandleAssetUpload_DefaultCategory(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 
-	var resp Asset
+	var resp content.Asset
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -199,7 +195,6 @@ func TestHandleAssetUpload_DefaultCategory(t *testing.T) {
 
 func TestHandleAssetsList_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -209,7 +204,7 @@ func TestHandleAssetsList_Success(t *testing.T) {
 		insertTestAsset(t, db, "test"+strconv.Itoa(i)+".png", "general")
 	}
 
-	handler := handleAssetsList(assetsService)
+	handler := assethttp.List(assetsHTTPDependencies(assetsService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/assets", nil)
 	w := httptest.NewRecorder()
@@ -236,7 +231,6 @@ func TestHandleAssetsList_Success(t *testing.T) {
 
 func TestHandleAssetsList_WithCategory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -246,7 +240,7 @@ func TestHandleAssetsList_WithCategory(t *testing.T) {
 	insertTestAsset(t, db, "logo2.png", "logo")
 	insertTestAsset(t, db, "general1.png", "general")
 
-	handler := handleAssetsList(assetsService)
+	handler := assethttp.List(assetsHTTPDependencies(assetsService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/assets?category=logo", nil)
 	w := httptest.NewRecorder()
@@ -270,11 +264,10 @@ func TestHandleAssetsList_WithCategory(t *testing.T) {
 
 func TestHandleAssetsList_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetsList(assetsService)
+	handler := assethttp.List(assetsHTTPDependencies(assetsService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/assets", nil)
 	w := httptest.NewRecorder()
@@ -303,7 +296,6 @@ func TestHandleAssetsList_Empty(t *testing.T) {
 
 func TestHandleAssetGet_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -311,7 +303,7 @@ func TestHandleAssetGet_Success(t *testing.T) {
 	// Create test asset
 	assetID := insertTestAsset(t, db, "test.png", "general")
 
-	handler := handleAssetGet(assetsService)
+	handler := assethttp.Get(assetsHTTPDependencies(assetsService))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/assets/{id}", handler).Methods("GET")
@@ -325,7 +317,7 @@ func TestHandleAssetGet_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 	}
 
-	var resp Asset
+	var resp content.Asset
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -337,11 +329,10 @@ func TestHandleAssetGet_Success(t *testing.T) {
 
 func TestHandleAssetGet_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetGet(assetsService)
+	handler := assethttp.Get(assetsHTTPDependencies(assetsService))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/assets/{id}", handler).Methods("GET")
@@ -358,10 +349,9 @@ func TestHandleAssetGet_NotFound(t *testing.T) {
 
 func TestHandleAssetGet_InvalidID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetGet(assetsService)
+	handler := assethttp.Get(assetsHTTPDependencies(assetsService))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/assets/{id}", handler).Methods("GET")
@@ -380,7 +370,6 @@ func TestHandleAssetGet_InvalidID(t *testing.T) {
 
 func TestHandleAssetDelete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -388,7 +377,7 @@ func TestHandleAssetDelete_Success(t *testing.T) {
 	// Create test asset
 	assetID := insertTestAsset(t, db, "to-delete.png", "general")
 
-	handler := handleAssetDelete(assetsService)
+	handler := assethttp.Delete(assetsHTTPDependencies(assetsService))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/assets/{id}", handler).Methods("DELETE")
@@ -415,11 +404,10 @@ func TestHandleAssetDelete_Success(t *testing.T) {
 
 func TestHandleAssetDelete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
-	handler := handleAssetDelete(assetsService)
+	handler := assethttp.Delete(assetsHTTPDependencies(assetsService))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/assets/{id}", handler).Methods("DELETE")

@@ -22,7 +22,7 @@ func TestOrchestratorWithMockStages(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -39,11 +39,39 @@ func TestOrchestratorWithMockStages(t *testing.T) {
 	}
 }
 
+func TestReleaseBoundDeployOnlyDoesNotExpandBuildDependencies(t *testing.T) {
+	deploy := &mockStage{name: StageDeploy}
+	orchestrator := NewOrchestrator(
+		WithStages(
+			&mockStage{name: StageBundle},
+			&mockStage{name: StagePreflight},
+			&mockStage{name: StageGenerate},
+			&mockStage{name: StageBuild},
+			&mockStage{name: StageSmokeTest},
+			deploy,
+		),
+	)
+
+	status, err := orchestrator.RunPipeline(context.Background(), &PipelineConfig{
+		ScenarioName:            "qualified-app",
+		Stages:                  []string{StageDeploy},
+		ArtifactManifestDigest:  "sha256:manifest",
+		ExpectedArtifactDigests: map[string]string{"linux-x64": "sha256:artifact"},
+		DeployConfig:            &DeployConfig{AppKey: "qualified-app", ReleaseID: "release-1"},
+	})
+	if err != nil {
+		t.Fatalf("RunPipeline() error = %v", err)
+	}
+	if len(status.StageOrder) != 1 || status.StageOrder[0] != StageDeploy {
+		t.Fatalf("stage order = %v, want [%s]", status.StageOrder, StageDeploy)
+	}
+}
+
 func TestOrchestratorValidation(t *testing.T) {
 	orchestrator := NewOrchestrator()
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "", // Missing required field
 	}
 
@@ -59,7 +87,7 @@ func TestOrchestratorGetStatus(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -81,7 +109,7 @@ func TestOrchestratorListPipelines(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -107,7 +135,7 @@ func TestOrchestratorCancellation(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -142,7 +170,7 @@ func TestStageSkipping(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -171,7 +199,7 @@ func TestStageFailure(t *testing.T) {
 
 	ctx := context.Background()
 	stopOnFailure := true
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName:  "test-scenario",
 		StopOnFailure: &stopOnFailure,
 	}
@@ -231,7 +259,7 @@ func TestOrchestratorListPipelinesConcurrency(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	config := &Config{
+	config := &PipelineConfig{
 		ScenarioName: "test-scenario",
 	}
 
@@ -265,3 +293,45 @@ func TestOrchestratorGetStatusNonexistent(t *testing.T) {
 		t.Errorf("expected GetStatus to return false for nonexistent")
 	}
 }
+
+func TestUpdatePipelineConfigAppliesIdleOverridesAndStageSelection(t *testing.T) {
+	stageOne := &mockStage{name: StageBundle}
+	stageTwo := &mockStage{name: StageBuild}
+	orchestrator := NewOrchestrator(
+		WithStages(stageOne, stageTwo),
+		WithIDGenerator(&fixedIDGenerator{id: "idle-pipeline"}),
+	)
+	status, err := orchestrator.CreateIdlePipeline(&PipelineConfig{ScenarioName: "demo", Framework: FrameworkElectron})
+	if err != nil {
+		t.Fatalf("CreateIdlePipeline: %v", err)
+	}
+	stop := true
+	updates := &PipelineConfig{
+		Platforms: []string{"linux-amd64"}, StopAfterStage: StageBuild, ResumeFromStage: StageBundle,
+		BundleManifestPath: "bundle.json", ResourceArtifactRoot: "resources", DeploymentMode: DeploymentModeProxy,
+		TemplateType: "advanced", LocationMode: "staging", ProxyURL: "http://proxy", Version: "1.2.3",
+		SkipPreflight: true, SkipSmokeTest: true, Clean: true, Sign: true, Publish: true, StopOnFailure: &stop,
+		PreflightTimeoutSeconds: 45, PreflightSecrets: map[string]string{"TOKEN": "value"}, Stages: []string{StageBuild},
+	}
+	if err := orchestrator.UpdatePipelineConfig(status.PipelineID, updates); err != nil {
+		t.Fatalf("UpdatePipelineConfig: %v", err)
+	}
+	updated, ok := orchestrator.GetStatus(status.PipelineID)
+	if !ok {
+		t.Fatal("updated pipeline missing")
+	}
+	if updated.Config.DeploymentMode != DeploymentModeProxy || !updated.Config.Clean || updated.Config.PreflightTimeoutSeconds != 45 || len(updated.Config.Platforms) != 1 || len(updated.StageOrder) != 1 || updated.StageOrder[0] != StageBuild {
+		t.Fatalf("updated config/status = %#v / %#v", updated.Config, updated)
+	}
+	if err := orchestrator.UpdatePipelineConfig("missing", updates); err == nil {
+		t.Fatal("expected missing pipeline error")
+	}
+	orchestrator.store.Update(status.PipelineID, func(value *Status) { value.Status = StatusRunning })
+	if err := orchestrator.UpdatePipelineConfig(status.PipelineID, updates); err == nil {
+		t.Fatal("expected non-idle update error")
+	}
+}
+
+type fixedIDGenerator struct{ id string }
+
+func (g *fixedIDGenerator) Generate() string { return g.id }

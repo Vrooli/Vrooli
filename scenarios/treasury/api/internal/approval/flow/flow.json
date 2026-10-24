@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "approval.lifecycle",
+  "domain": "approval",
+  "description": "A locally queued approval resolves once to approved, declined, or expired; relay delivery never changes that outcome.",
+  "model": {"module": "ApprovalLifecycle", "seed": "2026081803", "maxSteps": 4, "traceCount": 8, "verify": {"invariants": ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState"]}},
+  "states": [
+    {"id": "queued", "quint": "Queued", "initial": true},
+    {"id": "approved", "quint": "Approved", "terminal": true},
+    {"id": "declined", "quint": "Declined", "terminal": true},
+    {"id": "expired", "quint": "Expired", "terminal": true}
+  ],
+  "events": [
+    {"id": "approve", "quint": "Approve"},
+    {"id": "decline", "quint": "Decline"},
+    {"id": "expire", "quint": "Expire"}
+  ],
+  "transitionDefaults": {"invalid": {"to": "self", "wantError": true}, "terminal": {"to": "self", "wantError": true}},
+  "transitions": [
+    {"from": "queued", "event": "approve", "to": "approved"},
+    {"from": "queued", "event": "decline", "to": "declined"},
+    {"from": "queued", "event": "expire", "to": "expired"}
+  ],
+  "invariants": [
+    {"id": "type_ok", "quint": "TypeOK", "description": "Status remains in the declared state set."},
+    {"id": "terminal_closure", "quint": "TerminalClosure", "description": "A resolved request cannot resolve again."},
+    {"id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions preserve the prior status."}
+  ],
+  "traces": [
+    {"name": "operator_approves", "initial": "queued", "steps": [{"event": "approve", "want": "approved", "wantError": false}]},
+    {"name": "operator_declines", "initial": "queued", "steps": [{"event": "decline", "want": "declined", "wantError": false}]},
+    {"name": "request_expires", "initial": "queued", "steps": [{"event": "expire", "want": "expired", "wantError": false}]}
+  ],
+  "runtime": {"go": {"package": "flow", "statusType": "ApprovalStatus", "eventType": "ApprovalEvent", "constantPrefix": "Approval"}, "sideEffects": ["Queue admission is local and precedes optional relay.", "Decline and expiry release authorization headroom."]},
+  "replay": {"transition": {"function": "TransitionApproval", "stateType": "ApprovalState", "statusField": "Status"}}
+}

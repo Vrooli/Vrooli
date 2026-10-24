@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "aquila-product-presentation",
+  "roles": [
+    {
+      "id": "aquila-product-presentation-coordinator",
+      "name": "Aquila Product Presentation Coordinator",
+      "description": "Continue the configurable product-presentation plan to its intent, preserving BAS and the selected Signal/Studio designs. Reconcile the retained execution before allocating any implementation or review."
+    }
+  ]
+}

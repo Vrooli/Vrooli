@@ -1,0 +1,20 @@
+{
+  "primary": "fixture-primary-service",
+  "requires": [
+    {
+      "kind": "scenario",
+      "id": "fixture-dependency-service",
+      "reason": "declared dependency"
+    },
+    {
+      "kind": "resource",
+      "id": "postgres",
+      "reason": "required by fixture-dependency-service"
+    },
+    {
+      "kind": "credential",
+      "id": "fixture-dependency-db-password",
+      "reason": "owned by fixture-dependency-service; value never in fixtures"
+    }
+  ]
+}

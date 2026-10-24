@@ -203,7 +203,7 @@ func TestValidateDesktopBundleManifestBytes(t *testing.T) {
 		}
 	})
 
-	t.Run("MissingIPCPort", func(t *testing.T) {
+	t.Run("AllocatorAssignedIPCPort", func(t *testing.T) {
 		manifest := validManifest()
 		manifest["ipc"] = map[string]interface{}{
 			"mode":            "loopback-http",
@@ -212,9 +212,8 @@ func TestValidateDesktopBundleManifestBytes(t *testing.T) {
 			"auth_token_path": "auth.token",
 		}
 		data, _ := json.Marshal(manifest)
-		err := validateDesktopBundleManifestBytes(data)
-		if err == nil {
-			t.Fatal("expected error for missing IPC port")
+		if err := validateDesktopBundleManifestBytes(data); err != nil {
+			t.Fatalf("allocator input port 0 should be valid: %v", err)
 		}
 	})
 
