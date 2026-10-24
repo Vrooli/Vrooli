@@ -66,15 +66,16 @@ type cachedGoalHome struct {
 }
 
 // goalHomeDestination reads an enrollment destination of the form
-// "path:<repo-relative goal home>/GOAL.md" (DL-9 registration) and returns
-// the goal-home directory.
+// "path:<repo-relative goal home>/GOAL.md" (v1) or ".../CHARTER.md" (Phase-2
+// v2; DL-9 registration) and returns the goal-home directory. Both sentinels
+// name the same directory; the reader sniffs the file set inside it.
 func goalHomeDestination(destination string) (string, bool) {
 	ref, ok := strings.CutPrefix(strings.TrimSpace(destination), "path:")
 	if !ok {
 		return "", false
 	}
 	ref, _, _ = strings.Cut(ref, "#")
-	if path.Base(ref) != goalhome.GoalFile {
+	if base := path.Base(ref); base != goalhome.GoalFile && base != goalhome.CharterFile {
 		return "", false
 	}
 	home, err := NormalizeGoalHome(path.Dir(ref))
@@ -153,7 +154,12 @@ func (s *EffortService) loadGoalHome(home string) (*goalhome.Home, error) {
 		at = next
 	}
 	defer at.Close()
-	return goalhome.LoadBoardProjection(safeGoalHomeFS{root: at, limit: s.config.FileBytes})
+	return loadGoalHomeProjection(safeGoalHomeFS{root: at, limit: s.config.FileBytes})
+}
+
+// Runtime has one format. Legacy files are read only by explicit import.
+func loadGoalHomeProjection(fsys fs.FS) (*goalhome.Home, error) {
+	return goalhome.LoadBoardProjectionV2(fsys)
 }
 
 // GoalHomeForOrchestrator returns the goal home of the enrolled effort the run
@@ -232,13 +238,20 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 	if d := home.Goal.Destination; d != nil {
 		out.DestinationMetric, out.DestinationOp, out.DestinationTarget = d.Metric, d.Op, proto.Float64(d.Target)
 	} else {
-		out.Limitations = append(out.Limitations, "GOAL.md has no '- Destination: <metric> <op> <n>' line; destination unknown")
+		out.Limitations = append(out.Limitations, "CHARTER.md has no '- Destination: <metric> <op> <n>' line; destination unknown")
 	}
 	if c := home.Goal.Current; c != nil {
 		out.CurrentValue = proto.Float64(c.Value)
 		if !c.At.IsZero() {
 			out.CurrentAsOf = timestamppb.New(c.At)
 		}
+	}
+	// Phase-2 CHARTER/STATUS facts; zero/empty for an un-migrated v1 home.
+	out.BudgetSeconds = home.Goal.BudgetSeconds
+	for _, surface := range home.Scoreboard {
+		out.SurfaceScoreboard = append(out.SurfaceScoreboard, &pb.SurfaceProgress{
+			Surface: surface.Surface, Target: surface.Target, State: surface.State, OwnerRun: surface.OwnerRun,
+		})
 	}
 	if !home.EpochsComplete {
 		for _, name := range home.IncompleteEpochFiles {
@@ -251,8 +264,8 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 		for i := len(home.Epochs) - 1; i >= 0; i-- {
 			epoch := home.Epochs[i]
 			if epoch.Epoch.IsAccepted() {
-				if out.LastAcceptedEpoch == "" {
-					out.LastAcceptedEpoch = fmt.Sprintf("E%d", epoch.Number)
+				if out.LastAcceptedUnit == "" {
+					out.LastAcceptedUnit = epoch.ID()
 					if accepted := epoch.Epoch.LastAcceptance(); accepted != nil && !accepted.At.IsZero() {
 						out.LastAcceptedAt = timestamppb.New(accepted.At)
 					}
@@ -262,6 +275,8 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 				}
 				continue
 			}
+			workers := goalhome.WorkerRunIDs(epoch.Epoch.Fields["workers"])
+			out.ActiveUnits = append(out.ActiveUnits, &pb.EffortActiveUnit{UnitId: epoch.ID(), Status: epoch.Epoch.Fields["status"], Workers: workers})
 			priority := goalHomeEpochPriority(epoch.Epoch)
 			if active == nil || priority > activePriority {
 				active = &epoch
@@ -269,11 +284,11 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 			}
 		}
 		if active != nil {
-			out.ActiveEpoch = fmt.Sprintf("E%d", active.Number)
+			out.ActiveUnit = active.ID()
 			out.ActiveStatus = active.Epoch.Fields["status"]
 			rawWorkers := active.Epoch.Fields["workers"]
 			out.ActiveWorkers = goalhome.WorkerRunIDs(rawWorkers)
-			if strings.TrimSpace(rawWorkers) != "" && len(out.ActiveWorkers) == 0 {
+			if strings.TrimSpace(rawWorkers) != "" && len(goalhome.WorkerRunIDs(rawWorkers)) == 0 {
 				out.Limitations = append(out.Limitations, "active epoch Workers field is not a well-formed UUID list")
 			}
 		}
@@ -289,7 +304,7 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 		}
 		out.NeedsOperator = append(out.NeedsOperator, first)
 	}
-	if !missingFile(home, goalhome.WorkaroundsFile) {
+	if home.WorkaroundsKnown {
 		open := uint32(0)
 		for _, entry := range home.Workarounds.Entries {
 			if entry.Open {
@@ -361,12 +376,12 @@ func (s *EffortService) goalHomeSpendFacts(ctx context.Context, out *pb.EffortGo
 			continue
 		}
 		total += spent
-		out.AcceptedEpochsMeasured++
+		out.AcceptedUnitsMeasured++
 	}
-	if out.AcceptedEpochsMeasured > 0 {
-		out.WeightedTokensPerAcceptedEpoch = proto.Float64(total / float64(out.AcceptedEpochsMeasured))
+	if out.AcceptedUnitsMeasured > 0 {
+		out.WeightedTokensPerAcceptedUnit = proto.Float64(total / float64(out.AcceptedUnitsMeasured))
 	}
-	if unmeasured := considered - int(out.AcceptedEpochsMeasured); unmeasured > 0 {
+	if unmeasured := considered - int(out.AcceptedUnitsMeasured); unmeasured > 0 {
 		out.Limitations = append(out.Limitations, fmt.Sprintf("%d of the last %d accepted epochs have an unmetered or unknown worker; left out of spend", unmeasured, considered))
 	}
 }
@@ -429,6 +444,11 @@ func (s *EffortService) goalHomeCapFacts(ctx context.Context, out *pb.EffortGoal
 	}
 	for _, id := range out.ActiveWorkers {
 		add(id, "worker")
+	}
+	for _, unit := range out.ActiveUnits {
+		for _, id := range unit.Workers {
+			add(id, "worker")
+		}
 	}
 	for _, raw := range order {
 		id, err := uuid.Parse(raw)

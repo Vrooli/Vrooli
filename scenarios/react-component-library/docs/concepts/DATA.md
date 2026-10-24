@@ -48,6 +48,14 @@ may be marked `evicted`; their manifest identity, SQLite row, complete file
 mirror, and per-file SHA-256 hashes remain available to `versions show`, diff,
 preview, and package materialization.
 
+`versions recover --bundle <path>` is a narrower exception for the published
+Button 2.2.4 contract. The API host must be able to read an authorized bundle
+that pins the source revision and both file hashes. Recovery accepts only the
+attested identity and exact paths, refuses any existing version/ledger row,
+stores verified bytes in the cold mirror, then uses the canonical materializer.
+The command cannot import a whole-ledger archive; overwrite-oriented archive
+import remains internal.
+
 `versions reconcile-presence` is idempotent and is also invoked after catalog
 indexing and adoption lifecycle changes. Materialization verifies the complete
 file set before an atomic directory rename. A missing or mismatched mirror is

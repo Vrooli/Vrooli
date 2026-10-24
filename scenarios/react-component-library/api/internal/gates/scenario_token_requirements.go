@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"react-component-library/internal/components"
 	"react-component-library/internal/themes"
 )
 
@@ -107,8 +108,7 @@ func ValidateScenarioTokenRequirements(scope Scope) (Result, error) {
 		}
 		missing := make([]string, 0)
 		for property := range required {
-			token, exists := reference[property]
-			if !exists || token.Tier == themes.TokenTierContract {
+			if components.ClassifyRequiredToken(property, reference) != components.RequiredTokenConsumerManaged {
 				continue
 			}
 			if !declared[property] {

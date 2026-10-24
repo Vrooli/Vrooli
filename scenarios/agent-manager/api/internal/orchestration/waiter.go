@@ -40,6 +40,14 @@ const (
 	ProducerGCT         = "git-control-tower"
 	ProducerLifecycle   = "lifecycle"
 	ProducerSupervision = "supervision"
+	// ProducerOperatorDecision parks a run that raised an operator decision (an
+	// approval ask) and is waiting for the operator to answer. Unlike the other
+	// producers this wait has nothing to poll: the wake is push-driven by the
+	// inbound ask-resolution webhook, which calls WakeRun directly (cancelling
+	// this waiter). The waiter therefore only backs the park with its deadline —
+	// a re-check cadence if the operator has not answered by then. The await key
+	// is the decision's correlation id (operatordecision.CorrelationAgentAwaitKey).
+	ProducerOperatorDecision = "operator-decision"
 )
 
 // Waiter blocks until a producer's externally-owned async work, identified by a
@@ -99,6 +107,30 @@ func (w *supervisionWaiter) Wait(ctx context.Context, key string) (string, error
 		return "", err
 	}
 	return string(payload), nil
+}
+
+// operatorDecisionWaiter backs a park on a pending operator decision. It has no
+// producer to poll: the authoritative wake is the ask-resolution webhook calling
+// WakeRun directly (which cancels this waiter's context via the registry, so
+// Wait returns and the watcher wakes nothing further). Wait therefore blocks
+// until the context is done and is only consulted on the DEADLINE path — when
+// the operator has not answered within the park window — returning a neutral
+// "still pending" status the agent sees as a timed-out wake, so it can re-check
+// and re-park rather than hang. Stateless and safe across restarts (recovery
+// re-spawns it; the resolution webhook still drives the real wake).
+type operatorDecisionWaiter struct{}
+
+// NewOperatorDecisionWaiter builds the operator-decision Waiter.
+func NewOperatorDecisionWaiter() Waiter { return operatorDecisionWaiter{} }
+
+func (operatorDecisionWaiter) Producer() string { return ProducerOperatorDecision }
+
+func (operatorDecisionWaiter) Wait(ctx context.Context, key string) (string, error) {
+	<-ctx.Done()
+	// Only reached on the deadline/cancel. On an external wake the parent context
+	// is cancelled and the registry discards this return without waking again; on
+	// the deadline this string is injected as a timed-out wake.
+	return fmt.Sprintf("The operator has not yet answered this decision (%s) within the wait window. It may still be pending in the approval inbox. Re-check the decision's status; if you still need the authority and it is still unanswered, park again on the same key to keep waiting.", strings.TrimSpace(key)), nil
 }
 
 // CommandRunner executes an external CLI command and returns its combined

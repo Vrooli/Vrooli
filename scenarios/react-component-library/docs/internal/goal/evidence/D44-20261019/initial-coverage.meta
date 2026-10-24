@@ -1,6 +1,0 @@
-command=pnpm run test:coverage
-working_directory=scenarios/react-component-library/ui
-started_at=2026-10-19T21:28:23Z
-ended_at=2026-10-19T21:29:07Z
-duration_ms=44542
-exit_code=1

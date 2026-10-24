@@ -122,7 +122,7 @@ func TestBuildSeatbeltCommand_NoLimits(t *testing.T) {
 
 // TestBuildSeatbeltCommand_WithLimits pins the shim prefix that wraps the
 // target when resource limits are configured, mirroring how BuildExecCommand
-// prepends prlimit ahead of bwrap on Linux.
+// applies limits inside bwrap on Linux.
 func TestBuildSeatbeltCommand_WithLimits(t *testing.T) {
 	cfg := DefaultBwrapConfig()
 	cfg.ResourceLimits = ResourceLimits{

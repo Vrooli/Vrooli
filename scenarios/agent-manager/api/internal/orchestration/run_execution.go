@@ -29,6 +29,16 @@ import (
 // reaches RunStatusRunning so the next queued run can begin its
 // codex-bootstrap window.
 func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment, customEnv map[string]string, started spawn.StartedFn) {
+	if o.deliveryEfforts != nil {
+		pressure, err := o.deliveryEfforts.DeliveryInitialContext(ctx, run)
+		if err != nil {
+			started()
+			phases.FailWithError(ctx, phases.FailWithErrorInput{Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster}, Run: run, Err: err})
+			return
+		}
+		// Refresh the owner clock when a queued run actually starts.
+		systemPrompt += pressure
+	}
 	// Interactive runs take the parallel execution path: agent-manager launches
 	// the real interactive CLI in a web-console session and tails its transcript
 	// to completion, instead of owning a codec stdout pipe. Selected by the run's

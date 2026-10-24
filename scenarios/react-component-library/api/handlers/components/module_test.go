@@ -57,6 +57,9 @@ func setupModule(t *testing.T, opts ...components.ModuleOption) (*mux.Router, st
 
 	root := t.TempDir()
 	svc, repo := components.BuildService(d, schedule.System(), root)
+	internalcomponents.SetTypeScriptChecker(svc, internalcomponents.TypeScriptCheckerFunc(func(context.Context, string, string, string, string) internalcomponents.TypeScriptCheckResult {
+		return internalcomponents.TypeScriptCheckResult{Passed: true, Message: "fixture TypeScript check passed"}
+	}))
 	internalcomponents.SetServiceJSONReader(svc, internalcomponents.NewFSServiceJSONReader(filepath.Dir(root)))
 	opts = append(opts, components.WithPreviewService(previewhandlers.BuildServiceAtRoot(svc, nil, root)))
 	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0), opts...)
@@ -89,6 +92,7 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 	require.Contains(t, rw.Body.String(), `"passed":true`)
 	require.Contains(t, rw.Body.String(), `"stage":"preview"`)
 	require.Contains(t, rw.Body.String(), `"verdict":"passed"`)
+	require.Contains(t, rw.Body.String(), `"stage":"typescript"`)
 
 	rw = callConnect(r, componentsconnect.ComponentsServicePublishComponentVersionProcedure,
 		`{"component":"react-component-library:Button","changelogMd":"Focused authoring workflow"}`)

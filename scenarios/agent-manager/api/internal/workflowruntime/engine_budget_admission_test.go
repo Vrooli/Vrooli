@@ -3,10 +3,14 @@ package workflowruntime
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/workflowcatalog"
 )
 
 // Hypothesis: known usage bypasses admission on the schema-repair branch.
@@ -121,6 +125,108 @@ func TestAggregateAccountingRequiresEveryChildReceipt(t *testing.T) {
 		finished := mustAdvance(t, e, x.ID)
 		if finished.Status != domain.WorkflowExecutionSucceeded || finished.BudgetUsage.Tokens != 10 || finished.BudgetUsage.AccountingComplete != secondKnown {
 			t.Fatalf("one child concealed unknown accounting: %+v secondKnown=%t", finished, secondKnown)
+		}
+	}
+}
+
+// The deployed deep run completed its typed draft after 94,163 non-cache and
+// 429,568 cache-read tokens. Workflow budgets count their cumulative sum, not
+// the 86,988-token context size. Replay against the actual owning declaration.
+func TestStagedMessageDeclaredBudgetPreservesSelectiveDraftAndRealExhaustion(t *testing.T) {
+	for _, workflow := range []string{"staged-message-deep", "staged-message"} {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "git-control-tower", ".vrooli", "agent-manager", workflow+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var declared domain.WorkflowDefinition
+		if err = json.Unmarshal(raw, &declared); err != nil {
+			t.Fatal(err)
+		}
+		prompt, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "git-control-tower", "skills", "git-control-tower-"+workflow, "SKILL.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// A test-owned revision must not bypass the authored catalog gates.
+		resolved := declared
+		resolved.Nodes = append([]domain.WorkflowNode(nil), declared.Nodes...)
+		resolvedRun := *resolved.Nodes[0].Run
+		resolvedRun.PromptRef, resolvedRun.PromptTemplate = nil, string(prompt)
+		resolved.Nodes[0].Run = &resolvedRun
+		validated, err := workflowcatalog.Validate(resolved, nil)
+		if err != nil || domain.HasBlockingDiagnostic(validated.Diagnostics) {
+			t.Fatalf("actual drafting declaration cannot reconcile: %v %+v", err, validated.Diagnostics)
+		}
+		measured := 94163 + 429568
+		boundedFollowup := 1_500_000
+		if workflow == "staged-message" {
+			measured = 18243 + 8320
+			boundedFollowup = 180000
+		}
+		for _, scenario := range []string{"observed completed usage", "bounded selective followup", "genuine exhaustion"} {
+			t.Run(workflow+"/"+scenario, func(t *testing.T) {
+				// Reuse the declaration's actual budgets and output bindings. Prompt
+				// resolution is orthogonal to terminal usage, so no provider is invoked.
+				d := declared
+				d.InputSchema = json.RawMessage(`{"type":"object"}`)
+				d.Nodes = append([]domain.WorkflowNode(nil), declared.Nodes...)
+				run := *d.Nodes[0].Run
+				run.PromptRef = nil
+				run.PromptTemplate = "Replay completed drafting usage"
+				run.Bindings = nil
+				run.ProjectRootTemplate = ""
+				d.Nodes[0].Run = &run
+				e, _, children := testEngine(t, d)
+				e.Children = &meteredChildren{fakeChildren: children}
+				x, err := e.Start(t.Context(), revision(d), json.RawMessage(`{}`), scenario)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for step := 0; step < 6 && len(children.requests) == 0 && !x.Status.Terminal(); step++ {
+					x = mustAdvance(t, e, x.ID)
+				}
+				if len(children.requests) != 1 {
+					t.Fatalf("expected one bounded child dispatch, got %d", len(children.requests))
+				}
+				spent := measured
+				if scenario == "bounded selective followup" {
+					spent = boundedFollowup
+				}
+				if scenario == "genuine exhaustion" {
+					spent = declared.Budgets.MaxTokens + 1
+				}
+				result := json.RawMessage(`{"snapshot_digest":"fixture","title":"Summarize the complete staged selection","body":"Describe the affected themes from inventory and selected details.","trailers":[],"source_ids":[],"unknowns":[],"covered_file_ids":[1,285],"message_scope":"whole_selection","message_scope_explanation":"The complete inventory and selective patch evidence support every identified theme."}`)
+				if workflow == "staged-message" {
+					result = json.RawMessage(`{"snapshot_digest":"fixture","title":"Summarize staged changes","body":"Describe representative details.","trailers":[],"source_ids":[],"unknowns":[],"covered_file_ids":[1]}`)
+				}
+				id := children.requests[0].runID
+				state := children.states[id]
+				state.Terminal, state.TokensKnown, state.ChargeMeasured = true, true, true
+				state.Tokens = spent
+				state.Result = &domain.RunResult{FinalOutput: string(result), Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess, Value: result}}
+				children.states[id] = state
+				for step := 0; step < 6 && !x.Status.Terminal(); step++ {
+					x = mustAdvance(t, e, x.ID)
+				}
+				want := domain.WorkflowExecutionSucceeded
+				if scenario == "genuine exhaustion" {
+					want = domain.WorkflowExecutionBudgetExhausted
+				}
+				if x.Status != want || x.BudgetUsage.Tokens != spent || len(children.requests) != 1 {
+					t.Fatalf("budget replay status=%s usage=%d calls=%d want=%s", x.Status, x.BudgetUsage.Tokens, len(children.requests), want)
+				}
+				if want == domain.WorkflowExecutionSucceeded {
+					var output map[string]json.RawMessage
+					if err := json.Unmarshal(x.Output, &output); err != nil {
+						t.Fatal(err)
+					}
+					var got, expected any
+					if json.Unmarshal(output["result"], &got) != nil || json.Unmarshal(result, &expected) != nil || !reflect.DeepEqual(got, expected) {
+						t.Fatalf("completed typed output lost: %s", x.Output)
+					}
+				} else if x.TerminalReason == nil || x.TerminalReason.BudgetName != "tokens" {
+					t.Fatalf("exhaustion reason lost: %+v", x.TerminalReason)
+				}
+			})
 		}
 	}
 }

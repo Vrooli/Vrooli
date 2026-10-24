@@ -244,6 +244,13 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	if run.Status != domain.RunStatusParked {
 		return o.attachRunActions(ctx, run), nil
 	}
+	if o.deliveryEfforts != nil {
+		pressure, err := o.deliveryEfforts.DeliveryRunContext(ctx, run)
+		if err != nil {
+			return nil, err
+		}
+		in.Result += pressure
+	}
 	if receipt := in.EffortSignalReceipt; receipt != nil {
 		if strings.TrimSpace(receipt.EffortRef) == "" || receipt.Through <= 0 || !runHasEffortOrchestratorReference(run, receipt.EffortRef) {
 			return nil, domain.RefuseBeforeEffects(domain.NewValidationError("effort_signal_receipt", "check-in receipt must identify a positive sequence for this run's active public effort orchestrator reference"))
@@ -786,6 +793,9 @@ func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result strin
 	if handle != nil && handle.Producer == ProducerChildren {
 		return formatChildrenWakeMessage(result, timedOut)
 	}
+	if handle != nil && handle.Producer == ProducerOperatorDecision {
+		return formatOperatorDecisionWakeMessage(result, timedOut)
+	}
 	work := "the async work you were waiting on"
 	if handle != nil && strings.TrimSpace(handle.Producer) != "" {
 		work = fmt.Sprintf("the async work you parked on (%s:%s)", handle.Producer, handle.Key)
@@ -822,6 +832,20 @@ func formatChildrenWakeMessage(result string, timedOut bool) string {
 		return "[wake: timer] No child run ended since your last wake. " + result
 	}
 	return "[wake] " + result
+}
+
+// formatOperatorDecisionWakeMessage frames the wake of a run that parked on a
+// pending operator decision. On resolution the result IS the already-composed
+// answer summary (see handlers.formatDecisionWakeMessage), so it is passed
+// through under a short, unambiguous banner — without the generic "do not re-run
+// the command you parked on" line, which does not fit a decision wait. On the
+// deadline path the result is the waiter's neutral "still pending" status.
+func formatOperatorDecisionWakeMessage(result string, timedOut bool) string {
+	result = strings.TrimSpace(result)
+	if timedOut {
+		return "[operator decision — still pending] " + result
+	}
+	return "[operator decision resolved] " + result
 }
 
 // reFetchHint renders the one-line instruction pointing at the non-blocking

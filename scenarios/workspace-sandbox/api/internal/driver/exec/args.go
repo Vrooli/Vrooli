@@ -12,22 +12,26 @@ import (
 
 // BuildExecCommand builds the full command line for executing in a sandbox
 // under the bwrap containment backend (ContainmentPreferred, ContainmentRequired).
-// Returns (executable, args). When ResourceLimits has prlimit-backed entries,
-// the returned executable is "prlimit" wrapping bwrap; otherwise it is "bwrap".
+// Resource limits wrap the payload inside bwrap. Applying RLIMIT_NPROC to the
+// host-side bwrap process can prevent it from creating its user namespace when
+// other processes share the UID, before the sandbox limits exist.
 func BuildExecCommand(s *types.Sandbox, cfg BwrapConfig, cmd string, cmdArgs ...string) (string, []string) {
 	bwrapArgs := BuildBwrapArgs(s, cfg)
-	bwrapArgs = append(bwrapArgs, cmd)
-	bwrapArgs = append(bwrapArgs, cmdArgs...)
-
 	prlimitArgs := BuildPrlimitArgs(cfg.ResourceLimits)
 	if prlimitArgs == nil {
+		bwrapArgs = append(bwrapArgs, cmd)
+		bwrapArgs = append(bwrapArgs, cmdArgs...)
 		return "bwrap", bwrapArgs
 	}
 
-	full := prlimitArgs
-	full = append(full, "bwrap")
-	full = append(full, bwrapArgs...)
-	return "prlimit", full
+	// prlimit must run after bwrap has established its namespaces. The full
+	// isolation profile bind-mounts /usr read-only, making the fixed system
+	// utility available inside the namespace without granting writable access.
+	bwrapArgs = append(bwrapArgs, "prlimit")
+	bwrapArgs = append(bwrapArgs, prlimitArgs...)
+	bwrapArgs = append(bwrapArgs, cmd)
+	bwrapArgs = append(bwrapArgs, cmdArgs...)
+	return "bwrap", bwrapArgs
 }
 
 // BuildPrlimitArgs constructs prlimit arguments for resource limiting.

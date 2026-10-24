@@ -86,6 +86,35 @@ describe("linkAtCell wrapping a URL", () => {
   });
 });
 
+describe("linkAtCell across a styled block that wraps short of the terminal edge", () => {
+  // A TUI "box" (e.g. Claude Code's queued-input panel) wraps its content at the
+  // box width — many columns shy of term.cols — and indents nothing here. The
+  // geometric "near term.cols" gate misses every line, so bridging must fall back
+  // to the content-derived wrap column shared by the box's rows.
+  const COLS = 80;
+  const ROWS = [
+    'then select "Approved": http://localhost:21238/api/v1/', // 54 cols; box wrap width
+    "authorizations/0900e1c4-97eb-4903-88bc-b32c63550c/appr", // 54 cols; another full box line (URLs wrap at the exact column)
+    "ove now It covers only the six named efforts", // short last line of the box
+  ];
+  const URL = "http://localhost:21238/api/v1/authorizations/0900e1c4-97eb-4903-88bc-b32c63550c/approve";
+
+  it("stitches a URL wrapped across several box rows (tapping the first row)", () => {
+    expect(linkAtCell(fakeTerminal(ROWS, COLS), 0, 30)).toEqual({ kind: "url", value: URL, text: URL });
+  });
+
+  it("stitches the same URL when tapping a continuation row", () => {
+    expect(linkAtCell(fakeTerminal(ROWS, COLS), 1, 5)).toEqual({ kind: "url", value: URL, text: URL });
+  });
+
+  it("does not fuse two lone short lines that merely share a run-char seam (no corroborating wrap row)", () => {
+    // Only two lines, different lengths, far from the edge: no block wrap column
+    // is corroborated, so they stay separate.
+    const term = fakeTerminal(["edit a/b.ts", "and c/d.ts"], COLS);
+    expect(linkAtCell(term, 0, 7)).toEqual({ kind: "file", value: "a/b.ts", text: "a/b.ts" });
+  });
+});
+
 describe("linkAtCell does not over-join", () => {
   it("keeps two separate short lines apart (first is longest but did not wrap)", () => {
     // Neither row reaches cols - WRAP_MARGIN, so they must not be bridged.

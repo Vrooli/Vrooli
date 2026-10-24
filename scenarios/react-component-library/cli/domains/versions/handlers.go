@@ -245,6 +245,19 @@ func (h *handlers) importArchive(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Imported version archive from %s (checksum %s).", resp.Msg.Path, resp.Msg.Checksum)}, ResultsHeading: "Version archive", Results: []string{fmt.Sprintf("schema=%d rows=%v", resp.Msg.SchemaVersion, resp.Msg.RowCounts)}})
 }
 
+// recoverButton224 invokes the one-time operation pinned to Button 2.2.4.
+func (h *handlers) recoverButton224(ctx cliapp.RunContext) error {
+	path := ctx.Flag("bundle")
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("--bundle is required (the file must be readable by the RCL API host)")
+	}
+	resp, err := h.lifecycleClient.RecoverButton224(context.Background(), connect.NewRequest(&versionsv1.RecoverButton224Request{Path: path}))
+	if err != nil {
+		return cliapp.WrapAPIError("recover published version", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Recovered attested published release from %s (checksum %s).", resp.Msg.Path, resp.Msg.Checksum)}, ResultsHeading: "Recovered release", Results: []string{fmt.Sprintf("schema=%d rows=%v", resp.Msg.SchemaVersion, resp.Msg.RowCounts)}})
+}
+
 func (h *handlers) doctorCall(_ cliapp.OperationContext) (*versionsv1.DoctorResponse, error) {
 	resp, err := h.lifecycleClient.Doctor(context.Background(), connect.NewRequest(&versionsv1.DoctorRequest{}))
 	if err != nil {

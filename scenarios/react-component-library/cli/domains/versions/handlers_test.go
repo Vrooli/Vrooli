@@ -74,6 +74,8 @@ type lifecycleService struct {
 	cleanupResp *versionsv1.CleanupVersionsResponse
 	planCalls   int
 	cleanupReq  *versionsv1.CleanupVersionsRequest
+	archiveReq  *versionsv1.ImportArchiveRequest
+	recoverReq  *versionsv1.RecoverButton224Request
 }
 
 func (s *lifecycleService) PlanCleanup(_ context.Context, _ *connect.Request[versionsv1.PlanCleanupRequest]) (*connect.Response[versionsv1.PlanCleanupResponse], error) {
@@ -84,6 +86,16 @@ func (s *lifecycleService) PlanCleanup(_ context.Context, _ *connect.Request[ver
 func (s *lifecycleService) CleanupVersions(_ context.Context, req *connect.Request[versionsv1.CleanupVersionsRequest]) (*connect.Response[versionsv1.CleanupVersionsResponse], error) {
 	s.cleanupReq = req.Msg
 	return connect.NewResponse(s.cleanupResp), nil
+}
+
+func (s *lifecycleService) ImportArchive(_ context.Context, req *connect.Request[versionsv1.ImportArchiveRequest]) (*connect.Response[versionsv1.ArchiveResponse], error) {
+	s.archiveReq = req.Msg
+	return connect.NewResponse(&versionsv1.ArchiveResponse{Path: req.Msg.Path, SchemaVersion: 1, Checksum: "sha256:attested"}), nil
+}
+
+func (s *lifecycleService) RecoverButton224(_ context.Context, req *connect.Request[versionsv1.RecoverButton224Request]) (*connect.Response[versionsv1.ArchiveResponse], error) {
+	s.recoverReq = req.Msg
+	return connect.NewResponse(&versionsv1.ArchiveResponse{Path: req.Msg.Path, SchemaVersion: 1, Checksum: "sha256:attested"}), nil
 }
 
 func connectLifecycleAPI(t *testing.T, versionsSvc *versionsService, lifecycleSvc *lifecycleService) http.Handler {
@@ -227,4 +239,41 @@ func TestReapRequiresConfirmationForMutation(t *testing.T) {
 	require.NotNil(t, lifecycleSvc.cleanupReq)
 	require.True(t, lifecycleSvc.cleanupReq.Confirm)
 	require.Equal(t, "hash", lifecycleSvc.cleanupReq.PlanHash)
+}
+
+func TestImportArchiveUsesWholeLedgerOperationForEitherOverwriteValue(t *testing.T) {
+	lifecycleSvc := &lifecycleService{}
+	core := clitest.NewTestApp(t, connectLifecycleAPI(t, &versionsService{}, lifecycleSvc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "in"}, {Name: "overwrite", Bool: true}}}, cliapptest.TestRunContextOptions{Flags: map[string]string{"in": "/archives/ledger.json"}})
+	require.NoError(t, h.importArchive(ctx))
+	require.NotNil(t, lifecycleSvc.archiveReq)
+	require.Equal(t, "/archives/ledger.json", lifecycleSvc.archiveReq.Path)
+	require.False(t, lifecycleSvc.archiveReq.Overwrite)
+	require.Nil(t, lifecycleSvc.recoverReq)
+	require.Contains(t, out.String(), "Imported version archive")
+
+	ctx, _ = cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "in"}, {Name: "overwrite", Bool: true}}}, cliapptest.TestRunContextOptions{Flags: map[string]string{"in": "/archives/ledger.json", "overwrite": "true"}})
+	require.NoError(t, h.importArchive(ctx))
+	require.True(t, lifecycleSvc.archiveReq.Overwrite)
+	require.Nil(t, lifecycleSvc.recoverReq)
+}
+
+func TestRecoverButton224UsesDistinctOperation(t *testing.T) {
+	lifecycleSvc := &lifecycleService{}
+	core := clitest.NewTestApp(t, connectLifecycleAPI(t, &versionsService{}, lifecycleSvc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "bundle"}}}, cliapptest.TestRunContextOptions{Flags: map[string]string{"bundle": "/authorized/button-2.2.4.bundle.json"}})
+	require.NoError(t, h.recoverButton224(ctx))
+	require.NotNil(t, lifecycleSvc.recoverReq)
+	require.Equal(t, "/authorized/button-2.2.4.bundle.json", lifecycleSvc.recoverReq.Path)
+	require.Nil(t, lifecycleSvc.archiveReq)
+	require.Contains(t, out.String(), "Recovered attested published release")
+}
+
+func TestRecoverButton224RequiresBundlePath(t *testing.T) {
+	core := clitest.NewTestApp(t, connectLifecycleAPI(t, &versionsService{}, &lifecycleService{}))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "bundle"}}}, cliapptest.TestRunContextOptions{})
+	require.ErrorContains(t, h.recoverButton224(ctx), "--bundle is required")
 }

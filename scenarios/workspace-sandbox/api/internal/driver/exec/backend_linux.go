@@ -21,7 +21,7 @@ func platformContainmentBackend() containmentBackend {
 
 // bwrapBackend contains processes with bubblewrap: user/ipc/uts/cgroup
 // (and optionally pid/net) namespace unsharing plus bind-mounted paths.
-// Resource limits are applied by prepending prlimit (see BuildExecCommand).
+// Resource limits are applied to the payload inside bwrap (see BuildExecCommand).
 type bwrapBackend struct{}
 
 func (bwrapBackend) id() string { return "bwrap" }
@@ -74,9 +74,6 @@ func (bwrapBackend) buildStartOpts(starter process.Starter, s *types.Sandbox, cf
 	executable, execArgs := BuildExecCommand(s, cfg, cmd, args...)
 	execPath, err := starter.LookPath(executable)
 	if err != nil {
-		if executable == "prlimit" {
-			return process.StartOpts{}, fmt.Errorf("prlimit not found: %w. Resource limits require prlimit (part of util-linux)", err)
-		}
 		return process.StartOpts{}, fmt.Errorf("bubblewrap (bwrap) not found: %w", err)
 	}
 	return process.StartOpts{

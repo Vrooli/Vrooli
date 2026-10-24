@@ -171,7 +171,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 
 	providerRelease := func() {}
 	if h.lifecycle != nil {
-		providerRelease, err = h.lifecycle.beginProcess()
+		providerRelease, err = h.lifecycle.beginProcess(r.Context())
 		if err != nil {
 			h.JSONError(w, err.Error(), http.StatusConflict)
 			return

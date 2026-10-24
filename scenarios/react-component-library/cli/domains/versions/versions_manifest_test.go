@@ -51,3 +51,53 @@ func TestVersionsManifestExposesMaterializeRecovery(t *testing.T) {
 	}
 	t.Fatal("versions materialize command is not bound to VersionLifecycleService.MaterializeVersion")
 }
+
+func TestVersionsManifestPromotesOnlyNarrowRecoveryCommand(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read cli/manifest.json: %v", err)
+	}
+	var manifest struct {
+		Groups []struct {
+			Name     string `json:"name"`
+			Commands []struct {
+				Name    string `json:"name"`
+				Binding struct {
+					Kind    string `json:"kind"`
+					Service string `json:"service"`
+					Method  string `json:"method"`
+				} `json:"binding"`
+			} `json:"commands"`
+		} `json:"groups"`
+		Omitted []struct {
+			Service string `json:"service"`
+			Method  string `json:"method"`
+		} `json:"omitted"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("decode cli/manifest.json: %v", err)
+	}
+	for _, group := range manifest.Groups {
+		if group.Name != "versions" {
+			continue
+		}
+		for _, command := range group.Commands {
+			if command.Name == "recover-button-224" {
+				if command.Binding.Kind != "local" || command.Binding.Service != "" || command.Binding.Method != "" {
+					t.Fatalf("recover-button-224 must stay a local, narrow wrapper: %+v", command.Binding)
+				}
+				omitted := map[string]bool{}
+				for _, method := range manifest.Omitted {
+					if method.Service == "VersionLifecycleService" {
+						omitted[method.Method] = true
+					}
+				}
+				if !omitted["ImportArchive"] || !omitted["RecoverButton224"] {
+					t.Fatalf("ImportArchive and one-time recovery RPC must remain internal CLI primitives; omitted=%v", omitted)
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("versions recover-button-224 command is missing")
+}

@@ -226,3 +226,15 @@ CREATE TABLE IF NOT EXISTS sandbox_prepared_approvals (
     sandbox_id TEXT PRIMARY KEY REFERENCES sandboxes(id) ON DELETE RESTRICT,
     intent_json TEXT NOT NULL
 );
+
+-- Singleton provider lifecycle fence. A closed row survives API replacement,
+-- so a new process cannot reopen admission before the owning operation resumes.
+CREATE TABLE IF NOT EXISTS provider_lifecycle_fence (
+    singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+    admission_closed INTEGER NOT NULL CHECK (admission_closed IN (0, 1)),
+    operation_id TEXT NOT NULL DEFAULT '',
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    CHECK ((admission_closed = 0 AND operation_id = '') OR (admission_closed = 1 AND operation_id <> '' AND revision > 0))
+);
+INSERT OR IGNORE INTO provider_lifecycle_fence(singleton_id, admission_closed, operation_id, revision)
+VALUES (1, 0, '', 0);

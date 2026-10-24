@@ -326,6 +326,27 @@ func (h *connectHandler) ImportArchive(ctx context.Context, req *connect.Request
 	return connect.NewResponse(archiveResponse(summary)), nil
 }
 
+func (h *connectHandler) RecoverButton224(ctx context.Context, req *connect.Request[versionsv1.RecoverButton224Request]) (*connect.Response[versionsv1.ArchiveResponse], error) {
+	if h.deps.Ledger == nil || req.Msg.GetPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Button 2.2.4 recovery bundle path is required"))
+	}
+	materializer := h.deps.Materializer
+	if materializer == nil && h.deps.Components != nil {
+		materializer, _ = h.deps.Components.(components.Materializer)
+	}
+	if materializer == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component materializer is not configured"))
+	}
+	summary, componentID, err := h.deps.Ledger.RecoverButton224PublishedRelease(ctx, req.Msg.GetPath())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if _, err := materializer.EnsureMaterialized(ctx, componentID, "2.2.4", ""); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("release was recorded but canonical materialization failed: %w", err))
+	}
+	return connect.NewResponse(archiveResponse(summary)), nil
+}
+
 func (h *connectHandler) Doctor(ctx context.Context, _ *connect.Request[versionsv1.DoctorRequest]) (*connect.Response[versionsv1.DoctorResponse], error) {
 	if h.deps.Ledger == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version ledger is not configured"))
@@ -336,7 +357,16 @@ func (h *connectHandler) Doctor(ctx context.Context, _ *connect.Request[versions
 	}
 	out := &versionsv1.DoctorResponse{}
 	for _, issue := range issues {
-		out.Issues = append(out.Issues, &versionsv1.DoctorIssue{LibraryId: issue.LibraryID, Version: issue.Version, Path: issue.Path, ExpectedSha256: issue.Expected, ActualSha256: issue.Actual, Reason: issue.Reason})
+		item := &versionsv1.DoctorIssue{LibraryId: issue.LibraryID, Version: issue.Version, Path: issue.Path, ExpectedSha256: issue.Expected, ActualSha256: issue.Actual, Reason: issue.Reason}
+		if metadata := issue.LedgerMetadata; metadata != nil {
+			item.LedgerCreatedAt = &metadata.CreatedAt
+			item.LedgerReleasedAt = &metadata.ReleasedAt
+			item.LedgerRetiredAt = &metadata.RetiredAt
+			item.LedgerLifecycle = &metadata.LifecycleState
+			fileCount := int32(metadata.FileCount)
+			item.LedgerFileCount = &fileCount
+		}
+		out.Issues = append(out.Issues, item)
 	}
 	return connect.NewResponse(out), nil
 }

@@ -1,8 +1,0 @@
-{
-  "captured_at_utc": "2026-10-07T16:39:27.467607+00:00",
-  "operation": "read-only",
-  "endpoint": "http://localhost:16421/api/v1/efforts/effort%3Amarketing-I16",
-  "request": null,
-  "http_status": 404,
-  "error_body": "effort control revision not found\n"
-}

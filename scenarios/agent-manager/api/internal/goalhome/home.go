@@ -42,10 +42,30 @@ type Home struct {
 	EpochsComplete bool
 	// IncompleteEpochFiles names bounded E<n>.md files whose facts are unknown.
 	IncompleteEpochFiles []string
-	// QueueData is QUEUE.md exactly as read.
+	// QueueData is STATUS.md exactly as read (QUEUE.md during legacy import).
 	QueueData []byte
 	// FileBytes records sizes of all successfully loaded goal-home files.
 	FileBytes map[string]int
+	// Scoreboard is the Phase-2 STATUS.md "## Scoreboard" gradient, one row per
+	// delivery surface. Empty for a v1 home, which has no scoreboard.
+	Scoreboard       []SurfaceProgress
+	WorkaroundsKnown bool
+	// V2 is true when this home was read from the Phase-2 file set
+	// (CHARTER/STATUS/LOG). It lets format-aware consumers (lint labels, the CLI
+	// section writers) name CHARTER/STATUS instead of GOAL/QUEUE. The flag is
+	// durable: the v1 parser stays as migration tooling (`effort migrate` reads
+	// an un-migrated home through it), so a home can still read as v1.
+	V2 bool
+}
+
+// SurfaceProgress is one row of the STATUS.md "## Scoreboard" gradient: a
+// delivery surface, its target label, its state (queued|rough|close|accepted)
+// and the active owner run UUID driving it (empty when none).
+type SurfaceProgress struct {
+	Surface  string `json:"surface"`
+	Target   string `json:"target,omitempty"`
+	State    string `json:"state,omitempty"`
+	OwnerRun string `json:"ownerRun,omitempty"`
 }
 
 // EpochFile is one parsed epochs/E<n>.md.
@@ -53,9 +73,19 @@ type EpochFile struct {
 	Name   string
 	Number int
 	Epoch  *Epoch
+	// UnitID preserves the authored ledger identity, including nonnumeric IDs.
+	UnitID string
 }
 
-// Goal is GOAL.md. Destination, Current and DestinationSet come from
+func (e EpochFile) ID() string {
+	if e.UnitID != "" {
+		return e.UnitID
+	}
+	return "E" + strconv.Itoa(e.Number)
+}
+
+// Goal is the canonical charter target plus the current status measurement.
+// Legacy imports read GOAL.md. Destination, Current and DestinationSet come from
 // "- Destination: <metric> <op> <n>", "- Current: <n> @ <ISO date>" and
 // "- Destination set: <ISO time>"; nil or zero when absent.
 type Goal struct {
@@ -64,6 +94,9 @@ type Goal struct {
 	Destination    *Destination
 	Current        *Measurement
 	DestinationSet time.Time
+	// BudgetSeconds is the Phase-2 CHARTER.md "- Budget:" time budget in whole
+	// seconds (zero when absent). v1 GOAL.md has no budget, so it stays zero.
+	BudgetSeconds int64
 }
 
 // Destination is the goal's measured target, such as "journeys >= 24".
@@ -79,7 +112,7 @@ type Measurement struct {
 	At    time.Time `json:"at,omitempty"`
 }
 
-// Queue is QUEUE.md.
+// Queue contains the STATUS.md working sections (QUEUE.md during legacy import).
 type Queue struct {
 	Bytes int
 	// Handoffs are all level-2 or level-3 headings that name a handoff.
@@ -170,7 +203,8 @@ func Load(fsys fs.FS) (*Home, error) {
 	return load(fsys, false)
 }
 
-// LoadBoardProjection reads the bounded facts used by the supervision board.
+// LoadBoardProjection is the legacy tolerant projection used by import fixtures.
+// Production supervision uses LoadBoardProjectionV2 exclusively.
 // It retains valid top-level goal, queue, feedback and workaround facts when
 // an epoch is unavailable, while marking the entire epoch set incomplete.
 // Callers must not infer active/accepted epoch facts from the readable subset.
@@ -282,6 +316,14 @@ func ParseGoal(data []byte) Goal {
 func ParseQueue(data []byte) Queue {
 	doc := parseDocument(data)
 	queue := Queue{Bytes: len(data)}
+	parseQueueSections(doc, &queue)
+	return queue
+}
+
+// parseQueueSections reads the handoff/needs-operator/next/waiting/censuses
+// sections a park-policy queue carries. v1 (QUEUE.md) and v2 (STATUS.md) share
+// these section names, so both readers consolidate on this one routine.
+func parseQueueSections(doc *document, queue *Queue) {
 	for _, s := range doc.sections(2, 3) {
 		if handoffWord.MatchString(s.Title) {
 			queue.Handoffs = append(queue.Handoffs, HandoffSection{Title: s.Title, Level: s.Level, Line: s.Line, Body: s.bodyText()})
@@ -302,7 +344,6 @@ func ParseQueue(data []byte) Queue {
 		}
 		sort.SliceStable(queue.Censuses, func(i, j int) bool { return queue.Censuses[i].At.Before(queue.Censuses[j].At) })
 	}
-	return queue
 }
 
 func parseCensus(item Item) Census {

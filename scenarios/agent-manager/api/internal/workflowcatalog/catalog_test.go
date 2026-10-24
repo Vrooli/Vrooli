@@ -2,12 +2,14 @@ package workflowcatalog
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/structuredresult"
 )
 
 func validDefinition() domain.WorkflowDefinition {
@@ -321,6 +323,161 @@ func TestGitControlTowerStagedMessageDeclarationValidatesResolvedPrompt(t *testi
 		if diagnostic.Code == "prompt_unused_binding" {
 			t.Fatalf("unused input boundary: %+v", diagnostic)
 		}
+	}
+	// Admission uses this same owner validator, including its 64 KiB value cap.
+	// The full 4096-file subject remains at GCT; only bounded representative
+	// context crosses this workflow boundary. A large stored manifest must not
+	// accidentally become a model binding or structured-result path list.
+	input, _ := json.Marshal(map[string]any{
+		"format_version": 2, "draft_input_digest": "sha256:complete-canonical-GCT-input", "repository_directory": "/workspace/registered-checkout",
+		"draft_context": map[string]any{"snapshot_digest": "sha256:all-files", "file_count": 4096, "scope_counts": []any{map[string]any{"label": "whole-selection", "files": 4096}}, "bounded_detail": strings.Repeat("x", 55*1024)},
+	})
+	if err := structuredresult.ValidateValue(definition.InputSchema, input); err != nil {
+		t.Fatalf("compact 4096-file context cannot enter owner: %v", err)
+	}
+	if path := os.Getenv("GCT_STAGED_MESSAGE_INPUT_FIXTURE"); path != "" {
+		actual, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := structuredresult.ValidateValue(definition.InputSchema, actual); err != nil {
+			t.Fatalf("actual GCT 4096-file projection rejected by owner: %v", err)
+		}
+		t.Logf("actual GCT packager input accepted by owner validator: %d bytes", len(actual))
+	}
+	oversized, _ := json.Marshal(map[string]any{"format_version": 2, "draft_input_digest": "sha256:all-files", "repository_directory": "/workspace/registered-checkout", "draft_context": map[string]any{"bounded_detail": strings.Repeat("x", 65*1024)}})
+	if err := structuredresult.ValidateValue(definition.InputSchema, oversized); err == nil {
+		t.Fatal("fixture no longer establishes the actual owner input ceiling")
+	}
+	result := json.RawMessage(`{"snapshot_digest":"sha256:all-files","title":"Update coordinated behavior across the staged selection","body":"Representative details support the summary; other files remain uncovered.","trailers":[],"covered_file_ids":[1,4096],"source_ids":[],"unknowns":[]}`)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, result); err != nil {
+		t.Fatalf("compact file-ID result rejected by actual owner: %v", err)
+	}
+}
+
+func TestGitControlTowerDeepDeclarationAnd4096ResultRespectOwnerBounds(t *testing.T) {
+	consumer := filepath.Join("..", "..", "..", "..", "git-control-tower")
+	raw, err := os.ReadFile(filepath.Join(consumer, ".vrooli", "agent-manager", "staged-message-deep.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var definition domain.WorkflowDefinition
+	if err = json.Unmarshal(raw, &definition); err != nil {
+		t.Fatal(err)
+	}
+	prompt, err := os.ReadFile(filepath.Join(consumer, "skills", "git-control-tower-staged-message-deep", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition.Nodes[0].Run.PromptRef = nil
+	definition.Nodes[0].Run.PromptTemplate = string(prompt)
+	validated, err := Validate(definition, nil)
+	if err != nil || domain.HasBlockingDiagnostic(validated.Diagnostics) {
+		t.Fatalf("deep declaration cannot reconcile: %v %+v", err, validated.Diagnostics)
+	}
+	for _, format := range []int{3, 4} {
+		context := map[string]any{"evidence_job_id": "immutable-job", "file_count": 4096}
+		if format == 4 {
+			context["contract_version"] = 4
+		}
+		input, _ := json.Marshal(map[string]any{"format_version": format, "draft_input_digest": "sha256:canonical", "draft_context": context, "repository_directory": "/workspace/registered"})
+		if err := structuredresult.ValidateValue(definition.InputSchema, input); err != nil {
+			t.Fatalf("retained format %d cannot enter actual owner: %v", format, err)
+		}
+	}
+	ids := []int{}
+	for id := 1; id <= 4096; id++ {
+		ids = append(ids, id)
+	}
+	unknowns := []string{}
+	for i := 0; i < 16; i++ {
+		unknowns = append(unknowns, strings.Repeat("u", 500))
+	}
+	sources := []string{}
+	for i := 0; i < 20; i++ {
+		sources = append(sources, fmt.Sprintf("%03d", i)+strings.Repeat("s", 253))
+	}
+	result := map[string]any{"snapshot_digest": "sha256:complete", "title": strings.Repeat("t", 200), "body": strings.Repeat("b", 6000), "trailers": []any{}, "covered_file_ids": ids, "source_ids": sources, "unknowns": unknowns}
+	encoded, _ := json.Marshal(result)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, encoded); err != nil {
+		t.Fatalf("4096-ID maximum-field result rejected by owner: %d bytes: %v", len(encoded), err)
+	}
+	envelope, _ := json.Marshal(map[string]any{"result": result})
+	if err := structuredresult.ValidateValue(definition.OutputSchema, envelope); err != nil {
+		t.Fatalf("deep end binding rejected by owner: %v", err)
+	}
+	// Detailed file inspection remains sparse while the result may synthesize
+	// the complete selection; legacy format-3 output above remains accepted.
+	result["covered_file_ids"] = []int{17, 83}
+	result["message_scope"] = "whole_selection"
+	result["message_scope_explanation"] = "The complete inventory and selected important patches support a summary of all affected behavior groups."
+	encoded, _ = json.Marshal(result)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, encoded); err != nil {
+		t.Fatalf("whole-selection synthesis incorrectly requires exhaustive detailed coverage: %v", err)
+	}
+	result["message_scope"] = "limited"
+	result["message_scope_explanation"] = "The inventory identifies an additional migration theme whose behavior could not be established."
+	encoded, _ = json.Marshal(result)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, encoded); err != nil {
+		t.Fatalf("honest substantive synthesis limitation rejected: %v", err)
+	}
+	result["message_scope"] = "all_files_read"
+	encoded, _ = json.Marshal(result)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, encoded); err == nil {
+		t.Fatal("invented synthesis scope accepted")
+	}
+	result["message_scope"] = "limited"
+	result["message_scope_explanation"] = strings.Repeat("x", 1001)
+	encoded, _ = json.Marshal(result)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, encoded); err == nil {
+		t.Fatal("unbounded synthesis explanation accepted")
+	}
+	t.Logf("4096-ID maximum ASCII-field output=%d bytes", len(envelope))
+}
+
+// File IDs and selected context references are different namespaces. Both the
+// model's result instructions and the final workflow envelope must retain that
+// distinction, including the no-context case seen in the retained live run.
+func TestGitControlTowerResultSourceIDsRemainSelectedContextReferences(t *testing.T) {
+	consumer := filepath.Join("..", "..", "..", "..", "git-control-tower")
+	for _, name := range []string{"staged-message", "staged-message-deep"} {
+		t.Run(name, func(t *testing.T) {
+			raw, err := os.ReadFile(filepath.Join(consumer, ".vrooli", "agent-manager", name+".json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var definition domain.WorkflowDefinition
+			if err := json.Unmarshal(raw, &definition); err != nil {
+				t.Fatal(err)
+			}
+			var envelope struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			}
+			if err := json.Unmarshal(definition.OutputSchema, &envelope); err != nil {
+				t.Fatal(err)
+			}
+			for _, schema := range []json.RawMessage{definition.Nodes[0].Run.ResultSpec.Schema, envelope.Properties["result"]} {
+				var contract struct {
+					Properties map[string]struct {
+						Description string `json:"description"`
+					} `json:"properties"`
+				}
+				if err := json.Unmarshal(schema, &contract); err != nil {
+					t.Fatal(err)
+				}
+				description := contract.Properties["source_ids"].Description
+				if !strings.Contains(description, "selected-context") || !strings.Contains(description, "contexts[].id") || !strings.Contains(description, "Return []") || !strings.Contains(description, "never stable file IDs") {
+					t.Fatalf("source references lack context identity and empty-selection instructions: %q", description)
+				}
+			}
+			prompt, err := os.ReadFile(filepath.Join(consumer, "skills", "git-control-tower-"+name, "SKILL.md"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(prompt), "source_ids: []") || !strings.Contains(string(prompt), "contexts[].id") || !strings.Contains(string(prompt), "never context source IDs") {
+				t.Fatal("resolved skill conflates file inspection IDs with selected context sources")
+			}
+		})
 	}
 }
 

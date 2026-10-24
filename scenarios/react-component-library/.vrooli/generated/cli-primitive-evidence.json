@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "e099ef93f51c8fa00fe21ce23bb415f5259e8e8ab17600758e1c5f596d167555",
+  "manifest_hash": "c3aac7aae0501e5a95a631f48501cb842b210851fba91258f90b887858373c0d",
   "commands": [
     {
       "path": "adoptions link",
@@ -397,6 +397,13 @@
       "path": "versions reap",
       "group": "versions",
       "command": "reap",
+      "binding": ".",
+      "declared_primitive": "action"
+    },
+    {
+      "path": "versions recover-button-224",
+      "group": "versions",
+      "command": "recover-button-224",
       "binding": ".",
       "declared_primitive": "action"
     },

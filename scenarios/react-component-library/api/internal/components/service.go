@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"react-component-library/internal/librarywalk"
@@ -94,6 +96,26 @@ type AuthoringService interface {
 	PublishComponentVersion(ctx context.Context, in PublishComponentVersionInput) (AuthoringVersionResult, error)
 }
 
+// TypeScriptCheckResult is the compiler-stage outcome for one active draft.
+// Runner faults remain distinct from ordinary compiler diagnostics.
+type TypeScriptCheckResult struct {
+	Passed      bool
+	Message     string
+	Remediation string
+}
+
+// TypeScriptChecker receives the exact source selected by the refreshed
+// authored manifest and version record.
+type TypeScriptChecker interface {
+	Check(context.Context, string, string, string, string) TypeScriptCheckResult
+}
+
+type TypeScriptCheckerFunc func(context.Context, string, string, string, string) TypeScriptCheckResult
+
+func (f TypeScriptCheckerFunc) Check(ctx context.Context, manifestPath, sourcePath, component, version string) TypeScriptCheckResult {
+	return f(ctx, manifestPath, sourcePath, component, version)
+}
+
 // ContentChangeListener is an optional sink the service invokes after a
 // successful UpdateContent write. Wired by main.go to drive the
 // versions recorder (req 11). Listener errors are logged at the
@@ -111,12 +133,13 @@ type ServiceJSONReader interface {
 }
 
 type service struct {
-	repo     Repository
-	content  ContentStore
-	source   SourceStore
-	services ServiceJSONReader
-	listener ContentChangeListener
-	ingest   ScenarioSourceReader
+	repo       Repository
+	content    ContentStore
+	source     SourceStore
+	services   ServiceJSONReader
+	listener   ContentChangeListener
+	ingest     ScenarioSourceReader
+	typescript TypeScriptChecker
 }
 
 func NewService(repo Repository) Service {
@@ -125,6 +148,51 @@ func NewService(repo Repository) Service {
 
 func NewServiceWithScenarioReader(repo Repository, services ServiceJSONReader) Service {
 	return &service{repo: repo, services: services}
+}
+
+// SetTypeScriptChecker installs the bounded package-tool runner. Production
+// wiring supplies it; tests can inject a deterministic compiler outcome.
+func SetTypeScriptChecker(svc Service, checker TypeScriptChecker) {
+	if target, ok := svc.(*service); ok {
+		target.typescript = checker
+	}
+}
+
+// NewPackageTypeScriptChecker runs the package's existing TypeScript owner
+// against one exact active draft without invoking the package build.
+func NewPackageTypeScriptChecker(sourceRoot string) TypeScriptChecker {
+	repoRoot := filepath.Clean(filepath.Join(sourceRoot, "..", "..", ".."))
+	tool := filepath.Join(repoRoot, "packages", "react-component-library", "tooling", "build.mjs")
+	return TypeScriptCheckerFunc(func(ctx context.Context, manifestPath, sourcePath, component, version string) TypeScriptCheckResult {
+		if _, err := exec.LookPath("node"); err != nil {
+			return TypeScriptCheckResult{Message: "TypeScript runner unavailable: node was not found", Remediation: "restore the scenario Node toolchain before checking this draft"}
+		}
+		if _, err := os.Stat(tool); err != nil {
+			return TypeScriptCheckResult{Message: "TypeScript runner unavailable: package compiler tool was not found", Remediation: "restore packages/react-component-library/tooling/build.mjs before checking this draft"}
+		}
+		bounded, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		command := exec.CommandContext(bounded, "node", tool, "--draft-typecheck", "--component", component, "--version", version, "--manifest", manifestPath, "--source", sourcePath)
+		command.Dir = repoRoot
+		output, err := command.CombinedOutput()
+		message := strings.TrimSpace(string(output))
+		if len(message) > 4000 {
+			message = message[len(message)-4000:]
+		}
+		if bounded.Err() == context.DeadlineExceeded {
+			return TypeScriptCheckResult{Message: "TypeScript runner timed out after 3m", Remediation: "retry the draft check after confirming the package compiler is responsive"}
+		}
+		if err != nil {
+			if message == "" {
+				message = err.Error()
+			}
+			if strings.Contains(message, "TypeScript runner unavailable") {
+				return TypeScriptCheckResult{Message: message, Remediation: "restore the package TypeScript toolchain before checking this draft"}
+			}
+			return TypeScriptCheckResult{Message: message, Remediation: "repair the reported TypeScript errors before publishing"}
+		}
+		return TypeScriptCheckResult{Passed: true, Message: message}
+	})
 }
 
 // NewServiceWithContent wires the optional ContentStore seam. Read
@@ -741,6 +809,21 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		add("dependencies", "failed", err.Error(), "repair the version-pinned dependency closure")
 	} else {
 		add("dependencies", "passed", "version-pinned dependency closure resolved", "")
+	}
+	if s.typescript != nil && version == c.DraftVersion && strings.Contains(version, "-draft.") {
+		manifestPath, sourcePath := c.ManifestPath, v.SourcePath
+		if !filepath.IsAbs(manifestPath) {
+			manifestPath = filepath.Join(s.source.Root(), manifestPath)
+		}
+		if !filepath.IsAbs(sourcePath) {
+			sourcePath = filepath.Join(s.source.Root(), sourcePath)
+		}
+		check := s.typescript.Check(ctx, manifestPath, sourcePath, c.Slug, version)
+		verdict := "failed"
+		if check.Passed {
+			verdict = "passed"
+		}
+		add("typescript", verdict, check.Message, check.Remediation)
 	}
 	if !requiresStoryValidation(c) {
 		add("story", "passed", "story contract is not applicable to this non-renderable asset", "")

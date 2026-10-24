@@ -144,6 +144,13 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if err := o.ensureCurrentTaskRun(ctx, run); err != nil {
 		return nil, err
 	}
+	if o.deliveryEfforts != nil {
+		pressure, err := o.deliveryEfforts.DeliveryRunContext(ctx, run)
+		if err != nil {
+			return nil, err
+		}
+		req.deliveryContext = pressure
+	}
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("continue")
 	}
@@ -194,7 +201,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 			return nil, domain.NewValidationError("continuationOverrides", "interactive continuation does not support per-turn workflow overrides")
 		}
 		effectsPossible = true
-		continued, err := o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs, req.ReinstallGoal)
+		continued, err := o.continueInteractiveRun(ctx, run, req.Message+req.deliveryContext, req.AttachmentIDs, req.ReinstallGoal)
 		if err != nil {
 			if domain.IsPreEffectRefusal(err) {
 				// The interactive continuation verified its session boundary but
@@ -211,7 +218,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return continued, nil
 	}
 	effectsPossible = true
-	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, MaxToolCalls: req.MaxToolCalls, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
+	continued, err := o.resumeConversation(ctx, run, req.Message+req.deliveryContext, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, MaxToolCalls: req.MaxToolCalls, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
 	if err != nil {
 		if domain.IsPreEffectRefusal(err) {
 			o.markContinuationIdempotencyFailed(ctx, req)
@@ -301,6 +308,23 @@ func observedGoalMatchesRun(run *domain.Run, objective string) bool {
 	return runner.NativeGoalObjectiveMatches(objective, run.ResolvedConfig.Until)
 }
 
+// SendInteractivePrompt delivers text to an arbitrary web-console session as its
+// next user message, via agent-manager's already-authenticated web-console
+// client. It is the stable-session-id delivery lane for the approval tie-back:
+// it needs only the web-console session id — which, unlike the identity token,
+// does not expire on a long-lived session — and does NOT require an
+// agent-manager run. Nil-safe: returns an error when the client or id is absent.
+func (o *Orchestrator) SendInteractivePrompt(ctx context.Context, sessionID, text, source string) error {
+	if o == nil || o.interactiveSessions == nil {
+		return errors.New("interactive sessions client is unavailable")
+	}
+	if strings.TrimSpace(sessionID) == "" {
+		return errors.New("web-console session id is required to deliver an interactive prompt")
+	}
+	_, err := o.interactiveSessions.SendPrompt(ctx, sessionID, text, source)
+	return err
+}
+
 // typeIntoRunningSession delivers a continuation to a running interactive
 // session as its next user message; the harness queues it behind the current
 // turn. It reports false for every other run, which continues between turns,
@@ -335,7 +359,7 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 		}
 		return false, domain.NewStateError("Run", "owner_changed", "continue", "the exact running interactive owner changed before prompt delivery")
 	}
-	text := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(req.Message, "\r\n", " "), "\n", " "))
+	text := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(req.Message+req.deliveryContext, "\r\n", " "), "\n", " "))
 	// Web Console's SendText forwards LF literally to the PTY. Codex's TUI
 	// requires a named Enter key after a paste; otherwise the directive remains
 	// composed but unsubmitted. SendPrompt owns that paste+Enter contract.

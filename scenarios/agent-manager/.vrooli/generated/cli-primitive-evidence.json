@@ -54,6 +54,11 @@
       "binding": "."
     },
     {
+      "path": "effort delivery",
+      "group": "effort",
+      "command": "delivery"
+    },
+    {
       "path": "effort discover",
       "group": "effort",
       "command": "discover",
@@ -112,6 +117,11 @@
       "group": "effort",
       "command": "list",
       "binding": "."
+    },
+    {
+      "path": "effort migrate",
+      "group": "effort",
+      "command": "migrate"
     },
     {
       "path": "effort park",

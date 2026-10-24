@@ -713,7 +713,16 @@ type CreateRunCaller struct {
 	GrantID      string    `json:"grantId,omitempty"`
 }
 
+// WorkflowRunIdentity is private launcher admission evidence persisted before
+// dispatch. It is never accepted from a public request or projected on the wire.
+type WorkflowRunIdentity struct {
+	ExecutionID uuid.UUID `json:"executionId"`
+	NodeID      string    `json:"nodeId"`
+	AttemptID   uuid.UUID `json:"attemptId"`
+}
+
 type RunAdmission struct {
+	WorkflowIdentity *WorkflowRunIdentity `json:"workflowIdentity,omitempty"`
 	// CreateRequestDigest binds an idempotency key to the exact caller request
 	// that created this run. Empty on historical rows predating exact replay.
 	CreateRequestDigest string `json:"createRequestDigest,omitempty"`
@@ -787,6 +796,9 @@ type RunAdmission struct {
 // RunConfig contains the resolved configuration for a run.
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
+	// Owner-written commission bindings survive pauses and prevent old owners
+	// from joining a newly commissioned delivery effort.
+	DeliveryCommissions map[string]string `json:"deliveryCommissions,omitempty"`
 	// Runner configuration
 	RunnerType RunnerType `json:"runnerType"`
 	// ManifestIndexSnapshot pins the CLI catalog index used by an imported

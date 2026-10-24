@@ -6,12 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-type tokenFallbackExemption struct {
-	Token  string `json:"token"`
-	Reason string `json:"reason"`
-}
+	"react-component-library/internal/components"
+)
 
 // ValidateTokenFallbackLiteral rejects a literal CSS fallback in an active
 // library source. A fallback is a silent design-system failure: it makes a
@@ -20,7 +17,7 @@ type tokenFallbackExemption struct {
 // standalone asset is allowed to remain usable before its host supplies a
 // value.
 func ValidateTokenFallbackLiteral(scope Scope) (Result, error) {
-	exemptions, err := readTokenFallbackExemptions(scope.Root)
+	exemptions, err := components.ReadTokenFallbackExemptions(filepath.Join(scope.Root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		return Result{}, err
 	}
@@ -83,30 +80,4 @@ func isKeptLibrarySource(root, source string) bool {
 		return false
 	}
 	return parts[3] == manifest.Latest || (manifest.Draft != "" && parts[3] == manifest.Draft)
-}
-
-func readTokenFallbackExemptions(root string) (map[string]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
-	if err != nil {
-		return nil, err
-	}
-	var config struct {
-		Exemptions []tokenFallbackExemption `json:"x-token-fallback-exemptions"`
-	}
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("decode token fallback exemptions: %w", err)
-	}
-	result := make(map[string]string, len(config.Exemptions))
-	for _, exemption := range config.Exemptions {
-		token := strings.TrimSpace(exemption.Token)
-		reason := strings.TrimSpace(exemption.Reason)
-		if token == "" || reason == "" {
-			return nil, fmt.Errorf("token fallback exemption must have a token and reason")
-		}
-		if !strings.HasPrefix(token, "--") {
-			return nil, fmt.Errorf("token fallback exemption %q must be a CSS custom property", token)
-		}
-		result[token] = reason
-	}
-	return result, nil
 }

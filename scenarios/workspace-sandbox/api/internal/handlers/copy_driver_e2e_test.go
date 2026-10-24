@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/websocket"
 	"github.com/vrooli/api-core/storage"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
@@ -304,7 +305,9 @@ func TestStopDrainsSynchronousExecWhileRequestWaits(t *testing.T) {
 
 func TestProviderMaintenanceRefusesBothProcessEntrypoints(t *testing.T) {
 	e := newCopyE2E(t)
-	e.handlers.ConfigureLifecycle("workspace-sandbox", "workspace-sandbox", "test")
+	if err := e.handlers.ConfigureLifecycle(context.Background(), e.repo, "workspace-sandbox", "workspace-sandbox", "test"); err != nil {
+		t.Fatal(err)
+	}
 	resp, body := e.live.DoJSON(t, "POST", "/api/v1/sandboxes", `{"scopePath":"`+e.scopePath+`","projectRoot":"`+e.projectRoot+`","owner":"maintenance-test","noLock":true}`)
 	var sb types.Sandbox
 	if err := json.Unmarshal(body, &sb); err != nil || resp.StatusCode != http.StatusCreated {
@@ -318,6 +321,22 @@ func TestProviderMaintenanceRefusesBothProcessEntrypoints(t *testing.T) {
 		if resp.StatusCode != http.StatusConflict {
 			t.Errorf("%s admitted during provider maintenance: %d %s", path, resp.StatusCode, body)
 		}
+	}
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(e.live.URL, "http")+sandboxesPath(sb.ID, "/exec-interactive"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if err := conn.WriteJSON(map[string]any{"command": "/no-such-workspace-sandbox-test-command"}); err != nil {
+		t.Fatal(err)
+	}
+	var message handlers.InteractiveMessage
+	if err := conn.ReadJSON(&message); err != nil {
+		t.Fatalf("read interactive admission response: %v", err)
+	}
+	if message.Type != handlers.MsgTypeError || !strings.Contains(message.Data, "provider admission is closed for lifecycle maintenance") {
+		t.Fatalf("interactive session was not refused by provider fence: %+v", message)
 	}
 	if _, err := os.Stat(filepath.Join(sb.MergedDir, "forbidden")); !os.IsNotExist(err) {
 		t.Fatalf("maintenance admitted a writer: %v", err)

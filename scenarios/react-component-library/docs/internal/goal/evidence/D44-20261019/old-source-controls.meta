@@ -1,6 +1,0 @@
-command=pnpm exec vitest run [three selected regression tests against isolated original ActionLauncher.tsx and CreateComponentDialog.tsx] --reporter=verbose
-working_directory=/tmp/D44-old-source-control/scenarios/react-component-library/ui
-started_at=2026-10-19T21:35:46Z
-ended_at=2026-10-19T21:35:49Z
-duration_ms=2606
-exit_code=1

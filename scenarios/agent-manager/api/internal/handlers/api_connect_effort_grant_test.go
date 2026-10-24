@@ -2,6 +2,12 @@ package handlers
 
 import (
 	"context"
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -45,5 +51,44 @@ func TestInteractiveGrantReconcilesOnlyItsNamedEffort(t *testing.T) {
 	noGrant := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "orchestrator-run", Verified: true})
 	if _, delegated, err := effortGrantActor(noGrant, ref, operator); delegated || err != nil {
 		t.Fatalf("a run without an interactive grant left the owner/orchestrator path: delegated=%v err=%v", delegated, err)
+	}
+}
+
+func TestEffortMetadataGrantUsesSeparateOperationProof(t *testing.T) {
+	now := time.Now()
+	runID := uuid.New()
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, now.Add(time.Hour))
+	grant := managementGrantFixture(now,
+		managementRuleFixture("effort-metadata", []string{"effort.reconcile"}, []string{"agent-manager:effort/*"}),
+		managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:run/*"}),
+	)
+	operation := managementClaimsFixture(t, runID, []string{"agent-manager:read", "agent-manager:write"}, grant, now.Add(time.Hour))
+	for _, tc := range []struct {
+		name, ref string
+		allowed   bool
+	}{{"covered scoped wildcard", "effort:target", true}, {"wrong operation target", "other-domain", false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			verifier := managementGrantVerifier{baseline: baseline, operation: operation}
+			if !tc.allowed {
+				verifier.operation = managementClaimsFixture(t, runID, []string{"agent-manager:write"}, managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:*"})), now.Add(time.Hour))
+			}
+			handler := provenance.Middleware(verifier)(authn.Middleware(authn.Config{})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				p, _ := identity.PrincipalFromContext(r.Context())
+				if p.Grant != nil {
+					t.Fatal("operation grant contaminated baseline principal")
+				}
+				actor, delegated, err := effortGrantActor(r.Context(), tc.ref, pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR)
+				if tc.allowed && (err != nil || !delegated || !actor.Delegated || actor.ApprovedBy != grant.Approver || actor.ID != runID.String()) {
+					t.Fatalf("approved paired effort grant lost: %+v delegated=%v err=%v", actor, delegated, err)
+				}
+				if !tc.allowed && err == nil {
+					t.Fatal("uncovered rule crossed operation and target")
+				}
+			})))
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/effort", nil)
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, managementBaselineToken)
+			req.Header.Set(cliutil.HeaderAgentOperationToken, managementOperationToken)
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+		})
 	}
 }

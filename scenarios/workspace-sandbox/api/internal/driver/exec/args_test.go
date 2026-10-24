@@ -215,7 +215,7 @@ func TestBuildExecCommand(t *testing.T) {
 			wantContain: []string{"--unshare-user", "--bind", "/tmp/merged", "/workspace", "--", "ls", "-la"},
 		},
 		{
-			name: "with memory limit - prlimit wrapper",
+			name: "with memory limit - prlimit inside bwrap",
 			cfg: BwrapConfig{
 				Hostname:       "sandbox",
 				Env:            map[string]string{"PATH": "/usr/bin"},
@@ -223,8 +223,8 @@ func TestBuildExecCommand(t *testing.T) {
 			},
 			cmd:         "my-agent",
 			args:        []string{"--task", "fix"},
-			wantExe:     "prlimit",
-			wantContain: []string{"--as=536870912", "--", "bwrap", "--unshare-user", "my-agent", "--task", "fix"},
+			wantExe:     "bwrap",
+			wantContain: []string{"--unshare-user", "--as=536870912", "prlimit", "my-agent", "--task", "fix"},
 		},
 		{
 			name: "with multiple limits",
@@ -235,8 +235,8 @@ func TestBuildExecCommand(t *testing.T) {
 			},
 			cmd:         "build",
 			args:        nil,
-			wantExe:     "prlimit",
-			wantContain: []string{"--as=268435456", "--cpu=60", "bwrap", "build"},
+			wantExe:     "bwrap",
+			wantContain: []string{"--unshare-user", "prlimit", "--as=268435456", "--cpu=60", "build"},
 		},
 	}
 
@@ -251,8 +251,31 @@ func TestBuildExecCommand(t *testing.T) {
 					t.Errorf("expected %q in args, got: %v", want, args)
 				}
 			}
+			if tt.cfg.ResourceLimits.HasLimits() {
+				bwrapSeparator := indexOf(args, "--")
+				if bwrapSeparator < 0 || bwrapSeparator+1 >= len(args) || args[bwrapSeparator+1] != "prlimit" {
+					t.Fatalf("resource-limited payload must start with prlimit after bwrap namespace separator; got: %v", args)
+				}
+				payloadSeparator := indexOfFrom(args, "--", bwrapSeparator+2)
+				if payloadSeparator < 0 || payloadSeparator+1 >= len(args) || args[payloadSeparator+1] != tt.cmd {
+					t.Fatalf("prlimit must wrap only the payload after namespace setup; got: %v", args)
+				}
+			}
 		})
 	}
+}
+
+func indexOf(values []string, value string) int {
+	return indexOfFrom(values, value, 0)
+}
+
+func indexOfFrom(values []string, value string, start int) int {
+	for i := start; i < len(values); i++ {
+		if values[i] == value {
+			return i
+		}
+	}
+	return -1
 }
 
 // TestBuildBwrapArgs_BindsHomeOverlayAtHostPath guards the home-overlay

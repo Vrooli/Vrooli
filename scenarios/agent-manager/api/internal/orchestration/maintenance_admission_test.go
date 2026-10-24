@@ -38,7 +38,7 @@ func TestMaintenanceFencesNewRunContinueResumeAndAttach(t *testing.T) {
 	}
 	for name, call := range map[string]func() error{
 		"create-force": func() error {
-			_, err := o.CreateRun(t.Context(), authenticatedInternalCreateRunFixture(o, CreateRunRequest{TaskID: task.ID, Prompt: "new", Force: true, IdempotencyKey: "new", Environment: map[string]string{workflowExecutionEnv: uuid.NewString()}}))
+			_, err := o.CreateRun(t.Context(), authenticatedInternalCreateRunFixture(o, CreateRunRequest{TaskID: task.ID, Prompt: "new", Force: true, IdempotencyKey: "new", Environment: map[string]string{"VROOLI_TEST_WORKLOAD": "untrusted-label"}}))
 			return err
 		},
 		"continue": func() error {

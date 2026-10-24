@@ -56,7 +56,6 @@ type componentsService struct {
 	mu             sync.Mutex
 	listResp       *componentsv1.ListComponentsResponse
 	getResp        *componentsv1.GetComponentResponse
-	byLibIDResp    *componentsv1.GetComponentByLibraryIdResponse
 	indexResp      *componentsv1.IndexComponentsResponse
 	contentGetResp *componentsv1.GetComponentContentResponse
 	contentSetResp *componentsv1.UpdateComponentContentResponse
@@ -73,7 +72,6 @@ type componentsService struct {
 	styleFitResp   *componentsv1.ValidateStyleFitResponse
 	listErr        error
 	getErr         error
-	byLibIDErr     error
 	indexErr       error
 	contentGetErr  error
 	contentSetErr  error
@@ -85,7 +83,6 @@ type componentsService struct {
 	styleFitErr    error
 	listReqs       []*componentsv1.ListComponentsRequest
 	getReqs        []string
-	byLibIDReqs    []string
 	contentSetReqs []*componentsv1.UpdateComponentContentRequest
 	initReqs       []*componentsv1.InitializeComponentRequest
 	ingestReqs     []*componentsv1.IngestComponentRequest
@@ -134,17 +131,8 @@ func (s *componentsService) GetComponent(_ context.Context, req *connect.Request
 	return connect.NewResponse(s.getResp), nil
 }
 
-func (s *componentsService) GetComponentByLibraryId(_ context.Context, req *connect.Request[componentsv1.GetComponentByLibraryIdRequest]) (*connect.Response[componentsv1.GetComponentByLibraryIdResponse], error) {
-	s.mu.Lock()
-	s.byLibIDReqs = append(s.byLibIDReqs, req.Msg.LibraryId)
-	s.mu.Unlock()
-	if s.byLibIDErr != nil {
-		return nil, s.byLibIDErr
-	}
-	if s.byLibIDResp == nil {
-		s.byLibIDResp = &componentsv1.GetComponentByLibraryIdResponse{}
-	}
-	return connect.NewResponse(s.byLibIDResp), nil
+func (s *componentsService) GetComponentByLibraryId(_ context.Context, _ *connect.Request[componentsv1.GetComponentByLibraryIdRequest]) (*connect.Response[componentsv1.GetComponentByLibraryIdResponse], error) {
+	return connect.NewResponse(&componentsv1.GetComponentByLibraryIdResponse{}), nil
 }
 
 func (s *componentsService) IndexComponents(_ context.Context, _ *connect.Request[componentsv1.IndexComponentsRequest]) (*connect.Response[componentsv1.IndexComponentsResponse], error) {
@@ -350,6 +338,8 @@ func TestComponentsIndex_HumanReport(t *testing.T) {
 	require.Contains(t, body, "Scanned 3 file(s); indexed 2, skipped 1, deleted 0.")
 	require.Contains(t, body, "lib:Button")
 	require.Contains(t, body, "lib:Card")
+	require.Contains(t, body, "components get <libraryId>")
+	require.NotContains(t, body, "get-by-library-id")
 }
 
 func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
@@ -566,19 +556,19 @@ func TestComponentsList_JSONIsProtoWireShape(t *testing.T) {
 	require.Equal(t, "lib:Button", got.Components[0].LibraryId)
 }
 
-func TestComponentsGetByLibraryID_Fetches(t *testing.T) {
-	svc := &componentsService{byLibIDResp: &componentsv1.GetComponentByLibraryIdResponse{
-		Component: sampleComponent(),
-	}}
+func TestComponentsGet_AcceptsStableLibraryID(t *testing.T) {
+	svc := &componentsService{getResp: &componentsv1.GetComponentResponse{Component: sampleComponent()}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Positionals: []cliapp.Positional{{Name: "library-id"}},
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
 	}, cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"library-id": "lib:Button"},
+		Positionals: map[string]string{"id": "lib:Button"},
 	})
-	require.NoError(t, h.getByLibraryID(ctx))
-	require.Equal(t, []string{"lib:Button"}, svc.byLibIDReqs)
+	msg, err := h.getCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoList(ctx, msg, h.getReport(ctx, msg)))
+	require.Equal(t, []string{"lib:Button"}, svc.getReqs)
 	require.Contains(t, out.String(), "Fetched component lib:Button.")
 }
 

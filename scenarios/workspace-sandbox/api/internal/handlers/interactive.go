@@ -145,6 +145,14 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		sendErrorMessage(conn, err.Error())
 		return
 	}
+	if h.lifecycle != nil {
+		release, gateErr := h.lifecycle.beginProcess(r.Context())
+		if gateErr != nil {
+			sendErrorMessage(conn, gateErr.Error())
+			return
+		}
+		defer release()
+	}
 
 	// Set resource limits
 	cfg.ResourceLimits = driverexec.ResourceLimits{

@@ -149,7 +149,9 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"reconcile-metadata", "Reconcile owner-facing metadata with scoped authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
 		[2]string{"epoch-check", "Report an epoch file's step-back triggers and gates (exit 3 on STEP_BACK, 4 when --acceptance is refused)"},
 		[2]string{"lint", "Check a goal home's orchestrator rules (exit 4 on a failing rule)"},
-		[2]string{"handoff", "Replace the single ## Handoff of a goal home's QUEUE.md"},
+		[2]string{"handoff", "Replace the single ## Handoff of a goal home's STATUS.md"},
+		[2]string{"delivery", "Commission, pause, resume or stop finite delivery through owner enrollment"},
+		[2]string{"migrate", "Convert a v1 goal home to the v2 file set (CHARTER/STATUS/LOG), verifying board facts are unchanged"},
 		[2]string{"park", "Park the orchestrator for as long as goal state allows (exit 4 when refused)"},
 		[2]string{"signals", "Read an effort's signal log after a cursor (check-in dispatch input)"},
 		[2]string{"signal", "Record a feedback or step_back signal for an effort"},
@@ -200,8 +202,14 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		if command.Name == "compact" {
 			command.HelpText = "Text output renders the compact joined owner observation; --json returns the full typed EffortBoard response for machine consumers."
 		}
+		if command.Name == "delivery" {
+			command.Usage = "agent-manager effort delivery <start|pause|resume|stop> --effort-ref <ref> [--commission <id> --budget 24h --workers 2] [--reason <text>] [--local-owner] [--json]"
+			command.HelpText = "Uses owner EnrollEffort with exact revision fencing. The server owns timestamps. Start requires prior owners terminal; metadata grants cannot start or reset commissions. Pause requires parked/terminal retained runs. Hard stop freezes admission and checkpoints before lifecycle cancellation and operator handback."
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "effort-ref", LocalOnly: true, Description: "Exact enrolled effort"}, cliapp.Flag{Name: "commission", LocalOnly: true, Description: "New commission ID"}, cliapp.Flag{Name: "budget", LocalOnly: true, Description: "Start budget, default 24h"}, cliapp.Flag{Name: "workers", LocalOnly: true, Description: "Worker bound, default 2"}, cliapp.Flag{Name: "reason", LocalOnly: true, Description: "Pause or stop disposition"}, cliapp.Flag{Name: "idempotency-key", LocalOnly: true, Description: "Stable owner operation key"}, cliapp.Flag{Name: "local-owner", Bool: true, LocalOnly: true, Description: "Existing local operator exchange"})
+			continue
+		}
 		if goalHomeCommand(command) {
-			if command.Name == "lint" || command.Name == "handoff" {
+			if command.Name == "lint" || command.Name == "handoff" || command.Name == "migrate" {
 				command.NeedsAPIOverride = &offline
 			}
 			continue
@@ -237,12 +245,16 @@ func goalHomeCommand(command *cliapp.Command) bool {
 		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "acceptance", Bool: true, LocalOnly: true, Description: "Orchestrator acceptance check (exit 4 when refused)"}, {Name: "wake-key", LocalOnly: true, Description: "Orchestrator run ID to wake on STEP_BACK"}, {Name: "effort", LocalOnly: true, Description: "Record a step_back signal only; does not dispatch supervision. Use `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor` to request a supervisor heartbeat when authorized"}, {Name: "runs", LocalOnly: true, Description: "Worker run IDs for the spend trigger"}, {Name: "spend-threshold", LocalOnly: true, Description: "Weighted non-cache tokens above which spend fires"}}
 	case "lint":
 		command.Usage = "agent-manager effort lint <goal home> [--json]"
-		command.HelpText = "Fails (exit 4), naming each rule, when the resume set (GOAL.md, QUEUE.md, open FEEDBACK, open WORKAROUNDS) exceeds 30,000 bytes, QUEUE.md does not have exactly one handoff or it exceeds 4 KB, no ## Next item is marked [ready] and ## Needs operator is empty, open operator or supervisor feedback is not named in the handoff, or diminishing returns has no [re-aim] item under ## Needs operator. Reads files only." + reference
+		command.HelpText = "Fails (exit 4), naming each rule, when the resume set (CHARTER.md, STATUS.md and open FEEDBACK) exceeds 30,000 bytes, STATUS.md does not have exactly one handoff or it exceeds 4 KB, no ## Next item is marked [ready] and ## Needs operator is empty, open operator or supervisor feedback is not named in the handoff, or diminishing returns has no [re-aim] item under ## Needs operator. Reads files only." + reference
 		command.Args.Flags = []cliapp.Flag{jsonFlag}
 	case "handoff":
 		command.Usage = "agent-manager effort handoff set <goal home> (--file <markdown> | --stdin) [--json]"
-		command.HelpText = "Atomically replaces the single ## Handoff section of QUEUE.md (creating it after ## Needs operator when missing). Writes nothing when the text is unchanged. Refuses (exit 4) text over 4 KB, a queue with more than one handoff, and a QUEUE.md that changed during the write. Reads and writes files only." + reference
+		command.HelpText = "Atomically replaces the single ## Handoff section of STATUS.md (creating it after ## Needs operator when missing). Writes nothing when the text is unchanged. Refuses (exit 4) text over 4 KB, a queue with more than one handoff, and a STATUS.md that changed during the write. Reads and writes files only." + reference
 		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "file", LocalOnly: true, Description: "Markdown file holding the handoff text"}, {Name: "stdin", Bool: true, LocalOnly: true, Description: "Read the handoff text from standard input"}}
+	case "migrate":
+		command.Usage = "agent-manager effort migrate <goal home> [--apply] [--json]"
+		command.HelpText = "Converts a v1 goal home (GOAL/QUEUE/WORKAROUNDS/epochs) to the v2 file set (CHARTER/STATUS/LOG), self-verifying that the board's load-bearing facts (destination, current, active unit and workers, accepted-unit worker sets, last acceptance, needs-operator, open workarounds and feedback, lint findings) are byte-equivalent before writing. Refuses (exit 4) when they would diverge. Without --apply it is a dry run that only reports equivalence. Idempotent: a home that already has CHARTER.md is left unchanged. With --apply, writes the three files, keeps FEEDBACK.md and moves the v1 files to archive/v1/. Reads and writes files only." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "apply", Bool: true, LocalOnly: true, Description: "Write the v2 files and archive the v1 files (default: dry run)"}}
 	case "park":
 		command.Usage = "agent-manager effort park <goal home> [--run <run-id>] [--timeout D] [--json]"
 		command.HelpText = "Parks the orchestrator (producer children, keyed by its run) for up to 1h while a direct child run is live, or up to 72h while ## Needs operator holds an item; otherwise refuses (exit 4) with the admissible-slice rule. --run defaults to the verified calling run; inspect the returned park run status and await handle in the JSON receipt, and preserve any refusal or command error." + reference

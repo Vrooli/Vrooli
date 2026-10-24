@@ -109,15 +109,43 @@ function rowText(term: Terminal, row: number): string {
 }
 
 /**
- * Whether `row`'s token continues onto the next row: its content reached within
- * WRAP_MARGIN of the terminal edge (a mid-token hard break, not a short line
- * that merely ended) and both sides of the seam are run characters, so a single
- * token was split there. Keying off term.cols — not a per-block maximum — stops
- * two short lines from being joined just because the first is the longest.
+ * Whether `row` ends at this block's own wrap column rather than the terminal
+ * edge. A styled TUI panel (e.g. Claude Code's queued-input box) fills each line
+ * to the box width — many columns shy of term.cols — before wrapping, so the
+ * geometric "near term.cols" gate misses it. A real hard wrap leaves evidence:
+ * another contiguous row of the same block ends at the *same* column. A lone
+ * short line has no such corroborator, so it is not mistaken for a wrap. We scan
+ * outward over contiguous non-blank rows; a blank line bounds the block, and a
+ * longer neighbour proves `row` was itself short (its end is not the wrap width).
+ */
+function endsAtBlockWrapColumn(term: Terminal, row: number): boolean {
+  const target = rowText(term, row).length;
+  if (target === 0) return false;
+  for (const dir of [-1, 1]) {
+    for (let step = 1; step < BLOCK_SCAN_BUDGET; step++) {
+      const len = rowText(term, row + dir * step).length;
+      if (len === 0 || len > target) break; // block boundary, or `row` was the short one
+      if (len === target) return true; // a second full line at the same wrap column
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether `row`'s token continues onto the next row: its content ended at a hard
+ * wrap (within WRAP_MARGIN of the terminal edge, OR at a block-local wrap column
+ * shared by a sibling row — not a short line that merely ended) and both sides of
+ * the seam are run characters, so a single token was split there. The term.cols
+ * test handles full-width output; the block-wrap-column test handles indented or
+ * margin-reserving TUI panels that wrap well short of the edge. Requiring a
+ * corroborating sibling row stops two lone short lines from being joined just
+ * because the first is the longest.
  */
 function wrapsIntoNext(term: Terminal, row: number): boolean {
   const text = rowText(term, row);
-  if (text.length === 0 || text.length < term.cols - WRAP_MARGIN) return false;
+  if (text.length === 0) return false;
+  const reachedEdge = text.length >= term.cols - WRAP_MARGIN;
+  if (!reachedEdge && !endsAtBlockWrapColumn(term, row)) return false;
   const next = rowText(term, row + 1);
   const firstNonSpace = next.search(/\S/);
   if (firstNonSpace < 0) return false;

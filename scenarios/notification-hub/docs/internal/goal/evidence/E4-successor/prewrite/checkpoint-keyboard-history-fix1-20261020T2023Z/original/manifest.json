@@ -1,9 +1,0 @@
-[
-  {
-    "path": "ui/src/features/asks/HistoryPage.test.tsx",
-    "sha256": "29eab1147dcf9881fea8b4974337fe0ed5548e61373645bb266db79818b2d696",
-    "bytes": 5945,
-    "snapshot": "original/bytes/ui/src/features/asks/HistoryPage.test.tsx",
-    "captured_at": "2026-10-20T20:23:00Z"
-  }
-]

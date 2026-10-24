@@ -1,3 +1,0 @@
-  189 scenarios/personal-planner/api/internal/work/sqlite.go
-  246 scenarios/personal-planner/api/internal/work/sqlite_test.go
-  435 total

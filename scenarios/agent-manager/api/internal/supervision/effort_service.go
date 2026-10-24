@@ -77,6 +77,8 @@ type EffortService struct {
 	decisionPublisher DecisionPublisher
 	spend             EffortSpendReader
 	goalHomes         goalHomeCache
+	deliveryMu        sync.Mutex
+	deliveryScanAfter string
 }
 
 func NewEffortService(repo EffortRepository, controller ActionController, config EffortDiscoveryConfig) *EffortService {
@@ -181,6 +183,8 @@ func validateEffortEnrollment(e *pb.EffortEnrollment) error {
 }
 
 func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
+	s.deliveryMu.Lock()
+	defer s.deliveryMu.Unlock()
 	if !actor.Operator || actor.ID == "" {
 		return nil, errors.New("authenticated operator authority required to enroll or amend")
 	}
@@ -208,6 +212,9 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 	}
 	if old == nil && req.ExpectedRevision != 0 || old != nil && old.Revision != req.ExpectedRevision {
 		return nil, ErrConflict
+	}
+	if err := s.transitionDelivery(ctx, old, e); err != nil {
+		return nil, err
 	}
 	if o == nil {
 		o = &pb.EffortBoardRow{RuntimeState: "unknown", OutcomeStanding: &pb.EffortOutcomeStanding{State: "unknown", Attribution: "owner references"}}
@@ -317,6 +324,9 @@ func (s *EffortService) Withdraw(ctx context.Context, req *pb.WithdrawEffortRequ
 	if e.Revision != req.ExpectedRevision {
 		return nil, ErrConflict
 	}
+	if e.Delivery != nil && e.Delivery.FinalizedAt == nil {
+		return nil, errors.New("stop and finalize the delivery commission before withdrawing its enrollment")
+	}
 	e.Withdrawn = true
 	e.WithdrawalReason = req.Reason
 	e.Revision++
@@ -423,6 +433,7 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 		}
 		row := s.projectEffort(ctx, e, ob, d)
 		row.GoalHome = s.projectGoalHome(ctx, e, row)
+		row.DeliveryPressure = DeliveryPressure(e.Delivery, s.now())
 		if row.GoalHome != nil && row.GoalHome.GetState() == "partial" {
 			b.Partial = true
 			if row.NextAction == "observe" {
@@ -713,5 +724,5 @@ func (s *EffortService) Tick(ctx context.Context) error {
 	}
 	_, err := s.reconcileDiscovery(ctx)
 	s.nextScan = now.Add(s.config.Interval)
-	return errors.Join(err, s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx), s.dispatchEffortSignalCheckins(ctx))
+	return errors.Join(err, s.tickDelivery(ctx), s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx), s.dispatchEffortSignalCheckins(ctx))
 }

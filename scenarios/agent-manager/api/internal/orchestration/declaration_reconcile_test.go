@@ -13,6 +13,21 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestGitControlTowerDeepProfilePreservesProtectedReadAuthority(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "git-control-tower", ".vrooli", "agent-manager", "staged-message-deep-profile.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := ParseScenarioProfileSource(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.ProfileKey != "git-control-tower/staged-message-deep" || profile.RoleRef != "code.default" || len(profile.DeclaredScopes) != 1 || profile.DeclaredScopes[0] != "git-control-tower:read" || profile.NetworkAccess != domain.NetworkAccessLocalhost || profile.SandboxConfig == nil || profile.SandboxConfig.Mode != domain.SandboxModeProtected || profile.SandboxConfig.GetAutoApply() || profile.SandboxConfig.GetApplyOnFailure() || profile.SandboxConfig.WritePolicy == nil || len(profile.SandboxConfig.WritePolicy.Paths) != 0 {
+		t.Fatalf("deep profile widens mutation authority: %+v", profile)
+	}
+}
+
 // fixtureProfile is a scenario-owned profile declaration in the unified layout.
 const fixtureProfile = `{
   "schemaVersion": "agent-profile/v1",

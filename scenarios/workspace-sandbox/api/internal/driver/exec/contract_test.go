@@ -241,24 +241,25 @@ func TestExecContract_BwrapPreferred_HasBwrap(t *testing.T) {
 	}
 }
 
-// TestExecContract_BwrapRequired_ResourceLimitsRequirePrlimit pins:
-// when ResourceLimits.HasLimits() is true but prlimit is missing,
-// the error message names prlimit specifically (so operators can
-// install util-linux instead of guessing about bwrap). The wrapper
-// exists because BuildExecCommand routes through prlimit when limits
-// are set.
-func TestExecContract_BwrapRequired_ResourceLimitsRequirePrlimit(t *testing.T) {
+// TestExecContract_BwrapRequired_ResourceLimitsStayInsideNamespace pins:
+// process limits wrap the payload after bwrap creates its namespaces.
+func TestExecContract_BwrapRequired_ResourceLimitsStayInsideNamespace(t *testing.T) {
 	starter := procmocks.NewFakeStarter()
 	starter.SetLookPath("bwrap", "/usr/bin/bwrap")
-	// Note: prlimit NOT in LookPath table → ErrBinaryNotFound.
+	starter.AddCommand("/usr/bin/bwrap", procmocks.CommandBehavior{Exit: process.ProcessExit{ExitCode: 0}})
 	cfg := DefaultBwrapConfig()
 	cfg.ResourceLimits.MemoryLimitMB = 256
 	_, err := Exec(context.Background(), starter, newSandboxFor(t), driver.ContainmentRequired, cfg, "/bin/echo", "x")
-	if err == nil {
-		t.Fatal("expected error when ResourceLimits set but prlimit missing")
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
 	}
-	if !strings.Contains(err.Error(), "prlimit") {
-		t.Errorf("error should mention prlimit, got %v", err)
+	calls := starter.MatchedCalls("/usr/bin/bwrap")
+	if len(calls) != 1 {
+		t.Fatalf("expected one bwrap call, got %d", len(calls))
+	}
+	separator := indexOf(calls[0].Args, "--")
+	if separator < 0 || separator+1 >= len(calls[0].Args) || calls[0].Args[separator+1] != "prlimit" {
+		t.Fatalf("prlimit must start inside the namespace, args=%v", calls[0].Args)
 	}
 }
 

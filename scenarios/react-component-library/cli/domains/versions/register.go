@@ -21,6 +21,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"VersionLifecycleService.MaterializeVersion": {Run: h.materialize},
 		"reachability":                               {Run: h.reachability},
 		"reap":                                       {Run: h.reap},
+		"recover-button-224":                         {Run: h.recoverButton224},
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

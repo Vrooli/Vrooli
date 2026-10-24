@@ -104,6 +104,7 @@ func init() {
 		module.EndpointDescriptor{ID: "versions_reconcile_presence", Path: versionsconnect.VersionLifecycleServiceReconcilePresenceProcedure, Method: "POST", Summary: "Reconcile materialized and evicted version presence", Category: "versions"},
 		module.EndpointDescriptor{ID: "versions_export_archive", Path: versionsconnect.VersionLifecycleServiceExportArchiveProcedure, Method: "POST", Summary: "Export the version ledger archive", Category: "versions"},
 		module.EndpointDescriptor{ID: "versions_import_archive", Path: versionsconnect.VersionLifecycleServiceImportArchiveProcedure, Method: "POST", Summary: "Import the version ledger archive", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_recover_button_224", Path: versionsconnect.VersionLifecycleServiceRecoverButton224Procedure, Method: "POST", Summary: "Recover the attested Button 2.2.4 release bundle", Category: "versions"},
 		module.EndpointDescriptor{ID: "versions_doctor", Path: versionsconnect.VersionLifecycleServiceDoctorProcedure, Method: "POST", Summary: "Check evicted version mirror integrity", Category: "versions"},
 	)
 }

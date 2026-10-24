@@ -31,11 +31,18 @@ type importedRampFiles struct {
 
 type tieredRampTokenInventory struct {
 	rampTokenInventory
-	tokens map[string]themes.DesignToken
+	tokens       map[string]themes.DesignToken
+	fallbacks    map[string]string
+	referenceErr error
+	fallbackErr  error
 }
 
 func (r tieredRampTokenInventory) ReferenceTokens(context.Context) (map[string]themes.DesignToken, error) {
-	return r.tokens, nil
+	return r.tokens, r.referenceErr
+}
+
+func (r tieredRampTokenInventory) TokenFallbackExemptions(context.Context) (map[string]string, error) {
+	return r.fallbacks, r.fallbackErr
 }
 
 func (f *importedRampFiles) ImportedLibrarySpecifiers(context.Context, string) ([]components.LibraryPackageSpecifier, error) {
@@ -195,19 +202,20 @@ func TestSyncScenarioTokensUnionsImportedAssetsWithAdoptionLedger(t *testing.T) 
 	require.Equal(t, []string{"--color-imported"}, result.Added)
 }
 
-func TestSyncScenarioTokensNeverManagesContractTier(t *testing.T) {
-	svc, files := newRampServiceWithTokens(":root {\n/* rcl:tokens:begin */\n  --layer-modal: 400;\n/* rcl:tokens:end */\n}\n", []string{"--color-primary", "--layer-modal"})
+func TestSyncScenarioTokensManagesKnownNonContractTokensOnly(t *testing.T) {
+	svc, files := newRampServiceWithTokens(":root {\n/* rcl:tokens:begin */\n  --layer-modal: 400;\n/* rcl:tokens:end */\n}\n", []string{"--color-primary", "--layer-modal", "--legacy-untiered"})
 	adoptions.SetTokenNamespaceReader(svc, tieredRampTokenInventory{
 		rampTokenInventory: rampTokenInventory{files: files},
 		tokens: map[string]themes.DesignToken{
-			"--color-primary": {Name: "--color-primary", Value: "blue", Tier: themes.TokenTierExpression},
-			"--layer-modal":   {Name: "--layer-modal", Value: "400", Tier: themes.TokenTierContract},
+			"--color-primary":   {Name: "--color-primary", Value: "blue", Tier: themes.TokenTierExpression},
+			"--layer-modal":     {Name: "--layer-modal", Value: "400", Tier: themes.TokenTierContract},
+			"--legacy-untiered": {Name: "--legacy-untiered", Value: "legacy"},
 		},
 	})
 
 	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
 	require.NoError(t, err)
-	require.Equal(t, []string{"--color-primary"}, result.Added)
+	require.Equal(t, []string{"--color-primary", "--legacy-untiered"}, result.Added)
 	require.NotContains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--layer-modal")
 }
 
@@ -215,13 +223,20 @@ func TestFSScenarioFileReaderReadsCanonicalTokenTiers(t *testing.T) {
 	root := t.TempDir()
 	scenariosRoot := filepath.Join(root, "scenarios")
 	tokenPath := filepath.Join(root, "templates", "design", "_base", "tokens.css")
+	catalogPath := filepath.Join(scenariosRoot, "react-component-library", "catalog", "config.json")
 	require.NoError(t, os.MkdirAll(filepath.Dir(tokenPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(catalogPath), 0o755))
 	require.NoError(t, os.WriteFile(tokenPath, []byte(":root {\n  /* @tier Expression */\n  --color-primary: blue;\n  /* @tier Contract */\n  --layer-modal: 400;\n}\n"), 0o600))
+	require.NoError(t, os.WriteFile(catalogPath, []byte(`{"x-token-fallback-exemptions":[{"token":"--rcl-safe-bottom","reason":"host safe-area inset"}]}`), 0o600))
 
-	tokens, err := adoptions.NewFSScenarioFileReader(scenariosRoot).ReferenceTokens(context.Background())
+	reader := adoptions.NewFSScenarioFileReader(scenariosRoot)
+	tokens, err := reader.ReferenceTokens(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, themes.TokenTierExpression, tokens["--color-primary"].Tier)
 	require.Equal(t, themes.TokenTierContract, tokens["--layer-modal"].Tier)
+	exemptions, err := reader.TokenFallbackExemptions(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "host safe-area inset", exemptions["--rcl-safe-bottom"])
 }
 
 func TestSyncScenarioTokensResolvesReindexedComponentByStableLibraryID(t *testing.T) {
@@ -298,6 +313,47 @@ func TestTokenVerdictBlocksApplyAndRemainsVisibleAfterOverride(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"--color-primary"}, preflight.Tokens.Unsatisfied)
+}
+
+func TestPreflightUsesCanonicalTokenClassificationAndExactFallbackExemptions(t *testing.T) {
+	required := []string{"--color-primary", "--border-focus", "--rcl-safe-bottom", "--rcl-panel-size", "--unknown-contract"}
+	svc, files := newRampServiceWithTokens("", required)
+	adoptions.SetTokenNamespaceReader(svc, tieredRampTokenInventory{
+		rampTokenInventory: rampTokenInventory{files: files},
+		tokens: map[string]themes.DesignToken{
+			"--color-primary": {Name: "--color-primary", Value: "blue", Tier: themes.TokenTierExpression},
+			"--border-focus":  {Name: "--border-focus", Value: "2px", Tier: themes.TokenTierContract},
+		},
+		fallbacks: map[string]string{
+			"--rcl-safe-bottom": "browser safe-area inset supplied by the host",
+			"--rcl-panel-size":  "resizable panel runtime state",
+		},
+	})
+
+	preflight, err := svc.Preflight(context.Background(), adoptions.PreflightInput{
+		ComponentID: "cmp-button", Scenario: "target", Version: "1.0.0",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-primary", "--unknown-contract"}, preflight.Tokens.Unsatisfied)
+}
+
+func TestApplyFailsClosedWithoutWritingWhenCanonicalTokenSourcesCannotBeRead(t *testing.T) {
+	for name, inventory := range map[string]tieredRampTokenInventory{
+		"canonical vocabulary": {referenceErr: os.ErrPermission},
+		"fallback exemptions":  {fallbackErr: os.ErrPermission},
+	} {
+		t.Run(name, func(t *testing.T) {
+			svc, files := newRampServiceWithTokens("", []string{"--color-primary"})
+			inventory.rampTokenInventory = rampTokenInventory{files: files}
+			adoptions.SetTokenNamespaceReader(svc, inventory)
+
+			_, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+				ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+			})
+			require.ErrorIs(t, err, os.ErrPermission)
+			require.NotContains(t, files.bytes, "target::ui/src/Button.tsx")
+		})
+	}
 }
 
 func TestPreflightSurfacesContractCoverageVerdicts(t *testing.T) {

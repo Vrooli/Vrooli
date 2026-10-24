@@ -27,6 +27,8 @@ type LintReport struct {
 	Findings  []Finding `json:"findings"`
 	Forecast  *Forecast `json:"forecast"`
 	Blocking  bool      `json:"blocking"`
+	// V2 is true for a Phase-2 home, so text output names CHARTER/STATUS.
+	V2 bool `json:"v2,omitempty"`
 }
 
 // Lint checks the goal-home rules the orchestrator owns. It is separate from
@@ -37,8 +39,15 @@ func Lint(home *Home) *LintReport {
 		report.Findings = append(report.Findings, finding)
 		report.Blocking = report.Blocking || finding.Blocking
 	}
+	// The required-file and queue-section anchors name CHARTER/STATUS for a
+	// Phase-2 v2 home, GOAL/QUEUE for a v1 home. Same thresholds, new anchors.
+	goalFile, queueFile := GoalFile, QueueFile
+	if home.V2 {
+		goalFile, queueFile = CharterFile, StatusFile
+	}
+	report.V2 = home.V2
 	for _, missing := range home.Missing {
-		add(Finding{Code: "missing-file", Blocking: missing == GoalFile || missing == QueueFile, File: missing, Detail: missing + " is missing from the goal home"})
+		add(Finding{Code: "missing-file", Blocking: missing == goalFile || missing == queueFile, File: missing, Detail: missing + " is missing from the goal home"})
 	}
 	files := make([]string, 0, len(home.FileBytes))
 	for file := range home.FileBytes {
@@ -60,25 +69,25 @@ func Lint(home *Home) *LintReport {
 	resume.Total = resume.Goal + resume.Queue + resume.OpenFeedback + resume.OpenWorkarounds
 	report.ResumeSet = resume
 	if resume.Total > ResumeBudgetBytes {
-		add(Finding{Code: "resume-budget", Blocking: true, Detail: fmt.Sprintf("the resume set is %d bytes against %d (GOAL %d, QUEUE %d, open FEEDBACK %d, open WORKAROUNDS %d); move done slices, resolved entries and census evidence to archive/", resume.Total, ResumeBudgetBytes, resume.Goal, resume.Queue, resume.OpenFeedback, resume.OpenWorkarounds)})
+		add(Finding{Code: "resume-budget", Blocking: true, Detail: fmt.Sprintf("the resume set is %d bytes against %d (%s %d, %s %d, open FEEDBACK %d, open WORKAROUNDS %d); move done slices, resolved entries and census evidence to archive/", resume.Total, ResumeBudgetBytes, goalFile, resume.Goal, queueFile, resume.Queue, resume.OpenFeedback, resume.OpenWorkarounds)})
 	}
 
 	handoffs := home.Queue.Handoffs
 	var handoff *HandoffSection
 	switch {
 	case len(handoffs) == 0:
-		add(Finding{Code: "handoff-count", Blocking: true, File: QueueFile, Detail: "QUEUE.md has no ## Handoff section; write one with `agent-manager effort handoff set`"})
+		add(Finding{Code: "handoff-count", Blocking: true, File: queueFile, Detail: queueFile + " has no ## Handoff section; write one with `agent-manager effort handoff set`"})
 	case len(handoffs) > 1:
-		add(Finding{Code: "handoff-count", Blocking: true, File: QueueFile, Line: handoffs[1].Line, Detail: fmt.Sprintf("QUEUE.md has %d handoff sections, want 1: %s. Move the old ones to archive/ and replace the one with `effort handoff set`", len(handoffs), describeHandoffs(handoffs))})
+		add(Finding{Code: "handoff-count", Blocking: true, File: queueFile, Line: handoffs[1].Line, Detail: fmt.Sprintf("%s has %d handoff sections, want 1: %s. Move the old ones to archive/ and replace the one with `effort handoff set`", queueFile, len(handoffs), describeHandoffs(handoffs))})
 	default:
 		handoff = &handoffs[0]
 	}
 	if handoff != nil && len(handoff.Body) > HandoffMaxBytes {
-		add(Finding{Code: "handoff-size", Blocking: true, File: QueueFile, Line: handoff.Line, Detail: fmt.Sprintf("the handoff is %d bytes against %d", len(handoff.Body), HandoffMaxBytes)})
+		add(Finding{Code: "handoff-size", Blocking: true, File: queueFile, Line: handoff.Line, Detail: fmt.Sprintf("the handoff is %d bytes against %d", len(handoff.Body), HandoffMaxBytes)})
 	}
 
 	if len(home.Queue.ReadyNext()) == 0 && len(home.Queue.NeedsOperator) == 0 {
-		add(Finding{Code: "idle-queue", Blocking: true, File: QueueFile, Detail: "no [ready] item under ## Next and no item under ## Needs operator: admit or plan a slice and mark it [ready], or record a decision under ## Needs operator"})
+		add(Finding{Code: "idle-queue", Blocking: true, File: queueFile, Detail: "no [ready] item under ## Next and no item under ## Needs operator: admit or plan a slice and mark it [ready], or record a decision under ## Needs operator"})
 	}
 
 	handoffText := ""
@@ -100,7 +109,7 @@ func Lint(home *Home) *LintReport {
 	}
 	for _, census := range home.Queue.Censuses {
 		if census.At.IsZero() {
-			add(Finding{Code: "census-format", File: QueueFile, Line: census.Line, Detail: "a census line is \"- <ISO time> | <scope> | admissible=<slice>|none\""})
+			add(Finding{Code: "census-format", File: queueFile, Line: census.Line, Detail: "a census line is \"- <ISO time> | <scope> | admissible=<slice>|none\""})
 		}
 	}
 	return report

@@ -88,8 +88,13 @@ func (h *Handlers) SetProfileSnapshot(snapshot map[string]config.IsolationProfil
 }
 
 // ConfigureLifecycle installs the provider-owned maintenance fence.
-func (h *Handlers) ConfigureLifecycle(provider, scenario, instance string) {
-	h.lifecycle = newProviderLifecycle(h.ProcessTracker, provider, scenario, instance)
+func (h *Handlers) ConfigureLifecycle(ctx context.Context, store lifecycleFenceStore, provider, scenario, instance string) error {
+	lifecycle, err := newProviderLifecycle(ctx, h.ProcessTracker, store, provider, scenario, instance)
+	if err != nil {
+		return err
+	}
+	h.lifecycle = lifecycle
+	return nil
 }
 
 func (h *Handlers) LifecycleService() commonconnect.LifecycleMaintenanceServiceHandler {

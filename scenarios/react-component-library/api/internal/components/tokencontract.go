@@ -1,6 +1,7 @@
 package components
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,65 @@ var (
 	cssVariableDeclarationRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
 	dynamicTokenPatternRE    = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)-\$\{`)
 )
+
+// RequiredTokenClass distinguishes properties the consumer must map from
+// BaseStyles-provided contracts and names outside the canonical vocabulary.
+type RequiredTokenClass string
+
+const (
+	RequiredTokenConsumerManaged RequiredTokenClass = "consumer-managed"
+	RequiredTokenBaseStyles      RequiredTokenClass = "base-styles-provided"
+	RequiredTokenUnknown         RequiredTokenClass = "unknown"
+)
+
+// ClassifyRequiredToken is the shared vocabulary rule used by adoption
+// preflight, token sync, and the scenario token gate. Unknown names remain
+// distinguishable so preflight can fail closed while sync avoids inventing
+// values for them.
+func ClassifyRequiredToken(property string, reference map[string]themes.DesignToken) RequiredTokenClass {
+	token, exists := reference[property]
+	if !exists {
+		return RequiredTokenUnknown
+	}
+	if token.Tier == themes.TokenTierContract {
+		return RequiredTokenBaseStyles
+	}
+	return RequiredTokenConsumerManaged
+}
+
+type TokenFallbackExemption struct {
+	Token  string `json:"token"`
+	Reason string `json:"reason"`
+}
+
+// ReadTokenFallbackExemptions reads the exact host/runtime fallback exceptions
+// declared by the RCL catalog. Callers share this parser so the documented
+// exception set has one validation and source boundary.
+func ReadTokenFallbackExemptions(catalogConfigPath string) (map[string]string, error) {
+	data, err := os.ReadFile(catalogConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	var config struct {
+		Exemptions []TokenFallbackExemption `json:"x-token-fallback-exemptions"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("decode token fallback exemptions: %w", err)
+	}
+	result := make(map[string]string, len(config.Exemptions))
+	for _, exemption := range config.Exemptions {
+		token := strings.TrimSpace(exemption.Token)
+		reason := strings.TrimSpace(exemption.Reason)
+		if token == "" || reason == "" {
+			return nil, fmt.Errorf("token fallback exemption must have a token and reason")
+		}
+		if !strings.HasPrefix(token, "--") {
+			return nil, fmt.Errorf("token fallback exemption %q must be a CSS custom property", token)
+		}
+		result[token] = reason
+	}
+	return result, nil
+}
 
 // ExtractRequiredTokens derives the external CSS custom-property contract for
 // one version. A property is required when the version references it through

@@ -135,12 +135,13 @@ func goalFindings(epochPath string) []goalhome.Finding {
 	if !ok {
 		return nil
 	}
-	home, err := goalhome.Load(os.DirFS(dir))
+	// Ordinary checks use the canonical v2 home. Legacy imports are explicit.
+	home, err := loadGoalHome(dir)
 	if err != nil {
 		return []goalhome.Finding{{Code: "goal-home-unreadable", Detail: err.Error()}}
 	}
 	for _, missing := range home.Missing {
-		if missing == goalhome.GoalFile || missing == goalhome.QueueFile {
+		if missing == goalhome.CharterFile || missing == goalhome.StatusFile {
 			return nil
 		}
 	}

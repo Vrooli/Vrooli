@@ -30,7 +30,7 @@ var SchemaSQL string
 // durable diff snapshots taken at terminal status transitions. Pure
 // additive change — the new table is created via IF NOT EXISTS, no
 // existing tables are altered.
-const ExpectedSchemaVersion = 4
+const ExpectedSchemaVersion = 5
 
 // EnsureSchema applies the embedded schema and records the schema
 // version. It is the single startup entry point for all DDL: legacy
@@ -154,7 +154,10 @@ var migrations = map[int]func(context.Context, *sql.DB) error{
 	2: migrateToV2,
 	3: migrateToV3,
 	4: migrateToV4,
+	5: migrateToV5,
 }
+
+func migrateToV5(_ context.Context, _ *sql.DB) error { return nil }
 
 func migrateToV4(ctx context.Context, db *sql.DB) error {
 	for _, statement := range []string{

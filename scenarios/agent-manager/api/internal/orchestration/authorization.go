@@ -78,7 +78,15 @@ func (req AuthorizationRequest) normalizedRules() ([]domain.AuthorizationRule, e
 					valid = true
 				}
 			}
-			if !ok || !valid || object == "" || len(target) > 1024 || strings.ContainsAny(object, "\r\n") || (strings.Contains(object, "*") && object != "*") {
+			// Permit a whole-domain wildcard (`domain:*`) or a scoped prefix
+			// wildcard (`domain:prefix/*`, e.g. `agent-manager:effort/*`). Any
+			// other use of `*` (mid-string, leading, or multiple) is rejected so
+			// a target stays a precise object or a single bounded prefix. The
+			// canonical evaluator (api-core identity.operationTargetAllowed)
+			// matches these same two forms.
+			wildcardObject := object == "*" ||
+				(strings.HasSuffix(object, "/*") && strings.Count(object, "*") == 1 && len(object) > len("/*"))
+			if !ok || !valid || object == "" || len(target) > 1024 || strings.ContainsAny(object, "\r\n") || (strings.Contains(object, "*") && !wildcardObject) {
 				return nil, domain.NewValidationError("targets", "target is outside policy domains or contains a wildcard expression")
 			}
 		}
@@ -813,6 +821,9 @@ func (o *Orchestrator) verifyAuthorization(ctx context.Context, token string, cl
 	}
 	if run == nil || run.Status.IsTerminal() || run.IdentityTokenRevokedAt != nil {
 		return &IdentityVerifyResult{Error: "run_inactive"}, nil
+	}
+	if err := o.projectVerifiedWorkflowIdentity(ctx, run, claims); err != nil {
+		return nil, err
 	}
 	return &IdentityVerifyResult{Valid: true, Claims: claims, RunStatus: run.Status}, nil
 }

@@ -48,6 +48,19 @@ const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement
   replacement,
 }));
 
+function testDraftOverrides(mode: string): Record<string, string> {
+  if (mode !== "test") return {};
+  const raw = process.env.RCL_TEST_DRAFT_OVERRIDES?.trim();
+  if (!raw) return {};
+  return Object.fromEntries(raw.split(",").map((entry) => {
+    const separator = entry.indexOf("=");
+    if (separator < 1 || separator === entry.length - 1) {
+      throw new Error(`Invalid RCL_TEST_DRAFT_OVERRIDES entry ${JSON.stringify(entry)}; expected Asset=version`);
+    }
+    return [entry.slice(0, separator).trim(), entry.slice(separator + 1).trim()];
+  }));
+}
+
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
 // tracing. The perf build is *still* a production bundle (minified, batched,
@@ -86,7 +99,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // The stamp must see original TSX, before React's Babel pre-transform. It
     // parses the entry module and adds the marker before Vite hands it to the
     // JSX compiler.
-    plugins: [sourceLibraryResolver({ libraryRoot }), ...assetStampPlugins, react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ libraryRoot, draftOverrides: testDraftOverrides(mode) }), ...assetStampPlugins, react(), stringsCodegen()],
     resolve: {
       alias: isProfile
           ? [

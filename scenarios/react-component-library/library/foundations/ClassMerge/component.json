@@ -4,8 +4,11 @@
   "catalogId": "foundations.class-merge",
   "deprecatedVersions": [
     "1.0.1",
-    "1.0.0"
+    "1.0.0",
+    "1.0.3",
+    "1.0.4"
   ],
+  "description": "A single conditional class composition helper with Tailwind conflict resolution; consumer overrides win over defaults.",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,12 +16,15 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Class Merge",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0",
-    "1.0.2"
+    "1.0.3",
+    "1.0.4"
   ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:ClassMerge"
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:ClassMerge",
+  "tags": []
 }

@@ -1,6 +1,0 @@
-command=pnpm exec vitest run src/components/ActionLauncher.test.tsx src/components/ApplicationShell.test.tsx src/components/adopted-foundations.test.tsx --reporter=verbose
-working_directory=scenarios/react-component-library/ui
-started_at=2026-10-19T21:37:30Z
-ended_at=2026-10-19T21:37:34Z
-duration_ms=4489
-exit_code=0

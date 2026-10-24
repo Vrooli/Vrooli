@@ -39,6 +39,7 @@ const (
 func NormalizeGoalHome(home string) (string, error) {
 	home = filepath.ToSlash(strings.TrimSpace(home))
 	home = strings.TrimSuffix(strings.TrimPrefix(home, "path:"), "/"+goalhome.GoalFile)
+	home = strings.TrimSuffix(home, "/"+goalhome.CharterFile)
 	cleaned := path.Clean(home)
 	if home == "" || !filepath.IsLocal(cleaned) {
 		return "", fmt.Errorf("goal home %q must be a repository-relative directory", home)

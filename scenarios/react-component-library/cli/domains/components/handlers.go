@@ -227,7 +227,7 @@ func (h *handlers) index(ctx cliapp.RunContext) error {
 		Results:        results,
 		RetrievalHints: []string{
 			"`components list` — show indexed components",
-			"`components get-by-library-id <libraryId>` — inspect a single entry",
+			"`components get <libraryId>` — inspect a single entry",
 		},
 	})
 }
@@ -311,22 +311,6 @@ func (h *handlers) getReport(_ cliapp.OperationContext, msg *componentsv1.GetCom
 		ResultsHeading: "Component",
 		Results:        []string{formatComponent(msg.Component)},
 	}
-}
-
-func (h *handlers) getByLibraryID(ctx cliapp.RunContext) error {
-	libid := ctx.Positional("library-id")
-	resp, err := h.client.GetComponentByLibraryId(context.Background(), connect.NewRequest(&componentsv1.GetComponentByLibraryIdRequest{LibraryId: libid}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("get component %q", libid), err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no component")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Fetched component %s.", resp.Msg.Component.LibraryId)},
-		ResultsHeading: "Component",
-		Results:        []string{formatComponent(resp.Msg.Component)},
-	})
 }
 
 func (h *handlers) styles(ctx cliapp.RunContext) error {

@@ -69,7 +69,26 @@ func goalHomeTree(t *testing.T, root string, edits map[string]func(string) strin
 			}
 		}
 	}
+	migrateGoalHomeFixture(t, home)
 	return home
+}
+
+func migrateGoalHomeFixture(t *testing.T, home string) {
+	t.Helper()
+	v1, err := goalhome.Load(os.DirFS(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(name string) []byte { b, _ := os.ReadFile(filepath.Join(home, name)); return b }
+	conv := goalhome.ConvertHome(v1, read(goalhome.GoalFile), read(goalhome.QueueFile), read(goalhome.WorkaroundsFile))
+	if !conv.Equivalent {
+		t.Fatal(conv.Divergence)
+	}
+	for name, body := range map[string][]byte{goalhome.CharterFile: conv.Charter, goalhome.StatusFile: conv.Status, goalhome.LogFile: conv.Log} {
+		if err := os.WriteFile(filepath.Join(home, name), body, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // goalHomeBoardRow registers the goal home on an enrollment and reads its row.
@@ -115,10 +134,10 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 	if home.DestinationMetric != "journeys" || home.DestinationOp != ">=" || home.GetDestinationTarget() != 24 || home.GetCurrentValue() != 12 {
 		t.Fatalf("destination facts: %+v", home)
 	}
-	if home.ActiveEpoch != "E27" || home.ActiveStatus != "in-progress" || len(home.ActiveWorkers) != 1 || home.ActiveWorkers[0] != active.String() {
+	if home.ActiveUnit != "E27" || home.ActiveStatus != "in-progress" || len(home.ActiveWorkers) != 1 || home.ActiveWorkers[0] != active.String() {
 		t.Fatalf("active epoch facts: %+v", home)
 	}
-	if home.LastAcceptedEpoch != "E25" || home.LastAcceptedAt == nil {
+	if home.LastAcceptedUnit != "E25" || home.LastAcceptedAt == nil {
 		t.Fatalf("last acceptance: %+v", home)
 	}
 	if len(home.NeedsOperator) != 1 || !strings.Contains(home.NeedsOperator[0], "BAS-D-070") {
@@ -128,8 +147,8 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 		t.Fatalf("workaround and feedback facts: %+v", home)
 	}
 	// Of the accepted E23-E25 only E25's worker is metered, so only E25 is measured.
-	if home.AcceptedEpochsMeasured != 1 || home.GetWeightedTokensPerAcceptedEpoch() != 640000 {
-		t.Fatalf("spend per accepted epoch: measured=%d mean=%v", home.AcceptedEpochsMeasured, home.WeightedTokensPerAcceptedEpoch)
+	if home.AcceptedUnitsMeasured != 1 || home.GetWeightedTokensPerAcceptedUnit() != 640000 {
+		t.Fatalf("spend per accepted epoch: measured=%d mean=%v", home.AcceptedUnitsMeasured, home.WeightedTokensPerAcceptedUnit)
 	}
 	if !strings.Contains(strings.Join(home.Limitations, "; "), "unmetered or unknown worker") {
 		t.Fatalf("an unmeasured accepted epoch must be named: %q", home.Limitations)
@@ -174,11 +193,12 @@ func TestEffortGoalHomeProjectsActiveEpochIndependentlyOfLatestAcceptance(t *tes
 		}
 	}
 
+	migrateGoalHomeFixture(t, home)
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.ActiveEpoch != "E1" || facts.ActiveStatus != "active — D35 same-run correction continuation admitted" {
+	if facts == nil || facts.ActiveUnit != "E1" || facts.ActiveStatus != "active — D35 same-run correction continuation admitted" {
 		t.Fatalf("the explicit active epoch must remain visible beside a later accepted epoch: %+v", facts)
 	}
-	if facts.LastAcceptedEpoch != "E3" || facts.LastAcceptedAt == nil {
+	if facts.LastAcceptedUnit != "E3" || facts.LastAcceptedAt == nil {
 		t.Fatalf("latest acceptance must be reported independently: %+v", facts)
 	}
 	if len(facts.ActiveWorkers) != 1 || facts.ActiveWorkers[0] != "11111111-1111-4111-8111-111111111111" {
@@ -211,11 +231,12 @@ func TestEffortGoalHomeProjectsReopenedEpochDespiteStaleAcceptedStatus(t *testin
 		}
 	}
 
+	migrateGoalHomeFixture(t, home)
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.ActiveEpoch != "E3" || facts.ActiveStatus != "accepted by the original owner" {
+	if facts == nil || facts.ActiveUnit != "E3" || facts.ActiveStatus != "accepted by the original owner" {
 		t.Fatalf("a later directive must reopen E3 even when its status text is stale: %+v", facts)
 	}
-	if facts.LastAcceptedEpoch != "" || facts.LastAcceptedAt != nil {
+	if facts.LastAcceptedUnit != "" || facts.LastAcceptedAt != nil {
 		t.Fatalf("reopened E3 must not remain the latest accepted epoch: %+v", facts)
 	}
 	if len(facts.ActiveWorkers) != 0 {
@@ -247,11 +268,12 @@ func TestEffortGoalHomeNewestActiveEpochWinsReopenedTie(t *testing.T) {
 		}
 	}
 
+	migrateGoalHomeFixture(t, home)
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.ActiveEpoch != "E2" || facts.ActiveStatus != "in-progress" {
+	if facts == nil || facts.ActiveUnit != "E2" || facts.ActiveStatus != "in-progress" {
 		t.Fatalf("newer explicitly active E2 must win the shared active-priority tie: %+v", facts)
 	}
-	if facts.LastAcceptedEpoch != "" {
+	if facts.LastAcceptedUnit != "" {
 		t.Fatalf("reopened E1 must not be reported as accepted: %+v", facts)
 	}
 }
@@ -266,7 +288,7 @@ func TestEffortGoalHomeLeavesProseWorkersUnknown(t *testing.T) {
 	})
 
 	home := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if home == nil || home.ActiveEpoch != "E27" || len(home.ActiveWorkers) != 0 {
+	if home == nil || home.ActiveUnit != "E27" || len(home.ActiveWorkers) != 0 {
 		t.Fatalf("prose must not become active workers: %+v", home)
 	}
 	if !strings.Contains(strings.Join(home.Limitations, "; "), "Workers field is not a well-formed UUID list") {
@@ -281,18 +303,18 @@ func TestEffortGoalHomeMissingFactsReadUnknownNotZero(t *testing.T) {
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(home, "QUEUE.md"), []byte("# Queue\n\n## Needs operator\n\n(none)\n\n## Handoff\n\nStart E1.\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(home, "STATUS.md"), []byte("# Queue\n\n## Needs operator\n\n(none)\n\n## Handoff\n\nStart E1.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.State != "available" {
+	if facts == nil || facts.State != "partial" {
 		t.Fatalf("goal home: %+v", facts)
 	}
-	if facts.DestinationTarget != nil || facts.CurrentValue != nil || facts.OpenWorkarounds != nil || facts.WeightedTokensPerAcceptedEpoch != nil || facts.LastAcceptedEpoch != "" {
+	if facts.DestinationTarget != nil || facts.CurrentValue != nil || facts.OpenWorkarounds != nil || facts.WeightedTokensPerAcceptedUnit != nil || facts.LastAcceptedUnit != "" {
 		t.Fatalf("missing facts must stay unknown, not zero: %+v", facts)
 	}
 	limitations := strings.Join(facts.Limitations, "; ")
-	for _, want := range []string{"GOAL.md is missing", "WORKAROUNDS.md is missing", "destination unknown", "spend per accepted epoch unknown"} {
+	for _, want := range []string{"CHARTER.md is missing", "LOG.md is missing", "destination unknown", "epoch-derived spend and cap facts are unknown"} {
 		if !strings.Contains(limitations, want) {
 			t.Fatalf("limitations omit %q: %s", want, limitations)
 		}
@@ -312,7 +334,7 @@ func TestEffortGoalHomeRefusesSymlinkedHome(t *testing.T) {
 		t.Fatal(err)
 	}
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.State != "unavailable" || facts.ActiveEpoch != "" || len(facts.NeedsOperator) != 0 {
+	if facts == nil || facts.State != "unavailable" || facts.ActiveUnit != "" || len(facts.NeedsOperator) != 0 {
 		t.Fatalf("a symlinked goal home must read unavailable: %+v", facts)
 	}
 }
@@ -320,7 +342,7 @@ func TestEffortGoalHomeRefusesSymlinkedHome(t *testing.T) {
 func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testing.T) {
 	root := t.TempDir()
 	epoch := "# E99\n\n- Status: in-progress\n\n## Slice log\n" + strings.Repeat("x\n", goalhome.DefaultBoardFileBytes/2+2)
-	goalHomeTree(t, root, map[string]func(string) string{
+	home := goalHomeTree(t, root, map[string]func(string) string{
 		"GOAL.md": func(text string) string {
 			title, rest, _ := strings.Cut(text, "\n")
 			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-20\n" + rest
@@ -330,6 +352,13 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 		},
 		"epochs/E99.md": func(string) string { return epoch },
 	})
+
+	logPath := filepath.Join(home, goalhome.LogFile)
+	logBytes, _ := os.ReadFile(logPath)
+	logBytes = append(logBytes, []byte("\n"+epoch)...)
+	if err := os.WriteFile(logPath, logBytes, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	defaultService, _, defaultController := effortFixture(t)
 	defaultService.config.ProjectRoot = root
@@ -343,10 +372,10 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 	if defaultFacts.DestinationMetric != "journeys" || defaultFacts.CurrentValue == nil || len(defaultFacts.NeedsOperator) == 0 {
 		t.Fatalf("bounded GOAL and QUEUE facts should remain visible: %+v", defaultFacts)
 	}
-	if defaultFacts.ActiveEpoch != "" || defaultFacts.LastAcceptedEpoch != "" || defaultFacts.WeightedTokensPerAcceptedEpoch != nil || len(defaultFacts.CapUsage) != 0 {
+	if defaultFacts.ActiveUnit != "" || defaultFacts.LastAcceptedUnit != "" || defaultFacts.WeightedTokensPerAcceptedUnit != nil || len(defaultFacts.CapUsage) != 0 {
 		t.Fatalf("incomplete epoch evidence must not project epoch-derived claims: %+v", defaultFacts)
 	}
-	if !strings.Contains(strings.Join(defaultFacts.Limitations, "\n"), "epochs/E99.md") || !strings.Contains(strings.Join(defaultFacts.Limitations, "\n"), "review before acceptance") {
+	if !strings.Contains(strings.Join(defaultFacts.Limitations, "\n"), "LOG.md") || !strings.Contains(strings.Join(defaultFacts.Limitations, "\n"), "review before acceptance") {
 		t.Fatalf("partial projection must identify the unknown epoch and require review: %+v", defaultFacts.Limitations)
 	}
 	board, err := defaultService.Board(context.Background(), nil)
@@ -376,13 +405,13 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, strictErr := goalhome.Load(safeGoalHomeFS{root: rootHandle, limit: defaultService.config.FileBytes})
+	_, strictErr := goalhome.LoadV2(safeGoalHomeFS{root: rootHandle, limit: defaultService.config.FileBytes})
 	rootHandle.Close()
 	if strictErr == nil {
 		t.Fatal("strict goal-home loading must still reject the oversized epoch")
 	}
 
-	defaultService.config.FileBytes = int64(len(epoch) + 1)
+	defaultService.config.FileBytes = int64(len(logBytes) + 1)
 	defaultService.goalHomes.mu.Lock()
 	delete(defaultService.goalHomes.homes, goalHomeRef)
 	defaultService.goalHomes.mu.Unlock()
@@ -397,7 +426,7 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 			break
 		}
 	}
-	if customFacts == nil || customFacts.State != "available" || customFacts.ActiveEpoch != "E99" {
+	if customFacts == nil || customFacts.State != "available" || customFacts.ActiveUnit != "E99" {
 		t.Fatalf("a configured larger safe-read cap must remain authoritative and preserve typed epoch parsing: %+v", customFacts)
 	}
 }
@@ -411,7 +440,7 @@ func TestEffortGoalHomePartialProjectionDoesNotFollowEpochSymlinks(t *testing.T)
 			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-20\n" + rest
 		},
 	})
-	epoch := filepath.Join(home, "epochs", "E25.md")
+	epoch := filepath.Join(home, goalhome.LogFile)
 	if err := os.Remove(epoch); err != nil {
 		t.Fatal(err)
 	}
@@ -423,10 +452,10 @@ func TestEffortGoalHomePartialProjectionDoesNotFollowEpochSymlinks(t *testing.T)
 		t.Fatal(err)
 	}
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.State != "partial" || facts.DestinationMetric == "" || facts.LastAcceptedEpoch != "" {
+	if facts == nil || facts.State != "partial" || facts.DestinationMetric == "" || facts.LastAcceptedUnit != "" {
 		t.Fatalf("a symlinked epoch must remain unread and leave only known root facts visible: %+v", facts)
 	}
-	if !strings.Contains(strings.Join(facts.Limitations, "\n"), "epochs/E25.md") {
+	if !strings.Contains(strings.Join(facts.Limitations, "\n"), "LOG.md") {
 		t.Fatalf("the unsafe epoch must be named as incomplete: %+v", facts.Limitations)
 	}
 }
@@ -435,6 +464,7 @@ func TestGoalHomeDestinationAcceptsOnlyRepoRelativeGoalFiles(t *testing.T) {
 	for raw, want := range map[string]string{
 		"path:" + goalHomeRef + "/GOAL.md":          goalHomeRef,
 		"path:" + goalHomeRef + "/GOAL.md#frontier": goalHomeRef,
+		"path:" + goalHomeRef + "/CHARTER.md":       goalHomeRef,
 		"path:" + goalHomeRef + "/QUEUE.md":         "",
 		"path:/etc/GOAL.md":                         "",
 		"path:../outside/GOAL.md":                   "",
@@ -444,5 +474,92 @@ func TestGoalHomeDestinationAcceptsOnlyRepoRelativeGoalFiles(t *testing.T) {
 		if got != want || ok != (want != "") {
 			t.Fatalf("%s: got %q %v, want %q", raw, got, ok, want)
 		}
+	}
+}
+
+// copyTree copies every file under source into dest, preserving relative paths.
+func copyTree(t *testing.T, source, dest string) {
+	t.Helper()
+	err := filepath.WalkDir(source, func(p string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		rel, _ := filepath.Rel(source, p)
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Join(dest, filepath.Dir(rel)), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(dest, rel), data, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestEffortGoalHomeReadsPhase2FormatThroughSniff registers a Phase-2 home
+// (CHARTER/STATUS/LOG/FEEDBACK) and asserts the board reads its load-bearing
+// facts through the v2 sniff, including the new budget_seconds and scoreboard.
+func TestEffortGoalHomeReadsPhase2FormatThroughSniff(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	copyTree(t, filepath.Join("..", "goalhome", "testdata", "v2-bas"), filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef)))
+
+	owner := uuid.MustParse("e8c322ca-72e7-434c-9d37-1d2cf853961f")    // STATUS ## Active worker + export surface owner
+	measured := uuid.MustParse("a7240424-43e7-4d36-87f6-2b2e83d0c959") // LOG E25's sole metered worker
+	c.runs[owner] = &domain.Run{ID: owner, Status: domain.RunStatusRunning}
+	c.runs[measured] = &domain.Run{ID: measured, Status: domain.RunStatusComplete}
+	s.SetSpendReader(fakeSpend{weighted: map[uuid.UUID]float64{owner: 120000, measured: 640000}, limit: 1000000})
+
+	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if facts == nil || facts.State != "available" || facts.Path != goalHomeRef {
+		t.Fatalf("v2 home not projected through the sniff: %+v", facts)
+	}
+	// CHARTER: destination + budget.
+	if facts.DestinationMetric != "runtime lines" || facts.DestinationOp != "<=" || facts.GetDestinationTarget() != 205000 {
+		t.Fatalf("destination from CHARTER: %+v", facts)
+	}
+	if facts.BudgetSeconds != 72*3600 {
+		t.Fatalf("budget_seconds from CHARTER '- Budget: 72h': got %d", facts.BudgetSeconds)
+	}
+	// STATUS: current + scoreboard + active.
+	if facts.GetCurrentValue() != 253452 {
+		t.Fatalf("current from STATUS: %v", facts.GetCurrentValue())
+	}
+	if len(facts.SurfaceScoreboard) != 3 {
+		t.Fatalf("scoreboard rows from STATUS: %+v", facts.SurfaceScoreboard)
+	}
+	if first := facts.SurfaceScoreboard[0]; first.Surface != "Workflow codec" || first.State != "accepted" || first.OwnerRun != "" {
+		t.Fatalf("accepted surface row (owner '-' means none): %+v", first)
+	}
+	if export := facts.SurfaceScoreboard[2]; export.Surface != "Export replay" || export.State != "rough" || export.OwnerRun != owner.String() {
+		t.Fatalf("export surface row: %+v", export)
+	}
+	if len(facts.ActiveWorkers) != 1 || facts.ActiveWorkers[0] != owner.String() || facts.ActiveStatus == "" {
+		t.Fatalf("active unit from STATUS ## Active: %+v", facts)
+	}
+	// LOG: accepted units drive last-accepted + spend. Only E25's worker is metered.
+	if facts.LastAcceptedAt == nil {
+		t.Fatalf("last accepted from LOG ## Accepted units: %+v", facts)
+	}
+	if facts.AcceptedUnitsMeasured != 1 || facts.GetWeightedTokensPerAcceptedUnit() != 640000 {
+		t.Fatalf("spend from LOG: measured=%d mean=%v", facts.AcceptedUnitsMeasured, facts.GetWeightedTokensPerAcceptedUnit())
+	}
+}
+
+func TestEffortGoalHomeReportsUnmigratedHomeUnknown(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	home := goalHomeTree(t, s.config.ProjectRoot, nil)
+	for _, name := range []string{goalhome.CharterFile, goalhome.StatusFile, goalhome.LogFile} {
+		if err := os.Remove(filepath.Join(home, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if facts == nil || facts.State != "partial" || facts.DestinationTarget != nil || facts.ActiveUnit != "" || facts.LastAcceptedUnit != "" {
+		t.Fatalf("unmigrated home must stay unknown pending explicit import: %+v", facts)
 	}
 }

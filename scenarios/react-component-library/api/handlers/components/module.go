@@ -124,6 +124,7 @@ func DefaultSourceRoot() (string, error) { return defaultSourceRoot() }
 func BuildService(db *sql.DB, clk schedule.Clock, sourceRoot string) (components.Service, components.Repository) {
 	repo := components.NewSQLiteRepository(db, clk)
 	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(sourceRoot))
+	components.SetTypeScriptChecker(svc, components.NewPackageTypeScriptChecker(sourceRoot))
 	return svc, repo
 }
 

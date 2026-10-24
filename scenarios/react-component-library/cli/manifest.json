@@ -1010,6 +1010,32 @@
           }
         },
         {
+          "name": "recover-button-224",
+          "description": "Run the one-time recovery for the attested published Button 2.2.4 bundle when its version row is missing",
+          "flags": [
+            {
+              "name": "bundle",
+              "required": true,
+              "description": "Path to the authorized recovery bundle, readable by the RCL API host"
+            }
+          ],
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
           "name": "reachability",
           "description": "Compute reachable and unreachable materialized library versions",
           "flags": [
@@ -2687,6 +2713,11 @@
       "service": "VersionLifecycleService",
       "method": "ImportArchive",
       "reason": "Archive import is an internal lifecycle operation and is intentionally not part of the focused public surface."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "RecoverButton224",
+      "reason": "Button 2.2.4 recovery is a temporary one-release operation exposed through the local recover-button-224 wrapper."
     },
     {
       "service": "VersionLifecycleService",

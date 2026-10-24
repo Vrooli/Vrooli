@@ -128,7 +128,7 @@ func (a *App) decisionRaise(args []string) error {
 	contextURL := fs.String("context-url", "", "Link for more context")
 	homeRef := fs.String("home-ref", "", "Repository-relative goal home (default: the directory relative to the repository root)")
 	effortRef := fs.String("effort-ref", "", "Effort reference (default: the enrollment registered for this goal home)")
-	dryRun := fs.Bool("dry-run", false, "Print the record, event and QUEUE.md item; contact no server and write nothing")
+	dryRun := fs.Bool("dry-run", false, "Print the record, event and ## Needs operator item; contact no server and write nothing")
 	dir, rest := goalHomeArg(args)
 	if err := cliutil.ParseInterspersed(fs, rest); err != nil {
 		return err
@@ -140,7 +140,7 @@ func (a *App) decisionRaise(args []string) error {
 	if err != nil {
 		return err
 	}
-	queuePath := filepath.Join(dir, goalhome.QueueFile)
+	queuePath := filepath.Join(dir, goalHomeSectionsFile(dir))
 	queue, err := os.ReadFile(queuePath)
 	if err != nil {
 		return fmt.Errorf("goal home %s: %w", dir, err)
@@ -199,7 +199,7 @@ func (a *App) decisionRaise(args []string) error {
 			fmt.Printf("Event %s (%s, id %s):\n", event.EventType, event.Source, result.EventID)
 			payload, _ := json.MarshalIndent(event.Payload, "  ", "  ")
 			fmt.Printf("  %s\n", payload)
-			fmt.Printf("QUEUE.md ## Needs operator item (would %s):\n%s", map[bool]string{true: "add", false: "keep the existing one"}[result.Changed], result.Item)
+			fmt.Printf("%s ## Needs operator item (would %s):\n%s", filepath.Base(queuePath), map[bool]string{true: "add", false: "keep the existing one"}[result.Changed], result.Item)
 		})
 	}
 	if relative {
@@ -412,7 +412,7 @@ func (a *App) decisionSync(args []string) error {
 		Detail   string `json:"detail,omitempty"`
 	}
 	var results []synced
-	feedbackPath, queuePath := filepath.Join(dir, goalhome.FeedbackFile), filepath.Join(dir, goalhome.QueueFile)
+	feedbackPath, queuePath := filepath.Join(dir, goalhome.FeedbackFile), filepath.Join(dir, goalHomeSectionsFile(dir))
 	// Oldest first, so FEEDBACK.md lists answers newest on top.
 	decisions := response.GetDecisions()
 	for i := len(decisions) - 1; i >= 0; i-- {

@@ -42,6 +42,7 @@ func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
 		{"epoch-check", "goal/epochs/E27.md", "--acceptance", "--json"},
 		{"lint", "goal", "--json"},
 		{"handoff", "set", "goal", "--stdin"},
+		{"migrate", "goal", "--apply", "--json"},
 		{"park", "goal", "--run", "run-1", "--timeout", "1h"},
 		{"signals", "effort:goal", "--after", "3", "--json"},
 		{"signal", "effort:goal", "--kind", "feedback", "--detail", "FB-070"},
@@ -66,7 +67,7 @@ func TestEffortGoalHomeFileCommandsRunWithoutTheAPI(t *testing.T) {
 	group := effortGroup(support.Dependencies{Effort: func([]string) error { return nil }})
 	for _, command := range group.Subcommands {
 		offline := command.NeedsAPIOverride != nil && !*command.NeedsAPIOverride
-		if want := command.Name == "lint" || command.Name == "handoff"; offline != want {
+		if want := command.Name == "lint" || command.Name == "handoff" || command.Name == "migrate"; offline != want {
 			t.Fatalf("%s: runs without the API = %t, want %t", command.Name, offline, want)
 		}
 	}

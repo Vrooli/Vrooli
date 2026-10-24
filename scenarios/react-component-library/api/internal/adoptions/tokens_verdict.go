@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/themes"
 )
 
 var (
@@ -74,8 +75,28 @@ func (s *service) resolveTokenVerdict(ctx context.Context, closure components.Cl
 			by[pattern] = appendUnique(by[pattern], asset.Asset.LibraryID)
 		}
 	}
+	var reference map[string]themes.DesignToken
+	if reader, ok := s.tokenInventory.(ScenarioReferenceTokenReader); ok {
+		reference, err = reader.ReferenceTokens(ctx)
+		if err != nil {
+			return TokenVerdict{}, err
+		}
+	}
+	var exemptions map[string]string
+	if reader, ok := s.tokenInventory.(ScenarioTokenFallbackExemptionReader); ok {
+		exemptions, err = reader.TokenFallbackExemptions(ctx)
+		if err != nil {
+			return TokenVerdict{}, err
+		}
+	}
 	unsatisfied := make(map[string]struct{})
 	for property := range required {
+		if components.ClassifyRequiredToken(property, reference) == components.RequiredTokenBaseStyles {
+			continue
+		}
+		if _, exempt := exemptions[property]; exempt {
+			continue
+		}
 		if _, ok := defined[property]; !ok {
 			unsatisfied[property] = struct{}{}
 		}

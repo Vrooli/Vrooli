@@ -14,6 +14,19 @@ import (
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
 
+func TestNarrowWorkflowChildCanReadOwningExecutionWithoutManagementScope(t *testing.T) {
+	principal := identity.Principal{Kind: identity.ActorAgent, Subject: "child-run", Verified: true, Source: identity.SourceAgentProvenance, Scopes: []string{"git-control-tower:read"}}
+	request := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceGetWorkflowExecutionProcedure, strings.NewReader(`{"executionId":"owning-workflow"}`))
+	request = request.WithContext(identity.WithPrincipal(request.Context(), principal))
+	passed := false
+	h := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { passed = true; w.WriteHeader(http.StatusNoContent) }))
+	recorder := httptest.NewRecorder()
+	h.ServeHTTP(recorder, request)
+	if !passed || recorder.Code != http.StatusNoContent {
+		t.Fatalf("read-only child cannot verify its evidence owner: %d", recorder.Code)
+	}
+}
+
 // Phase 3: the middleware and the CreateRun handler must agree on an anonymous
 // create-run via ONE switch read. These assert the SAME anonymous request is
 // refused by the middleware when VROOLI_AUTH01_ENFORCE is on and admitted to the

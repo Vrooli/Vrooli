@@ -70,7 +70,7 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
   }
 
   let totalDistance = 0;
-  const segments = [] as Array<{ start: ReplayPoint; end: ReplayPoint; length: number; cumulative: number }>;
+  const segments: Array<{ start: Required<ReplayPoint>; end: Required<ReplayPoint>; length: number; cumulative: number }> = [];
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index];
     const end = points[index + 1];
@@ -82,7 +82,7 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
       continue;
     }
     totalDistance += length;
-    segments.push({ start, end, length, cumulative: totalDistance });
+    segments.push({ start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y }, length, cumulative: totalDistance });
   }
 
   const lastPoint = points[points.length - 1];
@@ -96,8 +96,8 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
     if (targetDistance <= segment.cumulative) {
       const segmentProgress = segment.length > 0 ? (targetDistance - prevCumulative) / segment.length : 1;
       return {
-        x: (segment.start.x ?? 0) + (segment.end.x ?? 0 - (segment.start.x ?? 0)) * segmentProgress,
-        y: (segment.start.y ?? 0) + (segment.end.y ?? 0 - (segment.start.y ?? 0)) * segmentProgress,
+        x: segment.start.x + (segment.end.x - segment.start.x) * segmentProgress,
+        y: segment.start.y + (segment.end.y - segment.start.y) * segmentProgress,
       };
     }
   }

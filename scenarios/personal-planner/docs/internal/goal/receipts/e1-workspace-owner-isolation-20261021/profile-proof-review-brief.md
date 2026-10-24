@@ -1,7 +1,0 @@
-# Independent review — routed actor-owned profile proof correction
-
-Review only the bounded test correction in `api/handlers/calendar/connect_events_test.go` against its complete current source and captured pre-dispatch state. Baseline is GCT anchor `gcta-21e3e73bbde9`, file SHA-256 `421c22171f00b2ca39ea5abac079abd161a0c4e0ddeaeddf6628ae21903404cb` (514 lines); current file SHA-256 `4cd751ac708834b19fc48251f742490e2cf953706f944726fd266b2fff1ccf4a` (521 lines). Scope receipt: `profile-proof-correction-evidence.md`; implementation brief: `test-pool-profile-proof-brief.md`.
-
-Inspect the existing journey, workspace handler/schema and the changed final assertions. Judge whether the evidence now reads the verified actor-owned profile and its actual UI-updated revision/settings, proves the legacy singleton and primary profile stores remain empty for this isolated test, and preserves all existing calendar parity, owner isolation and lease-stat assertions. Confirm no production code or data-mapping behavior changed. The worker's exact retained focused test result is exit 0 (`ok personal-planner/handlers/calendar 5.336s`); do not rerun tests. The seven-phase Test Genie result remains FAIL 5/7 and is outside this bounded verdict.
-
-Worker task/run `76aeef8e-9fe3-4bef-a409-8b7daa9698f1` / `a27e6d2b-9894-40b9-9acc-44a09be875d1`; exact parent `5d07e651-eaa6-48ec-89b4-5dc359059193`. Return PASS, PASS WITH LIMITS, or FAIL with evidence and explicit limits. Do not accept E1/Q1.

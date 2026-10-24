@@ -1,1 +1,0 @@
-GOFLAGS=-mod=mod go run ./cmd/protogen verify

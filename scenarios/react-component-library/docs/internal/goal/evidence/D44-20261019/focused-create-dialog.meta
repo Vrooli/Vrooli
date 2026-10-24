@@ -1,6 +1,0 @@
-command=pnpm exec vitest run src/features/components/CreateComponentDialog.test.tsx --reporter=verbose
-working_directory=scenarios/react-component-library/ui
-started_at=2026-10-19T21:33:58Z
-ended_at=2026-10-19T21:34:02Z
-duration_ms=4515
-exit_code=1

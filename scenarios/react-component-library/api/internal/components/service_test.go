@@ -499,6 +499,83 @@ func TestAuthoringCheckRefreshesSelectedManifestBeforeResolvingDependencies(t *t
 	require.Equal(t, "failed", dependencyFailure.Verdict)
 }
 
+func TestAuthoringCheckAddsTypeScriptForExactActiveDraftAndPreservesDiagnostics(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:TypecheckFixture", Slug: "TypecheckFixture", DisplayName: "Typecheck Fixture",
+		InitialVersion: "1.0.0", InitialSource: `export function TypecheckFixture() { return <div />; }`, ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	draft, err := svc.(components.AuthoringService).BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: created.Component.LibraryID, Bump: "patch"})
+	require.NoError(t, err)
+
+	var gotManifest, gotSource, gotComponent, gotVersion string
+	components.SetTypeScriptChecker(svc, components.TypeScriptCheckerFunc(func(_ context.Context, manifest, source, component, version string) components.TypeScriptCheckResult {
+		gotManifest, gotSource, gotComponent, gotVersion = manifest, source, component, version
+		return components.TypeScriptCheckResult{Message: "error TS2322: Type 'string' is not assignable to type 'number'.", Remediation: "repair the reported compiler error"}
+	}))
+	checked, err := svc.(components.AuthoringService).CheckComponentVersion(context.Background(), created.Component.LibraryID, draft.Version.Version)
+	require.NoError(t, err)
+	require.False(t, checked.Passed)
+	require.Equal(t, filepath.Join(root, "components", "TypecheckFixture", "component.json"), gotManifest)
+	require.Equal(t, filepath.Join(root, "components", "TypecheckFixture", "versions", draft.Version.Version, "TypecheckFixture.tsx"), gotSource)
+	require.Equal(t, "TypecheckFixture", gotComponent)
+	require.Equal(t, draft.Version.Version, gotVersion)
+	typeScript := checkByStage(t, checked.Checks, "typescript")
+	require.Equal(t, "failed", typeScript.Verdict)
+	require.Contains(t, typeScript.Message, "TS2322")
+	require.Contains(t, typeScript.Remediation, "compiler error")
+
+	released, err := svc.(components.AuthoringService).CheckComponentVersion(context.Background(), created.Component.LibraryID, "1.0.0")
+	require.NoError(t, err)
+	require.NotContains(t, stagesOf(released.Checks), "typescript", "released-version behavior keeps the existing stage list")
+}
+
+func TestAuthoringCheckTreatsTypeScriptRunnerFaultsAsNonPassing(t *testing.T) {
+	for _, message := range []string{"TypeScript runner unavailable: node was not found", "TypeScript runner timed out after 3m"} {
+		t.Run(message, func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			root := t.TempDir()
+			svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+			created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+				LibraryID: "react-component-library:RunnerFault", Slug: "RunnerFault", DisplayName: "Runner Fault",
+				InitialVersion: "1.0.0", InitialSource: `export function RunnerFault() { return <div />; }`, ScaffoldExamples: true,
+			})
+			require.NoError(t, err)
+			draft, err := svc.(components.AuthoringService).BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: created.Component.LibraryID, Bump: "patch"})
+			require.NoError(t, err)
+			components.SetTypeScriptChecker(svc, components.TypeScriptCheckerFunc(func(context.Context, string, string, string, string) components.TypeScriptCheckResult {
+				return components.TypeScriptCheckResult{Message: message, Remediation: "retry after restoring the runner"}
+			}))
+			checked, err := svc.(components.AuthoringService).CheckComponentVersion(context.Background(), created.Component.LibraryID, draft.Version.Version)
+			require.NoError(t, err)
+			require.False(t, checked.Passed)
+			require.Equal(t, "failed", checkByStage(t, checked.Checks, "typescript").Verdict)
+		})
+	}
+}
+
+func checkByStage(t *testing.T, checks []components.ComponentVersionCheck, stage string) components.ComponentVersionCheck {
+	t.Helper()
+	for _, check := range checks {
+		if check.Stage == stage {
+			return check
+		}
+	}
+	t.Fatalf("stage %q was not returned: %#v", stage, checks)
+	return components.ComponentVersionCheck{}
+}
+
+func stagesOf(checks []components.ComponentVersionCheck) []string {
+	stages := make([]string, 0, len(checks))
+	for _, check := range checks {
+		stages = append(stages, check.Stage)
+	}
+	return stages
+}
+
 func TestAuthoringDraftRewritesInheritedDependencyLockIdentity(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

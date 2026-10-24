@@ -166,6 +166,10 @@ func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunA
 		EffectiveMaxTurns:   cfg.MaxTurns,
 		EffectiveUntil:      cfg.Until,
 	}
+	if req.workflowIdentity != nil {
+		copy := *req.workflowIdentity
+		admission.WorkflowIdentity = &copy
+	}
 	if req.caller != nil {
 		copy := *req.caller
 		admission.CreateCaller = &copy
@@ -241,7 +245,8 @@ func inheritParentEffortReferences(parent *domain.Run, requested []*eventpb.Work
 	byID := make(map[string]*eventpb.WorkReference)
 	var parentOrder []string
 	for _, ref := range parent.WorkReferences {
-		if ref == nil || ref.GetKind() != "effort" || ref.GetId() == "" || ref.GetRelationship() != "orchestrator" ||
+		commissionedWorker := ref != nil && ref.GetRelationship() == "worker" && parent.ResolvedConfig != nil && parent.ResolvedConfig.DeliveryCommissions[ref.GetId()] != ""
+		if ref == nil || ref.GetKind() != "effort" || ref.GetId() == "" || (ref.GetRelationship() != "orchestrator" && !commissionedWorker) ||
 			!ref.GetVerified() || ref.GetVisibility() != eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC ||
 			ref.GetState() != eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE {
 			continue

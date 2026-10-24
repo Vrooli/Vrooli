@@ -19,10 +19,10 @@ import (
 
 	"react-component-library/internal/librarywalk"
 
+	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 	"react-component-library/internal/themes"
-	"github.com/vrooli/api-core/uimanifest"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -548,6 +548,10 @@ type ScenarioLibraryImportReader interface {
 
 type ScenarioReferenceTokenReader interface {
 	ReferenceTokens(ctx context.Context) (map[string]themes.DesignToken, error)
+}
+
+type ScenarioTokenFallbackExemptionReader interface {
+	TokenFallbackExemptions(ctx context.Context) (map[string]string, error)
 }
 
 // ScenarioImportRewriter replaces imports of a copied root with the package
@@ -1656,14 +1660,15 @@ func NewFSScenarioFileReader(root string) *FSScenarioFileReader {
 }
 
 var (
-	_ ScenarioFileReader                  = (*FSScenarioFileReader)(nil)
-	_ ScenarioProvenanceScanner           = (*FSScenarioFileReader)(nil)
-	_ ScenarioCandidateScanner            = (*FSScenarioFileReader)(nil)
-	_ ScenarioTokenNamespaceReader        = (*FSScenarioFileReader)(nil)
-	_ ScenarioTokenInventoryReader        = (*FSScenarioFileReader)(nil)
-	_ ScenarioRuntimeTokenInventoryReader = (*FSScenarioFileReader)(nil)
-	_ ScenarioLibraryImportReader         = (*FSScenarioFileReader)(nil)
-	_ ScenarioReferenceTokenReader        = (*FSScenarioFileReader)(nil)
+	_ ScenarioFileReader                   = (*FSScenarioFileReader)(nil)
+	_ ScenarioProvenanceScanner            = (*FSScenarioFileReader)(nil)
+	_ ScenarioCandidateScanner             = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenNamespaceReader         = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenInventoryReader         = (*FSScenarioFileReader)(nil)
+	_ ScenarioRuntimeTokenInventoryReader  = (*FSScenarioFileReader)(nil)
+	_ ScenarioLibraryImportReader          = (*FSScenarioFileReader)(nil)
+	_ ScenarioReferenceTokenReader         = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenFallbackExemptionReader = (*FSScenarioFileReader)(nil)
 )
 
 // TokenNamespace reads the consumer's declared semantic namespace. The
@@ -1851,6 +1856,12 @@ func (r *FSScenarioFileReader) ReferenceTokens(_ context.Context) (map[string]th
 		result[token.Name] = token
 	}
 	return result, nil
+}
+
+// TokenFallbackExemptions returns the exact host/runtime exceptions declared
+// by the canonical RCL catalog. Read errors fail preflight closed.
+func (r *FSScenarioFileReader) TokenFallbackExemptions(_ context.Context) (map[string]string, error) {
+	return components.ReadTokenFallbackExemptions(filepath.Join(r.root, "react-component-library", "catalog", "config.json"))
 }
 
 // scannedSource is one .ts/.tsx file yielded by walkScenarioSources: its

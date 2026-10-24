@@ -58,8 +58,8 @@ func decisionServer(t *testing.T, decisions ...*pb.EffortDecision) (*Services, *
 }
 
 func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
-	home := copyBASGoalHome(t, nil)
-	before, _ := os.ReadFile(filepath.Join(home, goalhome.QueueFile))
+	home := copyRuntimeBASGoalHome(t, nil)
+	before, _ := os.ReadFile(filepath.Join(home, goalhome.StatusFile))
 	services, server := decisionServer(t)
 	output, code := runEffort(t, &App{services: services}, "decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070",
 		"--question", "Close the BAS goal or re-aim at quality?", "--option", "re-aim=Re-aim at quality", "--option", "close=Close the goal",
@@ -74,14 +74,14 @@ func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
 			t.Fatalf("dry run omitted %q:\n%s", want, output)
 		}
 	}
-	after, _ := os.ReadFile(filepath.Join(home, goalhome.QueueFile))
+	after, _ := os.ReadFile(filepath.Join(home, goalhome.StatusFile))
 	if string(after) != string(before) || len(server.Requests()) != 0 {
 		t.Fatalf("a dry run wrote QUEUE.md or contacted the server (%d requests)", len(server.Requests()))
 	}
 }
 
 func TestDecisionRaiseAddsTheNeedsOperatorItemOnce(t *testing.T) {
-	home := copyBASGoalHome(t, nil)
+	home := copyRuntimeBASGoalHome(t, nil)
 	services, _ := decisionServer(t, decisionFixture(effortdecision.Pending, "", "", "", time.Time{}))
 	args := []string{
 		"decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070", "--question", "Close the BAS goal or re-aim at quality?",
@@ -92,9 +92,32 @@ func TestDecisionRaiseAddsTheNeedsOperatorItemOnce(t *testing.T) {
 			t.Fatalf("raise failed (exit %d):\n%s", code, output)
 		}
 	}
-	queue, _ := os.ReadFile(filepath.Join(home, goalhome.QueueFile))
+	queue, _ := os.ReadFile(filepath.Join(home, goalhome.StatusFile))
 	if n := strings.Count(string(queue), "[decision BAS-D-070]"); n != 1 {
 		t.Fatalf("a repeated raise must list the decision once under ## Needs operator, found %d:\n%s", n, queue)
+	}
+}
+
+// TestDecisionRaiseTargetsStatusForV2Home proves the decision writer appends the
+// ## Needs operator item to STATUS.md (not QUEUE.md) for a Phase-2 v2 home.
+func TestDecisionRaiseTargetsStatusForV2Home(t *testing.T) {
+	home := copyV2BASGoalHome(t, nil)
+	services, _ := decisionServer(t, decisionFixture(effortdecision.Pending, "", "", "", time.Time{}))
+	args := []string{
+		"decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070", "--question", "Close the BAS goal or re-aim at quality?",
+		"--option", "re-aim=Re-aim at quality", "--option", "close=Close the goal", "--recommend", "re-aim",
+	}
+	for range 2 {
+		if output, code := runEffort(t, &App{services: services}, args...); code != 0 {
+			t.Fatalf("raise failed (exit %d):\n%s", code, output)
+		}
+	}
+	status, _ := os.ReadFile(filepath.Join(home, goalhome.StatusFile))
+	if n := strings.Count(string(status), "[decision BAS-D-070]"); n != 1 {
+		t.Fatalf("a repeated raise must list the decision once under STATUS.md ## Needs operator, found %d:\n%s", n, status)
+	}
+	if _, err := os.Stat(filepath.Join(home, goalhome.QueueFile)); !os.IsNotExist(err) {
+		t.Fatal("the v2 decision writer must not create a QUEUE.md")
 	}
 }
 
@@ -102,8 +125,8 @@ func TestDecisionSyncRecordsAnswersVerbatimAndIsIdempotent(t *testing.T) {
 	answered := decisionFixture(effortdecision.Answered, "close", "keep the\nmacOS journeys", effortdecision.ViaPhone, time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC))
 	defaulted := decisionFixture(effortdecision.Defaulted, "re-aim", "", effortdecision.ViaDefault, time.Date(2026, 10, 9, 9, 0, 0, 0, time.UTC))
 	defaulted.DecisionId = "BAS-D-071"
-	home := copyBASGoalHome(t, nil)
-	queuePath := filepath.Join(home, goalhome.QueueFile)
+	home := copyRuntimeBASGoalHome(t, nil)
+	queuePath := filepath.Join(home, goalhome.StatusFile)
 	queue, _ := os.ReadFile(queuePath)
 	for _, d := range []*pb.EffortDecision{answered, defaulted} {
 		queue, _ = goalhome.AddNeedsOperatorItem(queue, effortdecision.View(d))

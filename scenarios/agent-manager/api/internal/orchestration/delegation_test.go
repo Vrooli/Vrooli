@@ -227,8 +227,14 @@ func TestMintDelegatedIdentityRespectsChildAuthority(t *testing.T) {
 			if claims.ProfileKey != wantProfile {
 				t.Fatalf("child credential retained parent profile %q", claims.ProfileKey)
 			}
-			if claims.Meta["workflowNodeId"] != "child-implementation" {
-				t.Fatal("child credential impersonated the parent workflow node")
+			signed, err := identity.VerifyToken(result.Token, secret)
+			if err != nil || signed.Meta["workflowNodeId"] != "child-implementation" {
+				t.Fatal("child credential impersonated the parent workflow node", err)
+			}
+			// This fixture has labels but no retained workflow attempt. Issuance
+			// keeps the child's own label; verification must not turn it into ownership.
+			if claims.Meta["workflowNodeId"] != "" || claims.Meta["workflowExecutionId"] != "" {
+				t.Fatal("unbound child label became verified workflow ownership")
 			}
 			second, err := o.MintDelegatedIdentity(ctx, req)
 			if err != nil || second.Token == result.Token {

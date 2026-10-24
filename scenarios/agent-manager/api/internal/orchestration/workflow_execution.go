@@ -88,7 +88,8 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 		tag = "workflow-" + req.ExecutionID.String() + "-" + req.NodeID
 	}
 	create := CreateRunRequest{
-		TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, Until: req.Until, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
+		workflowIdentity: &domain.WorkflowRunIdentity{ExecutionID: req.ExecutionID, NodeID: req.NodeID, AttemptID: req.AttemptID},
+		TaskID:           taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, Until: req.Until, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
 		PreferredRunner: req.PreferredRunner,
 		WorkloadKind:    domain.WorkloadKindWorkflowNode, WorkloadKey: req.NodeID, WorkloadInstance: req.ExecutionID.String(),
 		AllowedEffects: append([]string(nil), req.AllowedEffects...),

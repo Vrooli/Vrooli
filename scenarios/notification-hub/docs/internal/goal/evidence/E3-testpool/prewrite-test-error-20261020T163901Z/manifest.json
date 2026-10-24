@@ -1,8 +1,0 @@
-[
-  {
-    "path": "scenarios/notification-hub/api/main_test.go",
-    "observed_at": "2026-10-20T16:39:01Z",
-    "bytes": 5012,
-    "sha256": "95f37f859853fba64465183154906815228a5e0a2de0887b4f66d63480c9d227"
-  }
-]

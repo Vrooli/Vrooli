@@ -306,8 +306,8 @@ func workflowIdentityMeta(env map[string]string) map[string]string {
 		}
 	}
 	// Workspace binding is server-authored deployment context. Do not read a
-	// VROOLI_* caller environment value here: a caller may choose workflow
-	// labels, but it cannot choose the tenant carried by its signed run token.
+	// VROOLI_* caller environment value here: public workflow labels are reserved
+	// for the private launcher, and callers cannot choose a signed tenant.
 	if workspace := strings.TrimSpace(os.Getenv("AGENT_MANAGER_WORKSPACE_ID")); workspace != "" {
 		meta["workspace_id"] = workspace
 	}

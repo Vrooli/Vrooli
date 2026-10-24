@@ -30,7 +30,7 @@ import (
 //
 // When cfg.ResourceLimits has entries, the target is wrapped by the api
 // binary's rlimit self-exec shim ("<shimPath> rlimit-exec … --"), exactly as
-// BuildExecCommand prepends prlimit ahead of bwrap on Linux. shimPath must be
+// BuildExecCommand applies prlimit to the payload inside bwrap on Linux. shimPath must be
 // the path to the api binary; it is ignored when no limits are configured.
 func BuildSeatbeltCommand(shimPath string, s *types.Sandbox, cfg BwrapConfig, cmd string, cmdArgs ...string) (string, []string) {
 	args := []string{"-p", SeatbeltProfile(s, cfg)}

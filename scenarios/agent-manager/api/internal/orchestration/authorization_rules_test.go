@@ -57,6 +57,36 @@ func TestPreparationConsentNamesMissingOwnerCapabilitiesAndRemainsPending(t *tes
 	}
 }
 
+func TestNormalizedRulesWildcardForms(t *testing.T) {
+	// Whole-domain and scoped prefix wildcards are accepted; any other use of
+	// `*` is rejected so a target stays a precise object or one bounded prefix.
+	accept := []string{
+		"agent-manager:effort/notification-hub-redesign",
+		"agent-manager:*",
+		"agent-manager:effort/*",
+	}
+	for _, tgt := range accept {
+		req := AuthorizationRequest{Policy: "effort-metadata", Targets: []string{tgt}}
+		if _, err := req.normalizedRules(); err != nil {
+			t.Fatalf("expected %q accepted, got %v", tgt, err)
+		}
+	}
+	reject := []string{
+		"agent-manager:eff*",      // mid/trailing non-boundary wildcard
+		"agent-manager:*/x",       // leading wildcard
+		"agent-manager:a/*/b",     // interior wildcard
+		"agent-manager:effort/**", // doubled wildcard
+		"agent-manager:/*",        // empty prefix
+		"prompt-manager:effort/*", // outside policy domains
+	}
+	for _, tgt := range reject {
+		req := AuthorizationRequest{Policy: "effort-metadata", Targets: []string{tgt}}
+		if _, err := req.normalizedRules(); err == nil {
+			t.Fatalf("expected %q rejected, but it was accepted", tgt)
+		}
+	}
+}
+
 func TestOneConsentCarriesSeveralPoliciesWithoutCrossingTargets(t *testing.T) {
 	now := time.Now().UTC()
 	o := authorizationFixture(t, &now)

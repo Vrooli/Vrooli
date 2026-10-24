@@ -1,6 +1,0 @@
-command=pnpm exec vitest run [ten changed UI test files] --reporter=verbose
-working_directory=scenarios/react-component-library/ui
-started_at=2026-10-19T21:34:38Z
-ended_at=2026-10-19T21:34:45Z
-duration_ms=7240
-exit_code=0

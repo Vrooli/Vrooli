@@ -337,7 +337,9 @@ func NewServer() (*Server, error) {
 		Mounter:               mounter,
 		Starter:               starter,
 	}
-	h.ConfigureLifecycle("workspace-sandbox", "workspace-sandbox", h.ProviderIncarnationID)
+	if err := h.ConfigureLifecycle(context.Background(), repo, "workspace-sandbox", "workspace-sandbox", h.ProviderIncarnationID); err != nil {
+		return nil, fmt.Errorf("failed to initialize lifecycle fence: %w", err)
+	}
 	h.SetProfileSnapshot(profileSnapshot)
 
 	// Initialize structured logger

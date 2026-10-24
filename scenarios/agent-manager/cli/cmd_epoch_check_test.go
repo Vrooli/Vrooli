@@ -1,6 +1,7 @@
 package main
 
 import (
+	"agent-manager/internal/goalhome"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -129,6 +130,18 @@ func TestEpochCheckDiminishingReturnsFailsOnlyTheOrchestrator(t *testing.T) {
 	writeFile(t, filepath.Join(home, "epochs", "E23.md"), readGoalhomeFixture(t, "bas", "epochs", "E23.md"))
 	writeFile(t, filepath.Join(home, "epochs", "E24.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E24.md"), "ACCEPTED 2026-10-07T00:42:30Z —", "ACCEPTED 2026-10-07T00:42:30Z | yield=-66 runtime lines |", 1))
 	worker := writeFile(t, filepath.Join(home, "epochs", "E25.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E25.md"), "ACCEPTED 2026-10-07T01:28:54Z —", "", 1))
+	legacy, err := goalhome.Load(os.DirFS(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(name string) []byte { b, _ := os.ReadFile(filepath.Join(home, name)); return b }
+	converted := goalhome.ConvertHome(legacy, read(goalhome.GoalFile), read(goalhome.QueueFile), nil)
+	if !converted.Equivalent {
+		t.Fatal(converted.Divergence)
+	}
+	for name, body := range map[string][]byte{goalhome.CharterFile: converted.Charter, goalhome.StatusFile: converted.Status, goalhome.LogFile: converted.Log} {
+		writeFile(t, filepath.Join(home, name), string(body))
+	}
 	output, code := runEpochCheck(t, &App{}, worker)
 	if code != 0 || !strings.Contains(output, "FINDING diminishing-returns: gap-horizon:") {
 		t.Fatalf("a worker sees the finding without failing (exit %d):\n%s", code, output)
@@ -259,5 +272,33 @@ func TestEpochCheckFailsOpenWhenRecordResultIsAbsentOrUnavailable(t *testing.T) 
 				t.Fatalf("missing/failed result must preserve alert wake: %v", order)
 			}
 		})
+	}
+}
+
+// TestGoalFindingsReadsV2Home proves epoch-check's diminishing-returns forecast
+// reads a migrated v2 home (CHARTER/STATUS/LOG). Before the reader was routed
+// through the format sniff, goalFindings used v1 Load, saw GOAL.md missing, and
+// silently skipped the forecast for every v2 home.
+func TestGoalFindingsReadsV2Home(t *testing.T) {
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, "CHARTER.md"), "# T\n\n- Destination: runtime lines <= 100\n- Destination set: 2026-10-01T00:00:00Z\n")
+	writeFile(t, filepath.Join(home, "STATUS.md"), "# S\n\n## Current: 1000 @ 2026-10-07\n\n## Handoff\n\ncontinue.\n")
+	writeFile(t, filepath.Join(home, "LOG.md"), "# L\n\n## Accepted units\n\n"+
+		"- E1 | ACCEPTED 2026-10-02T00:00:00Z | workers=11111111-1111-4111-8111-111111111111 | yield=-10 runtime lines | gates=G1 | s1\n"+
+		"- E2 | ACCEPTED 2026-10-03T00:00:00Z | workers=22222222-2222-4222-8222-222222222222 | yield=-10 runtime lines | gates=G1 | s2\n"+
+		"- E3 | ACCEPTED 2026-10-04T00:00:00Z | workers=33333333-3333-4333-8333-333333333333 | yield=-10 runtime lines | gates=G1 | s3\n")
+	writeFile(t, filepath.Join(home, "FEEDBACK.md"), "# F\n\n## Resolved\n")
+	epoch := writeFile(t, filepath.Join(home, "epochs", "E4.md"), "# E4\n\n- Status: in-progress\n\n## Slice log\n")
+
+	findings := goalFindings(epoch)
+	if len(findings) != 1 || findings[0].Code != "diminishing-returns" {
+		var codes []string
+		for _, f := range findings {
+			codes = append(codes, f.Code)
+		}
+		t.Fatalf("v2 home gap-horizon forecast must surface a diminishing-returns finding, got %v", codes)
+	}
+	if findings[0].File != "STATUS.md" {
+		t.Fatalf("v2 forecast finding must anchor STATUS.md, got %q", findings[0].File)
 	}
 }

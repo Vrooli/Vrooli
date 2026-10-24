@@ -94,6 +94,8 @@ type CreateRunRequest struct {
 	// admission enriches the request (for example, by inheriting parent refs).
 	// It is carried only to the persisted admission snapshot and is never wire data.
 	requestDigest string
+	// Only the private workflow launcher supplies this pre-dispatch receipt.
+	workflowIdentity *domain.WorkflowRunIdentity
 
 	TaskID uuid.UUID `json:"taskId"`
 	// Attributable workload declarations only; never authorization claims.
@@ -504,14 +506,15 @@ type StopAllResult struct {
 
 // ContinueRunRequest contains parameters for continuing an existing run conversation.
 type ContinueRunRequest struct {
-	RunID          uuid.UUID          `json:"runId"`
-	Message        string             `json:"message"`
-	AttachmentIDs  []string           `json:"attachmentIds,omitempty"`
-	IdempotencyKey string             `json:"idempotencyKey,omitempty"`
-	MaxTurns       *int               `json:"maxTurns,omitempty"`
-	MaxToolCalls   *int               `json:"maxToolCalls,omitempty"`
-	Timeout        *time.Duration     `json:"timeout,omitempty"`
-	ResultSpec     *domain.ResultSpec `json:"resultSpec,omitempty"`
+	deliveryContext string
+	RunID           uuid.UUID          `json:"runId"`
+	Message         string             `json:"message"`
+	AttachmentIDs   []string           `json:"attachmentIds,omitempty"`
+	IdempotencyKey  string             `json:"idempotencyKey,omitempty"`
+	MaxTurns        *int               `json:"maxTurns,omitempty"`
+	MaxToolCalls    *int               `json:"maxToolCalls,omitempty"`
+	Timeout         *time.Duration     `json:"timeout,omitempty"`
+	ResultSpec      *domain.ResultSpec `json:"resultSpec,omitempty"`
 	// ReinstallGoal re-sends the harness-native goal before the follow-up
 	// message. Set by a resume that re-adopts an interrupted interactive run.
 	ReinstallGoal bool `json:"reinstallGoal,omitempty"`

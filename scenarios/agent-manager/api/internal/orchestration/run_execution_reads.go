@@ -226,6 +226,9 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 		return &IdentityVerifyResult{Valid: false, Error: "identity token has been revoked"}, nil
 	}
 
+	if err := o.projectVerifiedWorkflowIdentity(ctx, run, claims); err != nil {
+		return nil, err
+	}
 	return &IdentityVerifyResult{
 		Valid:     true,
 		Claims:    claims,

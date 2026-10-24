@@ -48,6 +48,13 @@ func validateEffectiveRunInput(task *domain.Task, prompt string) error {
 }
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
+	// Public caller projections and environment labels are not workflow authority.
+	req.workflowIdentity = nil
+	for key := range req.Environment {
+		if strings.HasPrefix(key, "VROOLI_WORKFLOW_") {
+			return nil, domain.NewValidationError("environment", "workflow environment is reserved for the private workflow launcher")
+		}
+	}
 	// Public caller projections are not authority, including in-process callers.
 	req.caller, req.profileAdmission = nil, nil
 	req.OwnerSubject, req.OwnerScopes, req.OwnerExpiresAt = "", nil, nil
@@ -542,6 +549,14 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	}
 	if err := o.revalidateCreateRunCaller(ctx, req); err != nil {
 		return nil, err
+	}
+	if o.deliveryEfforts != nil {
+		bindings, _, release, err := o.deliveryEfforts.AcquireDeliveryAdmission(ctx, req.WorkReferences, qualifiedParent)
+		if err != nil {
+			return nil, err
+		}
+		defer release()
+		resolvedConfig.DeliveryCommissions = bindings
 	}
 	// Caller, owner narrowing, profile policy and dependent qualification have
 	// all passed. Only now may admission reserve or mutate durable state.

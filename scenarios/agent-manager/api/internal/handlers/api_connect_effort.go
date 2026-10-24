@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -173,7 +174,21 @@ func effortGrantActor(ctx context.Context, effortRef string, authority pb.WatchA
 		return actor, true, nil
 	}
 	p, ok := requestidentity.PrincipalFromContext(ctx)
-	if !ok || p.Kind != requestidentity.ActorAgent || p.Grant == nil {
+	if !ok || p.Kind != requestidentity.ActorAgent {
+		return supervision.EffortActor{}, false, nil
+	}
+	// Supplemental operation authority deliberately stays outside p.Grant.
+	// Recognize both supported credential shapes, then let the canonical
+	// evaluator decide coverage without unioning ordinary identity scopes.
+	grant := p.Grant
+	proof, proofErr := provenance.ReverifyOperationProof(ctx)
+	if proofErr != nil {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive effort grant could not be reverified"))
+	}
+	if proof != nil {
+		grant = proof.Grant
+	}
+	if grant == nil {
 		return supervision.EffortActor{}, false, nil
 	}
 	if authority != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
@@ -186,8 +201,8 @@ func effortGrantActor(ctx context.Context, effortRef string, authority pb.WatchA
 	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.reconcile", target); err != nil {
 		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive grant does not allow effort.reconcile on "+target))
 	}
-	log.Printf("agent-manager effort metadata delegated caller=%s owner=%s grant=%s approver=%s target=%s", p.Subject, p.Owner, p.Grant.ID, p.Grant.Approver, target)
-	return supervision.EffortActor{ID: p.Subject, Delegated: true, ApprovedBy: p.Grant.Approver}, true, nil
+	log.Printf("agent-manager effort metadata delegated caller=%s owner=%s grant=%s approver=%s target=%s", p.Subject, p.Owner, grant.ID, grant.Approver, target)
+	return supervision.EffortActor{ID: p.Subject, Delegated: true, ApprovedBy: grant.Approver}, true, nil
 }
 
 func (h *AgentManagerConnectHandler) WithdrawEffort(ctx context.Context, req *connect.Request[pb.WithdrawEffortRequest]) (*connect.Response[pb.EffortEnrollment], error) {

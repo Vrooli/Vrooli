@@ -294,7 +294,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	reconciler := orchestration.NewReconciler(repos.Runs, registry, reconcilerOpts...)
 	orch.SetReconciler(reconciler)
-	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch, 0))
+	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch, 0), orchestration.NewOperatorDecisionWaiter())
 	orch.SetAwaitRegistry(awaitRegistry)
 	workflowNudger := orchestration.NewWorkflowNudger(orch.NudgeDrive, levers.Workflow.NudgeWorkers, levers.Workflow.NudgeDriveTimeout, func(ctx context.Context, id uuid.UUID, failure obs.PanicFailure) {
 		if _, err := orch.FailWorkflowExecution(ctx, id, "nudger_panic", failure.Error()); err != nil {
@@ -356,6 +356,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	supervisionService.Efforts.SetQuotaObservationStore(quotaObservationStore)
 	supervisionService.Efforts.SetSpendReader(orch)
 	orch.SetGoalHomeParkSource(supervisionService.Efforts)
+	orch.SetDeliveryEfforts(supervisionService.Efforts)
 	if receiptsClient.Enabled() {
 		// Operator decisions (DL-5) publish decision_requested events here.
 		supervisionService.Efforts.SetDecisionPublisher(receiptsClient)

@@ -1,9 +1,0 @@
-[
-  {
-    "path": "scenarios/notification-hub/ui/src/styles.css",
-    "sha256": "fa5c0f7b698b1cd6ca7d9c768557b08560688dce286082252ee83df9c87ffc1b",
-    "bytes": 2267,
-    "reconstructed_at": "2026-10-21T03:12:40.718761+00:00",
-    "basis": "Reversed only the five Seq48 declarations and block-size substitution from the postimage; hash matches the immediately pre-edit SHA recorded in the tool output. Original bytes were not persisted before editing."
-  }
-]

@@ -83,7 +83,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.lifecycle != nil {
-		release, gateErr := h.lifecycle.beginProcess()
+		release, gateErr := h.lifecycle.beginProcess(r.Context())
 		if gateErr != nil {
 			h.JSONError(w, gateErr.Error(), http.StatusConflict)
 			return

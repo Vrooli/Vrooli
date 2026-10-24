@@ -1,5 +1,6 @@
 // Package goalhome reads a delivery goal home (large-effort-orchestration §3):
-// GOAL.md, QUEUE.md, FEEDBACK.md, WORKAROUNDS.md and epochs/E<n>.md. It also
+// CHARTER.md, STATUS.md, LOG.md and FEEDBACK.md. Legacy GOAL/QUEUE parsing
+// is retained for explicit import and migration verification. The package also
 // holds the rules the `agent-manager effort` commands enforce over those files:
 // step-back triggers, typed exit gates and acceptance, the single handoff,
 // goal-home lint, park policy and diminishing returns.

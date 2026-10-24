@@ -45,6 +45,9 @@ type Forecast struct {
 	Rules    []Rule       `json:"rules"`
 	// Acknowledged is true when ## Needs operator holds a [re-aim] item.
 	Acknowledged bool `json:"acknowledged"`
+	// queueFile is the file that holds ## Needs operator (STATUS.md for a v2
+	// home, QUEUE.md for a v1 home); it anchors the finding.
+	queueFile string
 }
 
 // Fired lists the rules that fired.
@@ -76,12 +79,20 @@ func (f *Forecast) Finding() *Finding {
 	} else {
 		detail += ". Record a re-aim decision with options under ## Needs operator, tagged [re-aim], before admitting another slice"
 	}
-	return &Finding{Code: "diminishing-returns", Blocking: !f.Acknowledged, Detail: detail, File: QueueFile}
+	file := f.queueFile
+	if file == "" {
+		file = QueueFile
+	}
+	return &Finding{Code: "diminishing-returns", Blocking: !f.Acknowledged, Detail: detail, File: file}
 }
 
 // ForecastOf evaluates the diminishing-returns rules for a goal home.
 func ForecastOf(home *Home) *Forecast {
-	forecast := &Forecast{Accepted: []EpochYield{}, Acknowledged: home.Queue.HasReaimDecision()}
+	queueFile := QueueFile
+	if home.V2 {
+		queueFile = StatusFile
+	}
+	forecast := &Forecast{Accepted: []EpochYield{}, Acknowledged: home.Queue.HasReaimDecision(), queueFile: queueFile}
 	for _, file := range home.Epochs {
 		if !file.Epoch.IsAccepted() {
 			continue

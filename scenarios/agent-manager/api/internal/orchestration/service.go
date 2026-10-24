@@ -71,7 +71,8 @@ type Orchestrator struct {
 	tokenCaps *tokenCapEnforcer
 	// goalHomeParks reads goal homes for the orchestrator park policy; nil
 	// disables the policy.
-	goalHomeParks GoalHomeParkSource
+	goalHomeParks   GoalHomeParkSource
+	deliveryEfforts *supervision.EffortService
 
 	// terminalAccounting remembers which ended standalone runs have settled
 	// terminal usage, so the reconcile sweep revisits only runs that still owe it.
@@ -321,6 +322,10 @@ func (o *Orchestrator) notifyConversationSearch(ctx context.Context, operation, 
 // constructed. A missing reader is represented as unlinked evidence.
 func (o *Orchestrator) SetDurabilityEvidenceReader(reader DurabilityEvidenceReader) {
 	o.durabilityEvidence = reader
+}
+
+func (o *Orchestrator) SetDeliveryEfforts(owner *supervision.EffortService) {
+	o.deliveryEfforts = owner
 }
 
 // WithDurabilityBoundary installs the durable analysis-epoch store. Without it

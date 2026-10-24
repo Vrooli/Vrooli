@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -37,6 +38,10 @@ func (a *App) cmdEffort(args []string) error {
 		return a.effortLint(args[1:])
 	case "handoff":
 		return a.effortHandoff(args[1:])
+	case "migrate":
+		return a.effortMigrate(args[1:])
+	case "delivery":
+		return a.effortDelivery(args[1:])
 	case "park":
 		return a.effortPark(args[1:])
 	case "signals":
@@ -168,6 +173,110 @@ func (a *App) cmdEffort(args []string) error {
 	return nil
 }
 
+// effortDelivery composes an exact owner enrollment, retaining the existing
+// authority, revision fencing and idempotency path instead of a second writer.
+func (a *App) effortDelivery(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: agent-manager effort delivery <start|pause|resume|stop> --effort-ref <ref> [--commission <id> --budget 24h --workers 2] [--reason <text>] [--local-owner] [--json]")
+	}
+	action := args[0]
+	if action != "start" && action != "pause" && action != "resume" && action != "stop" {
+		return fmt.Errorf("unknown delivery action %q", action)
+	}
+	fs := flag.NewFlagSet("effort delivery", flag.ContinueOnError)
+	ref := fs.String("effort-ref", "", "Exact enrolled effort")
+	commission := fs.String("commission", "", "New commission ID (start only)")
+	budget := fs.Duration("budget", 24*time.Hour, "Commission duration (start only)")
+	workers := fs.Uint("workers", 2, "Maximum independent workers (start only)")
+	reason := fs.String("reason", "", "Pause or stop disposition")
+	key := fs.String("idempotency-key", "", "Stable mutation request identity")
+	localOwner := fs.Bool("local-owner", false, "Use the existing explicit local operator exchange")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
+		return err
+	}
+	if *ref == "" || fs.NArg() != 0 {
+		return errors.New("delivery requires --effort-ref")
+	}
+	if action == "start" && (*commission == "" || *budget < time.Second || *budget > 30*24*time.Hour || *workers < 1 || *workers > 32) {
+		return errors.New("start requires --commission, a 1s–30d budget and 1–32 workers")
+	}
+	if (action == "pause" || action == "stop") && strings.TrimSpace(*reason) == "" {
+		return errors.New("pause and stop require --reason")
+	}
+	if *localOwner {
+		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+			return errors.New("--local-owner is unavailable inside an identified agent run")
+		}
+		if err := cliutil.ConfirmLocalOwnerEligible(context.Background()); err != nil {
+			return err
+		}
+	}
+	board := &pb.EffortBoard{}
+	if _, err := a.services.Watches.call(apiconnect.AgentManagerServiceGetEffortBoardProcedure, &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: 1}, board); err != nil {
+		return err
+	}
+	if len(board.Rows) != 1 || board.Rows[0].GetEnrollment().GetEffortRef() != *ref {
+		return errors.New("exact delivery enrollment unavailable")
+	}
+	e := proto.Clone(board.Rows[0].Enrollment).(*pb.EffortEnrollment)
+	switch action {
+	case "start":
+		e.Delivery = &pb.EffortDelivery{CommissionId: *commission, BudgetSeconds: int64(*budget / time.Second), MaxWorkers: uint32(*workers), State: "running"}
+	default:
+		if e.Delivery == nil {
+			return errors.New("effort has no delivery commission")
+		}
+		e.Delivery.Reason = *reason
+		switch action {
+		case "pause":
+			e.Delivery.State = "paused"
+		case "resume":
+			e.Delivery.State = "running"
+		case "stop":
+			e.Delivery.State = "stopped"
+		}
+	}
+	if *key == "" {
+		*key = fmt.Sprintf("delivery:%s:%s:%s:%d", *ref, e.Delivery.CommissionId, action, e.Revision)
+	}
+	body, err := protojson.Marshal(&pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: *key})
+	if err != nil {
+		return err
+	}
+	f, err := os.CreateTemp("", "delivery-enrollment-*.json")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.Write(body); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	next := []string{"enroll", "--request-file", f.Name()}
+	if *localOwner {
+		next = append(next, "--local-owner")
+	}
+	if *jsonOut {
+		next = append(next, "--json")
+	}
+	return a.cmdEffort(next)
+}
+
+func printDeliveryPressure(p *pb.EffortDeliveryPressure) {
+	if p == nil {
+		return
+	}
+	fmt.Printf("    Delivery %s: %s; active=%ds budget=%ds paused=%ds; hard stop=%s\n", p.CommissionId, p.Phase, p.ElapsedSeconds, p.BudgetSeconds, p.PausedSeconds, effortTimestamp(p.HardStopAt))
+	fmt.Printf("      %s\n", p.Instruction)
+	if p.Disposition != "" {
+		fmt.Printf("      %s\n", p.Disposition)
+	}
+}
+
 func printCompactEffortBoard(b *pb.EffortBoard) {
 	fmt.Printf("Efforts: %d active; observed=%s; partial=%t\n", b.GetActiveCount(), effortTimestamp(b.GetObservedAt()), b.GetPartial())
 	if quotas := b.GetQuotaObservations(); len(quotas) > 0 {
@@ -205,6 +314,7 @@ func printCompactEffortBoard(b *pb.EffortBoard) {
 			fmt.Println("  Named waits: none")
 		}
 		printGoalHome(r.GetGoalHome())
+		printDeliveryPressure(r.GetDeliveryPressure())
 		refs := append([]string{}, r.GetEvidenceRefs()...)
 		refs = append(refs, r.GetPendingOperations()...)
 		refs = append(refs, "agent-manager:GetEffortBoard:"+e.GetEffortRef())
@@ -278,6 +388,7 @@ func printEffortBoard(b *pb.EffortBoard) {
 			fmt.Printf("    Requested: runner=%s model=%s reasoning=%s; effective: runner=%s model=%s reasoning=%s\n", effortKnown(a.RequestedRunner), effortKnown(a.RequestedModel), effortKnown(a.RequestedReasoning), effortKnown(a.EffectiveRunner), effortKnown(a.EffectiveModel), effortKnown(a.EffectiveReasoning))
 		}
 		printGoalHome(r.GetGoalHome())
+		printDeliveryPressure(r.GetDeliveryPressure())
 		for _, v := range r.Blockers {
 			fmt.Println("  Blocker: " + v)
 		}
@@ -312,12 +423,12 @@ func printGoalHome(g *pb.EffortGoalHome) {
 		destination = fmt.Sprintf("%s %s %s", g.GetDestinationMetric(), g.GetDestinationOp(), number(g.DestinationTarget))
 	}
 	fmt.Printf("    Destination: %s; current: %s (as of %s)\n", destination, number(g.CurrentValue), effortTimestamp(g.GetCurrentAsOf()))
-	fmt.Printf("    Active epoch: %s %s workers=%s; last accepted: %s at %s yield=%s\n", effortKnown(g.GetActiveEpoch()), g.GetActiveStatus(), effortKnown(strings.Join(g.GetActiveWorkers(), ",")), effortKnown(g.GetLastAcceptedEpoch()), effortTimestamp(g.GetLastAcceptedAt()), effortKnown(g.GetLastYield()))
+	fmt.Printf("    Active unit: %s %s workers=%s; last accepted: %s at %s yield=%s\n", effortKnown(g.GetActiveUnit()), g.GetActiveStatus(), effortKnown(strings.Join(g.GetActiveWorkers(), ",")), effortKnown(g.GetLastAcceptedUnit()), effortTimestamp(g.GetLastAcceptedAt()), effortKnown(g.GetLastYield()))
 	workarounds := "unknown"
 	if g.OpenWorkarounds != nil {
 		workarounds = fmt.Sprint(g.GetOpenWorkarounds())
 	}
-	fmt.Printf("    Open: workarounds=%s feedback=%s; spend per accepted epoch=%s weighted (measured %d); canary=%s\n", workarounds, effortKnown(strings.Join(g.GetOpenFeedbackIds(), ",")), number(g.WeightedTokensPerAcceptedEpoch), g.GetAcceptedEpochsMeasured(), effortKnown(g.GetCanaryStatus()))
+	fmt.Printf("    Open: workarounds=%s feedback=%s; spend per accepted unit=%s weighted (measured %d); canary=%s\n", workarounds, effortKnown(strings.Join(g.GetOpenFeedbackIds(), ",")), number(g.WeightedTokensPerAcceptedUnit), g.GetAcceptedUnitsMeasured(), effortKnown(g.GetCanaryStatus()))
 	for _, item := range g.GetNeedsOperator() {
 		fmt.Println("    Needs operator: " + item)
 	}
@@ -337,6 +448,13 @@ func printGoalHome(g *pb.EffortGoalHome) {
 	for _, v := range g.GetLimitations() {
 		fmt.Println("    Goal limitation: " + v)
 	}
+	for _, row := range g.SurfaceScoreboard {
+		fmt.Printf("      Surface %s: %s target=%s owner=%s\n", row.Surface, row.State, row.Target, effortKnown(row.OwnerRun))
+	}
+	for _, unit := range g.ActiveUnits {
+		fmt.Printf("      Unit %s: %s workers=%s\n", unit.UnitId, unit.Status, effortKnown(strings.Join(unit.Workers, ",")))
+	}
+
 }
 
 func effortKnown(value string) string {

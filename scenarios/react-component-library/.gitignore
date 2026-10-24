@@ -5,3 +5,5 @@
 /docs/evidence/
 /.vite/
 ui/.graph-project-*/
+tmp/
+ui/.catalog-conformance-*/

@@ -1,2 +1,0 @@
-PASS
-ok  	personal-planner/cli	0.016s

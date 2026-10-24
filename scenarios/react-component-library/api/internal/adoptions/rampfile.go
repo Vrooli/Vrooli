@@ -348,11 +348,9 @@ func (s *service) requiredTokensForScenario(ctx context.Context, scenario string
 			return nil, tokenErr
 		}
 		for property := range required {
-			token, exists := tokens[property]
-			// Sync owns only the canonical design vocabulary. Asset-local/runtime
-			// properties (including --rcl-*) are supplied by the component unit,
-			// while undefined vocabulary is diagnosed by the compatibility gate.
-			if !exists || token.Tier == themes.TokenTierContract {
+			// Sync only supplies canonical consumer-mapped design values; it does
+			// not invent values for unknown or BaseStyles-provided contracts.
+			if components.ClassifyRequiredToken(property, tokens) != components.RequiredTokenConsumerManaged {
 				delete(required, property)
 			}
 		}
