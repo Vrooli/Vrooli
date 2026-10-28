@@ -44,3 +44,13 @@ field-scoped reveal, lock failure, revision conflicts, current-snapshot grants,
 approval digest binding, terminal decisions, and SQLite persistence. Tests must
 never use real account values or copy secrets into logs, screenshots, or generic
 diagnostics.
+
+A focused SQLite-backed recovery test also verifies that advancing the recovery
+epoch denies use of existing in-process browser and SSH capabilities. The HTTP
+activation boundary rejects unauthenticated, non-owner, missing-assurance, and
+wrong-request-scope attempts without changing recovery state; the successful
+owner path returns metadata only. This evidence uses fabricated fixtures and
+does not qualify off-host credential-value recovery, production browser/SSH
+integrations, or independent key custody. The scoped Test Genie unit run for
+this check reached a terminal failure in its Go test command; only the focused
+recovery tests passed.

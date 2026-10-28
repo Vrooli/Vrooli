@@ -161,3 +161,7 @@ lockfiles yourself before committing. Scripts use `pnpm` directly (no
 
 Open `scenarios/browser-automation-studio/` to see the same template
 shape taken to completion.
+
+### Durable append and derived enrichment
+
+Append preserves fast automatic classification and embeddings. All optional provider work shares one two-second budget, independent of persistence. If that budget expires or a provider is unavailable, append persists the source and incomplete enrichment in the existing retry queue. The original caller context still bounds persistence. Explicit facets and deterministic rules remain authoritative. Existing journal retry operations drain pending enrichment; no background scheduler is introduced. A stored entry with pending vectors is durable evidence, not proof of completed semantic enrichment.

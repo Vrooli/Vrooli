@@ -27,5 +27,6 @@ type Repository interface {
 	EmbeddingRetries(context.Context, int) ([]RetryItem, error)
 	StoreFacetEmbedding(context.Context, string, []float64) error
 	AcknowledgeEmbeddingRetries(context.Context, string) error
+	DeferEmbeddingRetries(context.Context, string) error
 	PruneResolvedEmbeddingRetries(context.Context) (int, error)
 }

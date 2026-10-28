@@ -26,7 +26,7 @@ const ForestCompactionContractPath = "api/internal/forest/flow/flow.json"
 const ForestCompactionModelPath = "api/internal/forest/flow/generated/model.qnt"
 const ForestCompactionGeneratorPath = "flow-verifier"
 const ForestCompactionContractSHA256 = "08f88e45bee710e8727b13eaacadec4a7df729be78f40a309572f24f0afb1cec"
-const ForestCompactionModelSHA256 = "612e770ec94dc97d048cb00aeb31b90ec170fe48ba4cc04def3744d5a2afbe42"
+const ForestCompactionModelSHA256 = "cd9c922be3b2d8d10dd32228ecaa6990bed33d0f68c226c2878f362c9c1d072c"
 const ForestCompactionGeneratorSHA256 = "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864"
 
 var forestCompactionFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "SummaryWriteIsAtomic"}

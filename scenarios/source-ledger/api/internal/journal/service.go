@@ -13,9 +13,10 @@ import (
 )
 
 type Service struct {
-	repo      Repository
-	inference inference.Client
-	facets    FacetResolver
+	repo               Repository
+	inference          inference.Client
+	facets             FacetResolver
+	embeddingRetrySlot chan struct{}
 }
 
 func (s *Service) CountInWindow(ctx context.Context, from, to time.Time) (int64, error) {
@@ -31,7 +32,7 @@ type FacetResolver interface {
 }
 
 func NewService(repo Repository, client inference.Client, facetResolvers ...FacetResolver) *Service {
-	s := &Service{repo: repo, inference: client}
+	s := &Service{repo: repo, inference: client, embeddingRetrySlot: make(chan struct{}, 1)}
 	if len(facetResolvers) > 0 {
 		s.facets = facetResolvers[0]
 	}
@@ -67,6 +68,9 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 			return existing, nil
 		}
 	}
+	// Bound all optional provider work together; keep persistence on the caller context.
+	enrichCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 	var retry []string
 	if e.FacetID != "" && s.facets != nil {
 		if err := s.facets.Validate(ctx, e.FacetID); err != nil {
@@ -84,7 +88,7 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 			return Entry{}, err
 		}
 		if !matched {
-			facet, err = s.classify(ctx, e.Body, e.Kind)
+			facet, err = s.classify(enrichCtx, e.Body, e.Kind)
 			ruleActor = "classifier"
 		}
 		if err != nil || strings.TrimSpace(facet) == "" {
@@ -104,10 +108,14 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 	}
 	e.FacetTexts = []FacetText{{Kind: "topic", Text: e.Body}, {Kind: "rule", Text: "Implication: " + e.Body}, {Kind: "entities", Text: "Entities: " + e.Body}}
 	for i := range e.FacetTexts {
-		v, err := s.inference.Embed(ctx, e.FacetTexts[i].Text, inference.EmbeddingClustering)
+		if enrichCtx.Err() != nil {
+			retry = append(retry, "embed")
+			break
+		}
+		v, err := s.inference.Embed(enrichCtx, e.FacetTexts[i].Text, inference.EmbeddingClustering)
 		if err != nil {
 			retry = append(retry, "embed")
-			continue
+			break
 		}
 		e.FacetTexts[i].Vector = v
 	}
@@ -213,6 +221,14 @@ func (s *Service) ruleFacet(ctx context.Context, e Entry) (string, string, bool,
 // ProcessEmbeddingRetries fills only missing derived vectors, then removes the
 // operational retry records. Journal prose and facet-text rows stay immutable.
 func (s *Service) ProcessEmbeddingRetries(ctx context.Context, limit int) (RetryResult, error) {
+	// One owner pass at a time prevents scheduled and explicit retries from
+	// re-embedding the same facet concurrently. Cancellation never claims work.
+	select {
+	case s.embeddingRetrySlot <- struct{}{}:
+		defer func() { <-s.embeddingRetrySlot }()
+	case <-ctx.Done():
+		return RetryResult{}, ctx.Err()
+	}
 	if limit <= 0 {
 		limit = 100
 	}
@@ -241,6 +257,9 @@ func (s *Service) ProcessEmbeddingRetries(ctx context.Context, limit int) (Retry
 			}
 		}
 		if !complete {
+			if err := s.repo.DeferEmbeddingRetries(ctx, item.Entry.ID); err != nil {
+				return result, err
+			}
 			result.Deferred++
 			continue
 		}

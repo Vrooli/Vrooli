@@ -3,12 +3,12 @@
   "flowId": "journal-write",
   "source": {
     "contractPath": "api/internal/journal/flow/flow.json",
-    "contractSha256": "62dacadced1a1de1cfa44ada7a888fe43dc8c42ee4bc21d8713f5a00ca842b9a",
+    "contractSha256": "cfafaa5353794c44705ca331cbed00525b3f84dab5ce003028942e1af015e089",
     "generatorPath": "flow-verifier",
     "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
     "generatorVersion": 7,
     "modelPath": "api/internal/journal/flow/generated/model.qnt",
-    "modelSha256": "14aa3b315868b26be145d412195388b8da002300875fc7ba2c3b0e9d581c9bcc",
+    "modelSha256": "7aa80e773add4a43631cbfa8ed93a22a88e8c5d0dc55b05373c883b16aabac68",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
@@ -25,7 +25,7 @@
       "--n-traces",
       "8",
       "--max-steps",
-      "6",
+      "3",
       "--out-itf",
       "<temp-itf-pattern>"
     ],
@@ -49,242 +49,39 @@
       "TypeOK",
       "TerminalClosure",
       "IllegalTransitionsPreserveState",
-      "AppendIsIrreversible",
       "--max-steps",
-      "6"
+      "3"
     ]
   },
   "states": [
     "received",
-    "classified",
-    "embedded",
-    "unclassified",
-    "appended",
-    "queued"
+    "appended"
   ],
   "events": [
-    "classify",
-    "classify_failure",
-    "embed",
-    "append",
-    "queue_retry"
+    "append"
   ],
   "transitions": [
     {
       "from": "received",
-      "event": "classify",
-      "to": "classified",
-      "wantError": false
-    },
-    {
-      "from": "received",
-      "event": "classify_failure",
-      "to": "unclassified",
-      "wantError": false
-    },
-    {
-      "from": "received",
-      "event": "embed",
-      "to": "received",
-      "wantError": true
-    },
-    {
-      "from": "received",
-      "event": "append",
-      "to": "received",
-      "wantError": true
-    },
-    {
-      "from": "received",
-      "event": "queue_retry",
-      "to": "received",
-      "wantError": true
-    },
-    {
-      "from": "classified",
-      "event": "classify",
-      "to": "classified",
-      "wantError": true
-    },
-    {
-      "from": "classified",
-      "event": "classify_failure",
-      "to": "classified",
-      "wantError": true
-    },
-    {
-      "from": "classified",
-      "event": "embed",
-      "to": "embedded",
-      "wantError": false
-    },
-    {
-      "from": "classified",
-      "event": "append",
-      "to": "classified",
-      "wantError": true
-    },
-    {
-      "from": "classified",
-      "event": "queue_retry",
-      "to": "classified",
-      "wantError": true
-    },
-    {
-      "from": "embedded",
-      "event": "classify",
-      "to": "embedded",
-      "wantError": true
-    },
-    {
-      "from": "embedded",
-      "event": "classify_failure",
-      "to": "embedded",
-      "wantError": true
-    },
-    {
-      "from": "embedded",
-      "event": "embed",
-      "to": "embedded",
-      "wantError": true
-    },
-    {
-      "from": "embedded",
       "event": "append",
       "to": "appended",
       "wantError": false
     },
     {
-      "from": "embedded",
-      "event": "queue_retry",
-      "to": "embedded",
-      "wantError": true
-    },
-    {
-      "from": "unclassified",
-      "event": "classify",
-      "to": "unclassified",
-      "wantError": true
-    },
-    {
-      "from": "unclassified",
-      "event": "classify_failure",
-      "to": "unclassified",
-      "wantError": true
-    },
-    {
-      "from": "unclassified",
-      "event": "embed",
-      "to": "unclassified",
-      "wantError": true
-    },
-    {
-      "from": "unclassified",
-      "event": "append",
-      "to": "unclassified",
-      "wantError": true
-    },
-    {
-      "from": "unclassified",
-      "event": "queue_retry",
-      "to": "queued",
-      "wantError": false
-    },
-    {
-      "from": "appended",
-      "event": "classify",
-      "to": "appended",
-      "wantError": true
-    },
-    {
-      "from": "appended",
-      "event": "classify_failure",
-      "to": "appended",
-      "wantError": true
-    },
-    {
-      "from": "appended",
-      "event": "embed",
-      "to": "appended",
-      "wantError": true
-    },
-    {
       "from": "appended",
       "event": "append",
       "to": "appended",
-      "wantError": true
-    },
-    {
-      "from": "appended",
-      "event": "queue_retry",
-      "to": "appended",
-      "wantError": true
-    },
-    {
-      "from": "queued",
-      "event": "classify",
-      "to": "queued",
-      "wantError": true
-    },
-    {
-      "from": "queued",
-      "event": "classify_failure",
-      "to": "queued",
-      "wantError": true
-    },
-    {
-      "from": "queued",
-      "event": "embed",
-      "to": "queued",
-      "wantError": true
-    },
-    {
-      "from": "queued",
-      "event": "append",
-      "to": "queued",
-      "wantError": true
-    },
-    {
-      "from": "queued",
-      "event": "queue_retry",
-      "to": "queued",
       "wantError": true
     }
   ],
   "namedTraces": [
     {
-      "name": "successful_append",
+      "name": "durable_append_retains_incomplete_enrichment",
       "initial": "received",
       "steps": [
-        {
-          "event": "classify",
-          "want": "classified",
-          "wantError": false
-        },
-        {
-          "event": "embed",
-          "want": "embedded",
-          "wantError": false
-        },
         {
           "event": "append",
           "want": "appended",
-          "wantError": false
-        }
-      ]
-    },
-    {
-      "name": "classifier_failure_is_queued",
-      "initial": "received",
-      "steps": [
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
-          "wantError": false
-        },
-        {
-          "event": "queue_retry",
-          "want": "queued",
           "wantError": false
         }
       ]
@@ -296,33 +93,18 @@
       "initial": "received",
       "steps": [
         {
-          "event": "classify_failure",
-          "want": "unclassified",
+          "event": "append",
+          "want": "appended",
           "wantError": false
         },
         {
-          "event": "queue_retry",
-          "want": "queued",
-          "wantError": false
-        },
-        {
-          "event": "embed",
-          "want": "queued",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
-          "event": "classify",
-          "want": "queued",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "queued",
-          "wantError": true
-        },
-        {
-          "event": "classify",
-          "want": "queued",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -332,33 +114,18 @@
       "initial": "received",
       "steps": [
         {
-          "event": "classify_failure",
-          "want": "unclassified",
+          "event": "append",
+          "want": "appended",
           "wantError": false
         },
         {
-          "event": "embed",
-          "want": "unclassified",
-          "wantError": true
-        },
-        {
-          "event": "classify",
-          "want": "unclassified",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
           "event": "append",
-          "want": "unclassified",
-          "wantError": true
-        },
-        {
-          "event": "queue_retry",
-          "want": "queued",
-          "wantError": false
-        },
-        {
-          "event": "queue_retry",
-          "want": "queued",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -368,33 +135,18 @@
       "initial": "received",
       "steps": [
         {
-          "event": "queue_retry",
-          "want": "received",
-          "wantError": true
+          "event": "append",
+          "want": "appended",
+          "wantError": false
         },
         {
-          "event": "queue_retry",
-          "want": "received",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
           "event": "append",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "classify",
-          "want": "classified",
-          "wantError": false
-        },
-        {
-          "event": "queue_retry",
-          "want": "classified",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "classified",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -404,33 +156,18 @@
       "initial": "received",
       "steps": [
         {
-          "event": "queue_retry",
-          "want": "received",
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
           "event": "append",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
-          "wantError": false
-        },
-        {
-          "event": "classify",
-          "want": "unclassified",
-          "wantError": true
-        },
-        {
-          "event": "classify",
-          "want": "unclassified",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -441,32 +178,17 @@
       "steps": [
         {
           "event": "append",
-          "want": "received",
-          "wantError": true
+          "want": "appended",
+          "wantError": false
         },
         {
-          "event": "queue_retry",
-          "want": "received",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
           "event": "append",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
-          "wantError": false
-        },
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -476,27 +198,12 @@
       "initial": "received",
       "steps": [
         {
-          "event": "classify",
-          "want": "classified",
-          "wantError": false
-        },
-        {
-          "event": "classify",
-          "want": "classified",
-          "wantError": true
-        },
-        {
-          "event": "embed",
-          "want": "embedded",
-          "wantError": false
-        },
-        {
           "event": "append",
           "want": "appended",
           "wantError": false
         },
         {
-          "event": "embed",
+          "event": "append",
           "want": "appended",
           "wantError": true
         },
@@ -512,33 +219,18 @@
       "initial": "received",
       "steps": [
         {
-          "event": "embed",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "embed",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "classify_failure",
-          "want": "unclassified",
+          "event": "append",
+          "want": "appended",
           "wantError": false
         },
         {
-          "event": "embed",
-          "want": "unclassified",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
-          "event": "embed",
-          "want": "unclassified",
-          "wantError": true
-        },
-        {
-          "event": "embed",
-          "want": "unclassified",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -548,33 +240,18 @@
       "initial": "received",
       "steps": [
         {
-          "event": "queue_retry",
-          "want": "received",
-          "wantError": true
+          "event": "append",
+          "want": "appended",
+          "wantError": false
         },
         {
-          "event": "embed",
-          "want": "received",
+          "event": "append",
+          "want": "appended",
           "wantError": true
         },
         {
           "event": "append",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "embed",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "append",
-          "want": "received",
-          "wantError": true
-        },
-        {
-          "event": "queue_retry",
-          "want": "received",
+          "want": "appended",
           "wantError": true
         }
       ]
@@ -583,8 +260,7 @@
   "invariants": [
     "TypeOK",
     "TerminalClosure",
-    "IllegalTransitionsPreserveState",
-    "AppendIsIrreversible"
+    "IllegalTransitionsPreserveState"
   ],
   "generatedChecks": [
     "transitionTable"
@@ -597,18 +273,10 @@
       "allEventsCovered": true,
       "coveredStates": [
         "received",
-        "classified",
-        "embedded",
-        "unclassified",
-        "appended",
-        "queued"
+        "appended"
       ],
       "coveredEvents": [
-        "classify",
-        "classify_failure",
-        "embed",
-        "append",
-        "queue_retry"
+        "append"
       ]
     },
     "generatedTraces": {
@@ -616,43 +284,16 @@
       "allEventsCovered": true,
       "coveredStates": [
         "received",
-        "classified",
-        "embedded",
-        "unclassified",
-        "appended",
-        "queued"
+        "appended"
       ],
       "coveredEvents": [
-        "classify",
-        "classify_failure",
-        "embed",
-        "append",
-        "queue_retry"
+        "append"
       ],
       "coveredPairs": [
-        "received/classify",
-        "received/classify_failure",
-        "received/embed",
         "received/append",
-        "received/queue_retry",
-        "classified/classify",
-        "classified/classify_failure",
-        "classified/embed",
-        "classified/queue_retry",
-        "embedded/append",
-        "unclassified/classify",
-        "unclassified/classify_failure",
-        "unclassified/embed",
-        "unclassified/append",
-        "unclassified/queue_retry",
-        "appended/embed",
-        "appended/append",
-        "queued/classify",
-        "queued/classify_failure",
-        "queued/embed",
-        "queued/queue_retry"
+        "appended/append"
       ],
-      "allPairsCovered": false
+      "allPairsCovered": true
     }
   },
   "checks": {

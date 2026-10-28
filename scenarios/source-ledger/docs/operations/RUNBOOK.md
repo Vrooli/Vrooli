@@ -68,3 +68,12 @@ completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — logs, metrics, and health signals
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
+
+
+Journal enrichment failures remain in the scoped retry queue; immutable entry
+text stays available. Vrooli Memory's existing maintenance executor runs
+bounded embedding retries when it is enabled. Each batch considers both older
+and newer queued entries, skips vectors already present, and moves failed work
+behind other entries. `vrooli-memory journal retry-embeddings --scope <scope>
+--limit <n>` is the explicit bounded owner operation; an accepted retry or an
+empty queue does not prove all other scopes are complete.

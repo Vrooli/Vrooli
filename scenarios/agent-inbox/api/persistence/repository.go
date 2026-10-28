@@ -66,21 +66,22 @@ func (t *sqliteNullTime) Scan(src interface{}) error {
 		t.Valid = false
 		return nil
 	}
-	t.Valid = true
+	var parsed time.Time
 	switch v := src.(type) {
 	case string:
-		parsed, err := parseTimestamp(v)
+		value, err := parseTimestamp(v)
 		if err != nil {
 			return err
 		}
-		t.Time = parsed
-		return nil
+		parsed = value
 	case time.Time:
-		t.Time = v
-		return nil
+		parsed = v
 	default:
 		return fmt.Errorf("cannot scan %T into sqliteNullTime", src)
 	}
+	t.Time = parsed
+	t.Valid = !parsed.IsZero()
+	return nil
 }
 
 // parseTimestamp parses common SQLite datetime text formats.
@@ -88,6 +89,8 @@ func parseTimestamp(s string) (time.Time, error) {
 	for _, layout := range []string{
 		"2006-01-02 15:04:05",
 		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05 -0700 MST",
+		"2006-01-02 15:04:05.999999999 -0700 MST",
 		time.RFC3339,
 		time.RFC3339Nano,
 		"2006-01-02T15:04:05",

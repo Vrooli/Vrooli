@@ -10,7 +10,6 @@ import (
 
 	"source-ledger/internal/capabilities"
 	"source-ledger/internal/facets"
-	"source-ledger/internal/federation"
 	"source-ledger/internal/forest"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/journal"
@@ -115,32 +114,6 @@ func main() {
 		log.Fatalf("resolve repository root for search federation: %v", err)
 	}
 	searchJSONPath := filepath.Join(repoRoot, "scenarios", "source-ledger", ".vrooli", "search.json")
-	registerScopeProvider := func(scope string) error {
-		if err := federation.AppendScopeProvider(searchJSONPath, scope); err != nil {
-			return err
-		}
-		// A scope created after boot must become visible in Search Hub as well as
-		// in the durable descriptor. Registration is best-effort and bounded by
-		// searchregister-go; local ledger writes remain authoritative.
-		go searchregister.Register(context.Background(), searchregister.Config{
-			ScenarioID:     "source-ledger",
-			SearchFilePath: searchJSONPath,
-			Logger:         log.Default(),
-		})
-		return nil
-	}
-	// The policy registry is the source of truth for scopes. Materialize every
-	// already-known scope before self-registration reads search.json, then use
-	// the same seam for scopes created through the API later in this process.
-	scopeDefinitions, err := registry.List(ctx)
-	if err != nil {
-		log.Fatalf("list scopes for search federation: %v", err)
-	}
-	for _, definition := range scopeDefinitions {
-		if err := registerScopeProvider(definition.ID); err != nil {
-			log.Fatalf("materialize search provider for scope %q: %v", definition.ID, err)
-		}
-	}
 	go searchregister.Register(ctx, searchregister.Config{
 		ScenarioID:     "source-ledger",
 		SearchFilePath: searchJSONPath,
@@ -187,7 +160,7 @@ func main() {
 		forestH.Module(forestService, log.Default()),
 		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
 		rulesH.ModuleWithRegistry(db, log.Default(), registry, gatewayClient),
-		scopesH.Module(db, registry, registerScopeProvider, log.Default(), internalrecall.NewSQLiteSource(db.Primary())),
+		scopesH.Module(db, registry, log.Default(), internalrecall.NewSQLiteSource(db.Primary())),
 	)
 
 	rootMux := http.NewServeMux()

@@ -13,6 +13,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
+	golang.org/x/crypto v0.54.0
 	modernc.org/sqlite v1.50.1
 )
 
@@ -21,7 +22,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

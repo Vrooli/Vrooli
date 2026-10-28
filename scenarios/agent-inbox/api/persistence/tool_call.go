@@ -42,42 +42,10 @@ func (r *Repository) SaveToolCallRecord(ctx context.Context, messageID string, r
 
 // ListToolCallsForChat retrieves all tool calls for a chat.
 func (r *Repository) ListToolCallsForChat(ctx context.Context, chatID string) ([]domain.ToolCallRecord, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	return r.listToolCalls(ctx, "tool calls", `
 		SELECT id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message
 		FROM tool_calls WHERE chat_id = $1 ORDER BY started_at DESC
 	`, chatID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tool calls: %w", err)
-	}
-	defer rows.Close()
-
-	records := make([]domain.ToolCallRecord, 0) // Always return [] instead of null in JSON
-	for rows.Next() {
-		var record domain.ToolCallRecord
-		var completedAt sqliteNullTime
-		var result, scenarioName, externalRunID, errorMessage sql.NullString
-		if err := rows.Scan(&record.ID, &record.MessageID, &record.ChatID, &record.ToolName, &record.Arguments, &result, &record.Status, &scenarioName, &externalRunID, scanTime(&record.StartedAt), &completedAt, &errorMessage); err != nil {
-			continue
-		}
-		if result.Valid {
-			record.Result = result.String
-		}
-		if scenarioName.Valid {
-			record.ScenarioName = scenarioName.String
-		}
-		if externalRunID.Valid {
-			record.ExternalRunID = externalRunID.String
-		}
-		if completedAt.Valid {
-			record.CompletedAt = completedAt.Time
-		}
-		if errorMessage.Valid {
-			record.ErrorMessage = errorMessage.String
-		}
-		records = append(records, record)
-	}
-
-	return records, nil
 }
 
 // ListOrphanedToolCalls finds tool calls in pending/running status that may have been
@@ -86,14 +54,18 @@ func (r *Repository) ListToolCallsForChat(ctx context.Context, chatID string) ([
 // TEMPORAL FLOW: This enables recovery from interruptions by identifying work
 // that was in-progress when the server stopped.
 func (r *Repository) ListOrphanedToolCalls(ctx context.Context) ([]domain.ToolCallRecord, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	return r.listToolCalls(ctx, "orphaned tool calls", `
 		SELECT id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message
 		FROM tool_calls
 		WHERE status IN ('pending', 'running')
 		ORDER BY started_at ASC
 	`)
+}
+
+func (r *Repository) listToolCalls(ctx context.Context, operation, query string, args ...any) ([]domain.ToolCallRecord, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list orphaned tool calls: %w", err)
+		return nil, fmt.Errorf("failed to list %s: %w", operation, err)
 	}
 	defer rows.Close()
 

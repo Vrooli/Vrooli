@@ -22,11 +22,6 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
@@ -34,17 +29,7 @@
     }
   },
   "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
+    "statusLabel": "ステータス:"
   },
   "errors": {
     "canceled": "Operation canceled.",

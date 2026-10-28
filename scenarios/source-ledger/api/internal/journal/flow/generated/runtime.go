@@ -8,68 +8,40 @@ type JournalWriteStatus string
 type JournalWriteEvent string
 
 const (
-	JournalWriteReceived     JournalWriteStatus = "received"
-	JournalWriteClassified   JournalWriteStatus = "classified"
-	JournalWriteEmbedded     JournalWriteStatus = "embedded"
-	JournalWriteUnclassified JournalWriteStatus = "unclassified"
-	JournalWriteAppended     JournalWriteStatus = "appended"
-	JournalWriteQueued       JournalWriteStatus = "queued"
+	JournalWriteReceived JournalWriteStatus = "received"
+	JournalWriteAppended JournalWriteStatus = "appended"
 )
 
 const (
-	JournalWriteClassify        JournalWriteEvent = "classify"
-	JournalWriteClassifyFailure JournalWriteEvent = "classify_failure"
-	JournalWriteEmbed           JournalWriteEvent = "embed"
-	JournalWriteAppend          JournalWriteEvent = "append"
-	JournalWriteQueueRetry      JournalWriteEvent = "queue_retry"
+	JournalWriteAppend JournalWriteEvent = "append"
 )
 
 const JournalWriteContractPath = "api/internal/journal/flow/flow.json"
 const JournalWriteModelPath = "api/internal/journal/flow/generated/model.qnt"
 const JournalWriteGeneratorPath = "flow-verifier"
-const JournalWriteContractSHA256 = "62dacadced1a1de1cfa44ada7a888fe43dc8c42ee4bc21d8713f5a00ca842b9a"
-const JournalWriteModelSHA256 = "14aa3b315868b26be145d412195388b8da002300875fc7ba2c3b0e9d581c9bcc"
+const JournalWriteContractSHA256 = "cfafaa5353794c44705ca331cbed00525b3f84dab5ce003028942e1af015e089"
+const JournalWriteModelSHA256 = "7aa80e773add4a43631cbfa8ed93a22a88e8c5d0dc55b05373c883b16aabac68"
 const JournalWriteGeneratorSHA256 = "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864"
 
-var journalWriteFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "AppendIsIrreversible"}
+var journalWriteFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState"}
 var journalWriteFormalGeneratedChecks = []string{"transitionTable"}
 
 func AllJournalWriteStatuses() []JournalWriteStatus {
-	return []JournalWriteStatus{JournalWriteReceived, JournalWriteClassified, JournalWriteEmbedded, JournalWriteUnclassified, JournalWriteAppended, JournalWriteQueued}
+	return []JournalWriteStatus{JournalWriteReceived, JournalWriteAppended}
 }
 
 func AllJournalWriteEvents() []JournalWriteEvent {
-	return []JournalWriteEvent{JournalWriteClassify, JournalWriteClassifyFailure, JournalWriteEmbed, JournalWriteAppend, JournalWriteQueueRetry}
+	return []JournalWriteEvent{JournalWriteAppend}
 }
 
 func JournalWriteIsValidEvent(status JournalWriteStatus, event JournalWriteEvent) bool {
 	switch status {
 	case JournalWriteReceived:
 		switch event {
-		case JournalWriteClassify:
-			return true
-		case JournalWriteClassifyFailure:
-			return true
-		}
-	case JournalWriteClassified:
-		switch event {
-		case JournalWriteEmbed:
-			return true
-		}
-	case JournalWriteEmbedded:
-		switch event {
 		case JournalWriteAppend:
 			return true
 		}
-	case JournalWriteUnclassified:
-		switch event {
-		case JournalWriteQueueRetry:
-			return true
-		}
 	case JournalWriteAppended:
-		switch event {
-		}
-	case JournalWriteQueued:
 		switch event {
 		}
 	}
@@ -80,81 +52,13 @@ func JournalWriteNextStatus(status JournalWriteStatus, event JournalWriteEvent) 
 	switch status {
 	case JournalWriteReceived:
 		switch event {
-		case JournalWriteClassify:
-			return JournalWriteClassified
-		case JournalWriteClassifyFailure:
-			return JournalWriteUnclassified
-		case JournalWriteEmbed:
-			return JournalWriteReceived
-		case JournalWriteAppend:
-			return JournalWriteReceived
-		case JournalWriteQueueRetry:
-			return JournalWriteReceived
-		}
-	case JournalWriteClassified:
-		switch event {
-		case JournalWriteClassify:
-			return JournalWriteClassified
-		case JournalWriteClassifyFailure:
-			return JournalWriteClassified
-		case JournalWriteEmbed:
-			return JournalWriteEmbedded
-		case JournalWriteAppend:
-			return JournalWriteClassified
-		case JournalWriteQueueRetry:
-			return JournalWriteClassified
-		}
-	case JournalWriteEmbedded:
-		switch event {
-		case JournalWriteClassify:
-			return JournalWriteEmbedded
-		case JournalWriteClassifyFailure:
-			return JournalWriteEmbedded
-		case JournalWriteEmbed:
-			return JournalWriteEmbedded
 		case JournalWriteAppend:
 			return JournalWriteAppended
-		case JournalWriteQueueRetry:
-			return JournalWriteEmbedded
-		}
-	case JournalWriteUnclassified:
-		switch event {
-		case JournalWriteClassify:
-			return JournalWriteUnclassified
-		case JournalWriteClassifyFailure:
-			return JournalWriteUnclassified
-		case JournalWriteEmbed:
-			return JournalWriteUnclassified
-		case JournalWriteAppend:
-			return JournalWriteUnclassified
-		case JournalWriteQueueRetry:
-			return JournalWriteQueued
 		}
 	case JournalWriteAppended:
 		switch event {
-		case JournalWriteClassify:
-			return JournalWriteAppended
-		case JournalWriteClassifyFailure:
-			return JournalWriteAppended
-		case JournalWriteEmbed:
-			return JournalWriteAppended
 		case JournalWriteAppend:
 			return JournalWriteAppended
-		case JournalWriteQueueRetry:
-			return JournalWriteAppended
-		}
-	case JournalWriteQueued:
-		switch event {
-		case JournalWriteClassify:
-			return JournalWriteQueued
-		case JournalWriteClassifyFailure:
-			return JournalWriteQueued
-		case JournalWriteEmbed:
-			return JournalWriteQueued
-		case JournalWriteAppend:
-			return JournalWriteQueued
-		case JournalWriteQueueRetry:
-			return JournalWriteQueued
 		}
 	}
 	return status

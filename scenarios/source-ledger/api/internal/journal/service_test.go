@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	localdb "source-ledger/internal/database"
 	"source-ledger/internal/facets"
@@ -193,4 +194,95 @@ func TestRuleMatchAssignsWithoutCallingClassifierAndRecordsProvenance(t *testing
 	require.NoError(t, err)
 	require.Len(t, assignments, 1)
 	require.Equal(t, "rule:source-episode", assignments[0].ActorID)
+}
+
+type slowAppendInference struct {
+	mocks.FakeInference
+	calls int
+}
+
+func (f *slowAppendInference) Classify(ctx context.Context, _ string) (string, error) {
+	f.calls++
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+func (f *slowAppendInference) Embed(ctx context.Context, _ string, _ inference.EmbeddingTask) ([]float64, error) {
+	f.calls++
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+func TestAppendBoundsAggregateProviderWorkAndPersistsRetry(t *testing.T) {
+	repo := journalDB(t)
+	for _, facet := range []string{"", "episode"} {
+		t.Run("facet="+facet, func(t *testing.T) {
+			client := &slowAppendInference{}
+			began := time.Now()
+			entry, err := NewService(repo, client).Append(context.Background(), Entry{Body: "Durable despite slow providers", FacetID: facet, Kind: "work-record"})
+			require.NoError(t, err)
+			require.Less(t, time.Since(began), 3*time.Second, "one aggregate budget covers classification and all embedding spaces")
+			require.Equal(t, 1, client.calls, "exhausted provider budget must not start more work")
+			stored, err := repo.Get(context.Background(), entry.ID)
+			require.NoError(t, err)
+			require.Equal(t, entry.Body, stored.Body)
+			var queued int
+			require.NoError(t, repo.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue WHERE entry_id=?`, entry.ID).Scan(&queued))
+			if facet == "" {
+				require.Equal(t, 2, queued)
+			} else {
+				require.Equal(t, 1, queued)
+			}
+		})
+	}
+}
+
+type recordingRetryInference struct {
+	texts []string
+	fail  string
+}
+
+func (f *recordingRetryInference) Classify(context.Context, string) (string, error) {
+	return "episode", nil
+}
+func (f *recordingRetryInference) Summarize(context.Context, string) (string, error) { return "", nil }
+func (f *recordingRetryInference) Embed(_ context.Context, text string, _ inference.EmbeddingTask) ([]float64, error) {
+	f.texts = append(f.texts, text)
+	if text == f.fail {
+		return nil, errors.New("unavailable")
+	}
+	return []float64{1, 2}, nil
+}
+
+func TestEmbeddingRetrySkipsExistingVectorsAndMovesFailureBehindOtherWork(t *testing.T) {
+	repo := journalDB(t)
+	ctx := context.Background()
+	first := Entry{ID: "first", Scope: "agent-memory", Body: "first", FacetID: "episode", CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), FacetTexts: []FacetText{{ID: "f1", Kind: "topic", Text: "already", Vector: []float64{1}}, {ID: "f2", Kind: "rule", Text: "fail"}}}
+	second := Entry{ID: "second", Scope: "agent-memory", Body: "second", FacetID: "episode", CreatedAt: first.CreatedAt.Add(time.Second), FacetTexts: []FacetText{{ID: "s1", Kind: "topic", Text: "next"}}}
+	_, err := repo.Append(ctx, first, []string{"embed"})
+	require.NoError(t, err)
+	_, err = repo.Append(ctx, second, []string{"embed"})
+	require.NoError(t, err)
+	client := &recordingRetryInference{fail: "fail"}
+	result, err := NewService(repo, client).ProcessEmbeddingRetries(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Deferred)
+	require.Equal(t, []string{"fail"}, client.texts)
+	result, err = NewService(repo, client).ProcessEmbeddingRetries(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Processed)
+	require.Equal(t, []string{"fail", "next"}, client.texts)
+}
+
+func TestEmbeddingRetryBatchIncludesOldestAndNewest(t *testing.T) {
+	repo := journalDB(t)
+	ctx := context.Background()
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, id := range []string{"old", "middle", "new"} {
+		_, err := repo.Append(ctx, Entry{ID: id, Scope: "agent-memory", Body: id, FacetID: "episode", CreatedAt: base.Add(time.Duration(i) * time.Second), FacetTexts: []FacetText{{ID: id + "-f", Text: id}}}, []string{"embed"})
+		require.NoError(t, err)
+	}
+	items, err := repo.EmbeddingRetries(ctx, 2)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.Equal(t, "old", items[0].Entry.ID)
+	require.Equal(t, "new", items[1].Entry.ID)
 }

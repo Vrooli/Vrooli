@@ -212,7 +212,13 @@ func (r *SQLiteRepository) PruneResolvedClassificationRetries(ctx context.Contex
 }
 
 func (r *SQLiteRepository) EmbeddingRetries(ctx context.Context, limit int) ([]RetryItem, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT q.entry_id FROM journal_retry_queue q JOIN entries je ON je.id=q.entry_id WHERE q.reason='embed' AND je.scope=? AND EXISTS (SELECT 1 FROM facet_texts ft WHERE ft.entry_id=q.entry_id AND NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.facet_text_id=ft.id)) ORDER BY q.entry_id LIMIT ?`, policy.ScopeFromContext(ctx), limit)
+	rows, err := r.db.QueryContext(ctx, `WITH pending AS (
+ SELECT q.entry_id,MIN(q.created_at) AS queued_at FROM journal_retry_queue q JOIN entries je ON je.id=q.entry_id
+ WHERE q.reason='embed' AND je.scope=? AND EXISTS (SELECT 1 FROM facet_texts ft WHERE ft.entry_id=q.entry_id AND NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.facet_text_id=ft.id)) GROUP BY q.entry_id
+), ranked AS (
+ SELECT entry_id, ROW_NUMBER() OVER (ORDER BY queued_at,entry_id) AS oldest, ROW_NUMBER() OVER (ORDER BY queued_at DESC,entry_id DESC) AS newest FROM pending
+)
+SELECT entry_id FROM ranked ORDER BY MIN(oldest,newest),oldest LIMIT ?`, policy.ScopeFromContext(ctx), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -237,9 +243,38 @@ func (r *SQLiteRepository) EmbeddingRetries(ctx context.Context, limit int) ([]R
 		if err != nil {
 			return nil, err
 		}
+		missing, err := r.missingFacetTexts(ctx, entryID)
+		if err != nil {
+			return nil, err
+		}
+		entry.FacetTexts = missing
 		items = append(items, RetryItem{Reason: "embed", Entry: entry})
 	}
 	return items, nil
+}
+
+func (r *SQLiteRepository) missingFacetTexts(ctx context.Context, entryID string) ([]FacetText, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT ft.id,ft.kind,ft.text,ft.embedding_ref FROM facet_texts ft WHERE ft.entry_id=? AND NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.facet_text_id=ft.id) ORDER BY ft.id`, entryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var texts []FacetText
+	for rows.Next() {
+		var ft FacetText
+		if err := rows.Scan(&ft.ID, &ft.Kind, &ft.Text, &ft.EmbeddingRef); err != nil {
+			return nil, err
+		}
+		texts = append(texts, ft)
+	}
+	return texts, rows.Err()
+}
+
+// A failed item goes behind other queued work, so a bad provider response for
+// one entry cannot permanently monopolize bounded retries.
+func (r *SQLiteRepository) DeferEmbeddingRetries(ctx context.Context, entryID string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE journal_retry_queue SET created_at=? WHERE entry_id=? AND reason='embed' AND EXISTS (SELECT 1 FROM entries e WHERE e.id=journal_retry_queue.entry_id AND e.scope=?)`, time.Now().UTC().Format(time.RFC3339Nano), entryID, policy.ScopeFromContext(ctx))
+	return err
 }
 
 func (r *SQLiteRepository) StoreFacetEmbedding(ctx context.Context, facetTextID string, vector []float64) error {

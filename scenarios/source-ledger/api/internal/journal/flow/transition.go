@@ -12,12 +12,8 @@ type (
 )
 
 const (
-	JournalWriteReceived     = generated.JournalWriteReceived
-	JournalWriteClassified   = generated.JournalWriteClassified
-	JournalWriteEmbedded     = generated.JournalWriteEmbedded
-	JournalWriteUnclassified = generated.JournalWriteUnclassified
-	JournalWriteAppended     = generated.JournalWriteAppended
-	JournalWriteQueued       = generated.JournalWriteQueued
+	JournalWriteReceived = generated.JournalWriteReceived
+	JournalWriteAppended = generated.JournalWriteAppended
 )
 
 type JournalWriteState struct{ Status JournalWriteStatus }
@@ -36,7 +32,7 @@ func TransitionJournalWrite(state JournalWriteState, event JournalWriteEvent) (J
 
 func CheckJournalWriteInvariants(state JournalWriteState) error {
 	switch state.Status {
-	case JournalWriteReceived, JournalWriteClassified, JournalWriteEmbedded, JournalWriteUnclassified, JournalWriteAppended, JournalWriteQueued:
+	case JournalWriteReceived, JournalWriteAppended:
 		return nil
 	default:
 		return fmt.Errorf("unknown journal write status %q", state.Status)

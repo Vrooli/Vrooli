@@ -17,17 +17,16 @@ type livenessProvider interface {
 }
 
 type connectHandler struct {
-	registry         *internalpolicy.Registry
-	registerProvider func(string) error
-	logger           *log.Logger
-	liveness         livenessProvider
+	registry *internalpolicy.Registry
+	logger   *log.Logger
+	liveness livenessProvider
 }
 
-func NewConnectHandler(registry *internalpolicy.Registry, registerProvider func(string) error, logger *log.Logger, liveness ...livenessProvider) *connectHandler {
+func NewConnectHandler(registry *internalpolicy.Registry, logger *log.Logger, liveness ...livenessProvider) *connectHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
-	h := &connectHandler{registry: registry, registerProvider: registerProvider, logger: logger}
+	h := &connectHandler{registry: registry, logger: logger}
 	if len(liveness) > 0 {
 		h.liveness = liveness[0]
 	}
@@ -55,11 +54,6 @@ func (h *connectHandler) CreateScope(ctx context.Context, req *connect.Request[s
 	}
 	if err := h.registry.Create(ctx, definition); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if h.registerProvider != nil {
-		if err := h.registerProvider(definition.ID); err != nil {
-			h.logger.Printf("scope %q created but search provider registration degraded: %v", definition.ID, err)
-		}
 	}
 	return connect.NewResponse(&scopesv1.CreateScopeResponse{Scope: pb}), nil
 }

@@ -106,6 +106,8 @@ func (r *Repository) AcknowledgeEmbeddingRetries(_ context.Context, id string) e
 	return nil
 }
 
+func (r *Repository) DeferEmbeddingRetries(context.Context, string) error { return nil }
+
 func (r *Repository) PruneResolvedEmbeddingRetries(context.Context) (int, error) {
 	return r.Pruned, nil
 }

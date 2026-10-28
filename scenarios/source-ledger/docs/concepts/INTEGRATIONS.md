@@ -5,7 +5,7 @@
 | Dependency | Use | Failure behavior |
 |---|---|---|
 | `ai-gateway` | Classification, embeddings, and compaction summaries. | Journal append remains available; enrichment and compaction report bounded failure. |
-| `search-hub` | One federated provider per scope. | Local CLI/API remain available; provider registration is retried and visible. |
+| `search-hub` | One scope-faceted federated provider. | Local CLI/API remain available; provider registration is retried and visible. |
 | `data-backup-manager` | Non-regenerable journal backup and restore drills. | The scenario must not claim production readiness without a verified backup. |
 
 SQLite is in-process and is not a resource dependency. The source ledger owns
@@ -21,13 +21,11 @@ for live recall while existing projected wake blocks remain intact.
 
 ## Discovery and Registration
 
-Source Ledger owns the federated descriptor at `.vrooli/search.json`. At boot
-it materializes one provider for every scope in the policy registry, then
-self-registers all descriptors with Search Hub. A newly-created scope updates
-the descriptor and triggers the same bounded registration path. The stable
-agent scope is `source-ledger.agent-memory`; other scopes use
-`source-ledger.scope.<scope-id>`. Every request template carries its scope
-explicitly, so federation cannot cross ledgers accidentally.
+Source Ledger owns the federated descriptor at `.vrooli/search.json`. It
+registers a single `source-ledger.scopes` provider with Search Hub. The router
+passes the requested scope as a query facet; an empty scope selects the
+agent-memory ledger. New scopes use the same provider and do not require
+registry mutations.
 
 ## Security and Data Rules
 

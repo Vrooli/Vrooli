@@ -27,7 +27,7 @@
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | Per-scope vocabulary | Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.
-- [ ] OT-P1-002 | Federated scope discovery | Search clients should discover one provider per scope and receive scope-labelled results without duplicate corpus answers.
+- [ ] OT-P1-002 | Federated scope discovery | Search clients should discover the scope-faceted provider and receive only results from the requested scope without duplicate corpus answers.
 - [x] OT-P1-003 | Corpus-first operator surface | The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.
 - [ ] OT-P1-004 | Append-only migration seam | The ledger should support a verified migration that preserves entry bodies and dependent derived data without deleting source rows.
 - [ ] OT-P1-005 | Measured recall cost | The ledger should measure recall cost and apply a bounded candidate strategy when corpus growth exceeds the recorded latency ceiling.
@@ -48,7 +48,7 @@
 ## 🤝 Dependencies & Launch Plan
 
 - **Required resources**: ai-gateway for governed classification, embeddings, and compaction summaries.
-- **Scenario dependencies**: The service-contract phase will declare search-hub for one provider per scope and data-backup-manager for authoritative corpus registration. This scaffold phase records those integrations without starting them before their capability surfaces exist.
+- **Scenario dependencies**: The service-contract phase will declare search-hub for one scope-faceted provider and data-backup-manager for authoritative corpus registration. This scaffold phase records those integrations without starting them before their capability surfaces exist.
 - **Operational risks**: A provider outage can pause derived enrichment but must not block journal append or projection consumers; one database remains the authority; compaction failures must be visible without deleting source rows.
 - **Launch sequencing**: Author the contract, define the service boundary, move and validate engine packages, migrate the corpus, cut over vrooli-memory, build the corpus-first UI, federate scopes, and then migrate marketing-crew.
 

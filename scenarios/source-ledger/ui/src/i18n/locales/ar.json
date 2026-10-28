@@ -22,11 +22,6 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "لوحة التحكم",
-      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
-      "statPlaceholderLabel": "إحصائية"
-    },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
@@ -34,20 +29,7 @@
     }
   },
   "health": {
-    "title": "حالة API",
-    "loading": "جارٍ التحقق من حالة API…",
-    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
-    "refresh": "تحديث",
-    "refreshCount": "تم التحديث {{count}} مرات",
-    "refreshCount_one": "تم التحديث مرة واحدة",
-    "statusLabel": "الحالة:",
-    "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
-  },
-  "notifications": {
-    "summary": "{{count}} إشعارات",
-    "summary_zero": "لا توجد إشعارات",
-    "summary_one": "إشعار واحد"
+    "statusLabel": "الحالة:"
   },
   "errors": {
     "canceled": "Operation canceled.",

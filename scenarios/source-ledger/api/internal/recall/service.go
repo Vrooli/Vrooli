@@ -333,20 +333,24 @@ func (s *Service) Zoom(ctx context.Context, id string) ([]Node, error) {
 
 func collapse(hits []Hit, limit int) []Hit {
 	selected := make([]Hit, 0, limit)
+	parents := make(map[string]string, len(hits))
+	for _, hit := range hits {
+		parents[hit.Node.ID] = hit.Node.ParentID
+	}
 	for _, hit := range hits {
 		if len(selected) == limit {
 			break
 		}
 		ancestor := -1
 		for i, existing := range selected {
-			if isDescendant(hit.Node, existing.Node.ID, hits) {
+			if isDescendant(hit.Node, existing.Node.ID, parents) {
 				ancestor = i
 				break
 			}
 			// A more relevant descendant may have been selected before its
 			// ancestor. Keep that best node and suppress the ancestor: returning
 			// both would violate the antichain contract for recall results.
-			if isDescendant(existing.Node, hit.Node.ID, hits) {
+			if isDescendant(existing.Node, hit.Node.ID, parents) {
 				ancestor = i
 				break
 			}
@@ -360,20 +364,15 @@ func collapse(hits []Hit, limit int) []Hit {
 	return selected
 }
 
-func isDescendant(n Node, ancestor string, hits []Hit) bool {
+func isDescendant(n Node, ancestor string, parents map[string]string) bool {
 	parent := n.ParentID
-	for parent != "" {
+	// Forest data is expected acyclic; this bound also prevents corrupt lineage
+	// from trapping a recall request indefinitely.
+	for steps := 0; parent != "" && steps < len(parents); steps++ {
 		if parent == ancestor {
 			return true
 		}
-		next := ""
-		for _, h := range hits {
-			if h.Node.ID == parent {
-				next = h.Node.ParentID
-				break
-			}
-		}
-		parent = next
+		parent = parents[parent]
 	}
 	return false
 }

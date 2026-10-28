@@ -127,6 +127,10 @@ without weakening source freshness for real source edits.
 **Refs:** `scenarios/test-genie/api/internal/orchestrator/suite_execution.go`,
 `packages/freshness-go/treedigest`, Phase 12 orientation gate.
 
+### 2026-10-28 — Business evidence not current after scope-faceted federation correction
+
+`business-health validate scenario source-ledger --json` returned FAILED: no requirements-sync snapshot was available and SL-P0-003, SL-P1-001, SL-P1-003, SL-P1-006 and SL-P1-007 have complete-status claims not earned by current snapshot/manual attestation. The scoped federation correction preserves the P0 isolation goal and changes P1 discovery to one scope-faceted provider; the W1 gate is not certified. Unit Test Genie run `20261028-190034-f97b1a09` passed, and live scope controls passed; those do not prove the unrelated claims. Reconcile statuses and obtain appropriately scoped evidence under the business-health owner rather than manufacturing attestations or treating unit success as full certification.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -37,7 +37,7 @@
       "status": "planned",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "description": "Search clients should discover one provider per scope and receive scope-labelled results without duplicate corpus answers.",
+      "description": "Search clients should discover the scope-faceted provider and receive only results from the requested scope without duplicate corpus answers.",
       "validation": [
         {
           "type": "manual",

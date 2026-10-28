@@ -8,7 +8,7 @@
     "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
     "generatorVersion": 7,
     "modelPath": "api/internal/forest/flow/generated/model.qnt",
-    "modelSha256": "612e770ec94dc97d048cb00aeb31b90ec170fe48ba4cc04def3744d5a2afbe42",
+    "modelSha256": "cd9c922be3b2d8d10dd32228ecaa6990bed33d0f68c226c2878f362c9c1d072c",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
