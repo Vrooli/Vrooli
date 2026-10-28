@@ -44,7 +44,7 @@ Nine read commands also declare live analytical measures: `action list`,
 | `prompt-manager agent` | Manage canonical agents (CRUD, soul, search) |
 | `prompt-manager member` | Deprecated avatar compatibility projection over agents |
 | `prompt-manager team` | Manage teams, heartbeat operations, handoffs, and task boards |
-| `prompt-manager experiment` | Manage governed skill experiments |
+| `prompt-manager experiment` | Manage governed skill/prompt A/B experiments (not open-ended research runs — see the Experiments scope note) |
 | `prompt-manager tag` | Manage tags |
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
@@ -302,6 +302,14 @@ prompt-manager skill rm-variant <id> <variant-id> [--force]
 ## Experiments
 
 [CODE: cli/experiments/experiments.go]
+
+> **Scope.** This command group governs **skill/prompt A/B experiments** — variant
+> arms per skill, outcome counts, holdout, and promote. It is **not** the home for
+> open-ended research or benchmark runs. For those (dataset studies, local
+> optimization trials, e.g. the runs under `~/vrooli-experiments/`), use the
+> `adaptive-research` / `local-experimentation` skills; their discovery handle is a
+> `vrooli-memory journal note --kind work-record` plus a row in
+> `docs/internal/research-experimentation/LEDGER.md`, not this registry.
 
 ### prompt-manager experiment list
 

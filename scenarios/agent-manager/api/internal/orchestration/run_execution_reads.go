@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/repository"
 	"context"
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 	"time"
 )
 
@@ -185,6 +186,13 @@ func (o *Orchestrator) ValidatePath(ctx context.Context, path string, projectRoo
 	return o.sandbox.ValidatePath(ctx, path, projectRoot)
 }
 
+type sessionBindingVerificationKey struct{}
+
+// WithSessionBindingVerification requests the optional owner proof for a narrow read.
+func WithSessionBindingVerification(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sessionBindingVerificationKey{}, true)
+}
+
 // VerifyIdentityToken validates a signed agent identity token and returns the
 // embedded claims along with the current run status.
 func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*IdentityVerifyResult, error) {
@@ -200,6 +208,8 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 		return &IdentityVerifyResult{Valid: false, Error: "credential is not an active run identity"}, nil
 	}
 
+	// Only this verifier may project the session-binding claim.
+	delete(claims.Meta, "verified_web_console_session_id")
 	if claims.Meta["authorization_id"] != "" {
 		return o.verifyAuthorization(ctx, token, claims)
 	}
@@ -226,6 +236,19 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 		return &IdentityVerifyResult{Valid: false, Error: "identity token has been revoked"}, nil
 	}
 
+	// Project the persisted session only after checking the active run and signed
+	// attachment coordinates. A caller-supplied observation never grants it.
+	if requested, _ := ctx.Value(sessionBindingVerificationKey{}).(bool); requested && run.Status == domain.RunStatusRunning && run.WebConsoleSessionID != "" {
+		mode := run.ExecutionMode.Normalized()
+		attached := mode == domain.ExecutionModeAttached && claims.Meta["execution_mode"] == string(mode) && run.HarnessKind != "" && run.HarnessSessionID != "" && claims.Meta["harness_kind"] == run.HarnessKind && claims.Meta["harness_session"] == run.HarnessSessionID && o.verifiedAttachedSessionBinding(ctx, run)
+		if mode == domain.ExecutionModeInteractive || attached {
+			if claims.Meta == nil {
+				claims.Meta = make(map[string]string)
+			}
+			claims.Meta["verified_web_console_session_id"] = run.WebConsoleSessionID
+		}
+	}
+
 	if err := o.projectVerifiedWorkflowIdentity(ctx, run, claims); err != nil {
 		return nil, err
 	}
@@ -234,6 +257,27 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 		Claims:    claims,
 		RunStatus: run.Status,
 	}, nil
+}
+
+// A persisted attach header is only a locator. Recheck it against the existing
+// session-owner lease proof and the current kernel process identity.
+func (o *Orchestrator) verifiedAttachedSessionBinding(ctx context.Context, run *domain.Run) bool {
+	if o.sessionBindingProofReader == nil || run.RunnerPID <= 1 {
+		return false
+	}
+	proof, err := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: run.ID, HarnessSessionID: run.HarnessSessionID, WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: run.HarnessKind, ProcessID: run.RunnerPID})
+	if err != nil {
+		return false
+	}
+	binding, err := cliutil.ObserveProcessBinding(run.RunnerPID)
+	if err != nil {
+		return false
+	}
+	if proof.OwnerKind != "web-console-session" || !validSessionBindingTuple(proof, run.ID, run.HarnessSessionID, run.WebConsoleSessionID, run.HarnessKind, binding) {
+		return false
+	}
+	latest, err := o.runs.Get(ctx, run.ID)
+	return err == nil && sameRenewalBinding(run, latest) && latest.IdentityTokenHash == run.IdentityTokenHash
 }
 
 // Status Operations

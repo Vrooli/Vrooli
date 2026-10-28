@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/operatordecision"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -81,7 +82,7 @@ func deliveryContext(e *pb.EffortEnrollment, now time.Time) string {
 	return fmt.Sprintf("\n\nDelivery commission %s (%s): %s; elapsed %ds / budget %ds, paused %ds. %s Read the current effort board and product charter; preserve the honest surface scoreboard.", p.CommissionId, e.EffortRef, p.Phase, p.ElapsedSeconds, p.BudgetSeconds, p.PausedSeconds, p.Instruction)
 }
 
-// transitionDelivery is reached only through operator enrollment. Reconciliation
+// transitionDelivery is reached only through authorized enrollment. Reconciliation
 // treats Delivery as immutable. All clock timestamps are assigned here.
 func (s *EffortService) transitionDelivery(ctx context.Context, old, next *pb.EffortEnrollment) error {
 	d := next.GetDelivery()
@@ -441,8 +442,25 @@ func (s *EffortService) advanceDelivery(ctx context.Context, e *pb.EffortEnrollm
 	if !ok {
 		return errors.New("delivery handback requires a registered product home")
 	}
-	d := &pb.EffortDecision{EffortRef: e.EffortRef, GoalHome: home, DecisionId: "delivery-" + e.Delivery.CommissionId, Question: "Delivery stopped. Accept the evidenced partial result, recommission, or change scope?", Options: []*pb.EffortDecisionOption{{Key: "accept-partial", Label: "Accept the evidenced partial result"}, {Key: "recommission", Label: "Recommission with a new budget"}, {Key: "rescope", Label: "Change scope before another commission"}}, Recommended: "rescope", RecommendationReason: "Review the remaining outcomes before choosing another commission.", Note: "Time did not establish acceptance. Read CHARTER.md, STATUS.md and LOG.md; unverified outcomes remain unverified."}
-	outcome := s.projectGoalHome(ctx, e, &pb.EffortBoardRow{})
+	decisionID := "delivery-" + e.Delivery.CommissionId
+	// Freeze the same outcome used by the operator's question before publishing.
+	// A publication retry must not turn later workspace edits into a new question.
+	if e.Delivery.Outcome == nil {
+		next := proto.Clone(e).(*pb.EffortEnrollment)
+		next.Delivery.Outcome = s.projectGoalHome(ctx, e, &pb.EffortBoardRow{})
+		next.Delivery.DecisionId = decisionID
+		if err := s.saveDelivery(ctx, e, next, "outcome"); err != nil {
+			return err
+		}
+		e = next
+	}
+	outcome := e.Delivery.Outcome
+	d, _, err := s.decisionForHome(ctx, home, decisionID)
+	if errors.Is(err, ErrNotFound) {
+		d = deliveryHandbackDecision(e, home, outcome)
+	} else if err != nil {
+		return err
+	}
 	if err := s.writeDeliveryOutcome(home, e.Delivery.CommissionId, d.DecisionId, outcome); err != nil {
 		return err
 	}
@@ -454,6 +472,100 @@ func (s *EffortService) advanceDelivery(ctx context.Context, e *pb.EffortEnrollm
 	next.Delivery.Outcome = outcome
 	next.Delivery.DecisionId = d.DecisionId
 	return s.saveDelivery(ctx, e, next, "finalized")
+}
+
+// Use the existing, source-neutral decision explanations in both inboxes. These
+// are frozen workspace reports, not a new acceptance or a live run observation.
+func deliveryHandbackDecision(e *pb.EffortEnrollment, home string, outcome *pb.EffortGoalHome) *pb.EffortDecision {
+	name := strings.TrimSpace(e.DisplayName)
+	if name == "" {
+		name = e.EffortRef
+	}
+	// Even four-byte characters must fit the existing 600-byte question limit.
+	name = boundedEffortContext(name, 100)
+	d := e.Delivery
+	clock := DeliveryPressure(d, d.GetStoppedAt().AsTime())
+	var big, technical strings.Builder
+	fmt.Fprintf(&big, "%s (%s) has stopped. Reason: %s. This commission has ended; elapsed time does not establish that the product is finished.\n\n", name, e.EffortRef, boundedEffortContext(d.Reason, 400))
+	big.WriteString("Accept partial keeps only the evidenced result and leaves unfinished requirements open. Recommission requests another explicitly authorized budget for the remaining work. Change scope asks you to revise the destination before another commission. Answering this question does not itself restart delivery or accept unverified work.\n\n")
+	if outcome != nil && outcome.CurrentValue != nil {
+		fmt.Fprintf(&big, "Reported progress: %g %s", outcome.GetCurrentValue(), outcome.GetDestinationMetric())
+		if outcome.DestinationTarget != nil {
+			fmt.Fprintf(&big, "; destination %s %g", outcome.DestinationOp, outcome.GetDestinationTarget())
+		}
+		big.WriteString(". ")
+	} else {
+		big.WriteString("Current destination progress is unknown. ")
+	}
+	if len(outcome.GetSurfaceScoreboard()) == 0 {
+		big.WriteString("The product surface assessment is unavailable. ")
+	} else {
+		big.WriteString("Reported surfaces: ")
+		for i, row := range outcome.SurfaceScoreboard {
+			if i > 0 {
+				big.WriteString("; ")
+			}
+			fmt.Fprintf(&big, "%s — %s", row.Surface, row.State)
+		}
+		big.WriteString(". ")
+	}
+	big.WriteString("These are recorded workspace reports; unverified outcomes remain unverified.")
+	fmt.Fprintf(&technical, "Effort: %s. Commission: %s. Product home: %s. Target revision: %s. Source revision: %s.\n\n", e.EffortRef, d.CommissionId, home, e.TargetRevision, e.SourceRevision)
+	fmt.Fprintf(&technical, "Clock: budget %s; elapsed %s; paused %s; worker limit %d. Started: %s. Stopped: %s. Stop reason: %s.\n\n", time.Duration(d.BudgetSeconds)*time.Second, time.Duration(clock.ElapsedSeconds)*time.Second, time.Duration(d.PausedSeconds)*time.Second, d.MaxWorkers, deliveryDecisionTime(d.StartedAt), deliveryDecisionTime(d.StoppedAt), d.Reason)
+	fmt.Fprintf(&technical, "Evidence references: %s/CHARTER.md defines the destination; %s/STATUS.md records per-surface gaps and the handoff; %s/LOG.md records accepted work and its evidence. These files may change after the frozen observation.\n\n", home, home, home)
+	if outcome.GetHandoff() != "" {
+		fmt.Fprintf(&technical, "Recorded handoff (workspace report at the frozen observation):\n%s\n\n", outcome.Handoff)
+	} else {
+		technical.WriteString("Recorded handoff is unavailable; remaining-work narrative is unknown.\n\n")
+	}
+	fmt.Fprintf(&technical, "Frozen workspace observation: %s at %s. Progress measured as of %s.\n", outcome.GetState(), deliveryDecisionTime(outcome.GetReadAt()), deliveryDecisionTime(outcome.GetCurrentAsOf()))
+	for _, row := range outcome.GetSurfaceScoreboard() {
+		fmt.Fprintf(&technical, "- %s: %s; target: %s; reported owner: %s.\n", row.Surface, row.State, row.Target, row.OwnerRun)
+	}
+	if len(outcome.GetActiveUnits()) > 0 {
+		technical.WriteString("Reported active units at that observation (not current runtime or completed work):\n")
+		for _, unit := range outcome.ActiveUnits {
+			fmt.Fprintf(&technical, "- %s: %s; workers: %s.\n", unit.UnitId, unit.Status, strings.Join(unit.Workers, ", "))
+		}
+	}
+	technical.WriteString("\nOperator requirements from the frozen observation:\n")
+	if len(outcome.GetNeedsOperator()) == 0 {
+		technical.WriteString("No operator requirements were reported; this does not prove that none exist.\n")
+	}
+	for _, item := range outcome.GetNeedsOperator() {
+		fmt.Fprintf(&technical, "- %s\n", item)
+	}
+	if len(outcome.GetLimitations()) > 0 {
+		fmt.Fprintf(&technical, "Observation limitations: %s.\n", strings.Join(outcome.Limitations, "; "))
+	}
+	if len(outcome.GetLintFindings()) > 0 {
+		fmt.Fprintf(&technical, "Home findings: %s.\n", strings.Join(outcome.LintFindings, ", "))
+	}
+	technical.WriteString("\nA stopped commission cannot resume; a new commission must pass the native owner and retained-run fences.")
+	return &pb.EffortDecision{
+		EffortRef: e.EffortRef, GoalHome: home, DecisionId: "delivery-" + d.CommissionId,
+		Question:    name + ": delivery stopped. Accept the evidenced partial result, recommission, or change scope?",
+		Options:     []*pb.EffortDecisionOption{{Key: "accept-partial", Label: "Accept the evidenced partial result"}, {Key: "recommission", Label: "Recommission with a new budget"}, {Key: "rescope", Label: "Change scope before another commission"}},
+		Recommended: "rescope", RecommendationReason: "Review the remaining outcomes before choosing another commission.",
+		BigPicture:       boundedEffortContext(big.String(), operatordecision.MaxBigPictureCodePoints),
+		TechnicalDetails: boundedEffortContext(technical.String(), operatordecision.MaxTechnicalDetailsCodePoints),
+	}
+}
+
+func deliveryDecisionTime(at *timestamppb.Timestamp) string {
+	if at == nil {
+		return "unknown"
+	}
+	return at.AsTime().UTC().Format(time.RFC3339)
+}
+
+func boundedEffortContext(text string, limit int) string {
+	runes := []rune(text)
+	if len(runes) <= limit {
+		return string(runes)
+	}
+	const omitted = "… [truncated; see source documents]"
+	return string(runes[:limit-len([]rune(omitted))]) + omitted
 }
 
 // Append a terminal observation without rewriting the product scoreboard or
@@ -487,7 +599,7 @@ func (s *EffortService) writeDeliveryOutcome(home, commission, decision string, 
 		return errors.New("terminal STATUS exceeds the bounded file limit; compact resolved history and retry")
 	}
 	name := ".delivery-outcome-" + uuid.NewString()
-	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}

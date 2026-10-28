@@ -52,11 +52,20 @@ func (o *Orchestrator) ListExecutionOptions(ctx context.Context, roleRef string)
 	// role policy is configured. The resolved policy is the catalog's model
 	// truth; the local runner probe is merged only as additional entries.
 	var resolved []rolepolicy.ResolvedCandidate
-	if strings.TrimSpace(roleRef) != "" && o.rolePolicy != nil && o.roleResolver != nil {
-		if res, err := o.rolePolicy.Resolve(ctx, o.roleResolver, roleRef); err == nil && res != nil {
-			resolved = res.Candidates
+	if strings.TrimSpace(roleRef) != "" {
+		if o.rolePolicy == nil || o.roleResolver == nil {
+			return nil, domain.NewValidationError("roleRef", "role-policy resolver is not configured")
 		}
+		res, err := o.rolePolicy.Resolve(ctx, o.roleResolver, roleRef)
+		if err != nil {
+			return nil, err
+		}
+		if res == nil || len(res.Candidates) == 0 {
+			return nil, domain.NewValidationError("roleRef", "role resolution produced no candidates")
+		}
+		resolved = res.Candidates
 	}
+
 	byRunner := map[domain.RunnerType]rolepolicy.ResolvedCandidate{}
 	order := make([]domain.RunnerType, 0, len(resolved))
 	for _, candidate := range resolved {

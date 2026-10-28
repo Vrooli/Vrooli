@@ -11,16 +11,11 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-// TestRunnerTypeTriSourceConformance is the RunnerType drift gate required by
-// the grok-runner plan (Phase 3). The set of valid runner types is declared in
-// THREE places that must never diverge:
-//
-//  1. Go      — domain.ValidRunnerTypes()
-//  2. proto   — the generated RunnerType enum (domainpb.RunnerType_value)
-//  3. JSON    — runner candidates in config/role-policy-catalog.json
-//
-// Adding a runner (e.g. grok) must touch all three; this test fails loudly if
-// one is forgotten, making the Phase-4 enum addition self-checking.
+// TestRunnerTypeTriSourceConformance keeps the Go/proto runner vocabulary in
+// agreement and checks that operator policy selects only supported runners.
+// A policy is a selected subset, not a registry: requiring every supported
+// runner would force unwanted cross-provider fallbacks into operator policy.
+// Catalog.Load additionally validates unknown runner identities fail closed.
 //
 // The proto enum names (RUNNER_TYPE_CLAUDE_CODE) map to the runner value
 // strings ("claude-code") by stripping the RUNNER_TYPE_ prefix, lowercasing,
@@ -44,18 +39,25 @@ func TestRunnerTypeTriSourceConformance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load role policy catalog: %v", err)
 	}
-	jsonSet := make(map[string]struct{})
 	for _, role := range revision.Catalog().Roles {
 		for _, candidate := range role.Candidates {
-			jsonSet[string(candidate.Runner)] = struct{}{}
+			if _, known := goSet[string(candidate.Runner)]; !known {
+				t.Errorf("role policy selects unsupported runner %q", candidate.Runner)
+			}
 		}
+	}
+
+	// Selecting a subset must not relax validation of unknown candidates.
+	invalid := revision.Catalog().Clone()
+	role := invalid.Roles[invalid.DefaultRole]
+	role.Candidates[0].Runner = domain.RunnerType("not-a-runner")
+	invalid.Roles[invalid.DefaultRole] = role
+	if err := invalid.Validate(); err == nil {
+		t.Fatal("unknown runner passed policy validation")
 	}
 
 	if diff := setDiff(goSet, protoSet); diff != "" {
 		t.Errorf("Go vs proto RunnerType sets diverge:\n%s", diff)
-	}
-	if diff := setDiff(goSet, jsonSet); diff != "" {
-		t.Errorf("Go vs role-policy-catalog.json RunnerType sets diverge:\n%s", diff)
 	}
 }
 

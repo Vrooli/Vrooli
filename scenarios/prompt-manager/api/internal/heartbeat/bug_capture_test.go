@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/vrooli/cli-core/teamattribution"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -172,4 +173,48 @@ func containsCaptureValue(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestBugCaptureUsesRetryKeyWithoutCollapsingLongTitles(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	h := NewHandlers(HandlersDeps{TeamStore: teamStore, AgentStore: agentStore, RelationStore: fileStore.Relations(), Executor: newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)})
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam(scenarioQATeamID, "Scenario QA")); err != nil {
+		t.Fatal(err)
+	}
+	header := teamattribution.Encode(teamattribution.WriterSkill(teamattribution.Info{SpawnOrigin: teamattribution.SpawnOriginHeartbeat}, "report-bug", scenarioQATeamID))
+	capture := func(key, title string) BugCaptureResponse {
+		t.Helper()
+		body, err := json.Marshal(BugCaptureRequest{Title: title, IdempotencyKey: key, SignalType: "code-defect", Severity: "minor", Repro: []string{"Run the owner check"}, Expected: "current observation", Actual: "stale observation", Description: "Measured maintenance finding", HonestyFlags: []string{"ai-generated-summary"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/capture", bytes.NewReader(body)), map[string]string{"id": scenarioQATeamID})
+		req.Header.Set(attributionHeaderName, header)
+		w := httptest.NewRecorder()
+		h.CaptureBug(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("capture: %d %s", w.Code, w.Body.String())
+		}
+		var result BugCaptureResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.Disposition != "published" || result.Knowledge == nil {
+			t.Fatalf("writer contract rejected: %+v", result)
+		}
+		return result
+	}
+	prefix := "model policy drift provider runner catalog revision observation "
+	first := capture("finding-stale", prefix+"stale")
+	second := capture("finding-version", prefix+"version")
+	if first.Knowledge.ID == second.Knowledge.ID {
+		t.Fatal("distinct retry keys collapsed into one old truncated-title topic")
+	}
+	replay := capture("finding-stale", "a corrected display title")
+	if replay.Knowledge.ID != first.Knowledge.ID {
+		t.Fatal("same retry key published a duplicate after display-title change")
+	}
 }

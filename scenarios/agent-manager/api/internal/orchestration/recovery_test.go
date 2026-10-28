@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type pendingRunRecoveryStub struct{ ids []uuid.UUID }
@@ -968,4 +969,111 @@ func waitForRecoveryStatus(t *testing.T, repos *database.Repositories, runID uui
 		t.Fatalf("get run after timeout: %v", err)
 	}
 	t.Fatalf("timed out waiting for status %s, got %s", want, run.Status)
+}
+
+func TestRestartPreservesExternallyAttachedSessionWithoutTranscript(t *testing.T) {
+	r, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	run.ExecutionMode = domain.ExecutionModeAttached
+	run.RunnerPID = os.Getpid()
+	run.ResolvedConfig = nil
+	run.TranscriptPath = ""
+	run.HarnessKind = "codex"
+	run.HarnessSessionID = "external-session"
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.RecoverInFlightRuns(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	current, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Status != domain.RunStatusRunning || current.EndedAt != nil || current.ErrorMsg != "" {
+		t.Fatalf("restart mistook live attached session for a managed transcript executor: status=%s ended=%v error=%s", current.Status, current.EndedAt, current.ErrorMsg)
+	}
+}
+
+func TestAttachedRecoveryRepairsOnlyProvenLiveParserMisclassification(t *testing.T) {
+	for _, mode := range []string{"live", "owner unavailable", "wrong process", "unrelated lease", "cancellation race", "token replacement race", "real review"} {
+		t.Run(mode, func(t *testing.T) {
+			r, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+			run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+			run.ExecutionMode = domain.ExecutionModeAttached
+			run.RunnerPID = os.Getpid()
+			run.ResolvedConfig = nil
+			run.HarnessKind = "codex"
+			run.HarnessSessionID = "attached-anchor"
+			run.WebConsoleSessionID = "wc"
+			run.IdentityTokenHash = "original-anchor"
+			if err := repos.Runs.Update(t.Context(), run); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := r.recordRecoveredInterruption(t.Context(), run, missingRecoveryParser); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "real review" {
+				run.ErrorMsg = "explicit operator review"
+				if err := repos.Runs.Update(t.Context(), run); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, err := repos.Runs.Get(t.Context(), run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+			if err != nil {
+				t.Fatal(err)
+			}
+			r.sessionBindingProofReader = SessionBindingProofReaderFunc(func(ctx context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+				if mode == "owner unavailable" {
+					return SessionBindingProof{}, context.DeadlineExceeded
+				}
+				if mode == "cancellation race" || mode == "token replacement race" {
+					competing, err := repos.Runs.Get(ctx, request.RunID)
+					if err != nil {
+						return SessionBindingProof{}, err
+					}
+					if mode == "cancellation race" {
+						now := time.Now()
+						competing.CancelRequestedAt = &now
+					} else {
+						competing.IdentityTokenHash = "replacement-anchor"
+					}
+					if err := repos.Runs.Update(ctx, competing); err != nil {
+						return SessionBindingProof{}, err
+					}
+				}
+				proof := SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: request.RunID.String(), HarnessSessionID: request.HarnessSessionID, LeaseSessionID: request.RunID.String(), WebConsoleSessionID: request.WebConsoleSessionID, HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding}
+				if mode == "wrong process" {
+					proof.Binding.PID++
+				}
+				if mode == "unrelated lease" {
+					proof.LeaseSessionID = "another-session"
+				}
+				return proof, nil
+			})
+			if err := r.RecoverInFlightRuns(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			after, err := repos.Runs.Get(t.Context(), run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode != "live" {
+				if after.Status != domain.RunStatusNeedsReview || after.EndedAt == nil {
+					t.Fatalf("unproven recovery changed lifecycle: %+v", after)
+				}
+				return
+			}
+			if after.Status != domain.RunStatusRunning || after.EndedAt != nil || after.ErrorMsg != "" || after.LifecycleVersion != before.LifecycleVersion+1 {
+				t.Fatalf("verified live session was not restored with lifecycle fencing: %+v", after)
+			}
+			if after.IdentityTokenHash != before.IdentityTokenHash || after.StartedAt == nil || !after.StartedAt.Equal(*before.StartedAt) || after.OwnerEpoch != before.OwnerEpoch || after.Result != nil {
+				t.Fatal("restoration changed credentials, original start, owner or outcome")
+			}
+		})
+	}
 }

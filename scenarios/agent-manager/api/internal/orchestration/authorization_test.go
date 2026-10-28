@@ -139,18 +139,18 @@ func TestAuthorizationAttachmentRetainsVerifiedLauncherSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	const harnessSession, webConsoleSession = "host-launch-session", "verified-wc-session"
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
-		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+		if request.HarnessSessionID != harnessSession || request.HarnessKind != "codex" || (request.WebConsoleSessionID != "" && request.WebConsoleSessionID != webConsoleSession) {
 			return SessionBindingProof{}, errors.New("session tuple changed")
 		}
 		runSelector := ""
-		if runID != uuid.Nil {
-			runSelector = runID.String()
+		if request.RunID != uuid.Nil {
+			runSelector = request.RunID.String()
 		}
 		return SessionBindingProof{
 			ProofVersion: sessionBindingProofVersion, RunID: runSelector,
-			HarnessSessionID: harnessSession, WebConsoleSessionID: webConsoleSession,
-			HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding,
+			HarnessSessionID: harnessSession, LeaseSessionID: harnessSession, WebConsoleSessionID: webConsoleSession,
+			HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding,
 		}, nil
 	})
 	o := New(nil, nil, repos.Runs,
@@ -211,18 +211,18 @@ func TestLegacyPendingAuthorizationResolvesLauncherLocatorOnlyAtFreshApproval(t 
 	// This simulates a request already pending before the locator was retained.
 	// The fresh approval resolves it from the original host-session key and the
 	// immutable process binding, not from a replacement consent or run mutation.
-	o.sessionBindingProofReader = SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
-		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+	o.sessionBindingProofReader = SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+		if request.HarnessSessionID != harnessSession || request.HarnessKind != "codex" || (request.WebConsoleSessionID != "" && request.WebConsoleSessionID != webConsoleSession) {
 			return SessionBindingProof{}, errors.New("legacy request tuple changed")
 		}
 		runSelector := ""
-		if runID != uuid.Nil {
-			runSelector = runID.String()
+		if request.RunID != uuid.Nil {
+			runSelector = request.RunID.String()
 		}
 		return SessionBindingProof{
 			ProofVersion: sessionBindingProofVersion, RunID: runSelector,
-			HarnessSessionID: harnessSession, WebConsoleSessionID: webConsoleSession,
-			HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding,
+			HarnessSessionID: harnessSession, LeaseSessionID: harnessSession, WebConsoleSessionID: webConsoleSession,
+			HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding,
 		}, nil
 	})
 	reused, err := o.RequestAuthorization(ctx, AuthorizationRequest{
@@ -263,12 +263,12 @@ func TestAuthorizationRefusesMismatchedLauncherProofBeforeCreatingConsent(t *tes
 	o := New(nil, nil, repos.Runs,
 		WithEvents(events), WithIdentitySecret([]byte("mismatched-binding-secret")),
 		WithAuthorizations(database.NewAuthorizationRepository(db)),
-		WithSessionBindingProofReader(SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, _ string, _ string, harness string) (SessionBindingProof, error) {
+		WithSessionBindingProofReader(SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
 			runSelector := ""
-			if runID != uuid.Nil {
-				runSelector = runID.String()
+			if request.RunID != uuid.Nil {
+				runSelector = request.RunID.String()
 			}
-			return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector, HarnessSessionID: "different-host-session", WebConsoleSessionID: "wrong-session", HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding}, nil
+			return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector, HarnessSessionID: "different-host-session", LeaseSessionID: "different-host-session", WebConsoleSessionID: "wrong-session", HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding}, nil
 		})))
 	_, err = o.RequestAuthorization(ctx, AuthorizationRequest{
 		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "expected-host-session",
@@ -314,16 +314,16 @@ func TestAuthorizationApprovalRequiresCurrentWebConsoleProofReader(t *testing.T)
 		t.Fatal(err)
 	}
 	const harnessSession, webConsoleSession = "approval-proof-host-session", "approval-proof-wc-session"
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
-		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+		if request.HarnessSessionID != harnessSession || request.HarnessKind != "codex" || (request.WebConsoleSessionID != "" && request.WebConsoleSessionID != webConsoleSession) {
 			return SessionBindingProof{}, errors.New("session tuple changed")
 		}
 		runSelector := ""
-		if runID != uuid.Nil {
-			runSelector = runID.String()
+		if request.RunID != uuid.Nil {
+			runSelector = request.RunID.String()
 		}
 		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector,
-			HarnessSessionID: harnessSession, WebConsoleSessionID: webConsoleSession, HarnessKind: harness,
+			HarnessSessionID: harnessSession, LeaseSessionID: harnessSession, WebConsoleSessionID: webConsoleSession, HarnessKind: request.HarnessKind,
 			OwnerKind: "web-console-session", Binding: binding}, nil
 	})
 	authRepo := database.NewAuthorizationRepository(db)
@@ -363,16 +363,16 @@ func TestAuthorizationApprovalRefusesChangedLauncherOwnerBeforeEffects(t *testin
 	}
 	const harnessSession, webConsoleSession = "approval-host-session", "approval-wc-session"
 	currentWC := webConsoleSession
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, gotHarnessSession, expectedWC, harness string) (SessionBindingProof, error) {
-		if gotHarnessSession != harnessSession || harness != "codex" || (expectedWC != "" && expectedWC != webConsoleSession) {
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+		if request.HarnessSessionID != harnessSession || request.HarnessKind != "codex" || (request.WebConsoleSessionID != "" && request.WebConsoleSessionID != webConsoleSession) {
 			return SessionBindingProof{}, errors.New("session tuple changed")
 		}
 		runSelector := ""
-		if runID != uuid.Nil {
-			runSelector = runID.String()
+		if request.RunID != uuid.Nil {
+			runSelector = request.RunID.String()
 		}
 		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runSelector,
-			HarnessSessionID: harnessSession, WebConsoleSessionID: currentWC, HarnessKind: harness,
+			HarnessSessionID: harnessSession, LeaseSessionID: harnessSession, WebConsoleSessionID: currentWC, HarnessKind: request.HarnessKind,
 			OwnerKind: "web-console-session", Binding: binding}, nil
 	})
 	authRepo := database.NewAuthorizationRepository(db)

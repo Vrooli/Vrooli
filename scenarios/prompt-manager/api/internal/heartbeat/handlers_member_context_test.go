@@ -51,7 +51,7 @@ func TestRequireBoundedHeartbeatManagementUsesExactTeamManage(t *testing.T) {
 		{name: "ordinary legacy caller", ctx: context.Background(), want: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := requireBoundedHeartbeatManagement(tc.ctx, "team-1")
+			err := (&Handlers{}).requireTeamManagement(tc.ctx, "team-1")
 			if (err == nil) != tc.want {
 				t.Fatalf("requireBoundedHeartbeatManagement error=%v, want allowed=%v", err, tc.want)
 			}

@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -123,7 +124,7 @@ func (h *connectHandler) ListTeams(ctx context.Context, req *connect.Request[tea
 }
 
 func (h *connectHandler) GetTeam(ctx context.Context, req *connect.Request[teamsv1.GetTeamRequest]) (*connect.Response[teamsv1.TeamDetails], error) {
-	if err := requestpolicy.RequirePreparationRead(ctx, req.Msg.GetId()); err != nil {
+	if err := requestpolicy.RequirePreparationRead(ctx, req.Msg.GetId()); err != nil && !h.legacy.CanManageTeam(ctx, req.Msg.GetId()) {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	result, err := h.legacy.GetTeam(ctx, req.Msg.GetId())
@@ -164,6 +165,12 @@ func (h *connectHandler) CreateTeam(ctx context.Context, req *connect.Request[te
 		}
 		if errors.Is(err, authn.ErrOperation) {
 			code = connect.CodePermissionDenied
+		}
+		if failure, ok := identity.FailureFromError(err); ok {
+			code = connect.CodeUnauthenticated
+			if failure.Class == identity.FailureUnavailable {
+				code = connect.CodeUnavailable
+			}
 		}
 		return nil, connect.NewError(code, err)
 	}
@@ -287,7 +294,7 @@ func (h *connectHandler) RemoveMember(ctx context.Context, req *connect.Request[
 }
 
 func (h *connectHandler) GetRoles(ctx context.Context, req *connect.Request[teamsv1.GetRolesRequest]) (*connect.Response[teamsv1.GetRolesResponse], error) {
-	if err := requestpolicy.RequirePreparationRead(ctx, req.Msg.GetTeamId()); err != nil {
+	if err := requestpolicy.RequirePreparationRead(ctx, req.Msg.GetTeamId()); err != nil && !h.legacy.CanManageTeam(ctx, req.Msg.GetTeamId()) {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	roles, err := h.legacy.ListTeamRoles(ctx, req.Msg.GetTeamId())

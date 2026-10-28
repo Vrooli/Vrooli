@@ -3,11 +3,17 @@ package heartbeat
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/identity"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
+	"prompt-manager/internal/requestpolicy"
 	"prompt-manager/internal/store"
 )
 
@@ -173,6 +179,118 @@ func TestHeartbeatControlStore_ManualPauseAndResume(t *testing.T) {
 	}
 	if _, err := s.AllowStart(context.Background(), "team-a"); err != nil {
 		t.Fatalf("AllowStart after resume: %v", err)
+	}
+}
+
+func TestTeamResumeReleasesOnlyItsCurrentGlobalManualHold(t *testing.T) {
+	now := time.Date(2026, 10, 24, 13, 0, 0, 0, time.UTC)
+	s := newControlStoreForTest(t, now)
+	if _, err := s.Pause(context.Background(), "", "hold all", operatorAttribution()); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := s.Status(context.Background(), nil)
+	s.SetNowForTests(func() time.Time { return now.Add(time.Nanosecond) })
+	if _, err := s.Resume(context.Background(), "team-a", agentAttribution("team-a", "agent")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AllowStart(context.Background(), "team-a"); err != nil {
+		t.Fatalf("approved selected-team resume still globally held: %v", err)
+	}
+	if _, err := s.AllowStart(context.Background(), "team-b"); !errors.Is(err, ErrHeartbeatPaused) {
+		t.Fatal("another team resumed", err)
+	}
+	after, _ := s.Status(context.Background(), nil)
+	if after.Status != HeartbeatControlStatusPausedManual || *after.LastHumanEngagementAt != *before.LastHumanEngagementAt {
+		t.Fatal("delegated resume cleared global pause or manufactured human engagement")
+	}
+	reloaded := &HeartbeatControlStore{path: s.path, now: s.now}
+	if _, err := reloaded.AllowStart(context.Background(), "team-a"); err != nil {
+		t.Fatal("selected resume did not survive restart", err)
+	}
+	s.SetNowForTests(func() time.Time { return now.Add(2 * time.Nanosecond) })
+	if _, err := s.Pause(context.Background(), "", "new global hold", operatorAttribution()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AllowStart(context.Background(), "team-a"); !errors.Is(err, ErrHeartbeatPaused) {
+		t.Fatal("older team resume defeated a later global pause", err)
+	}
+}
+
+func TestApprovedTeamControlUsesCanonicalGrantWithoutHumanAttribution(t *testing.T) {
+	for _, tc := range []struct {
+		name, operation, target string
+		expired, allowed        bool
+	}{
+		{"approved", "team.manage", "prompt-manager:team/team-1", false, true},
+		{"another team", "team.manage", "prompt-manager:team/other", false, false},
+		{"preparation only", "team.prepare", "prompt-manager:team/team-1", false, false},
+		{"expired", "team.manage", "prompt-manager:team/team-1", true, false},
+		{"unrelated operation", "run.create", "prompt-manager:team/team-1", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			teams, _, _ := setupAdmissionDeferredFailureEnvironment(t)
+			h := NewHandlers(HandlersDeps{TeamStore: teams})
+			s := newControlStoreForTest(t, time.Date(2026, 10, 24, 13, 0, 0, 0, time.UTC))
+			h.SetControlStore(s)
+			expiry := time.Now().Add(time.Hour)
+			if tc.expired {
+				expiry = time.Now().Add(-time.Minute)
+			}
+			p := identity.Principal{Kind: identity.ActorAgent, Subject: "real-agent", Owner: "owner", Verified: true, Scopes: []string{"prompt-manager:write"}, Grant: &identity.OperationGrant{ID: "approved", Approver: "owner", Operations: []string{tc.operation}, Targets: []string{tc.target}, ExpiresAt: expiry}}
+			req := httptest.NewRequest(http.MethodPost, heartbeatconnect.HeartbeatServiceResumeTeamHeartbeatControlProcedure, nil)
+			req.Header.Set(attributionHeaderName, encodeAttribution(t, operatorAttribution()))
+			req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+			req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+			rec := httptest.NewRecorder()
+			requestpolicy.PreparationBoundary(http.HandlerFunc(h.ResumeTeamHeartbeatControl)).ServeHTTP(rec, req)
+			if tc.allowed && rec.Code != http.StatusOK {
+				t.Fatalf("approved delegated resume needs a human command: %d %s", rec.Code, rec.Body.String())
+			}
+			if !tc.allowed && rec.Code != http.StatusForbidden {
+				t.Fatalf("uncovered team control admitted: %d %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestTeamResumeCannotClearGlobalAutomaticHoldOrForgeGlobalAuthority(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	s := newControlStoreForTest(t, now)
+	if _, err := s.Status(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	s.SetNowForTests(func() time.Time { return now.AddDate(0, 0, HeartbeatControlDefaultPauseDays+1) })
+	if _, err := s.Resume(context.Background(), "team-a", agentAttribution("team-a", "agent")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AllowStart(context.Background(), "team-a"); !errors.Is(err, ErrHeartbeatPaused) {
+		t.Fatal("agent resume cleared automatic inactivity hold", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/global/resume", nil)
+	req.Header.Set(attributionHeaderName, encodeAttribution(t, operatorAttribution()))
+	p := identity.Principal{Kind: identity.ActorAgent, Subject: "agent", Verified: true, Scopes: []string{"prompt-manager:write"}, Grant: &identity.OperationGrant{Approver: "owner", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:*"}, ExpiresAt: time.Now().Add(time.Hour)}}
+	req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+	if _, err := (&Handlers{}).heartbeatControlActor(req, ""); err == nil {
+		t.Fatal("team grant and forged attribution acquired global control")
+	}
+}
+
+func TestTeamControlRejectsForgedHumanAttributionWithoutVerifiedAuthority(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/team/resume", nil)
+	req.Header.Set(attributionHeaderName, encodeAttribution(t, operatorAttribution()))
+	if _, err := (&Handlers{}).heartbeatControlActor(req, "team-a"); err == nil {
+		t.Fatal("an attribution header supplied missing team-control authority")
+	}
+}
+
+func TestVerifiedHumanTeamControlRetainsOwnerPath(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/team/resume", nil)
+	req.Header.Set(attributionHeaderName, encodeAttribution(t, operatorAttribution()))
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true, Scopes: []string{"prompt-manager:write"}}
+	req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+	attr, err := (&Handlers{}).heartbeatControlActor(req, "team-a")
+	if err != nil || attr.Kind != store.KnowledgeKindOperatorDirect {
+		t.Fatalf("verified owner team control was lost: %+v %v", attr, err)
 	}
 }
 

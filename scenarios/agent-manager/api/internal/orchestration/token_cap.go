@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +14,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agentcatalog"
 )
 
 // TokenCapMode selects what a weighted-token cap does (DL-8).
@@ -48,7 +47,7 @@ const tokenCapCheckTimeout = 30 * time.Second
 // TokenCapPolicy is the internal weighted-token cap configuration. Weighted
 // tokens are non-cache tokens (input, output and cache writes; cache reads
 // excluded) times the weight of the first tier name the model contains, the
-// same weighting `agent-manager run tokens` reports. An unknown model weighs 1.
+// same weighting `agent-manager run tokens` reports. Unknown enforcement retains the legacy weight 1; cost comparisons remain unknown.
 type TokenCapPolicy struct {
 	Mode TokenCapMode
 	// Caps maps an agent profile key to its weighted-token cap per run. A
@@ -60,10 +59,10 @@ type TokenCapPolicy struct {
 	NudgeFraction float64
 }
 
-// DefaultTokenCapPolicy is off, with the `run tokens` weights (sol=10, luna=1)
+// DefaultTokenCapPolicy is off, with the shared heuristic weights (sol=10, terra=5, luna=1)
 // and the 85% nudge.
 func DefaultTokenCapPolicy() TokenCapPolicy {
-	return TokenCapPolicy{Mode: TokenCapOff, Weights: map[string]float64{"sol": 10, "luna": 1}, NudgeFraction: 0.85}
+	return TokenCapPolicy{Mode: TokenCapOff, Weights: agentcatalog.DefaultTokenWeights(), NudgeFraction: 0.85}
 }
 
 // TokenCapPolicyFromEnv reads the internal cap configuration. Unset or invalid
@@ -93,16 +92,7 @@ func TokenCapPolicyFromEnv() TokenCapPolicy {
 }
 
 func parseTokenCapWeights(raw string) (map[string]float64, error) {
-	weights := map[string]float64{}
-	for _, pair := range strings.Split(raw, ",") {
-		tier, value, ok := strings.Cut(strings.TrimSpace(pair), "=")
-		weight, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
-		if !ok || strings.TrimSpace(tier) == "" || err != nil || weight < 0 {
-			return nil, fmt.Errorf("invalid weight %q (want tier=number)", pair)
-		}
-		weights[strings.ToLower(strings.TrimSpace(tier))] = weight
-	}
-	return weights, nil
+	return agentcatalog.ParseTokenWeights(raw, nil)
 }
 
 // WithTokenCapPolicy installs the weighted-token cap configuration.
@@ -133,16 +123,8 @@ type tokenCapRun struct {
 
 // weight returns the tier weight of a model; an unknown model weighs 1.
 func (p TokenCapPolicy) weight(model string) float64 {
-	model = strings.ToLower(model)
-	tiers := make([]string, 0, len(p.Weights))
-	for tier := range p.Weights {
-		tiers = append(tiers, tier)
-	}
-	sort.Strings(tiers)
-	for _, tier := range tiers {
-		if strings.Contains(model, tier) {
-			return p.Weights[tier]
-		}
+	if weight, known := agentcatalog.TokenWeight(model, p.Weights); known {
+		return weight
 	}
 	return 1
 }
@@ -390,7 +372,8 @@ func (o *Orchestrator) WeightedRunTokens(ctx context.Context, runID uuid.UUID) (
 	if err != nil {
 		return 0, false, err
 	}
-	return float64(accounting.NonCacheTokens) * o.capPolicy().weight(accounting.Model), accounting.TokensKnown, nil
+	weight, known := agentcatalog.TokenWeight(accounting.Model, o.capPolicy().Weights)
+	return float64(accounting.NonCacheTokens) * weight, accounting.TokensKnown && known, nil
 }
 
 // TokenCapUsage reads an active run's weighted usage recounted from persisted

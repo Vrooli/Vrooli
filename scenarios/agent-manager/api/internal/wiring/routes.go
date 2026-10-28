@@ -1,6 +1,7 @@
 package wiring
 
 import (
+	"agent-manager/internal/promptmanager"
 	"context"
 	"fmt"
 	"net/http"
@@ -181,6 +182,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
+	connectHandler.SetManagedTeamReader(promptmanager.NewHTTPClient())
 	exactVerifier := deps.ExactVerifier
 	if exactVerifier == nil && deps.SupervisionService != nil {
 		exactVerifier = deps.SupervisionService.Efforts.InstalledExactVerifier()

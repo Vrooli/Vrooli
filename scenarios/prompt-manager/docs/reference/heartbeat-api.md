@@ -80,6 +80,15 @@ POST /teams/{teamId}/heartbeats/control/pause
 POST /teams/{teamId}/heartbeats/control/resume
 ```
 
+Team pause/resume requires canonical authority for this exact team: a capable verified
+human, its current verified creator, or another verified agent with exact
+`team.manage` coverage. The same team-owner decision governs membership and
+heartbeat configuration. Attribution headers alone grant no authority. Global control and policy writes keep their human-only paths.
+Agent calls retain their caller/owner in audit logs and do not count as human engagement.
+An explicit team resume after a global manual pause releases only that team; a later
+global pause holds it again. Automatic inactivity holds remain effective for agent calls.
+The global pause and other teams' states are preserved.
+
 Team policy accepts an override:
 
 ```json
@@ -414,6 +423,27 @@ GET /teams/{teamId}/execution-status
 | `owners` | object[] | Current in-memory owner entries for retained slots (`phase: retained`) and queued members (`phase: queued`); includes only member ID, phase/state, dispatch stage, task/run IDs, admission origin, owner start time, and obligation ID. It omits task/request snapshots and caller bindings. |
 
 `owners` is the diagnostic detail behind the category arrays. A retained slot does not prove that an external process is active. A missing run ID is meaningful for pre-dispatch or uncertain entries; it does not prove that no external run exists.
+
+---
+
+### Clear One Retained Queue Owner
+
+`prompt-manager team queue-clear <team-id> <agent-id>` uses
+`DELETE /teams/{teamId}/queue/running/{agentId}` under exact-team management.
+The default path requires Agent Manager to confirm the recorded run is terminal.
+For a task-only dispatch intent, Agent Manager must instead confirm the exact task
+is cancelled, has no current run and has a complete empty task-filtered attempt
+inventory. The retained slot is checked again after these owner reads and removed
+durably before any queued work is admitted. A failed persistence write restores it.
+Missing, mismatched, active, attempted, partial or unreachable owners remain retained.
+
+When an obsolete task prompt should never execute, approve cancellation of that
+exact task through Agent Manager first, cancel it natively, then clear this queue
+owner without `--force`. Task cancellation requires its separate exact
+`agent.manage` authority; team management does not confer it. These operations can
+be performed by an agent after browser consent; the operator need not run commands.
+The existing explicit force recovery remains an operator escape hatch, not the
+normal activation procedure.
 
 ---
 

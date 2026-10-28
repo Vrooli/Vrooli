@@ -66,7 +66,7 @@ func runEpochCheck(t *testing.T, app *App, args ...string) (string, int) {
 
 func TestParseTierWeightsWeighsSolAboveLuna(t *testing.T) {
 	weights, err := parseTierWeights("")
-	if err != nil || tierWeight("gpt-6-sol", weights) != 10 || tierWeight("gpt-6-luna", weights) != 1 || tierWeight("unknown-model", weights) != 1 {
+	if err != nil || weights["sol"] != 10 || weights["luna"] != 1 || weights["terra"] != 5 {
 		t.Fatalf("default tier weights wrong: %v %v", weights, err)
 	}
 	if weights, err = parseTierWeights("sol=12, luna=0.5"); err != nil || weights["sol"] != 12 || weights["luna"] != 0.5 {
@@ -84,6 +84,96 @@ func TestEpochCheckReturnsStepBackExitCodeWithoutExiting(t *testing.T) {
 	}
 	if !strings.Contains(output, "STEP_BACK flatline") {
 		t.Fatalf("report not printed before the exit status: %s", output)
+	}
+}
+
+func TestEpochEstimateOverrunsContinueWithoutWakingOrRefusingAcceptance(t *testing.T) {
+	for _, fixture := range []string{"overrun.md", "growth-refactor.md", "growth-feature.md", "healthy.md"} {
+		t.Run(fixture, func(t *testing.T) {
+			services, recorder := newContractServices(t)
+			app := &App{services: services}
+			text := strings.Replace(readGoalhomeFixture(t, "epochs", fixture), "- Started: 2026-09-29T08:00:00Z", "- Started: 2000-01-01T00:00:00Z", 1)
+			path := writeFile(t, filepath.Join(t.TempDir(), fixture), text)
+			for _, acceptance := range []bool{false, true} {
+				args := []string{path, "--overrun", "2", "--growth", "300", "--feature-factor", "1.5", "--wall-clock", "24h", "--wake-key", "orchestrator-run", "--effort", "effort:fixture"}
+				if acceptance {
+					args = append(args, "--acceptance")
+				}
+				output, code := runEpochCheck(t, app, args...)
+				if code != 0 || strings.Contains(output, "STEP_BACK") || !strings.Contains(output, "OBSERVE (continue)") {
+					t.Fatalf("estimates must report optimization and continue (acceptance=%v exit=%d):\n%s", acceptance, code, output)
+				}
+			}
+			if requests := recorder.Requests(); len(requests) != 0 {
+				t.Fatalf("estimate reviews must not interrupt the parent or issue lifecycle requests: %+v", requests)
+			}
+		})
+	}
+}
+
+func TestEpochSpendIsAdvisoryAndUnavailableUsageStaysUnknown(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		known      bool
+	}{
+		{name: "over estimate", body: `{"tokensKnown":true,"nonCacheTokens":5000,"model":"gpt-6-luna"}`, status: http.StatusOK, known: true},
+		{name: "unqualified", body: `{"tokensKnown":false,"nonCacheTokens":5000,"model":"gpt-6-luna"}`, status: http.StatusOK},
+		{name: "unavailable", body: `{"message":"accounting unavailable"}`, status: http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if strings.HasSuffix(r.URL.Path, "/accounting") {
+					w.WriteHeader(tc.status)
+					_, _ = w.Write([]byte(tc.body))
+					return
+				}
+				if strings.HasSuffix(r.URL.Path, "/11111111-1111-4111-8111-111111111111") {
+					_, _ = w.Write([]byte(`{"run":{"id":"11111111-1111-4111-8111-111111111111","status":"RUN_STATUS_RUNNING"}}`))
+					return
+				}
+				t.Errorf("an estimate must not issue a wake or lifecycle request: %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			defer server.Close()
+			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+				return cliutil.APIBaseOptions{DefaultBase: server.URL}
+			}, nil)
+			app := &App{services: NewServices(api)}
+			output, code := runEpochCheck(t, app, filepath.Join(goalhomeTestdata, "epochs", "healthy.md"),
+				"--runs", "11111111-1111-4111-8111-111111111111", "--spend-threshold", "100", "--wake-key", "parent", "--effort", "effort:fixture", "--json")
+			var report epochCheckReport
+			if code != 0 || json.Unmarshal([]byte(output), &report) != nil || len(report.StepBack) != 0 {
+				t.Fatalf("spend must not stop work or require parent disposition (exit %d): %s", code, output)
+			}
+			if tc.known {
+				if report.WeightedTokens == nil || *report.WeightedTokens != 5000 || !strings.Contains(strings.Join(report.Review, " "), "spend:") {
+					t.Fatalf("known overrun must remain visible as advisory: %s", output)
+				}
+			} else if report.WeightedTokens != nil || !strings.Contains(output, "spend-unavailable") {
+				t.Fatalf("unknown usage must not acquire a spend verdict: %s", output)
+			}
+		})
+	}
+}
+
+func TestLargeEpochNeedsNoBudgetAndIsNotPenalizedForItsSizeOrDuration(t *testing.T) {
+	services, recorder := newContractServices(t)
+	app := &App{services: services}
+	text := strings.Replace(readGoalhomeFixture(t, "epochs", "overrun.md"), "- Estimate: 3 work units\n", "", 1)
+	text = strings.ReplaceAll(text, "net runtime lines=-5", "net runtime lines=+5000")
+	path := writeFile(t, filepath.Join(t.TempDir(), "E1.md"), text)
+	output, code := runEpochCheck(t, app, path, "--wake-key", "parent", "--effort", "effort:fixture", "--json")
+	var report epochCheckReport
+	if code != 0 || json.Unmarshal([]byte(output), &report) != nil || len(report.StepBack) != 0 || len(report.Review) != 0 {
+		t.Fatalf("large progressing work needs no budget or negative performance verdict (exit %d): %s", code, output)
+	}
+	if report.WorkUnits != 7 || report.NetRuntimeLines != 35000 || report.WeightedTokens != nil {
+		t.Fatalf("retain progress/size facts without inventing budgets or token use: %s", output)
+	}
+	if requests := recorder.Requests(); len(requests) != 0 {
+		t.Fatalf("optional metering must not be queried or interrupt work by default: %+v", requests)
 	}
 }
 
@@ -301,5 +391,17 @@ func TestGoalFindingsReadsV2Home(t *testing.T) {
 	}
 	if findings[0].File != "STATUS.md" {
 		t.Fatalf("v2 forecast finding must anchor STATUS.md, got %q", findings[0].File)
+	}
+}
+
+func TestTokenReportLeavesUnmatchedModelWeightUnknown(t *testing.T) {
+	report := &tokenReport{}
+	report.add(tokenRow{RunID: "unknown-model", Model: "unrecognized", TokensKnown: true, NonCacheTokens: 100}, defaultTierWeights)
+	if len(report.WeightUnknown) != 1 || report.Rows[0].Weight != nil || report.Rows[0].Weighted != nil {
+		t.Fatalf("unmatched model silently compared as Luna: %+v", report)
+	}
+	report.add(tokenRow{RunID: "terra", Model: "gpt-6.1-terra", TokensKnown: true, NonCacheTokens: 100}, defaultTierWeights)
+	if report.TotalWeighted != 500 {
+		t.Fatalf("Terra heuristic missing: %+v", report)
 	}
 }

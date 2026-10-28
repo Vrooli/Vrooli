@@ -94,14 +94,8 @@ func Lint(home *Home) *LintReport {
 		add(Finding{Code: "idle-queue", Blocking: true, File: queueFile, Detail: "no [ready] item under ## Next and no item under ## Needs operator: admit or plan a slice and mark it [ready], or record a decision under ## Needs operator"})
 	}
 
-	handoffText := ""
-	for _, h := range handoffs {
-		handoffText += h.Body + "\n"
-	}
-	for _, entry := range home.Feedback.Entries {
-		if entry.Open() && entry.Steering() && !namedIn(handoffText, entry.ID) {
-			add(Finding{Code: "feedback-unacknowledged", Blocking: true, File: FeedbackFile, Line: entry.Line, Detail: entry.ID + " is open " + feedbackSourceLabel(entry) + " feedback that the handoff does not name; act on it and name it in the handoff, or resolve it"})
-		}
+	for _, entry := range unacknowledgedFeedback(home) {
+		add(Finding{Code: "feedback-unacknowledged", Blocking: true, File: FeedbackFile, Line: entry.Line, Detail: entry.ID + " is open " + feedbackSourceLabel(entry) + " feedback that the handoff does not name; act on it and name it in the handoff, or resolve it"})
 	}
 
 	report.Forecast = ForecastOf(home)
@@ -117,6 +111,21 @@ func Lint(home *Home) *LintReport {
 		}
 	}
 	return report
+}
+
+func unacknowledgedFeedback(home *Home) []FeedbackEntry {
+	var handoff strings.Builder
+	for _, h := range home.Queue.Handoffs {
+		handoff.WriteString(h.Body)
+		handoff.WriteByte('\n')
+	}
+	var pending []FeedbackEntry
+	for _, entry := range home.Feedback.Entries {
+		if entry.Open() && entry.Steering() && !namedIn(handoff.String(), entry.ID) {
+			pending = append(pending, entry)
+		}
+	}
+	return pending
 }
 
 func feedbackSourceLabel(entry FeedbackEntry) string {
@@ -144,4 +153,74 @@ func (r *LintReport) Summary() string {
 		}
 	}
 	return fmt.Sprintf("goal home fails %d rules: %s", blocking, strings.Join(codes, ", "))
+}
+
+// projectionFindings detects owner-authored shapes that would otherwise look
+// healthy while silently dropping progress. Unknown is an explicit valid reading;
+// prose and malformed keys are not measurements or ownership identities.
+func projectionFindings(goal Goal, status []byte) []Finding {
+	doc := parseDocument(status)
+	var findings []Finding
+	add := func(code, detail string, line int, blocking bool) {
+		findings = append(findings, Finding{Code: code, Detail: detail, File: StatusFile, Line: line, Blocking: blocking})
+	}
+	currentValue := parseStatusCurrent(doc)
+	if goal.Destination != nil && currentValue != nil && currentValue.At.IsZero() {
+		add("projection-current", "numeric Current needs an ISO measurement date", 0, true)
+	}
+	if goal.Destination != nil && currentValue == nil {
+		current, ok := doc.section("current")
+		raw := strings.ToLower(strings.TrimSpace(current.Fields()["current"]))
+		if ok && raw == "unknown" {
+			add("current-unknown", "current measurement is explicitly unknown; no completion forecast is available", current.Line, false)
+		} else {
+			add("projection-current", "use ## Current: <number> @ <ISO date>, or ## Current with '- Current: unknown'; prose is not a measurement", current.Line, true)
+		}
+	}
+	if s, ok := doc.section("scoreboard"); ok {
+		ownerColumn := -1
+		for _, l := range s.Body {
+			cells, ok := tableRow(l.Text)
+			if !ok || isSeparatorRow(cells) {
+				continue
+			}
+			if len(cells) > 0 && strings.EqualFold(cells[0], "surface") {
+				for i, c := range cells {
+					if strings.EqualFold(c, "owner") {
+						ownerColumn = i
+					}
+				}
+				if ownerColumn < 0 {
+					add("projection-scoreboard", "scoreboard needs an owner column; evidence belongs in its own column", l.Num, true)
+				}
+				continue
+			}
+			if len(cells) < 3 {
+				add("projection-scoreboard", "scoreboard row needs surface, target and state", l.Num, true)
+				continue
+			}
+			switch strings.ToLower(cells[2]) {
+			case "unassessed", "queued", "rough", "close", "accepted":
+			default:
+				add("projection-scoreboard", "unknown surface state: "+cells[2], l.Num, true)
+			}
+			if ownerColumn >= 0 && len(cells) > ownerColumn {
+				owner := cells[ownerColumn]
+				ids := WorkerRunIDs(owner)
+				if owner != "" && owner != "-" && owner != "—" && (len(ids) != 1 || ids[0] != owner) {
+					add("projection-owner", "owner must be one run UUID or '-'; do not put evidence prose in owner", l.Num, true)
+				}
+			}
+		}
+	}
+	if s, ok := doc.section("active"); ok {
+		for _, item := range s.items() {
+			fields := inlineFields(item.Text)
+			unit := fields["unit"]
+			if unit == "" || strings.ContainsAny(unit, " \t;`|") {
+				add("projection-active", "active unit needs a stable unit ID, status and workers fields; put handoff prose outside the unit field", item.Line, true)
+			}
+		}
+	}
+	return findings
 }

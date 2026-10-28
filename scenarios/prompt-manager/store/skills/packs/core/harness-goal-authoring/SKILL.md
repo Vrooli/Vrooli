@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 14
+  revision: 15
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-10-12T00:26:09Z"
+  updatedAt: "2026-10-25T00:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -106,6 +106,14 @@ destination needs an explicit directive or the proof is unnamed.
 When the target documentation does not yet describe the intended design, the
 first assignment is to write it there. Every later goal then points at it. A goal
 that explains the design is lossy and stale on arrival.
+
+For UI work, that document holds the effective target: selected mockups, applicable user
+amendments, retained capabilities and verified agent refinements (`experiential-ui-design`
+§2a). Name its version and applicable IDs in the assignment. When acceptance changes,
+synchronize affected briefs and eligible native predicates through their owner and verify
+receiving. Require the implemented, operated outcome against the current target; producing
+a comparison ledger alone is not completion, and a verified expected difference is not a
+failure. Do not require a regenerated atlas or a new human gate for routine refinements.
 
 ### 5. Shapes
 

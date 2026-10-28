@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/provenance"
-	"github.com/vrooli/cli-core/cliutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/identity"
@@ -89,6 +90,61 @@ func TestEffortMetadataGrantUsesSeparateOperationProof(t *testing.T) {
 			req.Header.Set(cliutil.HeaderAgentIdentityToken, managementBaselineToken)
 			req.Header.Set(cliutil.HeaderAgentOperationToken, managementOperationToken)
 			handler.ServeHTTP(httptest.NewRecorder(), req)
+		})
+	}
+}
+
+func TestDeliveryGrantUsesSeparateOperationProofAndPreservesAttribution(t *testing.T) {
+	now := time.Now()
+	runID := uuid.New()
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, now.Add(time.Hour))
+	grant := managementGrantFixture(now,
+		managementRuleFixture("delivery-management", []string{"effort.delivery"}, []string{"agent-manager:effort/*"}),
+		managementRuleFixture("team-management", []string{"team.manage"}, []string{"prompt-manager:team/hub"}),
+	)
+	operation := managementClaimsFixture(t, runID, []string{"agent-manager:read", "agent-manager:write"}, grant, now.Add(time.Hour))
+	verifier := managementGrantVerifier{baseline: baseline, operation: operation}
+	called := false
+	handler := provenance.Middleware(verifier)(authn.Middleware(authn.Config{})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		p, _ := identity.PrincipalFromContext(r.Context())
+		if p.Grant != nil {
+			t.Fatal("operation grant contaminated baseline principal")
+		}
+		actor, delegated, err := deliveryGrantActor(r.Context(), "effort:hub")
+		if err != nil || !delegated || !actor.DeliveryManager || actor.Operator || actor.Delegated || actor.ApprovedBy != grant.Approver || actor.ID != runID.String() {
+			t.Fatalf("approved paired delivery grant lost: %+v delegated=%v err=%v", actor, delegated, err)
+		}
+	})))
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/effort", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, managementBaselineToken)
+	req.Header.Set(cliutil.HeaderAgentOperationToken, managementOperationToken)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	if !called {
+		t.Fatal("paired operation never reached the owner")
+	}
+}
+
+func TestDeliveryGrantRefusesExpiredUncoveredAndMissingAuthority(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		edit func(*identity.Principal)
+	}{
+		{"missing grant", func(p *identity.Principal) { p.Grant = nil }},
+		{"expired grant", func(p *identity.Principal) { p.Grant.ExpiresAt = time.Now().Add(-time.Minute) }},
+		{"expired identity", func(p *identity.Principal) { p.ExpiresAt = time.Now().Add(-time.Minute) }},
+		{"unverified", func(p *identity.Principal) { p.Verified = false }},
+		{"another effort", func(p *identity.Principal) { p.Grant.Targets = []string{EffortGrantTarget("effort:other")} }},
+		{"metadata only", func(p *identity.Principal) { p.Grant.Operations = []string{"effort.reconcile"} }},
+		{"missing approver", func(p *identity.Principal) { p.Grant.Approver = "" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, _ := identity.PrincipalFromContext(grantContext([]string{"effort.delivery"}, []string{EffortGrantTarget("effort:hub")}))
+			tc.edit(&p)
+			_, handled, err := deliveryGrantActor(identity.WithPrincipal(context.Background(), p), "effort:hub")
+			if !handled || connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("agent acquired delivery authority or human fallback: handled=%v err=%v", handled, err)
+			}
 		})
 	}
 }

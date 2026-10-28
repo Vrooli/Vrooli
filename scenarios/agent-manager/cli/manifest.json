@@ -4504,6 +4504,10 @@
           ],
           "flags": [
             {
+              "name": "scenario",
+              "description": "Scenario for receipt-backed journey gates; defaults to the brief Scenario field"
+            },
+            {
               "name": "acceptance",
               "bool": true,
               "description": "Orchestrator acceptance check: exit 4 on an unmet typed gate or an unanswered diminishing-returns finding; never wakes"
@@ -4779,6 +4783,12 @@
           "description": "Raise, answer, list, or sync decisions for a goal home",
           "flags": [
             {
+              "name": "reconcile-recorded",
+              "bool": true,
+              "description": "Explicitly restore previously recorded answers during sync after relocation or lost policy",
+              "local_only": true
+            },
+            {
               "name": "json",
               "bool": true,
               "description": "Print the typed or command result as JSON",
@@ -4847,7 +4857,7 @@
             },
             {
               "name": "effort-ref",
-              "description": "Effort reference for raise/list",
+              "description": "Stable effort reference for raise/list/sync",
               "local_only": true
             },
             {

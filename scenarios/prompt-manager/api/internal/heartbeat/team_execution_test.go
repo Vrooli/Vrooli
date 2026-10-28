@@ -9,11 +9,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"prompt-manager/internal/requestpolicy"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"prompt-manager/internal/requestpolicy"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
@@ -640,6 +641,91 @@ func TestClearRunning_EmptyRunIDRequiresExplicitForce(t *testing.T) {
 	}
 	if len(tec.Status().RunningAgentIDs) != 0 {
 		t.Fatalf("explicit force should clear entry")
+	}
+}
+
+func TestClearCancelledTaskIntentRequiresCompleteOwnerProof(t *testing.T) {
+	const taskID = "3a032333-971f-44e2-a88b-81ab16698d8f"
+	for _, tc := range []struct {
+		name    string
+		edit    func(*mockAgentClient)
+		allowed bool
+	}{
+		{"cancelled with no attempts", func(c *mockAgentClient) {}, true},
+		{"queued task", func(c *mockAgentClient) { c.getTasks[taskID].Status = "TASK_STATUS_QUEUED" }, false},
+		{"task with current run", func(c *mockAgentClient) { c.getTasks[taskID].CurrentRunID = "unobserved-run" }, false},
+		{"missing task", func(c *mockAgentClient) { delete(c.getTasks, taskID) }, false},
+		{"mismatched task", func(c *mockAgentClient) { c.getTasks[taskID].ID = "another-task" }, false},
+		{"task owner unavailable", func(c *mockAgentClient) { c.getTaskErr = errors.New("owner down") }, false},
+		{"run owner unavailable", func(c *mockAgentClient) { c.listRunsErr = errors.New("owner down") }, false},
+		{"partial inventory", func(c *mockAgentClient) { c.listRunsResp.HasMore = true }, false},
+		{"nonempty inventory", func(c *mockAgentClient) { c.listRunsResp.Total = 1 }, false},
+		{"unaccounted run", func(c *mockAgentClient) {
+			c.listRunsResp.Runs = []*Run{{ID: "run", TaskID: taskID, Status: "RUN_STATUS_RUNNING"}}
+		}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newMockAgentClient()
+			client.getTasks = map[string]*Task{taskID: {ID: taskID, Status: "TASK_STATUS_CANCELLED"}}
+			client.listRunsResp = &ListRunsResponse{}
+			tc.edit(client)
+			dir := t.TempDir()
+			tec := newTeamExecutionContext("team", &captureExecutor{}, dir, client)
+			tec.running["member"] = runningEntry{TaskID: taskID, IdempotencyKey: "old-intent", DispatchStage: DispatchStageIntent, State: ObligationDispatchUncertain}
+			if err := tec.persistLocked(); err != nil {
+				t.Fatal(err)
+			}
+			err := tec.ClearRunning(context.Background(), "member", false)
+			if tc.allowed && err != nil {
+				t.Fatalf("cancelled, never-run task still needs force: %v", err)
+			}
+			if !tc.allowed && err == nil {
+				t.Fatal("incomplete owner proof released the retained intent")
+			}
+			if got := len(tec.Status().RunningAgentIDs); (got == 0) != tc.allowed {
+				t.Fatalf("retained owners=%d allowed=%v", got, tc.allowed)
+			}
+			if tc.allowed {
+				if len(client.listRunsCalls) != 1 || client.listRunsCalls[0].TaskID != taskID || client.listRunsCalls[0].Offset != 0 || client.listRunsCalls[0].Status != "" {
+					t.Fatal("run absence was not read from the exact complete task inventory")
+				}
+				reloaded := newTeamExecutionContext("team", &captureExecutor{}, dir, client)
+				reloaded.Recover(context.Background())
+				if len(reloaded.Status().RunningAgentIDs) != 0 {
+					t.Fatal("cleared intent returned after restart")
+				}
+			}
+		})
+	}
+}
+
+func TestClearCancelledTaskIntentRetainsChangedOwnerDuringRead(t *testing.T) {
+	var tec *TeamExecutionContext
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/tasks/obsolete-task":
+			tec.mu.Lock()
+			tec.running["member"] = runningEntry{TaskID: "replacement-task", IdempotencyKey: "new-intent", DispatchStage: DispatchStageIntent, State: ObligationDispatchUncertain}
+			tec.mu.Unlock()
+			_, _ = w.Write([]byte(`{"task":{"id":"obsolete-task","status":"TASK_STATUS_CANCELLED"}}`))
+		case "/api/v1/runs":
+			if r.URL.Query().Get("task_id") != "obsolete-task" {
+				t.Error("wrong task inventory")
+			}
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	tec = newTeamExecutionContext("team", &captureExecutor{}, t.TempDir(), newTestClient(t, server))
+	tec.running["member"] = runningEntry{TaskID: "obsolete-task", IdempotencyKey: "old-intent", DispatchStage: DispatchStageIntent, State: ObligationDispatchUncertain}
+	if err := tec.ClearRunning(context.Background(), "member", false); !IsRunningOwnerUnverified(err) {
+		t.Fatalf("changed retained owner was cleared: %v", err)
+	}
+	if tec.running["member"].TaskID != "replacement-task" {
+		t.Fatal("replacement owner was lost")
 	}
 }
 

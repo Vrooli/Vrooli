@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Thresholds are the step-back trigger settings; the CLI defaults follow the
-// worker card.
+// Thresholds tune progress observations. Estimate overruns prompt optimization
+// while work continues; they never enforce execution or acceptance budgets.
 type Thresholds struct {
 	FlatlineK      int
 	OverrunFactor  float64
@@ -115,22 +115,30 @@ func EvaluateEpoch(path string, epoch *Epoch, limits Thresholds, now time.Time, 
 	}
 	add(flat)
 
-	overrun := Trigger{Name: "overrun", Detail: "no estimate in the brief"}
-	if report.Estimate > 0 {
+	overrun := Trigger{Name: "overrun", Review: true, Detail: "no estimate in the brief"}
+	if limits.OverrunFactor <= 0 {
+		overrun.Detail = "not evaluated: optional work-unit observation is disabled"
+	} else if report.Estimate > 0 {
 		limit := limits.OverrunFactor * float64(report.Estimate)
 		overrun.Fired = float64(len(epoch.Log)) > limit
 		overrun.Detail = fmt.Sprintf("%d log lines against %.0f (%.1fx estimate %d)", len(epoch.Log), limit, limits.OverrunFactor, report.Estimate)
 	}
 	add(overrun)
 
-	growth := Trigger{Name: "growth", Detail: "kind is not refactor or feature"}
+	growth := Trigger{Name: "growth", Review: true, Detail: "kind is not refactor or feature"}
 	switch report.Kind {
 	case "refactor":
-		growth.Fired = report.NetRuntimeLines > limits.RefactorGrowth
-		growth.Detail = fmt.Sprintf("net runtime lines %+d against +%d", report.NetRuntimeLines, limits.RefactorGrowth)
+		if limits.RefactorGrowth > 0 {
+			growth.Fired = report.NetRuntimeLines > limits.RefactorGrowth
+			growth.Detail = fmt.Sprintf("net runtime lines %+d against +%d", report.NetRuntimeLines, limits.RefactorGrowth)
+		} else {
+			growth.Detail = "not evaluated: optional source-size observation is disabled"
+		}
 	case "feature":
 		expected := leadingNumber(epoch.Fields["expected size"])
-		if expected > 0 {
+		if limits.FeatureFactor <= 0 {
+			growth.Detail = "not evaluated: optional source-size observation is disabled"
+		} else if expected > 0 {
 			limit := limits.FeatureFactor * float64(expected)
 			growth.Fired = float64(report.NetRuntimeLines) > limit
 			growth.Detail = fmt.Sprintf("net runtime lines %+d against %.0f (%.1fx expected %d)", report.NetRuntimeLines, limit, limits.FeatureFactor, expected)
@@ -140,9 +148,9 @@ func EvaluateEpoch(path string, epoch *Epoch, limits Thresholds, now time.Time, 
 	}
 	add(growth)
 
-	spend := Trigger{Name: "spend", Detail: "not evaluated: set --spend-threshold after calibrating on 3 epochs"}
+	spend := Trigger{Name: "spend", Review: true, Detail: "not evaluated: optional token observation is disabled"}
 	if limits.SpendThreshold > 0 && weighted == nil {
-		spend.Detail = "not evaluated: no worker runs to measure"
+		spend.Detail = "not evaluated: qualified worker usage is unavailable"
 	} else if limits.SpendThreshold > 0 {
 		spend.Fired = *weighted > limits.SpendThreshold
 		spend.Detail = fmt.Sprintf("weighted non-cache tokens %.0f against %.0f", *weighted, limits.SpendThreshold)
@@ -150,7 +158,9 @@ func EvaluateEpoch(path string, epoch *Epoch, limits Thresholds, now time.Time, 
 	add(spend)
 
 	wall := Trigger{Name: "wall-clock", Review: true, Detail: "no Started time in the brief"}
-	if started, err := time.Parse(time.RFC3339, epoch.Fields["started"]); err == nil {
+	if limits.WallClock <= 0 {
+		wall.Detail = "not evaluated: optional elapsed-time observation is disabled"
+	} else if started, err := time.Parse(time.RFC3339, epoch.Fields["started"]); err == nil {
 		elapsed := now.Sub(started)
 		wall.Fired = limits.WallClock > 0 && elapsed > limits.WallClock
 		wall.Detail = fmt.Sprintf("%s since start against %s (prompts a review; never forces a stop)", elapsed.Round(time.Minute), limits.WallClock)

@@ -199,17 +199,18 @@ type Reconciler struct {
 
 	// Shares the continuation owner lock after SetReconciler. Recovery must not
 	// read a half-admitted interactive invocation.
-	interactiveRecoveryMu  *sync.Mutex
-	interactiveLiveDrivers *interactiveDriverRegistry
-	interactiveTailDone    map[uuid.UUID]chan struct{}
-	recoveryMu             sync.Mutex
-	tailers                map[uuid.UUID]context.CancelFunc
-	tailerOwners           map[uuid.UUID]context.Context
-	workflowRecovery       WorkflowExecutionRecoverer
-	workflowLiveness       WorkflowWaitingLivenessRecoverer
-	pendingRunRecovery     PendingRunRecoverer
-	terminalAccounting     TerminalAccountingRecoverer
-	storageMaintainer      StorageMaintainer
+	interactiveRecoveryMu     *sync.Mutex
+	interactiveLiveDrivers    *interactiveDriverRegistry
+	interactiveTailDone       map[uuid.UUID]chan struct{}
+	recoveryMu                sync.Mutex
+	tailers                   map[uuid.UUID]context.CancelFunc
+	tailerOwners              map[uuid.UUID]context.Context
+	workflowRecovery          WorkflowExecutionRecoverer
+	workflowLiveness          WorkflowWaitingLivenessRecoverer
+	pendingRunRecovery        PendingRunRecoverer
+	terminalAccounting        TerminalAccountingRecoverer
+	storageMaintainer         StorageMaintainer
+	sessionBindingProofReader SessionBindingProofReader
 }
 
 // StorageMaintainer keeps the database file inside its declared budget. Each

@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -212,5 +214,60 @@ func TestTeamUpdateRequiresExactOperationForVerifiedNonCreator(t *testing.T) {
 				t.Fatalf("paired proof effect mismatch: mission=%q wantAllowed=%v", got.Mission, tc.wantOK)
 			}
 		})
+	}
+}
+
+func TestInvalidAgentIdentityCannotCreateUnattributedTeam(t *testing.T) {
+	for _, unavailable := range []bool{false, true} {
+		t.Run(fmt.Sprint("unavailable=", unavailable), func(t *testing.T) {
+			s := setupStateTestStore(t)
+			verifier := provenance.VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
+				if unavailable {
+					return nil, errors.New("verifier unavailable")
+				}
+				return &cliutil.VerifyResult{Valid: false}, nil
+			})
+			var mutationErr error
+			h := provenance.Middleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				team, err := s.Get(context.Background(), "team-1")
+				if err != nil {
+					t.Fatal(err)
+				}
+				team.ID = "unattributed"
+				mutationErr = s.Create(r.Context(), team)
+			}))
+			r := httptest.NewRequest(http.MethodPost, "/teams", nil)
+			r.Header.Set(cliutil.HeaderAgentIdentityToken, "invalid-token")
+			h.ServeHTTP(httptest.NewRecorder(), r)
+			if mutationErr == nil {
+				t.Fatal("failed identity verification created a team without creator attribution")
+			}
+			if _, err := s.Get(context.Background(), "unattributed"); err == nil {
+				t.Fatal("refused create persisted a team")
+			}
+		})
+	}
+}
+
+func TestConflictingAuthenticationCannotLoseCreatorAttribution(t *testing.T) {
+	s := setupStateTestStore(t)
+	h := provenance.Middleware(provenance.VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "creator", Subject: "owner", ExpiresAt: time.Now().Add(time.Hour).Unix()}}, nil
+	}))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := identity.WithStatus(r.Context(), identity.Status{State: identity.StateConflict, FailureClass: identity.FailureConflict, Source: identity.SourceAgentProvenance})
+		team, err := s.Get(context.Background(), "team-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		team.ID = "conflicting"
+		if err := s.Create(ctx, team); err == nil {
+			t.Fatal("conflicting authentication became an unattributed legacy create")
+		}
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/teams", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "verified-but-conflicting")
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if _, err := s.Get(context.Background(), "conflicting"); err == nil {
+		t.Fatal("refused create persisted state")
 	}
 }

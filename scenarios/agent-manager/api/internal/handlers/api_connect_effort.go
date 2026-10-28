@@ -102,9 +102,30 @@ func (h *AgentManagerConnectHandler) EnrollEffort(ctx context.Context, req *conn
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request required"))
 	}
 	authority := pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR
-	actor, err := h.effortActor(ctx, effortToken(req.Header(), authority), authority)
+	actor, delegated, err := deliveryGrantActor(ctx, req.Msg.GetEnrollment().GetEffortRef())
+	if p, ok := requestidentity.PrincipalFromContext(ctx); ok && p.Kind == requestidentity.ActorAgent && (err != nil || req.Msg.GetEnrollment().GetDelivery() == nil) {
+		for _, subject := range req.Msg.GetEnrollment().GetSubjects() {
+			if subject.GetOwner() == "prompt-manager" && subject.GetKind() == "team-member" {
+				// Team setup remains available when the caller also holds a delivery-only
+				// grant. The latter cannot authorize an initial enrollment by itself.
+				teamActor, teamErr := h.teamEffortActor(ctx, req.Msg.GetEnrollment())
+				if teamErr == nil {
+					actor, delegated, err = teamActor, true, nil
+				} else if err != nil {
+					err = teamErr
+				}
+				break
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
+	}
+	if !delegated {
+		actor, err = h.effortActor(ctx, effortToken(req.Header(), authority), authority)
+		if err != nil {
+			return nil, err
+		}
 	}
 	out, err := s.Enroll(ctx, req.Msg, actor)
 	if err != nil {
@@ -159,6 +180,35 @@ func (h *AgentManagerConnectHandler) ReconcileEffortMetadata(ctx context.Context
 // agent-manager:effort/<name> for effort ref effort:<name>.
 func EffortGrantTarget(effortRef string) string {
 	return "agent-manager:effort/" + strings.TrimPrefix(strings.TrimSpace(effortRef), "effort:")
+}
+
+// deliveryGrantActor always handles agent callers, including those without a
+// grant, so an agent cannot fall back to a stored human operator credential.
+func deliveryGrantActor(ctx context.Context, effortRef string) (supervision.EffortActor, bool, error) {
+	p, _ := requestidentity.PrincipalFromContext(ctx)
+	if p.Kind != requestidentity.ActorAgent {
+		return supervision.EffortActor{}, false, nil
+	}
+	target := EffortGrantTarget(effortRef)
+	if strings.TrimSpace(effortRef) == "" {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodeInvalidArgument, errors.New("effort reference required"))
+	}
+	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.delivery", target); err != nil {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive grant does not allow effort.delivery on "+target))
+	}
+	grant := p.Grant
+	proof, err := provenance.ReverifyOperationProof(ctx)
+	if err != nil {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("delivery grant could not be reverified"))
+	}
+	if proof != nil {
+		grant = proof.Grant
+	}
+	if grant == nil || grant.Approver == "" {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("owner-approved delivery grant required"))
+	}
+	log.Printf("agent-manager delivery delegated caller=%s owner=%s grant=%s approver=%s target=%s", p.Subject, p.Owner, grant.ID, grant.Approver, target)
+	return supervision.EffortActor{ID: p.Subject, DeliveryManager: true, ApprovedBy: grant.Approver}, true, nil
 }
 
 // effortGrantActor admits a live session holding an owner-approved

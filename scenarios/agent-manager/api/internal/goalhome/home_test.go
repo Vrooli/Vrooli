@@ -399,3 +399,17 @@ func TestDecidePark(t *testing.T) {
 		})
 	}
 }
+
+func TestHomeParkRequiresNewSteeringDispositionBeforeWaitingOnChild(t *testing.T) {
+	home := &Home{Queue: ParseQueue([]byte("# Status\n\n## Handoff\n\nWaiting on the same child.\n")),
+		Feedback: Feedback{Entries: []FeedbackEntry{{ID: "NEW-REPAIR", Status: "open", Source: "supervisor"}}}}
+	got := DecideHomePark([]string{"worker"}, home, 0)
+	if got.Allowed || got.Rule != "feedback-unacknowledged" || !strings.Contains(got.Reason, "NEW-REPAIR") {
+		t.Fatalf("unconsumed steering was hidden by a live child: %+v", got)
+	}
+	home.Queue = ParseQueue([]byte("# Status\n\n## Handoff\n\nNEW-REPAIR: amended worker scope; proof remains open.\n"))
+	got = DecideHomePark([]string{"worker"}, home, 0)
+	if !got.Allowed || got.Rule != ParkRuleLiveChild {
+		t.Fatalf("acknowledged steering must permit the same child wait: %+v", got)
+	}
+}

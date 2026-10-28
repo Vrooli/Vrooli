@@ -88,6 +88,7 @@ func parseV2(home *Home, charter, status, feedback, logData []byte, tolerateLogG
 	home.Workarounds = st.workarounds
 	home.WorkaroundsKnown = statusWorkaroundsKnown(status)
 	home.Scoreboard = st.scoreboard
+	home.Warnings = append(home.Warnings, projectionFindings(home.Goal, status)...)
 	if st.current != nil {
 		home.Goal.Current = st.current
 	}
@@ -104,7 +105,7 @@ func parseV2(home *Home, charter, status, feedback, logData []byte, tolerateLogG
 			home.EpochsComplete = false
 			home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, LogFile)
 		} else {
-			return nil, &MalformedLogError{Detail: "LOG.md ## Accepted units line could not be parsed"}
+			return nil, &MalformedLogError{Detail: "LOG.md acceptance must use one ## Accepted units section with parseable, unique unit records"}
 		}
 	}
 	// Active units follow accepted units so the selected summary remains
@@ -221,21 +222,29 @@ func parseScoreboard(doc *document) []SurfaceProgress {
 		return nil
 	}
 	var out []SurfaceProgress
+	ownerColumn := -1
 	for _, l := range s.Body {
 		cells, ok := tableRow(l.Text)
 		if !ok || len(cells) < 3 || isSeparatorRow(cells) {
 			continue
 		}
 		if strings.EqualFold(cells[0], "surface") {
+			for i, cell := range cells {
+				if strings.EqualFold(cell, "owner") {
+					ownerColumn = i
+				}
+			}
 			continue
 		}
 		row := SurfaceProgress{Surface: cells[0], Target: cells[1], State: strings.ToLower(cells[2])}
 		if row.Surface == "" {
 			continue
 		}
-		if len(cells) > 3 {
-			if owner := cells[3]; owner != "-" && owner != "—" {
-				row.OwnerRun = owner
+		if ownerColumn >= 0 && len(cells) > ownerColumn {
+			if owner := cells[ownerColumn]; owner != "-" && owner != "—" {
+				if ids := WorkerRunIDs(owner); len(ids) == 1 && ids[0] == owner {
+					row.OwnerRun = owner
+				}
 			}
 		}
 		out = append(out, row)
@@ -321,7 +330,7 @@ func parseActive(doc *document) []EpochFile {
 		unit := fields["unit"]
 		status := fields["status"]
 		workers := fields["workers"]
-		if unit == "" {
+		if unit == "" || strings.ContainsAny(unit, " \t;`|") {
 			continue
 		}
 		epoch := &Epoch{Fields: map[string]string{}}
@@ -422,6 +431,20 @@ func statusWorkaroundsKnown(data []byte) bool {
 // the caller treats the home as partial.
 func parseLog(data []byte) ([]EpochFile, bool) {
 	doc := parseDocument(data)
+	acceptedSections := 0
+	for _, s := range doc.sections(2, 2) {
+		if s.lowerTitle() == "accepted units" {
+			acceptedSections++
+		}
+		for _, item := range s.items() {
+			if acceptedUnitPattern.MatchString(item.Text) && s.lowerTitle() != "accepted units" {
+				return nil, false
+			}
+		}
+	}
+	if acceptedSections > 1 {
+		return nil, false
+	}
 	type unit struct {
 		id    string
 		epoch *Epoch
@@ -440,6 +463,20 @@ func parseLog(data []byte) ([]EpochFile, bool) {
 			epoch := acceptedEpochFromLogLine(id, line)
 			if epoch == nil {
 				return nil, false
+			}
+			if prior := byID[id]; prior != nil {
+				// Reaccepting reopened work is still one stable unit. Preserve
+				// its acceptance history and project the latest owning workers.
+				prior.Acceptances = append(prior.Acceptances, epoch.Acceptances...)
+				prior.Fields = epoch.Fields
+				for i := range units {
+					if units[i].id == id {
+						units = append(units[:i], units[i+1:]...)
+						break
+					}
+				}
+				units = append(units, unit{id: id, epoch: prior})
+				continue
 			}
 			units = append(units, unit{id: id, epoch: epoch})
 			byID[id] = epoch

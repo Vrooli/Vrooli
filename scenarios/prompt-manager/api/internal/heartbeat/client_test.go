@@ -188,7 +188,7 @@ func TestGetTaskRetainsPhasePromptIDs(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"task": map[string]any{
 			"id": "task-id", "title": "task", "description": "request",
-			"scope_path": "/workspace", "status": "queued", "phase_prompt_ids": []string{phaseID},
+			"scope_path": "/workspace", "status": "queued", "phase_prompt_ids": []string{phaseID}, "current_run_id": "owner-run",
 		}})
 	}))
 	defer server.Close()
@@ -199,6 +199,9 @@ func TestGetTaskRetainsPhasePromptIDs(t *testing.T) {
 	}
 	if task == nil || len(task.PhasePromptIDs) != 1 || task.PhasePromptIDs[0] != phaseID {
 		t.Fatalf("phase prompt IDs were not retained: %+v", task)
+	}
+	if task.CurrentRunID != "owner-run" {
+		t.Fatal("task owner attempt identity was discarded")
 	}
 }
 
@@ -951,6 +954,7 @@ func TestCreateTaskDefinitiveRefusalNeverBecomesTransportUncertainty(t *testing.
 		})
 	}
 }
+
 func TestCreateTaskUnsentFailuresAreRejected(t *testing.T) {
 	client := NewAgentManagerClient(time.Second)
 	client.testBaseURL = "://bad"

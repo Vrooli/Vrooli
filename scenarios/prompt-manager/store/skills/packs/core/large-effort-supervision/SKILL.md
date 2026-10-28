@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 40
+  revision: 43
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-10-23T00:00:00Z"
+  updatedAt: "2026-10-25T00:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager]
     commands: [agent-manager, prompt-manager skill read]
@@ -28,10 +28,11 @@ epochs. `large-effort-orchestration` owns the epoch standard, the goal home and
 acceptance; `path:docs/agent-system/EFFORT_SUPERVISION.md` owns authority and the
 qualification rows.
 
-Model: Sol. Every wake costs about 10× a Luna wake, so each wake needs a reason.
-Keep a daily check under about 30k non-cache tokens (300k weighted). Diagnose in
-Sol; hand any repair that takes more than a few commands to a bounded Luna run
-(§3). Your own spend counts against the goal's overhead (§2 step 3).
+Use the selected native supervision profile. Choose direct repair or a capable existing
+permitted worker from the actual dependency and review needs; command count, elapsed
+time and token totals do not determine that choice. Avoid a second handoff when the
+current owner can finish the repair coherently. Qualified usage informs optimization;
+unknown usage remains unknown and does not terminate admitted work.
 
 ### 1. Wakes
 
@@ -57,6 +58,14 @@ workaround and nothing due records a one-line quiet disposition and ends. With
 no active goal, stay idle.
 
 ### 1.1 Delivery pressure
+
+Slice budgets and estimates are optional. Large coherent slices are valid. Time/token
+totals or size alone do not establish poor performance. Analyze repeated failed operations,
+blocked dependencies, handoff failures, duplicated checks and user-visible outcome progress
+using existing run reports and friction evidence. Overruns may inform optimization; never
+stop workers, freeze source, force partial returns or refuse acceptance solely for an
+exceeded or absent slice estimate. Native commissioned HARD STOP and actual safety/authority
+boundaries remain enforced. Unknown usage does not establish waste.
 
 Agent Manager's native effort owner computes deliveryPressure and enforces the persisted operator
 commission. The rare judgment supervisor reads that same signal; it does not run a second clock,
@@ -119,9 +128,9 @@ For each selected goal home:
    change or when a due efficiency/audit decision needs direct-child accounting;
    reuse a dated result only for the same owner and direct-child set. Deeper,
    unregistered, unknown, or omitted worker usage means the whole-effort denominator
-   is unknown; do not start an automatic recursive audit. Weight non-cache tokens
-   Sol 10, Luna 1; subscription dollars are $0 by construction and unknown usage
-   stays unknown. Label each cost with scope/date. Without a current matching
+   is unknown; do not start an automatic recursive audit. Use the owner's versioned weighting policy and declared units; do not infer
+   prices from model names. Separate cache/input/output, billed charges and
+   subscription allowance. Unknown usage or price stays unknown; label scope/date. Without a current matching
    whole-effort denominator, whole-effort cost/spike and coordinator-overhead
    comparisons are unknown; coordinator-only usage is not whole-effort spend.
 3. Report per goal: epochs accepted, weighted cost per accepted epoch (with
@@ -163,8 +172,9 @@ For each selected goal home:
    if it is still waiting.
    If an operator decision is truly needed, check that `## Needs operator` states
    it with options. For a new, changed or otherwise due question that genuinely
-   needs a human choice, inspect `agent-manager effort decision list <goal home>
-   --json` and retain the matching record's actual state and publication status;
+   needs a human choice, inspect `agent-manager effort decision list --effort-ref <ref>
+   --json` and sync existing answers into the current home. A moved directory or archived
+   feedback does not revoke an operator answer. Inspect the current-home decision list and retain the matching record's actual state and publication status;
    queue text alone does not prove a decision was raised or its event published.
    Match by `[decision <id>]` when present. Without a marker, use the exact
    question and goal home only when they identify one record unambiguously;
@@ -192,7 +202,7 @@ For each selected goal home:
 For each open workaround entry, first distinguish missing repair context from a real
 owner decision. When a retained owner and its open shared-infrastructure workaround
 are known but the owning component, exact receiver, target, permitted handoff surface,
-or repair authority is unclear, dispatch at most one bounded read-only Luna diagnosis
+or repair authority is unclear, dispatch at most one read-only diagnosis using an existing permitted profile
 for that coherent failure when the existing diagnosis route's authority and admission
 are available. Combine affected goals that report the same failure; do not dispatch one
 child per symptom. Give the diagnosis cited owner/workaround evidence, the read
@@ -216,7 +226,7 @@ engineering uncertainty as a human blocker. If the retained owner or open workar
 is not evidenced, retain that exact gap and next condition.
 Once repair context is exact, reproduce the failure once, fix it in the owning
 scenario (Agent Manager, Prompt Manager, Program Runtime, Test Genie, Workspace
-Sandbox, Git Control Tower, the bridge) or dispatch one bounded Luna repair run
+Sandbox, Git Control Tower, the bridge) or dispatch one coherent repair run using an existing permitted profile
 through Agent Manager with its own `--until` (prefer this for anything beyond a few
 commands). Then record the repair evidence so orchestrators can stop using the
 fallback. Source/test success is a repair handoff, not closure: require receiver
@@ -237,14 +247,22 @@ inputs, missing, stale or partial evidence, or unresolved material risk, using
 Check that the gates match those set at admission (or each amendment
 has a recorded reason), the deletion list names concrete items from the
 `STATUS.md` slice and each reached its end state (a slice marked done on partial
-work is a failed audit: its remainder goes back to the queue), the growth budget
-holds, test changes
+work is a failed audit: its remainder goes back to the queue), source growth
+is justified by the product outcome, test changes
 follow `path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`
 (net test lines and new fakes are the first thing to check), and a step-back
 chose park, switch or shrink for a stated reason. For a planning finding, check
 that the new or re-estimated slices come from measured module gaps, carry
 deletion lists, and together can close the gap at the recent actual/estimate
 ratio.
+
+For UI acceptance, check the current product target and `experiential-ui-design` §2a.
+Verify that explicit user amendments reached affected assignments and eligible native
+predicates, with actual receiver/application evidence. Check agent refinements for concrete
+task benefit, preserved capabilities/accessibility and matching-state before/after proof;
+do not mistake an agent proposal for user approval. Review applicable phone and desktop
+evidence. Adopted, verified differences are expected; genuine defects remain open. Neither
+raw exact-match totals nor a feedback-file acknowledgement establishes this result.
 
 ### 5. Steering
 

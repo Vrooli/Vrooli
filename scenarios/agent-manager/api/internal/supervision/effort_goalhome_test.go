@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/goalhome"
@@ -561,5 +562,84 @@ func TestEffortGoalHomeReportsUnmigratedHomeUnknown(t *testing.T) {
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
 	if facts == nil || facts.State != "partial" || facts.DestinationTarget != nil || facts.ActiveUnit != "" || facts.LastAcceptedUnit != "" {
 		t.Fatalf("unmigrated home must stay unknown pending explicit import: %+v", facts)
+	}
+}
+
+func TestOrchestratorParkReadsSteeringFreshAfterBoardCache(t *testing.T) {
+	s, _, _, controller := decisionFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	homeDir := goalHomeTree(t, s.config.ProjectRoot, nil)
+	s.config.Interval = time.Hour
+	if _, err := s.readGoalHome(goalHomeRef); err != nil {
+		t.Fatal(err)
+	}
+	var run *domain.Run
+	for _, candidate := range controller.runs {
+		if len(candidate.WorkReferences) > 0 {
+			run = candidate
+			break
+		}
+	}
+	if run == nil {
+		t.Fatal("fixture has no enrolled orchestrator")
+	}
+	feedbackPath := filepath.Join(homeDir, goalhome.FeedbackFile)
+	feedback := []byte("# Feedback\n\n## Open directives\n\n### FRESH-POLICY — updated scope (2026-10-25, supervisor)\n\nStatus: open. Use the revised product target.\n")
+	if err := os.WriteFile(feedbackPath, feedback, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	home, _, applies, err := s.GoalHomeForOrchestrator(t.Context(), run)
+	if err != nil || !applies {
+		t.Fatalf("fresh read: applies=%t err=%v", applies, err)
+	}
+	if d := goalhome.DecideFeedbackPark(home); d.Allowed || !strings.Contains(d.Reason, "FRESH-POLICY") {
+		t.Fatalf("cached board hid new steering: %+v", d)
+	}
+	statusPath := filepath.Join(homeDir, goalhome.StatusFile)
+	status, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status = []byte(strings.Replace(string(status), "## Handoff", "## Handoff\n\nFRESH-POLICY: amended owned scope and continued product implementation.", 1))
+	if err := os.WriteFile(statusPath, status, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	home, _, _, err = s.GoalHomeForOrchestrator(t.Context(), run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := goalhome.DecideFeedbackPark(home); !d.Allowed {
+		t.Fatalf("cached board hid fresh acknowledgement: %+v", d)
+	}
+	if err := os.Remove(feedbackPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, applies, err := s.GoalHomeForOrchestrator(t.Context(), run); !applies || err == nil || !strings.Contains(err.Error(), goalhome.FeedbackFile) {
+		t.Fatalf("missing steering file became empty policy: applies=%t err=%v", applies, err)
+	}
+}
+
+func TestEffortGoalHomeCapturesOnlyUnambiguousHandoff(t *testing.T) {
+	s, _, _ := effortFixture(t)
+	for _, tc := range []struct {
+		name     string
+		handoffs []goalhome.HandoffSection
+		want     string
+	}{
+		{"single", []goalhome.HandoffSection{{Body: "A tested partial result.\n\nThirty-one visual states and current-source validation remain open."}}, "Thirty-one visual states"},
+		{"missing", nil, ""},
+		{"ambiguous", []goalhome.HandoffSection{{Body: "First"}, {Body: "Second"}}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := &pb.EffortGoalHome{}
+			s.goalHomeFileFacts(out, &goalhome.Home{Queue: goalhome.Queue{Handoffs: tc.handoffs}})
+			if tc.want != "" {
+				if !strings.Contains(out.Handoff, tc.want) || !strings.Contains(out.Handoff, "\n\n") {
+					t.Fatalf("handoff narrative or paragraphs lost: %q", out.Handoff)
+				}
+			} else if out.Handoff != "" || !strings.Contains(strings.Join(out.Limitations, " "), "remaining-work narrative is unknown") {
+				t.Fatalf("unavailable handoff was guessed: %+v", out)
+			}
+		})
 	}
 }

@@ -30,12 +30,19 @@ action-time confirmations remain intact; this scope check does not expand profil
 For a new finite delivery team, complete this checklist while the team and its
 member heartbeat remain disabled:
 
-1. **Integrate the target.** Reconcile the applicable canonical PRD, requirements,
+1. **Integrate the target.** Read existing operator decisions by stable effort ID;
+   sync answered/defaulted policy into the current home even if previously recorded.
+   Home relocation must retain decision discoverability, publication identity, answers
+   and current policy; archived answer provenance is not a reason to ask again.
+ Reconcile the applicable canonical PRD, requirements,
    experience and design records with authorized selections. Preserve source
    precedence; distinguish desired from implemented state, selected from candidate
    references, and historical observations from current facts. Write `CHARTER.md`
    with the destination, constraints and decisions linked to these canonical
-   sources; it must not become a competing specification.
+   sources; it must not become a competing specification. For UI delivery, name the current
+   product design target and applicable amendments/refinements under `experiential-ui-design`
+   §2a. Check that the receiver applies an approved modifier over the older mockup while
+   retaining required behavior; an untested agent proposal is not an adopted refinement.
 2. **Deliver the materials.** Make every required image and other reference file
    available through the receiving executor's actual route at the selected version
    and usable original resolution. In the project's existing source/asset manifest,
@@ -110,4 +117,3 @@ and native safeguards. Do not stop, restart or replace a team to deliver materia
 Source clarification: [Verify specifications and assets before team enablement](https://docs.google.com/document/d/152DaKTk-lBAiy2GXHf-1Bpp3GalY0xXj8EolzhYECrc/edit#heading=h.aig16ectqkdt),
 owner-requested 2026-10-03. The operative native checklist is here; following it
 does not require recovering the author's cloud conversation.
-

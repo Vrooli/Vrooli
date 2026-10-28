@@ -45,15 +45,16 @@ func (a *App) effortEpochCheck(args []string) error {
 	fs := flag.NewFlagSet("effort epoch-check", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	k := fs.Int("k", 10, "Flatline: log lines over which an unchanged exit metric fires")
-	overrun := fs.Float64("overrun", 2, "Overrun: log lines above this multiple of the estimate fire")
-	growth := fs.Int("growth", 300, "Refactor epochs: cumulative net runtime lines above this fire")
-	featureFactor := fs.Float64("feature-factor", 1.5, "Feature epochs: net runtime lines above this multiple of the expected size fire")
-	wallClock := fs.Duration("wall-clock", 24*time.Hour, "Elapsed time after which a review is prompted (never a stop)")
-	spendThreshold := fs.Float64("spend-threshold", 0, "Weighted non-cache tokens of the epoch's workers above which spend fires (0 = not evaluated)")
+	overrun := fs.Float64("overrun", 0, "Optional observation: work units above this multiple of the estimate (0 = disabled; never stops work)")
+	growth := fs.Int("growth", 0, "Optional observation: refactor net runtime lines above this value (0 = disabled; never stops work)")
+	featureFactor := fs.Float64("feature-factor", 0, "Optional observation: feature net runtime lines above this multiple of expected size (0 = disabled; never stops work)")
+	wallClock := fs.Duration("wall-clock", 0, "Optional elapsed-time observation (0 = disabled; never a stop or evidence of poor performance)")
+	spendThreshold := fs.Float64("spend-threshold", 0, "Optimization only: worker weighted non-cache tokens above which review is prompted (0 = not evaluated; never stops work)")
 	runs := fs.String("runs", "", "Comma-separated worker run IDs for the spend trigger (default: the brief's Workers field)")
 	wakeKey := fs.String("wake-key", "", "On a fired step-back, wake the run parked on this key (the orchestrator's run ID)")
 	effortRef := fs.String("effort", "", "On a fired step-back, record a step_back signal only; this does not dispatch supervision. To request a supervisor heartbeat, use `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor` when authorized")
 	acceptance := fs.Bool("acceptance", false, "Orchestrator acceptance check: exit 4 on an unmet typed gate or an unanswered diminishing-returns finding; never exits 3 or wakes")
+	scenario := fs.String("scenario", "", "Scenario for receipt-backed journey gates (default: the brief's Scenario field)")
 	var path string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		path, args = args[0], args[1:]
@@ -78,15 +79,30 @@ func (a *App) effortEpochCheck(args []string) error {
 		workerIDs = file.Fields["workers"]
 	}
 	var weighted *float64
+	var spendWarning string
 	if ids := goalhome.WorkerRunIDs(workerIDs); *spendThreshold > 0 && len(ids) > 0 {
 		spend, err := a.weightedTokens(ids, defaultTierWeights)
 		if err != nil {
-			return fmt.Errorf("worker spend: %w", err)
+			spendWarning = fmt.Sprintf("worker spend unavailable: %v; continue work without a spend verdict", err)
+		} else if !spend.Complete {
+			spendWarning = "worker spend is unqualified for one or more runs; continue work without a spend verdict"
+		} else {
+			weighted = &spend.TotalWeighted
 		}
-		weighted = &spend.TotalWeighted
 	}
 	limits := goalhome.Thresholds{FlatlineK: *k, OverrunFactor: *overrun, RefactorGrowth: *growth, FeatureFactor: *featureFactor, WallClock: *wallClock, SpendThreshold: *spendThreshold}
 	report := &epochCheckReport{EpochReport: goalhome.EvaluateEpoch(path, file, limits, time.Now().UTC(), weighted)}
+	if *scenario == "" {
+		*scenario = file.Fields["scenario"]
+	}
+	read := a.journeyReceiptReader
+	if read == nil {
+		read = readWorkflowJourneyReceipt
+	}
+	goalhome.ResolveJourneyReceipts(report.EpochReport, *scenario, read)
+	if spendWarning != "" {
+		report.Warnings = append(report.Warnings, goalhome.Finding{Code: "spend-unavailable", Detail: spendWarning})
+	}
 	report.Findings = goalFindings(path)
 	if *acceptance {
 		report.AcceptanceBlocked = acceptanceBlocks(report)
@@ -225,7 +241,7 @@ func printEpochReport(report *epochCheckReport, acceptance bool) {
 		fmt.Printf("FINDING %s: %s\n", finding.Code, finding.Detail)
 	}
 	for _, reason := range report.Review {
-		fmt.Printf("REVIEW %s\n", reason)
+		fmt.Printf("OBSERVE (continue) %s\n", reason)
 	}
 	if acceptance {
 		if len(report.StepBack) > 0 {

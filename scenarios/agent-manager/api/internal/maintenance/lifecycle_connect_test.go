@@ -43,7 +43,9 @@ func TestLifecycleConnectFenceDrainResumeAndStaleResume(t *testing.T) {
 	if !prepared.GetStanding().GetAdmissionClosed() || prepared.GetStanding().GetDrained() {
 		t.Fatalf("prepare standing = %+v", prepared.GetStanding())
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	// The transport must outlive the server's drain timeout so this checks the
+	// typed busy-work refusal rather than racing client cancellation against it.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	if _, err := client.Drain(ctx, &commonv1.LifecycleDrainRequest{OperationId: operation, Revision: prepared.GetStanding().GetRevision(), Timeout: durationpb.New(20 * time.Millisecond)}); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("blocked drain error = %v", err)

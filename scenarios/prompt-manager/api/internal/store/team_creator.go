@@ -5,13 +5,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 )
 
-// finiteLeaderMu serializes heartbeat-config and team mutations so concurrent
-// updates to the same member directory cannot interleave. The name is retained
-// for continuity; it guards all heartbeat.json writes, not only leader state.
-var finiteLeaderMu sync.Mutex
+// teamConfigMu serializes team and heartbeat configuration writes.
+var teamConfigMu sync.Mutex
 
 // TeamCreationProof records a verified actor, independently of authored team
 // members, labels and harness headers. Legacy/unverified creation has no proof.
@@ -30,20 +30,59 @@ func verifiedTeamCreator(ctx context.Context) *TeamCreationProof {
 	return &TeamCreationProof{Kind: p.Kind, Subject: p.Subject, Owner: p.OwnerSubject(), Source: p.Source}
 }
 
-// callerIsVerifiedTeamCreator reports whether the current verified caller is the
-// recorded creator of team id and that identity is still live (unexpired, per
-// verifiedTeamCreator). The creator updating its own team needs no separate
-// operation grant; any other actor does. Fail-closed: a missing/expired proof,
-// an unknown team, or a legacy team with no creation proof returns false so the
-// normal operation gate still applies. A different agent's subject never matches.
-func (s *FileTeamStore) callerIsVerifiedTeamCreator(ctx context.Context, id string) bool {
-	creator := verifiedTeamCreator(ctx)
-	if creator == nil {
-		return false
+// TeamReader is the authoritative team lookup used by domain authorization.
+type TeamReader interface {
+	Get(context.Context, string) (*Team, error)
+}
+
+// requireTeamIdentity keeps an offered but invalid credential from becoming an
+// unattributed legacy write. Authentication status remains separate from grants.
+func requireTeamIdentity(ctx context.Context) error {
+	observed := provenance.FromContext(ctx)
+	switch observed.VerificationStatus {
+	case provenance.VerificationInvalid:
+		return identity.NewFailure(identity.FailureInvalid, identity.SourceAgentProvenance)
+	case provenance.VerificationUnavailable:
+		return identity.NewFailure(identity.FailureUnavailable, identity.SourceAgentProvenance)
 	}
-	team, err := s.Get(ctx, id)
-	if err != nil || team == nil || team.CreationProof == nil {
-		return false
+	if status, ok := identity.StatusFromContext(ctx); ok && status.FailureClass != "" && status.FailureClass != identity.FailureMissing {
+		return identity.NewFailure(status.FailureClass, status.Source)
 	}
-	return *team.CreationProof == *creator
+	p, present := identity.PrincipalFromContext(ctx)
+	if (observed.IsVerifiedAgent() && !present) || (p.Kind == identity.ActorAgent && !present) {
+		return identity.NewFailure(identity.FailureInvalid, identity.SourceAgentProvenance)
+	}
+	if present && p.IsVerified() && !p.ExpiresAt.IsZero() && !time.Now().Before(p.ExpiresAt) {
+		return identity.NewFailure(identity.FailureExpired, p.Source)
+	}
+	return nil
+}
+
+// AuthorizeTeamManagement applies creator ownership and the canonical exact
+// operation evaluator at every team mutation owner. It preserves uncredentialed
+// legacy maintenance, but an agent must be the verified creator or have coverage.
+func AuthorizeTeamManagement(ctx context.Context, teams TeamReader, id string) error {
+	if err := requireTeamIdentity(ctx); err != nil {
+		return err
+	}
+	p, present := identity.PrincipalFromContext(ctx)
+	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
+	if p.Kind == identity.ActorAgent && teams != nil {
+		if creator := verifiedTeamCreator(ctx); creator != nil {
+			team, err := teams.Get(ctx, id)
+			if err == nil && team != nil && team.CreationProof != nil && *team.CreationProof == *creator {
+				return nil
+			}
+		}
+	}
+	if bounded || (present && (p.Kind == identity.ActorAgent || p.Grant != nil)) {
+		_, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+id)
+		return err
+	}
+	return nil
+}
+
+// CanManageTeam is a caller-specific read result, never a bearer credential.
+func CanManageTeam(ctx context.Context, teams TeamReader, id string) bool {
+	return verifiedTeamCreator(ctx) != nil && AuthorizeTeamManagement(ctx, teams, id) == nil
 }

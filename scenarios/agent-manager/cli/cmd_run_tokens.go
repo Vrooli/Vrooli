@@ -5,90 +5,69 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"sort"
-	"strconv"
 	"strings"
 
+	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-// defaultTierWeights weight non-cache tokens by model tier (D11): premium
-// supervision models cost about ten economical delivery tokens.
-var defaultTierWeights = map[string]float64{"sol": 10, "luna": 1}
+// Shared operator heuristic; actual billing is owned separately.
+var defaultTierWeights = agentcatalog.DefaultTokenWeights()
 
 // tokenRow is one run's contribution to weighted spend.
 type tokenRow struct {
-	RunID           string  `json:"run_id"`
-	Status          string  `json:"status"`
-	Model           string  `json:"model"`
-	TokensKnown     bool    `json:"tokens_known"`
-	NonCacheTokens  int64   `json:"non_cache_tokens"`
-	CacheReadTokens int64   `json:"cache_read_tokens"`
-	Weight          float64 `json:"weight"`
-	Weighted        float64 `json:"weighted_tokens"`
+	RunID           string   `json:"run_id"`
+	Status          string   `json:"status"`
+	Model           string   `json:"model"`
+	TokensKnown     bool     `json:"tokens_known"`
+	NonCacheTokens  int64    `json:"non_cache_tokens"`
+	CacheReadTokens int64    `json:"cache_read_tokens"`
+	Weight          *float64 `json:"weight"`
+	Weighted        *float64 `json:"weighted_tokens"`
 }
 
 // tokenReport is the weighted spend of one run and, optionally, its children.
 type tokenReport struct {
+	PolicyVersion string             `json:"weight_policy_version"`
 	Rows          []tokenRow         `json:"runs"`
 	Weights       map[string]float64 `json:"weights"`
 	TotalWeighted float64            `json:"total_weighted_tokens"`
 	TotalNonCache int64              `json:"total_non_cache_tokens"`
+	Complete      bool               `json:"weighted_complete"`
+	WeightUnknown []string           `json:"weight_unknown_runs"`
 	Unknown       []string           `json:"usage_unknown_runs"`
 }
 
 // parseTierWeights reads "sol=10,luna=1" into tier weights.
 func parseTierWeights(raw string) (map[string]float64, error) {
-	weights := map[string]float64{}
-	for tier, weight := range defaultTierWeights {
-		weights[tier] = weight
-	}
-	if strings.TrimSpace(raw) == "" {
-		return weights, nil
-	}
-	for _, pair := range strings.Split(raw, ",") {
-		tier, value, ok := strings.Cut(strings.TrimSpace(pair), "=")
-		weight, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
-		if !ok || strings.TrimSpace(tier) == "" || err != nil || weight < 0 {
-			return nil, fmt.Errorf("invalid --weights entry %q (want tier=number)", pair)
-		}
-		weights[strings.ToLower(strings.TrimSpace(tier))] = weight
-	}
-	return weights, nil
-}
-
-// tierWeight matches a model name to the first tier it contains; an
-// unrecognized model weighs 1 so it is never silently free.
-func tierWeight(model string, weights map[string]float64) float64 {
-	model = strings.ToLower(model)
-	tiers := make([]string, 0, len(weights))
-	for tier := range weights {
-		tiers = append(tiers, tier)
-	}
-	sort.Strings(tiers)
-	for _, tier := range tiers {
-		if strings.Contains(model, tier) {
-			return weights[tier]
-		}
-	}
-	return 1
+	return agentcatalog.ParseTokenWeights(raw, defaultTierWeights)
 }
 
 func (r *tokenReport) add(row tokenRow, weights map[string]float64) {
-	row.Weight = tierWeight(row.Model, weights)
-	row.Weighted = float64(row.NonCacheTokens) * row.Weight
+	weight, known := agentcatalog.TokenWeight(row.Model, weights)
+	if known {
+		row.Weight = &weight
+		weighted := float64(row.NonCacheTokens) * weight
+		row.Weighted = &weighted
+		r.TotalWeighted += weighted
+	}
 	if !row.TokensKnown {
 		r.Unknown = append(r.Unknown, row.RunID)
 	}
+	if !known {
+		r.WeightUnknown = append(r.WeightUnknown, row.RunID)
+	}
+	if !row.TokensKnown || !known {
+		r.Complete = false
+	}
 	r.Rows = append(r.Rows, row)
-	r.TotalWeighted += row.Weighted
 	r.TotalNonCache += row.NonCacheTokens
 }
 
 // weightedTokens is the one token-weighting path: `run tokens` and the epoch
 // check's spend trigger both read it.
 func (a *App) weightedTokens(ids []string, weights map[string]float64) (*tokenReport, error) {
-	report := &tokenReport{Weights: weights, Unknown: []string{}}
+	report := &tokenReport{PolicyVersion: agentcatalog.TokenWeightPolicyVersion, Weights: weights, Complete: true, Unknown: []string{}, WeightUnknown: []string{}}
 	for _, runID := range ids {
 		accounting, err := a.services.Runs.Accounting(runID)
 		if err != nil {
@@ -153,8 +132,12 @@ func (a *App) runTokens(args []string) error {
 		if !row.TokensKnown {
 			known = " (usage not final)"
 		}
-		fmt.Printf("%s  %-10s %-12s non-cache=%d cache-read=%d x%g = %.0f%s\n", row.RunID, row.Status, row.Model, row.NonCacheTokens, row.CacheReadTokens, row.Weight, row.Weighted, known)
+		if row.Weight == nil {
+			fmt.Printf("%s  %-10s %-12s non-cache=%d weight=unknown\n", row.RunID, row.Status, row.Model, row.NonCacheTokens)
+			continue
+		}
+		fmt.Printf("%s  %-10s %-12s non-cache=%d cache-read=%d x%g = %.0f%s\n", row.RunID, row.Status, row.Model, row.NonCacheTokens, row.CacheReadTokens, *row.Weight, *row.Weighted, known)
 	}
-	fmt.Printf("Total weighted non-cache tokens: %.0f (non-cache %d across %d run(s))\n", report.TotalWeighted, report.TotalNonCache, len(report.Rows))
+	fmt.Printf("Known subtotal weighted non-cache tokens: %.0f (non-cache %d across %d run(s))\n", report.TotalWeighted, report.TotalNonCache, len(report.Rows))
 	return nil
 }

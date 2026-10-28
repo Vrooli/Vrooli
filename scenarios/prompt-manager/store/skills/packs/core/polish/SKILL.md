@@ -10,9 +10,9 @@ metadata:
   icon: "sparkles"
   status: "active"
   targetDimensions: ["visual","tidiness","standards"]
-  revision: 46
+  revision: 47
   createdAt: "2025-01-15T00:00:00Z"
-  updatedAt: "2026-02-05T01:01:57Z"
+  updatedAt: "2026-10-25T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read"]
@@ -114,6 +114,11 @@ Required reading:
 * Do **not** change core workflows, APIs, or business logic.
 * Do **not** introduce new features or flows that are unrelated to polishing.
 * Respect the PRD, operational targets, and test-driven requirements.
+* Follow the current design target and `experiential-ui-design` §2a for amendments and
+  refinements. Prefer a fitting shared component and clearer hierarchy when evidence shows
+  a benefit. Record material agent-authored choices in the existing product design document;
+  preserve capabilities, discoverability and accessibility. Verified expected differences
+  from older mockups do not block completion; untested changes and genuine defects do.
 * Use the existing completeness and quality metrics as **guardrails**, not as a game:
   * do not make superficial changes solely to move a metric
   * prioritize changes that genuinely improve perceived quality and robustness

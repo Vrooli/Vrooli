@@ -17,6 +17,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const missingRecoveryParser = "no transcript parser available; terminal outcome is unverified"
+
 type RecoverResult struct {
 	Run        *domain.Run
 	Recovered  bool
@@ -30,6 +32,17 @@ func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	review := domain.RunStatusNeedsReview
+	interrupted, err := r.runs.List(ctx, repository.RunListFilter{Status: &review})
+	if err != nil {
+		return err
+	}
+	for _, run := range interrupted {
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeAttached && run.ErrorMsg == missingRecoveryParser {
+			runs = append(runs, run)
+		}
+	}
+
 	recoveryLog := obs.Component("recovery")
 	for _, run := range runs {
 		// List() returns runs with a pruned column set that omits
@@ -92,6 +105,10 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 			recoveryErr = fmt.Errorf("recovery outcome unknown; agent-manager owner diagnosis required for run %s transcript %q; live executor retained: %w", run.ID, run.TranscriptPath, recoveryErr)
 		}
 	}()
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeAttached {
+		return r.recoverAttachedRun(ctx, run)
+	}
+
 	if !run.Status.LivenessPolicy().ExpectsProcess {
 		if run.Status == domain.RunStatusComplete && run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive &&
 			run.Result != nil && run.Result.Success && run.Result.TerminalReason == "goal_complete" {
@@ -134,7 +151,7 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		if r.isProcessAlive(ctx, run) {
 			return nil, fmt.Errorf("no transcript parser available for live executor")
 		}
-		return r.recordRecoveredInterruption(ctx, run, "no transcript parser available; terminal outcome is unverified")
+		return r.recordRecoveredInterruption(ctx, run, missingRecoveryParser)
 	}
 
 	terminal, err := r.drainTranscript(ctx, run, transcriptPath, state, parser)
@@ -647,4 +664,42 @@ func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 			r.log().Warn("remove orphaned run-state directory failed", "runDir", entry.Name(), obs.KeyError, err.Error())
 		}
 	}
+}
+
+// Attached sessions have an external process owner, never a managed transcript
+// executor. Periodic attached liveness owns exit detection. The sole repair here
+// corrects the former parser-based interruption after proving the same session.
+func (r *Reconciler) recoverAttachedRun(ctx context.Context, run *domain.Run) (*RecoverResult, error) {
+	unchanged := &RecoverResult{Run: run, Idempotent: true, Message: "attached session retained under its external process owner"}
+	if run.Status != domain.RunStatusNeedsReview || run.ErrorMsg != missingRecoveryParser || run.TerminalClass != domain.RunTerminalClassInterruption || run.StopReason != domain.RunStopReasonCrash || run.Result != nil || run.Summary != nil || run.ApprovalState != domain.ApprovalStateNone || run.ParentRunID != nil || run.CancelRequestedAt != nil || run.IdentityTokenRevokedAt != nil {
+		return unchanged, nil
+	}
+	store, ok := r.runs.(repository.AttachedRunRecoveryRepository)
+	if !ok || r.sessionBindingProofReader == nil {
+		return nil, fmt.Errorf("attached session recovery owner proof unavailable")
+	}
+	proof, err := r.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: run.ID, HarnessSessionID: run.HarnessSessionID, WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: run.HarnessKind, ProcessID: run.RunnerPID})
+	if err != nil || proof.Binding.PID != run.RunnerPID || !validSessionBindingTuple(proof, run.ID, run.HarnessSessionID, run.WebConsoleSessionID, run.HarnessKind, proof.Binding) {
+		return nil, fmt.Errorf("attached session recovery binding unavailable")
+	}
+	restored, err := store.RestoreAttachedRun(ctx, run, r.now().UTC())
+	if err != nil {
+		return nil, err
+	}
+	if !restored {
+		return nil, domain.NewStateError("Run", "superseded", "restore attached session", "lifecycle or process binding changed")
+	}
+	current, err := r.runs.Get(ctx, run.ID)
+	if err != nil {
+		return nil, err
+	}
+	if r.events != nil {
+		if err := r.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "attached_session_restored", "restored external session after verified live binding; parser recovery does not own this process")); err != nil {
+			r.log().Warn("attached recovery event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}
+	if r.broadcaster != nil {
+		r.broadcaster.BroadcastRunStatus(current)
+	}
+	return &RecoverResult{Run: current, Recovered: true, Message: "restored the same verified live attached session"}, nil
 }

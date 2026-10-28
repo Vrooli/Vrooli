@@ -30,8 +30,10 @@ type EffortRepository interface {
 	SaveEffortSignalCursor(context.Context, time.Time) error
 	InsertEffortDecision(ctx context.Context, d *pb.EffortDecision, digest string) (bool, error)
 	GetEffortDecision(ctx context.Context, home, id string) (*pb.EffortDecision, string, error)
+	FindEffortDecisionByEffort(ctx context.Context, effortRef, id string) (*pb.EffortDecision, string, error)
 	FindEffortDecisionByEvent(ctx context.Context, eventID string) (*pb.EffortDecision, error)
 	SaveEffortDecision(context.Context, *pb.EffortDecision) error
+	ListEffortDecisionPage(ctx context.Context, home, effortRef string, limit int, after *decisionCursor) ([]*pb.EffortDecision, *decisionCursor, error)
 	ListEffortDecisions(ctx context.Context, home, effortRef string, limit int) ([]*pb.EffortDecision, error)
 }
 

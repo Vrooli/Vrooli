@@ -67,13 +67,14 @@ type Amendment struct {
 // GateResult is one gate judged against its latest recorded result.
 type GateResult struct {
 	Gate
-	State     string    `json:"state"`
-	Result    string    `json:"result,omitempty"`
-	Value     string    `json:"value,omitempty"`
-	Detail    string    `json:"detail"`
-	AmendedBy []string  `json:"amended_by,omitempty"`
-	Measured  *float64  `json:"measured,omitempty"`
-	Yield     *Quantity `json:"yield,omitempty"`
+	State        string    `json:"state"`
+	Result       string    `json:"result,omitempty"`
+	Value        string    `json:"value,omitempty"`
+	Detail       string    `json:"detail"`
+	AmendedBy    []string  `json:"amended_by,omitempty"`
+	Measured     *float64  `json:"measured,omitempty"`
+	Yield        *Quantity `json:"yield,omitempty"`
+	EvidenceRefs []string  `json:"evidence_refs,omitempty"`
 }
 
 // GateReport is the epoch's gate verdict.
@@ -205,6 +206,9 @@ func EvaluateGates(e *Epoch) GateReport {
 		}
 		for _, id := range accepted.Gates {
 			cell := latest[id]
+			if cell.Result == "receipt" {
+				continue
+			}
 			cell.Gate, cell.Result = id, "pass"
 			latest[id] = cell
 		}
@@ -255,6 +259,8 @@ func judgeGate(result *GateResult, cell GateCell, recorded bool, unverifiedBy st
 	}
 	result.Result, result.Value = cell.Result, cell.Value
 	switch cell.Result {
+	case "receipt":
+		result.Detail = "owner receipt requires current applicability and declared case coverage"
 	case "fail":
 		result.Detail = "failed"
 	case "unverified":
@@ -273,6 +279,10 @@ func judgeGate(result *GateResult, cell GateCell, recorded bool, unverifiedBy st
 func judgePass(result *GateResult) {
 	switch result.Type {
 	case GateJourney:
+		if _, err := receiptGateCases(result.Spec); err == nil {
+			result.State, result.Detail = GateUnmet, "receipt-backed journey requires owner evidence; manual pass/count cannot establish applicability"
+			return
+		}
 		judgeJourney(result)
 	case GateInventory:
 		judgeInventory(result)

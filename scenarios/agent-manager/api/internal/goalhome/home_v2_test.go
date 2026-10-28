@@ -277,3 +277,86 @@ func TestLoadV2QueueAndWorkaroundsMirrorV1(t *testing.T) {
 		t.Fatalf("feedback ids = %v", ids)
 	}
 }
+
+func TestV2ProjectionRejectsSilentAcceptanceAndOwnershipLoss(t *testing.T) {
+	files := fixtureFiles(t, "v2-bas", nil)
+	original := string(files[LogFile].Data)
+	files[LogFile] = &fstest.MapFile{Data: []byte(original + "\n## Additional accepted units\n\n- E99 | ACCEPTED 2026-10-24T16:00:00Z | yield=+1 journey | gates=G1\n")}
+	if _, err := LoadV2(files); err == nil {
+		t.Fatal("strict load silently dropped an acceptance")
+	}
+	home, err := LoadBoardProjectionV2(files)
+	if err != nil || home.EpochsComplete {
+		t.Fatalf("board did not report incomplete acceptance: %v %v", home, err)
+	}
+
+	home = v2Home(t, map[string]func(string) string{StatusFile: func(s string) string {
+		d := parseDocument([]byte(s))
+		section, ok := d.section("scoreboard")
+		if !ok {
+			t.Fatal("fixture lacks scoreboard")
+		}
+		return string(splice([]byte(s), section.Start, section.End, "## Scoreboard\n\n| surface | target | state | current evidence and gap |\n| --- | --- | --- | --- |\n| History | selected | rough | Passing tests; visual gap remains |\n"))
+	}})
+	if len(home.Scoreboard) != 1 || home.Scoreboard[0].OwnerRun != "" {
+		t.Fatalf("evidence prose became owner identity: %+v", home.Scoreboard)
+	}
+	found := false
+	for _, f := range Lint(home).Findings {
+		if f.Code == "projection-scoreboard" && f.Blocking {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("lint did not report missing ownership column")
+	}
+}
+
+func TestV2CurrentUnknownIsExplicitAndProseCannotMasqueradeAsMeasurement(t *testing.T) {
+	for _, tc := range []struct {
+		body     string
+		code     string
+		blocking bool
+	}{
+		{"Current destination measurement is 0/5 independently accepted surfaces.", "projection-current", true},
+		{"- Current: unknown", "current-unknown", false},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			home := v2Home(t, map[string]func(string) string{StatusFile: func(s string) string {
+				d := parseDocument([]byte(s))
+				section, ok := d.section("current")
+				if !ok {
+					t.Fatal("fixture lacks current")
+				}
+				return string(splice([]byte(s), section.Start, section.End, "## Current\n\n"+tc.body+"\n"))
+			}})
+			if home.Goal.Current != nil {
+				t.Fatal("invented numeric progress")
+			}
+			found := false
+			for _, f := range Lint(home).Findings {
+				if f.Code == tc.code && f.Blocking == tc.blocking {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("missing explicit reading finding %s: %+v", tc.code, home.Warnings)
+			}
+		})
+	}
+}
+
+func TestV2ReacceptanceRetainsOneStableUnitAndLaterReopening(t *testing.T) {
+	log := []byte("# Log\n\n## Accepted units\n\n- E1 | ACCEPTED 2026-10-20T00:00:00Z | workers=11111111-1111-4111-8111-111111111111 | gates=G1 | first\n- E2 | ACCEPTED 2026-10-21T00:00:00Z | gates=G1 | second unit\n- E1 | ACCEPTED 2026-10-22T00:00:00Z | workers=22222222-2222-4222-8222-222222222222 | gates=G1 | corrected\n\n## Reopened\n\n- E1 | 2026-10-21T00:00:00Z\n")
+	units, ok := parseLog(log)
+	if !ok || len(units) != 2 || units[1].ID() != "E1" || len(units[1].Epoch.Acceptances) != 2 || !units[1].Epoch.IsAccepted() {
+		t.Fatalf("reacceptance lost history or counted a second unit: %v %+v", ok, units)
+	}
+	if got := units[1].Epoch.Fields["workers"]; got != "22222222-2222-4222-8222-222222222222" {
+		t.Fatalf("latest worker identity = %s", got)
+	}
+	units, ok = parseLog(append(log, []byte("- E1 | 2026-10-23T00:00:00Z\n")...))
+	if !ok || len(units) != 2 || units[1].Epoch.IsAccepted() {
+		t.Fatalf("later reopening was erased: %v %+v", ok, units)
+	}
+}

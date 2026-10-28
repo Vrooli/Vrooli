@@ -3,6 +3,8 @@ package supervision
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -119,24 +121,52 @@ func (r *Repository) SaveEffortDecision(ctx context.Context, d *pb.EffortDecisio
 // ListEffortDecisions lists decisions newest first, filtered by goal home
 // and/or effort when given.
 func (r *Repository) ListEffortDecisions(ctx context.Context, home, effortRef string, limit int) ([]*pb.EffortDecision, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT decision_json FROM supervision_effort_decisions WHERE (?='' OR goal_home=?) AND (?='' OR effort_ref=?) ORDER BY created_at DESC, decision_id LIMIT ?`, home, home, effortRef, effortRef, limit)
+	decisions, _, err := r.ListEffortDecisionPage(ctx, home, effortRef, limit, nil)
+	return decisions, err
+}
+
+// decisionCursor uses the immutable storage ordering, not updated answer time.
+// Scope is carried with the opaque token so changing filters cannot skip rows.
+type decisionCursor struct {
+	Created    string `json:"created"`
+	ID         string `json:"id"`
+	Home       string `json:"home"`
+	FilterHome string `json:"filter_home"`
+	Effort     string `json:"effort"`
+	Unrecorded bool   `json:"unrecorded"`
+}
+
+func (r *Repository) ListEffortDecisionPage(ctx context.Context, home, effortRef string, limit int, after *decisionCursor) ([]*pb.EffortDecision, *decisionCursor, error) {
+	at, id, origin := "", "", ""
+	if after != nil {
+		at, id, origin = after.Created, after.ID, after.Home
+	}
+	rows, err := r.db.QueryxContext(ctx, `SELECT decision_json,created_at,goal_home,decision_id FROM supervision_effort_decisions
+	 WHERE (?='' OR goal_home=?) AND (?='' OR effort_ref=?)
+	 AND (?='' OR created_at < ? OR (created_at=? AND (decision_id > ? OR (decision_id=? AND goal_home > ?))))
+	 ORDER BY created_at DESC, decision_id, goal_home LIMIT ?`, home, home, effortRef, effortRef, at, at, at, id, id, origin, limit+1)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 	var out []*pb.EffortDecision
+	var last *decisionCursor
 	for rows.Next() {
-		var b string
-		if err = rows.Scan(&b); err != nil {
-			return nil, err
+		var b, created, storedHome, storedID string
+		if err = rows.Scan(&b, &created, &storedHome, &storedID); err != nil {
+			return nil, nil, err
+		}
+		if len(out) == limit {
+			return out, last, nil
 		}
 		d := &pb.EffortDecision{}
 		if err = effortRead.Unmarshal([]byte(b), d); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		out = append(out, d)
+		last = &decisionCursor{Created: created, ID: storedID, Home: storedHome, FilterHome: home, Effort: effortRef}
 	}
-	return out, rows.Err()
+	return out, nil, rows.Err()
 }
 
 // --- service ---------------------------------------------------------------
@@ -179,6 +209,74 @@ func (s *EffortService) effortForGoalHome(ctx context.Context, home string) stri
 	return ""
 }
 
+// decisionForHome follows the enrolled effort when its home moves. The stored
+// home remains part of the original question/event identity: changing it would
+// change a pending publication's bytes and break delayed phone resolutions.
+func (s *EffortService) decisionForHome(ctx context.Context, home, id string) (*pb.EffortDecision, string, error) {
+	d, digest, err := s.repo.GetEffortDecision(ctx, home, id)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return nil, "", err
+	}
+	ref := s.effortForGoalHome(ctx, home)
+	if err == nil {
+		if ref == "" || d.EffortRef == "" {
+			return d, digest, nil
+		}
+		if ref != d.EffortRef {
+			return nil, "", fmt.Errorf("decision %s belongs to a different effort: %w", id, ErrConflict)
+		}
+	}
+	if ref == "" {
+		return nil, "", ErrNotFound
+	}
+	return s.repo.FindEffortDecisionByEffort(ctx, ref, id)
+}
+
+// Identity lookup must not inherit the board/list window: an older answer can
+// never become "not found" merely because newer decisions were added. Two rows
+// suffice to detect ambiguous legacy homes, including a direct-home match.
+func (r *Repository) FindEffortDecisionByEffort(ctx context.Context, ref, id string) (*pb.EffortDecision, string, error) {
+	rows, err := r.db.QueryxContext(ctx, `SELECT decision_json,content_digest FROM supervision_effort_decisions WHERE effort_ref=? AND decision_id=? LIMIT 2`, ref, id)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rows.Close()
+	var found *pb.EffortDecision
+	var digest string
+	for rows.Next() {
+		if found != nil {
+			return nil, "", fmt.Errorf("decision %s has conflicting homes within %s: %w", id, ref, ErrConflict)
+		}
+		var data string
+		if err := rows.Scan(&data, &digest); err != nil {
+			return nil, "", err
+		}
+		found = &pb.EffortDecision{}
+		if err := effortRead.Unmarshal([]byte(data), found); err != nil {
+			return nil, "", err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, "", err
+	}
+	if found == nil {
+		return nil, "", ErrNotFound
+	}
+	return found, digest, nil
+}
+
+// currentDecisionHome is a projection, never a rewrite of the original event.
+func (s *EffortService) currentDecisionHome(ctx context.Context, d *pb.EffortDecision) string {
+	if d.EffortRef != "" {
+		if e, _, err := s.repo.GetEffort(ctx, d.EffortRef); err == nil && !e.Withdrawn {
+			if home, ok := goalHomeDestination(e.DestinationRef); ok {
+				return home
+			}
+		}
+	}
+	return d.GoalHome
+}
+
 // RaiseDecision stores one decision per (goal home, decision id) and
 // publishes its event once. An identical re-raise returns the stored record
 // (and retries an unpublished event); a changed one is refused.
@@ -209,8 +307,27 @@ func (s *EffortService) RaiseDecision(ctx context.Context, req *pb.RaiseEffortDe
 	}
 	s.decisionMu.Lock()
 	defer s.decisionMu.Unlock()
-	if stored.EffortRef == "" {
-		stored.EffortRef = s.effortForGoalHome(ctx, home)
+	if enrolled := s.effortForGoalHome(ctx, home); enrolled != "" {
+		if stored.EffortRef != "" && stored.EffortRef != enrolled {
+			return nil, fmt.Errorf("goal home belongs to a different effort: %w", ErrConflict)
+		}
+		stored.EffortRef = enrolled
+	}
+	// Re-raising from a relocated home must find the original decision before
+	// inserting anything, including an already answered decision.
+	if existing, existingDigest, lookupErr := s.decisionForHome(ctx, home, stored.DecisionId); lookupErr == nil {
+		comparison := proto.Clone(stored).(*pb.EffortDecision)
+		comparison.GoalHome = existing.GoalHome
+		if decisionContentDigest(comparison) != existingDigest {
+			return nil, ErrDecisionChanged
+		}
+		published := false
+		if existing.PublishedAt == nil && existing.State == DecisionPending {
+			published = s.publishDecision(ctx, existing)
+		}
+		return &pb.RaiseEffortDecisionResponse{Decision: existing, Published: published}, nil
+	} else if !errors.Is(lookupErr, ErrNotFound) {
+		return nil, lookupErr
 	}
 	stored.EventId = effortdecision.EventID(decisionEvent(stored))
 	digest := decisionContentDigest(stored)
@@ -290,16 +407,52 @@ func (s *EffortService) ListDecisions(ctx context.Context, req *pb.ListEffortDec
 	if limit <= 0 || limit > 200 {
 		limit = 200
 	}
-	decisions, err := s.repo.ListEffortDecisions(ctx, home, strings.TrimSpace(req.EffortRef), limit)
+	ref := strings.TrimSpace(req.EffortRef)
+	if enrolled := s.effortForGoalHome(ctx, home); home != "" && enrolled != "" {
+		if ref != "" && ref != enrolled {
+			return nil, errors.New("goal home belongs to a different effort")
+		}
+		// A directory is a location, not the decision's durable identity.
+		ref, home = enrolled, ""
+	}
+	var after *decisionCursor
+	if req.PageToken != "" {
+		b, err := base64.RawURLEncoding.DecodeString(req.PageToken)
+		if err != nil {
+			return nil, errors.New("invalid decision page token")
+		}
+		after = &decisionCursor{}
+		if json.Unmarshal(b, after) != nil || after.Created == "" || after.ID == "" || after.Home == "" || after.FilterHome != home || after.Effort != ref || after.Unrecorded != req.UnrecordedOnly {
+			return nil, errors.New("invalid decision page token or changed filters")
+		}
+	}
+	decisions, next, err := s.repo.ListEffortDecisionPage(ctx, home, ref, limit, after)
 	if err != nil {
 		return nil, err
 	}
 	out := &pb.ListEffortDecisionsResponse{}
+	if next != nil {
+		next.Unrecorded = req.UnrecordedOnly
+		b, err := json.Marshal(next)
+		if err != nil {
+			return nil, err
+		}
+		out.NextPageToken = base64.RawURLEncoding.EncodeToString(b)
+	}
 	for _, d := range decisions {
+		// Do not project conflicting historical answers into one current home.
+		// Validate even already-recorded decisions before any sync can write.
+		if d.EffortRef != "" {
+			if _, _, err := s.repo.FindEffortDecisionByEffort(ctx, d.EffortRef, d.DecisionId); err != nil {
+				return nil, err
+			}
+		}
 		if req.UnrecordedOnly && d.RecordedAt != nil {
 			continue
 		}
-		out.Decisions = append(out.Decisions, d)
+		view := proto.Clone(d).(*pb.EffortDecision)
+		view.GoalHome = s.currentDecisionHome(ctx, d)
+		out.Decisions = append(out.Decisions, view)
 	}
 	return out, nil
 }
@@ -327,7 +480,7 @@ func (s *EffortService) answerDecision(ctx context.Context, req *pb.AnswerEffort
 	}
 	s.decisionMu.Lock()
 	defer s.decisionMu.Unlock()
-	d, _, err := s.repo.GetEffortDecision(ctx, home, strings.TrimSpace(req.DecisionId))
+	d, _, err := s.decisionForHome(ctx, home, strings.TrimSpace(req.DecisionId))
 	if err != nil {
 		return nil, false, err
 	}
@@ -473,7 +626,7 @@ func (s *EffortService) signalDecisionAnswer(ctx context.Context, d *pb.EffortDe
 		}
 	}
 	at := d.GetAnsweredAt().AsTime().UTC().Format(time.RFC3339Nano)
-	detail := fmt.Sprintf("decision %s %s: %s (%s); run `agent-manager effort decision sync %s`", d.DecisionId, d.State, d.Answer, d.AnsweredVia, d.GoalHome)
+	detail := fmt.Sprintf("decision %s %s: %s (%s); run `agent-manager effort decision sync %s`", d.DecisionId, d.State, d.Answer, d.AnsweredVia, s.currentDecisionHome(ctx, d))
 	_, _, err := s.repo.AppendEffortSignal(ctx, d.EffortRef, SignalOperatorAnswer, "", detail, SignalOperatorAnswer+":"+d.GoalHome+"|"+d.DecisionId+"|"+d.State+"|"+d.Answer+"|"+at)
 	return err
 }
@@ -512,7 +665,7 @@ func (s *EffortService) MarkDecisionRecorded(ctx context.Context, req *pb.MarkEf
 	}
 	s.decisionMu.Lock()
 	defer s.decisionMu.Unlock()
-	d, _, err := s.repo.GetEffortDecision(ctx, home, strings.TrimSpace(req.DecisionId))
+	d, _, err := s.decisionForHome(ctx, home, strings.TrimSpace(req.DecisionId))
 	if err != nil {
 		return nil, err
 	}

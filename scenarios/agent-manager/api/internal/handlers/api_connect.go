@@ -26,6 +26,7 @@ type AgentManagerConnectHandler struct {
 	h               *Handler
 	supervision     *supervision.Service
 	watchActionAuth WatchActionAuthorizer
+	managedTeams    ManagedTeamReader
 	exactVerifier   *supervision.ExactVerifier
 }
 

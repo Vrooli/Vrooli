@@ -77,6 +77,7 @@ type Task struct {
 	ProjectRoot        string          `json:"project_root,omitempty"`        // Optional project root
 	PhasePromptIDs     []string        `json:"phase_prompt_ids,omitempty"`    // Existing phase prompts are part of the owner task identity.
 	Status             string          `json:"status,omitempty"`              // Owner lifecycle status, when returned
+	CurrentRunID       string          `json:"current_run_id,omitempty"`      // Owner attempt identity; never inferred from task status.
 	ContextAttachments json.RawMessage `json:"context_attachments,omitempty"` // Retained so finite transport can refuse unsupported attached tasks.
 }
 

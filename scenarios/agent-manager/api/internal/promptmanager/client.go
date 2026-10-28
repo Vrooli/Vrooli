@@ -18,10 +18,16 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/teamattribution"
 	experimentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments"
 	experimentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments/experiments_v1connect"
+	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
 	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
+	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
+	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -75,7 +81,7 @@ type ScenarioQABug struct {
 }
 
 type ScenarioQAReporter interface {
-	PublishScenarioQABug(context.Context, ScenarioQABug) error
+	PublishScenarioQABug(context.Context, ScenarioQABug) (string, error)
 }
 
 // Client reads skill prompts from prompt-manager.
@@ -392,35 +398,37 @@ func (c *HTTPClient) PublishFriction(ctx context.Context, report FrictionReport)
 // PublishScenarioQABug files a complete typed report in scenario-qa's
 // canonical bug inbox. It intentionally does not attempt to repair partial
 // reports: scheduled safeguard findings have enough evidence to publish.
-func (c *HTTPClient) PublishScenarioQABug(ctx context.Context, report ScenarioQABug) error {
+func (c *HTTPClient) PublishScenarioQABug(ctx context.Context, report ScenarioQABug) (string, error) {
 	baseURL, err := c.baseURLResolver(ctx)
 	if err != nil {
-		return fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return "", fmt.Errorf("promptmanager: resolve URL: %w", err)
 	}
 	body, err := json.Marshal(report)
 	if err != nil {
-		return fmt.Errorf("promptmanager: marshal scenario-qa bug: %w", err)
+		return "", err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/teams/scenario-qa/bugs/capture", bytes.NewReader(body))
+	value := new(structpb.Value)
+	if err := protojson.Unmarshal(body, value); err != nil {
+		return "", err
+	}
+	req := connect.NewRequest(&heartbeatv1.TeamMutationRequest{TeamId: "scenario-qa", Body: value})
+	attribution := teamattribution.WriterSkill(teamattribution.Info{SpawnOrigin: teamattribution.SpawnOriginHeartbeat}, "report-bug", "scenario-qa")
+	if err := teamattribution.Validate(attribution, "scenario-qa"); err != nil {
+		return "", err
+	}
+	req.Header().Set(teamattribution.HeaderName, teamattribution.Encode(attribution))
+	req.Header().Set("X-Vrooli-Invocation-ID", report.IdempotencyKey)
+	client := heartbeatconnect.NewHeartbeatServiceClient(c.httpClient, strings.TrimRight(baseURL, "/"))
+	response, err := client.CaptureBug(ctx, req)
 	if err != nil {
-		return fmt.Errorf("promptmanager: create scenario-qa request: %w", err)
+		return "", fmt.Errorf("promptmanager: capture scenario-qa bug: %w", err)
 	}
-	attribution, err := json.Marshal(map[string]any{"kind": "investigation", "run_id": report.IdempotencyKey, "spawn_origin": "investigation"})
-	if err != nil {
-		return fmt.Errorf("promptmanager: marshal scenario-qa attribution: %w", err)
+	data := response.Msg.GetData().GetStructValue().GetFields()
+	id := data["knowledge"].GetStructValue().GetFields()["id"].GetStringValue()
+	if data["disposition"].GetStringValue() != "published" || strings.TrimSpace(id) == "" {
+		return "", fmt.Errorf("promptmanager: scenario-qa capture not published (disposition=%s draft=%s)", data["disposition"].GetStringValue(), data["draft_id"].GetStringValue())
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Vrooli-Attribution", base64.StdEncoding.EncodeToString(attribution))
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("promptmanager: scenario-qa request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		payload, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("promptmanager: scenario-qa status %d: %s", resp.StatusCode, string(payload))
-	}
-	return nil
+	return id, nil
 }
 
 func shortFingerprint(fingerprint string) string {
@@ -668,4 +676,22 @@ func resolvePromptManagerBaseURL(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("resolve prompt-manager: %w", err)
 	}
 	return baseURL, nil
+}
+
+// GetTeam forwards the verified inbound caller through the shared provenance
+// transport. A missing caller cannot become an ambient operator read.
+func (c *HTTPClient) GetTeam(ctx context.Context, id string) (*teamsv1.TeamDetails, error) {
+	if provenance.ForwardedIdentityToken(ctx) == "" {
+		return nil, errors.New("verified caller forwarding unavailable")
+	}
+	base, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("promptmanager: resolve team owner: %w", err)
+	}
+	client := teamsconnect.NewTeamsServiceClient(c.httpClient, strings.TrimRight(base, "/"))
+	response, err := client.GetTeam(ctx, connect.NewRequest(&teamsv1.GetTeamRequest{Id: id}))
+	if err != nil {
+		return nil, fmt.Errorf("promptmanager: get team: %w", err)
+	}
+	return response.Msg, nil
 }

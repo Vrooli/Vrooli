@@ -411,7 +411,7 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 	}
 	webConsoleSessionID := ""
 	if o.sessionBindingProofReader != nil {
-		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, req.RunID, req.HarnessSession, req.WebConsoleSessionID, req.HarnessKind)
+		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: req.RunID, HarnessSessionID: req.HarnessSession, WebConsoleSessionID: req.WebConsoleSessionID, HarnessKind: req.HarnessKind, ProcessID: binding.PID})
 		if proofErr != nil || !validSessionBindingTuple(proof, req.RunID, req.HarnessSession, req.WebConsoleSessionID, req.HarnessKind, binding) {
 			return nil, domain.NewValidationError("harness", "live launcher session binding is unavailable")
 		}
@@ -620,7 +620,7 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 		return nil, errors.New("managed run appeared or changed after consent preparation; prepare a new request")
 	}
 	if o.sessionBindingProofReader != nil {
-		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, g.RunID, g.HarnessSession, g.WebConsoleSessionID, g.HarnessKind)
+		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: g.RunID, HarnessSessionID: g.HarnessSession, WebConsoleSessionID: g.WebConsoleSessionID, HarnessKind: g.HarnessKind, ProcessID: g.Binding.PID})
 		if proofErr != nil || !validSessionBindingTuple(proof, g.RunID, g.HarnessSession, g.WebConsoleSessionID, g.HarnessKind, g.Binding) {
 			return nil, errors.New("authorization launcher session binding is unavailable or changed")
 		}

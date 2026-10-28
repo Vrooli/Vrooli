@@ -490,3 +490,34 @@ func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []
 		strings.Join(reasons, "; "),
 	)
 }
+
+// validateRecordedModelFallback records why an explicitly selected premium role
+// is necessary. A native/harness failure may have no Agent Manager parent; its
+// operator-provided reason is still retained in the immutable policy snapshot.
+func (o *Orchestrator) validateRecordedModelFallback(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) error {
+	if cfg == nil || cfg.PolicySnapshot == nil || cfg.PolicySnapshot.SelectedCandidate.ResourceRole != "code.fallback" {
+		return nil
+	}
+	reason := strings.TrimSpace(req.Environment["VROOLI_MODEL_FALLBACK_REASON"])
+	if reason == "" || len(reason) > 1024 {
+		return domain.NewValidationErrorWithHint("environment.VROOLI_MODEL_FALLBACK_REASON", "fallback requires a recorded failure reason (1–1024 bytes)", "Describe the actual failed native or managed harness attempt; use a normal role when no failure occurred")
+	}
+	if len(req.SourceRunIDs) > 0 {
+		failed := false
+		for _, id := range req.SourceRunIDs {
+			prior, err := o.runs.Get(ctx, id)
+			if err != nil {
+				return err
+			}
+			if prior == nil {
+				return domain.NewValidationError("sourceRunIds", "fallback source attempt does not exist")
+			}
+			failed = failed || prior.Status == domain.RunStatusFailed || prior.Status == domain.RunStatusCancelled
+		}
+		if !failed {
+			return domain.NewValidationError("sourceRunIds", "fallback sources must include a failed or cancelled attempt")
+		}
+	}
+	cfg.PolicySnapshot.SelectionReason = "declared_model_fallback: " + reason
+	return nil
+}

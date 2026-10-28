@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 
 	"prompt-manager/internal/requestpolicy"
@@ -341,7 +341,7 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
-	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -474,7 +474,7 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -563,15 +563,11 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(h.toResponse(config))
 }
 
-// Existing management operations must not borrow authority from a narrower
-// interactive preparation grant. Their full authentication migration remains
-// separate; this protects the currently verified delegated request channel.
-func requireBoundedHeartbeatManagement(ctx context.Context, teamID string) error {
-	if !requestpolicy.IsBounded(ctx) {
-		return nil
+func (h *Handlers) requireTeamManagement(ctx context.Context, teamID string) error {
+	if h.teamStore == nil {
+		return store.AuthorizeTeamManagement(ctx, nil, teamID)
 	}
-	_, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+teamID)
-	return err
+	return store.AuthorizeTeamManagement(ctx, h.teamStore, teamID)
 }
 
 // DeleteHeartbeat handles DELETE /teams/{id}/heartbeats/{agentId} - deletes heartbeat config
@@ -581,7 +577,7 @@ func (h *Handlers) DeleteHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
-	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -1188,6 +1184,11 @@ func (h *Handlers) SetResponsibilities(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
 	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
 		http.Error(w, "Team not found", http.StatusNotFound)
 		return
@@ -1281,7 +1282,7 @@ func (h *Handlers) SetHeartbeatInstructions(w http.ResponseWriter, r *http.Reque
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
-	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -1549,6 +1550,37 @@ func (h *Handlers) ResumeTeamHeartbeatControl(w http.ResponseWriter, r *http.Req
 	h.handleHeartbeatControlResume(w, r, mux.Vars(r)["id"])
 }
 
+// heartbeatControlActor keeps delegated execution distinct from human
+// engagement. Agents can operate only approved team control, never global
+// control, and cannot use an operator-direct attribution header as authority.
+func (h *Handlers) heartbeatControlActor(r *http.Request, teamID string) (store.AttributionInfo, error) {
+	p, _ := identity.PrincipalFromContext(r.Context())
+	if teamID != "" {
+		if err := h.requireTeamManagement(r.Context(), teamID); err != nil {
+			return store.AttributionInfo{}, err
+		}
+		if p.Kind != identity.ActorAgent && !p.IsHuman() {
+			return store.AttributionInfo{}, errors.New("verified human or approved agent team-control authority required")
+		}
+	}
+	if p.Kind == identity.ActorAgent {
+		if teamID == "" {
+			return store.AttributionInfo{}, errors.New("global heartbeat control requires a human operator")
+		}
+		log.Printf("prompt-manager team heartbeat control delegated caller=%s owner=%s target=%s operation=%s", p.Subject, p.Owner, teamID, r.URL.Path)
+		// No synthetic writer category: no human-engagement event is recorded.
+		return store.AttributionInfo{}, nil
+	}
+	attr, isHuman, err := attributionFromRequest(r, teamID)
+	if err != nil {
+		return store.AttributionInfo{}, err
+	}
+	if !isHuman {
+		return store.AttributionInfo{}, errors.New("operator-direct attribution is required")
+	}
+	return attr, nil
+}
+
 func (h *Handlers) handleHeartbeatControlPause(w http.ResponseWriter, r *http.Request, teamID string) {
 	if h.controlStore == nil {
 		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
@@ -1560,13 +1592,9 @@ func (h *Handlers) handleHeartbeatControlPause(w http.ResponseWriter, r *http.Re
 			return
 		}
 	}
-	attr, isHuman, err := attributionFromRequest(r, teamID)
+	attr, err := h.heartbeatControlActor(r, teamID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !isHuman {
-		http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	var req HeartbeatControlPauseRequest
@@ -1594,13 +1622,9 @@ func (h *Handlers) handleHeartbeatControlResume(w http.ResponseWriter, r *http.R
 			return
 		}
 	}
-	attr, isHuman, err := attributionFromRequest(r, teamID)
+	attr, err := h.heartbeatControlActor(r, teamID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !isHuman {
-		http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	resp, err := h.controlStore.Resume(r.Context(), teamID, attr)
@@ -3164,7 +3188,7 @@ func (h *Handlers) ClearTeamQueueRunning(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
-	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}

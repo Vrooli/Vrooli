@@ -10,9 +10,9 @@ metadata:
   icon: "palette"
   status: "active"
   defaultScope: "architecture-scope"
-  revision: 2
+  revision: 3
   createdAt: "2026-02-07T00:00:00Z"
-  updatedAt: "2026-02-07T20:12:00Z"
+  updatedAt: "2026-10-25T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read"]
@@ -53,7 +53,11 @@ Required reading:
 Capture a short migration brief first:
 
 1. **Intent:** what should feel different (e.g., cleaner, calmer, denser, more editorial).
-2. **References:** target direction(s) and non-goals.
+2. **References:** current product design target, applicable amendments/refinements,
+   target direction(s) and non-goals. Use `experiential-ui-design` §2a for judgment:
+   inspect a shared component's fit and preserve behavior/accessibility instead of adding
+   custom styling solely to reproduce an awkward mockup. Record and verify the rationale;
+   library membership alone does not prove a better design.
 3. **Constraints:** flows, selectors, accessibility, and behavior that must stay stable.
 4. **Scope:**
    - Token refresh only

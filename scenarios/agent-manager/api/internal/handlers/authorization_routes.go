@@ -291,6 +291,10 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// An interactive grant reaches the handler, which requires the
 		// effort.reconcile operation on that exact effort (effortGrantActor).
 		return true
+	case apiconnect.AgentManagerServiceEnrollEffortProcedure:
+		// The handler checks exact delivery authority or the current team owner
+		// for a team-backed enrollment. No coarse write scope admits it.
+		return true
 	}
 	// Existing native typed workflows retain their separate owner contracts.
 	// An interactive grant cannot acquire them through the coarse write flag.
@@ -395,6 +399,7 @@ var agentReadPOSTRoute = map[string]bool{
 	"/agent_manager.v1.AgentManagerService/WaitWorkflowExecution":            true,
 	"/agent_manager.v1.ConversationSearchService/GetConversationContext":     true,
 	"/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus": true,
+	"/agent_manager.v1.ConversationSearchService/SearchConversations":         true,
 	"/agent_manager.v1.EpisodesService/GetCrossScenarioLedger":               true,
 	"/agent_manager.v1.EpisodesService/GetEpisodes":                          true,
 	"/agent_manager.v1.EpisodesService/GetSelfReportSpans":                   true,

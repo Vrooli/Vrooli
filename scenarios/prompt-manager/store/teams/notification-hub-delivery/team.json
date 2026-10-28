@@ -25,13 +25,13 @@
   "effortRefs": [
     "effort:notification-hub-redesign"
   ],
-  "enabled": false,
+  "enabled": true,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "id": "notification-hub-delivery",
   "homePath": ".vrooli/work/delivery/notification-hub-delivery",
+  "id": "notification-hub-delivery",
   "kind": "team",
   "lifetime": "finite",
   "mission": "Deliver Needs you, Updates, History, Delivery detail and Settings/Reach against the selected atlas across desktop, phone, appearance, recovery and accessibility states.",
@@ -169,10 +169,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 5,
+  "revision": 6,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-24T03:15:34.545803Z"
+  "updatedAt": "2026-10-24T13:48:51Z"
 }

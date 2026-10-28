@@ -314,6 +314,13 @@ type RunRecoveryAttacher interface {
 	AttachRecovery(ctx context.Context, id uuid.UUID, lifecycleVersion int64, at time.Time) (bool, error)
 }
 
+// AttachedRunRecoveryRepository corrects only an observed interrupted attached
+// row after its owner proves the same live process. The complete expected
+// binding and lifecycle fence prevent cancellation or identity races.
+type AttachedRunRecoveryRepository interface {
+	RestoreAttachedRun(context.Context, *domain.Run, time.Time) (bool, error)
+}
+
 // RunRecoveryProcessIdentityClearer retires a runner PID/PGID from a terminal
 // run after recovery has positively established that the executor is absent.
 // The guarded write prevents a stale recovery observation from clearing a

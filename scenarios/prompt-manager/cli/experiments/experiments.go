@@ -86,7 +86,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "experiment",
 				Aliases:     []string{"experiments", "exp"},
 				NeedsAPI:    true,
-				Description: "Manage experiments (list|show|create|start|conclude|holdout|promote|outcomes|report|delete)",
+				Description: "Manage governed skill/prompt A/B experiments — variant arms, holdout, promote (NOT open-ended research runs; for those use the adaptive-research/local-experimentation skills). (list|show|create|start|conclude|holdout|promote|outcomes|report|delete)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -137,6 +137,12 @@ func printUsage() error {
 
 func usageText() string {
 	return `Usage: prompt-manager experiment <subcommand> [args]
+
+Scope: governed skill/prompt A/B experiments (variant arms, holdout, promote).
+These are NOT open-ended research/benchmark runs. For a research experiment
+(e.g. a dataset study or local optimization trial), use the adaptive-research or
+local-experimentation skills; its discovery handle is a --kind work-record plus a
+row in docs/internal/research-experimentation/LEDGER.md, not this registry.
 
 Subcommands:
   list, ls              List experiments [--skill SKILL_ID]

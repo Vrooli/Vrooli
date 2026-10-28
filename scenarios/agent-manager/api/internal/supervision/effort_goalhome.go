@@ -29,10 +29,11 @@ import (
 // the facts as a typed EffortGoalHome. A fact that cannot be read is absent
 // (unknown), never zero.
 const (
-	goalHomeAcceptedMeasured = 5
-	goalHomeNeedsOperatorMax = 8
-	goalHomeItemBytes        = 512
-	goalHomeCanaryUnknown    = "unknown"
+	goalHomeAcceptedMeasured  = 5
+	goalHomeNeedsOperatorMax  = 8
+	goalHomeItemBytes         = 512
+	goalHomeHandoffCodePoints = 4_000
+	goalHomeCanaryUnknown     = "unknown"
 )
 
 // EffortSpendReader reads weighted-token facts from the run owner. Weighted
@@ -178,7 +179,10 @@ func (s *EffortService) GoalHomeForOrchestrator(ctx context.Context, run *domain
 		if !ok {
 			continue
 		}
-		home, err := s.readGoalHome(dir)
+		home, err := s.loadGoalHome(dir)
+		if err == nil && len(home.Missing) > 0 {
+			return nil, dir, true, fmt.Errorf("goal-home policy files are missing: %s", strings.Join(home.Missing, ", "))
+		}
 		if err == nil && !home.EpochsComplete {
 			return nil, dir, true, errors.New("goal-home epoch evidence is incomplete; orchestrator decisions require a complete home")
 		}
@@ -203,6 +207,11 @@ func (s *EffortService) projectGoalHome(ctx context.Context, e *pb.EffortEnrollm
 		if !home.EpochsComplete {
 			out.State = "partial"
 		}
+		for _, finding := range home.Warnings {
+			if finding.Blocking {
+				out.State = "partial"
+			}
+		}
 		s.goalHomeFileFacts(out, home)
 		if home.EpochsComplete {
 			s.goalHomeSpendFacts(ctx, out, home)
@@ -211,10 +220,15 @@ func (s *EffortService) projectGoalHome(ctx context.Context, e *pb.EffortEnrollm
 			out.Limitations = append(out.Limitations, "epoch-derived spend and cap facts are unknown until all epoch files are safely readable")
 		}
 	}
-	if decisions, err := s.repo.ListEffortDecisions(ctx, dir, "", 200); err != nil {
+	if decisions, err := s.ListDecisions(ctx, &pb.ListEffortDecisionsRequest{GoalHome: dir, EffortRef: e.EffortRef}); err != nil {
+		out.State = "partial"
 		out.Limitations = append(out.Limitations, "decisions unavailable: "+err.Error())
 	} else {
-		for _, d := range decisions {
+		if decisions.GetNextPageToken() != "" {
+			out.State = "partial"
+			out.Limitations = append(out.Limitations, "decision history exceeds this board projection; use decision list or sync to read every page")
+		}
+		for _, d := range decisions.GetDecisions() {
 			if d.RecordedAt == nil {
 				out.OpenDecisions = append(out.OpenDecisions, d)
 			}
@@ -224,6 +238,11 @@ func (s *EffortService) projectGoalHome(ctx context.Context, e *pb.EffortEnrollm
 }
 
 func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome.Home) {
+	if len(home.Queue.Handoffs) == 1 {
+		out.Handoff = boundedEffortContext(strings.TrimSpace(home.Queue.Handoffs[0].Body), goalHomeHandoffCodePoints)
+	} else {
+		out.Limitations = append(out.Limitations, "a single STATUS.md handoff is unavailable; remaining-work narrative is unknown")
+	}
 	for _, missing := range home.Missing {
 		out.Limitations = append(out.Limitations, missing+" is missing")
 	}

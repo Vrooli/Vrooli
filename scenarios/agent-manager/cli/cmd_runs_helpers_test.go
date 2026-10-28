@@ -1,6 +1,7 @@
 package main
 
 import (
+	clitest "agent-manager/cli/internal/testutil"
 	"bytes"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,7 @@ import (
 )
 
 func TestRunContinueAppRoutingPreservesRetainedRequest(t *testing.T) {
+	clitest.IsolateCredentialBroker(t)
 	const id = "e13a9412-aec5-4aac-8125-1f6bd4b39052"
 	const message = "Resume checkpoint α.\nRetain the original objective."
 	for _, tc := range []struct {
@@ -33,6 +35,11 @@ func TestRunContinueAppRoutingPreservesRetainedRequest(t *testing.T) {
 			calls := 0
 			var received domainpb.ContinueRunRequest
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet && r.URL.Path == "/health" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"status":"healthy"}`))
+					return
+				}
 				calls++
 				if r.Method != http.MethodPost || r.URL.Path != "/api/v1/runs/"+id+"/continue" {
 					t.Errorf("unexpected owner operation: %s %s", r.Method, r.URL.Path)
@@ -50,7 +57,7 @@ func TestRunContinueAppRoutingPreservesRetainedRequest(t *testing.T) {
 			}
 			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
 			app.services = NewServices(api)
-			args := []string{"run", "continue", id, "--message", message, "--json"}
+			args := []string{"--api-base", server.URL, "run", "continue", id, "--message", message, "--json"}
 			if tc.key != "" {
 				args = append(args, "--idempotency-key", tc.key)
 			}
@@ -68,9 +75,15 @@ func TestRunContinueAppRoutingPreservesRetainedRequest(t *testing.T) {
 }
 
 func TestRunContinueAppRoutingPreservesRefusalAndValidation(t *testing.T) {
+	clitest.IsolateCredentialBroker(t)
 	t.Setenv(cliutil.EnvIdentityToken, "")
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		calls++
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
@@ -83,7 +96,7 @@ func TestRunContinueAppRoutingPreservesRefusalAndValidation(t *testing.T) {
 	}
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
 	app.services = NewServices(api)
-	args := []string{"run", "continue", "retained-run", "--idempotency-key", "retained-request", "--json"}
+	args := []string{"--api-base", server.URL, "run", "continue", "retained-run", "--idempotency-key", "retained-request", "--json"}
 	if err := app.Run(args); err == nil || !strings.Contains(err.Error(), "--message is required") || calls != 0 {
 		t.Fatalf("missing message reached owner: calls=%d err=%v", calls, err)
 	}

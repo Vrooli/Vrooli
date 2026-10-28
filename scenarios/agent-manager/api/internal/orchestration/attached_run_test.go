@@ -2,6 +2,8 @@ package orchestration
 
 import (
 	"context"
+	"github.com/vrooli/cli-core/cliutil"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -115,5 +117,60 @@ func TestAttachedRunLivenessSweepOnlyObservesHarmlessProcess(t *testing.T) {
 	}
 	if stored.Status != domain.RunStatusFailed {
 		t.Fatalf("swept run status = %q, want failed", stored.Status)
+	}
+}
+
+func TestAttachedIdentityProjectsOnlyItsPersistedSession(t *testing.T) {
+	ctx := context.Background()
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	proofSession := "1e5904ed-8378-458a-86d7-8dbb039cff19"
+	calls := 0
+	reader := SessionBindingProofReaderFunc(func(_ context.Context, r SessionBindingRequest) (SessionBindingProof, error) {
+		calls++
+		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: r.RunID.String(), HarnessSessionID: r.HarnessSessionID, LeaseSessionID: r.HarnessSessionID, WebConsoleSessionID: proofSession, HarnessKind: r.HarnessKind, OwnerKind: "web-console-session", Binding: binding}, nil
+	})
+	o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("attached-projection-test-secret")), WithSessionBindingProofReader(reader))
+	const session = "1e5904ed-8378-458a-86d7-8dbb039cff19"
+	attached, err := o.AttachRun(ctx, AttachRunRequest{HarnessKind: "codex", HarnessSession: "thread-123", WebConsoleSessionID: session, ProcessID: os.Getpid()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	normal, err := o.VerifyIdentityToken(ctx, attached.Token)
+	if err != nil || !normal.Valid || calls != 0 || normal.Claims.Meta["verified_web_console_session_id"] != "" {
+		t.Fatalf("ordinary identity requested session proof: calls=%d err=%v", calls, err)
+	}
+	proofCtx := WithSessionBindingVerification(ctx)
+	verified, err := o.VerifyIdentityToken(proofCtx, attached.Token)
+	if err != nil || !verified.Valid || verified.Claims.Meta["verified_web_console_session_id"] != session {
+		t.Fatalf("own session not verified: %+v %v", verified, err)
+	}
+	proofSession = "different-session"
+	forged, err := o.VerifyIdentityToken(proofCtx, attached.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forged.Valid && forged.Claims.Meta["verified_web_console_session_id"] != "" {
+		t.Fatal("forged session received proof")
+	}
+	proofSession = session
+	run, err := repos.Runs.Get(ctx, attached.Run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.HarnessSessionID = "different"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	verified, err = o.VerifyIdentityToken(proofCtx, attached.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verified.Valid && verified.Claims.Meta["verified_web_console_session_id"] != "" {
+		t.Fatal("mismatched harness granted session")
 	}
 }

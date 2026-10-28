@@ -24,7 +24,7 @@
       "vrooli"
     ]
   },
-  "revision": 1,
+  "revision": 3,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -45,5 +45,5 @@
     "route experience",
     "experience-manager"
   ],
-  "updatedAt": "2026-07-05T00:00:00Z"
+  "updatedAt": "2026-10-25T00:00:00Z"
 }

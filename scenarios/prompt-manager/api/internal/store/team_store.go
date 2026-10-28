@@ -204,12 +204,18 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.Create(ctx, team)
 	}
+	if err := requireTeamIdentity(ctx); err != nil {
+		return err
+	}
 	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
 	if principal, ok := identity.PrincipalFromContext(ctx); bounded || (ok && principal.Grant != nil) {
 		if _, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+team.ID); err != nil {
 			return err
 		}
 	}
+
+	teamConfigMu.Lock()
+	defer teamConfigMu.Unlock()
 
 	// Check team doesn't already exist
 	if _, err := s.Get(ctx, team.ID); err == nil {
@@ -276,26 +282,12 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.Update(ctx, id, updates)
 	}
-	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
-	principal, hasPrincipal := identity.PrincipalFromContext(ctx)
-	verifiedAgent := hasPrincipal && principal.Kind == identity.ActorAgent && principal.IsVerified()
-	if bounded || (hasPrincipal && principal.Grant != nil) || verifiedAgent {
-		// Creator-owns-while-alive: the team.manage operation gate exists so one
-		// agent cannot mutate another agent's team. The team's own verified
-		// creator, acting under a still-live (unexpired) identity, needs no
-		// separate grant to update what it created. Mirrors the finite-preparation
-		// creator bypass (finite_preparation.go). Fail-closed: any doubt — missing
-		// proof, unknown team, legacy team with no creation proof — still requires
-		// the operation, and a different agent's identity never matches.
-		if !s.callerIsVerifiedTeamCreator(ctx, id) {
-			if _, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+id); err != nil {
-				return err
-			}
-		}
+	if err := AuthorizeTeamManagement(ctx, s, id); err != nil {
+		return err
 	}
 
-	finiteLeaderMu.Lock()
-	defer finiteLeaderMu.Unlock()
+	teamConfigMu.Lock()
+	defer teamConfigMu.Unlock()
 	team, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -439,6 +431,13 @@ func (s *FileTeamStore) Delete(ctx context.Context, id string) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.Delete(ctx, id)
 	}
+	if err := AuthorizeTeamManagement(ctx, s, id); err != nil {
+		return err
+	}
+
+	teamConfigMu.Lock()
+	defer teamConfigMu.Unlock()
+
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
 	}
@@ -490,6 +489,10 @@ func (s *FileTeamStore) SetRoles(ctx context.Context, teamID string, roles *Team
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetRoles(ctx, teamID, roles)
 	}
+	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
+		return err
+	}
+
 	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return err
@@ -508,6 +511,10 @@ func (s *FileTeamStore) SetOrgChart(ctx context.Context, teamID string, org *Org
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetOrgChart(ctx, teamID, org)
 	}
+	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
+		return err
+	}
+
 	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return err
@@ -701,6 +708,10 @@ func (s *FileTeamStore) SetResponsibilities(ctx context.Context, teamID, agentID
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetResponsibilities(ctx, teamID, agentID, content)
 	}
+	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
+		return err
+	}
+
 	// Ensure member directory exists
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
@@ -733,6 +744,10 @@ func (s *FileTeamStore) SetHeartbeatInstructions(ctx context.Context, teamID, ag
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetHeartbeatInstructions(ctx, teamID, agentID, content)
 	}
+	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
+		return err
+	}
+
 	// Ensure member directory exists
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
@@ -765,13 +780,16 @@ func (s *FileTeamStore) GetHeartbeatConfig(ctx context.Context, teamID, agentID 
 	return config, nil
 }
 
-// SetHeartbeatConfig writes the heartbeat.json config for a team member
+// SetHeartbeatConfig persists configuration and executor bookkeeping. Public
+// configuration handlers authorize team management before calling this shared
+// writer; an admitted run.create records its trigger without a second grant.
 func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID string, config *HeartbeatConfig) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetHeartbeatConfig(ctx, teamID, agentID, config)
 	}
-	finiteLeaderMu.Lock()
-	defer finiteLeaderMu.Unlock()
+
+	teamConfigMu.Lock()
+	defer teamConfigMu.Unlock()
 	// Ensure member directory exists
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
@@ -843,8 +861,12 @@ func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agent
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.DeleteHeartbeatConfig(ctx, teamID, agentID)
 	}
-	finiteLeaderMu.Lock()
-	defer finiteLeaderMu.Unlock()
+	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
+		return err
+	}
+
+	teamConfigMu.Lock()
+	defer teamConfigMu.Unlock()
 	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	return DeleteFile(configPath)
 }

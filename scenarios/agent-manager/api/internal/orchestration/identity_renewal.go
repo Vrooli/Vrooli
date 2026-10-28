@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,32 +23,28 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-const sessionBindingProofVersion = 1
+const sessionBindingProofVersion = cliutil.AgentSessionBindingProofVersion
 const sessionBindingProofTimeout = 3 * time.Second
 const sessionBindingProofMaxBytes = 4096
 
-// SessionBindingProof is the small control-plane result required to renew an
-// attached root's ordinary identity. The owner command returns it only after
-// exact lease, scope, kernel-incarnation, Web Console and reread fences pass.
-type SessionBindingProof struct {
-	ProofVersion        int                    `json:"proof_version"`
-	RunID               string                 `json:"run_id"`
-	HarnessSessionID    string                 `json:"harness_session_id"`
-	WebConsoleSessionID string                 `json:"web_console_session_id"`
-	HarnessKind         string                 `json:"harness_kind"`
-	OwnerKind           string                 `json:"owner_kind"`
-	Binding             cliutil.ProcessBinding `json:"binding"`
+// SessionBindingProof shares its wire contract with the control-plane owner.
+type SessionBindingProof = cliutil.AgentSessionBindingProof
+
+type SessionBindingRequest struct {
+	RunID                                              uuid.UUID
+	HarnessSessionID, WebConsoleSessionID, HarnessKind string
+	ProcessID                                          int
 }
 
 // SessionBindingProofReader is deliberately narrow and read-only.
 type SessionBindingProofReader interface {
-	ReadSessionBinding(context.Context, uuid.UUID, string, string, string) (SessionBindingProof, error)
+	ReadSessionBinding(context.Context, SessionBindingRequest) (SessionBindingProof, error)
 }
 
-type SessionBindingProofReaderFunc func(context.Context, uuid.UUID, string, string, string) (SessionBindingProof, error)
+type SessionBindingProofReaderFunc func(context.Context, SessionBindingRequest) (SessionBindingProof, error)
 
-func (f SessionBindingProofReaderFunc) ReadSessionBinding(ctx context.Context, runID uuid.UUID, harnessSessionID, webConsoleSessionID, harnessKind string) (SessionBindingProof, error) {
-	return f(ctx, runID, harnessSessionID, webConsoleSessionID, harnessKind)
+func (f SessionBindingProofReaderFunc) ReadSessionBinding(ctx context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+	return f(ctx, request)
 }
 
 // NewCLISessionBindingProofReader uses the installed control-plane owner command
@@ -64,15 +62,15 @@ func (b *limitedProofOutput) Write(p []byte) (int, error) {
 	return b.Buffer.Write(p)
 }
 
-func readCLISessionBindingProof(parent context.Context, runID uuid.UUID, harnessSessionID, webConsoleSessionID, harnessKind string) (SessionBindingProof, error) {
+func readCLISessionBindingProof(parent context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
 	ctx, cancel := context.WithTimeout(parent, sessionBindingProofTimeout)
 	defer cancel()
-	args := []string{"agent", "identity-binding", "--harness-session-id", harnessSessionID, "--harness-kind", harnessKind, "--json"}
-	if runID != uuid.Nil {
-		args = append(args, "--run-id", runID.String())
+	args := []string{"agent", "identity-binding", "--harness-session-id", request.HarnessSessionID, "--harness-kind", request.HarnessKind, "--json"}
+	if request.RunID != uuid.Nil {
+		args = append(args, "--run-id", request.RunID.String(), "--run-pid", strconv.Itoa(request.ProcessID))
 	}
-	if webConsoleSessionID != "" {
-		args = append(args, "--web-console-session-id", webConsoleSessionID)
+	if request.WebConsoleSessionID != "" {
+		args = append(args, "--web-console-session-id", request.WebConsoleSessionID)
 	}
 	cmd := exec.CommandContext(ctx, "vrooli", args...)
 	cmd.WaitDelay = 100 * time.Millisecond
@@ -108,9 +106,9 @@ func withoutAgentIdentity(environment []string) []string {
 	return out
 }
 
-// resolveAttachedBaselineRenewal rotates only an ownerless zero-scope attached
-// root. The inherited token is expired when this path is entered; any returned
-// replacement remains subject to ordinary expiry-strict API verification.
+// resolveAttachedBaselineRenewal renews only an externally attached root. Each
+// generation carries ordinary identity with zero capabilities; expired owner
+// delegation is retained as attribution and never renewed as authority.
 func (o *Orchestrator) resolveAttachedBaselineRenewal(ctx context.Context, peerPID int, inherited string, anchorClaims *identity.Claims) (string, bool, error) {
 	if anchorClaims == nil || len(o.identitySecret) == 0 {
 		return "", false, nil
@@ -136,34 +134,29 @@ func (o *Orchestrator) resolveAttachedBaselineRenewal(ctx context.Context, peerP
 	if !renewableAttachedRoot(run, anchorHash, anchorClaims) {
 		return "", false, nil
 	}
-	proof, err := o.sessionBindingProofReader.ReadSessionBinding(ctx, run.ID, run.HarnessSessionID, run.WebConsoleSessionID, run.HarnessKind)
+	proof, err := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: run.ID, HarnessSessionID: run.HarnessSessionID, WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: run.HarnessKind, ProcessID: run.RunnerPID})
 	if err != nil || !validSessionBindingProof(proof, run, peerPID) {
 		return "", false, identityRefreshUnavailable(err)
 	}
 	now := o.now().UTC()
-	if run.OwnerExpiresAt != nil && !now.Before(*run.OwnerExpiresAt) {
-		return "", false, nil
-	}
 
 	// A retry after an Agent Manager restart reconstructs the exact current
 	// generation from the signed immutable anchor and persisted issue time.
-	if run.IdentityTokenIssuedAt != nil {
-		current, expiry, makeErr := attachedRenewalGeneration(anchorClaims, run.IdentityTokenIssuedAt.UTC(), run.OwnerExpiresAt, o.identitySecret)
+	if run.IdentityRenewalAnchorHash != "" {
+		if run.IdentityTokenIssuedAt == nil {
+			return "", false, identityRefreshUnavailable(fmt.Errorf("renewed identity issue time missing"))
+		}
+		current, expiry, makeErr := attachedRenewalGeneration(anchorClaims, run.IdentityTokenIssuedAt.UTC(), o.identitySecret)
 		if makeErr != nil || identity.HashToken(current) != run.IdentityTokenHash {
 			return "", false, identityRefreshUnavailable(makeErr)
 		}
 		if now.Unix() < expiry.Unix() {
 			return current, true, nil
 		}
-	} else if run.IdentityRenewalAnchorHash != "" {
-		// Once the original anchor has been rotated away from IdentityTokenHash,
-		// an absent active-generation timestamp means the current token cannot be
-		// reconstructed. Never guess a replacement generation from corrupt state.
-		return "", false, identityRefreshUnavailable(fmt.Errorf("renewed identity issue time missing"))
 	}
 
 	issuedAt := time.Unix(now.Unix(), 0).UTC()
-	current, expiry, err := attachedRenewalGeneration(anchorClaims, issuedAt, run.OwnerExpiresAt, o.identitySecret)
+	current, expiry, err := attachedRenewalGeneration(anchorClaims, issuedAt, o.identitySecret)
 	if err != nil || !now.Before(expiry) {
 		return "", false, nil
 	}
@@ -189,7 +182,7 @@ func (o *Orchestrator) resolveAttachedBaselineRenewal(ctx context.Context, peerP
 	if !sameRenewalBinding(run, latest) || !validSessionBindingProof(proof, latest, peerPID) || latest.IdentityTokenIssuedAt == nil {
 		return "", false, identityRefreshUnavailable(nil)
 	}
-	current, expiry, err = attachedRenewalGeneration(anchorClaims, latest.IdentityTokenIssuedAt.UTC(), latest.OwnerExpiresAt, o.identitySecret)
+	current, expiry, err = attachedRenewalGeneration(anchorClaims, latest.IdentityTokenIssuedAt.UTC(), o.identitySecret)
 	if err != nil || identity.HashToken(current) != latest.IdentityTokenHash || !now.Before(expiry) {
 		return "", false, identityRefreshUnavailable(err)
 	}
@@ -209,8 +202,8 @@ func renewableAttachedRoot(run *domain.Run, anchorHash string, claims *identity.
 		run.ExecutionMode.Normalized() != domain.ExecutionModeAttached || run.ParentRunID != nil ||
 		(run.Status != domain.RunStatusStarting && run.Status != domain.RunStatusRunning) || run.CancelRequestedAt != nil ||
 		run.IdentityTokenRevokedAt != nil || run.RunnerPID <= 1 || run.WebConsoleSessionID == "" ||
-		run.HarnessKind == "" || run.HarnessSessionID == "" || run.OwnerSubject != "" || len(run.OwnerScopes) != 0 ||
-		claims.Purpose != "" || claims.Subject != "" || claims.WorkspaceID != "" || len(claims.Scopes) != 0 ||
+		run.HarnessKind == "" || run.HarnessSessionID == "" ||
+		claims.Purpose != "" || claims.Subject != run.OwnerSubject || claims.WorkspaceID != "" || !slices.Equal(claims.Scopes, run.OwnerScopes) ||
 		claims.IssuedAt <= 0 || claims.ExpiresAt <= claims.IssuedAt || claims.ExpiresAt > claims.IssuedAt+int64(identity.DefaultTTL/time.Second) ||
 		claims.ProfileKey != run.HarnessKind || claims.ScopePath != "" ||
 		claims.Meta["execution_mode"] != string(domain.ExecutionModeAttached) ||
@@ -236,7 +229,7 @@ func sameRenewalBinding(a, b *domain.Run) bool {
 		a.ExecutionMode.Normalized() != b.ExecutionMode.Normalized() || a.RunnerPID != b.RunnerPID || a.RunnerPGID != b.RunnerPGID ||
 		a.HarnessKind != b.HarnessKind || a.HarnessSessionID != b.HarnessSessionID || a.WebConsoleSessionID != b.WebConsoleSessionID ||
 		a.OwnerSubject != b.OwnerSubject || a.IdentityTokenRevokedAt != nil || b.IdentityTokenRevokedAt != nil || a.ParentRunID != nil || b.ParentRunID != nil ||
-		len(a.OwnerScopes) != 0 || len(b.OwnerScopes) != 0 {
+		!slices.Equal(a.OwnerScopes, b.OwnerScopes) {
 		return false
 	}
 	if (a.OwnerExpiresAt == nil) != (b.OwnerExpiresAt == nil) {
@@ -251,6 +244,7 @@ func sameRenewalBinding(a, b *domain.Run) bool {
 func validSessionBindingProof(proof SessionBindingProof, run *domain.Run, peerPID int) bool {
 	return proof.ProofVersion == sessionBindingProofVersion && run != nil &&
 		proof.RunID == run.ID.String() && proof.HarnessSessionID == run.HarnessSessionID &&
+		(proof.LeaseSessionID == run.HarnessSessionID || proof.LeaseSessionID == run.ID.String()) &&
 		proof.WebConsoleSessionID == run.WebConsoleSessionID && proof.OwnerKind == "web-console-session" &&
 		proof.HarnessKind == run.HarnessKind && proof.Binding.PID == run.RunnerPID &&
 		proof.Binding.PID > 1 && proof.Binding.UID >= 0 && proof.Binding.Start != "" &&
@@ -263,7 +257,7 @@ func validSessionBindingTuple(proof SessionBindingProof, runID uuid.UUID, harnes
 		expectedRunID = runID.String()
 	}
 	if proof.ProofVersion != sessionBindingProofVersion || proof.RunID != expectedRunID ||
-		proof.HarnessSessionID != harnessSessionID || proof.HarnessKind != harnessKind ||
+		proof.HarnessSessionID != harnessSessionID || (proof.LeaseSessionID != harnessSessionID && proof.LeaseSessionID != expectedRunID) || proof.LeaseSessionID == "" || proof.HarnessKind != harnessKind ||
 		proof.OwnerKind == "" || proof.Binding != binding || binding.PID <= 1 || binding.UID < 0 ||
 		binding.Start == "" || binding.Boot == "" || binding.Cgroup == "" {
 		return false
@@ -274,18 +268,15 @@ func validSessionBindingTuple(proof SessionBindingProof, runID uuid.UUID, harnes
 	return proof.WebConsoleSessionID == "" || proof.OwnerKind == "web-console-session"
 }
 
-func attachedRenewalGeneration(anchor *identity.Claims, issuedAt time.Time, ownerExpiresAt *time.Time, secret []byte) (string, time.Time, error) {
+func attachedRenewalGeneration(anchor *identity.Claims, issuedAt time.Time, secret []byte) (string, time.Time, error) {
 	if anchor == nil || issuedAt.IsZero() {
 		return "", time.Time{}, fmt.Errorf("attached identity renewal claims unavailable")
 	}
 	claims := *anchor
+	claims.Scopes = []string{}
 	claims.IssuedAt = issuedAt.Unix()
 	claims.ExpiresAt = issuedAt.Add(identity.DefaultTTL).Unix()
 	expires := time.Unix(claims.ExpiresAt, 0).UTC()
-	if ownerExpiresAt != nil && expires.After(*ownerExpiresAt) {
-		expires = time.Unix(ownerExpiresAt.Unix(), 0).UTC()
-		claims.ExpiresAt = expires.Unix()
-	}
 	token, err := identity.GenerateToken(&claims, secret)
 	return token, expires, err
 }

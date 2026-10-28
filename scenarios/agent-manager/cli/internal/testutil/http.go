@@ -2,8 +2,13 @@
 package testutil
 
 import (
+	"github.com/vrooli/cli-core/cliutil"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -13,6 +18,7 @@ type Request struct {
 	Method string
 	Path   string
 	Query  string
+	Body   string
 }
 
 // RecordingServer serves a JSON response and retains each received request.
@@ -33,7 +39,11 @@ func NewRecordingServerForRequests(t testing.TB, response func(Request) string) 
 	t.Helper()
 	recorder := &RecordingServer{}
 	recorder.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		request := Request{Method: r.Method, Path: r.URL.Path, Query: r.URL.RawQuery}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read test request: %v", err)
+		}
+		request := Request{Method: r.Method, Path: r.URL.Path, Query: r.URL.RawQuery, Body: string(body)}
 		recorder.mu.Lock()
 		recorder.requests = append(recorder.requests, request)
 		recorder.mu.Unlock()
@@ -50,4 +60,32 @@ func (r *RecordingServer) Requests() []Request {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]Request(nil), r.requests...)
+}
+
+// IsolateCredentialBroker gives disposable HTTP fixtures a process-local owner
+// seam. The broker explicitly preserves the fixture's inherited credential;
+// tests never consult a developer's live identity authority or socket.
+func IsolateCredentialBroker(t *testing.T) {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "am-cli-credentials-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", dir)
+	socket := cliutil.AgentCredentialSocket()
+	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/credential" {
+			t.Errorf("unexpected credential request: %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close(); _ = os.RemoveAll(dir) })
 }

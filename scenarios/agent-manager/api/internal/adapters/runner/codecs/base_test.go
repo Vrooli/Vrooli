@@ -76,12 +76,20 @@ func TestBaseCodecDiscoversInstallationAfterConstruction(t *testing.T) {
 }
 
 func TestManagedRunnerBinaryBypassesOperatorShim(t *testing.T) {
-	if got := managedRunnerBinary("/home/operator/.vrooli/shims/codex", "codex"); got != "/usr/bin/codex" && got != "/bin/codex" {
-		t.Fatalf("managed runner path = %q, want an installed system codex binary", got)
+	root := t.TempDir()
+	shimDir, binDir := filepath.Join(root, ".vrooli", "shims"), filepath.Join(root, ".local", "bin")
+	for _, dir := range []string{shimDir, binDir} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "codex"), []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
 	}
-	path := filepath.Join(t.TempDir(), "codex")
-	if got := managedRunnerBinary(path, "codex"); got != path {
-		t.Fatalf("non-shim runner path = %q, want %q", got, path)
+	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+binDir)
+	codec := resolveBinary(baseCodec{}, "codex")
+	if got := codec.BinaryPath(); got != filepath.Join(binDir, "codex") {
+		t.Fatalf("managed path=%q", got)
 	}
 }
 

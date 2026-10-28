@@ -47,8 +47,10 @@ type Response struct {
 // TeamDetailsResponse includes full team details.
 type TeamDetailsResponse struct {
 	Response
-	Roles   []RoleDTO   `json:"roles"`
-	Members []MemberDTO `json:"members"`
+	ManagementAuthorized bool        `json:"managementAuthorized"`
+	Revision             int         `json:"revision"`
+	Roles                []RoleDTO   `json:"roles"`
+	Members              []MemberDTO `json:"members"`
 }
 
 // RoleDTO represents a role in a team.

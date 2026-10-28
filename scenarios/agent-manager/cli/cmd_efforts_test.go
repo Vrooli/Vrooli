@@ -306,6 +306,7 @@ func parkServerWithRun(t *testing.T, children string, runResponse func(runID str
 
 func parkServerWithIdentity(t *testing.T, children, identityResponse string, runResponse func(runID string) string) (*App, *clitest.RecordingServer) {
 	t.Helper()
+	clitest.IsolateCredentialBroker(t)
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 		if request.Method == "POST" && request.Path == "/api/v1/identity/verify" {
 			return identityResponse
@@ -361,7 +362,7 @@ func TestEffortParkValidatesExactTargetBeforeChildPolicy(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			app, server := parkServerWithRun(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`, tc.runResponse)
-			err := app.effortPark([]string{copyRuntimeBASGoalHome(t, nil), "--run", run})
+			err := app.effortPark([]string{copyAcknowledgedParkHome(t, nil), "--run", run})
 			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
 				t.Fatalf("invalid park target should fail before policy evaluation, got %v", err)
 			}
@@ -378,7 +379,7 @@ func TestEffortParkValidatesExactTargetBeforeChildPolicy(t *testing.T) {
 
 func TestEffortParkDefaultsToVerifiedCallerAndPreservesJSONReceipt(t *testing.T) {
 	app, server := parkServer(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`)
-	output, code := runEffort(t, app, "park", copyRuntimeBASGoalHome(t, nil), "--json")
+	output, code := runEffort(t, app, "park", copyAcknowledgedParkHome(t, nil), "--json")
 	var receipt struct {
 		Park struct {
 			Success bool `json:"success"`
@@ -415,7 +416,7 @@ func TestEffortParkDefaultsToVerifiedCallerAndPreservesJSONReceipt(t *testing.T)
 
 func TestEffortParkRefusesForeignExplicitRunBeforeTargetReads(t *testing.T) {
 	app, server := parkServer(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`)
-	err := app.effortPark([]string{copyRuntimeBASGoalHome(t, nil), "--run", "another-run"})
+	err := app.effortPark([]string{copyAcknowledgedParkHome(t, nil), "--run", "another-run"})
 	if err == nil || !strings.Contains(err.Error(), "does not match verified caller run") {
 		t.Fatalf("foreign explicit run should be refused against verified identity, got %v", err)
 	}
@@ -434,7 +435,7 @@ func TestEffortParkUsesConfiguredAPIBaseForVerificationAndRunCalls(t *testing.T)
 	}, nil)
 	app.services = NewServices(targetAPI)
 
-	output, code := runEffort(t, app, "park", copyRuntimeBASGoalHome(t, nil), "--json")
+	output, code := runEffort(t, app, "park", copyAcknowledgedParkHome(t, nil), "--json")
 	if code != 0 || !strings.Contains(output, `"RUN_STATUS_PARKED"`) {
 		t.Fatalf("configured target should complete the park flow (exit %d): %s", code, output)
 	}
@@ -461,7 +462,7 @@ func TestEffortParkInvalidIdentityUsesConfiguredAPIBaseBeforeRunReads(t *testing
 	}, nil)
 	app.services = NewServices(targetAPI)
 
-	err := app.effortPark([]string{copyRuntimeBASGoalHome(t, nil)})
+	err := app.effortPark([]string{copyAcknowledgedParkHome(t, nil)})
 	if err == nil || !strings.Contains(err.Error(), "target rejected token") {
 		t.Fatalf("configured target identity refusal should be returned, got %v", err)
 	}
@@ -477,7 +478,7 @@ func TestEffortParkRefusesInvalidIdentityBeforeTargetReads(t *testing.T) {
 	app, server := parkServerWithIdentity(t, `{"id":"child","status":"RUN_STATUS_RUNNING"}`, `{"valid":false,"error":"token revoked"}`, func(runID string) string {
 		return `{"run":{"id":"` + runID + `","status":"RUN_STATUS_RUNNING"}}`
 	})
-	err := app.effortPark([]string{copyRuntimeBASGoalHome(t, nil)})
+	err := app.effortPark([]string{copyAcknowledgedParkHome(t, nil)})
 	if err == nil || !strings.Contains(err.Error(), "token revoked") {
 		t.Fatalf("invalid identity should be refused explicitly, got %v", err)
 	}
@@ -490,14 +491,14 @@ func TestEffortParkRefusesInvalidIdentityBeforeTargetReads(t *testing.T) {
 func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
 	app, server := parkServer(t, `{"id":"c33912b5-1b51-49b3-8ddb-aad93600b001","status":"RUN_STATUS_COMPLETE"}`)
-	output, code := runEffort(t, app, "park", copyRuntimeBASGoalHome(t, nil), "--run", run, "--timeout", "12h")
+	output, code := runEffort(t, app, "park", copyAcknowledgedParkHome(t, nil), "--run", run, "--timeout", "12h")
 	if code != exitRefused || !strings.Contains(output, "PARK_REFUSED admissible-slice") || !strings.Contains(output, "Admissible-slice rule") {
 		t.Fatalf("park must be refused with the admissible-slice rule (exit %d): %s", code, output)
 	}
 	if parkRequests(server) != 0 {
 		t.Fatalf("a refused park must not reach the server: %+v", server.Requests())
 	}
-	readyAndDecision := copyRuntimeBASGoalHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
+	readyAndDecision := copyAcknowledgedParkHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
 		s = strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- [decision X-1] Wait for an owner? Options: wait, continue.\n", 1)
 		return strings.Replace(s, "1. **RD-WF", "1. [ready] **RD-WF", 1)
 	}})
@@ -507,7 +508,7 @@ func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 	if parkRequests(server) != 0 {
 		t.Fatalf("a refused park with ready work must not reach the server: %+v", server.Requests())
 	}
-	decision := copyRuntimeBASGoalHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
+	decision := copyAcknowledgedParkHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
 		return strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Retire Record mode? Options: keep, retire. Recommendation: keep.", 1)
 	}})
 	if output, code = runEffort(t, app, "park", decision, "--run", run); code != 0 || !strings.Contains(output, "for 72h0m0s (needs-operator)") || parkRequests(server) != 1 {
@@ -518,7 +519,7 @@ func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 func TestEffortParkLiveChildUsesChildrenBackstop(t *testing.T) {
 	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
 	app, server := parkServer(t, `{"id":"e8c322ca-72e7-434c-9d37-1d2cf853961f","status":"RUN_STATUS_RUNNING"}`)
-	home := copyRuntimeBASGoalHome(t, nil)
+	home := copyAcknowledgedParkHome(t, nil)
 	if output, code := runEffort(t, app, "park", home, "--run", run, "--timeout", "12h"); code != exitRefused || !strings.Contains(output, "exceeds the 1h0m0s maximum (live-child)") || parkRequests(server) != 0 {
 		t.Fatalf("a 12h park with a live child must be refused (exit %d): %s", code, output)
 	}
@@ -535,7 +536,7 @@ func TestEffortParkLiveChildUsesChildrenBackstop(t *testing.T) {
 
 func TestEffortParkExcludesReviewChildrenButKeepsExecutionChildren(t *testing.T) {
 	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
-	home := copyRuntimeBASGoalHome(t, nil)
+	home := copyAcknowledgedParkHome(t, nil)
 
 	reviewOnly, reviewServer := parkServer(t, `{"id":"e8c322ca-72e7-434c-9d37-1d2cf853961f","status":"RUN_STATUS_NEEDS_REVIEW"}`)
 	output, code := runEffort(t, reviewOnly, "park", home, "--run", run, "--timeout", "12h")
@@ -577,5 +578,25 @@ func TestEffortBoardPrintsGoalHomeFactsAndUnknowns(t *testing.T) {
 				t.Fatalf("board omitted %q:\n%s", want, output)
 			}
 		}
+	}
+}
+
+// Park-policy fixtures have already consumed prior steering. New-feedback tests
+// add a fresh entry explicitly; unrelated child/identity cases retain their focus.
+func copyAcknowledgedParkHome(t *testing.T, edits map[string]func(string) string) string {
+	t.Helper()
+	home := copyRuntimeBASGoalHome(t, edits)
+	writeFile(t, filepath.Join(home, goalhome.FeedbackFile), "# Feedback\n\n## Resolved\n\nPrior fixture steering was resolved before this park.\n")
+	return home
+}
+
+func TestEffortParkDoesNotIgnoreFreshFeedbackWhileChildRuns(t *testing.T) {
+	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
+	app, server := parkServer(t, `{"id":"e8c322ca-72e7-434c-9d37-1d2cf853961f","status":"RUN_STATUS_RUNNING"}`)
+	home := copyAcknowledgedParkHome(t, nil)
+	writeFile(t, filepath.Join(home, goalhome.FeedbackFile), "# Feedback\n\n### NEW-REPAIR — supervisor correction\n\nAct on the corrected outcome.\n\nStatus: open\n")
+	output, code := runEffort(t, app, "park", home, "--run", run)
+	if code != exitRefused || !strings.Contains(output, "feedback-unacknowledged") || !strings.Contains(output, "NEW-REPAIR") || parkRequests(server) != 0 {
+		t.Fatalf("new steering was ignored before park (exit %d): %s", code, output)
 	}
 }

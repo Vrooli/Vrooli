@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,8 +14,11 @@ import (
 	httpx "github.com/vrooli/api-core/apihttptest"
 	experimentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments"
 	experimentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments/experiments_v1connect"
+	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
 	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type fakeSkillsService struct {
@@ -350,5 +354,47 @@ func TestHTTPClientAdminOperationsAndExperimentAssignment(t *testing.T) {
 	}
 	if _, err := client.AssignExperimentPrompt(ctx, AssignmentRequest{}); err == nil {
 		t.Fatal("incomplete assignment accepted")
+	}
+}
+
+type bugCaptureService struct {
+	heartbeatconnect.UnimplementedHeartbeatServiceHandler
+	disposition string
+}
+
+func (f bugCaptureService) CaptureBug(_ context.Context, req *connect.Request[heartbeatv1.TeamMutationRequest]) (*connect.Response[heartbeatv1.JsonResponse], error) {
+	if req.Msg.TeamId != "scenario-qa" || req.Header().Get("X-Vrooli-Attribution") == "" || req.Header().Get("X-Vrooli-Invocation-ID") != "fixture-capture" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("capture routing/attribution missing"))
+	}
+	raw, err := base64.StdEncoding.DecodeString(req.Header().Get("X-Vrooli-Attribution"))
+	if err != nil {
+		return nil, err
+	}
+	var attribution map[string]string
+	if err := json.Unmarshal(raw, &attribution); err != nil {
+		return nil, err
+	}
+	if attribution["kind"] != "writer-skill" || attribution["source_skill_id"] != "report-bug" || attribution["team_id"] != "scenario-qa" || attribution["spawn_origin"] != "heartbeat" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("canonical writer attribution incomplete: %v", attribution))
+	}
+	value, _ := structpb.NewValue(map[string]any{"disposition": f.disposition, "knowledge": map[string]any{"id": "knw-capture"}, "draft_id": "draft-fixture"})
+	return connect.NewResponse(&heartbeatv1.JsonResponse{Data: value}), nil
+}
+func TestScenarioQABugUsesCanonicalCaptureAndRequiresPublishedReceipt(t *testing.T) {
+	for _, disposition := range []string{"published", "draft"} {
+		path, handler := heartbeatconnect.NewHeartbeatServiceHandler(bugCaptureService{disposition: disposition})
+		mux := http.NewServeMux()
+		mux.Handle(path, handler)
+		server := httptest.NewServer(mux)
+		client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
+		id, err := client.PublishScenarioQABug(context.Background(), ScenarioQABug{Title: "model drift", IdempotencyKey: "fixture-capture"})
+		server.Close()
+		if disposition == "published" {
+			if err != nil || id != "knw-capture" {
+				t.Fatalf("published receipt lost: %q %v", id, err)
+			}
+		} else if err == nil || id != "" {
+			t.Fatalf("private draft marked delivered: %q %v", id, err)
+		}
 	}
 }

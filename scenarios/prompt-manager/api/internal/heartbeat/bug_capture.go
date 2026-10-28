@@ -1,6 +1,7 @@
 package heartbeat
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -144,7 +145,11 @@ func (h *Handlers) captureBug(r *http.Request, teamID string, info store.Attribu
 		return BugCaptureResponse{Disposition: "draft", DraftID: id, Accepted: accepted, Needs: needs, Invalid: invalid, Warnings: draft.Warnings, NextAction: bugRepairCommand(id)}, nil
 	}
 
-	topic := "bug-inbox/" + accepted["signal_type"] + "/" + bugSlug(req.Title)
+	slug := bugSlug(req.Title)
+	if key := strings.TrimSpace(req.IdempotencyKey); key != "" {
+		slug = fmt.Sprintf("key-%x", sha256.Sum256([]byte(key)))[:28]
+	}
+	topic := "bug-inbox/" + accepted["signal_type"] + "/" + slug
 	if existing, err := h.teamStore.ListTeamCorpus(r.Context(), teamID, topic, "", 0); err != nil {
 		return BugCaptureResponse{}, err
 	} else if len(existing) > 0 {

@@ -394,3 +394,57 @@ func configWithSelectedCandidate(runnerType domain.RunnerType, model string, sel
 		},
 	}
 }
+
+func TestRecordedModelFallbackRequiresAndRetainsNativeFailure(t *testing.T) {
+	o := &Orchestrator{}
+	cfg := configWithSelectedCandidate(domain.RunnerTypeCodex, "gpt-6.1-sol", 0)
+	cfg.RoleRef = "code.fallback"
+	cfg.PolicySnapshot.SelectedCandidate.ResourceRole = "code.fallback"
+	if err := o.validateRecordedModelFallback(context.Background(), CreateRunRequest{}, cfg); err == nil {
+		t.Fatal("unexplained premium fallback accepted")
+	}
+	req := CreateRunRequest{Environment: map[string]string{"VROOLI_MODEL_FALLBACK_REASON": "Native Terra launch returned -32600; retained attempt receipt /runs/native-failure"}}
+	if err := o.validateRecordedModelFallback(context.Background(), req, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(cfg.PolicySnapshot.SelectionReason, "-32600") {
+		t.Fatal("failure lineage was not retained")
+	}
+	cfg.RoleRef = "code.default"
+	cfg.PolicySnapshot.SelectedCandidate.ResourceRole = "code.default"
+	if err := o.validateRecordedModelFallback(context.Background(), CreateRunRequest{}, cfg); err != nil {
+		t.Fatal("normal roles must not require fallback metadata", err)
+	}
+}
+
+func TestOrdinaryModelOverrideRejectsPremiumAndProhibitedModels(t *testing.T) {
+	o := &Orchestrator{}
+	for _, model := range []string{"gpt-6.1-sol", "codex/gpt-6-astra", "codex/gpt-5.6-terra"} {
+		cfg := configWithSelectedCandidate(domain.RunnerTypeCodex, "gpt-6.1-terra", 0)
+		cfg.PolicySnapshot.SelectedCandidate.ExcludedModels = []string{"gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-terra"}
+		if err := o.applyModelOverride(context.Background(), cfg, &model); err == nil {
+			t.Fatalf("ordinary override selected %s", model)
+		}
+	}
+}
+func TestRecordedModelFallbackChecksSuppliedSourcesWithoutConstrainingParent(t *testing.T) {
+	repos, _, run := tokenCapFixture(t, "gpt-6.1-terra")
+	o := &Orchestrator{runs: repos.Runs}
+	cfg := configWithSelectedCandidate(domain.RunnerTypeCodex, "gpt-6.1-sol", 0)
+	cfg.PolicySnapshot.SelectedCandidate.ResourceRole = "code.fallback"
+	coordinator := uuid.New()
+	req := CreateRunRequest{ParentRunID: &coordinator, SourceRunIDs: []uuid.UUID{run.ID}, Environment: map[string]string{"VROOLI_MODEL_FALLBACK_REASON": "source attempt failed"}}
+	if err := o.validateRecordedModelFallback(context.Background(), req, cfg); err == nil {
+		t.Fatal("running source falsely established failed attempt")
+	}
+	run.Status = domain.RunStatusFailed
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatal(err)
+	}
+	if err := o.validateRecordedModelFallback(context.Background(), req, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if req.ParentRunID == nil || *req.ParentRunID != coordinator {
+		t.Fatal("coordinator lineage changed")
+	}
+}

@@ -278,6 +278,10 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			return nil, err
 		}
 	}
+	if err := o.validateRecordedModelFallback(ctx, req, resolvedConfig); err != nil {
+		failCreation()
+		return nil, err
+	}
 	// `until` acceptance is unconditional: native delivery is gated by the
 	// resolved spawn capability (NativeObjective) at execution time, not by a
 	// coarse runner capability flag. A runner without native support still

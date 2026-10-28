@@ -9,7 +9,7 @@ import (
 
 type modelPolicyReporter struct{ client *promptmanager.HTTPClient }
 
-func (r modelPolicyReporter) Report(ctx context.Context, report modelpolicydrift.Report) error {
+func (r modelPolicyReporter) Report(ctx context.Context, report modelpolicydrift.Report) (string, error) {
 	finding := report.Finding
 	severity := "minor"
 	if finding.Severity == "error" {

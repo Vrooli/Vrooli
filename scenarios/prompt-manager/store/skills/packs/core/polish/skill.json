@@ -23,7 +23,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 46,
+  "revision": 47,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -34,5 +34,5 @@
     "tidiness",
     "standards"
   ],
-  "updatedAt": "2026-02-05T01:01:57Z"
+  "updatedAt": "2026-10-25T00:00:00Z"
 }

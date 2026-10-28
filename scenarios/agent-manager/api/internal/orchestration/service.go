@@ -762,6 +762,7 @@ func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 	if r != nil {
 		r.structuredResults = o.structuredResults
+		r.sessionBindingProofReader = o.sessionBindingProofReader
 		if o.approvalPublisher != nil {
 			r.reviewNoticePublisher = o.publishRunNeedsReview
 			r.authorizationNotificationRetry = o.retryPendingAuthorizationNotifications

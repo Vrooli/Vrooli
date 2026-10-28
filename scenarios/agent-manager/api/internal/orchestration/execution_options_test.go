@@ -68,3 +68,18 @@ func TestExecutionOptionMergesRolePolicyAndLocalProbe(t *testing.T) {
 		t.Fatalf("local probe model not merged last: %#v", option.Models[2])
 	}
 }
+
+func TestExecutionOptionsDoesNotHideRequestedRoleResolutionFailure(t *testing.T) {
+	registry := runner.NewRegistry()
+	if err := registry.Register(runner.NewMockRunner(domain.RunnerTypeCodex)); err != nil {
+		t.Fatal(err)
+	}
+	o := &Orchestrator{runners: registry}
+	if _, err := o.ListExecutionOptions(context.Background(), "code.default"); err == nil {
+		t.Fatal("missing requested policy silently fell back to local probe models")
+	}
+	options, err := o.ListExecutionOptions(context.Background(), "")
+	if err != nil || len(options) != 1 {
+		t.Fatalf("explicit no-role diagnostics unavailable: %v %v", options, err)
+	}
+}

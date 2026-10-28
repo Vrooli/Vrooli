@@ -1045,6 +1045,32 @@ func (r *runRepository) AttachRecovery(ctx context.Context, id uuid.UUID, lifecy
 	return count == 1, nil
 }
 
+// RestoreAttachedRun repairs a false startup interruption without changing
+// credentials, owner, transcript, result or start time. This is a lifecycle CAS,
+// not a generic transition from review to running.
+func (r *runRepository) RestoreAttachedRun(ctx context.Context, expected *domain.Run, at time.Time) (bool, error) {
+	if expected == nil || expected.ExecutionMode.Normalized() != domain.ExecutionModeAttached || expected.Status != domain.RunStatusNeedsReview || expected.RunnerPID <= 1 || expected.ErrorMsg == "" || expected.IdentityTokenHash == "" {
+		return false, nil
+	}
+	const query = `UPDATE runs SET status = ?, ended_at = NULL, error_msg = '',
+  terminal_class = '', stop_reason = '', last_handoff = '', exit_code = NULL,
+  updated_at = ?, lifecycle_version = lifecycle_version + 1
+  WHERE id = ? AND lifecycle_version = ? AND owner_epoch = ? AND COALESCE(owner_identity, '') = ?
+   AND execution_mode = ? AND status = ? AND runner_pid = ? AND runner_pgid = ?
+   AND harness_kind = ? AND harness_session_id = ? AND web_console_session_id = ?
+   AND error_msg = ? AND terminal_class = ? AND stop_reason = ?
+   AND identity_token_hash = ? AND COALESCE(identity_renewal_anchor_hash, '') = ?
+   AND cancel_requested_at IS NULL AND identity_token_revoked_at IS NULL AND parent_run_id IS NULL`
+	result, err := r.db.ExecContext(ctx, query, string(domain.RunStatusRunning), SQLiteTime(at), expected.ID, expected.LifecycleVersion, expected.OwnerEpoch, expected.OwnerIdentity,
+		string(domain.ExecutionModeAttached), string(domain.RunStatusNeedsReview), expected.RunnerPID, expected.RunnerPGID,
+		expected.HarnessKind, expected.HarnessSessionID, expected.WebConsoleSessionID, expected.ErrorMsg, string(domain.RunTerminalClassInterruption), string(domain.RunStopReasonCrash), expected.IdentityTokenHash, expected.IdentityRenewalAnchorHash)
+	if err != nil {
+		return false, wrapDBError("restore_attached_run", "Run", expected.ID.String(), err)
+	}
+	count, err := result.RowsAffected()
+	return count == 1, err
+}
+
 // ClearTerminalRunnerProcessIdentity retires only the process identity from a
 // terminal run. Transcript/session identity and all outcome evidence remain
 // intact. The exact PID/PGID and owner epoch fence a stale observation from
@@ -1226,8 +1252,8 @@ func (r *runRepository) GetByIdentityRenewalAnchorHash(ctx context.Context, anch
 	return row.toDomain(), nil
 }
 
-// RenewAttachedIdentity atomically rotates only an active attached, ownerless
-// run's ordinary baseline. The expected snapshot fences lifecycle/recovery
+// RenewAttachedIdentity atomically rotates an active attached root's ordinary
+// baseline without changing its retained owner delegation. The expected snapshot fences lifecycle/recovery
 // races; the SQL predicate is the linearization point against completion,
 // revocation and competing renewals.
 func (r *runRepository) RenewAttachedIdentity(ctx context.Context, expected *domain.Run, anchorHash, activeHash string, issuedAt time.Time) (bool, error) {
@@ -1245,12 +1271,14 @@ func (r *runRepository) RenewAttachedIdentity(ctx context.Context, expected *dom
 		  AND (identity_renewal_anchor_hash = '' OR identity_renewal_anchor_hash = ?)
 		  AND execution_mode = ? AND parent_run_id IS NULL
 		  AND status IN (?, ?) AND identity_token_revoked_at IS NULL AND cancel_requested_at IS NULL
-		  AND owner_subject = '' AND (owner_scopes = '[]' OR owner_scopes = '' OR owner_scopes IS NULL)`
+		  AND COALESCE(owner_subject, '') = ?
+		  AND COALESCE(NULLIF(NULLIF(owner_scopes, ''), 'null'), '[]') = ?`
+	ownerScopes := marshalStringSliceJSON(expected.OwnerScopes)
 	ownerExpiresAt := NewNullableTime(expected.OwnerExpiresAt)
 	result, err := r.db.ExecContext(ctx, query, activeHash, anchorHash, SQLiteTime(issuedAt), SQLiteTime(time.Now()),
 		expected.ID, expected.IdentityTokenHash, expected.LifecycleVersion, expected.OwnerIdentity, expected.OwnerEpoch,
 		expected.RunnerPID, expected.HarnessKind, expected.HarnessSessionID, expected.WebConsoleSessionID, ownerExpiresAt,
-		anchorHash, string(domain.ExecutionModeAttached), string(domain.RunStatusStarting), string(domain.RunStatusRunning))
+		anchorHash, string(domain.ExecutionModeAttached), string(domain.RunStatusStarting), string(domain.RunStatusRunning), expected.OwnerSubject, ownerScopes)
 	if err != nil {
 		return false, wrapDBError("renew_attached_identity", "Run", expected.ID.String(), err)
 	}

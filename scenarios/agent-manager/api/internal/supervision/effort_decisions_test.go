@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -480,4 +482,151 @@ func TestMarkDecisionRecordedIsFencedOnTheAnswerTime(t *testing.T) {
 	if err != nil || len(open.Decisions) != 0 {
 		t.Fatalf("a recorded decision is still listed as unrecorded: %v %v", open, err)
 	}
+}
+
+func TestDecisionFollowsEffortHomeWithoutChangingQuestionOrAnswer(t *testing.T) {
+	for _, answered := range []bool{false, true} {
+		t.Run(fmt.Sprint(answered), func(t *testing.T) {
+			s, publisher, ref, _ := decisionFixture(t)
+			ctx := context.Background()
+			original, err := s.RaiseDecision(ctx, decisionRequest(), "worker")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if answered {
+				original.Decision, err = s.AnswerDecision(ctx, &pb.AnswerEffortDecisionRequest{GoalHome: decisionHome, DecisionId: original.Decision.DecisionId, Answer: "close", Note: "retain original answer"}, EffortActor{ID: "owner", Operator: true})
+				if err != nil {
+					t.Fatal(err)
+				}
+				original.Decision, err = s.MarkDecisionRecorded(ctx, &pb.MarkEffortDecisionRecordedRequest{GoalHome: decisionHome, DecisionId: original.Decision.DecisionId, AnsweredAt: original.Decision.AnsweredAt})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			frozen := proto.Clone(original.Decision).(*pb.EffortDecision)
+			frozenEvent := effortdecision.EventID(decisionEvent(frozen))
+			e, _, err := s.repo.GetEffort(ctx, ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			newHome := ".vrooli/work/delivery/browser-automation-studio-delivery"
+			e.DestinationRef = "path:" + newHome + "/CHARTER.md"
+			if _, err = s.ReconcileMetadata(ctx, &pb.ReconcileEffortMetadataRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: "move-decision-home"}, EffortActor{ID: "owner", Operator: true}); err != nil {
+				t.Fatal(err)
+			}
+			listed, err := s.ListDecisions(ctx, &pb.ListEffortDecisionsRequest{GoalHome: newHome})
+			if err != nil || len(listed.GetDecisions()) != 1 {
+				t.Fatalf("moved home lost decision: %v %v", listed, err)
+			}
+			projected := proto.Clone(frozen).(*pb.EffortDecision)
+			projected.GoalHome = newHome
+			if !proto.Equal(projected, listed.Decisions[0]) {
+				t.Fatalf("answer/provenance changed: %v", listed.Decisions[0])
+			}
+			// Grow beyond the API's list window before resolving the old ID.
+			// Identity lookup must still retain its original answer/event.
+			for i := range 210 {
+				other := proto.Clone(frozen).(*pb.EffortDecision)
+				other.DecisionId = fmt.Sprintf("newer-%d", i)
+				other.CreatedAt = timestamppb.New(frozen.CreatedAt.AsTime().Add(time.Duration(i+1) * time.Second))
+				other.EventId = effortdecision.EventID(decisionEvent(other))
+				if _, err := s.repo.InsertEffortDecision(ctx, other, decisionContentDigest(other)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			retry := decisionRequest()
+			retry.Decision.GoalHome = newHome
+			wrongEffort := proto.Clone(retry).(*pb.RaiseEffortDecisionRequest)
+			wrongEffort.Decision.EffortRef = "effort:other"
+			if _, err := s.RaiseDecision(ctx, wrongEffort, "worker"); !errors.Is(err, ErrConflict) {
+				t.Fatalf("cross-effort re-raise accepted: %v", err)
+			}
+			reraised, err := s.RaiseDecision(ctx, retry, "new-worker")
+			if err != nil || reraised.Created || publisher.count() != 1 {
+				t.Fatalf("relocation republished/recreated decision: %v %v count=%d", reraised, err, publisher.count())
+			}
+			if !proto.Equal(frozen, reraised.Decision) {
+				t.Fatal("re-raise changed original record")
+			}
+			if answered {
+				marked, err := s.MarkDecisionRecorded(ctx, &pb.MarkEffortDecisionRecordedRequest{GoalHome: newHome, DecisionId: frozen.DecisionId, AnsweredAt: frozen.AnsweredAt})
+				if err != nil || !proto.Equal(frozen, marked) {
+					t.Fatalf("moved-home mark changed answer: %v %v", marked, err)
+				}
+				if _, err = s.AnswerDecision(ctx, &pb.AnswerEffortDecisionRequest{GoalHome: newHome, DecisionId: frozen.DecisionId, Answer: "re-aim"}, EffortActor{ID: "owner", Operator: true}); !errors.Is(err, ErrDecisionAnswered) {
+					t.Fatalf("contradictory answer allowed after move: %v", err)
+				}
+			}
+			stored, _, err := s.repo.GetEffortDecision(ctx, decisionHome, frozen.DecisionId)
+			if err != nil || effortdecision.EventID(decisionEvent(stored)) != frozenEvent {
+				t.Fatal("original publication identity changed")
+			}
+			if _, err = s.ListDecisions(ctx, &pb.ListEffortDecisionsRequest{GoalHome: newHome, EffortRef: "effort:other"}); err == nil {
+				t.Fatal("cross-effort lookup accepted")
+			}
+			conflict := proto.Clone(frozen).(*pb.EffortDecision)
+			conflict.GoalHome = newHome
+			conflict.EventId = effortdecision.EventID(decisionEvent(conflict))
+			if _, err := s.repo.InsertEffortDecision(ctx, conflict, decisionContentDigest(conflict)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.ListDecisions(ctx, &pb.ListEffortDecisionsRequest{GoalHome: newHome}); !errors.Is(err, ErrConflict) {
+				t.Fatalf("list projected ambiguous historical answers: %v", err)
+			}
+			if _, _, err := s.decisionForHome(ctx, newHome, frozen.DecisionId); !errors.Is(err, ErrConflict) {
+				t.Fatalf("direct-home row hid ambiguous original decision: %v", err)
+			}
+		})
+	}
+}
+
+func TestDecisionRecoveryPaginationIncludesOldRecordedPolicyAndRejectsChangedScope(t *testing.T) {
+	s, _, ref, _ := decisionFixture(t)
+	ctx := context.Background()
+	for i := range 211 {
+		d := proto.Clone(decisionRequest().Decision).(*pb.EffortDecision)
+		d.GoalHome, d.EffortRef, d.DecisionId = decisionHome, ref, fmt.Sprintf("policy-%03d", i)
+		d.State, d.Answer = DecisionAnswered, "close"
+		d.AnsweredAt, d.RecordedAt = timestamppb.Now(), timestamppb.Now()
+		if _, err := s.repo.InsertEffortDecision(ctx, d, decisionContentDigest(d)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seen, pages := map[string]bool{}, 0
+	request := &pb.ListEffortDecisionsRequest{EffortRef: ref, Limit: 200}
+	for {
+		page, err := s.ListDecisions(ctx, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pages++
+		for _, d := range page.Decisions {
+			if seen[d.DecisionId] {
+				t.Fatalf("decision repeated across pages: %s", d.DecisionId)
+			}
+			seen[d.DecisionId] = true
+		}
+		if page.NextPageToken == "" {
+			break
+		}
+		changed := &pb.ListEffortDecisionsRequest{EffortRef: "effort:other", Limit: 200, PageToken: page.NextPageToken}
+		if _, err := s.ListDecisions(ctx, changed); err == nil {
+			t.Fatal("pagination accepted changed scope")
+		}
+		request.PageToken = page.NextPageToken
+	}
+	if len(seen) != 211 || !seen["policy-000"] || !seen["policy-210"] || pages != 2 {
+		t.Fatalf("incomplete policy recovery: %d decisions, %d pages", len(seen), pages)
+	}
+	s.config.ProjectRoot = t.TempDir()
+	goalHomeTree(t, s.config.ProjectRoot, nil)
+	enrollment, _, err := s.repo.GetEffort(ctx, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projected := s.projectGoalHome(ctx, enrollment, &pb.EffortBoardRow{})
+	if projected.State != "partial" || !strings.Contains(strings.Join(projected.Limitations, " "), "exceeds this board projection") {
+		t.Fatalf("truncated decision history looked complete: %+v", projected)
+	}
+
 }

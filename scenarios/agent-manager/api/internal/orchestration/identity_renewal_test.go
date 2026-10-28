@@ -12,150 +12,162 @@ import (
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/testutil"
 
-	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing.T) {
-	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
-	secret := []byte("attached-renewal-test-secret")
-	now := time.Now().UTC()
-	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
-	if err != nil {
-		t.Fatal(err)
-	}
-	var proofCalls int
-	var proofMu sync.Mutex
-	badProof := false
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, harnessSession, wcSession, harness string) (SessionBindingProof, error) {
-		proofMu.Lock()
-		proofCalls++
-		wrongSession := badProof
-		proofMu.Unlock()
-		if wrongSession {
-			wcSession += "-mismatch"
+	for _, legacy := range []bool{false, true} {
+		name := "canonical host lease"
+		if legacy {
+			name = "existing run-keyed lease"
 		}
-		return SessionBindingProof{
-			ProofVersion: sessionBindingProofVersion, RunID: runID.String(),
-			HarnessSessionID: harnessSession, WebConsoleSessionID: wcSession,
-			HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding,
-		}, nil
-	})
-	clockNow := now.Add(-48 * time.Hour)
-	o := New(nil, nil, repos.Runs,
-		WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
-		WithAuthorizations(database.NewAuthorizationRepository(db)), WithClock(func() time.Time { return clockNow }))
-	attached, err := o.AttachRun(ctx, AttachRunRequest{
-		HarnessKind: "codex", HarnessSession: "renewal-fixture", ProcessID: os.Getpid(),
-		WebConsoleSessionID: "web-console-fixture",
-	})
-	if err != nil {
-		t.Fatalf("attach ownerless root: %v", err)
-	}
-	oldToken := attached.Token
-	clockNow = now
-	oldVerified, err := o.VerifyIdentityToken(ctx, oldToken)
-	if err != nil || oldVerified.Valid {
-		t.Fatalf("expired baseline was accepted by API: result=%+v err=%v", oldVerified, err)
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			db, cleanup := testutil.SetupTestDB(t)
+			t.Cleanup(cleanup)
+			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			secret := []byte("attached-renewal-test-secret")
+			now := time.Now().UTC()
+			binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var proofCalls int
+			var proofMu sync.Mutex
+			badProof := false
+			proofReader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+				proofMu.Lock()
+				proofCalls++
+				wrongSession := badProof
+				proofMu.Unlock()
+				if wrongSession {
+					request.WebConsoleSessionID += "-mismatch"
+				}
+				leaseID := request.HarnessSessionID
+				if legacy {
+					leaseID = request.RunID.String()
+				}
+				return SessionBindingProof{
+					ProofVersion: sessionBindingProofVersion, RunID: request.RunID.String(),
+					HarnessSessionID: request.HarnessSessionID, LeaseSessionID: leaseID, WebConsoleSessionID: request.WebConsoleSessionID,
+					HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding,
+				}, nil
+			})
+			clockNow := now.Add(-48 * time.Hour)
+			o := New(nil, nil, repos.Runs,
+				WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
+				WithAuthorizations(database.NewAuthorizationRepository(db)), WithClock(func() time.Time { return clockNow }))
+			attached, err := o.AttachRun(ctx, AttachRunRequest{
+				HarnessKind: "codex", HarnessSession: "renewal-fixture", ProcessID: os.Getpid(),
+				WebConsoleSessionID: "web-console-fixture",
+			})
+			if err != nil {
+				t.Fatalf("attach ownerless root: %v", err)
+			}
+			oldToken := attached.Token
+			clockNow = now
+			oldVerified, err := o.VerifyIdentityToken(ctx, oldToken)
+			if err != nil || oldVerified.Valid {
+				t.Fatalf("expired baseline was accepted by API: result=%+v err=%v", oldVerified, err)
+			}
+
+			type resolution struct {
+				credentials AuthorizationCredentials
+				err         error
+			}
+			const concurrentRequests = 6
+			start := make(chan struct{})
+			results := make(chan resolution, concurrentRequests)
+			var callers sync.WaitGroup
+			for i := 0; i < concurrentRequests; i++ {
+				callers.Add(1)
+				go func() {
+					defer callers.Done()
+					<-start
+					value, resolveErr := o.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
+					results <- resolution{credentials: value, err: resolveErr}
+				}()
+			}
+			close(start)
+			callers.Wait()
+			close(results)
+			var credentials AuthorizationCredentials
+			for result := range results {
+				if result.err != nil {
+					t.Fatalf("concurrent resolution failed: %v", result.err)
+				}
+				value := result.credentials
+				if value.BaselineToken == "" || value.BaselineToken == oldToken || value.LegacyToken != "" || value.OperationToken != "" {
+					t.Fatalf("renewal did not return only an ordinary baseline (baseline=%t legacy=%t operation=%t)", value.BaselineToken != "", value.LegacyToken != "", value.OperationToken != "")
+				}
+				if credentials.BaselineToken == "" {
+					credentials = value
+				} else if credentials.BaselineToken != value.BaselineToken {
+					t.Fatalf("concurrent requests produced multiple active generations")
+				}
+			}
+			current, err := o.VerifyIdentityToken(ctx, credentials.BaselineToken)
+			if err != nil || current == nil || !current.Valid || current.Claims.RunID != attached.Run.ID {
+				t.Fatalf("replacement baseline is not valid for the same run: result=%+v err=%v", current, err)
+			}
+			stored, err := repos.Runs.Get(ctx, attached.Run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.IdentityTokenHash != identity.HashToken(credentials.BaselineToken) || stored.IdentityRenewalAnchorHash != identity.HashToken(oldToken) || stored.ParentRunID != nil {
+				t.Fatalf("renewal changed run identity/lineage incorrectly: active=%t anchor=%t parent=%v", stored.IdentityTokenHash == identity.HashToken(credentials.BaselineToken), stored.IdentityRenewalAnchorHash == identity.HashToken(oldToken), stored.ParentRunID)
+			}
+
+			// Simulate an Agent Manager restart by constructing a fresh orchestrator
+			// against the same durable repositories, secret and proof source.
+			restarted := New(nil, nil, repos.Runs,
+				WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
+				WithAuthorizations(database.NewAuthorizationRepository(db)), WithClock(func() time.Time { return clockNow }))
+			again, err := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
+			if err != nil || again.BaselineToken != credentials.BaselineToken {
+				t.Fatalf("fresh broker did not reconstruct the persisted generation (baseline=%t legacy=%t operation=%t) err=%v", again.BaselineToken != "", again.LegacyToken != "", again.OperationToken != "", err)
+			}
+			proofMu.Lock()
+			observedProofCalls := proofCalls
+			proofMu.Unlock()
+			if observedProofCalls < concurrentRequests+1 {
+				t.Fatalf("renewal did not recheck live session binding for concurrent requests and restart: proof calls=%d", observedProofCalls)
+			}
+
+			// Expire the first renewed generation while retaining the original inherited
+			// anchor. The next resolution creates one later generation for the same run.
+			clockNow = now.Add(identity.DefaultTTL + time.Minute)
+			second, err := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
+			if err != nil || second.BaselineToken == "" || second.BaselineToken == credentials.BaselineToken {
+				t.Fatalf("expired active generation was not rotated (baseline=%t legacy=%t operation=%t) err=%v", second.BaselineToken != "", second.LegacyToken != "", second.OperationToken != "", err)
+			}
+			secondVerified, err := restarted.VerifyIdentityToken(ctx, second.BaselineToken)
+			if err != nil || secondVerified == nil || !secondVerified.Valid || secondVerified.Claims.RunID != attached.Run.ID {
+				t.Fatalf("second generation is not valid for same run: valid=%t err=%v", secondVerified != nil && secondVerified.Valid, err)
+			}
+			proofMu.Lock()
+			badProof = true
+			proofMu.Unlock()
+			clockNow = clockNow.Add(identity.DefaultTTL + time.Minute)
+			refused, proofErr := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
+			if proofErr == nil || refused.BaselineToken != "" || refused.OperationToken != "" || refused.LegacyToken != "" || refused.OperationRefusal != "identity_refresh_unavailable" {
+				t.Fatalf("mismatched owner proof exposed a credential (baseline=%t legacy=%t operation=%t refusal=%q) err=%v", refused.BaselineToken != "", refused.LegacyToken != "", refused.OperationToken != "", refused.OperationRefusal, proofErr)
+			}
+			proofMu.Lock()
+			badProof = false
+			proofMu.Unlock()
+			if _, err := db.ExecContext(ctx, `UPDATE runs SET identity_token_issued_at = NULL WHERE id = ?`, attached.Run.ID.String()); err != nil {
+				t.Fatal(err)
+			}
+			corrupt, corruptErr := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
+			if corruptErr == nil || corrupt.BaselineToken != "" || corrupt.LegacyToken != "" || corrupt.OperationToken != "" || corrupt.OperationRefusal != "identity_refresh_unavailable" {
+				t.Fatalf("corrupt anchored generation was silently reissued (baseline=%t legacy=%t operation=%t refusal=%q) err=%v", corrupt.BaselineToken != "", corrupt.LegacyToken != "", corrupt.OperationToken != "", corrupt.OperationRefusal, corruptErr)
+			}
+		})
 	}
 
-	type resolution struct {
-		credentials AuthorizationCredentials
-		err         error
-	}
-	const concurrentRequests = 6
-	start := make(chan struct{})
-	results := make(chan resolution, concurrentRequests)
-	var callers sync.WaitGroup
-	for i := 0; i < concurrentRequests; i++ {
-		callers.Add(1)
-		go func() {
-			defer callers.Done()
-			<-start
-			value, resolveErr := o.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
-			results <- resolution{credentials: value, err: resolveErr}
-		}()
-	}
-	close(start)
-	callers.Wait()
-	close(results)
-	var credentials AuthorizationCredentials
-	for result := range results {
-		if result.err != nil {
-			t.Fatalf("concurrent resolution failed: %v", result.err)
-		}
-		value := result.credentials
-		if value.BaselineToken == "" || value.BaselineToken == oldToken || value.LegacyToken != "" || value.OperationToken != "" {
-			t.Fatalf("renewal did not return only an ordinary baseline (baseline=%t legacy=%t operation=%t)", value.BaselineToken != "", value.LegacyToken != "", value.OperationToken != "")
-		}
-		if credentials.BaselineToken == "" {
-			credentials = value
-		} else if credentials.BaselineToken != value.BaselineToken {
-			t.Fatalf("concurrent requests produced multiple active generations")
-		}
-	}
-	current, err := o.VerifyIdentityToken(ctx, credentials.BaselineToken)
-	if err != nil || current == nil || !current.Valid || current.Claims.RunID != attached.Run.ID {
-		t.Fatalf("replacement baseline is not valid for the same run: result=%+v err=%v", current, err)
-	}
-	stored, err := repos.Runs.Get(ctx, attached.Run.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stored.IdentityTokenHash != identity.HashToken(credentials.BaselineToken) || stored.IdentityRenewalAnchorHash != identity.HashToken(oldToken) || stored.ParentRunID != nil {
-		t.Fatalf("renewal changed run identity/lineage incorrectly: active=%t anchor=%t parent=%v", stored.IdentityTokenHash == identity.HashToken(credentials.BaselineToken), stored.IdentityRenewalAnchorHash == identity.HashToken(oldToken), stored.ParentRunID)
-	}
-
-	// Simulate an Agent Manager restart by constructing a fresh orchestrator
-	// against the same durable repositories, secret and proof source.
-	restarted := New(nil, nil, repos.Runs,
-		WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
-		WithAuthorizations(database.NewAuthorizationRepository(db)), WithClock(func() time.Time { return clockNow }))
-	again, err := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
-	if err != nil || again.BaselineToken != credentials.BaselineToken {
-		t.Fatalf("fresh broker did not reconstruct the persisted generation (baseline=%t legacy=%t operation=%t) err=%v", again.BaselineToken != "", again.LegacyToken != "", again.OperationToken != "", err)
-	}
-	proofMu.Lock()
-	observedProofCalls := proofCalls
-	proofMu.Unlock()
-	if observedProofCalls < concurrentRequests+1 {
-		t.Fatalf("renewal did not recheck live session binding for concurrent requests and restart: proof calls=%d", observedProofCalls)
-	}
-
-	// Expire the first renewed generation while retaining the original inherited
-	// anchor. The next resolution creates one later generation for the same run.
-	clockNow = now.Add(identity.DefaultTTL + time.Minute)
-	second, err := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
-	if err != nil || second.BaselineToken == "" || second.BaselineToken == credentials.BaselineToken {
-		t.Fatalf("expired active generation was not rotated (baseline=%t legacy=%t operation=%t) err=%v", second.BaselineToken != "", second.LegacyToken != "", second.OperationToken != "", err)
-	}
-	secondVerified, err := restarted.VerifyIdentityToken(ctx, second.BaselineToken)
-	if err != nil || secondVerified == nil || !secondVerified.Valid || secondVerified.Claims.RunID != attached.Run.ID {
-		t.Fatalf("second generation is not valid for same run: valid=%t err=%v", secondVerified != nil && secondVerified.Valid, err)
-	}
-	proofMu.Lock()
-	badProof = true
-	proofMu.Unlock()
-	clockNow = clockNow.Add(identity.DefaultTTL + time.Minute)
-	refused, proofErr := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
-	if proofErr == nil || refused.BaselineToken != "" || refused.OperationToken != "" || refused.LegacyToken != "" || refused.OperationRefusal != "identity_refresh_unavailable" {
-		t.Fatalf("mismatched owner proof exposed a credential (baseline=%t legacy=%t operation=%t refusal=%q) err=%v", refused.BaselineToken != "", refused.LegacyToken != "", refused.OperationToken != "", refused.OperationRefusal, proofErr)
-	}
-	proofMu.Lock()
-	badProof = false
-	proofMu.Unlock()
-	if _, err := db.ExecContext(ctx, `UPDATE runs SET identity_token_issued_at = NULL WHERE id = ?`, attached.Run.ID.String()); err != nil {
-		t.Fatal(err)
-	}
-	corrupt, corruptErr := restarted.ResolveAuthorizationCredentials(ctx, os.Getpid(), oldToken)
-	if corruptErr == nil || corrupt.BaselineToken != "" || corrupt.LegacyToken != "" || corrupt.OperationToken != "" || corrupt.OperationRefusal != "identity_refresh_unavailable" {
-		t.Fatalf("corrupt anchored generation was silently reissued (baseline=%t legacy=%t operation=%t refusal=%q) err=%v", corrupt.BaselineToken != "", corrupt.LegacyToken != "", corrupt.OperationToken != "", corrupt.OperationRefusal, corruptErr)
-	}
 }
 
 func TestRenewedOwnerlessBaselineKeepsIndependentGrantOnlyCredential(t *testing.T) {
@@ -171,11 +183,11 @@ func TestRenewedOwnerlessBaselineKeepsIndependentGrantOnlyCredential(t *testing.
 		t.Fatal(err)
 	}
 	failProof := false
-	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, harnessSession, wcSession, harness string) (SessionBindingProof, error) {
+	proofReader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
 		if failProof {
 			return SessionBindingProof{}, context.DeadlineExceeded
 		}
-		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runID.String(), HarnessSessionID: harnessSession, WebConsoleSessionID: wcSession, HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding}, nil
+		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: request.RunID.String(), HarnessSessionID: request.HarnessSessionID, LeaseSessionID: request.HarnessSessionID, WebConsoleSessionID: request.WebConsoleSessionID, HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding}, nil
 	})
 	o := New(nil, nil, repos.Runs,
 		WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
@@ -248,8 +260,8 @@ func TestRenewalRefusesRevokedOrTerminalAttachedRoot(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			proofReader := SessionBindingProofReaderFunc(func(_ context.Context, runID uuid.UUID, harnessSession, wcSession, harness string) (SessionBindingProof, error) {
-				return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: runID.String(), HarnessSessionID: harnessSession, WebConsoleSessionID: wcSession, HarnessKind: harness, OwnerKind: "web-console-session", Binding: binding}, nil
+			proofReader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+				return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: request.RunID.String(), HarnessSessionID: request.HarnessSessionID, LeaseSessionID: request.HarnessSessionID, WebConsoleSessionID: request.WebConsoleSessionID, HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding}, nil
 			})
 			o := New(nil, nil, repos.Runs,
 				WithEvents(events), WithIdentitySecret(secret), WithSessionBindingProofReader(proofReader),
@@ -291,5 +303,53 @@ func TestRenewalRefusesRevokedOrTerminalAttachedRoot(t *testing.T) {
 				t.Fatal("refused run's inherited token became valid")
 			}
 		})
+	}
+}
+
+func TestExpiredOwnerDelegationRenewsOnlyOrdinaryAttachedIdentity(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	now := time.Now().UTC()
+	clock := now.Add(-8 * time.Hour)
+	ownerDeadline := now.Add(-4 * time.Hour)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := SessionBindingProofReaderFunc(func(_ context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
+		return SessionBindingProof{ProofVersion: sessionBindingProofVersion, RunID: request.RunID.String(), HarnessSessionID: request.HarnessSessionID, LeaseSessionID: request.RunID.String(), WebConsoleSessionID: request.WebConsoleSessionID, HarnessKind: request.HarnessKind, OwnerKind: "web-console-session", Binding: binding}, nil
+	})
+	o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("expired-owner-baseline")), WithSessionBindingProofReader(reader), WithAuthorizations(database.NewAuthorizationRepository(db)), WithClock(func() time.Time { return clock }))
+	owner := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Verified: true, Scopes: []string{"prompt-manager:read", "prompt-manager:write"}, ExpiresAt: ownerDeadline}
+	attached, err := o.AttachRun(requestidentity.WithPrincipal(ctx, owner), AttachRunRequest{HarnessKind: "codex", HarnessSession: "owned-host", WebConsoleSessionID: "wc", ProcessID: os.Getpid()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock = now
+	credentials, err := o.resolveOrdinaryRunIdentityCredential(ctx, os.Getpid(), attached.Token)
+	if err != nil {
+		t.Fatalf("expired delegation prevented ordinary identity renewal: %v", err)
+	}
+	verified, err := o.VerifyIdentityToken(ctx, credentials.BaselineToken)
+	if err != nil || verified == nil || !verified.Valid {
+		t.Fatalf("renewed ordinary identity is invalid: %+v %v", verified, err)
+	}
+	claims := verified.Claims
+	if claims.RunID != attached.Run.ID || claims.Subject != "owner" || len(claims.Scopes) != 0 || claims.ExpiresAt <= ownerDeadline.Unix() {
+		t.Fatalf("renewal lost same actor or retained expired capabilities: run=%s subject=%q scopeCount=%d expiry=%d", claims.RunID, claims.Subject, len(claims.Scopes), claims.ExpiresAt)
+	}
+	renewedActor := requestidentity.Principal{Kind: requestidentity.ActorAgent, Subject: claims.RunID.String(), Owner: claims.Subject, Verified: true, Scopes: claims.Scopes}
+	if _, err := authn.RequireCapability(requestidentity.WithPrincipal(ctx, renewedActor), "prompt-manager:write"); err == nil {
+		t.Fatal("identity renewal resurrected expired write authority")
+	}
+	stored, err := repos.Runs.Get(ctx, attached.Run.ID)
+	if err != nil || stored.OwnerSubject != "owner" || len(stored.OwnerScopes) != 2 || stored.OwnerExpiresAt == nil || !stored.OwnerExpiresAt.Equal(ownerDeadline) {
+		t.Fatal("renewal rewrote retained owner delegation", err)
+	}
+	repeated, err := o.resolveOrdinaryRunIdentityCredential(ctx, os.Getpid(), attached.Token)
+	if err != nil || repeated.BaselineToken != credentials.BaselineToken {
+		t.Fatal("stable anchor could not reconstruct its attenuated generation", err)
 	}
 }

@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 59
+  revision: 66
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-24T00:00:00Z"
+  updatedAt: "2026-10-26T00:00:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -38,21 +38,38 @@ Workers receive the full repository-relative worker-card path in their assignmen
 Read the team's `CHARTER.md`, current `STATUS.md`, open `FEEDBACK.md` and the native
 `agent-manager effort board --effort-ref <ref>`. Read the relevant accepted results
 in `LOG.md` and any retained active brief. Run `agent-manager effort lint <home>`.
-Resolve new steering before relying on an old handoff. Acknowledge open feedback
+Read decisions by stable effort (`agent-manager effort decision list --effort-ref <ref>`)
+and sync new answers with `effort decision sync <home>`. After relocation or lost policy,
+explicitly restore recorded answers with `effort decision sync <home> --reconcile-recorded`;
+ordinary resumes preserve handled/archived dispositions. Existing
+operator answers continue to govern after relocation or archival; do not turn a recorded
+answer into a new human hold. Resolve new steering before relying on an old handoff. Acknowledge open feedback
 by ID without claiming it resolved. Reconcile retained owners; parked is not terminal.
 An uncertain dispatch does not authorize a replacement orchestrator.
 
 Inspect the current product and its governing sources. For visual work, open the
 selected original images for the actual screen/state. Compare the served product
 at matching theme and viewport. An atlas is an implementation target, not a mood
-board. Tests and screenshots alone do not establish visual fidelity.
+board. Read the product's current design target and apply `experiential-ui-design` §2a:
+selected originals plus applicable user amendments, retained capabilities and verified
+agent refinements. Tests and screenshots alone do not establish visual fidelity.
+
+Promote clear design feedback into that existing product document with source, scope and
+stable ID. Synchronize affected worker briefs, review criteria and eligible native
+completion predicates; verify that the actual receiver read and applied the amendment.
+A FEEDBACK acknowledgement alone does not prove adoption. An active worker retains its
+source ownership; communicate through its supported owner route. At a stopped commission,
+prepare the corrected target/handoff without silently recommissioning. Implemented,
+verified amendments/refinements are expected differences, not unresolved atlas failures.
+Keep genuine defects and missing behavior open; do not regenerate the full atlas or
+introduce a new human gate for ordinary in-scope refinements.
 
 Build a gap assessment that covers the whole destination:
 
 | Decide | Required result |
 | --- | --- |
 | What must users be able to do? | Required journeys, states and preserved behavior, including nonvisual requirements |
-| What should it look like? | Exact selected originals and justified adaptations |
+| What should it look like? | Exact selected originals, applicable amendment/refinement IDs, retained capabilities and justified adaptations |
 | What already works? | Current source/served evidence; historical or unavailable evidence stays labelled |
 | What makes delivery simpler? | Shared composition, reusable components, needed custom components, API/domain changes and removal of superseded code |
 | What can run together? | Independent outcomes with owned files/interfaces and explicit dependencies |
@@ -72,9 +89,23 @@ small fix. Reassess this allocation after material inspection, acceptance or fee
 Prepare independent remaining work while a worker is active; do not repeat unchanged
 planning or waits. Keep estimates provisional until current evidence supports them.
 
-Resolve shared shell, theme or API ownership before dependent screen polish. Reuse
-suitable shared components through their owner routes. Assign necessary refactors
-and API work inside the approved destination. Include focused self-validation and
+Slice time, tokens, work units and source-size estimates inform optimization only.
+Budgets and estimates are optional; large coherent outcomes are valid. Duration and
+token totals alone do not establish waste or justify a performance penalty. Analyze
+repeated failures, dependency waits, handoff failures, duplicated checks and actual
+outcome progress through existing run/friction evidence before changing strategy.
+When an estimate is exceeded, improve the approach and revise the forecast while the
+worker completes its admitted outcome and required proof. Do not freeze edits, force a
+partial return, stop workers or reject acceptance solely for exceeding an estimate.
+Unchanged outcomes require strategy review, not automatic abandonment. Preserve actual
+authority/safety limits, explicit product requirements and native commission HARD STOP.
+
+Assign one owner the complete user journey, including necessary shared shell, theme,
+API and fixture integration. Agree interfaces with genuinely live peers; release file
+ownership when a peer is terminal and amend the admitted worker's scope. A historical
+owner is not a continuing dependency. Establish one matching phone/desktop composition
+before multiplying state variants; retain the full required remainder. Reuse suitable
+shared components through their owner routes. Include focused self-validation and
 handoff in the implementation outcome. Remove superseded paths and preserve unique
 test protection. Do not split source, tests, captures and receipts into separate
 workers solely to create more dispatches. Do not invent deletion quotas for features.
@@ -88,9 +119,12 @@ needs a strategy change, not more of the same. Detailed sensors belong to the
 
 ### 3. Delegate outcomes with context
 
-Keep one orchestrator. Use the existing selected profiles: the standard orchestrator
-is Luna-high and each implementation worker is Luna-medium. Record each run's model;
-record a reason before escalating within native profile permissions. The orchestrator
+Keep one orchestrator. Select an existing permitted profile for the outcome's reasoning,
+visual and integration needs. Native role policy owns model/reasoning limits; a skill
+must not hard-code a second model policy. Record the effective selection and, after
+repeated misses of the intended composition, compare a changed strategy or permitted
+capability setting on the same complete outcome. Elapsed time and token totals do not
+establish a capability failure or authorize a broader model policy. The orchestrator
 does not implement product code. It can inspect, plan, coordinate and review.
 
 An assignment may span many files and several implementation steps. Size it around
@@ -119,7 +153,10 @@ requirements depend on it. Use the [brief format and dispatch route](references/
 
 Run independent epochs concurrently within the native commission limit. Descendants
 count toward that limit. Team heartbeat concurrency is a separate control. Serialize
-actual file, lease, host/device or interface conflicts. Do not launch competing workers
+actual file, lease, host/device or interface conflicts. Shared builds, serving artifacts,
+restarts and routed fixtures are conflicts even when source files are disjoint. Retain
+one durable validation handle and wait through its owner; a busy resource is scheduling,
+not a terminal partial result. Complete other independent implementation while waiting. Do not launch competing workers
 on one outcome or a second leader. When a required enabling change crosses a child's
 scope, amend through the owner or assign the enabling outcome and its dependency.
 
@@ -129,8 +166,17 @@ On a worker return, inspect that exact run's result, current source and preserve
 baseline. Independently inspect behavior, code ownership, required checks and visual
 comparisons. A worker's summary alone is not acceptance. Use existing evidence for
 unchanged inputs; rerun only affected, missing, stale or materially uncertain checks
-under `path:docs/TESTING.md`. A separate reviewer is useful when independence or risk
+under `path:docs/TESTING.md`. Iterate through the selected-case owner for focused browser
+corrections; run the required aggregate phase at the integration gate. Do not execute
+both paths after every capture adjustment or confuse an unrelated aggregate failure
+with the selected journey's result. A separate reviewer is useful when independence or risk
 requires it; do not create a reviewer dispatch for every small return.
+
+For receipt-backed browser gates, use Workflow Health's current dependency applicability
+and the [execution reference](references/execution.md#receipt-backed-browser-gates).
+A new bundle hash alone does not invalidate unaffected evidence. Missing snapshots stay
+unverified; relevant source, fixture, shared component or target changes require affected
+proof. Keep visual judgment and independent acceptance separate from browser execution.
 
 | Result | Orchestrator action |
 | --- | --- |
@@ -160,7 +206,12 @@ check-in consumes the old wait; inspect current children and park again when sti
 | epochs/E<n>.md | One assignment's brief, directives and worker slice log |
 | Agent Manager enrollment | Commission, worker limit, persisted clock and frozen terminal handback |
 
-Keep the resume set (CHARTER + STATUS + open FEEDBACK) below 30,000 bytes. Use
+Keep Current as `## Current: <n> @ <ISO date>`, or explicitly `- Current: unknown`
+under `## Current`. Use scoreboard columns `surface | target | state | owner`; additional
+evidence columns are separate. Owner is one active run UUID or `-`. Keep acceptance
+records in the single `## Accepted units` LOG section and stable Active IDs separate
+from handoff prose. Run home lint after state edits; repair projection findings without
+inventing progress. Keep the resume set (CHARTER + STATUS + open FEEDBACK) below 30,000 bytes. Use
 `unassessed → queued → rough → close → accepted` for surfaces. Accepted assignments
 do not automatically accept whole surfaces. Record each active unit with its stable
 ID and worker runs. Archive resolved history; never discard unresolved obligations.

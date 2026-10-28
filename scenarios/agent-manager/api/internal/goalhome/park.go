@@ -12,10 +12,9 @@ import (
 // when no independent [ready] slice remains. With neither, parking only idles
 // the goal.
 //
-// `agent-manager effort park` applies this in the CLI, and
-// orchestration.ParkRunFromAgent applies the same DecidePark to an
-// orchestrator's raw `run park` on its children: report-only by default,
-// refusing when VROOLI_EFFORT_PARK_ENFORCE is on.
+// The CLI and native agent park entry point use DecideHomePark, which first
+// requires disposition of new steering. Legacy duration/admissible-work rules
+// below retain the server's report/enforce setting.
 const (
 	ChildBackstop = time.Hour
 	DecisionWait  = 72 * time.Hour
@@ -35,6 +34,29 @@ type ParkDecision struct {
 	Max     time.Duration `json:"-"`
 	Timeout time.Duration `json:"-"`
 	Reason  string        `json:"reason"`
+}
+
+// DecideHomePark applies the same feedback obligation as Lint before a leader
+// can wait again. An unchanged signal cursor does not negate changed home state.
+// This does not stop the worker, resolve feedback or require product acceptance.
+func DecideHomePark(liveChildren []string, home *Home, requested time.Duration) ParkDecision {
+	if decision := DecideFeedbackPark(home); !decision.Allowed {
+		return decision
+	}
+	return DecidePark(liveChildren, home.Queue, requested)
+}
+
+// DecideFeedbackPark checks steering for every producer, without applying the
+// child-specific duration and admissible-work rules.
+func DecideFeedbackPark(home *Home) ParkDecision {
+	if pending := unacknowledgedFeedback(home); len(pending) > 0 {
+		ids := make([]string, 0, len(pending))
+		for _, entry := range pending {
+			ids = append(ids, entry.ID)
+		}
+		return ParkDecision{Rule: "feedback-unacknowledged", Reason: "act on open steering and record its ownership/disposition in Handoff before parking: " + strings.Join(ids, ", ")}
+	}
+	return ParkDecision{Allowed: true}
 }
 
 // DecidePark picks the longest allowed park and checks requested against it;

@@ -2,11 +2,13 @@ package supervision
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"agent-manager/internal/domain"
 
@@ -25,11 +27,11 @@ func deliveryFixture(t *testing.T) (*EffortService, *Repository, *fakeActionCont
 	r.now = s.now
 	s.config.ProjectRoot = t.TempDir()
 	home := filepath.Join(s.config.ProjectRoot, "delivery")
-	if err := os.MkdirAll(home, 0755); err != nil {
+	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for name, body := range map[string]string{"CHARTER.md": "# Product\n- Destination: accepted surfaces >= 2\n- Budget: 1h\n", "STATUS.md": "# Delivery\n\n## Scoreboard\n\n| surface | target | state | owner |\n|---|---|---|---|\n| Inbox | selected | close | - |\n| Settings | selected | unassessed | - |\n\n## Handoff\n\nPartial product; no independent acceptance.\n\n## Needs operator\n\n## Next\n\n- [ready] Complete settings.\n", "LOG.md": "# Log\n\n## Accepted units\n\n(none)\n", "FEEDBACK.md": "# Feedback\n\n## Resolved\n"} {
-		if err := os.WriteFile(filepath.Join(home, name), []byte(body), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(home, name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -97,6 +99,36 @@ func TestDeliveryClockAuthorityAndRestart(t *testing.T) {
 	if _, err := restart.Enroll(ctx, &pb.EnrollEffortRequest{Enrollment: amended, ExpectedRevision: e.Revision, IdempotencyKey: "reset-budget"}, EffortActor{ID: "owner", Operator: true}); err == nil {
 		t.Fatal("existing commission reset its budget")
 	}
+}
+
+func TestDelegatedDeliveryRetainsOwnerAndWithdrawalFences(t *testing.T) {
+	ctx := context.Background()
+	actor := EffortActor{ID: "session-agent", DeliveryManager: true, ApprovedBy: "owner"}
+	t.Run("retained running owner", func(t *testing.T) {
+		s, r, c := effortFixture(t)
+		e := enrollmentFixture(t, s, c, domain.RunStatusRunning)
+		next := proto.Clone(e).(*pb.EffortEnrollment)
+		next.Delivery = &pb.EffortDelivery{CommissionId: "new", BudgetSeconds: 3600, MaxWorkers: 2, State: "running"}
+		if _, err := s.Enroll(ctx, &pb.EnrollEffortRequest{Enrollment: next, ExpectedRevision: e.Revision, IdempotencyKey: "retained-owner"}, actor); err == nil {
+			t.Fatal("delivery grant replaced a live retained owner")
+		}
+		stored, _, _ := r.GetEffort(ctx, e.EffortRef)
+		if !proto.Equal(stored, e) {
+			t.Fatal("refused commission changed enrollment")
+		}
+	})
+	t.Run("withdrawn enrollment", func(t *testing.T) {
+		s, _, c := effortFixture(t)
+		e := enrollmentFixture(t, s, c, domain.RunStatusComplete)
+		withdrawn, err := s.Withdraw(ctx, &pb.WithdrawEffortRequest{EffortRef: e.EffortRef, ExpectedRevision: e.Revision, IdempotencyKey: "withdraw", Reason: "owner decision"}, EffortActor{ID: "owner", Operator: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		withdrawn.Delivery = &pb.EffortDelivery{CommissionId: "new", BudgetSeconds: 3600, MaxWorkers: 2, State: "running"}
+		if _, err := s.Enroll(ctx, &pb.EnrollEffortRequest{Enrollment: withdrawn, ExpectedRevision: withdrawn.Revision, IdempotencyKey: "resurrect"}, actor); err == nil {
+			t.Fatal("delivery grant resurrected a withdrawn effort")
+		}
+	})
 }
 
 func deliveryReference(role string) *eventpb.WorkReference {
@@ -199,6 +231,26 @@ func TestDeliveryHardStopCheckpointAndDurableHandback(t *testing.T) {
 	if err != nil || len(decisions) != 1 {
 		t.Fatalf("operator handback: %v %+v", err, decisions)
 	}
+	decision := decisions[0]
+	for _, want := range []string{e.EffortRef, "Inbox", "close", "Settings", "unassessed", "Accept partial", "Recommission", "Change scope"} {
+		if !strings.Contains(decision.BigPicture, want) {
+			t.Errorf("delivery handback big picture omits %q: %q", want, decision.BigPicture)
+		}
+	}
+	for _, want := range []string{e.Delivery.CommissionId, "1h0m0s", "2h0m0s", "product-1", "Partial product; no independent acceptance.", "delivery/CHARTER.md", "delivery/STATUS.md", "delivery/LOG.md", "unknown"} {
+		if !strings.Contains(decision.TechnicalDetails, want) {
+			t.Errorf("delivery handback technical details omit %q: %q", want, decision.TechnicalDetails)
+		}
+	}
+	for name, body := range map[string]string{"big picture": decision.BigPicture, "technical details": decision.TechnicalDetails} {
+		if strings.Count(body, "\n\n") < 2 {
+			t.Errorf("%s does not explain the decision in paragraphs: %q", name, body)
+		}
+	}
+	event := decisionEvent(decision)
+	if event.Payload["big_picture"] != decision.BigPicture || event.Payload["technical_details"] != decision.TechnicalDetails {
+		t.Error("published decision does not retain both explanations")
+	}
 	if decisions[0].State != DecisionPending || decisions[0].PublishedAt != nil {
 		t.Fatal("unpublished handback claimed an answer or delivery")
 	}
@@ -248,6 +300,89 @@ func TestDeliveryLateObservationStillCheckpointsAndFencesQueuedWork(t *testing.T
 	}
 	if c.stopped != 1 {
 		t.Fatal("late owner was not stopped after checkpoint grace")
+	}
+}
+
+func TestDeliveryHandbackPublicationRetryKeepsFrozenExplanation(t *testing.T) {
+	s, r, c, e, now := deliveryFixture(t)
+	ctx := context.Background()
+	publisher := &recordingPublisher{fail: errors.New("events unavailable")}
+	s.SetDecisionPublisher(publisher)
+	*now = now.Add(2 * time.Hour)
+	if err := s.tickDelivery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.db.Exec(`CREATE TRIGGER fail_delivery_finalization BEFORE UPDATE ON supervision_efforts WHEN json_extract(NEW.enrollment_json, '$.delivery.finalized_at') IS NOT NULL BEGIN SELECT RAISE(FAIL, 'injected finalization fault'); END`); err != nil {
+		t.Fatal(err)
+	}
+	*now = now.Add(deliveryCheckpointGrace)
+	if err := s.tickDelivery(ctx); err == nil {
+		t.Fatal("finalization failure was hidden")
+	}
+	first, _, err := r.GetEffortDecision(ctx, "delivery", "delivery-"+e.Delivery.CommissionId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frozen, _, err := r.GetEffort(ctx, e.EffortRef)
+	if err != nil || frozen.Delivery.Outcome == nil || frozen.Delivery.FinalizedAt != nil {
+		t.Fatalf("outcome must survive a failed finalization without claiming completion: %v %+v", err, frozen)
+	}
+	file := filepath.Join(s.config.ProjectRoot, "delivery/STATUS.md")
+	status, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte(strings.ReplaceAll(string(status), "| Inbox | selected | close |", "| Inbox | selected | accepted |")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	*now = now.Add(time.Minute)
+	if _, err := r.db.Exec(`DROP TRIGGER fail_delivery_finalization`); err != nil {
+		t.Fatal(err)
+	}
+	publisher.fail = nil
+	restart := NewEffortService(r, c, s.config)
+	restart.now = s.now
+	restart.SetDecisionPublisher(publisher)
+	if err := restart.tickDelivery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	final, _, _ := r.GetEffort(ctx, e.EffortRef)
+	decision, _, _ := r.GetEffortDecision(ctx, "delivery", first.DecisionId)
+	if final.Delivery.FinalizedAt == nil || !proto.Equal(final.Delivery.Outcome, frozen.Delivery.Outcome) {
+		t.Fatal("retry changed the frozen outcome or failed to finalize")
+	}
+	if decision.BigPicture != first.BigPicture || decision.TechnicalDetails != first.TechnicalDetails || decision.EventId != first.EventId || publisher.count() != 1 {
+		t.Fatal("retry changed the operator context or duplicated publication")
+	}
+}
+
+func TestDeliveryHandbackContextPreservesUnknownAndBoundedUnicode(t *testing.T) {
+	_, _, _, e, now := deliveryFixture(t)
+	e.DisplayName = "Notification Hub redesign"
+	e.Delivery.StoppedAt = timestamppb.New(*now)
+	d := deliveryHandbackDecision(e, "delivery", nil)
+	if !strings.Contains(d.Question, e.DisplayName) || !strings.Contains(d.BigPicture, "progress is unknown") || !strings.Contains(d.BigPicture, "assessment is unavailable") {
+		t.Fatalf("unknown outcome was hidden or treated as completion: %+v", d)
+	}
+	zero := 0.0
+	outcome := &pb.EffortGoalHome{CurrentValue: &zero, DestinationMetric: "accepted surfaces", NeedsOperator: []string{"Disposable-recipient authority is required."}, Limitations: []string{"Missing owner receipt."}}
+	d = deliveryHandbackDecision(e, "delivery", outcome)
+	if !strings.Contains(d.BigPicture, "0 accepted surfaces") || !strings.Contains(d.TechnicalDetails, outcome.NeedsOperator[0]) || !strings.Contains(d.TechnicalDetails, outcome.Limitations[0]) {
+		t.Fatalf("zero progress, operator requirement or limitation was lost: %+v", d)
+	}
+	e.DisplayName = strings.Repeat("🧭", 500)
+	for range 40 {
+		outcome.SurfaceScoreboard = append(outcome.SurfaceScoreboard, &pb.SurfaceProgress{Surface: strings.Repeat("😀", 500), Target: strings.Repeat("🧭", 500), State: "rough"})
+	}
+	d = deliveryHandbackDecision(e, "delivery", outcome)
+	if err := DecisionView(d).Validate(); err != nil {
+		t.Fatal("large context is not publishable under the shared decision contract:", err)
+	}
+	if !utf8.ValidString(d.BigPicture) || !utf8.ValidString(d.TechnicalDetails) || !strings.Contains(d.BigPicture, "truncated") || !strings.Contains(d.TechnicalDetails, "truncated") {
+		t.Fatal("large Unicode context was corrupted or silently omitted")
+	}
+	if !strings.Contains(d.BigPicture, "Accept partial") || !strings.Contains(d.BigPicture, "Recommission") || !strings.Contains(d.BigPicture, "Change scope") || !strings.Contains(d.TechnicalDetails, "delivery/LOG.md") {
+		t.Fatal("large surface list displaced decision consequences or evidence references")
 	}
 }
 

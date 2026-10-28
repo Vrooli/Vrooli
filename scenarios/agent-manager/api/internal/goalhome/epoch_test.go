@@ -46,7 +46,7 @@ func firedNames(report *EpochReport) []string {
 	return names
 }
 
-func TestEpochCheckFiresEachStepBackTriggerOnItsFixture(t *testing.T) {
+func TestEpochCheckEstimatesInformOptimizationWithoutStoppingWork(t *testing.T) {
 	spent := 5_000_000.0
 	for _, tc := range []struct {
 		fixture  string
@@ -66,8 +66,12 @@ func TestEpochCheckFiresEachStepBackTriggerOnItsFixture(t *testing.T) {
 			if len(fired) != 1 || fired[0] != tc.want {
 				t.Fatalf("fired %v, want only %s: %+v", fired, tc.want, report.Triggers)
 			}
-			if len(report.StepBack) != 1 || !strings.HasPrefix(report.StepBack[0], tc.want+":") {
-				t.Fatalf("STEP_BACK reasons = %v", report.StepBack)
+			if tc.want == "flatline" {
+				if len(report.StepBack) != 1 || !strings.HasPrefix(report.StepBack[0], "flatline:") {
+					t.Fatalf("unchanged outcomes must still request strategy review: %v", report.StepBack)
+				}
+			} else if len(report.StepBack) != 0 || len(report.Review) != 1 || !strings.HasPrefix(report.Review[0], tc.want+":") {
+				t.Fatalf("estimate overrun must only inform optimization: step_back=%v review=%v", report.StepBack, report.Review)
 			}
 		})
 	}

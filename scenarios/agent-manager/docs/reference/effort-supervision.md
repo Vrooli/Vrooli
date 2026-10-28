@@ -66,10 +66,35 @@ are never converted into quota use. Native frames currently lack a credential
 or account identifier, so their uncertainty explicitly says account scope is
 unavailable; observations from different credentials must not be combined.
 
+## Receipt-backed journey gates
+
+`effort epoch-check <brief> [--acceptance] [--json]` resolves a slice cell
+`gate G2=receipt workflow-health:<run-id>[,<run-id>...]` against Workflow Health's
+durable Get operation. Set `- Scenario: <slug>` in the brief (or `--scenario`)
+and declare the gate as `G2 journey: bas/cases/one.json,bas/cases/two.json @ workflow-health`.
+Every exact case must have a passing actual execution and current owner-assessed
+dependency identity. The newest supplied outcome for a case wins; unknown/stale,
+failed, skipped, dry-run and leaked-isolation evidence cannot pass. Manual counts
+and prior ACCEPTED prose cannot override this evidence. Other gate types and
+independent acceptance retain their existing semantics. Readers without the
+owner resolver leave receipt-backed gates unmet, never implicitly passing.
+
+The provider's immutable result remains historical truth; current applicability
+is a read projection. See Workflow Health's runbook for dependency scopes and
+conservative fallback. This command makes no validation launch or source write.
+
 ## Authority
 
-Enrollment, withdrawal and explicit discovery require the existing verified human
-owner principal. CLI invocation middleware forwards `VROOLI_AGENT_IDENTITY_TOKEN`
+General enrollment, withdrawal and explicit discovery require the existing verified human
+owner principal. Team-backed enrollment also accepts the current verified team
+manager through Prompt Manager's existing `GetTeam` owner decision. The read
+forwards the verified caller and returns `managementAuthorized` plus the current
+team revision. The effort must match the finite delivery team's declared effort,
+active leader and local product home. Initial enrollment is inert and contains
+only that declared leader. Subsequent team management cannot replace another
+actor's enrollment, revive withdrawal, replace subjects, or rewrite commissioned
+metadata; the existing delivery state machine owns clocks and budget limits.
+A team label or authored authority reference is not this owner decision. CLI invocation middleware forwards `VROOLI_AGENT_IDENTITY_TOKEN`
 as `X-Agent-Identity-Token`; it is verified by the run identity owner and never
 substitutes for an operator credential. Token strings must not be placed in
 request JSON or evidence.
@@ -146,11 +171,31 @@ agent-manager effort delivery stop --effort-ref <ref> --reason "operator handbac
 agent-manager effort board --effort-ref <ref> --json
 ```
 
-Use the existing verified operator path; `--local-owner` is only for an eligible
-local human shell. Metadata reconciliation cannot change a commission. New commissions
+An eligible human can use the existing operator path. The current team manager can
+commission the declared team enrollment that it prepared through the authenticated
+team-owner path, subject to the existing delivery transitions and budget fences.
+Other agents use the same commands with an explicitly approved
+`delivery-management` / `effort.delivery` rule for the exact
+`agent-manager:effort/<name>` target. For that delegated rule, the native handler retains the agent and approving
+owner separately and permits only commission changes on an existing non-withdrawn
+enrollment. It refuses creation or changes to subjects, destination, owner, authority
+and withdrawal. No human shell command is part of delegated activation. `--local-owner`
+remains only for an eligible local human shell; agents do not use it.
+
+Metadata reconciliation cannot change a commission. General enrollment uses its
+human owner path; the team-specific path is limited to the exact declared team,
+leader and effort, and cannot replace another actor's enrollment.
+New commissions
 require terminal retained owners; source edits and heartbeat enablement start no clock.
 Pause requires a reason and parked/terminal owners. Disabling heartbeat alone pauses
 neither retained execution nor time. Blocked time counts unless explicitly paused.
+
+For a product team activation, its verified creator starts the bounded native
+commission through the team-owner path, then enables its configured heartbeat.
+A non-creator uses the applicable existing owner or exact operation-grant path. Read back both owners and verify native execution.
+If a later activation step fails, report or deliberately pause the running commission
+through its owner; a disabled heartbeat does not stop the clock. Approval issuance,
+product acceptance and unrelated run-creation authority remain separate operations.
 
 | Budget consumed | Native pressure | Behavior |
 | --- | --- | --- |
@@ -168,6 +213,23 @@ The decision offers accept-partial, recommission or rescope. Publication, answer
 acceptance remain distinct facts; no time threshold accepts a product or lowers gates.
 A stopped commission cannot be resumed by heartbeat or a new continuation.
 
+The delivery-stop decision names the product and effort and supplies both existing
+operator explanations. “Why this matters” describes the stop, reported progress
+and surface states, and the consequences of accepting partial work, requesting a
+new commission or changing scope. “Technical details” includes the commission,
+clock, source/target revisions, frozen observation time, surface targets, active
+unit reports, the recorded handoff explaining remaining work, operator requirements,
+observation limitations and CHARTER/STATUS/LOG
+evidence references. Missing measurements remain unknown. Workspace reports do
+not establish independent acceptance or current runtime state.
+
+The outcome is persisted before its decision is published. Publication and
+finalization retries reuse that outcome and any existing decision unchanged;
+later workspace edits cannot rewrite the operator's question. Explanation text
+uses the shared decision contract's Unicode limits and explicitly marks omitted
+content. Published historical decisions retain their original content and answer
+state. Both Notification Hub and Web Console render the same explanation fields.
+
 The Efforts UI reads the same board: live surface states and active units,
 commission/pressure, and frozen terminal outcome with its operator decision ID.
 Missing observations remain unknown. A frozen outcome is separate from later live edits.
@@ -183,8 +245,8 @@ the native commission limit; team heartbeat concurrency is a separate boundary.
 | `run continue <id> --message <text>` | The one way to talk to a run. A running interactive session receives the text as its next user message (the harness queues it behind the current turn); per-turn overrides are refused there. Any other continuable run starts a new turn. A codec-pipe run that is still mid-turn is refused; write an epoch directive instead. |
 | `run park <id> --producer children --key <orchestrator-run-id> --timeout 1h` | Parks the calling run until a direct child exits, the timeout elapses, or a wake names the key. The wake message names only the children that ended since the last wake and the ones still active (`[wake: timer] …` or `[wake] …`). |
 | `run wake --key <key> [--producer children] [--result <text>]` | `POST /api/v1/runs/wake-by-key`: the server matches every parked run whose await handle has exactly this producer and key and wakes it. A run identity may wake only runs its lineage permits (its parent, or its own children under the orchestrate scope). `run wake <id>` wakes one run. |
-| `run tokens <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (default Sol 10, Luna 1; an unknown model weighs 1). Usage that is not final is listed, never counted as zero. |
-| `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 when a step-back fires; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
+| `run tokens <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (operator heuristic `operator-non-cache-v2-2026-10-27`: Sol 10, Terra 5, Luna 1; unmatched models are unknown and disable spend comparisons). This is non-cache-token policy, not billing or measured subscription quota. Usage that is not final is listed, never counted as zero. |
+| `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 for a flatline strategy review; estimate overruns report optimization and continue with exit 0; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
 | `effort lint <goal home>` | Checks the goal-home rules the orchestrator owns; exit 4 on a failing rule. |
 | `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `STATUS.md`; exit 4 when refused. |
 | `effort park <goal home> [--run <id>] [--timeout D] [--json]` | Parks the verified calling orchestrator for as long as goal state allows; an explicit run must match its verified identity. Inspect the JSON park status and await handle; exit 4 when refused. |
@@ -272,6 +334,18 @@ gate is reported met or unmet:
 Evidence outside the admitted items is never read. An exit gate without typed
 items reports `gate_status: legacy` with one warning and never fails.
 `--acceptance` exits 4 on any unmet gate.
+
+**Advisory estimates.** Slice budgets and estimates are optional. Work-unit, source-size,
+elapsed-time and spend threshold observations are disabled by default. Large coherent
+outcomes are valid; duration and token totals alone are not poor-performance evidence.
+Explicitly enabled overrun, growth, spend and wall-clock observations enter `review` with
+`review_only: true`;
+human output says `OBSERVE (continue)`. They do not enter `step_back`, exit 3, wake a parent,
+freeze source, stop execution, force partial handoff or fail acceptance by themselves.
+Unavailable/unqualified spend is reported as unknown and does not fail the check. Continue
+the admitted outcome and required proof while reviewing strategy and estimates. Flatline
+still requests strategy review through the existing step-back signal; it is not a budget
+stop. Explicit product gates, authority/safety limits and native commission HARD STOP remain.
 
 **Yield.** The actual yield comes from `ACCEPTED yield=` or a measured
 inventory gate, never from summed slice-log deltas (workers sometimes log
@@ -510,3 +584,37 @@ are retained if their sources disappear. A manifestless identity is provisional
 canonical identity adoption requires reconciliation. An existing row for the same
 workspace retains its identity when its manifest disappears. No fallback field
 grants authority, acceptance, measured costs or retirement.
+
+
+### Home continuity and projection validation
+
+Decisions belong to their enrolled effort across home relocation. `decision list <current-home>`
+resolves that stable effort and projects the current location. The stored question home remains
+immutable publication provenance, preserving event IDs and delayed phone replies. An identical
+raise from the new home returns the original decision; changed terms and cross-effort lookups
+remain refused. `decision sync <home>` records new answers and removes stale human holds
+without recreating previously handled archived feedback. Explicit
+`decision sync <home> --reconcile-recorded` restores already-recorded answers lost from
+current FEEDBACK after a move or compaction; `--effort-ref <ref>` selects the stable effort.
+The owner pages decision history through opaque continuation tokens; sync reads every page
+before writing local policy and refuses ambiguous historical identities, including already-recorded
+answers. Park steering reads the home freshly for every producer; board scan caches cannot
+hide newly added or acknowledged feedback. Both sync modes are idempotent and do not republish asks, change answers or rewrite prior recording
+timestamps. Reconcile existing dispositions when restoring history; an answered policy is
+not a new request for operator authority.
+
+Use `## Current: <n> @ <ISO date>` for a measured value, or `## Current` with
+`- Current: unknown` when unmeasured. Unknown is not zero. Scoreboard columns are
+`surface | target | state | owner`, optionally followed by evidence; owner is a single run UUID
+or `-`. Active unit IDs are stable identifiers, with status/workers in their own fields.
+Accepted LOG records belong in one `## Accepted units` section. Projection-losing state
+formats produce lint findings and a partial board rather than silently healthy facts.
+These findings do not stop a worker's implementation; repair the shared home with its owner.
+Elapsed delivery pressure is separate from outcome progress and a completion forecast.
+
+Before parking on children, the leader must act on open operator/supervisor feedback and
+name its ownership/disposition in Handoff. Both `effort park` and the native agent park
+entry point refuse `feedback-unacknowledged`, even with a live child or unchanged signal
+cursor. This applies the existing lint obligation; it neither stops the child nor requires
+product acceptance before a legitimate wait. Acknowledging an instruction does not resolve
+its unmet product work.

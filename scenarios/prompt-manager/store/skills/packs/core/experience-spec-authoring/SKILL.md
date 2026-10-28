@@ -11,9 +11,9 @@ metadata:
   icon: "layout-template"
   status: "active"
   defaultScope: "architecture-scope"
-  revision: 1
+  revision: 3
   createdAt: "2026-07-05T00:00:00Z"
-  updatedAt: "2026-07-05T00:00:00Z"
+  updatedAt: "2026-10-25T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "vrooli"]
     commands: ["prompt-manager", "vrooli"]
@@ -43,6 +43,15 @@ must communicate and how evidence should prove it.
 ## Authoring Flow
 
 Start from route truth, not prose:
+
+Read the current product design target, including applicable user amendments, retained
+capabilities and verified agent refinements (`experiential-ui-design` §2a). When a design
+decision changes the expected experience, update affected claims, states, bindings and
+journeys through this existing contract rather than retaining an obsolete screenshot
+criterion. Preserve evidence/provenance and genuine requirements; an adopted visual
+refinement is not authority to delete a capability or invent a human attestation. Keep
+untested proposals distinct from verified implementation. No additional amendment store
+or whole-atlas regeneration is required.
 
 1. List user-facing routes from `ui/src/app/routes.tsx` or the scenario's route
    registry.
@@ -89,7 +98,11 @@ Use these defaults unless the PRD or page purpose clearly says otherwise:
   text are part of the workflow.
 - Lists, queues, galleries, and catalogs declare search when users may need to
   locate a known item, and filter when the list has durable states, owners,
-  types, or severities.
+  types, or severities. State the authorized search scope, important lifecycle states
+  (including outstanding work), and traversal beyond the first page. Search/state filtering
+  must apply before page boundaries when the task requires full-inventory findability.
+  Declare loading, continuation/retry, honest end/no-match, and drill-in return context;
+  a bounded page size is not a product-wide result cap. Use realistic volume to verify them.
 - Forms declare validation states for required fields, invalid values,
   submission failure, and successful save or create feedback.
 - Destructive or irreversible actions declare confirmation, cancellation, and

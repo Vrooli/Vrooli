@@ -15,23 +15,26 @@ The orchestrator writes the brief/directives; workers append their progress.
 
 - Mission: <whole product destination; why this outcome matters>
 - Outcome: <one journey or replacement and the resulting user benefit>
+- Scenario: <exact scenario slug; required for receipt-backed journey gates>
 - Kind: feature | refactor
 - Started: <owner-observed ISO time at admission>
-- Estimate: <meaningful work units>
-- Expected size: <net runtime lines for feature work>
+- Estimate: <optional planning estimate; omit when not useful>
+- Expected size: <optional source-size estimate; never an execution cap>
 - Metric: <observable outcome and command/evidence that reads it>
 - Targets: <required, occasional or unavailable platforms/builds>
 - Workers: <actual returned run IDs>
 - Status: admitted | in-progress | parked | accepted
 
 ## References
-Exact requirements, selected original images and current evidence. Label historical observations.
-## Modules and budgets
+Current product design target/version, applicable amendment/refinement IDs, exact requirements,
+selected original images and current evidence. Label historical observations.
+## Ownership and dependencies
 Owned files/modules, shared interfaces, peer ownership and necessary UI/API/refactor work.
 ## Deletion list
 Superseded responsibilities and intended end states, or why no deletion is justified.
 ## Exit gate
-Commands and affected journeys; served-original comparison and preserved-behavior checks.
+Commands and affected journeys; served/current-target comparison, expected differences linked
+to adopted amendment/refinement IDs, and preserved-behavior checks on applicable media/themes.
 ## Non-goals
 Actual exclusions; preserve unmet whole-product work in STATUS.
 ## Directives
@@ -39,35 +42,67 @@ Actual exclusions; preserve unmet whole-product work in STATUS.
 ```
 
 Before dispatch, reconcile the current source/failure so already-fixed work is not reassigned.
+Release terminal peers' file ownership; an integrated outcome includes its shared
+composition and fixture dependencies. Explicit scope amendments preserve real live-peer
+conflicts, not stale ownership. Select model/reasoning through the existing profile and
+role policy for this outcome, not a hard-coded recipe.
 Capture the dirty-scope anchor through `git-control-tower proposal anchor --effort <ref>
 --epoch E<n> --scope '<scenario path>/**' --json`. Obtain the caller run from
 `agent-manager run identity --json` (`claims.run_id`). Use existing authorized profiles.
 Send the complete assignment in the task description:
 
+The native `--until` must require the assigned product outcome and its demonstrated
+behavior/fidelity. "Produce comparisons", "run checks" or "return an honest report"
+are evidence duties, not completion predicates. A genuine unresolved mismatch against the
+current target is unfinished work; an implemented verified amendment/refinement is an
+expected difference, not a reason to undo an improvement. Follow `experiential-ui-design` §2a.
+When a retained predicate makes that mistake, correct it on an eligible native
+continuation and keep the same outcome/owner; do not count a partial report as delivery.
+
 ```bash
 agent-manager task create --title "<goal> E<n>" --scope-path <scenario path> --description "$(cat -- /absolute/worker-brief.md)"
-agent-manager run create --task-id <returned-task> --profile-id <existing-profile> --parent-run-id <caller-run> --until "<short assigned completion predicate>" --model <canonical-profile-model-id> --effort medium --workload-key <goal>/E<n>
+agent-manager run create --task-id <returned-task> --profile-id <existing-profile> --parent-run-id <caller-run> --until "<assigned user-visible behavior and demonstrated acceptance condition>" --model <canonical-profile-model-id> --effort <permitted-reasoning> --workload-key <goal>/E<n>
 ```
 
 Keep the file substitution quoted. Set an existing task's description with `task update
 <id> --description "$(cat -- /absolute/worker-brief.md)"`. Do not add `--prompt`: it replaces
 the task description. Keep `--until` separate and below 2,048 characters. The worker receives
 the exact repository-relative brief path, parent ID, worker card, applicable directives,
-source versions, gates and resume set. Record returned IDs in the brief and STATUS.
+source versions, applicable amendment/refinement IDs, gates and resume set. Verify receiving
+when feedback changes an active assignment; reconcile its eligible native predicate through
+the owner rather than leaving obsolete acceptance live. Record returned IDs in the brief and STATUS.
 Use a canonical profile model ID (for example `gpt-6-luna`), not a shorthand. Correct only a
 deterministic spelling refusal within that profile's permissions. Reconcile an uncertain
 dispatch before retrying. Never strip identity or change principal to pass admission.
 
+## Receipt-backed browser gates
+
+For an admitted exact case set, declare `G2 journey: bas/cases/one.json,bas/cases/two.json @ workflow-health`.
+After execution, append `gate G2=receipt workflow-health:<run-id>[,<run-id>...]` in
+the existing slice log. Use the same owner run IDs after an unrelated change;
+`agent-manager effort epoch-check <brief> --acceptance --json` derives coverage,
+success and current dependency applicability from the provider. Newer supplied
+case failures take precedence over older passes. Manual counts cannot qualify
+this gate. Missing/stale evidence names the affected cases to rerun.
+
+Workflow Health's [runbook](../../../../../../../../scenarios/workflow-health/docs/operations/RUNBOOK.md#reusing-current-browser-evidence)
+owns dependency declarations and conservative fallback behavior. Review their
+completeness before adopting narrow scopes. Unchanged browser evidence can retain
+its original capture/review provenance; a new build does not require recapturing
+every image. Still verify the applicable original, target amendments and any
+material uncertainty. This replaces repeated bookkeeping, not visual review,
+initial served-build qualification or independent product acceptance.
+
 ## Worker progress
 
-The [worker card](worker.md#progress-and-step-back) owns progress-line grammar, growth
-budgets, step-back triggers and the worker's exact check command. Use that card when
+The [worker card](worker.md#progress-and-step-back) owns progress-line grammar, advisory
+estimate reviews, step-back triggers and the worker's exact check command. Use that card when
 interpreting the worker's result; do not create a second protocol here.
 
 ## Acceptance and progress
 
 Independently inspect each required gate, affected journey, selected source version,
-deletion end state/callers, growth budget and test-protection result. Inspect visual gates
+deletion end state/callers, justified source growth and test-protection result. Inspect visual gates
 against the exact served build and selected originals. Required targets pass or remain open
 with an authorized equivalent/return condition. Run `epoch-check` for all admitted worker
 IDs; unresolved directives prevent acceptance. Reuse current proof under `docs/TESTING.md`.

@@ -11,12 +11,9 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
-)
 
-// codexRolloutMaxLineBytes bounds one rollout line read during stop recovery.
-// Compacted-history lines reach a few megabytes; a longer line aborts recovery
-// rather than guessing.
-const codexRolloutMaxLineBytes = 32 << 20
+	codexrollout "github.com/vrooli/vrooli/packages/codex-rollout"
+)
 
 // codexRolloutUsageLine is the subset of a rollout record that usage recovery
 // reads. token_usage_record (newer Codex builds) carries the per-turn
@@ -138,7 +135,7 @@ func scanCodexInterruptedTurn(path string, startedAt time.Time) (codexInterrupte
 	// Rollout timestamps carry millisecond precision.
 	startedAt = startedAt.Truncate(time.Millisecond)
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64<<10), codexRolloutMaxLineBytes)
+	scanner.Buffer(make([]byte, 0, 64<<10), codexrollout.MaxLineBytes)
 	for scanner.Scan() {
 		var line codexRolloutUsageLine
 		if json.Unmarshal(scanner.Bytes(), &line) != nil {

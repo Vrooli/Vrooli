@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,8 +19,8 @@ import (
 // (goalhome.DecidePark). It allows up to 1h while a direct child can still execute,
 // up to 72h while ## Needs operator holds an item, and otherwise refuses with
 // exit 4. It parks through the same server call as `run park` (producer
-// children, keyed by the run). The server applies the same goalhome.DecidePark
-// to a raw `run park` (report-only unless VROOLI_EFFORT_PARK_ENFORCE is on).
+// children, keyed by the run). Native `run park` also requires acknowledgement
+// of new steering; its other park rules retain their report/enforce setting.
 func (a *App) effortPark(args []string) error {
 	fs := flag.NewFlagSet("effort park", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -71,7 +70,7 @@ func (a *App) effortPark(args []string) error {
 	if targetRun.Id != runID {
 		return fmt.Errorf("get park target run %s returned mismatched run ID %q", runID, targetRun.Id)
 	}
-	queue, err := os.ReadFile(filepath.Join(dir, goalhome.StatusFile))
+	home, err := loadGoalHome(dir)
 	if err != nil {
 		return fmt.Errorf("goal home %s: %w", dir, err)
 	}
@@ -85,7 +84,7 @@ func (a *App) effortPark(args []string) error {
 			live = append(live, child.Id)
 		}
 	}
-	decision := goalhome.DecidePark(live, goalhome.ParseQueue(queue), *timeout)
+	decision := goalhome.DecideHomePark(live, home, *timeout)
 	result := struct {
 		goalhome.ParkDecision
 		Max     string          `json:"max,omitempty"`

@@ -392,11 +392,11 @@ func frictionPublishInterval() time.Duration {
 func modelPolicyDriftInterval() time.Duration {
 	value := strings.TrimSpace(os.Getenv("AGENT_MANAGER_MODEL_POLICY_DRIFT_INTERVAL"))
 	if value == "" {
-		return 7 * 24 * time.Hour
+		return 24 * time.Hour
 	}
 	parsed, err := time.ParseDuration(value)
 	if err != nil || parsed <= 0 || parsed > 14*24*time.Hour {
-		return 7 * 24 * time.Hour
+		return 24 * time.Hour
 	}
 	return parsed
 }

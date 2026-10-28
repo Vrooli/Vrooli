@@ -307,6 +307,16 @@ func TestInteractiveGrantsReachEffortMetadataHandler(t *testing.T) {
 	}
 }
 
+func TestDeliveryCommissionReachesItsBoundedOwnerHandler(t *testing.T) {
+	ctx := grantContext([]string{"effort.delivery"}, []string{"agent-manager:effort/hub"})
+	r := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceEnrollEffortProcedure, nil).WithContext(ctx)
+	reached := false
+	AgentOperationMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached = true })).ServeHTTP(httptest.NewRecorder(), r)
+	if !reached {
+		t.Fatal("approved delivery call cannot reach its domain authorization check")
+	}
+}
+
 func TestOrchestratorRoutesReachTheirOwnHandlerChecks(t *testing.T) {
 	for _, tc := range []struct {
 		path        string
@@ -369,6 +379,37 @@ func TestVerifiedAgentCanWaitForWorkflowExecutionWithoutOpeningMutations(t *test
 			router.ServeHTTP(w, r)
 			if w.Code != tc.wantStatus {
 				t.Fatalf("status=%d want %d body=%s", w.Code, tc.wantStatus, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestConversationSearchUsesOrdinaryReadAdmission(t *testing.T) {
+	path := "/agent_manager.v1.ConversationSearchService/SearchConversations"
+	for _, tc := range []struct {
+		name          string
+		principal     *identity.Principal
+		invalidHeader bool
+		want          int
+	}{
+		{name: "anonymous local read", want: http.StatusNoContent},
+		{name: "ordinary read middleware with token", invalidHeader: true, want: http.StatusNoContent},
+		{name: "ordinary read middleware with unverified context", principal: &identity.Principal{Kind: identity.ActorAgent, Subject: "run", Scopes: []string{"agent-manager:read"}}, want: http.StatusNoContent},
+		{name: "verified identity without read scope", principal: &identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: []string{"other:read"}}, want: http.StatusNoContent},
+		{name: "read", principal: &identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: []string{"agent-manager:read"}}, want: http.StatusNoContent},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			if tc.principal != nil {
+				req = req.WithContext(identity.WithPrincipal(req.Context(), *tc.principal))
+			}
+			if tc.invalidHeader {
+				req.Header.Set("X-Agent-Identity-Token", "invalid")
+			}
+			rec := httptest.NewRecorder()
+			AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status=%d want=%d", rec.Code, tc.want)
 			}
 		})
 	}

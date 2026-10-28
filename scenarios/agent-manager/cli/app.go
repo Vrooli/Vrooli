@@ -12,6 +12,7 @@ import (
 
 	"agent-manager/cli/domains"
 	"agent-manager/cli/internal/support"
+	"agent-manager/internal/goalhome"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -38,8 +39,9 @@ var (
 )
 
 type App struct {
-	core     *cliapp.ScenarioApp
-	services *Services
+	core                 *cliapp.ScenarioApp
+	services             *Services
+	journeyReceiptReader goalhome.JourneyReceiptReader
 }
 
 type subcommandHandler func([]string) error

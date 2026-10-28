@@ -186,7 +186,8 @@ func printEffortResponse(command string, jsonOut bool, response proto.Message, b
 	return nil
 }
 
-// effortDelivery composes an exact owner enrollment, retaining the existing
+// effortDelivery composes a commission-only amendment to the existing enrollment.
+// A human owner or approved effort.delivery agent uses the same clock, retained
 // authority, revision fencing and idempotency path instead of a second writer.
 func (a *App) effortDelivery(args []string) error {
 	if len(args) == 0 {

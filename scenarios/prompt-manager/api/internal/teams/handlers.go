@@ -19,7 +19,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/identity"
 )
 
 // defaultReadCCConfig reads a Claude Code team config from the standard location.
@@ -209,6 +208,9 @@ func (h *Handlers) CreateTeam(ctx context.Context, req CreateRequest) (TeamDetai
 // DeleteTeam removes a team and its member relations without crossing the
 // HTTP compatibility boundary. REST and Connect adapters share this path.
 func (h *Handlers) DeleteTeam(ctx context.Context, id string) error {
+	if err := h.requireTeamManagement(ctx, id); err != nil {
+		return err
+	}
 	h.updateHeartbeatSchedules(ctx, id, false)
 
 	if h.relationStore != nil {
@@ -451,7 +453,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) AddTeamMember(ctx context.Context, teamID string, req AddMemberRequest) (MemberDTO, error) {
-	if err := requireBoundedTeamManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		return MemberDTO{}, err
 	}
 	if req.AgentID == "" {
@@ -503,7 +505,7 @@ func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) UpdateTeamMember(ctx context.Context, teamID, agentID string, req UpdateMemberRequest) (MemberDTO, error) {
-	if err := requireBoundedTeamManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		return MemberDTO{}, err
 	}
 	membership, err := h.relationStore.GetTeamMember(ctx, teamID, agentID)
@@ -564,7 +566,7 @@ func (h *Handlers) UpdateMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) RemoveTeamMember(ctx context.Context, teamID, agentID string) error {
-	if err := requireBoundedTeamManagement(ctx, teamID); err != nil {
+	if err := h.requireTeamManagement(ctx, teamID); err != nil {
 		return err
 	}
 	team, err := h.teamStore.Get(ctx, teamID)
@@ -615,21 +617,8 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// requireBoundedTeamManagement applies the existing exact team.manage owner
-// check whenever the request carries bounded authority. Legacy unbounded
-// callers keep their existing behavior; a grant never authorizes a different
-// team's membership mutation.
-func requireBoundedTeamManagement(ctx context.Context, teamID string) error {
-	_, requestBounded := authn.RequestOperationAuthorityFromContext(ctx)
-	principal, hasPrincipal := identity.PrincipalFromContext(ctx)
-	if !requestBounded && (!hasPrincipal || principal.Grant == nil) {
-		return nil
-	}
-	_, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+teamID)
-	if err != nil {
-		return fmt.Errorf("team membership mutation requires approved team.manage authority: %w", err)
-	}
-	return nil
+func (h *Handlers) requireTeamManagement(ctx context.Context, teamID string) error {
+	return store.AuthorizeTeamManagement(ctx, h.teamStore, teamID)
 }
 
 func (h *Handlers) ListTeamRoles(ctx context.Context, id string) ([]RoleDTO, error) {
@@ -660,7 +649,7 @@ func (h *Handlers) GetRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) SetTeamRoles(ctx context.Context, id string, req SetRolesRequest) ([]RoleDTO, error) {
-	if err := requireBoundedTeamManagement(ctx, id); err != nil {
+	if err := h.requireTeamManagement(ctx, id); err != nil {
 		return nil, err
 	}
 	if _, err := h.teamStore.Get(ctx, id); err != nil {
@@ -1352,9 +1341,11 @@ func (h *Handlers) teamRelationshipIDs(ctx context.Context, teamID string) ([]st
 
 func (h *Handlers) toDetailsResponse(ctx context.Context, t *store.Team) TeamDetailsResponse {
 	resp := TeamDetailsResponse{
-		Response: h.toResponse(ctx, t),
-		Roles:    []RoleDTO{},
-		Members:  []MemberDTO{},
+		Response:             h.toResponse(ctx, t),
+		ManagementAuthorized: store.CanManageTeam(ctx, h.teamStore, t.ID),
+		Revision:             t.Revision,
+		Roles:                []RoleDTO{},
+		Members:              []MemberDTO{},
 	}
 
 	// Get roles
@@ -1391,4 +1382,9 @@ func (h *Handlers) toDetailsResponse(ctx context.Context, t *store.Team) TeamDet
 
 	// Get defaults
 	return resp
+}
+
+// CanManageTeam reports current domain authority for the exact team read.
+func (h *Handlers) CanManageTeam(ctx context.Context, id string) bool {
+	return store.CanManageTeam(ctx, h.teamStore, id)
 }

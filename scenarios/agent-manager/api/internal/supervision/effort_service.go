@@ -20,9 +20,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// TeamEffortAuthority is an in-process, current owner decision for one declared
+// team leader. Only the authenticated Prompt Manager read constructs it.
+type TeamEffortAuthority struct{ TeamID, MemberRef, HomePath string }
+
 // EffortActor is populated by the existing authenticated owner/run verifier.
 // Request text and workspace declarations never construct this authority.
 type EffortActor struct {
+	Team *TeamEffortAuthority
+
 	exact              *exactAuthorization
 	ID                 string
 	Operator           bool
@@ -32,6 +38,9 @@ type EffortActor struct {
 	Delegated  bool
 	ApprovedBy string
 	Scopes     []string
+	// DeliveryManager controls only an existing enrollment's commission under
+	// an owner-approved effort.delivery grant. It conveys no enrollment rights.
+	DeliveryManager bool
 }
 
 const EffortMetadataReconcileScope = "agent-manager:effort-reconcile"
@@ -185,7 +194,7 @@ func validateEffortEnrollment(e *pb.EffortEnrollment) error {
 func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
 	s.deliveryMu.Lock()
 	defer s.deliveryMu.Unlock()
-	if !actor.Operator || actor.ID == "" {
+	if actor.ID == "" || (!actor.Operator && actor.Team == nil && (!actor.DeliveryManager || actor.ApprovedBy == "")) {
 		return nil, errors.New("authenticated operator authority required to enroll or amend")
 	}
 	if req == nil || req.Enrollment == nil || strings.TrimSpace(req.IdempotencyKey) == "" {
@@ -194,15 +203,22 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	digest := effortDigest(req) + actor.ID
+	if actor.Team != nil {
+		digest += ":team:" + actor.Team.TeamID
+	} else if !actor.Operator {
+		digest += ":effort.delivery:" + actor.ApprovedBy
+	}
 	key := "enroll:" + req.IdempotencyKey
 	replay := &pb.EffortEnrollment{}
 	if ok, err := s.repo.ReplayEffortOperation(ctx, key, digest, replay); ok || err != nil {
 		return replay, err
 	}
 	e := proto.Clone(req.Enrollment).(*pb.EffortEnrollment)
-	e.AuthorizedBy = actor.ID
-	e.Withdrawn = false
-	e.WithdrawalReason = ""
+	if actor.Operator || actor.Team != nil {
+		e.AuthorizedBy = actor.ID
+		e.Withdrawn = false
+		e.WithdrawalReason = ""
+	}
 	if err := validateEffortEnrollment(e); err != nil {
 		return nil, err
 	}
@@ -212,6 +228,20 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 	}
 	if old == nil && req.ExpectedRevision != 0 || old != nil && old.Revision != req.ExpectedRevision {
 		return nil, ErrConflict
+	}
+	if actor.Team != nil {
+		if err := authorizeTeamEnrollment(actor, e, old); err != nil {
+			return nil, err
+		}
+	} else if !actor.Operator {
+		if old == nil || old.Withdrawn || e.Delivery == nil {
+			return nil, errors.New("delivery management requires an existing active enrollment and a commission")
+		}
+		unchanged := proto.Clone(e).(*pb.EffortEnrollment)
+		unchanged.Delivery = old.Delivery
+		if !proto.Equal(unchanged, old) {
+			return nil, errors.New("delivery management cannot change enrollment fields")
+		}
 	}
 	if err := s.transitionDelivery(ctx, old, e); err != nil {
 		return nil, err
@@ -232,7 +262,7 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 // synchronization cannot renew, revoke or replace a grant.
 func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.ReconcileEffortMetadataRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
 	if _, present := authn.RequestOperationAuthorityFromContext(ctx); present || actor.exact != nil {
-		if actor.exact == nil || actor.ID != actor.exact.envelope.Executor || actor.ApprovedBy != actor.exact.envelope.Initiator || actor.Operator || actor.Delegated || actor.MetadataReconciler || actor.exact.validate(ctx, req) != nil {
+		if actor.exact == nil || actor.ID != actor.exact.envelope.Executor || actor.ApprovedBy != actor.exact.envelope.Initiator || actor.Operator || actor.Delegated || actor.DeliveryManager || actor.MetadataReconciler || actor.exact.validate(ctx, req) != nil {
 			return nil, ErrExactAuthority
 		}
 		repo, ok := s.repo.(*Repository)
@@ -725,4 +755,45 @@ func (s *EffortService) Tick(ctx context.Context) error {
 	_, err := s.reconcileDiscovery(ctx)
 	s.nextScan = now.Add(s.config.Interval)
 	return errors.Join(err, s.tickDelivery(ctx), s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx), s.dispatchEffortSignalCheckins(ctx))
+}
+
+// Team management can prepare its own declared effort, never seize another
+// enrollment or change active commission metadata. Clock transitions stay with
+// transitionDelivery, including server-owned time and immutable budget policy.
+func authorizeTeamEnrollment(actor EffortActor, e, old *pb.EffortEnrollment) error {
+	a := actor.Team
+	if a.TeamID == "" || a.MemberRef == "" || a.HomePath == "" || e.WorkShape != "orchestrated_epochs" || !strings.HasPrefix(e.EffortRef, "effort:") {
+		return errors.New("invalid team effort binding")
+	}
+	destination := strings.TrimPrefix(e.DestinationRef, "path:")
+	if destination == e.DestinationRef || !strings.HasPrefix(destination, a.HomePath+"/") || filepath.ToSlash(filepath.Clean(destination)) != destination || strings.Contains(destination, "\\") {
+		return errors.New("team effort destination must be inside its declared home")
+	}
+	if e.TargetRevision == "" || e.SourceRevision == "" || e.AuthorityRef == "" {
+		return errors.New("team effort requires target, source and authority references")
+	}
+	if old == nil {
+		if len(e.Subjects) != 1 || e.SupervisorRunId != "" || e.Revision != 0 || e.Delivery != nil {
+			return errors.New("initial team enrollment must be inert with one declared leader")
+		}
+		subject := e.Subjects[0]
+		if subject.GetOwner() != "prompt-manager" || subject.GetKind() != "team-member" || subject.GetReference() != a.MemberRef || subject.GetRole() != "orchestrator" || subject.GetRunId() != "" {
+			return errors.New("team enrollment leader does not match its owner")
+		}
+		return nil
+	}
+	if old.Withdrawn || old.AuthorizedBy != actor.ID {
+		return errors.New("team management cannot replace existing effort ownership")
+	}
+	if !proto.Equal(&pb.EffortEnrollment{Subjects: e.Subjects}, &pb.EffortEnrollment{Subjects: old.Subjects}) {
+		return errors.New("team management cannot replace enrolled subjects")
+	}
+	if old.Delivery != nil {
+		unchanged := proto.Clone(e).(*pb.EffortEnrollment)
+		unchanged.Delivery = old.Delivery
+		if !proto.Equal(unchanged, old) {
+			return errors.New("team management cannot change commissioned enrollment metadata")
+		}
+	}
+	return nil
 }

@@ -29,7 +29,7 @@ const decisionUsage = `usage:
   agent-manager effort decision raise <goal home> --id <id> --question <text> --option key=label --option key=label --recommend <key> [--why <text>] [--default <key> --reversible] [--deadline 24h|<RFC3339>] [--urgency low|normal|high|critical] [--big-picture <text>] [--technical-details <text>] [--note <legacy technical-details fallback>] [--context-url <url>] [--home-ref <repo-relative dir>] [--effort-ref <ref>] [--dry-run] [--json]
   agent-manager effort decision answer <goal home> <id> <option key> [--note <text>] [--home-ref <dir>] [--local-owner] [--json]
   agent-manager effort decision list [<goal home>] [--effort-ref <ref>] [--unrecorded] [--home-ref <dir>] [--json]
-  agent-manager effort decision sync <goal home> [--home-ref <dir>] [--json]`
+  agent-manager effort decision sync <goal home> [--home-ref <dir>] [--effort-ref <ref>] [--reconcile-recorded] [--json]`
 
 // optionFlags collects repeated --option key=label values.
 type optionFlags []goalhome.DecisionOption
@@ -216,6 +216,12 @@ func (a *App) decisionRaise(args []string) error {
 	}
 	stored := effortdecision.View(response.GetDecision())
 	updated, changed := goalhome.AddNeedsOperatorItem(queue, stored)
+	answered := stored.State == effortdecision.Answered || stored.State == effortdecision.Defaulted
+	if answered {
+		// An idempotent raise must never turn an existing answer into a
+		// fresh human dependency. Sync owns verbatim answer projection.
+		updated, changed = goalhome.RemoveNeedsOperatorItem(queue, stored.ID)
+	}
 	if changed {
 		if err := goalhome.WriteIfUnchanged(queuePath, queue, updated); err != nil {
 			return fmt.Errorf("decision %s is stored, but %s was not updated (rerun the same raise to retry): %w", view.ID, queuePath, err)
@@ -223,6 +229,9 @@ func (a *App) decisionRaise(args []string) error {
 	}
 	result.Created, result.Published, result.EventID = response.GetCreated(), response.GetPublished(), response.GetDecision().GetEventId()
 	result.Item, result.Changed = goalhome.NeedsOperatorItem(stored), changed
+	if answered {
+		result.Item = ""
+	}
 	result.Decision, _ = protojson.Marshal(response.GetDecision())
 	return printDecisionRaise(result, *jsonOut, func() {
 		state := "already stored; nothing new published"
@@ -238,7 +247,9 @@ func (a *App) decisionRaise(args []string) error {
 		default:
 			fmt.Printf("Event not yet published (%s); Agent Manager retries on its scan cycle.\n", response.GetDecision().GetPublishError())
 		}
-		if changed {
+		if answered {
+			fmt.Printf("Already answered; no operator item remains. Run decision sync to project the answer into FEEDBACK.md.\n")
+		} else if changed {
 			fmt.Printf("Added the item to ## Needs operator in %s.\n", queuePath)
 		} else {
 			fmt.Printf("## Needs operator in %s already lists it.\n", queuePath)
@@ -340,11 +351,27 @@ func (a *App) decisionList(args []string) error {
 		request.GoalHome = ref
 	}
 	response := &pb.ListEffortDecisionsResponse{}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, request, response)
-	if err != nil {
-		return apiError(body, err)
+	seen := map[string]bool{}
+	for {
+		page := &pb.ListEffortDecisionsResponse{}
+		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, request, page)
+		if err != nil {
+			return apiError(body, err)
+		}
+		response.Decisions = append(response.Decisions, page.Decisions...)
+		if page.NextPageToken == "" {
+			break
+		}
+		if seen[page.NextPageToken] {
+			return errors.New("decision pagination did not advance")
+		}
+		seen[page.NextPageToken], request.PageToken = true, page.NextPageToken
 	}
 	if *jsonOut {
+		body, err := protojson.Marshal(response)
+		if err != nil {
+			return err
+		}
 		cliutil.PrintJSON(body)
 		return nil
 	}
@@ -386,6 +413,8 @@ func (a *App) decisionSync(args []string) error {
 	fs := flag.NewFlagSet("effort decision sync", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	homeRef := fs.String("home-ref", "", "Repository-relative goal home")
+	effortRef := fs.String("effort-ref", "", "Stable effort identity when reconciling a relocated home")
+	reconcileRecorded := fs.Bool("reconcile-recorded", false, "Restore previously recorded answers after relocation or lost policy; normal sync preserves archived dispositions")
 	dir, rest := goalHomeArg(args)
 	if err := cliutil.ParseInterspersed(fs, rest); err != nil {
 		return err
@@ -397,10 +426,35 @@ func (a *App) decisionSync(args []string) error {
 	if err != nil {
 		return err
 	}
-	response := &pb.ListEffortDecisionsResponse{}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, &pb.ListEffortDecisionsRequest{GoalHome: ref, UnrecordedOnly: true, Limit: 200}, response)
-	if err != nil {
-		return apiError(body, err)
+	// Read every page before any local write: a later page may reveal ambiguity
+	// or fail, and a partial recovery must not silently become active policy.
+	list := &pb.ListEffortDecisionsRequest{GoalHome: ref, Limit: 200}
+	if strings.TrimSpace(*effortRef) != "" {
+		list.GoalHome, list.EffortRef = "", strings.TrimSpace(*effortRef)
+	}
+	var decisions []*pb.EffortDecision
+	seenTokens, seenIDs := map[string]bool{}, map[string]bool{}
+	for {
+		response := &pb.ListEffortDecisionsResponse{}
+		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, list, response)
+		if err != nil {
+			return apiError(body, err)
+		}
+		for _, d := range response.GetDecisions() {
+			if d.GetDecisionId() == "" || seenIDs[d.GetDecisionId()] {
+				return fmt.Errorf("ambiguous decision identity %q; policy recovery wrote nothing", d.GetDecisionId())
+			}
+			seenIDs[d.GetDecisionId()] = true
+			decisions = append(decisions, d)
+		}
+		next := response.GetNextPageToken()
+		if next == "" {
+			break
+		}
+		if seenTokens[next] {
+			return errors.New("decision pagination did not advance; policy recovery wrote nothing")
+		}
+		seenTokens[next], list.PageToken = true, next
 	}
 	type synced struct {
 		ID       string `json:"id"`
@@ -414,7 +468,6 @@ func (a *App) decisionSync(args []string) error {
 	var results []synced
 	feedbackPath, queuePath := filepath.Join(dir, goalhome.FeedbackFile), filepath.Join(dir, goalhome.StatusFile)
 	// Oldest first, so FEEDBACK.md lists answers newest on top.
-	decisions := response.GetDecisions()
 	for i := len(decisions) - 1; i >= 0; i-- {
 		d := decisions[i]
 		item := synced{ID: d.GetDecisionId(), State: d.GetState(), Answer: d.GetAnswer()}
@@ -432,7 +485,10 @@ func (a *App) decisionSync(args []string) error {
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
-		if updated, changed := goalhome.AddFeedbackEntry(feedback, view); changed {
+		// Routine resumes must not recreate feedback already handled and archived.
+		// Reprojection is an explicit recovery operation, independent of the
+		// native answer's immutable recording timestamp.
+		if updated, changed := goalhome.AddFeedbackEntry(feedback, view); changed && (d.GetRecordedAt() == nil || *reconcileRecorded) {
 			if err := writeGoalHomeFile(feedbackPath, feedback, updated); err != nil {
 				return fmt.Errorf("decision %s: %s: %w", item.ID, feedbackPath, err)
 			}
@@ -448,8 +504,19 @@ func (a *App) decisionSync(args []string) error {
 			}
 			item.Queue = true
 		}
+		if d.GetRecordedAt() != nil {
+			// Re-projecting a recorded answer needs no native mutation. Preserve
+			// its original recording timestamp and do not require write authority
+			// merely to repair this local home projection.
+			item.Recorded = true
+			if !*reconcileRecorded {
+				item.Detail = "previously recorded; use --reconcile-recorded only to restore missing policy"
+			}
+			results = append(results, item)
+			continue
+		}
 		marked := &pb.EffortDecision{}
-		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure, &pb.MarkEffortDecisionRecordedRequest{GoalHome: ref, DecisionId: item.ID, AnsweredAt: d.GetAnsweredAt()}, marked)
+		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure, &pb.MarkEffortDecisionRecordedRequest{GoalHome: d.GetGoalHome(), DecisionId: item.ID, AnsweredAt: d.GetAnsweredAt()}, marked)
 		if err != nil {
 			// A newer answer arrived after the read; the next sync records it.
 			item.Detail = "not marked recorded: " + apiError(body, err).Error()

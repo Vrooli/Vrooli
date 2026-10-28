@@ -5,9 +5,12 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -107,7 +110,21 @@ func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (
 	// is the single source of truth for RunMode, so a default-config
 	// run resolves to sandboxed and preflightScopePath needs a project
 	// root.
-	roleState, err := rolepolicy.NewState(rolepolicy.ResolvePath(), rolepolicy.Requirement{Required: true})
+	// This fixture owns its runner selection. Operator catalogs must be free to
+	// change their selected subset without making endpoint tests require live
+	// alternative runners or silently falling through to another provider.
+	catalog := rolepolicy.Catalog{SchemaVersion: rolepolicy.CurrentSchemaVersion, Metadata: rolepolicy.Metadata{CatalogID: "handler-fixture", UpdatedAt: "2026-10-27"}, DefaultRole: "code.default", Roles: map[string]rolepolicy.Role{
+		"code.default": {Description: "Endpoint fixture", Intent: "test endpoint contracts", Candidates: []rolepolicy.Candidate{{Runner: mock.Type(), ResourceRole: "code.default"}}},
+	}}
+	catalogBytes, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalogPath := filepath.Join(t.TempDir(), "role-policy.json")
+	if err := os.WriteFile(catalogPath, catalogBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	roleState, err := rolepolicy.NewState(catalogPath, rolepolicy.Requirement{Required: true})
 	if err != nil {
 		t.Fatalf("load role policy state: %v", err)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	clitest "agent-manager/cli/internal/testutil"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,7 @@ import (
 )
 
 func TestRunEventsFollowInitializesWebSocketRequest(t *testing.T) {
+	clitest.IsolateCredentialBroker(t)
 	for _, override := range []bool{false, true} {
 		name := "saved_base"
 		if override {

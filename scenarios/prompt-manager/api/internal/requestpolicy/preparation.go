@@ -132,7 +132,12 @@ var boundedRouteContracts = map[routeKey]routeContract{
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceUpdateHeartbeatProcedure}:          ownerAuthorizedRoute,
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceDeleteHeartbeatProcedure}:          ownerAuthorizedRoute,
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceSetHeartbeatInstructionsProcedure}: ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceSetResponsibilitiesProcedure}:      ownerAuthorizedRoute,
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceClearTeamQueueRunningProcedure}:    ownerAuthorizedRoute,
+	// Selected-team scheduling control is exact team.manage; global control and
+	// policy writes retain their existing human-only contracts.
+	{http.MethodPost, heartbeatconnect.HeartbeatServicePauseTeamHeartbeatControlProcedure}:  ownerAuthorizedRoute,
+	{http.MethodPost, heartbeatconnect.HeartbeatServiceResumeTeamHeartbeatControlProcedure}: ownerAuthorizedRoute,
 	// Manual member dispatch is explicitly governed by the existing run.create
 	// operation. The handler separately enforces CreateRun caller attribution.
 	{http.MethodPost, heartbeatconnect.HeartbeatServiceTriggerHeartbeatProcedure}: runCreateAuthorizedRoute,

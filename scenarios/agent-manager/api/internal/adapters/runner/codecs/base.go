@@ -19,9 +19,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -116,13 +117,13 @@ func (b *baseCodec) BinaryPath() string {
 	if b.binaryCommand == "" {
 		return b.binaryPath
 	}
-	path, err := exec.LookPath(b.binaryCommand)
+	path, err := cliutil.ResolveAgentBinary(b.binaryCommand)
 	if err != nil {
 		return ""
 	}
 	// AM already owns launch governance. Do not recursively invoke the
 	// operator-facing shim from inside its protected workspace.
-	return managedRunnerBinary(path, b.binaryCommand)
+	return path
 }
 
 // BinaryDescription satisfies [Codec].
@@ -226,23 +227,6 @@ func (b *baseCodec) ParseTranscriptLine(runID uuid.UUID, line string) runner.Tra
 func resolveBinary(base baseCodec, cmd string) baseCodec {
 	base.binaryCommand = cmd
 	return base
-}
-
-func managedRunnerBinary(path, cmd string) string {
-	clean := filepath.Clean(path)
-	parts := strings.Split(filepath.ToSlash(clean), "/")
-	for i, part := range parts {
-		if part != ".vrooli" || i+1 >= len(parts) || parts[i+1] != "shims" {
-			continue
-		}
-		for _, candidate := range []string{filepath.Join("/usr/bin", cmd), filepath.Join("/bin", cmd)} {
-			if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
-				return candidate
-			}
-		}
-		break
-	}
-	return path
 }
 
 // testBase derives the *ForTest variant of an identity base: a fake binary

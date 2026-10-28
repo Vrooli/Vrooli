@@ -1113,8 +1113,9 @@ func (h *Handler) ValidatePath(w http.ResponseWriter, r *http.Request) {
 // VerifyIdentityToken handles POST /api/v1/identity/verify.
 func (h *Handler) VerifyIdentityToken(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Token          string `json:"token"`
-		OperationToken string `json:"operation_token,omitempty"`
+		Token                string `json:"token"`
+		OperationToken       string `json:"operation_token,omitempty"`
+		VerifySessionBinding bool   `json:"verify_session_binding,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON body")
@@ -1145,7 +1146,11 @@ func (h *Handler) VerifyIdentityToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.VerifyIdentityToken(r.Context(), req.Token)
+	verifyCtx := r.Context()
+	if req.VerifySessionBinding {
+		verifyCtx = orchestration.WithSessionBindingVerification(verifyCtx)
+	}
+	result, err := h.svc.VerifyIdentityToken(verifyCtx, req.Token)
 	if err != nil {
 		writeError(w, r, err)
 		return

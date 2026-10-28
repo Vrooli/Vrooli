@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -15,10 +16,47 @@ import (
 	"github.com/google/uuid"
 )
 
-type fakeGoalHomeParks struct{ home *goalhome.Home }
+type fakeGoalHomeParks struct {
+	home          *goalhome.Home
+	err           error
+	notApplicable bool
+}
+
+func TestGoalHomeParkCannotIgnoreNewFeedbackWithUnchangedSignals(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := fixtures.NewTask(t)
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	parent := fixtures.NewRun(t, task.ID, uuid.Nil, fixtures.WithRunStatus(domain.RunStatusRunning))
+	if err := repos.Runs.Create(ctx, parent); err != nil {
+		t.Fatal(err)
+	}
+	child := fixtures.NewRun(t, task.ID, uuid.Nil, fixtures.WithRunStatus(domain.RunStatusRunning))
+	child.ParentRunID = &parent.ID
+	if err := repos.Runs.Create(ctx, child); err != nil {
+		t.Fatal(err)
+	}
+	home := &goalhome.Home{Queue: goalhome.ParseQueue([]byte("# Status\n\n## Handoff\n\nWaiting.\n")),
+		Feedback: goalhome.Feedback{Entries: []goalhome.FeedbackEntry{{ID: "NEW-REPAIR", Status: "open", Source: "supervisor"}}}}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs)
+	o.SetGoalHomeParkSource(fakeGoalHomeParks{home: home})
+	t.Setenv(parkEnforceEnv, "")
+	for _, producer := range []string{ProducerChildren, ProducerGCT, ProducerOperatorDecision} {
+		if got := o.checkGoalHomePark(ctx, parent, producer, nil); !strings.Contains(got, "feedback-unacknowledged") || !strings.Contains(got, "NEW-REPAIR") {
+			t.Fatalf("raw %s park bypassed feedback obligation: %q", producer, got)
+		}
+	}
+	home.Queue = goalhome.ParseQueue([]byte("# Status\n\n## Handoff\n\nNEW-REPAIR: amended scope; child continues.\n"))
+	if got := o.checkGoalHomePark(ctx, parent, ProducerChildren, nil); got != "" {
+		t.Fatalf("acknowledged feedback must allow child wait: %q", got)
+	}
+}
 
 func (f fakeGoalHomeParks) GoalHomeForOrchestrator(context.Context, *domain.Run) (*goalhome.Home, string, bool, error) {
-	return f.home, "scenarios/example/docs/internal/goal", true, nil
+	return f.home, "scenarios/example/docs/internal/goal", !f.notApplicable, f.err
 }
 
 func TestGoalHomeParkPolicyReportsByDefaultAndRefusesWhenEnforced(t *testing.T) {
@@ -134,4 +172,19 @@ func parkPolicyMessages(t *testing.T, o *Orchestrator, runID uuid.UUID, text str
 		}
 	}
 	return out
+}
+
+func TestGoalHomeParkRefusesWhenMandatorySteeringCannotBeRead(t *testing.T) {
+	for _, source := range []fakeGoalHomeParks{
+		{err: errors.New("incomplete LOG evidence")},
+		{err: errors.New("effort repository unavailable"), notApplicable: true},
+		{},
+	} {
+		o := &Orchestrator{goalHomeParks: source}
+		for _, producer := range []string{ProducerChildren, ProducerGCT, ProducerOperatorDecision} {
+			if got := o.checkGoalHomePark(t.Context(), &domain.Run{ID: uuid.New()}, producer, nil); !strings.Contains(got, "park refused") {
+				t.Fatalf("%s bypassed unreadable required steering: %q", producer, got)
+			}
+		}
+	}
 }

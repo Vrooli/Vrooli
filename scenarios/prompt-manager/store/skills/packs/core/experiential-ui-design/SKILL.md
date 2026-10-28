@@ -10,9 +10,9 @@ metadata:
   tags: [ui, ux, visual, mobile, responsive, design, mockup, layout]
   icon: sparkles
   status: active
-  revision: 2
+  revision: 6
   createdAt: "2026-09-21T00:00:00Z"
-  updatedAt: "2026-09-21T12:00:00Z"
+  updatedAt: "2026-10-25T00:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -46,7 +46,10 @@ Out of scope (hand off to the named owner):
 - Multi-language strings → `ui-i18n-adoption`.
 - Pure usability heuristics, contrast ratios, and touch-target sizes → `ux`.
 - Rough-edge finish once the design is settled → `polish`.
-- New product capabilities, API, and data → out of scope; a design skill changes form, not features.
+- Product capabilities, API, and data → implementation belongs to their owners. Identify
+  missing behavior that prevents the approved task; include the enabling change when the
+  assignment authorizes it, otherwise name the precise dependency. This boundary does not
+  make a visually polished but incomplete workflow acceptable.
 
 ### 2. Core doctrine
 
@@ -88,6 +91,78 @@ Check whether the design-system library already exports such a hook before writi
 
 **Layer the assets: procedural first, illustration sparingly.** Star fields, gradients, glow, and theme washes belong in code or SVG — crisp at any size, animatable, theme-aware, tiny, and about ninety percent of the felt beauty. Build that layer before generating any art. Generated hero illustrations are a small set — one motif in a few framings — and are a nice-to-have, not a blocker. Keep glow procedural; it does not survive baking into a raster.
 
+### 2a. Build toward the current design target
+
+Keep one current target in the scenario's existing durable design document (§6):
+selected mockups, applicable amendments, retained capabilities and verified refinements.
+An atlas specifies the selected concept and its unamended details; it is not a command
+to reproduce an awkward artifact or remove useful behavior missing from a screenshot.
+Within product, safety and authority constraints, the latest applicable explicit user
+decision takes precedence over an older design choice. Resolve an actual conflict with
+a governing constraint explicitly. A question or agent preference is not user approval.
+
+| Input | Action and authority |
+| --- | --- |
+| Explicit user amendment, such as retaining bottom navigation | Preserve the request and provenance; update the current target and affected assignments/review criteria. No replacement atlas or repeat concept ratification is required for a clear in-scope amendment. |
+| Ordinary reversible refinement within the chosen concept and workflows | Use design judgment and verify it below. Record it as agent-authored; adopt when the evidence supports it. Do not require an operator decision for every spacing or component choice. |
+| Ambiguous alternatives with a consequential tradeoff, changed concept, removed capability or changed authority | Preserve the working behavior, investigate and present the specific unresolved choice to its owner. Do not silently select by taste or claim human approval. |
+
+Judge a proposed refinement against the same task, state, theme and viewport:
+
+- **Task and hierarchy:** Does it make the main task clearer and reduce competing controls?
+  Keep primary and frequent actions easy to find; secondary tools can use a labelled menu.
+- **Task completeness and recovery:** Can users complete the approved task with realistic
+  data, see state and recover errors? For searchable lists, distinguish a bounded page from
+  an arbitrary total cap: search/filter the full authorized scope before pagination, expose
+  continuation and an honest end, and cover important lifecycle states including outstanding
+  work. A limitation banner does not repair unreachable records. Keep selection, query and
+  return context through drill-in. A collapsed editor and its expanded controls may be
+  complementary states, not alternative features.
+- **Composition:** Does the whole screen have a clear attention order? Prioritize the task
+  and distinguishing record content; subordinate routine freshness/scope metadata, use warning
+  emphasis for actionable exceptional conditions, and group related filters. Match spacing,
+  typography and density to that hierarchy across the product's surfaces.
+  Use familiar icon buttons for unambiguous compact actions such as menu, close and
+  overflow, with accessible names and adequate targets. Do not replace clear primary,
+  destructive or unfamiliar action labels with ambiguous symbols merely to reduce text.
+- **Component fit:** Prefer a suitable governed shared component over custom CSS copying
+  an obvious defect. Inspect its actual contract and behavior; library membership alone
+  does not establish suitability. Change published assets through their owner workflow.
+- **Access and device fit:** Verify keyboard/focus, labels, contrast, touch targets, zoom,
+  responsive behavior and safe areas. Inspect the actual scrolling panes with long real
+  content and machine identifiers; document width alone can miss inner overflow. Verify
+  a coherent focus indicator on composed controls. A flush drawer removes an unnecessary *outer gutter*;
+  it still needs readable inner padding and viewport inset handling.
+- **Evidence and tradeoff:** Show the concrete gain and any cost with before/after captures
+  and operated behavior. A cleaner screenshot alone cannot prove a better interaction. Operate a realistic
+  large dataset, older match, outstanding item, no-match and continuation failure when those
+  cases apply; a small attractive fixture and tests that enshrine a cap are insufficient.
+
+Use the existing target's decision/amendment section, not another feedback manager. Give
+each material amendment/refinement a stable ID, source/author/date, affected surfaces and
+states, intended change and preserved behavior, rationale/tradeoff, evidence, disposition
+(proposed, adopted, rejected or superseded) and any superseded ID. Use descriptive or
+author-scoped IDs, check for duplicates during parallel edits, and preserve concurrent
+authored entries; do not race to allocate one shared sequential number. Preserve whether a
+decision is user-approved or agent-authored; do not relabel an untested proposal adopted.
+Record routine finishing adjustments together when they share a rationale. Use independent
+review for material refinement judgments within the existing acceptance route; don't add
+a human gate to routine execution. If verification disproves the benefit, revise or revert.
+
+Send the current target and applicable IDs to the actual implementer and reviewer. Reconcile
+active briefs and eligible native completion predicates when an amendment changes acceptance;
+verify receipt and application, rather than counting a feedback-file write as adoption.
+Keep worker-owned and native authority boundaries intact.
+
+Compare the served result against this effective target on desktop and phone for responsive
+web UIs, with applicable themes, states and accessibility checks. The existing comparison
+ledger records the source/build identity, reference, amendment/refinement ID, expected
+difference and remaining defect. An implemented, verified amendment or refinement is an
+expected difference and does not block completion. A missing requirement, unverified change
+or genuine defect remains open. Keep original images and decision history; update only
+representative mockups when useful. Do not require a full atlas regeneration or relax the
+whole product's quality bar merely to close a mismatch count.
+
 ### 3. Archetype model — classify each surface, then compose
 
 Walk this table per surface. Two agents reading the same surface must land in the same row.
@@ -114,9 +189,9 @@ This skill owns the ladder. Every rung is gated by a verifiable artifact, run ag
 | **L1 Mockups + concept** | Side-by-side desktop and mobile mockups for every primary surface under `scenarios/{{TARGET}}/docs/mockups/`; the unifying concept is named in the scenario's durable design doc (§6). | The design is agreed but not built. Stop here only to get the two human ratifications. |
 | **L2 Medium-composed** | The breakpoint hook exists (`rg -e useBreakpoint -e useIsMobile scenarios/{{TARGET}}/ui/src` is non-empty) and every Dashboard/Immersive/Table archetype surface renders distinct desktop and mobile component trees, not one reflowed tree. | Composition is real but the concept and assets are not yet applied everywhere. |
 | **L3 Concept + asset system** | The unifying concept is applied on every primary surface; the procedural visual layer exists as a dedicated component or stylesheet under `scenarios/{{TARGET}}/ui/src/` (for example a `*Backdrop`, `*Scene`, or `theme/*.css` module the primary surfaces render), confirmable by `rg` or `ls`; an image brief exists at `scenarios/{{TARGET}}/docs/mockups/image-generation-brief.md` when illustration is used. | The world is coherent; visual parity is not yet verified against the mockups. |
-| **L4 Beauty verified** | Desktop and mobile captures (and Day/Night when themed) exist and are compared to the mockups with no open parity or visual findings in the durable doc; the concept and mockups carry a human ratification. | Ceiling. Stop. Adding ornamentation past the concept is a regression (`improvement-do-and-dont`), not a higher rung. |
+| **L4 Beauty verified** | Desktop and mobile captures (and Day/Night when themed) exist and are compared to the current design target (§2a), with expected differences linked to adopted amendments/refinements and no unresolved required visual or behavior findings; the selected concept and mockups carry their human ratification. | Ceiling. Stop. Adding ornamentation past the concept is a regression (`improvement-do-and-dont`), not a higher rung. |
 
-The terminal "is it genuinely beautiful?" judgment has no mechanical oracle; it routes to the two human checkpoints (concept, mockups). L4 gates only the verifiable process artifacts around that judgment — captures exist, compare to the mockups, and leave no open findings.
+The terminal "is it genuinely beautiful?" judgment has no mechanical oracle. The two human checkpoints establish the concept and selected mockups; §2a governs later amendments and refinements. L4 verifies the current target, operated behavior and comparison evidence; exact pixel-match totals are not a substitute for judgment.
 
 This L0–L4 ladder is the *experiential* axis; it is distinct from the R0–R4 scenario maturity ladder (`scenario-maturity-ladder`). A surface can be R3-mature yet L1 on experience.
 
@@ -125,7 +200,7 @@ This L0–L4 ladder is the *experiential* axis; it is distinct from the R0–R4 
 - Reflow is not composition. Do not claim a mobile design from added breakpoints while the component tree and interaction model are unchanged (that stays L0/L1).
 - Do not remove content to "fit" mobile. Missing content is a different, worse product; re-sequence instead.
 - Do not add visual ornamentation unmoored from the concept to look "designed". Decoration that the concept did not call for is a finding, not progress.
-- A screenshot that renders is not a design that is beautiful. Judge captures against the mockups, not against "it loads". The gaming definitions live in `improvement-do-and-dont`; cite it.
+- A screenshot that renders is not a design that is beautiful. Judge captures against the current design target (§2a), not against "it loads". Neither personal taste nor a shared-component label excuses lost behavior or an unverified deviation. The gaming definitions live in `improvement-do-and-dont`; cite it.
 
 ### 6. Memory management
 

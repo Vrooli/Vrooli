@@ -274,7 +274,7 @@ func (s *HeartbeatControlStore) Pause(ctx context.Context, teamID, reason string
 	if err != nil {
 		return nil, err
 	}
-	now := formatTime(s.now())
+	now := s.now().UTC().Format(time.RFC3339Nano)
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		return nil, fmt.Errorf("pause reason is required")
@@ -309,7 +309,7 @@ func (s *HeartbeatControlStore) Resume(ctx context.Context, teamID string, attr 
 	if err != nil {
 		return nil, err
 	}
-	now := formatTime(s.now())
+	now := s.now().UTC().Format(time.RFC3339Nano)
 	if teamID == "" {
 		doc.GlobalState.Status = HeartbeatControlStatusActive
 		doc.GlobalState.LastResumedAt = &now
@@ -599,7 +599,16 @@ func (s *HeartbeatControlStore) teamStatusLocked(doc *HeartbeatControlDocument, 
 	if status == "" {
 		status = HeartbeatControlStatusActive
 	}
-	if global.Status == HeartbeatControlStatusPausedManual || global.Status == HeartbeatControlStatusPausedAuto {
+	// Explicit team resume releases only a pre-existing manual global hold.
+	// A later global pause wins again. Automatic inactivity holds never yield
+	// to agent activity, which does not count as human engagement.
+	resumedAfterManualHold := false
+	if resumed, ok := parseTimePtr(state.LastResumedAt); ok {
+		if paused, ok := parseTimePtr(global.PausedAt); ok {
+			resumedAfterManualHold = resumed.After(paused)
+		}
+	}
+	if (global.Status == HeartbeatControlStatusPausedManual && !resumedAfterManualHold) || global.Status == HeartbeatControlStatusPausedAuto {
 		scope = heartbeatControlGlobalScope
 		status = global.Status
 		state.LastPausedAt = global.PausedAt

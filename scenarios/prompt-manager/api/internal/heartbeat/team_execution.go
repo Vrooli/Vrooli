@@ -1876,7 +1876,8 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 }
 
 // ClearRunning removes a single running entry for the team. Without force,
-// it requires exact terminal owner evidence; active or unverified owners are
+// it requires exact terminal run evidence, or a cancelled task with no current
+// run and a complete empty attempt inventory. Active or unverified owners are
 // preserved. If the agent isn't recorded as running, returns
 // ErrRunningEntryNotFound.
 func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string, force bool) error {
@@ -1889,7 +1890,7 @@ func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string,
 	}
 
 	if !force {
-		if entry.RunID == "" {
+		if entry.RunID == "" && (entry.TaskID == "" || entry.DispatchStage != DispatchStageIntent) {
 			c.mu.Unlock()
 			return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, Reason: "no run ID is recorded"}
 		}
@@ -1901,15 +1902,21 @@ func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string,
 		// Release the lock for the network call, then verify the same slot still
 		// belongs to this run before changing queue state.
 		c.mu.Unlock()
-		run, err := client.GetRun(ctx, entry.RunID)
-		if err != nil {
-			return &RunningOwnerLookupError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Err: err}
-		}
-		if run == nil || run.ID != entry.RunID {
-			return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Reason: "Agent Manager did not confirm the exact run ID"}
-		}
-		if !IsTerminalStatus(run.Status) {
-			return &RunningStillActiveError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Status: run.Status}
+		if entry.RunID == "" {
+			if err := c.verifyCancelledTaskWithoutAttempts(ctx, client, agentID, entry.TaskID); err != nil {
+				return err
+			}
+		} else {
+			run, err := client.GetRun(ctx, entry.RunID)
+			if err != nil {
+				return &RunningOwnerLookupError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Err: err}
+			}
+			if run == nil || run.ID != entry.RunID {
+				return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Reason: "Agent Manager did not confirm the exact run ID"}
+			}
+			if !IsTerminalStatus(run.Status) {
+				return &RunningStillActiveError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Status: run.Status}
+			}
 		}
 		c.mu.Lock()
 		current, stillPresent := c.running[agentID]
@@ -1917,7 +1924,7 @@ func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string,
 			c.mu.Unlock()
 			return ErrRunningEntryNotFound
 		}
-		if current.RunID != entry.RunID {
+		if current.RunID != entry.RunID || current.TaskID != entry.TaskID || current.IdempotencyKey != entry.IdempotencyKey || current.DispatchStage != entry.DispatchStage {
 			c.mu.Unlock()
 			return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, RunID: entry.RunID, Reason: "the retained slot changed while owner status was checked"}
 		}
@@ -1935,6 +1942,30 @@ func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string,
 	}
 	c.mu.Unlock()
 	c.startExecutions(dispatches)
+	return nil
+}
+
+// Cancellation is owned by Agent Manager and fences future task admission.
+// Absence alone, a terminal-looking task with attempts, or a partial page is
+// insufficient to release a task-only intent whose run response may be lost.
+func (c *TeamExecutionContext) verifyCancelledTaskWithoutAttempts(ctx context.Context, client AgentClient, agentID, taskID string) error {
+	unverified := func(reason string) error {
+		return &RunningOwnerUnverifiedError{TeamID: c.teamID, AgentID: agentID, Reason: reason}
+	}
+	task, err := client.GetTask(ctx, taskID)
+	if err != nil {
+		return &RunningOwnerLookupError{TeamID: c.teamID, AgentID: agentID, Err: err}
+	}
+	if task == nil || task.ID != taskID || task.Status != "TASK_STATUS_CANCELLED" || task.CurrentRunID != "" {
+		return unverified("Agent Manager must confirm the exact cancelled task with no current run")
+	}
+	attempts, err := client.ListRuns(ctx, ListRunsOptions{TaskID: taskID, Limit: 1})
+	if err != nil {
+		return &RunningOwnerLookupError{TeamID: c.teamID, AgentID: agentID, Err: err}
+	}
+	if attempts == nil || attempts.HasMore || attempts.Total != 0 || len(attempts.Runs) != 0 {
+		return unverified("Agent Manager did not confirm a complete empty task attempt inventory")
+	}
 	return nil
 }
 

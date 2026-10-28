@@ -50,8 +50,10 @@ type Team struct {
 // TeamDetails represents full team details
 type TeamDetails struct {
 	Team
-	Roles   []Role   `json:"roles"`
-	Members []Member `json:"members"`
+	Roles                []Role      `json:"roles"`
+	Members              []Member    `json:"members"`
+	ManagementAuthorized bool        `json:"managementAuthorized"`
+	Revision             json.Number `json:"revision"`
 }
 
 // Role represents a team role
