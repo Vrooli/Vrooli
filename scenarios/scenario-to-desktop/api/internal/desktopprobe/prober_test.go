@@ -14,17 +14,32 @@ func TestProberReportsOracleLinuxCapabilities(t *testing.T) {
 		LookPath: func(name string) (string, error) {
 			return "/usr/bin/" + name, nil
 		},
-		Getenv: func(string) string { return "" },
+		Getenv:              func(string) string { return "" },
+		ProbeOfflineNetwork: func(context.Context, string) error { return nil },
 	}).Probe(context.Background(), deliveryramp.ProbeRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	target := result.Targets[0]
-	if !target.Available || !target.Supports(deliveryramp.CapabilityCDP) || !target.Supports(deliveryramp.CapabilityNativeWindow) || !target.Supports(deliveryramp.CapabilityProcessMetrics) {
+	if !target.Available || !target.Supports(deliveryramp.CapabilityCDP) || !target.Supports(deliveryramp.CapabilityNativeWindow) || !target.Supports(deliveryramp.CapabilityProcessMetrics) || !target.Supports(deliveryramp.CapabilityOfflineNetwork) {
 		t.Fatalf("unexpected target: %+v", target)
 	}
 	if err := result.Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestProberOmitsOfflineNetworkWhenNamespaceProbeFails(t *testing.T) {
+	result, err := (Prober{
+		GOOS: "linux", GOARCH: "amd64",
+		LookPath:            func(name string) (string, error) { return "/usr/bin/" + name, nil },
+		ProbeOfflineNetwork: func(context.Context, string) error { return errors.New("namespace unavailable") },
+	}).Probe(context.Background(), deliveryramp.ProbeRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Targets[0].Supports(deliveryramp.CapabilityOfflineNetwork) {
+		t.Fatalf("offline network capability was advertised without a working namespace: %+v", result.Targets[0])
 	}
 }
 

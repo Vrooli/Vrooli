@@ -106,6 +106,9 @@ type Logger interface {
 
 // ExecutionResult contains the detailed output from command execution.
 type ExecutionResult struct {
+	// processScopeRoot is an explicitly owned smoke directory, not caller cwd.
+	processScopeRoot string
+
 	// ProcessSessionID identifies this launch in descendant environments so
 	// cleanup and the post-launch assertion still find children moved to scopes.
 	ProcessSessionID string `json:"process_session_id,omitempty"`

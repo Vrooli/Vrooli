@@ -112,39 +112,26 @@ func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error 
 	}
 }
 
-// pollReadinessHealth deliberately uses a short retry interval. The manifest
-// health interval is an operator monitoring cadence (often 30 seconds); using
-// it for startup readiness can make a service miss its entire readiness
-// deadline after one transient connection-refused result.
+// pollReadinessHealth uses the startup deadline, independently of the operator
+// monitoring interval and retry count. WaitForReadiness owns that deadline.
 func (m *Monitor) pollReadinessHealth(ctx context.Context, svc manifest.Service) error {
-	interval := 500 * time.Millisecond
-	timeout := time.Duration(svc.Readiness.TimeoutMs) * time.Millisecond
-	if timeout == 0 {
-		timeout = 30 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	retries := svc.Health.Retries
-	if retries == 0 {
-		retries = 3
-	}
-	for attempt := 0; attempt <= retries; attempt++ {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+	for attempt := 1; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		ok := m.checkHealthOnce(ctx, svc, 2*time.Second)
 		if m.OnReadinessProbe != nil {
-			m.OnReadinessProbe(svc.ID, attempt+1, ok, m.clock.Now())
+			m.OnReadinessProbe(svc.ID, attempt, ok, m.clock.Now())
 		}
 		if ok {
 			return nil
 		}
-		m.clock.Sleep(interval)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-m.clock.After(100 * time.Millisecond):
+		}
 	}
-	return fmt.Errorf("health readiness check failed after %d attempts", retries+1)
 }
 
 // CheckOnce performs a single health check for a service.
@@ -162,42 +149,14 @@ func (m *Monitor) CheckOnce(ctx context.Context, serviceID string) bool {
 	return m.checkHealthOnce(ctx, *svc, timeout)
 }
 
-// pollHealth repeatedly checks health until success or timeout.
-func (m *Monitor) pollHealth(ctx context.Context, svc manifest.Service) error {
-	interval := time.Duration(svc.Health.IntervalMs) * time.Millisecond
-	if interval == 0 {
-		interval = 500 * time.Millisecond
-	}
-	timeout := time.Duration(svc.Health.TimeoutMs) * time.Millisecond
-	if timeout == 0 {
-		timeout = 2 * time.Second
-	}
-	retries := svc.Health.Retries
-	if retries == 0 {
-		retries = 3
-	}
-
-	for attempt := 0; attempt <= retries; attempt++ {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		if m.checkHealthOnce(ctx, svc, timeout) {
-			return nil
-		}
-		m.clock.Sleep(interval)
-	}
-	return fmt.Errorf("health check failed after %d attempts", retries+1)
-}
-
 // checkHealthOnce performs a single health check.
 func (m *Monitor) checkHealthOnce(ctx context.Context, svc manifest.Service, timeout time.Duration) bool {
 	switch svc.Health.Type {
 	case "http":
 		return m.checkHTTPHealth(ctx, svc, timeout)
 	case "tcp":
-		return m.checkTCPHealth(svc, timeout)
+		port, err := m.ports.Resolve(svc.ID, svc.Health.PortName)
+		return err == nil && m.checkTCPPort(ctx, port, timeout)
 	case "command":
 		return m.checkCommandHealth(ctx, svc, timeout)
 	case "log_match":
@@ -260,17 +219,15 @@ func parseHealthBody(body io.Reader) bool {
 	return true
 }
 
-// checkTCPHealth verifies service health via TCP connection.
-func (m *Monitor) checkTCPHealth(svc manifest.Service, timeout time.Duration) bool {
-	port, err := m.ports.Resolve(svc.ID, svc.Health.PortName)
+// checkTCPPort shares deadline-bound dialing for health and port readiness.
+func (m *Monitor) checkTCPPort(ctx context.Context, port int, timeout time.Duration) bool {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	conn, err := m.dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return false
 	}
-	conn, err := m.dialer.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), timeout)
-	if err != nil {
-		return false
-	}
-	conn.Close()
+	_ = conn.Close()
 	return true
 }
 
@@ -329,17 +286,17 @@ func (m *Monitor) logMatches(svc manifest.Service, pattern string) bool {
 // waitForPort waits for a TCP port to become available.
 func (m *Monitor) waitForPort(ctx context.Context, port int) error {
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if m.checkTCPPort(ctx, port, 500*time.Millisecond) {
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
+		case <-m.clock.After(250 * time.Millisecond):
 		}
-		conn, err := m.dialer.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 500*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			return nil
-		}
-		m.clock.Sleep(250 * time.Millisecond)
 	}
 }
 

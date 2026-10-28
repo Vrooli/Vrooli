@@ -47,6 +47,16 @@ clients to infer its shape from a stage name. The resource-deployment case
 contains the immutable target/resource decision used by bundle staging, so a
 desktop release can be audited from its pipeline record.
 
+Build execution uses one context-aware service. Standalone `StartBuild` and
+`StartScenarioBuild` accept asynchronous work: their execution detaches from
+RPC cancellation and has a 30-minute owner deadline. There is no standalone
+build cancellation endpoint. The pipeline invokes that service synchronously
+under its context and deadline. Cancellation stops owned shell descendants
+before the build stage returns; the build records failure with its cancellation
+cause and the pipeline stage records cancellation. The owner does not poll its
+own build store. Measured launches retain request-context cancellation and
+process-session descendant assertions.
+
 `EvidenceService` accepts an `EvidenceTarget`. `KIND_LOCAL` executes on the
 scenario-to-desktop host and is the supported implementation today. A
 `KIND_BRIDGE_NODE` request is rejected with `unimplemented` until the separate

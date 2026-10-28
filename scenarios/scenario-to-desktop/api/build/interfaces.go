@@ -2,18 +2,18 @@
 // This domain handles building Electron applications for multiple platforms.
 package build
 
-import "log/slog"
+import "context"
 
 // Service orchestrates desktop build operations.
 type Service interface {
 	// PerformDesktopBuild builds a desktop application from the given path.
-	PerformDesktopBuild(buildID string, request *BuildRequest)
+	PerformDesktopBuild(ctx context.Context, buildID string, request *BuildRequest)
 
 	// PerformScenarioDesktopBuild builds a scenario's desktop application.
-	PerformScenarioDesktopBuild(buildID, scenarioName, desktopPath string, platforms []string, clean bool)
+	PerformScenarioDesktopBuild(ctx context.Context, buildID, scenarioName, desktopPath string, platforms []string, clean bool)
 
 	// BuildPlatform builds for a specific platform.
-	BuildPlatform(buildID, scenarioName, desktopPath, distPath, platform string)
+	BuildPlatform(ctx context.Context, buildID, scenarioName, desktopPath, distPath, platform string)
 }
 
 // Store manages build status tracking.
@@ -55,24 +55,4 @@ type Logger interface {
 	Info(msg string, args ...interface{})
 	Warn(msg string, args ...interface{})
 	Error(msg string, args ...interface{})
-}
-
-// SlogLogger adapts slog.Logger to the Logger interface.
-type SlogLogger struct {
-	*slog.Logger
-}
-
-// Info logs an info message.
-func (l *SlogLogger) Info(msg string, args ...interface{}) {
-	l.Logger.Info(msg, args...)
-}
-
-// Warn logs a warning message.
-func (l *SlogLogger) Warn(msg string, args ...interface{}) {
-	l.Logger.Warn(msg, args...)
-}
-
-// Error logs an error message.
-func (l *SlogLogger) Error(msg string, args ...interface{}) {
-	l.Logger.Error(msg, args...)
 }

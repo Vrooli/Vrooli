@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func cleanupProcessSession(sessionID string, _ time.Duration) ([]int, error) {
+func cleanupProcessSession(sessionID, _ string, _ time.Duration) ([]int, error) {
 	if sessionID == "" {
 		return nil, fmt.Errorf("empty process session marker")
 	}

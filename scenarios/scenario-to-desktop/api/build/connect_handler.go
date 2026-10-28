@@ -24,7 +24,7 @@ var _ domainconnect.BuildServiceHandler = (*ConnectService)(nil)
 
 func NewConnectService(handler *Handler) *ConnectService { return &ConnectService{handler: handler} }
 
-func (s *ConnectService) StartBuild(_ context.Context, req *connect.Request[domainv1.BuildRequest]) (*connect.Response[domainv1.BuildResponse], error) {
+func (s *ConnectService) StartBuild(ctx context.Context, req *connect.Request[domainv1.BuildRequest]) (*connect.Response[domainv1.BuildResponse], error) {
 	if req.Msg.GetDesktopPath() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("desktop_path is required"))
 	}
@@ -34,11 +34,15 @@ func (s *ConnectService) StartBuild(_ context.Context, req *connect.Request[doma
 	}
 	buildID := uuid.NewString()
 	s.create(buildID, "", req.Msg.GetDesktopPath(), platforms)
-	go s.handler.service.PerformDesktopBuild(buildID, &BuildRequest{DesktopPath: req.Msg.GetDesktopPath(), Platforms: platforms, Sign: req.Msg.GetSign(), Publish: req.Msg.GetPublish()})
+	go func() {
+		buildCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), DefaultBuildTimeout)
+		defer cancel()
+		s.handler.service.PerformDesktopBuild(buildCtx, buildID, &BuildRequest{DesktopPath: req.Msg.GetDesktopPath(), Platforms: platforms, Sign: req.Msg.GetSign(), Publish: req.Msg.GetPublish()})
+	}()
 	return connect.NewResponse(&domainv1.BuildResponse{BuildId: buildID, Status: "building", StatusUrl: "/vrooli.scenario_to_desktop.v1.domain.BuildService/GetBuild"}), nil
 }
 
-func (s *ConnectService) StartScenarioBuild(_ context.Context, req *connect.Request[domainv1.ScenarioBuildRequest]) (*connect.Response[domainv1.BuildResponse], error) {
+func (s *ConnectService) StartScenarioBuild(ctx context.Context, req *connect.Request[domainv1.ScenarioBuildRequest]) (*connect.Response[domainv1.BuildResponse], error) {
 	if req.Msg.GetScenarioName() == "" || req.Msg.GetDesktopPath() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario_name and desktop_path are required"))
 	}
@@ -48,7 +52,11 @@ func (s *ConnectService) StartScenarioBuild(_ context.Context, req *connect.Requ
 	}
 	buildID := uuid.NewString()
 	s.create(buildID, req.Msg.GetScenarioName(), req.Msg.GetDesktopPath(), platforms)
-	go s.handler.service.PerformScenarioDesktopBuild(buildID, req.Msg.GetScenarioName(), req.Msg.GetDesktopPath(), platforms, req.Msg.GetClean())
+	go func() {
+		buildCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), DefaultBuildTimeout)
+		defer cancel()
+		s.handler.service.PerformScenarioDesktopBuild(buildCtx, buildID, req.Msg.GetScenarioName(), req.Msg.GetDesktopPath(), platforms, req.Msg.GetClean())
+	}()
 	return connect.NewResponse(&domainv1.BuildResponse{BuildId: buildID, Status: "building", StatusUrl: "/vrooli.scenario_to_desktop.v1.domain.BuildService/GetBuild"}), nil
 }
 

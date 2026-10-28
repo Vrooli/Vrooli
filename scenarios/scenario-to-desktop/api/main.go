@@ -492,7 +492,7 @@ func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *p
 
 	scenarioAnalyzer := generation.NewAnalyzer(deps.vrooliRoot)
 	manifestGenerator := pipeline.NewDeploymentManagerGenerator(
-		pipeline.WithGeneratorLogger(&pipeline.SlogLogger{Logger: logger}),
+		pipeline.WithGeneratorLogger(logger),
 	)
 
 	deployTargetsPath, err := storePaths.DeployTargetsPath()
@@ -541,7 +541,7 @@ func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *p
 
 	orchestratorOpts := []pipeline.OrchestratorOption{
 		pipeline.WithOrchestratorScenarioRoot(deps.scenarioRoot),
-		pipeline.WithLogger(&pipeline.SlogLogger{Logger: logger}),
+		pipeline.WithLogger(logger),
 		pipeline.WithStages(stages...),
 	}
 	if pipelineStore != nil {
@@ -552,7 +552,7 @@ func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *p
 	manager := pipeline.NewManager(
 		pipeline.WithManagerOrchestrator(orchestrator),
 		pipeline.WithManagerIndexStore(indexStore),
-		pipeline.WithManagerLogger(&pipeline.SlogLogger{Logger: logger}),
+		pipeline.WithManagerLogger(logger),
 	)
 	if n := manager.RecoverStalePipelines(); n > 0 {
 		logger.Info("recovered stale pipelines at startup", "count", n)
@@ -571,7 +571,7 @@ func newPipelineFileStore(storePaths *storagepaths.Locator, logger *slog.Logger)
 		logger.Warn("pipeline storage directory unavailable", "error", err)
 	}
 	store, err := pipeline.NewFileStore(dataDir,
-		pipeline.WithFileStoreLogger(&pipeline.SlogLogger{Logger: logger}),
+		pipeline.WithFileStoreLogger(logger),
 	)
 	if err != nil {
 		logger.Warn("pipeline file store unavailable, using in-memory", "error", err)
@@ -616,7 +616,7 @@ func newPipelineIndexStore(storePaths *storagepaths.Locator, logger *slog.Logger
 		logger.Warn("pipeline index directory unavailable", "error", err)
 	}
 	store, err := pipeline.NewScenarioIndexStore(dataDir,
-		pipeline.WithIndexStoreLogger(&pipeline.SlogLogger{Logger: logger}),
+		pipeline.WithIndexStoreLogger(logger),
 	)
 	if err != nil {
 		logger.Warn("scenario index store unavailable", "error", err)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
@@ -564,9 +565,15 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 			{
 				DependencyName: "support-scenario",
 				AccessMethod:   "vrooli scenario",
+				Required:       true,
+			},
+			{
+				DependencyName: "ai-gateway",
+				AccessMethod:   "scenario_url_discovery",
+				Required:       false,
 			},
 		},
-		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "support-scenario"}}},
+		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "support-scenario"}, {Name: "ai-gateway"}}},
 	}
 
 	summary, err := applyDetectedDiffs("apply-subject", analysis, true, true, defaultDependencyService())
@@ -604,6 +611,10 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	}
 	if scenarioDep.VersionRange != ">=1.0.0" {
 		t.Fatalf("expected version range to track detected version, got %q", scenarioDep.VersionRange)
+	}
+	aiGateway, ok := cfg.Dependencies.Scenarios["ai-gateway"]
+	if !ok || aiGateway.Required || aiGateway.StartupPolicy != "try_start" || !strings.Contains(aiGateway.DegradedBehavior, "verify this scenario's capability contract") {
+		t.Fatalf("ai-gateway inferred optional policy is incorrect: %+v", aiGateway)
 	}
 }
 

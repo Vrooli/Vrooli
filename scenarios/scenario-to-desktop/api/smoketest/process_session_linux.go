@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// cleanupProcessSession finds processes by the launch marker inherited in
-// their environment, including children moved into systemd agent scopes.
-func cleanupProcessSession(sessionID string, grace time.Duration) ([]int, error) {
+// cleanupProcessSession includes children that move groups or sanitize their
+// environment. The optional root is allocated by the smoke owner before launch.
+func cleanupProcessSession(sessionID, scopeRoot string, grace time.Duration) ([]int, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, fmt.Errorf("empty process session marker")
 	}
@@ -30,7 +30,18 @@ func cleanupProcessSession(sessionID string, grace time.Duration) ([]int, error)
 				continue
 			}
 			data, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "environ"))
-			if err != nil || !hasSessionMarker(data, sessionID) {
+			owned := err == nil && hasSessionMarker(data, sessionID)
+			if !owned && scopeRoot != "" {
+				for _, link := range []string{"exe", "cwd"} {
+					target, readErr := os.Readlink(filepath.Join("/proc", entry.Name(), link))
+					target = strings.TrimSuffix(target, " (deleted)")
+					if readErr == nil && (target == scopeRoot || isUnderPath(target, scopeRoot)) {
+						owned = true
+						break
+					}
+				}
+			}
+			if !owned {
 				continue
 			}
 			if zombie, _ := processIsZombie(entry.Name()); !zombie {
@@ -77,13 +88,7 @@ func cleanupProcessSession(sessionID string, grace time.Duration) ([]int, error)
 }
 
 func hasSessionMarker(environ []byte, sessionID string) bool {
-	needle := []byte("S2D_PROCESS_SESSION=" + sessionID)
-	for _, entry := range strings.Split(string(environ), "\x00") {
-		if entry == string(needle) {
-			return true
-		}
-	}
-	return false
+	return strings.Contains("\x00"+string(environ)+"\x00", "\x00S2D_PROCESS_SESSION="+sessionID+"\x00")
 }
 
 func processIsZombie(pid string) (bool, error) {

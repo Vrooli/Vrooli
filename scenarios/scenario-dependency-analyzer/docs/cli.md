@@ -766,6 +766,12 @@ surfaces caused by missing in-repo replaces are guided and point to
 changed files to in-repo Go module roots and then to scenario surfaces requiring
 those modules; root `go.mod` and `go.sum` changes fan out to all Go surfaces.
 
+To remove one known requirement from the repository root without a topology
+scan or lockfile rewrite, use `deps remove --scenario vrooli --surface
+control-plane --ecosystem go --module <module-path>`. Review the dry-run output,
+then apply with `--apply --expected-sha256 <before-sha256>`; the command edits
+only that exact root requirement and leaves `go.sum` unchanged.
+
 ---
 
 ### Resource Python first-lock bootstrap

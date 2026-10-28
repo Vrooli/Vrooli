@@ -221,7 +221,7 @@ func (c *dependencyApplyContext) addInterfaceGraphScenario(dependencyName, evide
 	if c.rawScenarios == nil {
 		c.rawScenarios = orderedmap.New()
 	}
-	c.rawScenarios.Set(dependencyName, orderedScenarioEntry(versionRange, description))
+	c.rawScenarios.Set(dependencyName, orderedScenarioEntry(versionRange, description, true, "", ""))
 	return dependencyName, true
 }
 
@@ -267,16 +267,21 @@ func (c *dependencyApplyContext) addDetectedScenario(dep types.ScenarioDependenc
 
 	description := fmt.Sprintf("Auto-detected dependency via %s", dep.AccessMethod)
 	versionRange := resolveScenarioVersionRange(dep.DependencyName)
-	c.cfg.Dependencies.Scenarios[dep.DependencyName] = types.ScenarioDependencySpec{
-		Required:     true,
+	spec := types.ScenarioDependencySpec{
+		Required:     dep.Required,
 		VersionRange: versionRange,
 		Description:  description,
 	}
+	if !dep.Required {
+		spec.StartupPolicy = "try_start"
+		spec.DegradedBehavior = "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it."
+	}
+	c.cfg.Dependencies.Scenarios[dep.DependencyName] = spec
 
 	if c.rawScenarios == nil {
 		c.rawScenarios = orderedmap.New()
 	}
-	c.rawScenarios.Set(dep.DependencyName, orderedScenarioEntry(versionRange, description))
+	c.rawScenarios.Set(dep.DependencyName, orderedScenarioEntry(versionRange, description, spec.Required, spec.StartupPolicy, spec.DegradedBehavior))
 
 	return dep.DependencyName, true
 }
@@ -523,9 +528,15 @@ func orderedResourceEntry(typeHint, description string) *orderedmap.OrderedMap {
 	return entry
 }
 
-func orderedScenarioEntry(versionRange, description string) *orderedmap.OrderedMap {
+func orderedScenarioEntry(versionRange, description string, required bool, startupPolicy, degradedBehavior string) *orderedmap.OrderedMap {
 	entry := orderedmap.New()
-	entry.Set("required", true)
+	entry.Set("required", required)
+	if startupPolicy != "" {
+		entry.Set("startup_policy", startupPolicy)
+	}
+	if degradedBehavior != "" {
+		entry.Set("degraded_behavior", degradedBehavior)
+	}
 	entry.Set("versionRange", versionRange)
 	entry.Set("description", description)
 	return entry

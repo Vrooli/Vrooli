@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
@@ -51,15 +52,16 @@ func measuredProfileDirPath(smokeTestID string) string {
 	return filepath.Join(os.TempDir(), "scenario-to-desktop", "profiles", smokeTestID+"-measured")
 }
 
-func measuredUserDataDirPath(smokeTestID, stage string, status *Status) string {
-	key := smokeTestID
+func smokeUserDataDirPath(smokeTestID, stage string, status *Status) string {
+	// Keep the job root short enough for Chromium's temporary Unix sockets.
+	key := filepath.Join(os.TempDir(), "s2d-"+smokeTestID)
 	// Cold protocol validation must not initialize the measured launch's user
 	// data. Warm measurement deliberately reuses protocol state for the second
 	// immediate launch.
 	if status != nil && status.Condition == "cold" {
-		key += "-" + stage
+		key = filepath.Join(key, stage)
 	}
-	return filepath.Join(os.TempDir(), "scenario-to-desktop", "user-data", key)
+	return key
 }
 
 // recordingState holds the active screen recording context during a smoke test.
@@ -155,6 +157,16 @@ func (s *DefaultService) performSmokeTestWithJourney(ctx context.Context, smokeT
 	}
 	defer s.cancelManager.Clear(smokeTestID)
 	defer s.recoverFromPanic(smokeTestID)
+	jobRoot := smokeUserDataDirPath(smokeTestID, "", nil)
+	defer func() {
+		if err := os.RemoveAll(jobRoot); err != nil {
+			s.recordTypedFailure(smokeTestID, NewExecutionError("user-data cleanup failed", err, nil))
+		}
+	}()
+	if err := os.MkdirAll(jobRoot, 0o700); err != nil {
+		s.recordTypedFailure(smokeTestID, NewExecutionError("create smoke job directory", err, nil))
+		return
+	}
 
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, fmt.Sprintf(
@@ -165,6 +177,7 @@ func (s *DefaultService) performSmokeTestWithJourney(ctx context.Context, smokeT
 
 	rec := s.setupScreenRecording(ctx, smokeTestID)
 	if rec.cleanup != nil {
+		rec.cleanup = sync.OnceFunc(rec.cleanup)
 		defer rec.cleanup()
 	}
 
@@ -221,6 +234,13 @@ func (s *DefaultService) performSmokeTestWithJourney(ctx context.Context, smokeT
 	}
 	if execErr == nil && manifestErr != nil {
 		execErr = manifestErr
+	}
+	if rec.cleanup != nil {
+		rec.cleanup()
+	}
+	if err := os.RemoveAll(jobRoot); err != nil {
+		s.recordTypedFailure(smokeTestID, NewExecutionError("job cleanup failed", err, nil))
+		return
 	}
 	s.processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand, execResult, execErr)
 }
@@ -477,9 +497,7 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 	if status, ok := s.store.Get(smokeTestID); ok {
 		smokeTimeout = s.config.TimeoutForDeploymentMode(status.DeploymentMode)
 		smokeTimeoutMS = s.config.TimeoutMSForDeploymentMode(status.DeploymentMode)
-		if status.Measured {
-			args = append(args, "--user-data-dir="+measuredUserDataDirPath(smokeTestID, "protocol", status))
-		}
+		args = append(args, "--user-data-dir="+smokeUserDataDirPath(smokeTestID, "protocol", status))
 	}
 	// Build environment
 	uploadURL := telemetryIngestURL(s.port)
@@ -495,6 +513,9 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 		fmt.Sprintf("S2D_PACKAGED_LAUNCH_PATH=%s", packagedLaunchPath(smokeTestID, "protocol")),
 		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
 		fmt.Sprintf("S2D_PROFILE_DIR=%s", profile),
+	}
+	if runtime.GOOS == "linux" {
+		env = append(env, "TMPDIR="+smokeUserDataDirPath(smokeTestID, "", nil))
 	}
 	if status, ok := s.store.Get(smokeTestID); ok {
 		env = appendMeasuredLaunchEnvironment(env, status)
@@ -570,8 +591,8 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 
 	// Strip --smoke-test from args so the app launches in normal mode
 	args = StripSmokeTestFlag(args)
-	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
-		args = append(args, "--user-data-dir="+measuredUserDataDirPath(smokeTestID, "demo", status))
+	if status, ok := s.store.Get(smokeTestID); ok {
+		args = append(args, "--user-data-dir="+smokeUserDataDirPath(smokeTestID, "demo", status))
 	}
 	releaseFile := filepath.Join(os.TempDir(), "scenario-to-desktop", "demo-release-"+smokeTestID)
 	_ = os.Remove(releaseFile)
@@ -594,6 +615,9 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		fmt.Sprintf("S2D_PROFILE_DIR=%s", profile),
 		fmt.Sprintf("S2D_BUNDLED_TARGET_PATH=%s", bundledTargetPath(smokeTestID)),
 		fmt.Sprintf("SMOKE_TEST_DEMO_RELEASE_FILE=%s", releaseFile),
+	}
+	if runtime.GOOS == "linux" {
+		env = append(env, "TMPDIR="+smokeUserDataDirPath(smokeTestID, "", nil))
 	}
 	if status, ok := s.store.Get(smokeTestID); ok {
 		env = appendMeasuredLaunchEnvironment(env, status)
@@ -1082,8 +1106,8 @@ func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, arti
 		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, displayID, displayWidth, displayHeight)
 		lastResult = result
 
-		if err == nil {
-			return result, nil
+		if status, ok := s.store.Get(smokeTestID); err == nil || ok && status.Measured {
+			return result, err
 		}
 
 		// Check if this is a retryable error

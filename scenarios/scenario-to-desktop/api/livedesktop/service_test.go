@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/procmetrics"
+	"scenario-to-desktop-api/target"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -196,6 +197,36 @@ func TestFindArtifactByDigestSearchesStaging(t *testing.T) {
 
 	_, err = service.FindArtifactByDigest("demo", "sha256:"+strings.Repeat("0", 64))
 	assert.Error(t, err)
+}
+
+func TestBundledElectronValidationSkipsScenarioPortResolvers(t *testing.T) {
+	service := newTestService(NewInMemoryStore(), newMockBackend())
+	session, err := service.StartSession(context.Background(), SessionConfig{Width: 640, Height: 480, ScenarioName: "bundled-demo"})
+	require.NoError(t, err)
+	apiCalls, rendererCalls := 0, 0
+	service.WithValidationAPIPortResolver(func(context.Context, string) (int, error) {
+		apiCalls++
+		return 0, fmt.Errorf("must not resolve scenario API port")
+	})
+	service.WithRendererURLResolver(func(context.Context, string) (string, error) {
+		rendererCalls++
+		return "", fmt.Errorf("must not resolve scenario renderer")
+	})
+	_, err = service.LaunchElectronValidation(context.Background(), session.ID, "/missing/app", target.ElectronLaunchOptions{
+		ContextID: "ctx", ScenarioName: "bundled-demo", ArtifactDigest: "sha256:artifact", TargetID: "target",
+		JourneyID: "journey", ProfileID: "profile", IsolationLeaseID: "lease", BundledRuntime: true,
+	}, target.RendererExpectation{URLPrefix: "http://127.0.0.1:0"})
+	require.Error(t, err) // The nonexistent artifact is rejected after routing selection.
+	require.Zero(t, apiCalls)
+	require.Zero(t, rendererCalls)
+}
+
+func TestValidationRuntimeOverridesPreserveLegacyAndOmitBundledEndpoints(t *testing.T) {
+	renderer := target.RendererExpectation{URLPrefix: "http://127.0.0.1:41235/projects"}
+	legacy := validationRuntimeOverrides(false, 19349, renderer)
+	require.Equal(t, "http://127.0.0.1:19349", legacy["VROOLI_VALIDATION_API_URL"])
+	require.Equal(t, renderer.URLPrefix, legacy["VROOLI_VALIDATION_RENDERER_URL"])
+	require.Empty(t, validationRuntimeOverrides(true, 19349, renderer))
 }
 
 // --- Tests ---

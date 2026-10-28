@@ -146,7 +146,7 @@ type ExecuteResult struct {
 	Output          string
 	ErrorMessage    string
 	DurationSeconds int
-	TokensUsed      int32
+	TokensUsed      int64
 	CostEstimate    float64
 	RateLimited     bool
 	Timeout         bool

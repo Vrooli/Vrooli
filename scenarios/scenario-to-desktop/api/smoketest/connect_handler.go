@@ -30,6 +30,13 @@ func (s *ConnectService) StartSmokeTest(ctx context.Context, req *connect.Reques
 	if req.Msg.GetScenarioName() == "" || req.Msg.GetArtifactPath() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario_name and artifact_path are required"))
 	}
+	mode := req.Msg.GetDeploymentMode()
+	if mode != "" && mode != "bundled" && mode != "proxy" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("deployment_mode must be bundled or proxy"))
+	}
+	if mode == "proxy" && req.Msg.GetProxyUrl() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("proxy_url is required for proxy mode"))
+	}
 	platform := platformString(req.Msg.GetPlatform())
 	if platform == "" {
 		platform = s.service.CurrentPlatform()
@@ -39,7 +46,7 @@ func (s *ConnectService) StartSmokeTest(ctx context.Context, req *connect.Reques
 	}
 	id := uuid.NewString()
 	now := time.Now()
-	status := &Status{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platform, Status: "running", ArtifactPath: req.Msg.GetArtifactPath(), StartedAt: now, Logs: []string{"Smoke test queued"}, CurrentState: StateInitializing, ScreenContentSource: "unknown"}
+	status := &Status{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platform, DeploymentMode: mode, ProxyURL: req.Msg.GetProxyUrl(), Status: "running", ArtifactPath: req.Msg.GetArtifactPath(), StartedAt: now, Logs: []string{"Smoke test queued"}, CurrentState: StateInitializing, ScreenContentSource: "unknown"}
 	if req.Msg.GetRecordDesktop() {
 		status.RecordingConfig = &ScreenRecordingConfig{Enabled: true, DisplayWidth: 1920, DisplayHeight: 1080, FPS: 15}
 	}
@@ -48,7 +55,7 @@ func (s *ConnectService) StartSmokeTest(ctx context.Context, req *connect.Reques
 	// cancellation: smoke-test lifetime is owned by the cancellation registry.
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	s.cancels.SetCancel(id, cancel)
-	go RunSmokeTestRequest(runCtx, s.service, SmokeTestRequest{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), ArtifactPath: req.Msg.GetArtifactPath(), Platform: platform})
+	go RunSmokeTestRequest(runCtx, s.service, SmokeTestRequest{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), ArtifactPath: req.Msg.GetArtifactPath(), Platform: platform, DeploymentMode: mode, ProxyURL: req.Msg.GetProxyUrl(), JourneyID: req.Msg.GetJourneyId()})
 	return connect.NewResponse(&domainv1.SmokeTestStartResponse{SmokeTestId: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platformProto(platform), Status: sharedv1.SmokeTestStatus_SMOKE_TEST_STATUS_RUNNING, ArtifactPath: &req.Msg.ArtifactPath, StartedAt: timestamppb.New(now), Logs: []string{"Smoke test queued"}}), nil
 }
 
@@ -74,7 +81,14 @@ func (s *ConnectService) CancelSmokeTest(_ context.Context, req *connect.Request
 // StatusToProto is the canonical boundary mapping for smoke-test status.
 // Pipeline stage details reuse it to keep every transport consistent.
 func StatusToProto(v *Status) *sharedv1.SmokeTestStatusResponse {
-	result := &sharedv1.SmokeTestStatusResponse{SmokeTestId: v.SmokeTestID, ScenarioName: v.ScenarioName, Platform: platformProto(v.Platform), Status: statusProto(v.Status), ArtifactPath: optional(v.ArtifactPath), StartedAt: timestamppb.New(v.StartedAt), Logs: v.Logs, Error: optional(v.Error), TelemetryUploaded: v.TelemetryUploaded, TelemetryUploadError: optional(v.TelemetryUploadError)}
+	result := &sharedv1.SmokeTestStatusResponse{SmokeTestId: v.SmokeTestID, ScenarioName: v.ScenarioName, Platform: platformProto(v.Platform), Status: statusProto(v.Status), ArtifactPath: optional(v.ArtifactPath), StartedAt: timestamppb.New(v.StartedAt), Logs: v.Logs, Error: optional(v.Error), TelemetryUploaded: v.TelemetryUploaded, TelemetryUploadError: optional(v.TelemetryUploadError), DeploymentMode: optional(v.DeploymentMode), ScreenContentSource: optional(v.ScreenContentSource)}
+	for _, check := range v.ProcessLifetimeChecks {
+		projected := &sharedv1.ProcessLifetimeCheck{Stage: check.Stage, SessionId: check.SessionID, Passed: check.Passed, Assertion: optional(check.Assertion)}
+		for _, pid := range check.Remaining {
+			projected.RemainingPids = append(projected.RemainingPids, int64(pid))
+		}
+		result.ProcessLifetimeChecks = append(result.ProcessLifetimeChecks, projected)
+	}
 	if v.CompletedAt != nil {
 		result.CompletedAt = timestamppb.New(*v.CompletedAt)
 	}

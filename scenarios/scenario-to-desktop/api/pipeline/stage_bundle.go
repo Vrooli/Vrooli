@@ -161,6 +161,13 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		return result
 	}
 	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, toolArtifacts...)
+	publicKeyPath := filepath.Join(filepath.Dir(filepath.Dir(scenarioPath)), "install", "vrooli-release.pub")
+	rendererArtifacts, err := stageSelectedRendererPacks(packageResult.BundleDir, packageResult.ManifestPath, input.Config.ToolArtifactRoot, publicKeyPath, input.ResourceDeploymentPlan)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
+		return result
+	}
+	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, rendererArtifacts...)
 
 	// Update input for next stage
 	input.BundleResult = packageResult

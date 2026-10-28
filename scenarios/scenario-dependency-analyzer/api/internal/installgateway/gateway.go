@@ -17,8 +17,12 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
+	"github.com/vrooli/vrooli/internal/tools/kubo"
+	triposrsource "github.com/vrooli/vrooli/internal/tools/triposr-source"
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/gomodreconcile"
 )
 
@@ -26,8 +30,10 @@ import (
 // manager, the manifest it mutates, and the exact argv.
 type Resolution struct {
 	HostTool              bool
+	HostSource            bool
 	HostToolRefresh       bool
 	HostToolTargetVersion string
+	HostToolExecutable    string
 	RepositoryRoot        string
 	SurfaceRoot           string
 	PackageManager        string
@@ -87,11 +93,7 @@ func (r Resolution) Command() string {
 	if len(r.PythonLockfiles) > 0 {
 		return "uv pip compile --only-binary :all: --generate-hashes " + r.PackageName + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
 	}
-	parts := make([]string, 0, len(r.Argv))
-	for _, arg := range r.Argv {
-		parts = append(parts, displayArg(arg))
-	}
-	return strings.Join(parts, " ")
+	return cliutil.DisplayCommand(r.Argv)
 }
 
 // PackageInstaller executes a resolved install plan. The real implementation
@@ -108,8 +110,21 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	if err := validateResolution(r); err != nil {
 		return "", err
 	}
+	if r.Profile.LifecycleMode == "resource-agent" {
+		return provisionAgentResource(ctx, r)
+	}
+	if r.Profile.LifecycleMode == "pinned-release" {
+		return provisionHostRelease(ctx, r)
+	}
 	if r.HostToolRefresh {
 		return refreshHostToolSource(ctx, r)
+	}
+	if r.HostSource {
+		_, err := triposrsource.Provision(ctx)
+		return "Installed verified TripoSR source tree through binaryfetch native acquisition", err
+	}
+	if r.PackageManager == "native-binaryfetch" {
+		return "", fmt.Errorf("unsupported native acquisition profile")
 	}
 	if r.HostTool {
 		return provisionHostTool(ctx, r)
@@ -165,7 +180,7 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 // playwright-driver is a lifecycle-managed production sidecar, while tools and
 // platforms packages are addressed as tools/<package> and platforms/<package>
 // to keep auxiliary and distribution installs scoped.
-var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "agent": {}, "playwright-driver": {}, "resource": {}}
+var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "agent": {}, "playwright-driver": {}, "resource": {}, "control-plane": {}}
 
 // Resolve maps a request to a Resolution. repoRoot is the Vrooli repo root;
 // surface is ui/api/cli/agent/playwright-driver, resource, tools/<package>, platforms/<package>, or template/<id>.
@@ -181,9 +196,18 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if err := validatePackageSpec(packageName, version); err != nil {
 		return Resolution{}, err
 	}
+	ecosystem = strings.ToLower(strings.TrimSpace(ecosystem))
 	surface, err := normalizedSurface(surface)
 	if err != nil {
 		return Resolution{}, err
+	}
+	if surface == "control-plane" {
+		if scenario != "vrooli" {
+			return Resolution{}, fmt.Errorf("control-plane surface is available only for scenario vrooli")
+		}
+		if ecosystem != "go" && ecosystem != "golang" {
+			return Resolution{}, fmt.Errorf("control-plane surface supports only the Go ecosystem")
+		}
 	}
 	if strings.TrimSpace(packageName) == "" {
 		return Resolution{}, fmt.Errorf("package name is required")
@@ -192,8 +216,13 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if surfaceRoot == "" {
 		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
 	}
+	if ecosystem == "pip" || ecosystem == "python" || ecosystem == "pypi" {
+		surfaceRoot, err = pythonLockSurface(surfaceRoot)
+		if err != nil {
+			return Resolution{}, err
+		}
+	}
 
-	ecosystem = strings.ToLower(strings.TrimSpace(ecosystem))
 	manager, manifest, argv, err := planForEcosystem(surfaceRoot, ecosystem, packageName, version)
 	if err != nil {
 		return Resolution{}, err
@@ -248,6 +277,29 @@ func ApplyExactVersion(r *Resolution, version string) error {
 		return fmt.Errorf("install resolution is required")
 	}
 	version = strings.TrimSpace(version)
+	if r.Profile.LifecycleMode == "pinned-release" {
+		var expected string
+		switch r.PackageName {
+		case akt.ToolName:
+			expected = akt.Version
+		case kubo.ToolName:
+			expected = kubo.Version
+		default:
+			return fmt.Errorf("unknown pinned release owner %q", r.PackageName)
+		}
+		if version != expected {
+			return fmt.Errorf("%s release version differs from the pinned profile", r.PackageName)
+		}
+		r.ExactVersion = true
+		return nil
+	}
+	if r.HostSource {
+		if version != triposrsource.Commit {
+			return fmt.Errorf("TripoSR source commit differs from the pinned profile")
+		}
+		r.ExactVersion = true
+		return nil
+	}
 	if !exactNpmVersion.MatchString(version) {
 		return fmt.Errorf("exact version requires a concrete semantic version")
 	}
@@ -259,6 +311,13 @@ func ApplyExactVersion(r *Resolution, version string) error {
 		return nil
 	}
 	if r.HostTool {
+		if r.Profile.LifecycleMode == "resource-agent" {
+			if version != r.HostToolTargetVersion {
+				return fmt.Errorf("harness exact version changed")
+			}
+			r.ExactVersion = true
+			return nil
+		}
 		if version != hyperframes.Version {
 			return fmt.Errorf("host tool version must match the committed closure")
 		}
@@ -373,6 +432,9 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 	if err != nil {
 		return Resolution{}, err
 	}
+	if surface == "control-plane" {
+		return Resolution{}, fmt.Errorf("control-plane surface supports only the Go ecosystem")
+	}
 	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
 	if surfaceRoot == "" {
 		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
@@ -395,6 +457,12 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 // CLI remains backward-compatible while governed dependency changes can reach
 // shared packages without pretending they are scenarios.
 func resolveSurfaceRoot(repoRoot, scenario, surface string) string {
+	if surface == "control-plane" {
+		if scenario != "vrooli" || !fileExists(filepath.Join(repoRoot, "go.mod")) {
+			return ""
+		}
+		return repoRoot
+	}
 	if strings.HasPrefix(surface, "template/") {
 		// A scenario-owned canonical template (for example
 		// scenario-to-desktop/templates/vanilla) is an install surface in its
@@ -498,7 +566,7 @@ func normalizedSurface(surface string) (string, error) {
 	if len(parts) == 2 && (parts[0] == "tools" || parts[0] == "platforms" || parts[0] == "template") && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.ContainsAny(parts[1], `/\\`) {
 		return surface, nil
 	}
-	return "", fmt.Errorf("surface %q is not ui/api/cli/agent/playwright-driver/resource, tools/<package>, platforms/<package>, or template/<id>", surface)
+	return "", fmt.Errorf("surface %q is not ui/api/cli/agent/playwright-driver/resource/control-plane, tools/<package>, platforms/<package>, or template/<id>", surface)
 }
 
 // planForEcosystem builds the package manager, manifest path, and install argv
@@ -692,22 +760,6 @@ func validateResolution(resolution Resolution) error {
 		}
 	}
 	return nil
-}
-
-func displayArg(arg string) string {
-	if arg != "" {
-		safe := true
-		for _, r := range arg {
-			if !(unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("_./:@+^~=,-", r)) {
-				safe = false
-				break
-			}
-		}
-		if safe {
-			return arg
-		}
-	}
-	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
 }
 
 func fileExists(path string) bool {

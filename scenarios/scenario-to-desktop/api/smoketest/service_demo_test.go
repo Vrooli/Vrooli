@@ -3,6 +3,10 @@ package smoketest_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +43,15 @@ func TestStripSmokeTestFlag(t *testing.T) {
 }
 
 func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	userData := filepath.Join(os.TempDir(), "s2d-test-demo")
+	if err := os.MkdirAll(userData, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(userData, "profile-state"), []byte("owned profile"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{
 		SmokeTestID:    "test-demo",
@@ -114,6 +127,18 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 	}
 	if smokeEnvMap["SMOKE_TEST_TIMEOUT_MS"] != "60000" {
 		t.Fatalf("bundled smoke timeout env = %q, want 60000", smokeEnvMap["SMOKE_TEST_TIMEOUT_MS"])
+	}
+
+	for _, call := range executor.ExecuteCalls {
+		if runtime.GOOS == "linux" && !slices.Contains(call.Env, "TMPDIR="+userData) {
+			t.Errorf("launch temporary directory is not job-owned: %v", call.Env)
+		}
+		if !slices.Contains(call.Args, "--user-data-dir="+userData) {
+			t.Errorf("launch arguments %v do not isolate the job profile %q", call.Args, userData)
+		}
+	}
+	if _, err := os.Stat(userData); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("job profile remains after failed/cancelled journey: %v", err)
 	}
 
 	// Second call should be the demo launch
@@ -356,5 +381,26 @@ func TestService_DemoLaunch_FailureDoesNotCreatePassingEvidence(t *testing.T) {
 	if !logsContain(status.Logs, "Demo launch completion warning") {
 		t.Error("Expected logs to mention demo launch completion warning")
 		t.Logf("Logs: %v", status.Logs)
+	}
+}
+
+func TestMeasuredSmokeDoesNotRetryFailedProcess(t *testing.T) {
+	store := mocks.NewMockStore()
+	store.AddStatus(&smoketest.Status{SmokeTestID: "measured-first", ScenarioName: "fixture", Status: "running", Measured: true})
+	fs := mocks.NewMockFileSystem()
+	fs.AddFile("/path/to/artifact.AppImage", []byte{})
+	executor := mocks.NewMockProcessExecutor()
+	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{ExitCode: 1, Combined: "resource temporarily unavailable"}
+	executor.ExecuteWithResultResult.Err = errors.New("resource temporarily unavailable")
+	service := createTestService(func(s *testServiceDeps) { s.store = store; s.fs = fs; s.executor = executor })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	service.PerformSmokeTest(ctx, "measured-first", "fixture", "/path/to/artifact.AppImage", "linux")
+	if len(executor.ExecuteCalls) != 1 {
+		t.Fatalf("measured process execution count=%d, want first attempt only", len(executor.ExecuteCalls))
+	}
+	status, _ := store.Get("measured-first")
+	if status.RetryCount != 0 {
+		t.Fatalf("measurement silently retried %d times", status.RetryCount)
 	}
 }

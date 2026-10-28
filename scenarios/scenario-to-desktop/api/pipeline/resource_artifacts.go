@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"github.com/vrooli/binaryfetch"
 	hostreq "github.com/vrooli/vrooli/packages/hostreq"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	desktoptoolprofiles "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/toolprofiles"
 )
 
 // ResourceDeploymentPlan is an immutable per-target deployment decision. It
@@ -24,7 +27,19 @@ type ResourceDeploymentPlan struct {
 	Promotable        bool                                 `json:"promotable"`
 	Resources         []ResourceDeploymentPlanItem         `json:"resources"`
 	HostRequirements  []HostRequirementPlanItem            `json:"host_requirements,omitempty"`
+	RendererPacks     []RendererPackPlanItem               `json:"renderer_packs,omitempty"`
 	DeferredTargets   []DeferredResourceTarget             `json:"deferred_targets,omitempty"`
+}
+
+// RendererPackPlanItem is an explicit, owner-pinned optional renderer tree.
+type RendererPackPlanItem struct {
+	ToolID       string `json:"tool_id"`
+	ProfileID    string `json:"profile_id"`
+	Artifact     string `json:"artifact"`
+	Role         string `json:"role"`
+	OS           string `json:"os"`
+	Architecture string `json:"architecture"`
+	TreeSHA256   string `json:"tree_sha256"`
 }
 
 // DeferredResourceTarget records an acquisition candidate that could not be
@@ -153,7 +168,7 @@ type resourceArtifactManifest struct {
 // resolveResourceDeploymentPlanWithTrust makes every resource selection before
 // any bundle output is written. The artifact hashes are resolved here as well
 // so staging cannot change the deployment choice after the gate has passed.
-func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode) (*ResourceDeploymentPlan, error) {
+func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode, rendererSelections ...[]string) (*ResourceDeploymentPlan, error) {
 	required, fallbacks, err := requiredScenarioResources(filepath.Join(scenarioPath, ".vrooli", "service.json"))
 	if err != nil {
 		return nil, err
@@ -220,6 +235,16 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 			plan.HostRequirements = append(plan.HostRequirements, item)
 		}
 	}
+	if len(rendererSelections) > 1 {
+		return nil, fmt.Errorf("renderer profile selection was provided more than once")
+	}
+	if len(rendererSelections) == 1 {
+		packs, err := resolveRendererPacks(root, toolArtifactRoot, platforms, trustMode, rendererSelections[0])
+		if err != nil {
+			return nil, err
+		}
+		plan.RendererPacks = packs
+	}
 	sort.Slice(plan.Resources, func(i, j int) bool {
 		if plan.Resources[i].RequestedResource == plan.Resources[j].RequestedResource {
 			return plan.Resources[i].OS+plan.Resources[i].Architecture < plan.Resources[j].OS+plan.Resources[j].Architecture
@@ -227,6 +252,100 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 		return plan.Resources[i].RequestedResource < plan.Resources[j].RequestedResource
 	})
 	return plan, nil
+}
+
+func resolveRendererPacks(root, artifactRoot string, platforms []resourcedeployment.Platform, trustMode resourcedeployment.ArtifactTrustMode, selections []string) ([]RendererPackPlanItem, error) {
+	return resolveRendererPacksWithPins(root, artifactRoot, platforms, trustMode, selections, rendererPin)
+}
+
+func resolveRendererPacksWithPins(root, artifactRoot string, platforms []resourcedeployment.Platform, trustMode resourcedeployment.ArtifactTrustMode, selections []string, pinFor func(string) (rendererPackPin, bool)) ([]RendererPackPlanItem, error) {
+	if len(selections) == 0 {
+		return nil, nil
+	}
+	if artifactRoot == "" {
+		return nil, fmt.Errorf("renderer_tool_profiles requires tool_artifact_root")
+	}
+	if trustMode != resourcedeployment.ArtifactTrustDevelopmentLocal && trustMode != resourcedeployment.ArtifactTrustProduction {
+		return nil, fmt.Errorf("renderer_tool_profiles requires an explicit artifact_trust_mode")
+	}
+	selections, err := normalizeRendererToolProfiles(selections)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool, len(selections))
+	var result []RendererPackPlanItem
+	for _, id := range selections {
+		if seen[id] {
+			return nil, fmt.Errorf("renderer_tool_profiles repeats %q", id)
+		}
+		seen[id] = true
+		pin, ok := pinFor(id)
+		if !ok {
+			return nil, fmt.Errorf("unsupported renderer tool profile %q", id)
+		}
+		item := RendererPackPlanItem{ToolID: id, ProfileID: pin.profileID, TreeSHA256: pin.treeSHA256, Role: pin.role, OS: "linux", Architecture: "amd64"}
+		item.Artifact = toolArtifactName(pin.registryName, resourcedeployment.Platform{OS: "linux", Arch: "amd64"})
+		for _, target := range platforms {
+			if target.OS != item.OS || target.Arch != item.Architecture {
+				return nil, fmt.Errorf("renderer profile %q supports linux-amd64 only; target %s is unsupported", id, target.String())
+			}
+		}
+		result = append(result, item)
+	}
+	manifest, _, err := resourcedeployment.VerifyReleaseDirectory(artifactRoot, trustMode, filepath.Join(root, "install", "vrooli-release.pub"))
+	if err != nil {
+		return nil, fmt.Errorf("verify renderer tool release: %w", err)
+	}
+	byName := make(map[string]resourcedeployment.ReleaseArtifact, len(manifest.Artifacts))
+	for _, artifact := range manifest.Artifacts {
+		byName[artifact.Name] = artifact
+	}
+	for index := range result {
+		item := &result[index]
+		releaseArtifact, ok := byName[item.Artifact]
+		if !ok || releaseArtifact.Role != item.Role || releaseArtifact.OS != item.OS || releaseArtifact.Arch != item.Architecture || !strings.EqualFold(releaseArtifact.SHA256, item.TreeSHA256) {
+			return nil, fmt.Errorf("renderer release artifact %q does not match pinned profile metadata", item.Artifact)
+		}
+		path := filepath.Join(artifactRoot, item.Artifact)
+		info, err := os.Lstat(path)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("renderer artifact %q must be a real directory", item.Artifact)
+		}
+		actual, err := binaryfetch.TreeDigest(path)
+		if err != nil || !strings.EqualFold(actual, item.TreeSHA256) {
+			return nil, fmt.Errorf("renderer artifact %q does not match its pinned tree", item.Artifact)
+		}
+	}
+	return result, nil
+}
+
+type rendererPackPin struct {
+	profileID, treeSHA256, role, registryName string
+}
+
+func rendererPin(id string) (rendererPackPin, bool) {
+	declaration, registryName, ok := desktoptoolprofiles.PinnedDeclaration(id)
+	if !ok {
+		return rendererPackPin{}, false
+	}
+	return rendererPackPin{declaration.ProfileID, declaration.TreeSHA256, "renderer-profile:" + declaration.ToolID, registryName}, true
+}
+
+func normalizeRendererToolProfiles(profiles []string) ([]string, error) {
+	seen := make(map[string]bool, len(profiles))
+	result := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		if profile != "blender" && profile != "ffmpeg-video" {
+			return nil, fmt.Errorf("unsupported renderer tool profile %q", profile)
+		}
+		if seen[profile] {
+			return nil, fmt.Errorf("renderer_tool_profiles repeats %q", profile)
+		}
+		seen[profile] = true
+		result = append(result, profile)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 func deferredResourceTargets(resource, root string, platform resourcedeployment.Platform) []DeferredResourceTarget {
@@ -666,6 +785,225 @@ func stageBundledToolArtifacts(bundleDir, artifactRoot string, plan *ResourceDep
 		copied = append(copied, destination)
 	}
 	return copied, nil
+}
+
+func stageSelectedRendererPacks(bundleDir, manifestPath, artifactRoot, publicKeyPath string, plan *ResourceDeploymentPlan) ([]string, error) {
+	return stageSelectedRendererPacksWithPins(bundleDir, manifestPath, artifactRoot, publicKeyPath, plan, rendererPin)
+}
+
+func stageSelectedRendererPacksWithPins(bundleDir, manifestPath, artifactRoot, publicKeyPath string, plan *ResourceDeploymentPlan, pinFor func(string) (rendererPackPin, bool)) ([]string, error) {
+	if plan == nil || len(plan.RendererPacks) == 0 {
+		return nil, nil
+	}
+	if artifactRoot == "" || manifestPath == "" {
+		return nil, fmt.Errorf("selected renderer packs require a tool artifact root and packaged bundle manifest")
+	}
+	release, _, err := resourcedeployment.VerifyReleaseDirectory(artifactRoot, plan.ArtifactTrustMode, publicKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("reverify renderer release before staging: %w", err)
+	}
+	byName := make(map[string]resourcedeployment.ReleaseArtifact, len(release.Artifacts))
+	for _, artifact := range release.Artifacts {
+		byName[artifact.Name] = artifact
+	}
+	for _, item := range plan.RendererPacks {
+		pin, ok := pinFor(item.ToolID)
+		if !ok || item.ProfileID != pin.profileID || item.TreeSHA256 != pin.treeSHA256 || item.Role != pin.role || item.OS != "linux" || item.Architecture != "amd64" || item.Artifact != toolArtifactName(pin.registryName, resourcedeployment.Platform{OS: "linux", Arch: "amd64"}) || !resourcedeployment.IsSafeArtifactName(item.Artifact) {
+			return nil, fmt.Errorf("renderer plan contains an unsupported package")
+		}
+		artifact, ok := byName[item.Artifact]
+		if !ok || artifact.Role != item.Role || artifact.OS != item.OS || artifact.Arch != item.Architecture || !strings.EqualFold(artifact.SHA256, item.TreeSHA256) {
+			return nil, fmt.Errorf("renderer release artifact %q changed from the resolved plan", item.Artifact)
+		}
+	}
+	toolDir := filepath.Join(bundleDir, "tools")
+	if err := os.MkdirAll(toolDir, 0o755); err != nil {
+		return nil, err
+	}
+	var copied []string
+	for _, item := range plan.RendererPacks {
+		source := filepath.Join(artifactRoot, item.Artifact)
+		info, err := os.Lstat(source)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("renderer source %q is not a real directory", item.Artifact)
+		}
+		destination := filepath.Join(toolDir, item.ToolID)
+		if err := stageRendererDirectory(source, destination, item.TreeSHA256); err != nil {
+			return nil, fmt.Errorf("stage renderer %q without replacing existing output: %w", item.ToolID, err)
+		}
+		copied = append(copied, destination)
+	}
+	if err := addRendererDeclarations(manifestPath, plan.RendererPacks); err != nil {
+		return nil, err
+	}
+	return copied, nil
+}
+
+func stageRendererDirectory(source, destination, expectedTree string) error {
+	parent := filepath.Dir(destination)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return err
+	}
+	if info, err := os.Lstat(parent); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("renderer destination parent must be a real directory")
+	}
+	if _, err := os.Lstat(destination); err == nil {
+		return fmt.Errorf("destination already exists")
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	info, err := os.Lstat(source)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("renderer source must be a real directory")
+	}
+	actual, err := binaryfetch.TreeDigest(source)
+	if err != nil || !strings.EqualFold(actual, expectedTree) {
+		return fmt.Errorf("renderer source tree does not match expected digest")
+	}
+	temp, err := os.MkdirTemp(parent, ".renderer-stage-")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(temp); err != nil {
+		return err
+	}
+	defer os.RemoveAll(temp)
+	if err := copyRendererTree(source, temp); err != nil {
+		return err
+	}
+	actual, err = binaryfetch.TreeDigest(temp)
+	if err != nil || !strings.EqualFold(actual, expectedTree) {
+		return fmt.Errorf("staged renderer tree failed verification")
+	}
+	return renameDirectoryNoReplace(temp, destination)
+}
+
+func copyRendererTree(source, destination string) error {
+	rootInfo, err := os.Lstat(source)
+	if err != nil || !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("renderer source must be a real directory")
+	}
+	if err := os.Mkdir(destination, 0o755); err != nil {
+		return err
+	}
+	return filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil || rel == "." {
+			return err
+		}
+		target := filepath.Join(destination, rel)
+		info, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		case info.IsDir():
+			return os.Mkdir(target, 0o755)
+		case info.Mode().IsRegular():
+			in, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
+			if err != nil {
+				in.Close()
+				return err
+			}
+			_, copyErr := io.Copy(out, in)
+			closeInErr, closeOutErr := in.Close(), out.Close()
+			if copyErr != nil {
+				return copyErr
+			}
+			if closeInErr != nil {
+				return closeInErr
+			}
+			return closeOutErr
+		default:
+			return fmt.Errorf("renderer tree contains unsupported file type at %q", rel)
+		}
+	})
+}
+
+func addRendererDeclarations(path string, packs []RendererPackPlanItem) error {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("packaged bundle manifest is not a regular file")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(data, &document); err != nil {
+		return fmt.Errorf("parse packaged bundle manifest: %w", err)
+	}
+	decls := make([]bundlemanifest.ToolProfilePackage, 0, len(packs))
+	if existing := document["tool_profiles"]; len(existing) > 0 {
+		if err := json.Unmarshal(existing, &decls); err != nil {
+			return fmt.Errorf("parse existing bundle renderer declarations: %w", err)
+		}
+	}
+	if err := bundlemanifest.ValidateToolProfiles(decls); err != nil {
+		return fmt.Errorf("validate existing bundle tool declarations: %w", err)
+	}
+	byID := make(map[string]bundlemanifest.ToolProfilePackage, len(decls)+len(packs))
+	for _, declared := range decls {
+		byID[declared.ToolID] = declared
+	}
+	for _, item := range packs {
+		wanted := bundlemanifest.ToolProfilePackage{ToolID: item.ToolID, ProfileID: item.ProfileID, OS: item.OS, Architecture: item.Architecture, TreeSHA256: item.TreeSHA256}
+		if existing, ok := byID[item.ToolID]; ok && existing != wanted {
+			return fmt.Errorf("bundle manifest renderer declaration %q conflicts with selected profile", item.ToolID)
+		}
+		byID[item.ToolID] = wanted
+	}
+	decls = decls[:0]
+	for _, declared := range byID {
+		decls = append(decls, declared)
+	}
+	if err := bundlemanifest.ValidateToolProfiles(decls); err != nil {
+		return fmt.Errorf("validate packaged bundle tool declarations: %w", err)
+	}
+	sort.Slice(decls, func(i, j int) bool { return decls[i].ToolID < decls[j].ToolID })
+	raw, err := json.Marshal(decls)
+	if err != nil {
+		return err
+	}
+	document["tool_profiles"] = raw
+	updated, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return err
+	}
+	temp, err := os.CreateTemp(filepath.Dir(path), ".bundle-manifest-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(temp.Name())
+	if err := temp.Chmod(info.Mode().Perm()); err != nil {
+		temp.Close()
+		return err
+	}
+	if _, err := temp.Write(append(updated, '\n')); err != nil {
+		temp.Close()
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temp.Name(), path)
 }
 
 func requiredScenarioResources(path string) ([]string, map[string][]string, error) {

@@ -92,16 +92,21 @@ func (r *NativeFFmpegRecorder) StopCapture(ctx context.Context, captureID string
 	if err := session.cmd.Process.Signal(os.Interrupt); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return nil, fmt.Errorf("stop direct ffmpeg capture: %w", err)
 	}
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	select {
-	case err := <-session.done:
+	case <-session.done:
 		// ffmpeg commonly reports 255 after the interrupt used to finalize an
 		// x11grab recording. The output file is the authoritative completion
 		// signal and is validated below.
-		_ = err
 	case <-ctx.Done():
+		// The session has left the registry: stop and reap it before returning
+		// so cancellation cannot leave an untracked recorder behind.
+		if err := session.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			return nil, fmt.Errorf("kill direct ffmpeg capture: %w", errors.Join(ctx.Err(), err))
+		}
+		<-session.done
 		return nil, fmt.Errorf("wait for direct ffmpeg capture: %w", ctx.Err())
-	case <-time.After(15 * time.Second):
-		return nil, fmt.Errorf("timed out stopping direct ffmpeg capture")
 	}
 	info, err := os.Stat(session.output)
 	if err != nil {

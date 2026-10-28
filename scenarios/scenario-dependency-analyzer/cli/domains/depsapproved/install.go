@@ -18,12 +18,21 @@ import (
 // sanctioned alternative to a raw `pnpm add`/`go get`/`pip install`. It is a
 // separate top-level group from `deps-approved` (the governance-record verbs).
 func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	noAPI := false
 	return cliapp.SubcommandGroup{
 		Name:        "deps",
 		Description: "Governed third-party dependency install gateway",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "install", Description: "Install a governed dependency into a scenario surface (dry-run by default)", Run: func(args []string) error { return runInstall(core, args) }},
+			{
+				Name:        "install",
+				Description: "Install a governed dependency into a scenario surface (dry-run by default)",
+				Usage:       "scenario-dependency-analyzer deps install <ecosystem>/<package>[@version] --scenario <name> --surface <surface> [options]",
+				HelpText:    "This command previews by default; --apply requests the install. --exact requires an explicit version. --refresh-lock is limited to closed host-tool source inputs and does not install a runtime.",
+				Args:        installArgumentSchema(),
+				RunCtx:      func(ctx cliapp.RunContext) error { return runInstall(core, ctx) },
+			},
+			{Name: "remove", Description: "Remove one exact Go requirement from the root module (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runRemove(core, args) }},
 			{Name: "resync", Description: "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", Run: func(args []string) error { return runResync(core, args) }},
 			{Name: "reconcile", Description: "Add missing local replaces for in-repo go.mod modules (dry-run by default)", Run: func(args []string) error { return runReconcile(core, args) }},
 			{Name: "vendor", Description: "Synchronise a committed Go vendor tree through the dependency gateway", Run: func(args []string) error { return runVendor(core, args) }},
@@ -31,29 +40,32 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}
 }
 
-func runInstall(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("deps install")
-	var scenario, surface, version string
-	var apply, jsonOutput, exactVersion, development, refreshLock bool
-	fs.StringVar(&scenario, "scenario", "", "Target scenario")
-	fs.StringVar(&surface, "surface", "", "Target surface: ui, api, cli, agent, playwright-driver, resource, host-tool, tools/<package>, platforms/<package>, or template/<id>")
-	fs.StringVar(&version, "version", "", "Optional explicit version/range")
-	fs.BoolVar(&apply, "apply", false, "Perform the install (default is a dry run)")
-	fs.BoolVar(&exactVersion, "exact", false, "Persist an exact package version (requires an explicit version)")
-	fs.BoolVar(&development, "dev", false, "Save a JavaScript dependency as development-only")
-	fs.BoolVar(&refreshLock, "refresh-lock", false, "Refresh only the closed host-tool source dependency inputs; does not install a runtime")
-	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
+func installArgumentSchema() cliapp.ArgSchema {
+	return cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{
+			Name:        "dependency",
+			Required:    true,
+			Description: "Dependency spec: <ecosystem>/<package>[@version]",
+		}},
+		Flags: []cliapp.Flag{
+			{Name: "scenario", Description: "Required target scenario"},
+			{Name: "surface", Description: "Required target surface: ui, api, cli, agent, playwright-driver, resource, host-tool, tools/<package>, platforms/<package>, template/<id>, or control-plane (vrooli Go only)"},
+			{Name: "version", Description: "Optional explicit version/range; overrides an inline package version"},
+			{Name: "apply", Bool: true, Description: "Perform the install; default is a dry-run preview"},
+			{Name: "exact", Bool: true, Description: "Persist an exact package version; requires an explicit version"},
+			{Name: "dev", Bool: true, Description: "Save a JavaScript dependency as development-only"},
+			{Name: "refresh-lock", Bool: true, Description: "Refresh only closed host-tool source dependency inputs; does not install a runtime"},
+		},
 	}
-	positionals := fs.Args()
-	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|host-tool|tools/<package>|platforms/<package>|template/<id>> [--exact] [--dev] [--refresh-lock] [--apply] [--json]", support.AppName)
-	}
-	ecosystem, packageName, version, err := parseInstallDependencySpec(positionals[0], version)
+}
+
+func runInstall(core *cliapp.ScenarioApp, args cliapp.RunContext) error {
+	ecosystem, packageName, version, err := parseInstallDependencySpec(args.Positional("dependency"), args.Flag("version"))
 	if err != nil {
 		return err
 	}
+	scenario := args.Flag("scenario")
+	surface := args.Flag("surface")
 	if strings.TrimSpace(scenario) == "" || strings.TrimSpace(surface) == "" {
 		return fmt.Errorf("--scenario and --surface are required")
 	}
@@ -72,15 +84,15 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 		Ecosystem:    ecosystem,
 		PackageName:  packageName,
 		Version:      version,
-		Apply:        apply,
-		ExactVersion: exactVersion,
-		Development:  development,
-		RefreshLock:  refreshLock,
+		Apply:        args.BoolFlag("apply"),
+		ExactVersion: args.BoolFlag("exact"),
+		Development:  args.BoolFlag("dev"),
+		RefreshLock:  args.BoolFlag("refresh-lock"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("install dependency", err, nil)
 	}
-	if jsonOutput {
+	if args.JSON() {
 		if err := printProto(resp.Msg); err != nil {
 			return err
 		}

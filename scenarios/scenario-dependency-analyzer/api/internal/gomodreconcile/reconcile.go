@@ -337,6 +337,13 @@ func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]strin
 			if _, skip := skipDir[d.Name()]; skip {
 				return filepath.SkipDir
 			}
+			// Nested modules own their source imports independently, just as
+			// the Go toolchain excludes them from the parent module's packages.
+			if path != moduleDir {
+				if info, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
+					return filepath.SkipDir
+				}
+			}
 			return nil
 		}
 		if !strings.HasSuffix(path, ".go") {

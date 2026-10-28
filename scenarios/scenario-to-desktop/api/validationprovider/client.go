@@ -36,17 +36,22 @@ func (discoveryResolver) ResolveScenarioURLDefault(ctx context.Context, scenario
 }
 
 type Request struct {
-	MatrixRunID    string
-	CellID         string
-	ScenarioName   string
-	ScenarioPath   string
-	WorkflowPath   string
-	WorkflowID     string
-	Target         *domainv1.AppTarget
-	ProfileID      string
-	ContextID      string
-	ArtifactDigest string
-	Timeout        time.Duration
+	MatrixRunID                    string
+	CellID                         string
+	ScenarioName                   string
+	ScenarioPath                   string
+	WorkflowPath                   string
+	WorkflowID                     string
+	Target                         *domainv1.AppTarget
+	ProfileID                      string
+	ContextID                      string
+	ArtifactDigest                 string
+	BundledRuntime                 bool
+	BrowserAutomationStudioVariant string
+	IsolationLeaseID               string
+	PrepareIsolationRestart        bool
+	ResumeIsolationRestart         bool
+	Timeout                        time.Duration
 }
 
 type Result struct {
@@ -82,6 +87,12 @@ func (c *Client) Execute(ctx context.Context, request Request) Result {
 	if strings.TrimSpace(request.WorkflowPath) == "" {
 		return Result{Reason: "provider workflow path is missing"}
 	}
+	if request.PrepareIsolationRestart && request.ResumeIsolationRestart {
+		return Result{Reason: "provider restart handoff cannot prepare and resume in one phase"}
+	}
+	if (request.PrepareIsolationRestart || request.ResumeIsolationRestart) && strings.TrimSpace(request.IsolationLeaseID) == "" {
+		return Result{Reason: "provider restart handoff requires a stable isolation lease identity"}
+	}
 	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, "workflow-health")
 	if err != nil {
 		return Result{Reason: fmt.Sprintf("resolve validation provider: %v", err)}
@@ -95,22 +106,29 @@ func (c *Client) Execute(ctx context.Context, request Request) Result {
 		IdempotencyKey: key,
 		ParentRunId:    request.MatrixRunID,
 		DesktopBinding: &scenariovalidationv1.DesktopValidationBinding{
-			TargetId:       request.Target.GetTargetId(),
-			CdpEndpoint:    request.Target.GetCdpEndpoint(),
-			RendererId:     request.Target.GetRendererId(),
-			RendererUrl:    request.Target.GetRendererUrl(),
-			RendererTitle:  request.Target.GetRendererTitle(),
-			ScenarioName:   request.ScenarioName,
-			ArtifactDigest: request.ArtifactDigest,
-			ContextId:      request.ContextID,
-			ProfileId:      request.ProfileID,
-			CdpTransport:   request.Target.GetCdpTransport(),
-			WorkflowPath:   workflowPath,
+			TargetId:         request.Target.GetTargetId(),
+			CdpEndpoint:      request.Target.GetCdpEndpoint(),
+			RendererId:       request.Target.GetRendererId(),
+			RendererUrl:      request.Target.GetRendererUrl(),
+			RendererTitle:    request.Target.GetRendererTitle(),
+			ApiUrl:           request.Target.GetApiUrl(),
+			TestDatabaseRoot: request.Target.GetTestDatabaseRoot(),
+			ScenarioName:     request.ScenarioName,
+			ArtifactDigest:   request.ArtifactDigest,
+			ContextId:        request.ContextID,
+			ProfileId:        request.ProfileID,
+			CdpTransport:     request.Target.GetCdpTransport(),
+			WorkflowPath:     workflowPath,
 			// Workflow Health resolves the selected catalog asset's UUID from
 			// the path. The desktop journey identifier is a path-based
 			// capability, not the asset UUID, so forwarding it would make the
 			// provider reject its own selected asset as an identity mismatch.
-			WorkflowId: "",
+			WorkflowId:                     "",
+			BundledRuntime:                 request.BundledRuntime,
+			BrowserAutomationStudioVariant: request.BrowserAutomationStudioVariant,
+			IsolationLeaseId:               request.IsolationLeaseID,
+			PrepareIsolationRestart:        request.PrepareIsolationRestart,
+			ResumeIsolationRestart:         request.ResumeIsolationRestart,
 		},
 	}))
 	if err != nil {

@@ -13,15 +13,27 @@
  * Stored authentication tokens.
  */
 export interface StoredTokens {
-    /** Short-lived access token; persisted only through Electron safeStorage. */
+    /** Short-lived access token; process-memory only. */
     accessToken: string;
-    /** Website refresh token; persisted only through Electron safeStorage. */
+    /** Website refresh token; process-memory only. */
     refreshToken: string;
     /** Compatibility session expiry; not a lease authorization boundary. */
     expiresAt: string;
     /** Signed LPBS entitlement lease, when the account has one. */
     entitlementLease?: string;
 }
+
+export interface CreditSessionShareStatus {
+    state: "shared" | "not_shared" | "signed_out" | "unavailable";
+    /** Clearing the local credential cannot revoke already-issued short-lived access tokens. */
+    remoteRevocation?: "uncertain";
+    localCleared?: boolean;
+}
+
+/** A fresh, authenticated LPBS wallet read. Values are display facts only. */
+export type CreditBalanceStatus =
+    | { state: "available"; balanceCredits: string; displayCreditsLabel: string; displayCreditsMultiplier: number; walletUpdatedAt?: string; fetchedAt: string; source: "LPBS" }
+    | { state: "signed_out" | "unavailable" };
 
 /**
  * Stored user information.
@@ -61,10 +73,31 @@ export interface AuthConfig {
 
 /** A single, scoped LPBS-to-desktop account-link request. */
 export interface DesktopLinkOptions {
-    installationId: string;
+    /** Omit to use the stable installation identity owned by the desktop shell. */
+    installationId?: string;
     resource: string;
     audience: string;
     scopes: string[];
+}
+
+export interface DesktopLinkQuery {
+    resource: string;
+}
+
+export type DesktopLinkState = "linked" | "unlinked" | "expired" | "revoked" | "unavailable";
+
+/** Sanitized status from the LPBS local-link owner; never contains lease bytes. */
+export interface DesktopLinkStatus {
+    state: DesktopLinkState;
+    localPrincipal?: string;
+    businessAccountId?: string;
+    scopes: string[];
+    message?: string;
+}
+
+export interface DesktopDisconnectResult {
+    localCleared: boolean;
+    remoteRevocation: "confirmed" | "uncertain";
 }
 
 // ===== Seam Interfaces =====
@@ -183,7 +216,20 @@ export interface IAuthManager {
      * Connect the current desktop installation to an LPBS business account.
      * The local proof must come from the declared local identity provider.
      */
-    connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<void>;
+    connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<DesktopLinkStatus>;
+
+    /** Query LPBS's proof-authenticated local link record for this resource. */
+    getDesktopLinkStatus(options: DesktopLinkQuery): Promise<DesktopLinkStatus>;
+
+    /** Revoke remotely when reachable, then always clear local auth material. */
+    disconnectDesktop(options: DesktopLinkQuery): Promise<DesktopDisconnectResult>;
+
+    /** Share or clear the current LPBS refresh credential through the credential owner. */
+    setCreditSessionSharing(enabled: boolean): Promise<CreditSessionShareStatus>;
+    /** Read credential-presence status only; never return credential bytes. */
+    getCreditSessionShareStatus(): Promise<CreditSessionShareStatus>;
+    /** Read the current user's wallet through LPBS without exposing credentials. */
+    getCreditBalance(): Promise<CreditBalanceStatus>;
 
     /**
      * Sign out the user and clear all auth data.
@@ -259,6 +305,14 @@ export interface AuthManagerDependencies {
     onGetEntitlementLease?: () => Promise<string | null>;
     /** Remove the signed entitlement lease during unlink/sign-out. */
     onClearEntitlementLease?: () => Promise<void>;
+    /** Explicitly provision the LPBS refresh credential into its declared shared owner identity. */
+    onStoreLPBSCreditRefreshToken?: (refreshToken: string) => Promise<void>;
+    /** Presence-only query against the declared shared credential owner. */
+    onHasLPBSCreditRefreshToken?: () => Promise<boolean>;
+    /** Delete the LPBS refresh credential from the shared owner. */
+    onClearLPBSCreditRefreshToken?: () => Promise<void>;
     /** Resolve a short-lived proof from the declared local identity provider. */
     onResolveLocalIdentityProof?: () => Promise<string | null>;
+    /** Resolve or create the installation identity in desktop-owned private config. */
+    onGetDesktopInstallationId?: () => Promise<string>;
 }

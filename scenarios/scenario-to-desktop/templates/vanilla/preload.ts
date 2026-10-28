@@ -107,6 +107,35 @@ interface AuthUser {
  */
 type AuthChangeEvent = "tokens-received" | "tokens-refreshed" | "session-expired" | "signed-out";
 
+interface DesktopLinkStatus {
+    state: "linked" | "unlinked" | "expired" | "revoked" | "unavailable";
+    localPrincipal?: string;
+    businessAccountId?: string;
+    scopes: string[];
+    message?: string;
+}
+
+interface DesktopDisconnectResult {
+    localCleared: true;
+    remoteRevocation: "confirmed" | "uncertain";
+}
+
+interface CreditSessionShareStatus {
+    state: "shared" | "not_shared" | "signed_out" | "unavailable";
+    localCleared?: boolean;
+    remoteRevocation?: "uncertain";
+}
+
+interface CreditBalanceStatus {
+    state: "available" | "signed_out" | "unavailable";
+    balanceCredits?: string;
+    displayCreditsLabel?: string;
+    displayCreditsMultiplier?: number;
+    walletUpdatedAt?: string;
+    fetchedAt?: string;
+    source?: "LPBS";
+}
+
 // Define the API interface
 interface DesktopAPI {
     // File operations (dialog-based - user selects location)
@@ -219,12 +248,25 @@ interface DesktopAPI {
 
         /** Connect the desktop installation to a scoped LPBS account link. */
         connectDesktop: (options: {
-            installationId: string;
+            installationId?: string;
             resource: string;
             audience: string;
             scopes: string[];
             state?: string;
-        }) => Promise<void>;
+        }) => Promise<DesktopLinkStatus>;
+
+        /** Read a sanitized account link status after local-proof verification. */
+        getDesktopLinkStatus: (options: { resource: string }) => Promise<DesktopLinkStatus>;
+
+        /** Revoke remotely when reachable, then clear local authentication material. */
+        disconnectDesktop: (options: { resource: string }) => Promise<DesktopDisconnectResult>;
+
+        /** Share or clear the signed-in LPBS refresh credential through the owner. */
+        setCreditSessionSharing: (enabled: boolean) => Promise<CreditSessionShareStatus>;
+        /** Read presence-only owner status; credential bytes never enter the renderer. */
+        getCreditSessionShareStatus: () => Promise<CreditSessionShareStatus>;
+        /** Read an authenticated LPBS balance; no token crosses into the page. */
+        getCreditBalance: () => Promise<CreditBalanceStatus>;
 
         /**
          * Sign out and clear stored tokens.
@@ -313,6 +355,11 @@ const ALLOWED_CHANNELS = {
         "app:close",
         // Authentication
         "auth:sign-in",
+        "auth:connect-desktop",
+        "auth:get-desktop-link-status",
+        "auth:disconnect-desktop",
+        "auth:get-credit-session-status",
+        "auth:set-credit-session-sharing",
         "auth:sign-out",
         "auth:get-access-token",
         "auth:get-entitlement-lease",
@@ -429,13 +476,33 @@ const desktopAPI: DesktopAPI = {
         },
 
         connectDesktop: async (options: {
-            installationId: string;
+            installationId?: string;
             resource: string;
             audience: string;
             scopes: string[];
             state?: string;
         }) => {
             return ipcRenderer.invoke("auth:connect-desktop", options);
+        },
+
+        getDesktopLinkStatus: async (options: { resource: string }) => {
+            return ipcRenderer.invoke("auth:get-desktop-link-status", options);
+        },
+
+        disconnectDesktop: async (options: { resource: string }) => {
+            return ipcRenderer.invoke("auth:disconnect-desktop", options);
+        },
+
+        getCreditSessionShareStatus: async () => {
+            return ipcRenderer.invoke("auth:get-credit-session-status");
+        },
+
+        getCreditBalance: async () => {
+            return ipcRenderer.invoke("auth:get-credit-balance");
+        },
+
+        setCreditSessionSharing: async (enabled: boolean) => {
+            return ipcRenderer.invoke("auth:set-credit-session-sharing", enabled);
         },
 
         signOut: async () => {

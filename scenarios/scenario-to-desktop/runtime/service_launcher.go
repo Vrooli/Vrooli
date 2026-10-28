@@ -614,11 +614,11 @@ func (s *Supervisor) stopServices(ctx context.Context) {
 		}
 
 		proc.stopping = true
-		if proc.cancel != nil {
-			proc.cancel()
-		}
 		if proc.proc != nil {
 			s.gracefulStop(ctx, proc)
+		}
+		if proc.cancel != nil {
+			proc.cancel()
 		}
 	}
 }

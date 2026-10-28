@@ -19,14 +19,19 @@ type connectServiceSpy struct {
 }
 
 type smokeTestCall struct {
-	id, scenario, artifact, platform string
-	ctx                              context.Context
+	id, scenario, artifact, platform    string
+	deploymentMode, journeyID, proxyURL string
+	ctx                                 context.Context
 }
 
 func (s *connectServiceSpy) CurrentPlatform() string { return s.platform }
 
 func (s *connectServiceSpy) PerformSmokeTest(ctx context.Context, id, scenario, artifact, platform string) {
 	s.calls <- smokeTestCall{id: id, scenario: scenario, artifact: artifact, platform: platform, ctx: ctx}
+}
+
+func (s *connectServiceSpy) PerformSmokeTestRequest(ctx context.Context, request smoketest.SmokeTestRequest) {
+	s.calls <- smokeTestCall{id: request.SmokeTestID, scenario: request.ScenarioName, artifact: request.ArtifactPath, platform: request.Platform, ctx: ctx, deploymentMode: request.DeploymentMode, journeyID: request.JourneyID, proxyURL: request.ProxyURL}
 }
 
 func TestConnectServiceStartGetAndCancelSmokeTest(t *testing.T) {
@@ -43,14 +48,15 @@ func TestConnectServiceStartGetAndCancelSmokeTest(t *testing.T) {
 func startSmokeTest(t *testing.T, handler *smoketest.ConnectService, store *mocks.MockStore) *connect.Response[domainv1.SmokeTestStartResponse] {
 	t.Helper()
 	platform := sharedv1.Platform_PLATFORM_LINUX
-	start, err := handler.StartSmokeTest(context.Background(), connect.NewRequest(&domainv1.SmokeTestStartRequest{ScenarioName: "hello-desktop", ArtifactPath: "/tmp/hello-desktop.AppImage", Platform: &platform}))
+	mode, journey := "bundled", "hello-desktop"
+	start, err := handler.StartSmokeTest(context.Background(), connect.NewRequest(&domainv1.SmokeTestStartRequest{ScenarioName: "hello-desktop", ArtifactPath: "/tmp/hello-desktop.AppImage", Platform: &platform, DeploymentMode: &mode, JourneyId: &journey}))
 	if err != nil {
 		t.Fatalf("StartSmokeTest() error = %v", err)
 	}
 	if start.Msg.GetSmokeTestId() == "" || start.Msg.GetStatus() != sharedv1.SmokeTestStatus_SMOKE_TEST_STATUS_RUNNING {
 		t.Fatalf("StartSmokeTest() = %+v, want queued running test with id", start.Msg)
 	}
-	if got := store.Statuses[start.Msg.GetSmokeTestId()]; got == nil || got.Status != "running" {
+	if got := store.Statuses[start.Msg.GetSmokeTestId()]; got == nil || got.Status != "running" || got.DeploymentMode != "bundled" {
 		t.Fatalf("stored status = %+v, want running status", got)
 	}
 	return start
@@ -60,7 +66,7 @@ func assertSmokeCall(t *testing.T, calls <-chan smokeTestCall, id string) {
 	t.Helper()
 	select {
 	case call := <-calls:
-		if call.id != id || call.scenario != "hello-desktop" || call.artifact != "/tmp/hello-desktop.AppImage" || call.platform != "linux" {
+		if call.id != id || call.scenario != "hello-desktop" || call.artifact != "/tmp/hello-desktop.AppImage" || call.platform != "linux" || call.deploymentMode != "bundled" || call.journeyID != "hello-desktop" {
 			t.Fatalf("PerformSmokeTest() = %+v, want request values", call)
 		}
 	case <-time.After(time.Second):
@@ -149,5 +155,61 @@ func TestStatusToProtoProjectsVersionedEvidenceReview(t *testing.T) {
 	}
 	if review.GetChapters()[0].GetPurpose() != "Prove greeting" || review.GetChapters()[0].GetEvidenceIds()[0] != "capture-1" {
 		t.Fatalf("chapter projection = %+v", review.GetChapters()[0])
+	}
+}
+
+func TestConnectServiceRejectsInvalidDeploymentContext(t *testing.T) {
+	for _, mode := range []string{"unknown", "proxy"} {
+		t.Run(mode, func(t *testing.T) {
+			handler := smoketest.NewConnectService(&connectServiceSpy{platform: "linux", calls: make(chan smokeTestCall, 1)}, mocks.NewMockStore(), mocks.NewMockCancelManager())
+			_, err := handler.StartSmokeTest(context.Background(), connect.NewRequest(&domainv1.SmokeTestStartRequest{ScenarioName: "hello-desktop", ArtifactPath: "/tmp/hello.AppImage", DeploymentMode: &mode}))
+			if connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("invalid deployment context error = %v", err)
+			}
+		})
+	}
+}
+
+func TestConnectServicePreservesProxyTargetBeforeExecution(t *testing.T) {
+	store := mocks.NewMockStore()
+	service := &connectServiceSpy{platform: "linux", calls: make(chan smokeTestCall, 1)}
+	handler := smoketest.NewConnectService(service, store, mocks.NewMockCancelManager())
+	mode, target := "proxy", "http://127.0.0.1:12345"
+	started, err := handler.StartSmokeTest(context.Background(), connect.NewRequest(&domainv1.SmokeTestStartRequest{ScenarioName: "hello-desktop", ArtifactPath: "/tmp/hello.AppImage", DeploymentMode: &mode, ProxyUrl: &target}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, _ := store.Get(started.Msg.GetSmokeTestId())
+	if status.DeploymentMode != mode || status.ProxyURL != target {
+		t.Fatalf("queued target = %q %q", status.DeploymentMode, status.ProxyURL)
+	}
+	select {
+	case call := <-service.calls:
+		if call.deploymentMode != mode || call.proxyURL != target {
+			t.Fatalf("execution lost proxy target: %+v", call)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("smoke execution was not started")
+	}
+}
+
+func TestStatusToProtoPreservesTargetAndCleanupEvidence(t *testing.T) {
+	status := &smoketest.Status{SmokeTestID: "closed-run", ScenarioName: "hello-desktop", Status: "failed", StartedAt: time.Now(), DeploymentMode: "bundled", ScreenContentSource: "bundled_private", ProcessLifetimeChecks: []smoketest.ProcessLifetimeCheck{
+		{Stage: "protocol", SessionID: "protocol-session", Passed: true},
+		{Stage: "demo", SessionID: "demo-session", Remaining: []int{42}, Assertion: "descendant remains"},
+	}}
+	got := smoketest.StatusToProto(status)
+	if got.GetDeploymentMode() != "bundled" || got.GetScreenContentSource() != "bundled_private" || got.GetStatus() != sharedv1.SmokeTestStatus_SMOKE_TEST_STATUS_FAILED {
+		t.Fatalf("target/application outcome lost: %v", got)
+	}
+	checks := got.GetProcessLifetimeChecks()
+	if len(checks) != 2 {
+		t.Fatalf("cleanup checks = %v", checks)
+	}
+	if checks[0].GetStage() != "protocol" || checks[0].GetSessionId() != "protocol-session" || !checks[0].GetPassed() || len(checks[0].GetRemainingPids()) != 0 {
+		t.Fatalf("passing cleanup evidence = %v", checks[0])
+	}
+	if checks[1].GetStage() != "demo" || checks[1].GetSessionId() != "demo-session" || checks[1].GetPassed() || len(checks[1].GetRemainingPids()) != 1 || checks[1].GetRemainingPids()[0] != 42 || checks[1].GetAssertion() != "descendant remains" {
+		t.Fatalf("failed cleanup evidence = %v", checks[1])
 	}
 }

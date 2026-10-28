@@ -1,13 +1,13 @@
 package ports_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
@@ -397,12 +397,8 @@ type stubDialer struct {
 	availability map[int]bool
 }
 
-func (s *stubDialer) Dial(network, address string) (net.Conn, error) {
-	return nil, errors.New("Dial not implemented")
-}
-
-func (s *stubDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return nil, errors.New("DialTimeout not implemented")
+func (s *stubDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	return nil, errors.New("DialContext not implemented")
 }
 
 func (s *stubDialer) Listen(network, address string) (net.Listener, error) {

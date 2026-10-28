@@ -373,6 +373,10 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 	if value == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("config is required"))
 	}
+	rendererProfiles, err := normalizeRendererToolProfiles(value.GetRendererToolProfiles())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if value.GetFramework() != sharedv1.Framework_FRAMEWORK_UNSPECIFIED {
 		framework := frameworkFromProto(value.GetFramework())
 		if _, ok := generation.StrategyForShell(framework); !ok {
@@ -405,6 +409,7 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 		PreflightSecrets:        value.GetPreflightSecrets(),
 		ResourceArtifactRoot:    value.GetResourceArtifactRoot(),
 		ToolArtifactRoot:        value.GetToolArtifactRoot(),
+		RendererToolProfiles:    rendererProfiles,
 		ArtifactTrustMode:       resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()),
 		LocationMode:            value.GetLocationMode(),
 		Stages:                  stagesFromProto(value.GetStages()),
@@ -820,6 +825,9 @@ func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *Pipelin
 }
 
 func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config *PipelineConfig) {
+	if len(config.RendererToolProfiles) > 0 {
+		result.RendererToolProfiles = append([]string(nil), config.RendererToolProfiles...)
+	}
 	if len(config.Platforms) > 0 {
 		result.PlatformTargets = append([]string(nil), config.Platforms...)
 	}

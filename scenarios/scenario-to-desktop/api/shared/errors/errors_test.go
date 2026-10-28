@@ -337,7 +337,6 @@ func TestStageErrorConstructorsProvideActionableStructuredRecovery(t *testing.T)
 		{"build service missing", ErrBuildServiceNotConfigured()},
 		{"build store missing", ErrBuildStoreNotConfigured()},
 		{"build desktop path missing", ErrBuildDesktopPathMissing()},
-		{"build start", ErrBuildStartFailed(cause, "linux")},
 		{"build timeout", ErrBuildTimedOut("build-1", "30s")},
 		{"deploy failure", ErrDeployFailed(cause, "remote")},
 		{"deploy timeout", ErrDeployTimeout("deploy-1", "30s")},

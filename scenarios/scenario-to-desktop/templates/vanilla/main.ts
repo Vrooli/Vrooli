@@ -118,6 +118,7 @@ import {
 import {
     type IAuthManager,
     createAuthManager,
+    parseConfiguredCredentialStatus,
     createElectronSafeStorage,
     createElectronAuthHttpClient,
     createElectronShell,
@@ -220,6 +221,7 @@ const AUTH_CONFIG = {
 // ===== MODULE STATE =====
 let serverProcess: ChildProcess | null = null;
 let runtimeProcess: ChildProcess | null = null;
+let runtimeQuitPending = false;
 let mainWindow: BrowserWindow | null = null;
 let splashManager: ISplashWindowManager | null = null;
 let windowStateManager: IWindowStateManager | null = null;
@@ -425,7 +427,14 @@ const RUNTIME_CONTROL = {
 
 // Local Vrooli state
 const localVrooliRuntime = { startedByApp: false, vrooliBinary: "" };
-let bootstrapStateCache: { vrooliPath?: string; setupCompleted?: boolean } | null = null;
+interface LocalBootstrapState {
+    vrooliPath?: string;
+    setupCompleted?: boolean;
+    desktopInstallationId?: string;
+}
+
+let bootstrapStateCache: LocalBootstrapState | null = null;
+let desktopInstallationIdPromise: Promise<string> | null = null;
 let bootstrapStatePath: string | null = null;
 
 // ===== SMOKE TEST PROTOCOL =====
@@ -761,7 +770,8 @@ async function finalizeDemoTrace(): Promise<void> {
 }
 
 async function recordPackagedRuntimeWaterfallMarks(): Promise<void> {
-    if (!isSmokeTestDemo || !runtimeControlClient) return;
+    if (!isSmokeTestDemo || !runtimeControlClient || !appSessionStartedAt) return;
+    const sessionStartedAt = Date.parse(appSessionStartedAt);
     try {
         const telemetry = await runtimeControlClient.request<RuntimeTelemetryResponse>("/telemetry");
         if (typeof telemetry === "string" || !telemetry.path) return;
@@ -772,7 +782,8 @@ async function recordPackagedRuntimeWaterfallMarks(): Promise<void> {
                 const event = JSON.parse(line) as { ts?: string; event?: string; service_id?: string; details?: Record<string, unknown> };
                 const serviceId = String(event.service_id || event.details?.service_id || "").trim();
                 const observedAt = event.ts || "";
-                if (!serviceId || !observedAt) continue;
+                const observedTime = Date.parse(observedAt);
+                if (!serviceId || !Number.isFinite(observedTime) || observedTime < sessionStartedAt) continue;
                 if (event.event === "service_start") {
                     await packagedLaunch.emit("runtime_service_event", serviceId, "backend", {
                         mark_name: `service_spawned:${serviceId}`, observed_at: observedAt,
@@ -1005,7 +1016,7 @@ async function getBootstrapStatePath(): Promise<string> {
     return bootstrapStatePath;
 }
 
-async function loadBootstrapState(): Promise<{ vrooliPath?: string; setupCompleted?: boolean }> {
+async function loadBootstrapState(): Promise<LocalBootstrapState> {
     if (bootstrapStateCache) return bootstrapStateCache;
     try {
         const raw = await fs.promises.readFile(await getBootstrapStatePath(), "utf-8");
@@ -1016,9 +1027,47 @@ async function loadBootstrapState(): Promise<{ vrooliPath?: string; setupComplet
     return bootstrapStateCache!;
 }
 
-async function saveBootstrapState(state: { vrooliPath?: string; setupCompleted?: boolean }): Promise<void> {
+async function saveBootstrapState(state: LocalBootstrapState): Promise<void> {
     bootstrapStateCache = state;
     await fs.promises.writeFile(await getBootstrapStatePath(), JSON.stringify(state, null, 2));
+}
+
+async function getDesktopInstallationId(): Promise<string> {
+    if (!desktopInstallationIdPromise) {
+        desktopInstallationIdPromise = (async () => {
+            const statePath = await getBootstrapStatePath();
+            let state: LocalBootstrapState;
+            let stateReadFromDisk = false;
+            try {
+                const raw = await fs.promises.readFile(statePath, "utf-8");
+                const parsed = JSON.parse(raw) as unknown;
+                if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+                    throw new Error("saved desktop configuration is invalid");
+                }
+                state = parsed as LocalBootstrapState;
+                bootstrapStateCache = state;
+                stateReadFromDisk = true;
+            } catch (error) {
+                if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+                state = await loadBootstrapState();
+            }
+            if (state.desktopInstallationId !== undefined) {
+                if (typeof state.desktopInstallationId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(state.desktopInstallationId)) {
+                    if (!stateReadFromDisk) await saveBootstrapState(state);
+                    return state.desktopInstallationId;
+                }
+                throw new Error("saved desktop installation identity is invalid; refusing to create a replacement");
+            }
+            const installationId = randomUUID();
+            state.desktopInstallationId = installationId;
+            await saveBootstrapState(state);
+            return installationId;
+        })().catch((error: unknown) => {
+            desktopInstallationIdPromise = null;
+            throw error;
+        });
+    }
+    return desktopInstallationIdPromise;
 }
 
 async function locateBinaryInPath(binary: string): Promise<string | null> {
@@ -1391,19 +1440,13 @@ async function startBundledRuntime(): Promise<string> {
     if (isSmokeTest) SmokeTestProtocol.stage.runtimeReadyz();
     updateSplashStatus("checking-ready", "Verifying services are ready...", 60);
     let runtimeReady = false;
-    if (APP_CONFIG.OPTIMIZATION_PROFILE.sharedRuntimeReadiness) {
+    const readyDeadline = Date.now() + serverCheckTimeoutMs;
+    while (Date.now() < readyDeadline) {
         try {
-            runtimeReady = (await runtimeControlClient!.waitForReady(serverCheckTimeoutMs, true)).ready;
-        } catch { /* report through the established timeout diagnostics below */ }
-    } else {
-        const readyDeadline = Date.now() + serverCheckTimeoutMs;
-        while (Date.now() < readyDeadline) {
-            try {
-                const ready = await runtimeControlClient!.request<RuntimeReadyResponse>("/readyz");
-                if ((ready as RuntimeReadyResponse)?.ready) { runtimeReady = true; break; }
-            } catch { /* runtime may still be starting */ }
-            await delay(350);
-        }
+            runtimeReady = (await runtimeControlClient!.waitForReady(readyDeadline - Date.now(), APP_CONFIG.OPTIMIZATION_PROFILE.sharedRuntimeReadiness)).ready;
+            if (runtimeReady) break;
+        } catch { /* retry transient control failures within the startup window */ }
+        await delay(Math.min(350, Math.max(0, readyDeadline - Date.now())));
     }
     if (!runtimeReady) {
         const error = `Bundled runtime did not become ready within ${serverCheckTimeoutMs}ms`;
@@ -1484,7 +1527,6 @@ async function shutdownRuntime(): Promise<void> {
         signalBundledRuntimeGroup(child, "SIGTERM");
         exited = await waitForExit(2000);
     }
-    if (!exited) signalBundledRuntimeGroup(child, "SIGKILL");
     // A clean supervisor exit does not prove every helper left its owned
     // process group. Reap the group after graceful shutdown as well.
     signalBundledRuntimeGroup(child, "SIGKILL");
@@ -1898,6 +1940,7 @@ app.whenReady().then(async () => {
             onLoopbackAuthorization: runLoopbackAuthorization,
             createCodeChallenge: (verifier) => createHash("sha256").update(verifier).digest("base64url"),
             onResolveLocalIdentityProof: resolveLocalIdentityProof,
+            onGetDesktopInstallationId: getDesktopInstallationId,
             onStoreEntitlementLease: async (lease) => {
                 if (!runtimeControlClient) {
                     throw new Error("shared credential authority is unavailable");
@@ -1923,6 +1966,27 @@ app.whenReady().then(async () => {
                 await runtimeControlClient.request("/credentials/delete", {
                     method: "POST",
                     body: { identity: "vrooli/lpbs-account", field: "entitlement-lease" },
+                });
+            },
+            onStoreLPBSCreditRefreshToken: async (refreshToken) => {
+                if (!runtimeControlClient) throw new Error("shared credential authority is unavailable");
+                await runtimeControlClient.request("/credentials/provision", {
+                    method: "POST",
+                    body: { identity: "vrooli/lpbs-account", field: "refresh-token", value: refreshToken },
+                });
+            },
+            onHasLPBSCreditRefreshToken: async () => {
+                if (!runtimeControlClient) throw new Error("shared credential authority is unavailable");
+                const result = await runtimeControlClient.request<{ configured?: boolean }>(
+                    "/credentials/status?identity=vrooli%2Flpbs-account&field=refresh-token",
+                );
+                return parseConfiguredCredentialStatus(result);
+            },
+            onClearLPBSCreditRefreshToken: async () => {
+                if (!runtimeControlClient) throw new Error("shared credential authority is unavailable");
+                await runtimeControlClient.request("/credentials/delete", {
+                    method: "POST",
+                    body: { identity: "vrooli/lpbs-account", field: "refresh-token" },
                 });
             },
         });
@@ -2049,8 +2113,18 @@ app.on("before-quit", (event) => {
     }
     if (presentationController && !presentationController.requestQuit()) { event.preventDefault(); return; }
     presentationController?.prepareQuit();
+    if (runtimeProcess || runtimeQuitPending) {
+        event.preventDefault();
+        if (!runtimeQuitPending) {
+            runtimeQuitPending = true;
+            void shutdownRuntime().finally(() => {
+                runtimeQuitPending = false;
+                app.quit();
+            });
+        }
+        return;
+    }
     void packagedLaunch.complete();
-    if (runtimeProcess) void shutdownRuntime();
     if (serverProcess) { console.log("[Desktop App] Terminating server process..."); serverProcess.kill(); serverProcess = null; }
     void shutdownLocalVrooli();
     void recordAppSessionOutcome("app_shutdown");
@@ -2071,5 +2145,5 @@ process.on("SIGTERM", async () => {
         await recordTelemetry("smoke_test_failed", { error: "Process terminated by SIGTERM (external timeout)", signal: "SIGTERM" }, "error");
         if (smokeTestUploadURL && telemetryRecorder && telemetryUploader) { try { await telemetryUploader.upload(telemetryRecorder.getFilePath()!, smokeTestUploadURL, "sigterm"); console.log("[Desktop App] Telemetry uploaded before exit"); } catch (uploadError) { console.error("[Desktop App] Failed to upload telemetry:", uploadError); } }
     } catch (telemetryError) { console.error("[Desktop App] Failed to record final telemetry:", telemetryError); }
-    process.exit(1);
+    try { await shutdownRuntime(); } finally { process.exit(1); }
 });

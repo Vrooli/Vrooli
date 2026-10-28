@@ -1,17 +1,15 @@
 package infra
 
 import (
+	"context"
 	"net"
 	"net/http"
-	"time"
 )
 
 // NetworkDialer abstracts network connections for testing.
 type NetworkDialer interface {
-	// Dial connects to the address on the named network.
-	Dial(network, address string) (net.Conn, error)
-	// DialTimeout connects to the address with a timeout.
-	DialTimeout(network, address string, timeout time.Duration) (net.Conn, error)
+	// DialContext connects with the caller's cancellation and deadline.
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
 	// Listen creates a listener on the given address.
 	Listen(network, address string) (net.Listener, error)
 }
@@ -25,12 +23,9 @@ type HTTPClient interface {
 // RealNetworkDialer implements NetworkDialer using the net package.
 type RealNetworkDialer struct{}
 
-func (RealNetworkDialer) Dial(network, address string) (net.Conn, error) {
-	return net.Dial(network, address) // #nosec G704 -- injected adapter is the deliberate network boundary; callers validate destinations
-}
-
-func (RealNetworkDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return net.DialTimeout(network, address, timeout) // #nosec G704 -- injected adapter is the deliberate network boundary; callers validate destinations
+func (RealNetworkDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	dialer := net.Dialer{}
+	return dialer.DialContext(ctx, network, address) // #nosec G704 -- callers validate destinations; context bounds the connection
 }
 
 func (RealNetworkDialer) Listen(network, address string) (net.Listener, error) {

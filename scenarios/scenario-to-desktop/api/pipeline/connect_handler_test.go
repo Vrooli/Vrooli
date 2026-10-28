@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"scenario-to-desktop-api/build"
@@ -401,15 +402,23 @@ func TestPipelineConfigProtoRoundTripPreservesExplicitControls(t *testing.T) {
 		Sign: true, Publish: true, Version: "1.2.3", PreflightTimeoutSeconds: 45, StopAfterStage: StageBuild,
 		ResumeFromStage: StagePreflight, ParentPipelineID: "parent", IdempotencyKey: "key", Stages: []string{StageBundle, StageBuild},
 		ArtifactManifestDigest: "artifact-manifest-1", ExpectedArtifactDigests: map[string]string{"linux-x64": "sha256:artifact"},
-		DeployConfig: &DeployConfig{AppKey: "qualified-app", ReleaseID: "release-1", CandidateID: "candidate-1", DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1"},
-		UpdateConfig: &generation.UpdateConfig{Provider: "generic", Channel: "stable", AutoCheck: true, Generic: &generation.GenericUpdateConfig{URL: "http://127.0.0.1:8765/updates"}},
+		RendererToolProfiles: []string{"blender", "ffmpeg-video"},
+		DeployConfig:         &DeployConfig{AppKey: "qualified-app", ReleaseID: "release-1", CandidateID: "candidate-1", DestinationRevisionID: "destination-1", AuthorizationEpoch: 7, ReadinessReviewKey: "review-1"},
+		UpdateConfig:         &generation.UpdateConfig{Provider: "generic", Channel: "stable", AutoCheck: true, Generic: &generation.GenericUpdateConfig{URL: "http://127.0.0.1:8765/updates"}},
 	}
 	value, err := configFromProto(configToProto(config))
 	if err != nil {
 		t.Fatalf("config round trip: %v", err)
 	}
-	if value.DeploymentMode != DeploymentModeProxy || !value.SkipPreflight || !value.Clean || value.StopAfterStage != StageBuild || value.IdempotencyKey != "key" || len(value.Platforms) != 2 || value.ArtifactManifestDigest != "artifact-manifest-1" || value.ExpectedArtifactDigests["linux-x64"] != "sha256:artifact" || value.DeployConfig == nil || value.DeployConfig.CandidateID != "candidate-1" || value.DeployConfig.DestinationRevisionID != "destination-1" || value.DeployConfig.AuthorizationEpoch != 7 || value.DeployConfig.ReadinessReviewKey != "review-1" || value.UpdateConfig == nil || value.UpdateConfig.Generic == nil || value.UpdateConfig.Generic.URL != "http://127.0.0.1:8765/updates" {
+	if value.DeploymentMode != DeploymentModeProxy || !value.SkipPreflight || !value.Clean || value.StopAfterStage != StageBuild || value.IdempotencyKey != "key" || len(value.Platforms) != 2 || value.ArtifactManifestDigest != "artifact-manifest-1" || value.ExpectedArtifactDigests["linux-x64"] != "sha256:artifact" || strings.Join(value.RendererToolProfiles, ",") != "blender,ffmpeg-video" || value.DeployConfig == nil || value.DeployConfig.CandidateID != "candidate-1" || value.DeployConfig.DestinationRevisionID != "destination-1" || value.DeployConfig.AuthorizationEpoch != 7 || value.DeployConfig.ReadinessReviewKey != "review-1" || value.UpdateConfig == nil || value.UpdateConfig.Generic == nil || value.UpdateConfig.Generic.URL != "http://127.0.0.1:8765/updates" {
 		t.Fatalf("round-tripped config = %#v", value)
+	}
+}
+
+func TestConfigFromProtoRejectsUnknownRendererToolProfile(t *testing.T) {
+	_, err := configFromProto(&pipelinev1.PipelineConfig{ScenarioName: "example", RendererToolProfiles: []string{"blender", "unknown"}})
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("configFromProto code = %v, want invalid argument (%v)", connect.CodeOf(err), err)
 	}
 }
 

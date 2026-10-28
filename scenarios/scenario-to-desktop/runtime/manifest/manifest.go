@@ -27,10 +27,23 @@ type Manifest struct {
 	ProgramBindingPeers []Peer                 `json:"program_binding_peers,omitempty"`
 	Secrets             []Secret               `json:"secrets,omitempty"`
 	Services            []Service              `json:"services"`
+	// ToolProfiles declares optional, fixed renderer packages included in the
+	// bundle. Their paths are derived from the finite tool ID, never from JSON.
+	ToolProfiles []ToolProfilePackage `json:"tool_profiles,omitempty"`
 	// CatalogRequirements are immutable catalog paths the bundled application
 	// needs in order to boot every declared capability. Packaging validation
 	// fails before launch when one is absent.
 	CatalogRequirements []string `json:"catalog_requirements,omitempty"`
+}
+
+// ToolProfilePackage binds a finite tool/profile/platform selection to the
+// complete staged tree digest.
+type ToolProfilePackage struct {
+	ToolID       string `json:"tool_id"`
+	ProfileID    string `json:"profile_id"`
+	OS           string `json:"os"`
+	Architecture string `json:"architecture"`
+	TreeSHA256   string `json:"tree_sha256"`
 }
 
 // AuthenticationProfile declares the bundle's explicit identity mode. It is
@@ -381,6 +394,9 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 	if len(m.Services) == 0 {
 		return errors.New("services must not be empty")
 	}
+	if err := ValidateToolProfiles(m.ToolProfiles); err != nil {
+		return err
+	}
 	if err := validateAuthentication(m.Authentication); err != nil {
 		return err
 	}
@@ -440,6 +456,32 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 	for _, svc := range m.Services {
 		if err := validateService(svc, keys); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// ValidateToolProfiles checks the finite, non-path-bearing bundle tool list.
+func ValidateToolProfiles(profiles []ToolProfilePackage) error {
+	seen := make(map[string]struct{}, len(profiles))
+	for _, profile := range profiles {
+		if profile.ToolID != "blender" && profile.ToolID != "ffmpeg-video" {
+			return fmt.Errorf("tool_profiles contains unsupported tool %q", profile.ToolID)
+		}
+		if _, ok := seen[profile.ToolID]; ok {
+			return fmt.Errorf("tool_profiles repeats tool %q", profile.ToolID)
+		}
+		seen[profile.ToolID] = struct{}{}
+		if strings.TrimSpace(profile.ProfileID) == "" || strings.TrimSpace(profile.OS) == "" || strings.TrimSpace(profile.Architecture) == "" {
+			return fmt.Errorf("tool_profiles[%q] must declare profile_id, os, and architecture", profile.ToolID)
+		}
+		if len(profile.TreeSHA256) != 64 {
+			return fmt.Errorf("tool_profiles[%q] tree_sha256 must be a SHA-256 hex digest", profile.ToolID)
+		}
+		for _, character := range profile.TreeSHA256 {
+			if !strings.ContainsRune("0123456789abcdefABCDEF", character) {
+				return fmt.Errorf("tool_profiles[%q] tree_sha256 must be a SHA-256 hex digest", profile.ToolID)
+			}
 		}
 	}
 	return nil

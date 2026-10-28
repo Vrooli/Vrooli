@@ -38,18 +38,23 @@ func TestMockClockAndCommandRunnerProvideDeterministicRuntimeControls(t *testing
 func TestMockNetworkAndFileSystemModelSuccessAndFailure(t *testing.T) {
 	dialer := NewMockDialer()
 	dialer.SetPort(4312, true)
-	connection, err := dialer.Dial("tcp", "127.0.0.1:4312")
+	connection, err := dialer.DialContext(context.Background(), "tcp", "127.0.0.1:4312")
 	if err != nil {
-		t.Fatalf("Dial() error: %v", err)
+		t.Fatalf("DialContext() error: %v", err)
 	}
 	if bytes, writeErr := connection.Write([]byte("ping")); writeErr != nil || bytes != 4 {
 		t.Fatalf("Write() = (%d, %v)", bytes, writeErr)
 	}
-	if _, err := dialer.DialTimeout("tcp", "127.0.0.1:4313", time.Second); err == nil {
+	if _, err := dialer.DialContext(context.Background(), "tcp", "127.0.0.1:4313"); err == nil {
 		t.Fatal("closed port unexpectedly accepted")
 	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := dialer.DialContext(cancelled, "tcp", "127.0.0.1:4312"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled dial = %v", err)
+	}
 	dialer.SetShouldFail(true)
-	if _, err := dialer.Dial("tcp", "127.0.0.1:4312"); err == nil {
+	if _, err := dialer.DialContext(context.Background(), "tcp", "127.0.0.1:4312"); err == nil {
 		t.Fatal("configured dial failure was not returned")
 	}
 	if _, err := dialer.Listen("tcp", "127.0.0.1:0"); err == nil {

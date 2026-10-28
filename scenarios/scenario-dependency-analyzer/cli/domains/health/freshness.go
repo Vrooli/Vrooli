@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -67,19 +68,26 @@ type freshnessExclusionReport struct {
 }
 
 type goSurface struct {
-	scenario string
-	surface  string
-	goMod    string
-	module   string
-	requires map[string]struct{}
-	replaces map[string]string
+	scenario                   string
+	surface                    string
+	goMod                      string
+	module                     string
+	requires                   map[string]struct{}
+	replaces                   map[string]string
+	moduleFingerprint          string
+	moduleFingerprintReady     bool
+	dependencyFingerprint      string
+	dependencyFingerprintReady bool
+	cacheKey                   string
+	cacheKeyReady              bool
 }
 
 type goModule struct {
-	dir      string
-	module   string
-	requires map[string]struct{}
-	replaces map[string]string
+	ambiguous bool
+	dir       string
+	module    string
+	requires  map[string]struct{}
+	replaces  map[string]string
 }
 
 type moduleExclusion struct {
@@ -116,7 +124,16 @@ func runFreshness(args []string) error {
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 0 || (touched && all) {
+	moduleSpecified := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "module" {
+			moduleSpecified = true
+		}
+	})
+	if moduleSpecified && strings.TrimSpace(module) == "" {
+		return fmt.Errorf("--module requires a nonempty module path")
+	}
+	if len(fs.Args()) != 0 || (touched && all) || (moduleSpecified && (touched || all)) {
 		return fmt.Errorf("usage: %s freshness [--touched|--all|--module <path>] [--apply] [--build] [--concurrency <n>] [--repo-root <path>] [--json]", support.AppName)
 	}
 	if !touched && !all && module == "" {
@@ -139,15 +156,13 @@ func runFreshness(args []string) error {
 }
 
 type freshnessRequest struct {
-	touched       bool
-	all           bool
-	module        string
-	apply         bool
-	build         bool
-	noCache       bool
-	fastRootCache bool
-	treeDigest    string
-	concurrency   int
+	touched     bool
+	all         bool
+	module      string
+	apply       bool
+	build       bool
+	noCache     bool
+	concurrency int
 }
 
 func checkFreshness(ctx context.Context, root string, req freshnessRequest) (freshnessReport, error) {
@@ -156,6 +171,32 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	if err != nil {
 		return freshnessReport{}, err
 	}
+	// An existing repository path explicitly names the owner even when a
+	// retained fixture declares the same module ID. ID-only ambiguity refuses.
+	if req.module != "" {
+		candidate := filepath.Join(root, filepath.FromSlash(strings.TrimSpace(req.module)))
+		if filepath.Base(candidate) != "go.mod" {
+			candidate = filepath.Join(candidate, "go.mod")
+		}
+		if resolved, resolveErr := filepath.EvalSymlinks(candidate); resolveErr == nil {
+			canonicalRoot, err := filepath.EvalSymlinks(root)
+			if err != nil {
+				return freshnessReport{}, err
+			}
+			rel, err := filepath.Rel(canonicalRoot, resolved)
+			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+				return freshnessReport{}, fmt.Errorf("module path escapes repository root")
+			}
+			view, err := parseGoModFile(resolved)
+			if err != nil {
+				return freshnessReport{}, err
+			}
+			if !excludedGoMod(candidate, root) {
+				modules[view.module] = goModule{dir: filepath.Dir(candidate), module: view.module, requires: view.requires, replaces: view.replaces}
+			}
+		}
+	}
+
 	surfaces, err := discoverGoSurfacesFromModules(root, modules)
 	if err != nil {
 		return freshnessReport{}, err
@@ -164,21 +205,29 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	impacted := map[string][]string{}
 	if req.module != "" {
 		surfaces = filterGoSurfacesByModule(root, surfaces, req.module)
+		if len(surfaces) == 0 {
+			return freshnessReport{}, fmt.Errorf("no Go module matches selector %q", req.module)
+		}
 	} else if req.touched {
 		touchedPaths, err = changedPaths(root)
 		if err != nil {
 			return freshnessReport{}, err
 		}
-		req.fastRootCache = containsRootModuleMetadata(touchedPaths)
 		impacted = impactedSurfaces(root, surfaces, modules, touchedPaths)
 		touchedPaths = reportTouchedPaths(impacted)
 		surfaces = filterImpactedSurfaces(surfaces, impacted)
-		if !req.noCache && !req.apply && !req.build {
-			req.treeDigest = digestStrings(touchedPaths)
+	}
+	for _, surface := range surfaces {
+		if modules[surface.module].ambiguous {
+			return freshnessReport{}, fmt.Errorf("Go module %q has multiple source directories; cannot establish a unique owner", surface.module)
 		}
 	}
-	if !req.noCache && !req.apply && !req.build && req.treeDigest == "" {
-		req.treeDigest = freshnessTreeDigest(root)
+	cacheEnabled := !req.noCache && !req.apply && !req.build
+	if cacheEnabled {
+		attachFreshnessCacheFingerprints(surfaces, modules)
+		for idx := range surfaces {
+			surfaces[idx].cacheKey, surfaces[idx].cacheKeyReady = freshnessCacheKey(surfaces[idx])
+		}
 	}
 
 	report := freshnessReport{
@@ -196,6 +245,28 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 		report.Mode = "module"
 	}
 	report.Surfaces = checkGoSurfaces(ctx, root, surfaces, impacted, req)
+	if cacheEnabled {
+		// Recompute only identities that may be stored, sharing module scans
+		// across the pending results.
+		var pending []goSurface
+		var pendingIndexes []int
+		for idx, surface := range surfaces {
+			item := report.Surfaces[idx]
+			if !surface.cacheKeyReady || item.CacheHit || item.Status == "needs_download" {
+				continue
+			}
+			pending = append(pending, surface)
+			pendingIndexes = append(pendingIndexes, idx)
+		}
+		attachFreshnessCacheFingerprints(pending, modules)
+		for pendingIdx, surface := range pending {
+			currentKey, currentReady := freshnessCacheKey(surface)
+			if !currentReady || currentKey != surface.cacheKey {
+				continue
+			}
+			storeFreshnessCache(root, surface.cacheKey, report.Surfaces[pendingIndexes[pendingIdx]])
+		}
+	}
 	for _, item := range report.Surfaces {
 		switch item.Status {
 		case "clean":
@@ -208,16 +279,22 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 			report.Clean = false
 		case "needs_download":
 			report.Summary.NeedsDownload++
+			report.Clean = false
 		default:
 			report.Summary.Skipped++
+			report.Clean = false
 		}
 	}
 	report.Summary.Checked = len(report.Surfaces)
 	if report.Summary.Stale > 0 {
+		command := fmt.Sprintf("%s freshness --%s --apply", support.AppName, report.Mode)
+		if report.Mode == "module" {
+			command = fmt.Sprintf("%s freshness --module %s --apply", support.AppName, shellQuoteCommandArg(req.module))
+		}
 		report.NextActions = append(report.NextActions, freshnessAction{
 			Code:       "apply_go_tidy",
 			Message:    "Run SDA-owned package freshness repair for impacted Go surfaces.",
-			Command:    fmt.Sprintf("%s freshness --%s --apply", support.AppName, report.Mode),
+			Command:    command,
 			Fixability: "automatic",
 		})
 	}
@@ -233,11 +310,21 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	return report, nil
 }
 
-func filterGoSurfacesByModule(root string, surfaces []goSurface, selector string) []goSurface {
-	selector = filepath.ToSlash(filepath.Clean(strings.TrimSpace(selector)))
-	if selector == "." || selector == "" {
-		return surfaces
+func shellQuoteCommandArg(value string) string {
+	if value != "" && strings.IndexFunc(value, func(r rune) bool {
+		return !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || strings.ContainsRune("_./-", r))
+	}) < 0 {
+		return value
 	}
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func filterGoSurfacesByModule(root string, surfaces []goSurface, selector string) []goSurface {
+	selector = strings.TrimSpace(selector)
+	if selector == "" {
+		return nil
+	}
+	selector = filepath.ToSlash(filepath.Clean(selector))
 	out := make([]goSurface, 0, 1)
 	for _, surface := range surfaces {
 		relGoMod := filepath.ToSlash(mustRel(root, surface.goMod))
@@ -336,14 +423,6 @@ func checkGoSurfaces(ctx context.Context, root string, surfaces []goSurface, imp
 	return out
 }
 
-func discoverGoSurfaces(root string) ([]goSurface, error) {
-	modules, err := discoverGoModules(root)
-	if err != nil {
-		return nil, err
-	}
-	return discoverGoSurfacesFromModules(root, modules)
-}
-
 func discoverGoSurfacesFromModules(root string, modules map[string]goModule) ([]goSurface, error) {
 	var out []goSurface
 	for _, module := range modules {
@@ -390,11 +469,18 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 			}
 			return nil
 		}
+		// Retained fixture/evidence copies must not shadow the repository's
+		// own module, which owns resource CLIs and the control plane.
+		if existing, ok := out[view.module]; ok && existing.dir == root {
+			return nil
+		}
+		existing, duplicate := out[view.module]
 		out[view.module] = goModule{
-			dir:      filepath.Dir(path),
-			module:   view.module,
-			requires: view.requires,
-			replaces: view.replaces,
+			ambiguous: filepath.Dir(path) != root && duplicate && existing.dir != filepath.Dir(path),
+			dir:       filepath.Dir(path),
+			module:    view.module,
+			requires:  view.requires,
+			replaces:  view.replaces,
 		}
 		return nil
 	})
@@ -532,26 +618,16 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 		ImpactedBy: limitStrings(compactStrings(impactedBy), maxImpactedByPaths), ImpactedByCount: len(compactStrings(impactedBy)),
 	}
 	if !req.noCache && !req.apply && !req.build {
-		if req.fastRootCache {
-			if cached, ok := loadFreshnessCacheIndex(root, surface, req.treeDigest); ok {
+		if surface.cacheKeyReady {
+			if cached, ok := loadFreshnessCache(root, surface.cacheKey); ok {
 				cached.Scenario, cached.Surface, cached.GoModPath = item.Scenario, item.Surface, item.GoModPath
-				cached.ImpactedBy, cached.ImpactedByCount, cached.CacheHit = item.ImpactedBy, item.ImpactedByCount, true
+				cached.ImpactedBy, cached.ImpactedByCount = item.ImpactedBy, item.ImpactedByCount
+				cached.CacheHit = true
 				return cached
 			}
 		}
-		if cached, ok := loadFreshnessCache(root, surface); ok {
-			cached.Scenario, cached.Surface, cached.GoModPath = item.Scenario, item.Surface, item.GoModPath
-			cached.ImpactedBy, cached.ImpactedByCount = item.ImpactedBy, item.ImpactedByCount
-			cached.CacheHit = true
-			storeFreshnessCache(root, surface, cached, req.treeDigest)
-			return cached
-		}
 	}
-	result := checkGoFreshnessUncached(ctx, root, surface, impactedBy, req)
-	if !req.noCache && !req.apply && !req.build && result.Status != "needs_download" {
-		storeFreshnessCache(root, surface, result, req.treeDigest)
-	}
-	return result
+	return checkGoFreshnessUncached(ctx, root, surface, impactedBy, req)
 }
 
 func checkGoFreshnessUncached(ctx context.Context, root string, surface goSurface, impactedBy []string, req freshnessRequest) freshnessSurfaceReport {
@@ -634,55 +710,98 @@ func checkGoFreshnessUncached(ctx context.Context, root string, surface goSurfac
 }
 
 const (
-	freshnessCacheSchema = 2
+	freshnessCacheSchema = 3
 	freshnessCacheLimit  = 2000
 )
 
 var freshnessCacheMu sync.Mutex
-
-func containsRootModuleMetadata(paths []string) bool {
-	for _, path := range paths {
-		if path == "go.mod" || path == "go.sum" {
-			return true
-		}
-	}
-	return false
-}
-
-func freshnessTreeDigest(root string) string {
-	h := sha256.New()
-	status := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=all")
-	status.Dir = root
-	if data, err := status.Output(); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.HasSuffix(line, ".go") || strings.HasSuffix(line, ".mod") || strings.HasSuffix(line, ".sum") {
-				h.Write([]byte(line + "\n"))
-			}
-		}
-	}
-	return fmt.Sprintf("%x", h.Sum(nil))
-}
 
 func freshnessCacheDir(root string) string {
 	return filepath.Join(root, "scenarios", "scenario-dependency-analyzer", "data", "freshness-cache")
 }
 
 func freshnessCacheKey(surface goSurface) (string, bool) {
+	if !surface.moduleFingerprintReady || !surface.dependencyFingerprintReady {
+		return "", false
+	}
 	h := sha256.New()
 	h.Write([]byte(fmt.Sprintf("schema=%d\nmodule=%s\n", freshnessCacheSchema, surface.module)))
-	for _, name := range []string{"go.mod", "go.sum"} {
-		data, err := os.ReadFile(filepath.Join(filepath.Dir(surface.goMod), name))
-		if err == nil {
-			h.Write([]byte(name + "\n"))
-			h.Write(data)
+	h.Write([]byte("surface\n" + surface.moduleFingerprint + "\n"))
+	h.Write([]byte("local-dependencies\n" + surface.dependencyFingerprint + "\n"))
+	return fmt.Sprintf("%x", h.Sum(nil)), true
+}
+
+// attachFreshnessCacheFingerprints binds each selected surface's cache
+// identity to its own module and the discovered in-repository modules that its
+// Go requirement closure can load. Module content is fingerprinted once per
+// pass even when several selected surfaces share modules.
+func attachFreshnessCacheFingerprints(surfaces []goSurface, modules map[string]goModule) {
+	requirements := make([][]string, len(surfaces))
+	needed := map[string]goModule{}
+	for idx, surface := range surfaces {
+		if module, ok := modules[surface.module]; ok {
+			needed[surface.module] = module
 		}
+		for modulePath := range transitiveRequirements(surface.module, modules) {
+			module, ok := modules[modulePath]
+			if !ok {
+				continue
+			}
+			requirements[idx] = append(requirements[idx], modulePath)
+			needed[modulePath] = module
+		}
+		sort.Strings(requirements[idx])
+	}
+
+	fingerprints := make(map[string]string, len(needed))
+	valid := make(map[string]bool, len(needed))
+	for modulePath, module := range needed {
+		fingerprints[modulePath], valid[modulePath] = freshnessModuleFingerprint(module.dir)
+	}
+	for idx := range surfaces {
+		h := sha256.New()
+		ready := true
+		ownFingerprint, ownReady := fingerprints[surfaces[idx].module]
+		surfaces[idx].moduleFingerprint = ownFingerprint
+		surfaces[idx].moduleFingerprintReady = ownReady && ownFingerprint != ""
+		for _, modulePath := range requirements[idx] {
+			if !valid[modulePath] {
+				ready = false
+				break
+			}
+			h.Write([]byte(modulePath + "\n" + fingerprints[modulePath] + "\n"))
+		}
+		surfaces[idx].dependencyFingerprint = fmt.Sprintf("%x", h.Sum(nil))
+		surfaces[idx].dependencyFingerprintReady = ready && surfaces[idx].moduleFingerprintReady
+	}
+}
+
+func freshnessModuleFingerprint(moduleDir string) (string, bool) {
+	h := sha256.New()
+	for _, name := range []string{"go.mod", "go.sum"} {
+		data, err := os.ReadFile(filepath.Join(moduleDir, name))
+		if err != nil {
+			if name == "go.sum" && os.IsNotExist(err) {
+				continue
+			}
+			return "", false
+		}
+		h.Write([]byte(name + "\n"))
+		h.Write(data)
 	}
 	var files []string
-	_ = filepath.WalkDir(filepath.Dir(surface.goMod), func(path string, d os.DirEntry, err error) error {
+	if err := filepath.WalkDir(moduleDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return err
 		}
 		if d.IsDir() {
+			if path != moduleDir {
+				if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+					return filepath.SkipDir
+				} else if !os.IsNotExist(err) {
+					return err
+				}
+			}
 			switch d.Name() {
 			case ".git", "vendor", "node_modules", "dist", "build", ".cache":
 				return filepath.SkipDir
@@ -693,7 +812,9 @@ func freshnessCacheKey(surface goSurface) (string, bool) {
 			files = append(files, path)
 		}
 		return nil
-	})
+	}); err != nil {
+		return "", false
+	}
 	sort.Strings(files)
 	for _, path := range files {
 		data, err := os.ReadFile(path)
@@ -706,9 +827,8 @@ func freshnessCacheKey(surface goSurface) (string, bool) {
 	return fmt.Sprintf("%x", h.Sum(nil)), true
 }
 
-func loadFreshnessCache(root string, surface goSurface) (freshnessSurfaceReport, bool) {
-	key, ok := freshnessCacheKey(surface)
-	if !ok {
+func loadFreshnessCache(root, key string) (freshnessSurfaceReport, bool) {
+	if key == "" {
 		return freshnessSurfaceReport{}, false
 	}
 	data, err := os.ReadFile(filepath.Join(freshnessCacheDir(root), key+".json"))
@@ -722,43 +842,10 @@ func loadFreshnessCache(root string, surface goSurface) (freshnessSurfaceReport,
 	return item, true
 }
 
-type freshnessCacheIndex struct {
-	TreeDigest string            `json:"tree_digest"`
-	Keys       map[string]string `json:"keys"`
-}
-
-func loadFreshnessCacheIndex(root string, surface goSurface, treeDigest string) (freshnessSurfaceReport, bool) {
-	data, err := os.ReadFile(filepath.Join(freshnessCacheDir(root), "index.json"))
-	if err != nil {
-		return freshnessSurfaceReport{}, false
-	}
-	var index freshnessCacheIndex
-	if json.Unmarshal(data, &index) != nil {
-		return freshnessSurfaceReport{}, false
-	}
-	if index.TreeDigest != treeDigest {
-		return freshnessSurfaceReport{}, false
-	}
-	key, ok := index.Keys[surface.goMod]
-	if !ok {
-		return freshnessSurfaceReport{}, false
-	}
-	data, err = os.ReadFile(filepath.Join(freshnessCacheDir(root), key+".json"))
-	if err != nil {
-		return freshnessSurfaceReport{}, false
-	}
-	var item freshnessSurfaceReport
-	if json.Unmarshal(data, &item) != nil || item.Status == "" || item.Status == "needs_download" {
-		return freshnessSurfaceReport{}, false
-	}
-	return item, true
-}
-
-func storeFreshnessCache(root string, surface goSurface, item freshnessSurfaceReport, treeDigest string) {
+func storeFreshnessCache(root, key string, item freshnessSurfaceReport) {
 	freshnessCacheMu.Lock()
 	defer freshnessCacheMu.Unlock()
-	key, ok := freshnessCacheKey(surface)
-	if !ok {
+	if key == "" {
 		return
 	}
 	dir := freshnessCacheDir(root)
@@ -782,19 +869,6 @@ func storeFreshnessCache(root string, surface goSurface, item freshnessSurfaceRe
 	}
 	if err == nil {
 		_ = os.Rename(tmpName, filepath.Join(dir, key+".json"))
-		indexPath := filepath.Join(dir, "index.json")
-		index := freshnessCacheIndex{TreeDigest: treeDigest, Keys: map[string]string{}}
-		if existing, readErr := os.ReadFile(indexPath); readErr == nil {
-			_ = json.Unmarshal(existing, &index)
-		}
-		if index.Keys == nil {
-			index.Keys = map[string]string{}
-		}
-		index.TreeDigest = treeDigest
-		index.Keys[surface.goMod] = key
-		if encoded, marshalErr := json.Marshal(index); marshalErr == nil {
-			_ = os.WriteFile(indexPath, encoded, 0o644)
-		}
 	}
 	entries, _ := os.ReadDir(dir)
 	if len(entries) > freshnessCacheLimit {
@@ -980,15 +1054,6 @@ func changedPaths(root string) ([]string, error) {
 	}
 	sort.Strings(paths)
 	return paths, nil
-}
-
-func digestStrings(values []string) string {
-	h := sha256.New()
-	for _, value := range values {
-		h.Write([]byte(value))
-		h.Write([]byte{'\n'})
-	}
-	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func tidyDiffPaths(root, goModPath, diff string) []string {

@@ -25,16 +25,11 @@ require (
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/vrooli/cliresolve v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
@@ -53,7 +48,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli/packages/delivery-ramp-go v0.0.0
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.47.0
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

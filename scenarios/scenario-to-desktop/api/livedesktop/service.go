@@ -28,17 +28,18 @@ import (
 
 // Service orchestrates live desktop session lifecycle.
 type Service struct {
-	store               Store
-	backend             PlatformBackend
-	logger              *slog.Logger
-	vrooliRoot          string
-	artifactStagingRoot string
-	recorder            screenrecording.Recorder
-	videoInspector      func(context.Context, string) (screenrecording.MediaInspection, error)
-	captures            *captures.Service
-	windowController    *procmetrics.XdotoolDetector
-	dataDir             string
-	rendererURLResolver func(context.Context, string) (string, error)
+	store                     Store
+	backend                   PlatformBackend
+	logger                    *slog.Logger
+	vrooliRoot                string
+	artifactStagingRoot       string
+	recorder                  screenrecording.Recorder
+	videoInspector            func(context.Context, string) (screenrecording.MediaInspection, error)
+	captures                  *captures.Service
+	windowController          *procmetrics.XdotoolDetector
+	dataDir                   string
+	rendererURLResolver       func(context.Context, string) (string, error)
+	validationAPIPortResolver func(context.Context, string) (int, error)
 }
 
 // NewService creates a new live desktop service.
@@ -50,6 +51,9 @@ func NewService(store Store, backend PlatformBackend, logger *slog.Logger, vrool
 		vrooliRoot:          vrooliRoot,
 		dataDir:             filepath.Join(vrooliRoot, "scenarios", "scenario-to-desktop", "data", "livedesktop"),
 		rendererURLResolver: resolveScenarioRendererURL,
+		validationAPIPortResolver: func(ctx context.Context, scenario string) (int, error) {
+			return discovery.ResolveScenarioPort(ctx, scenario, "API_PORT")
+		},
 	}
 }
 
@@ -71,6 +75,10 @@ func resolveScenarioRendererURL(ctx context.Context, scenarioName string) (strin
 // weakening the production target identity contract.
 func (s *Service) WithRendererURLResolver(resolver func(context.Context, string) (string, error)) {
 	s.rendererURLResolver = resolver
+}
+
+func (s *Service) WithValidationAPIPortResolver(resolver func(context.Context, string) (int, error)) {
+	s.validationAPIPortResolver = resolver
 }
 
 // WithRecorder sets the screen recorder on the service.
@@ -346,7 +354,7 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	// explicit port-zero sentinel asks this service to resolve a scenario's
 	// live UI port; bundled validation must attach to the private runtime port
 	// discovered by the generated Electron process.
-	if renderer.URLPrefix == "http://127.0.0.1:0" {
+	if !opts.BundledRuntime && renderer.URLPrefix == "http://127.0.0.1:0" {
 		if s.rendererURLResolver == nil {
 			return nil, fmt.Errorf("Electron validation renderer URL resolver is unavailable")
 		}
@@ -359,9 +367,15 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 			return nil, fmt.Errorf("resolve Electron validation renderer returned an empty URL")
 		}
 	}
-	apiPort, err := discovery.ResolveScenarioPort(ctx, opts.ScenarioName, "API_PORT")
-	if err != nil {
-		return nil, fmt.Errorf("resolve Electron validation scenario API: %w", err)
+	apiPort := 0
+	if !opts.BundledRuntime {
+		if s.validationAPIPortResolver == nil {
+			return nil, fmt.Errorf("Electron validation API port resolver is unavailable")
+		}
+		apiPort, err = s.validationAPIPortResolver(ctx, opts.ScenarioName)
+		if err != nil {
+			return nil, fmt.Errorf("resolve Electron validation scenario API: %w", err)
+		}
 	}
 	s.killAppProcess(session)
 	environment := make(map[string]string)
@@ -371,9 +385,8 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	// Give the generated Electron main process the target-owned endpoint so its
 	// validation-only proxy can carry app-owned API requests to that leased
 	// service without exposing the lease identifier.
-	environment["VROOLI_VALIDATION_API_URL"] = fmt.Sprintf("http://127.0.0.1:%d", apiPort)
-	if strings.TrimSpace(renderer.URLPrefix) != "" {
-		environment["VROOLI_VALIDATION_RENDERER_URL"] = renderer.URLPrefix
+	for key, value := range validationRuntimeOverrides(opts.BundledRuntime, apiPort, renderer) {
+		environment[key] = value
 	}
 	session.mu.Lock()
 	if session.DarkMode {
@@ -384,6 +397,9 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 		environment["LC_ALL"] = session.Locale
 	}
 	for key, value := range session.EnvVars {
+		if opts.BundledRuntime && (key == "VROOLI_VALIDATION_API_URL" || key == "VROOLI_VALIDATION_RENDERER_URL") {
+			continue
+		}
 		if _, exists := environment[key]; !exists {
 			environment[key] = value
 		}
@@ -391,10 +407,11 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	session.mu.Unlock()
 
 	electronSession, err := target.StartElectronSession(ctx, target.ElectronSessionOptions{
-		ArtifactPath: appPath,
-		Launch:       opts,
-		Renderer:     renderer,
-		Environment:  environment,
+		ArtifactPath:   appPath,
+		Launch:         opts,
+		Renderer:       renderer,
+		Environment:    environment,
+		OfflineNetwork: opts.OfflineNetwork,
 	})
 	if err != nil {
 		return nil, err
@@ -406,6 +423,17 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	_ = s.store.Update(session)
 	s.logger.Info("Electron validation target launched", "session_id", sessionID, "pid", electronSession.PID(), "renderer_id", electronSession.Target().GetRendererId())
 	return electronSession.Target(), nil
+}
+
+func validationRuntimeOverrides(bundled bool, apiPort int, renderer target.RendererExpectation) map[string]string {
+	if bundled {
+		return nil
+	}
+	overrides := map[string]string{"VROOLI_VALIDATION_API_URL": fmt.Sprintf("http://127.0.0.1:%d", apiPort)}
+	if strings.TrimSpace(renderer.URLPrefix) != "" {
+		overrides["VROOLI_VALIDATION_RENDERER_URL"] = renderer.URLPrefix
+	}
+	return overrides
 }
 
 // RestartElectronValidation retains the managed display and profile after native quit.
@@ -426,6 +454,46 @@ func (s *Service) RestartElectronValidation(ctx context.Context, sessionID strin
 	session.ElectronValidation = next
 	session.AppRunning = true
 	return next.Target(), nil
+}
+
+// WaitElectronValidationExit waits for the exact validation process owned by
+// this live-desktop session. It does not stop the display or discard profile.
+func (s *Service) WaitElectronValidationExit(ctx context.Context, sessionID string) error {
+	session, err := s.store.Get(sessionID)
+	if err != nil {
+		return err
+	}
+	session.mu.Lock()
+	electron := session.ElectronValidation
+	session.mu.Unlock()
+	if electron == nil {
+		return fmt.Errorf("session has no Electron validation target")
+	}
+	if err := electron.WaitForExit(ctx); err != nil {
+		return err
+	}
+	session.mu.Lock()
+	if session.ElectronValidation == electron {
+		session.AppRunning = false
+	}
+	session.mu.Unlock()
+	return nil
+}
+
+// RequestElectronValidationExit requests normal process shutdown without
+// discarding the target owner needed to verify exit and restart the same profile.
+func (s *Service) RequestElectronValidationExit(ctx context.Context, sessionID string) error {
+	session, err := s.store.Get(sessionID)
+	if err != nil {
+		return err
+	}
+	session.mu.Lock()
+	electron := session.ElectronValidation
+	session.mu.Unlock()
+	if electron == nil {
+		return fmt.Errorf("session has no Electron validation target")
+	}
+	return electron.RequestExit(ctx)
 }
 
 // ExecuteAction dispatches a control action against a session.

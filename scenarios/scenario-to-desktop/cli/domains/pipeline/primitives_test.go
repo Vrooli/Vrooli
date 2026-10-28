@@ -96,6 +96,7 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 			"location-mode":          "staging",
 			"resource-artifact-root": "/verified/artifacts",
 			"artifact-trust-mode":    "development-local",
+			"renderer-tool-profiles": "ffmpeg-video,blender",
 			"update-provider":        "generic",
 			"update-url":             "http://127.0.0.1:8765/updates",
 			"update-channel":         "stable",
@@ -126,6 +127,9 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 	if config.GetDeploymentMode() != sharedv1.DeploymentMode_DEPLOYMENT_MODE_PROXY || config.GetLocationMode() != "staging" || config.GetResourceArtifactRoot() != "/verified/artifacts" || config.GetArtifactTrustMode() != "development-local" || !config.GetClean() || config.GetVersion() != "1.2.3" {
 		t.Errorf("unexpected config: %+v", config)
 	}
+	if got := strings.Join(config.GetRendererToolProfiles(), ","); got != "ffmpeg-video,blender" {
+		t.Errorf("renderer profiles = %q", got)
+	}
 	if config.GetUpdateConfig().GetProvider() != "generic" || config.GetUpdateConfig().GetGeneric().GetUrl() != "http://127.0.0.1:8765/updates" || config.GetUpdateConfig().GetChannel() != "stable" || !config.GetUpdateConfig().GetAutoCheck() {
 		t.Errorf("unexpected update config: %+v", config.GetUpdateConfig())
 	}
@@ -140,6 +144,8 @@ func TestPipelineConfigFromContext_RejectsUnsupportedOperatorInput(t *testing.T)
 		{name: "platform", flags: map[string]string{"platforms": "ios"}, want: "unsupported platform"},
 		{name: "stage", flags: map[string]string{"stages": "ship"}, want: "unsupported stage"},
 		{name: "mode", flags: map[string]string{"deployment-mode": "cloud"}, want: "unsupported deployment mode"},
+		{name: "renderer profile", flags: map[string]string{"renderer-tool-profiles": "blender,unknown"}, want: "unsupported renderer tool profile"},
+		{name: "duplicate renderer profile", flags: map[string]string{"renderer-tool-profiles": "blender,blender"}, want: "selected more than once"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{

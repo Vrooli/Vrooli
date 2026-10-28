@@ -5,9 +5,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -15,15 +17,20 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
 	runtimemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/toolprofiles"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type bundleInfo struct {
-	App      runtimemanifest.App       `json:"app"`
-	IPC      runtimemanifest.IPC       `json:"ipc"`
-	Services []runtimemanifest.Service `json:"services"`
+	App          runtimemanifest.App                  `json:"app"`
+	IPC          runtimemanifest.IPC                  `json:"ipc"`
+	Services     []runtimemanifest.Service            `json:"services"`
+	ToolProfiles []runtimemanifest.ToolProfilePackage `json:"tool_profiles,omitempty"`
 }
 
 func main() {
@@ -34,6 +41,12 @@ func main() {
 	manifest, err := loadBundle(filepath.Join(bundleRoot, "bundle.json"))
 	if err != nil {
 		fail(err)
+	}
+	if handled, err := runOfflineToolProfile(os.Args[1:], bundleRoot, manifest, os.Stdout); handled {
+		if err != nil {
+			fail(err)
+		}
+		return
 	}
 	appData, err := resolveAppData(manifest.App.Name)
 	if err != nil {
@@ -85,6 +98,10 @@ func locateBundleRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve shim executable: %w", err)
 	}
+	executable, err = filepath.EvalSymlinks(executable)
+	if err != nil {
+		return "", fmt.Errorf("resolve shim executable path: %w", err)
+	}
 	return filepath.Abs(filepath.Join(filepath.Dir(executable), ".."))
 }
 
@@ -103,7 +120,42 @@ func loadBundle(path string) (*bundleInfo, error) {
 	if strings.TrimSpace(manifest.App.Name) == "" {
 		return nil, errors.New("bundle manifest has no app name")
 	}
+	if err := runtimemanifest.ValidateToolProfiles(manifest.ToolProfiles); err != nil {
+		return nil, fmt.Errorf("validate bundle tool profiles: %w", err)
+	}
 	return &manifest, nil
+}
+
+func runOfflineToolProfile(args []string, bundleRoot string, bundle *bundleInfo, output io.Writer) (bool, error) {
+	return runOfflineToolProfileWithResolver(args, bundleRoot, bundle, output, toolprofiles.Resolve)
+}
+
+const rendererProfileQueryTimeout = 20 * time.Second
+
+func runOfflineToolProfileWithResolver(args []string, bundleRoot string, bundle *bundleInfo, output io.Writer, resolve func(context.Context, string, string, []runtimemanifest.ToolProfilePackage) (proto.Message, error)) (bool, error) {
+	if len(args) == 0 || args[0] != "host" {
+		return false, nil
+	}
+	if len(args) < 2 || args[1] != "renderer-profile" {
+		return false, nil
+	}
+	if len(args) != 4 || args[3] != "--json" {
+		return true, errors.New("usage: vrooli host renderer-profile <blender|ffmpeg-video> --json")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), rendererProfileQueryTimeout)
+	defer cancel()
+	profile, err := resolve(ctx, bundleRoot, args[2], bundle.ToolProfiles)
+	if err != nil {
+		return true, err
+	}
+	data, err := protojson.Marshal(profile)
+	if err != nil {
+		return true, fmt.Errorf("encode renderer profile: %w", err)
+	}
+	if _, err := output.Write(append(data, '\n')); err != nil {
+		return true, fmt.Errorf("write renderer profile: %w", err)
+	}
+	return true, nil
 }
 
 func resolveAppData(appName string) (string, error) {

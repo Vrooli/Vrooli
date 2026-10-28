@@ -48,6 +48,11 @@ export const STORAGE_CHANNELS = {
 export const AUTH_CHANNELS = {
     SIGN_IN: "auth:sign-in",
     CONNECT_DESKTOP: "auth:connect-desktop",
+    GET_DESKTOP_LINK_STATUS: "auth:get-desktop-link-status",
+    DISCONNECT_DESKTOP: "auth:disconnect-desktop",
+    GET_CREDIT_SESSION_STATUS: "auth:get-credit-session-status",
+    GET_CREDIT_BALANCE: "auth:get-credit-balance",
+    SET_CREDIT_SESSION_SHARING: "auth:set-credit-session-sharing",
     SIGN_OUT: "auth:sign-out",
     GET_ACCESS_TOKEN: "auth:get-access-token",
     GET_LOCAL_SESSION_TOKEN: "auth:get-local-session-token",

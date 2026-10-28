@@ -48,6 +48,13 @@ Reports classify deterministic tidy drift as automatic and missing local
 replace reconciliation as guided preview/apply work so root hygiene can show
 users and agents every relevant recovery command instead of only the first fix.
 
+Removing one known Go requirement from the repository root uses the narrowly
+scoped `scenario-dependency-analyzer deps remove --scenario vrooli --surface
+control-plane --ecosystem go --module <module-path>` command. It previews by
+default; apply requires `--apply --expected-sha256 <before-sha256>` copied from
+that preview. This operation edits only the named root `go.mod` requirement and
+does not run `go mod tidy` or change `go.sum`.
+
 Freshness findings map to the existing maturity capabilities. Go `go.mod`
 presence, missing local replace targets, tidy drift, optional build freshness,
 Node `package.json`, lockfile, single-lockfile, and local install readiness all

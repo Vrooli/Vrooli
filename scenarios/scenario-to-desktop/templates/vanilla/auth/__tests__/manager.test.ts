@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type {
     AuthManagerDependencies,
+    IAuthManager,
     AuthConfig,
     IAuthStorage,
     ISafeStorage,
@@ -23,7 +24,7 @@ import type {
     IAuthPathUtils,
     AuthChangeEvent,
 } from "../types";
-import { createAuthManager } from "../manager";
+import { createAuthManager, parseConfiguredCredentialStatus } from "../manager";
 
 // ===== Mock Factories =====
 
@@ -257,11 +258,142 @@ function createTestDependencies(overrides?: Partial<AuthManagerDependencies>): A
 
 // ===== Tests =====
 
+describe("parseConfiguredCredentialStatus", () => {
+    it("accepts only object responses with an explicit configured boolean", () => {
+        expect(parseConfiguredCredentialStatus({ configured: true })).toBe(true);
+        expect(parseConfiguredCredentialStatus({ configured: false })).toBe(false);
+        expect(() => parseConfiguredCredentialStatus("text response")).toThrow("credential status response is invalid");
+        expect(() => parseConfiguredCredentialStatus({})).toThrow("credential status response is invalid");
+        expect(() => parseConfiguredCredentialStatus({ configured: "true" })).toThrow("credential status response is invalid");
+    });
+});
+
 describe("createAuthManager", () => {
     let deps: ReturnType<typeof createTestDependencies>;
 
     beforeEach(() => {
         deps = createTestDependencies();
+    });
+
+    async function signInInMemorySession(
+        accessToken = "session-access",
+        refreshToken = "session-refresh",
+        expiresAt = "2099-01-01T00:00:00Z",
+    ): Promise<IAuthManager> {
+        deps = createTestDependencies({
+            onLoopbackAuthorization: async (buildAuthorizationURL) => {
+                const redirectURI = "http://127.0.0.1:43123/callback";
+                const url = new URL(buildAuthorizationURL(redirectURI));
+                return { code: "session-code", state: url.searchParams.get("state") ?? "", redirectURI };
+            },
+        });
+        deps.http._responses.set("https://test.vrooli.com/api/v1/auth/token", {
+            ok: true, status: 200,
+            body: { access_token: accessToken, refresh_token: refreshToken, expires_at: expiresAt },
+        });
+        const manager = createAuthManager(deps);
+        await manager.signIn();
+        await vi.waitFor(() => expect(deps.authChangeEvents).toContain("tokens-received"));
+        return manager;
+    }
+
+    describe("LPBS credit-session sharing", () => {
+        it("returns only the authenticated LPBS wallet facts and records when they were fetched", async () => {
+            const manager = await signInInMemorySession("wallet-access");
+            const endpoint = "https://test.vrooli.com/landing_page_business_suite.v1.AccountService/GetMyCredits";
+            deps.http._responses.set(endpoint, { ok: true, status: 200, body: {
+                balance: { balanceCredits: "1250", updatedAt: "2026-10-19T12:00:00Z" },
+                displayCreditsLabel: "credits", displayCreditsMultiplier: 1,
+            } });
+            const result = await manager.getCreditBalance();
+            expect(result).toMatchObject({ state: "available", balanceCredits: "1250", displayCreditsLabel: "credits", displayCreditsMultiplier: 1, walletUpdatedAt: "2026-10-19T12:00:00Z", source: "LPBS" });
+            expect(result.state === "available" && Date.parse(result.fetchedAt)).toBeTypeOf("number");
+            const request = deps.http._requests.find((entry) => entry.url === endpoint);
+            expect(request?.options).toMatchObject({ method: "POST", headers: { Authorization: "Bearer wallet-access", "Connect-Protocol-Version": "1" }, body: "{}" });
+            expect(JSON.stringify(result)).not.toContain("wallet-access");
+        });
+
+        it("keeps missing or invalid wallet data unknown and makes no request while signed out", async () => {
+            const manager = createAuthManager(deps);
+            await expect(manager.getCreditBalance()).resolves.toEqual({ state: "signed_out" });
+            expect(deps.http._requests).toHaveLength(0);
+            const signedIn = await signInInMemorySession();
+            const endpoint = "https://test.vrooli.com/landing_page_business_suite.v1.AccountService/GetMyCredits";
+            deps.http._responses.set(endpoint, { ok: true, status: 200, body: { displayCreditsLabel: "credits", displayCreditsMultiplier: 1 } });
+            await expect(signedIn.getCreditBalance()).resolves.toEqual({ state: "unavailable" });
+        });
+
+        it("provisions only after an explicit choice without persisting website credentials", async () => {
+            const provision = vi.fn(async (_refreshToken: string) => {});
+            const clear = vi.fn(async () => {});
+            deps = createTestDependencies({
+                onLoopbackAuthorization: async (buildAuthorizationURL) => {
+                    const redirectURI = "http://127.0.0.1:43123/callback";
+                    const url = new URL(buildAuthorizationURL(redirectURI));
+                    return { code: "session-code", state: url.searchParams.get("state") ?? "", redirectURI };
+                },
+                onStoreLPBSCreditRefreshToken: provision,
+                onHasLPBSCreditRefreshToken: async () => false,
+                onClearLPBSCreditRefreshToken: clear,
+            });
+            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/token", {
+                ok: true, status: 200, body: { access_token: "access-secret", refresh_token: "refresh-secret", expires_at: "2099-01-01T00:00:00Z" },
+            });
+            const manager = createAuthManager(deps);
+            await manager.signIn();
+            await vi.waitFor(async () => expect(await manager.getAccessToken()).toBe("access-secret"));
+
+            await expect(manager.getCreditSessionShareStatus()).resolves.toEqual({ state: "not_shared" });
+            await expect(manager.setCreditSessionSharing(true)).resolves.toEqual({ state: "shared" });
+            expect(provision).toHaveBeenCalledOnce();
+            expect(provision).toHaveBeenCalledWith("refresh-secret");
+            expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
+            expect(clear).not.toHaveBeenCalled();
+            const restartedManager = createAuthManager({ ...deps, onHasLPBSCreditRefreshToken: async () => true });
+            await expect(restartedManager.getCreditSessionShareStatus()).resolves.toEqual({ state: "shared" });
+        });
+
+        it("refuses to share while signed out and clears the exact refresh credential on opt-out and sign-out", async () => {
+            const clear = vi.fn(async () => {});
+            const manager = createAuthManager({
+                ...deps,
+                onStoreLPBSCreditRefreshToken: vi.fn(async () => {}),
+                onHasLPBSCreditRefreshToken: async () => true,
+                onClearLPBSCreditRefreshToken: clear,
+            });
+            await expect(manager.setCreditSessionSharing(true)).resolves.toEqual({ state: "signed_out" });
+            await expect(manager.setCreditSessionSharing(false)).resolves.toEqual({ state: "not_shared", localCleared: true, remoteRevocation: "uncertain" });
+            await manager.signOut();
+            expect(clear).toHaveBeenCalledTimes(2);
+        });
+
+        it("replaces the shared owner credential when LPBS rotates a refresh token", async () => {
+            const provision = vi.fn(async (_refreshToken: string) => {});
+            const clear = vi.fn(async () => {});
+            const expiresAt = "2099-01-01T00:00:00Z";
+            deps = createTestDependencies({
+                onLoopbackAuthorization: async (buildAuthorizationURL) => {
+                    const redirectURI = "http://127.0.0.1:43123/callback";
+                    const url = new URL(buildAuthorizationURL(redirectURI));
+                    return { code: "session-code", state: url.searchParams.get("state") ?? "", redirectURI };
+                },
+                onStoreLPBSCreditRefreshToken: provision,
+                onClearLPBSCreditRefreshToken: clear,
+            });
+            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/token", {
+                ok: true, status: 200, body: { access_token: "old-access", refresh_token: "old-refresh", expires_at: expiresAt },
+            });
+            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/refresh", { ok: true, status: 200, body: { access_token: "new-access", refresh_token: "new-refresh", expires_at: expiresAt } });
+            const manager = createAuthManager(deps);
+            await manager.signIn();
+            await vi.waitFor(async () => expect(await manager.getAccessToken()).toBe("old-access"));
+            await expect(manager.setCreditSessionSharing(true)).resolves.toMatchObject({ state: "shared" });
+
+            await expect(manager.refresh()).resolves.toBe(true);
+            expect(provision).toHaveBeenCalledWith("new-refresh");
+            expect(provision).toHaveBeenCalledTimes(2);
+            expect(clear).not.toHaveBeenCalled();
+        });
     });
 
     describe("signIn", () => {
@@ -315,11 +447,14 @@ describe("createAuthManager", () => {
             deps.http._responses.set("https://test.vrooli.com/api/v1/desktop/links/redeem", {
                 ok: true,
                 status: 200,
-                body: { entitlement_lease: { token: "signed-lease", expires_at: "2030-01-01T00:00:00Z" } },
+                body: {
+                    link: { local_principal: "local-1", business_account_id: "business-1", installation_id: "install-1", resource: "demo", audience: "scenario:demo", scopes: ["demo:read"] },
+                    entitlement_lease: { token: "signed-lease", expires_at: "2030-01-01T00:00:00Z" },
+                },
             });
             const manager = createAuthManager(deps);
 
-            await manager.connectDesktop({
+            const linked = await manager.connectDesktop({
                 installationId: "install-1",
                 resource: "demo",
                 audience: "scenario:demo",
@@ -341,6 +476,7 @@ describe("createAuthManager", () => {
                 resource: "demo",
             });
             expect(await manager.getEntitlementLease()).toBe("signed-lease");
+            expect(linked).toEqual({ state: "linked", localPrincipal: "local-1", businessAccountId: "business-1", scopes: ["demo:read"] });
             expect(await manager.getAccessToken()).toBeNull();
             expect(await manager.isAuthenticated()).toBe(false);
             expect(storeLease).toHaveBeenCalledWith("signed-lease");
@@ -361,6 +497,89 @@ describe("createAuthManager", () => {
                 scopes: ["demo:read"],
             })).rejects.toThrow("desktop link binding is invalid");
             expect(deps.shell._openedUrls).toHaveLength(0);
+        });
+
+        it("loads only the bound LPBS local link and maps missing, expired and unavailable states", async () => {
+            deps = createTestDependencies({
+                onResolveLocalIdentityProof: async () => "local-proof",
+                onGetDesktopInstallationId: async () => "install-1",
+            });
+            const manager = createAuthManager(deps);
+            const statusURL = "https://test.vrooli.com/api/v1/desktop/links/local?installation_id=install-1&resource=demo";
+            deps.http._responses.set(statusURL, { ok: true, status: 200, body: {
+                link: { local_principal: "local-1", business_account_id: "business-1", installation_id: "install-1", resource: "demo", audience: "scenario:demo", scopes: ["demo:read"] },
+            } });
+            await expect(manager.getDesktopLinkStatus({ resource: "demo" })).resolves.toMatchObject({ state: "linked", businessAccountId: "business-1", scopes: ["demo:read"] });
+            expect(deps.http._requests.at(-1)?.options?.headers?.Authorization).toBe("Bearer local-proof");
+
+            deps.http._responses.set(statusURL, { ok: false, status: 404, body: {} });
+            await expect(manager.getDesktopLinkStatus({ resource: "demo" })).resolves.toMatchObject({ state: "unlinked" });
+            deps.http._responses.set(statusURL, { ok: false, status: 401, body: {} });
+            await expect(manager.getDesktopLinkStatus({ resource: "demo" })).resolves.toMatchObject({ state: "expired" });
+            deps.http._responses.set(statusURL, { ok: false, status: 503, body: {} });
+            await expect(manager.getDesktopLinkStatus({ resource: "demo" })).resolves.toMatchObject({ state: "unavailable" });
+            deps.http._responses.set(statusURL, { ok: true, status: 200, body: { link: {
+                local_principal: "local-1", business_account_id: "business-1", installation_id: "other-install", resource: "demo", audience: "scenario:demo", scopes: ["demo:read"],
+            } } });
+            await expect(manager.getDesktopLinkStatus({ resource: "demo" })).resolves.toMatchObject({ state: "unavailable", scopes: [] });
+        });
+
+        it("clears local auth even when remote unlink cannot be confirmed", async () => {
+            const clearLease = vi.fn(async () => {});
+            deps = createTestDependencies({
+                onResolveLocalIdentityProof: async () => { throw new Error("offline"); },
+                onGetDesktopInstallationId: async () => "install-1",
+                onClearEntitlementLease: clearLease,
+            });
+            deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify({ entitlementLease: "opaque-lease" })));
+            const manager = createAuthManager(deps);
+
+            await expect(manager.disconnectDesktop({ resource: "demo" })).resolves.toEqual({ localCleared: true, remoteRevocation: "uncertain" });
+            expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
+            expect(clearLease).toHaveBeenCalledOnce();
+        });
+
+        it("reports failed shared LPBS credential cleanup when remote unlink is uncertain", async () => {
+            const clearCreditCredential = vi.fn(async () => { throw new Error("credential owner unavailable"); });
+            deps = createTestDependencies({
+                onResolveLocalIdentityProof: async () => { throw new Error("offline"); },
+                onGetDesktopInstallationId: async () => "install-1",
+                onClearLPBSCreditRefreshToken: clearCreditCredential,
+            });
+            deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify({ entitlementLease: "opaque-lease" })));
+            const manager = createAuthManager(deps);
+
+            await expect(manager.disconnectDesktop({ resource: "demo" })).resolves.toEqual({ localCleared: false, remoteRevocation: "uncertain" });
+            expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
+            expect(clearCreditCredential).toHaveBeenCalledOnce();
+            expect(deps.http._requests).toHaveLength(0);
+        });
+
+        it("reports confirmed remote revoke separately from local cleanup failure", async () => {
+            deps = createTestDependencies({
+                onResolveLocalIdentityProof: async () => "local-proof",
+                onGetDesktopInstallationId: async () => "install-1",
+                onClearEntitlementLease: async () => { throw new Error("credential owner unavailable"); },
+            });
+            const manager = createAuthManager(deps);
+            deps.http._responses.set("https://test.vrooli.com/api/v1/desktop/links/local", { ok: true, status: 204, body: {} });
+
+            await expect(manager.disconnectDesktop({ resource: "demo" })).resolves.toEqual({ localCleared: false, remoteRevocation: "confirmed" });
+            const request = deps.http._requests.find((entry) => entry.options?.method === "DELETE");
+            expect(request?.url).toBe("https://test.vrooli.com/api/v1/desktop/links/local");
+            expect(request?.options?.headers?.Authorization).toBe("Bearer local-proof");
+            expect(JSON.parse(String(request?.options?.body))).toEqual({ installation_id: "install-1", resource: "demo" });
+        });
+
+        it("does not treat an unexpected successful status as confirmed revocation", async () => {
+            deps = createTestDependencies({
+                onResolveLocalIdentityProof: async () => "local-proof",
+                onGetDesktopInstallationId: async () => "install-1",
+            });
+            deps.http._responses.set("https://test.vrooli.com/api/v1/desktop/links/local", { ok: true, status: 200, body: {} });
+            const manager = createAuthManager(deps);
+
+            await expect(manager.disconnectDesktop({ resource: "demo" })).resolves.toEqual({ localCleared: true, remoteRevocation: "uncertain" });
         });
     });
 
@@ -483,22 +702,20 @@ describe("createAuthManager", () => {
             expect(deps.http._requests).toHaveLength(0);
         });
 
-        it("returns null when refresh fails", async () => {
+        it("reports an expired in-memory session when token refresh fails", async () => {
             const pastDate = new Date(Date.now() - 1000).toISOString();
-            const tokens = { accessToken: "old-token", refreshToken: "rt", expiresAt: pastDate };
-            deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
-
+            const manager = await signInInMemorySession("old-token", "rt", pastDate);
             deps.http._responses.set("https://test.vrooli.com/api/v1/auth/refresh", {
                 ok: false,
                 status: 401,
                 body: { error: "invalid_grant" },
             });
 
-            const manager = createAuthManager(deps);
             const token = await manager.getAccessToken();
 
             expect(token).toBeNull();
-            expect(deps.authChangeEvents).not.toContain("session-expired");
+            expect(deps.authChangeEvents).toContain("session-expired");
+            expect(deps.http._requests.some((request) => request.url.endsWith("/auth/refresh"))).toBe(true);
         });
     });
 
@@ -597,19 +814,17 @@ describe("createAuthManager", () => {
         });
 
         it("returns false on API error", async () => {
-            const tokens = { accessToken: "at", refreshToken: "rt", expiresAt: new Date().toISOString() };
-            deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
-
+            const manager = await signInInMemorySession();
             deps.http._responses.set("https://test.vrooli.com/api/v1/auth/refresh", {
                 ok: false,
                 status: 401,
                 body: { error: "invalid_grant" },
             });
 
-            const manager = createAuthManager(deps);
             const success = await manager.refresh();
 
             expect(success).toBe(false);
+            expect(deps.http._requests.some((request) => request.url.endsWith("/auth/refresh"))).toBe(true);
         });
     });
 

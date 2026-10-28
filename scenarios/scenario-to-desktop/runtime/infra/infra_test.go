@@ -86,15 +86,22 @@ func TestRealNetworkAdaptersServeLocalOnlyTraffic(t *testing.T) {
 			_ = connection.Close()
 		}
 	}()
-	connection, err := dialer.DialTimeout("tcp", listener.Addr().String(), time.Second)
+	dialCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	connection, err := dialer.DialContext(dialCtx, "tcp", listener.Addr().String())
 	if err != nil {
-		t.Fatalf("DialTimeout() error = %v", err)
+		t.Fatalf("DialContext() error = %v", err)
 	}
 	_ = connection.Close()
 	select {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("listener did not receive local connection")
+	}
+
+	cancel()
+	if _, err := dialer.DialContext(dialCtx, "tcp", listener.Addr().String()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled real dial = %v", err)
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {

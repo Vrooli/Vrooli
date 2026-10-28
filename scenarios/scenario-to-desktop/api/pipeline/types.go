@@ -194,6 +194,9 @@ type PipelineConfig struct {
 	// vendored tool artifacts plus SHA256SUMS.
 	ToolArtifactRoot string `json:"tool_artifact_root,omitempty"`
 
+	// RendererToolProfiles selects finite managed renderer trees to include.
+	RendererToolProfiles []string `json:"renderer_tool_profiles,omitempty"`
+
 	// ArtifactTrustMode governs Vrooli release-manifest admission. It is
 	// independent of installer/app code signing.
 	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode,omitempty"`

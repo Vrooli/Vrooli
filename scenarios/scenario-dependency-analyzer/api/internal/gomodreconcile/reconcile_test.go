@@ -159,6 +159,45 @@ func TestPlanFlagsImportedSiblingAPIModuleMissingRequireAndReplace(t *testing.T)
 	}
 }
 
+func TestPlanSeparatesNestedModuleImports(t *testing.T) {
+	root := t.TempDir()
+	parentDir := filepath.Join(root, "cli")
+	childDir := filepath.Join(parentDir, "loop")
+	parentDepDir := filepath.Join(root, "parent-dep")
+	childDepDir := filepath.Join(root, "child-dep")
+	writeModule(t, parentDepDir, "module example.com/parent-dep\n\ngo 1.25.0\n", nil)
+	writeModule(t, childDepDir, "module example.com/child-dep\n\ngo 1.25.0\n", nil)
+	writeModule(t, parentDir, "module example.com/cli\n\ngo 1.25.0\n", map[string]string{
+		"main.go": "package main\n\nfunc main() {}\n",
+		filepath.Join("internal", "command", "command.go"): "package command\n\nimport _ \"example.com/parent-dep\"\n",
+	})
+	writeModule(t, childDir, "module example.com/cli/loop\n\ngo 1.25.0\n", map[string]string{
+		"loop.go": "package loop\n\nimport _ \"example.com/child-dep\"\n",
+	})
+	topo := Topology{
+		"example.com/cli":        parentDir,
+		"example.com/cli/loop":   childDir,
+		"example.com/parent-dep": parentDepDir,
+		"example.com/child-dep":  childDepDir,
+	}
+	for _, tc := range []struct {
+		name, dir, want string
+	}{
+		{"parent", parentDir, "example.com/parent-dep"},
+		{"nested", childDir, "example.com/child-dep"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			missing, err := Plan(context.Background(), filepath.Join(tc.dir, "go.mod"), topo)
+			if err != nil {
+				t.Fatalf("Plan: %v", err)
+			}
+			if len(missing) != 1 || missing[0].Module != tc.want || !missing[0].AddRequire {
+				t.Fatalf("module must own only its source imports: want %s, got %#v", tc.want, missing)
+			}
+		})
+	}
+}
+
 // TestPlanNormalizesChildReplacePath guards the regression where a nested
 // in-repo module produced a bare `cli` replacement path, which
 // `go mod edit -replace` rejects as "unversioned new path must be local

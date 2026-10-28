@@ -60,7 +60,7 @@ type AgentResult struct {
 	DurationSeconds int
 
 	// TokensUsed is the number of tokens consumed.
-	TokensUsed int32
+	TokensUsed int64
 
 	// CostEstimate is the estimated cost of the run.
 	CostEstimate float64

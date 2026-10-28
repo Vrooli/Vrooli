@@ -1043,6 +1043,7 @@
       "commands": [
         {"name": "reconcile", "description": "Reconcile dependency records", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "remove", "description": "Remove one exact Go root requirement (dry-run by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "resync", "description": "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
       ]
     },

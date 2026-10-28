@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -16,12 +17,12 @@ type wailsCommandRunner struct {
 	createBinary bool
 }
 
-func (r *wailsCommandRunner) Run(_ string, command string) ([]byte, error) {
+func (r *wailsCommandRunner) Run(ctx context.Context, _ string, command string) ([]byte, error) {
 	r.command = command
 	r.calls = append(r.calls, command)
 	return nil, r.err
 }
-func (r *wailsCommandRunner) RunWithEnv(dir string, command string, env map[string]string) ([]byte, error) {
+func (r *wailsCommandRunner) RunWithEnv(ctx context.Context, dir string, command string, env map[string]string) ([]byte, error) {
 	r.command = command
 	r.calls = append(r.calls, command)
 	r.env = env
@@ -45,7 +46,7 @@ func TestScenarioBuildDispatchesWailsLinuxPackage(t *testing.T) {
 	store := NewStore()
 	store.Save(&Status{BuildID: "wails", ScenarioName: "fixture", Status: "building", PlatformResults: map[string]*PlatformResult{"linux-amd64": {Platform: "linux-amd64"}}, Artifacts: map[string]string{}})
 	service := NewService(WithStore(store), WithCommandRunner(runner))
-	service.PerformScenarioDesktopBuild("wails", "fixture", desktopPath, []string{"linux-amd64"}, false)
+	service.PerformScenarioDesktopBuild(context.Background(), "wails", "fixture", desktopPath, []string{"linux-amd64"}, false)
 	status, _ := store.Get("wails")
 	if runner.command != "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux" {
 		t.Fatalf("command = %q", runner.command)
@@ -73,7 +74,7 @@ func TestWailsBuildRejectsNonLinuxTarget(t *testing.T) {
 	store := NewStore()
 	store.Save(&Status{BuildID: "wails", Status: "building", PlatformResults: map[string]*PlatformResult{"windows-x64": {Platform: "windows-x64"}}, Artifacts: map[string]string{}})
 	service := NewService(WithStore(store), WithCommandRunner(runner))
-	service.PerformScenarioDesktopBuild("wails", "fixture", desktopPath, []string{"windows-x64"}, false)
+	service.PerformScenarioDesktopBuild(context.Background(), "wails", "fixture", desktopPath, []string{"windows-x64"}, false)
 	status, _ := store.Get("wails")
 	if len(runner.calls) != 0 {
 		t.Fatalf("unexpected command for unsupported target: %#v", runner.calls)
@@ -92,7 +93,7 @@ func TestWailsPackageCommandErrorFailsBuild(t *testing.T) {
 	store := NewStore()
 	store.Save(&Status{BuildID: "wails", Status: "building", PlatformResults: map[string]*PlatformResult{"linux": {Platform: "linux"}}, Artifacts: map[string]string{}})
 	service := NewService(WithStore(store), WithCommandRunner(runner))
-	service.PerformScenarioDesktopBuild("wails", "fixture", desktopPath, []string{"linux"}, false)
+	service.PerformScenarioDesktopBuild(context.Background(), "wails", "fixture", desktopPath, []string{"linux"}, false)
 	status, _ := store.Get("wails")
 	if status.Status != "failed" {
 		t.Fatalf("status = %#v", status)

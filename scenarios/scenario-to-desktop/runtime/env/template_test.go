@@ -1,6 +1,7 @@
 package env
 
 import (
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -26,6 +27,15 @@ func TestBundledEnvironmentAllowlistHasReasonForEveryEntry(t *testing.T) {
 	sort.Strings(keys)
 	if len(keys) != len(BundledEnvironmentAllowlist) {
 		t.Fatalf("allowlist and reasons diverge")
+	}
+}
+
+func TestBundledVrooliBinUsesShimStagingPath(t *testing.T) {
+	if got := bundledVrooliBin("/bundle", "linux"); got != "/bundle/bin/vrooli" {
+		t.Fatalf("Linux shim path = %q", got)
+	}
+	if got := bundledVrooliBin(`C:\\bundle`, "windows"); got != filepath.Join(`C:\\bundle`, "bin", "vrooli.exe") {
+		t.Fatalf("Windows shim path = %q", got)
 	}
 }
 
@@ -83,6 +93,7 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		// Standard bundle hints
 		{"APP_DATA_DIR", "/app/data"},
 		{"BUNDLE_ROOT", "/bundle/root"},
+		{"VROOLI_BIN", "/bundle/root/bin/vrooli"},
 		{"VROOLI_DATA", "/app/data"},
 		{"VROOLI_DESKTOP_MODE", "true"},
 		{"VROOLI_LIFECYCLE_MANAGED", "true"},
@@ -106,6 +117,17 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 	}
 	if _, ok := env["SCENARIO_ROOT"]; ok {
 		t.Fatal("bundled environment must not inherit SCENARIO_ROOT")
+	}
+}
+
+func TestRendererVrooliBinIsRuntimeOwnedAfterDeclaredOverrides(t *testing.T) {
+	renderer := NewRenderer("/app/data", "/bundle/root", testutil.NewMockPortAllocator(), mockEnvReader{})
+	env, err := renderer.RenderEnvMap(manifest.Service{ID: "api", Env: map[string]string{"VROOLI_BIN": "/host/vrooli"}}, manifest.Binary{Env: map[string]string{"VROOLI_BIN": "/other/vrooli"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := env["VROOLI_BIN"]; got != "/bundle/root/bin/vrooli" {
+		t.Fatalf("VROOLI_BIN = %q, want bundled shim", got)
 	}
 }
 

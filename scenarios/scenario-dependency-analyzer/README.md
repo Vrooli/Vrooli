@@ -14,6 +14,13 @@ This scenario provides Vrooli with **architectural self-awareness** by:
 - **Optimization recommendations** for resource usage and deployment strategies
 - **Enabling surgical deployments** with minimal resource footprint
 
+The scenario scanner also reads foreign-owner bindings declared in canonical
+`.vrooli/program-runtime/*.json` contracts. It records their source contract and
+deduplicates targets within each program; self-bindings and arbitrary JSON
+examples do not create scenario edges. These inferred edges are optional by
+default. Review the scan before `scan <scenario> --apply-scenarios`; business
+importance and degraded behavior still need the scenario's deliberate choice.
+
 ## 🚀 Quick Start
 
 ### Prerequisites

@@ -1,9 +1,14 @@
 package build
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -55,7 +60,7 @@ func TestNoopLogger(t *testing.T) {
 func TestPerformDesktopBuild_NonexistentBuild(t *testing.T) {
 	service := NewService()
 	// Should not panic with nonexistent build
-	service.PerformDesktopBuild("nonexistent", &BuildRequest{
+	service.PerformDesktopBuild(context.Background(), "nonexistent", &BuildRequest{
 		DesktopPath: "/tmp/test",
 	})
 }
@@ -63,7 +68,7 @@ func TestPerformDesktopBuild_NonexistentBuild(t *testing.T) {
 func TestBuildPlatform_NonexistentBuild(t *testing.T) {
 	service := NewService()
 	// Should not panic with nonexistent build
-	service.BuildPlatform("nonexistent", "test-scenario", "/tmp/desktop", "/tmp/dist", "linux")
+	service.BuildPlatform(context.Background(), "nonexistent", "test-scenario", "/tmp/desktop", "/tmp/dist", "linux")
 }
 
 func TestBuildPlatform_WineNotInstalled(t *testing.T) {
@@ -87,7 +92,7 @@ func TestBuildPlatform_WineNotInstalled(t *testing.T) {
 	store.Save(status)
 
 	// Try to build Windows - should skip
-	service.BuildPlatform("build-123", "test-scenario", "/tmp/desktop", "/tmp/dist", "win")
+	service.BuildPlatform(context.Background(), "build-123", "test-scenario", "/tmp/desktop", "/tmp/dist", "win")
 
 	// Check that the platform was skipped
 	updated, _ := store.Get("build-123")
@@ -117,7 +122,7 @@ func TestBuildPlatform_UnknownPlatform(t *testing.T) {
 	}
 	store.Save(status)
 
-	service.BuildPlatform("build-123", "test-scenario", "/tmp/desktop", "/tmp/dist", "freebsd")
+	service.BuildPlatform(context.Background(), "build-123", "test-scenario", "/tmp/desktop", "/tmp/dist", "freebsd")
 
 	updated, _ := store.Get("build-123")
 	if result, ok := updated.PlatformResults["freebsd"]; ok {
@@ -150,11 +155,11 @@ func TestLockDesktopPath_SerializesSamePath(t *testing.T) {
 	service := NewService()
 	path := filepath.Join(t.TempDir(), "desktop")
 
-	unlock1 := service.lockDesktopPath(path)
+	unlock1, _ := service.lockDesktopPath(context.Background(), path)
 
 	acquiredCh := make(chan struct{}, 1)
 	go func() {
-		unlock2 := service.lockDesktopPath(path)
+		unlock2, _ := service.lockDesktopPath(context.Background(), path)
 		acquiredCh <- struct{}{}
 		unlock2()
 	}()
@@ -182,12 +187,12 @@ func TestLockDesktopPath_DifferentPathsDoNotBlock(t *testing.T) {
 	pathA := filepath.Join(base, "desktop-a")
 	pathB := filepath.Join(base, "desktop-b")
 
-	unlockA := service.lockDesktopPath(pathA)
+	unlockA, _ := service.lockDesktopPath(context.Background(), pathA)
 	defer unlockA()
 
 	acquiredCh := make(chan struct{}, 1)
 	go func() {
-		unlockB := service.lockDesktopPath(pathB)
+		unlockB, _ := service.lockDesktopPath(context.Background(), pathB)
 		acquiredCh <- struct{}{}
 		unlockB()
 	}()
@@ -288,7 +293,7 @@ func buildLogContains(log []string, substr string) bool {
 func TestPerformScenarioDesktopBuild_ENOTEMPTYRecoveryEndToEnd(t *testing.T) {
 	service, buildID, desktopPath, nodeModulesPath, artifactPath, runner, logger := setupENOTEMPTYRecoveryTest(t)
 
-	service.PerformScenarioDesktopBuild(buildID, "test-scenario", desktopPath, []string{"linux"}, false)
+	service.PerformScenarioDesktopBuild(context.Background(), buildID, "test-scenario", desktopPath, []string{"linux"}, false)
 
 	status, ok := service.store.Get(buildID)
 	if !ok {
@@ -380,7 +385,7 @@ func TestRunBuildStep_RetriesLockfileRepairAfterENOTEMPTY(t *testing.T) {
 	}}
 	service := NewService(WithCommandRunner(runner))
 
-	output, err := service.runBuildStep("build-id", "scenario", desktopPath, "install", "npm ci --no-audit --no-fund")
+	output, err := service.runBuildStep(context.Background(), "build-id", "scenario", desktopPath, "install", "npm ci --no-audit --no-fund")
 	if err != nil {
 		t.Fatalf("runBuildStep returned %v; output=%s", err, output)
 	}
@@ -400,7 +405,7 @@ func TestPerformDesktopBuildRecordsSuccessfulAndFailedSteps(t *testing.T) {
 		}}
 		service := NewService(WithStore(store), WithCommandRunner(runner))
 
-		service.PerformDesktopBuild("success", &BuildRequest{DesktopPath: t.TempDir()})
+		service.PerformDesktopBuild(context.Background(), "success", &BuildRequest{DesktopPath: t.TempDir()})
 		status, _ := store.Get("success")
 		if status.Status != "ready" || status.CompletedAt == nil || len(status.BuildLog) != 3 {
 			t.Fatalf("successful build status = %#v", status)
@@ -415,7 +420,7 @@ func TestPerformDesktopBuildRecordsSuccessfulAndFailedSteps(t *testing.T) {
 		}}
 		service := NewService(WithStore(store), WithCommandRunner(runner))
 
-		service.PerformDesktopBuild("failure", &BuildRequest{DesktopPath: t.TempDir()})
+		service.PerformDesktopBuild(context.Background(), "failure", &BuildRequest{DesktopPath: t.TempDir()})
 		status, _ := store.Get("failure")
 		if status.Status != "failed" || status.CompletedAt == nil || len(status.ErrorLog) != 1 || len(runner.calls) != 1 {
 			t.Fatalf("failed build status = %#v; calls=%v", status, runner.calls)
@@ -437,7 +442,7 @@ func TestPerformScenarioDesktopBuildMarksCommonFailureForEveryPlatform(t *testin
 	}}}
 	service := NewService(WithStore(store), WithCommandRunner(runner))
 
-	service.PerformScenarioDesktopBuild("common-failure", "fixture", t.TempDir(), []string{"linux-amd64", "macos-arm64"}, false)
+	service.PerformScenarioDesktopBuild(context.Background(), "common-failure", "fixture", t.TempDir(), []string{"linux-amd64", "macos-arm64"}, false)
 	status, _ := store.Get("common-failure")
 	if status.Status != "failed" || status.CompletedAt == nil {
 		t.Fatalf("build status = %#v", status)
@@ -471,5 +476,68 @@ func TestCleanBuildOutputsRemovesKnownArtifactsBeforeBuild(t *testing.T) {
 	status, _ := store.Get("clean")
 	if !buildLogContains(status.BuildLog, "removed 4 dirs") {
 		t.Fatalf("cleanup evidence missing from logs: %v", status.BuildLog)
+	}
+}
+
+func TestShellCommandRunnerPreservesOutputEnvironmentAndExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash fixture")
+	}
+	output, err := (&shellCommandRunner{}).RunWithEnv(context.Background(), t.TempDir(), "printf '%s' \"$BUILD_FIXTURE\"; printf ' stderr' >&2; exit 7", map[string]string{"BUILD_FIXTURE": "fixture"})
+	var exit *exec.ExitError
+	if !strings.Contains(string(output), "fixture") || !strings.Contains(string(output), " stderr") || !errors.As(err, &exit) || exit.ExitCode() != 7 {
+		t.Fatalf("output=%q err=%v", output, err)
+	}
+}
+
+func TestShellCommandRunnerCancellationStopsOwnedDescendants(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux process-state assertion")
+	}
+	sibling := exec.Command("sleep", "30")
+	if err := sibling.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sibling.Process.Kill(); _ = sibling.Wait() }()
+	dir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	_, err := (&shellCommandRunner{}).Run(ctx, dir, "sleep 30 & echo $! > child.pid; wait")
+	if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "command timed out") {
+		t.Fatalf("deadline identity lost: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "child.pid"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
+		state := strings.Fields(string(data))[2]
+		if state != "Z" && state != "X" {
+			t.Fatalf("owned child %d survived: %s", pid, state)
+		}
+	} else if !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(fmt.Sprintf("/proc/%d", sibling.Process.Pid)); err != nil {
+		t.Fatalf("unrelated process affected: %v", err)
+	}
+}
+
+func TestLockDesktopPathCancellationDoesNotWaitForOtherBuild(t *testing.T) {
+	service := NewService()
+	dir := t.TempDir()
+	unlock, err := service.lockDesktopPath(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := service.lockDesktopPath(ctx, dir); !errors.Is(err, context.Canceled) {
+		t.Fatalf("lock cancellation: %v", err)
 	}
 }

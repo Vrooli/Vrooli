@@ -107,12 +107,28 @@ func updatePythonLocks(ctx context.Context, resolution Resolution) (string, erro
 	}
 	defer os.RemoveAll(work)
 
-	type pendingLock struct{ source, output string }
-	pending := make([]pendingLock, 0, len(resolution.PythonLockfiles))
+	pending := make([]pythonLockPublication, 0, 2*len(resolution.PythonLockfiles))
 	for index, lockPath := range resolution.PythonLockfiles {
 		original, err := os.ReadFile(lockPath)
 		if err != nil {
 			return "", fmt.Errorf("read Python lock %s: %w", filepath.Base(lockPath), err)
+		}
+		// Embedded closures carry ranged source inputs beside the generated lock.
+		// Stage both changes before publication; the compatibility forwarder stays
+		// untouched and unrelated lock pins are retained during resolution.
+		canonicalInput := strings.TrimSuffix(lockPath, ".lock") + ".in"
+		if source, err := pythonInputBytes(canonicalInput); err == nil {
+			updated, err := updatePythonInput(string(source), resolution.PackageName, version)
+			if err != nil {
+				return "", err
+			}
+			stagedInput := filepath.Join(work, fmt.Sprintf("canonical-%d.in", index))
+			if err := os.WriteFile(stagedInput, []byte(updated), 0o644); err != nil {
+				return "", err
+			}
+			pending = append(pending, pythonLockPublication{source: stagedInput, output: canonicalInput})
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("read canonical Python input: %w", err)
 		}
 		inputPath := filepath.Join(work, fmt.Sprintf("requirements-%d.in", index))
 		outputPath := filepath.Join(work, fmt.Sprintf("requirements-%d.generated.lock", index))
@@ -143,12 +159,10 @@ func updatePythonLocks(ctx context.Context, resolution Resolution) (string, erro
 		if err := os.WriteFile(outputPath, []byte(generatedText), 0o600); err != nil {
 			return string(output), err
 		}
-		pending = append(pending, pendingLock{source: outputPath, output: lockPath})
+		pending = append(pending, pythonLockPublication{source: outputPath, output: lockPath})
 	}
-	for _, lock := range pending {
-		if err := os.Rename(lock.source, lock.output); err != nil {
-			return "", fmt.Errorf("publish generated Python lock %s: %w", filepath.Base(lock.output), err)
-		}
+	if err := publishPythonLocks(pending, os.Rename); err != nil {
+		return "", err
 	}
 	return "wheel-only Python locks updated through Scenario Dependency Analyzer", nil
 }
@@ -191,13 +205,13 @@ func canonicalizePythonLockOutput(generated []byte, inputPath, relativeLock stri
 }
 
 func replacePythonRequirement(contents, packageName, version string) (string, error) {
-	target := strings.NewReplacer("-", "", "_", "", ".", "").Replace(strings.ToLower(packageName))
+	target := pythonName(packageName)
 	lines := strings.Split(contents, "\n")
 	result := make([]string, 0, len(lines)+1)
 	found := false
 	for i := 0; i < len(lines); i++ {
 		match := pinnedRequirement.FindStringSubmatch(lines[i])
-		if len(match) == 3 && strings.NewReplacer("-", "", "_", "", ".", "").Replace(strings.ToLower(match[1])) == target {
+		if len(match) == 3 && pythonName(match[1]) == target {
 			if found {
 				return "", fmt.Errorf("package %q appears more than once in the lock", packageName)
 			}

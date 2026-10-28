@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 // ProcessRunner abstracts process execution for testing.
@@ -42,7 +44,7 @@ type RealProcessRunner struct{}
 // Start starts a process with the given command and arguments.
 func (RealProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (Process, error) {
 	c := exec.CommandContext(ctx, cmd, args...)
-	configureProcessCommand(c)
+	ConfigureProcessCommand(c)
 	c.Env = env
 	c.Dir = dir
 	c.Stdout = stdout
@@ -50,7 +52,7 @@ func (RealProcessRunner) Start(ctx context.Context, cmd string, args []string, e
 	if err := c.Start(); err != nil {
 		return nil, err
 	}
-	cleanup, err := assignProcessContainment(c.Process)
+	cleanup, err := platform.AssignProcessContainment(c.Process)
 	if err != nil {
 		_ = c.Process.Kill()
 		_ = c.Wait()
@@ -89,7 +91,7 @@ func (p *realProcess) GracefulStop() error {
 	if p.cmd.Process == nil {
 		return os.ErrProcessDone
 	}
-	return gracefulStopProcess(p.cmd.Process)
+	return GracefulStopProcess(p.cmd.Process)
 }
 
 func (p *realProcess) Kill() error {
@@ -120,11 +122,13 @@ func StopProcess(p Process) error {
 
 // ConfigureProcessCommand applies platform process-group/job semantics to a
 // command before it starts. Resource and scenario launchers share this seam.
-func ConfigureProcessCommand(cmd *exec.Cmd) { configureProcessCommand(cmd) }
+func ConfigureProcessCommand(cmd *exec.Cmd) {
+	_ = platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true})
+}
 
 // GracefulStopProcess sends the platform-correct group or console shutdown
 // request to an already-started process.
-func GracefulStopProcess(process *os.Process) error { return gracefulStopProcess(process) }
+func GracefulStopProcess(process *os.Process) error { return platform.GracefulStopProcess(process) }
 
 // RealCommandRunner implements CommandRunner using os/exec.
 type RealCommandRunner struct{}

@@ -2,19 +2,126 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"scenario-to-desktop-api/livedesktop"
+	"scenario-to-desktop-api/target"
+	"scenario-to-desktop-api/validationprovider"
 )
 
 type artifactFinderStub struct{ path string }
 
 func (s artifactFinderStub) FindArtifact(string) (string, error) { return s.path, nil }
+
+type unavailableValidationBuilder struct{ calls int }
+
+func (b *unavailableValidationBuilder) Build(context.Context, deliveryramp.BuildRequest) (deliveryramp.Artifact, error) {
+	b.calls++
+	return deliveryramp.Artifact{}, fmt.Errorf("source checkout has no desktop package")
+}
+
+type modeDesktopOwner struct{ launch target.ElectronLaunchOptions }
+
+func (d *modeDesktopOwner) StartSession(context.Context, livedesktop.SessionConfig) (*livedesktop.Session, error) {
+	return &livedesktop.Session{ID: "session"}, nil
+}
+func (*modeDesktopOwner) ExecuteAction(_ context.Context, _ string, action string, _ json.RawMessage) (*livedesktop.ActionResult, error) {
+	if action == "start_recording" {
+		return &livedesktop.ActionResult{Data: map[string]any{"capture_id": "capture"}}, nil
+	}
+	return &livedesktop.ActionResult{}, nil
+}
+func (d *modeDesktopOwner) LaunchElectronValidation(_ context.Context, _, _ string, launch target.ElectronLaunchOptions, _ target.RendererExpectation) (*domainv1.AppTarget, error) {
+	d.launch = launch
+	return &domainv1.AppTarget{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "http://127.0.0.1:41235", CdpTransport: "http"}, nil
+}
+func (*modeDesktopOwner) WaitElectronValidationExit(context.Context, string) error    { return nil }
+func (*modeDesktopOwner) RequestElectronValidationExit(context.Context, string) error { return nil }
+func (*modeDesktopOwner) RestartElectronValidation(context.Context, string) (*domainv1.AppTarget, error) {
+	return &domainv1.AppTarget{TargetId: "target-restarted", CdpEndpoint: "http://127.0.0.1:9223", RendererId: "renderer-restarted"}, nil
+}
+func (*modeDesktopOwner) StopSession(string) error { return nil }
+
+type modeWorkflowOwner struct{ request validationprovider.Request }
+
+func (w *modeWorkflowOwner) Execute(_ context.Context, request validationprovider.Request) validationprovider.Result {
+	w.request = request
+	return validationprovider.Result{Passed: true, ProviderRunID: "provider"}
+}
+
+func TestMatrixExecutorCarriesBundledModeToElectronAndProvider(t *testing.T) {
+	desktop := &modeDesktopOwner{}
+	workflow := &modeWorkflowOwner{}
+	executor := validationMatrixLocalExecutor{desktop: desktop, workflow: workflow}
+	request := validationmatrix.CellRequest{
+		RunID: "matrix-run", ArtifactDigest: "sha256:artifact", ArtifactPath: "/tmp/app", DeploymentMode: "bundled", BrowserAutomationStudioVariant: "preview-2",
+		Cell:    &domainv1.ValidationCell{CellId: "cell", ScenarioName: "demo", JourneyId: "journey", TargetId: "target", EnvironmentProfile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL},
+		Journey: validationmatrix.JourneySelection{JourneyID: "journey", SourcePath: "/tmp/journey.json"},
+		Target:  &domainv1.ValidationTargetDescriptor{TargetId: "target", Available: true},
+	}
+	executor.executeProviderJourney(context.Background(), request, request.ArtifactPath)
+	if !desktop.launch.BundledRuntime || !workflow.request.BundledRuntime || workflow.request.BrowserAutomationStudioVariant != "preview-2" {
+		t.Fatalf("adapter binding lost: Electron bundled=%v provider bundled=%v BAS variant=%q", desktop.launch.BundledRuntime, workflow.request.BundledRuntime, workflow.request.BrowserAutomationStudioVariant)
+	}
+}
+
+func TestValidationUsesSelectedStagedArtifactWithoutRediscovery(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Device Studio.AppImage")
+	data := []byte("exact staged package")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	digest := "sha256:" + hex.EncodeToString(sum[:])
+	builder := &unavailableValidationBuilder{}
+	executor := validationMatrixLocalExecutor{builder: builder}
+	got, err := executor.findValidationArtifact(validationmatrix.CellRequest{ArtifactPath: path, ArtifactDigest: digest})
+	if err != nil || got != path || builder.calls != 0 {
+		t.Fatalf("selected staged artifact replaced: path=%q err=%v rediscoveries=%d", got, err, builder.calls)
+	}
+	if actual, err := fileDigest(got); err != nil || actual != digest {
+		t.Fatalf("artifact digest=%q err=%v", actual, err)
+	}
+}
+
+func TestValidationRejectsInvalidSelectedArtifactInsteadOfFallingBack(t *testing.T) {
+	root := t.TempDir()
+	regular := filepath.Join(root, "app.AppImage")
+	if err := os.WriteFile(regular, []byte("package"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	validDigest := "sha256:" + strings.Repeat("a", 64)
+	for _, tc := range []struct{ name, path, digest string }{
+		{"relative", "app.AppImage", validDigest},
+		{"missing", filepath.Join(root, "missing.AppImage"), validDigest},
+		{"directory", root, validDigest},
+		{"unbound", regular, ""},
+		{"malformed digest", regular, "sha256:xyz"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			builder := &unavailableValidationBuilder{}
+			executor := validationMatrixLocalExecutor{builder: builder}
+			if _, err := executor.findValidationArtifact(validationmatrix.CellRequest{ArtifactPath: tc.path, ArtifactDigest: tc.digest}); err == nil {
+				t.Fatal("invalid selected artifact accepted")
+			}
+			if builder.calls != 0 {
+				t.Fatal("invalid explicit selection fell back to source discovery")
+			}
+		})
+	}
+}
 
 func TestDesktopRampBuilderCarriesMonetizationIdentityAndDigest(t *testing.T) {
 	root := t.TempDir()

@@ -18,11 +18,12 @@ import (
 type LookPath func(string) (string, error)
 
 type Prober struct {
-	LookPath LookPath
-	Getenv   func(string) string
-	GOOS     string
-	GOARCH   string
-	Now      func() time.Time
+	LookPath            LookPath
+	Getenv              func(string) string
+	GOOS                string
+	GOARCH              string
+	Now                 func() time.Time
+	ProbeOfflineNetwork func(context.Context, string) error
 }
 
 var _ deliveryramp.Prober = Prober{}
@@ -59,6 +60,20 @@ func (p Prober) Probe(_ context.Context, request deliveryramp.ProbeRequest) (del
 		}
 		if _, err := lookPath("xdotool"); err == nil {
 			capabilities = append(capabilities, deliveryramp.CapabilityNativeWindow)
+		}
+		bwrapPath, bwrapErr := lookPath("bwrap")
+		_, pythonErr := lookPath("python3")
+		if bwrapErr == nil && pythonErr == nil {
+			probeIsolation := p.ProbeOfflineNetwork
+			if probeIsolation == nil {
+				probeIsolation = probeBubblewrapNetworkNamespace
+			}
+			probeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			probeErr := probeIsolation(probeCtx, bwrapPath)
+			cancel()
+			if probeErr == nil {
+				capabilities = append(capabilities, deliveryramp.CapabilityOfflineNetwork)
+			}
 		}
 	} else {
 		missing = append(missing, "supported Linux display runtime")
@@ -101,6 +116,14 @@ func (p Prober) Probe(_ context.Context, request deliveryramp.ProbeRequest) (del
 		target.Reason = "local target does not provide all requested capabilities"
 	}
 	return deliveryramp.Inventory{Targets: []deliveryramp.Target{target}, Observed: now().UTC()}, nil
+}
+
+func probeBubblewrapNetworkNamespace(ctx context.Context, bwrapPath string) error {
+	command := exec.CommandContext(ctx, bwrapPath, "--unshare-net", "--ro-bind", "/", "/", "--", "/usr/bin/true")
+	if output, err := command.CombinedOutput(); err != nil {
+		return fmt.Errorf("bubblewrap network namespace probe failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func matchesRequired(target deliveryramp.Target, required []string) bool {

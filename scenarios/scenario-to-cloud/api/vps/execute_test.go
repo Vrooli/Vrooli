@@ -289,17 +289,17 @@ func TestActivationOrderingAndCrashRecovery(t *testing.T) {
 		events := target.events
 		runtime, pointer, route := indexOf(events, "runtime:"), indexOf(events, "pointer:"), indexOf(events, "route:")
 		stage, backup := indexOf(events, "stage:"), indexOf(events, "backup")
-		if stage < 0 || backup < 0 || runtime < 0 || pointer < 0 || route < 0 {
+		if stage < 0 || runtime < 0 || pointer < 0 || route < 0 {
 			t.Fatalf("events = %v", events)
 		}
-		if !(stage < backup && backup < runtime && runtime < pointer && pointer < route) {
+		if backup >= 0 || !(stage < runtime && runtime < pointer && pointer < route) {
 			t.Fatalf("activation ordering violated: %v", events)
 		}
 		if target.active == nil || target.active.Active != h.release || target.routes[h.manifest.Edge.Domain] != h.manifest.Ports["ui"] {
 			t.Fatalf("runtime and routing must identify the same release: active=%+v routes=%v", target.active, target.routes)
 		}
-		if target.backups != 1 {
-			t.Fatalf("expected one recovery point before activation, got %d", target.backups)
+		if target.backups != 0 {
+			t.Fatalf("empty first install should not require a recovery point, got %d", target.backups)
 		}
 	})
 
@@ -379,7 +379,8 @@ func TestSeededDataSurvivesUpdateAndFailedActivation(t *testing.T) {
 	scenario := w.Declaration.PrimaryScenario
 	target.legacy[scenario+"/uploads"] = map[string]string{"invoice-001.txt": "seeded upload", "photo-002.txt": "seeded photo"}
 	v1 := newHarness(t, target, w, "v1")
-	if _, execErr := v1.execute(context.Background(), v1.compile(execplan.ScopeFull, execplan.Observations{}), Identity{OperationID: "op-1", Fence: 1}); execErr != nil {
+	firstInstallObservations := execplan.Observations{LegacyDataInventory: []string{"scenarios/" + scenario + "/uploads"}}
+	if _, execErr := v1.execute(context.Background(), v1.compile(execplan.ScopeFull, firstInstallObservations), Identity{OperationID: "op-1", Fence: 1}); execErr != nil {
 		t.Fatalf("v1: %v", execErr)
 	}
 	if files := target.persistent["uploads"]; len(files) != 2 || files["invoice-001.txt"] != "seeded upload" {

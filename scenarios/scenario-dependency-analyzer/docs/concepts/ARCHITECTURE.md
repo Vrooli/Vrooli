@@ -1,16 +1,61 @@
 # Scenario Dependency Analyzer Architecture
 
+## Pinned Akash CLI provisioning
+
+The closed `source/akt@1.0.4` request on owner `akt`, surface `host-tool`,
+delegates to `internal/tools/akt`. The owner uses native checksum-verified
+binaryfetch, a private candidate, the shared artifact lock and native install
+ledger. Resolution is revalidated against the exact source manifest, version,
+command, paths and execution policy before acquisition. It executes no install
+script, creates no wallet or context, and does not accept arbitrary tools or
+paths. The selected executable remains outside ambient PATH adoption; callers
+use the owner's integrity-checked selection. Only Linux amd64 is qualified by
+this release profile; other platforms return explicit unsupported results.
+
 ## Frozen control-plane tool provisioning
 
-The explicit `host-tool` dependency surface addresses `internal/tools/<name>`;
+The closed `source/kubo@0.43.1` request on owner `kubo`, surface `host-tool`,
+uses the same pinned-release dispatch and delegates acquisition and selection to
+`internal/tools/kubo`. The runtime supplies its existing generic manifest
+inspection; the owner requires a verified native selection and delegates writes
+to SDA instead of adopting an ambient `ipfs` executable or using the generic
+direct downloader. The owner retains the checksum-verified release tree,
+MIT/Apache notices, receipt and install-ledger attribution. Only Linux amd64 is
+qualified. Provisioning starts no IPFS node, creates no repository or peer key,
+and makes no network publication. Offline import/pin/GC acceptance belongs to
+the invoking task, with separate isolation and cleanup evidence.
+
+The `host-tool` surface addresses declared tool owners in `internal/tools/<name>`;
 the existing `tools/<package>` spelling continues to address shared packages.
-Host-tool requests require the declared exact npm package/version and committed
+Frozen tool requests require the declared exact npm package/version and committed
 integrity lock. Governance is evaluated before provisioning. Provisioning uses
 `npm ci --ignore-scripts --no-audit --no-fund` in a private candidate and records
 the frozen closure before atomic selection. It never modifies a scenario UI,
 downloads a browser, or replaces the current tool after a failed candidate.
 The control-plane tool owner owns candidate validation and selection; SDA owns
 dependency approval and the only package-manager execution seam.
+
+The existing Codex, Claude Code, OpenCode and Grok resource owners also use this
+closed surface. Their reviewed `resource.json` acquisition declarations own
+package identity; SDA approves the exact requested version for that owner.
+Harness updates install with scripts disabled into a private candidate, then run
+only `--version` at the final artifact path through the bounded native-operation
+owner, with IP networking isolated and a private HOME. Absolute host files and
+AF_UNIX sockets remain visible in the read-only host mount; this is not hostile-code
+credential isolation. A missing
+postinstall artifact, wrong version, source change, failed probe or unknown cleanup
+preserves the previous selection. Candidates are hashed and published to separate resource/version directories;
+only successful final-path qualification selects the link atomically. Reviewed `bin_path` may select an exact optional package's
+native file; the owner verifies main/native identities, exact optional reference,
+version and containment before probing. This avoids invoking vendor postinstall
+scripts or copying their binaries. Current native-path qualification is Linux
+amd64; compressed Grok preparation and legacy regular-file adoption remain unsupported. This is exact
+main-package acquisition, not a committed frozen transitive closure. Existing
+prefixes and running harness processes remain available for rollback. The artifact
+lock serializes cooperating owners; local hashes detect consistency drift, not
+independent provenance or arbitrary external-writer races. Updaters
+accept only a matching typed approved runtime receipt, and reject trailing flags;
+use SDA's default preview before `--apply` for a real dependency preview.
 
 An explicit `development` install option saves JavaScript dependencies as dev
 dependencies; its default preserves existing classification. Non-JavaScript,

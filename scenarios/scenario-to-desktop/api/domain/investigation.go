@@ -38,7 +38,7 @@ type InvestigationDetails struct {
 	Source                string  `json:"source"`                            // "agent-manager"
 	RunID                 string  `json:"run_id,omitempty"`                  // Agent run ID
 	DurationSecs          int     `json:"duration_seconds,omitempty"`        // Total duration
-	TokensUsed            int32   `json:"tokens_used,omitempty"`             // Token consumption
+	TokensUsed            int64   `json:"tokens_used,omitempty"`             // Token consumption
 	CostEstimate          float64 `json:"cost_estimate,omitempty"`           // Estimated cost
 	OperationMode         string  `json:"operation_mode"`                    // "report-only" or "fix-application"
 	TriggerReason         string  `json:"trigger_reason"`                    // "user_requested"

@@ -269,6 +269,82 @@ PGHOST=localhost
 	t.Logf("Found %d resource dependencies", len(deps))
 }
 
+func TestScenarioURLResolverDetectionRequiresCanonicalImportedResolverAndLiteralKnownTarget(t *testing.T) {
+	scenariosDir := t.TempDir()
+	for _, name := range []string{"device-studio", "ai-gateway"} {
+		path := filepath.Join(scenariosDir, name, ".vrooli")
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "service.json"), []byte(`{"service":{"name":"`+name+`"}}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scanner := newScenarioScanner(newCatalogManager(appconfig.RuntimeConfig{ScenariosDir: scenariosDir}))
+	source := `package rendering
+import (
+	"github.com/vrooli/api-core/discovery"
+	other "example.invalid/discovery"
+)
+func resolve(ctx context.Context, target string) {
+	// discovery.ResolveScenarioURLDefault(ctx, "comment-only")
+	_ = "discovery.ResolveScenarioURLDefault(ctx, \"string-only\")"
+	_, _ = discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
+	_, _ = discovery.ResolveScenarioURLDefault(ctx, target)
+	_, _ = other.ResolveScenarioURLDefault(ctx, "ai-gateway")
+}`
+	got := scanner.scanFile(source, "api/rendering/worker.go", "device-studio", "device-studio")
+	if len(got) != 1 {
+		t.Fatalf("detected %d dependencies, want one literal canonical resolver call: %+v", len(got), got)
+	}
+	if got[0].DependencyName != "ai-gateway" || got[0].AccessMethod != "scenario_url_discovery" || got[0].Required {
+		t.Fatalf("unexpected resolver evidence: %+v", got[0])
+	}
+	if got[0].Configuration["found_in_file"] != "api/rendering/worker.go" {
+		t.Fatalf("resolver evidence lost source path: %+v", got[0].Configuration)
+	}
+}
+
+func TestScanScenarioDependenciesIncludesCanonicalProgramBindings(t *testing.T) {
+	scenariosDir := t.TempDir()
+	for _, name := range []string{"image-tools", "device-studio"} {
+		if err := os.MkdirAll(filepath.Join(scenariosDir, name, ".vrooli"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(scenariosDir, name, ".vrooli", "service.json"), []byte(`{"service":{"name":"`+name+`"}}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := filepath.Join(scenariosDir, "image-tools")
+	files := map[string]string{
+		".vrooli/program-runtime/prepare.json": `{"name":"image-tools.prepare","bindings":[{"id":"device-studio/scenes/from-preparation","optional":true},{"id":"device-studio/scenes/get"},{"id":"image-tools/jobs/get"},{"id":"unknown-owner/jobs/get"},{"id":"device-studio//invalid"}]}`,
+		".vrooli/program-runtime/foreign.json": `{"name":"another-owner.prepare","bindings":[{"id":"device-studio/scenes/get"}]}`,
+		".vrooli/program-runtime/broken.json":  `{"name":"image-tools.broken","bindings":[`,
+		"docs/example.json":                    `{"name":"image-tools.example","bindings":[{"id":"device-studio/scenes/get"}]}`,
+	}
+	for name, body := range files {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	detector := New(appconfig.RuntimeConfig{ScenariosDir: scenariosDir})
+	deps, err := detector.ScanScenarioDependencies(root, "image-tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deps) != 1 {
+		t.Fatalf("dependencies = %+v; want one deduplicated known foreign owner from the canonical contract", deps)
+	}
+	dep := deps[0]
+	if dep.DependencyName != "device-studio" || dep.AccessMethod != "program_binding" || dep.Required || dep.Configuration["found_in_file"] != ".vrooli/program-runtime/prepare.json" {
+		t.Fatalf("program dependency lost optionality or source evidence: %+v", dep)
+	}
+}
+
 // TestScanScenarioDependencies tests scenario dependency scanning.
 func TestScanScenarioDependencies(t *testing.T) {
 	tempDir := t.TempDir()

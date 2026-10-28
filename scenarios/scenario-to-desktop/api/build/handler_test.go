@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -19,15 +20,15 @@ type mockService struct {
 	performScenarioBuildCalls int
 }
 
-func (m *mockService) PerformDesktopBuild(buildID string, req *BuildRequest) {
+func (m *mockService) PerformDesktopBuild(ctx context.Context, buildID string, req *BuildRequest) {
 	m.performDesktopBuildCalls++
 }
 
-func (m *mockService) PerformScenarioDesktopBuild(buildID, scenarioName, desktopPath string, platforms []string, clean bool) {
+func (m *mockService) PerformScenarioDesktopBuild(ctx context.Context, buildID, scenarioName, desktopPath string, platforms []string, clean bool) {
 	m.performScenarioBuildCalls++
 }
 
-func (m *mockService) BuildPlatform(buildID, scenarioName, desktopPath, distPath, platform string) {
+func (m *mockService) BuildPlatform(ctx context.Context, buildID, scenarioName, desktopPath, distPath, platform string) {
 }
 
 func TestNewHandler(t *testing.T) {

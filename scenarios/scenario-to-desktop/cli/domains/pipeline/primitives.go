@@ -406,6 +406,17 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 	if value := strings.TrimSpace(ctx.Flag("tool-artifact-root")); value != "" {
 		config.ToolArtifactRoot = &value
 	}
+	seenRendererProfiles := make(map[string]bool)
+	for _, profile := range splitValues(ctx.Flag("renderer-tool-profiles")) {
+		if profile != "blender" && profile != "ffmpeg-video" {
+			return nil, fmt.Errorf("unsupported renderer tool profile %q (expected blender or ffmpeg-video)", profile)
+		}
+		if seenRendererProfiles[profile] {
+			return nil, fmt.Errorf("renderer tool profile %q was selected more than once", profile)
+		}
+		seenRendererProfiles[profile] = true
+		config.RendererToolProfiles = append(config.RendererToolProfiles, profile)
+	}
 	if value := strings.TrimSpace(ctx.Flag("artifact-trust-mode")); value != "" {
 		config.ArtifactTrustMode = &value
 	}

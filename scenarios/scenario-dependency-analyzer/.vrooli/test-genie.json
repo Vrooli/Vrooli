@@ -738,13 +738,13 @@
   "profileMembership": [],
   "freshnessRequirement": "never",
   "phaseClass": "architecture",
-  "runtimeClass": "static",
+  "runtimeClass": "execution",
   "concurrency": {
     "mode": "provider-serial"
   },
   "determinism": {
-    "default": "file-determined",
-    "inputs": ["**"]
+    "default": "observational",
+    "reason": "Dependency health combines target files with live runtime, Code Facts, approved-dependency registry, release-age policy, and security observations that are not fully represented by the target file digest."
   },
   "dimensions": [
     "dependency-accuracy"

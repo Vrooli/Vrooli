@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 
 	signing "scenario-to-desktop-api/signing"
 	signingtypes "scenario-to-desktop-api/signing/types"
+	"scenario-to-desktop-api/smoketest"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
@@ -24,27 +26,30 @@ type DefaultService struct {
 	runner        commandRunner
 	logger        Logger
 	pathLocksMu   sync.Mutex
-	pathLocks     map[string]*sync.Mutex
+	pathLocks     map[string]chan struct{}
 }
 
+// DefaultBuildTimeout bounds owner-launched standalone and pipeline builds.
+const DefaultBuildTimeout = 30 * time.Minute
+
 type commandRunner interface {
-	Run(dir, command string) ([]byte, error)
-	RunWithEnv(dir, command string, env map[string]string) ([]byte, error)
+	Run(ctx context.Context, dir, command string) ([]byte, error)
+	RunWithEnv(ctx context.Context, dir, command string, env map[string]string) ([]byte, error)
 }
 
 type shellCommandRunner struct{}
 
-func (r *shellCommandRunner) Run(dir, command string) ([]byte, error) {
-	return r.RunWithEnv(dir, command, nil)
+func (r *shellCommandRunner) Run(ctx context.Context, dir, command string) ([]byte, error) {
+	return r.RunWithEnv(ctx, dir, command, nil)
 }
 
-func (r *shellCommandRunner) RunWithEnv(dir, command string, env map[string]string) ([]byte, error) {
-	cmd := exec.Command("bash", "-c", command)
-	cmd.Dir = dir
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), environPairs(env)...)
+func (r *shellCommandRunner) RunWithEnv(ctx context.Context, dir, command string, env map[string]string) ([]byte, error) {
+	result, err := smoketest.NewProcessExecutor(&noopLogger{}).ExecuteWithResult(ctx, dir, "bash", []string{"-c", command}, environPairs(env), DefaultBuildTimeout)
+	output := result.Combined
+	if result.Truncated {
+		output += fmt.Sprintf("\n[build output truncated: %d bytes omitted]\n", result.TruncatedBytes)
 	}
-	return cmd.CombinedOutput()
+	return []byte(output), errors.Join(ctx.Err(), err)
 }
 
 // environPairs renders env overrides as KEY=VALUE entries. The process
@@ -104,7 +109,7 @@ func NewService(opts ...ServiceOption) *DefaultService {
 		packageFinder: &defaultPackageFinder{},
 		runner:        &shellCommandRunner{},
 		logger:        &noopLogger{},
-		pathLocks:     make(map[string]*sync.Mutex),
+		pathLocks:     make(map[string]chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -112,8 +117,8 @@ func NewService(opts ...ServiceOption) *DefaultService {
 	return s
 }
 
-// PerformDesktopBuild performs desktop build asynchronously.
-func (s *DefaultService) PerformDesktopBuild(buildID string, request *BuildRequest) {
+// PerformDesktopBuild completes a desktop build within its owner context.
+func (s *DefaultService) PerformDesktopBuild(ctx context.Context, buildID string, request *BuildRequest) {
 	if _, ok := s.store.Get(buildID); !ok {
 		return
 	}
@@ -122,7 +127,7 @@ func (s *DefaultService) PerformDesktopBuild(buildID string, request *BuildReque
 	steps := []string{"npm install", "npm run build", "npm run dist"}
 
 	for _, step := range steps {
-		output, err := s.runner.Run(request.DesktopPath, step)
+		output, err := s.runner.Run(ctx, request.DesktopPath, step)
 		outputStr := string(output)
 
 		s.store.Update(buildID, func(status *Status) {
@@ -148,24 +153,30 @@ func (s *DefaultService) PerformDesktopBuild(buildID string, request *BuildReque
 	})
 }
 
-// PerformScenarioDesktopBuild performs scenario desktop build asynchronously.
-func (s *DefaultService) PerformScenarioDesktopBuild(buildID, scenarioName, desktopPath string, platforms []string, clean bool) {
+// PerformScenarioDesktopBuild completes a scenario build within its owner context.
+func (s *DefaultService) PerformScenarioDesktopBuild(ctx context.Context, buildID, scenarioName, desktopPath string, platforms []string, clean bool) {
+	defer func() {
+		if ctx.Err() != nil {
+			s.failBuild(buildID, ctx.Err().Error())
+		}
+	}()
+	if ctx.Err() != nil {
+		return
+	}
 	if _, ok := s.store.Get(buildID); !ok {
 		return
 	}
 
 	// Serialize builds per desktop path to avoid concurrent npm/node_modules mutation races.
-	unlock := s.lockDesktopPath(desktopPath)
+	unlock, err := s.lockDesktopPath(ctx, desktopPath)
+	if err != nil {
+		return
+	}
 	defer unlock()
 
 	defer func() {
 		if r := recover(); r != nil {
-			s.store.Update(buildID, func(status *Status) {
-				status.Status = "failed"
-				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Panic during build: %v", r))
-				now := time.Now()
-				status.CompletedAt = &now
-			})
+			s.failBuild(buildID, fmt.Sprintf("Panic during build: %v", r))
 		}
 	}()
 
@@ -178,20 +189,20 @@ func (s *DefaultService) PerformScenarioDesktopBuild(buildID, scenarioName, desk
 		}
 	}
 	if _, err := os.Stat(filepath.Join(desktopPath, "wails-strategy.json")); err == nil {
-		s.buildWailsProject(buildID, scenarioName, desktopPath, platforms)
+		s.buildWailsProject(ctx, buildID, scenarioName, desktopPath, platforms)
 		return
 	}
 
 	// Phase 1: Common build steps (install, compile)
-	if failed := s.executeCommonBuildSteps(buildID, scenarioName, desktopPath, platforms); failed {
+	if failed := s.executeCommonBuildSteps(ctx, buildID, scenarioName, desktopPath, platforms); failed {
 		return
 	}
 
 	// Phase 2: Build each platform independently
-	s.buildAllPlatforms(buildID, scenarioName, desktopPath, platforms)
+	s.buildAllPlatforms(ctx, buildID, scenarioName, desktopPath, platforms)
 }
 
-func (s *DefaultService) buildWailsProject(buildID, scenarioName, desktopPath string, platforms []string) {
+func (s *DefaultService) buildWailsProject(ctx context.Context, buildID, scenarioName, desktopPath string, platforms []string) {
 	if len(platforms) == 0 {
 		platforms = []string{"linux"}
 	}
@@ -209,33 +220,21 @@ func (s *DefaultService) buildWailsProject(buildID, scenarioName, desktopPath st
 		})
 	}
 	if !hasLinuxTarget {
-		s.store.Update(buildID, func(status *Status) {
-			status.Status = "failed"
-			completed := time.Now()
-			status.CompletedAt = &completed
-		})
+		s.failBuild(buildID)
 		return
 	}
 	if err := os.RemoveAll(filepath.Join(desktopPath, "bin")); err != nil {
-		s.store.Update(buildID, func(status *Status) {
-			status.Status = "failed"
-			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("clear previous Wails artifacts: %v", err))
-			completed := time.Now()
-			status.CompletedAt = &completed
-		})
+		s.failBuild(buildID, fmt.Sprintf("clear previous Wails artifacts: %v", err))
 		return
 	}
+
 	dependencyCommand := "scenario-dependency-analyzer deps install go/github.com/wailsapp/wails/v3@v3.0.0-beta.27 --scenario " + shellQuote(scenarioName) + " --surface platforms/wails-inprocess --apply"
-	dependencyOutput, dependencyErr := s.runner.Run(filepath.Dir(filepath.Dir(desktopPath)), dependencyCommand)
+	dependencyOutput, dependencyErr := s.runner.Run(ctx, filepath.Dir(filepath.Dir(desktopPath)), dependencyCommand)
 	if dependencyErr != nil {
-		s.store.Update(buildID, func(status *Status) {
-			status.Status = "failed"
-			status.ErrorLog = append(status.ErrorLog, "Scenario Dependency Analyzer could not install the pinned Wails module", string(dependencyOutput))
-			completed := time.Now()
-			status.CompletedAt = &completed
-		})
+		s.failBuild(buildID, "Scenario Dependency Analyzer could not install the pinned Wails module", string(dependencyOutput))
 		return
 	}
+
 	for _, platform := range platforms {
 		started := time.Now()
 		if platform != "linux" && !strings.HasPrefix(platform, "linux-") {
@@ -245,7 +244,7 @@ func (s *DefaultService) buildWailsProject(buildID, scenarioName, desktopPath st
 			result.Status = "building"
 			result.StartedAt = &started
 		})
-		output, err := s.runner.RunWithEnv(desktopPath, "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux", map[string]string{"EXTRA_TAGS": "gtk3"})
+		output, err := s.runner.RunWithEnv(ctx, desktopPath, "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux", map[string]string{"EXTRA_TAGS": "gtk3"})
 		outputStr := string(output)
 		artifactPath := filepath.Join(desktopPath, "bin", scenarioName)
 		info, statErr := os.Stat(artifactPath)
@@ -362,7 +361,7 @@ func (s *DefaultService) cleanBuildOutputs(buildID, desktopPath string, platform
 
 // executeCommonBuildSteps runs the install and compile steps shared by all
 // platforms. Returns true if the build should be aborted due to a step failure.
-func (s *DefaultService) executeCommonBuildSteps(buildID, scenarioName, desktopPath string, platforms []string) bool {
+func (s *DefaultService) executeCommonBuildSteps(ctx context.Context, buildID, scenarioName, desktopPath string, platforms []string) bool {
 	type buildStep struct {
 		name    string
 		command string
@@ -379,7 +378,7 @@ func (s *DefaultService) executeCommonBuildSteps(buildID, scenarioName, desktopP
 			"step", step.name,
 			"progress", fmt.Sprintf("%d/%d", i+1, len(commonSteps)))
 
-		outputStr, err := s.runBuildStep(buildID, scenarioName, desktopPath, step.name, step.command)
+		outputStr, err := s.runBuildStep(ctx, buildID, scenarioName, desktopPath, step.name, step.command)
 
 		logEntry := formatStepLog(step.name, step.command, outputStr, err)
 
@@ -419,15 +418,15 @@ func (s *DefaultService) executeCommonBuildSteps(buildID, scenarioName, desktopP
 // runBuildStep executes a single build step with automatic retry logic for
 // known npm failure modes (lockfile drift, ENOTEMPTY). Returns the combined
 // output string and any final error.
-func (s *DefaultService) runBuildStep(buildID, scenarioName, desktopPath, stepName, command string) (string, error) {
-	output, err := s.runner.Run(desktopPath, command)
+func (s *DefaultService) runBuildStep(ctx context.Context, buildID, scenarioName, desktopPath, stepName, command string) (string, error) {
+	output, err := s.runner.Run(ctx, desktopPath, command)
 	outputStr := string(output)
 	retryCommand := command
 
 	// Prefer deterministic installs via npm ci, but recover when lockfile is out of sync.
-	if err != nil && stepName == "install" && looksLikeNpmLockfileOutOfSync(outputStr) {
+	if err != nil && ctx.Err() == nil && stepName == "install" && looksLikeNpmLockfileOutOfSync(outputStr) {
 		s.logger.Warn("npm ci failed due to lockfile drift; falling back to npm install once", "scenario", scenarioName, "build_id", buildID)
-		output2, err2 := s.runner.Run(desktopPath, "npm install --no-audit --no-fund")
+		output2, err2 := s.runner.Run(ctx, desktopPath, "npm install --no-audit --no-fund")
 		outputStr = outputStr + "\n\n--- lockfile fallback (npm install) ---\n\n" + string(output2)
 		err = err2
 		// If the repair itself encounters ENOTEMPTY, the later retry must use
@@ -438,13 +437,17 @@ func (s *DefaultService) runBuildStep(buildID, scenarioName, desktopPath, stepNa
 
 	// npm can fail with ENOTEMPTY during concurrent FS activity or after interrupted installs.
 	// Recover by removing node_modules and retrying once.
-	if err != nil && stepName == "install" && looksLikeNpmENOTEMPTYRename(outputStr) {
+	if err != nil && ctx.Err() == nil && stepName == "install" && looksLikeNpmENOTEMPTYRename(outputStr) {
 		s.logger.Warn("install failed with ENOTEMPTY; removing node_modules and retrying once", "scenario", scenarioName, "build_id", buildID)
-		time.Sleep(250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return outputStr, ctx.Err()
+		case <-time.After(250 * time.Millisecond):
+		}
 		nodeModulesPath := filepath.Join(desktopPath, "node_modules")
 		_ = os.RemoveAll(nodeModulesPath)
 
-		output2, err2 := s.runner.Run(desktopPath, retryCommand)
+		output2, err2 := s.runner.Run(ctx, desktopPath, retryCommand)
 		outputStr = outputStr + "\n\n--- retry ---\n\n" + string(output2)
 		err = err2
 	}
@@ -454,7 +457,7 @@ func (s *DefaultService) runBuildStep(buildID, scenarioName, desktopPath, stepNa
 
 // buildAllPlatforms launches parallel platform builds, waits for completion,
 // and determines the overall build status.
-func (s *DefaultService) buildAllPlatforms(buildID, scenarioName, desktopPath string, platforms []string) {
+func (s *DefaultService) buildAllPlatforms(ctx context.Context, buildID, scenarioName, desktopPath string, platforms []string) {
 	distPath := filepath.Join(desktopPath, "dist-electron")
 	var wg sync.WaitGroup
 
@@ -462,7 +465,7 @@ func (s *DefaultService) buildAllPlatforms(buildID, scenarioName, desktopPath st
 		wg.Add(1)
 		go func(plt string) {
 			defer wg.Done()
-			s.BuildPlatform(buildID, scenarioName, desktopPath, distPath, plt)
+			s.BuildPlatform(ctx, buildID, scenarioName, desktopPath, distPath, plt)
 		}(platform)
 	}
 
@@ -527,7 +530,10 @@ func formatStepLog(stepName, command, outputStr string, err error) string {
 }
 
 // BuildPlatform builds for a specific platform with dependency checking.
-func (s *DefaultService) BuildPlatform(buildID, scenarioName, desktopPath, distPath, platform string) {
+func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioName, desktopPath, distPath, platform string) {
+	if ctx.Err() != nil {
+		return
+	}
 	if _, ok := s.store.Get(buildID); !ok {
 		return
 	}
@@ -581,7 +587,7 @@ func (s *DefaultService) BuildPlatform(buildID, scenarioName, desktopPath, distP
 		"build_id", buildID,
 		"platform", platform)
 
-	signingEnv, cleanupSigning, signingErr := resolveManagedSigningEnvForPlatform(scenarioName, builderPlatform)
+	signingEnv, cleanupSigning, signingErr := resolveManagedSigningEnvForPlatform(ctx, scenarioName, builderPlatform)
 	if signingErr != nil {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
 			result.Status = "failed"
@@ -595,7 +601,7 @@ func (s *DefaultService) BuildPlatform(buildID, scenarioName, desktopPath, distP
 	}
 	defer cleanupSigning()
 
-	output, err := s.runner.RunWithEnv(desktopPath, distCommand, signingEnv)
+	output, err := s.runner.RunWithEnv(ctx, desktopPath, distCommand, signingEnv)
 	outputStr := string(output)
 
 	s.store.Update(buildID, func(status *Status) {
@@ -876,20 +882,36 @@ func (l *noopLogger) Info(msg string, args ...interface{})  {}
 func (l *noopLogger) Warn(msg string, args ...interface{})  {}
 func (l *noopLogger) Error(msg string, args ...interface{}) {}
 
-func (s *DefaultService) lockDesktopPath(desktopPath string) func() {
+func (s *DefaultService) lockDesktopPath(ctx context.Context, desktopPath string) (func(), error) {
 	key := normalizeDesktopPath(desktopPath)
 	s.pathLocksMu.Lock()
-	m, ok := s.pathLocks[key]
-	if !ok {
-		m = &sync.Mutex{}
-		s.pathLocks[key] = m
+	lock := s.pathLocks[key]
+	if lock == nil {
+		lock = make(chan struct{}, 1)
+		s.pathLocks[key] = lock
 	}
 	s.pathLocksMu.Unlock()
-
-	m.Lock()
-	return func() {
-		m.Unlock()
+	select {
+	case lock <- struct{}{}:
+		return func() { <-lock }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
+}
+
+func (s *DefaultService) failBuild(buildID string, messages ...string) {
+	s.store.Update(buildID, func(status *Status) {
+		status.Status = "failed"
+		status.ErrorLog = append(status.ErrorLog, messages...)
+		now := time.Now()
+		status.CompletedAt = &now
+		for _, result := range status.PlatformResults {
+			if result.Status == "building" || result.Status == "pending" {
+				result.Status = "failed"
+				result.CompletedAt = &now
+			}
+		}
+	})
 }
 
 func normalizeDesktopPath(desktopPath string) string {
@@ -936,27 +958,27 @@ func looksLikeNpmLockfileOutOfSync(output string) bool {
 
 // resolveManagedSigningEnvForPlatform resolves managed signing material only
 // for the platform that consumes it.
-func resolveManagedSigningEnvForPlatform(scenarioName, builderPlatform string) (map[string]string, func(), error) {
+func resolveManagedSigningEnvForPlatform(ctx context.Context, scenarioName, builderPlatform string) (map[string]string, func(), error) {
 	if builderPlatform != "linux" {
 		return nil, func() {}, nil
 	}
-	return resolveManagedSigningEnv(scenarioName)
+	return resolveManagedSigningEnv(ctx, scenarioName)
 }
 
 // resolveManagedSigningEnv materializes a credential-authority-held signing key
 // into an ephemeral GPG home and returns the process environment the signing
 // command needs. The private key and passphrase never persist in the generated
 // project; the caller must invoke the returned cleanup when the command ends.
-func resolveManagedSigningEnv(scenarioName string) (map[string]string, func(), error) {
+func resolveManagedSigningEnv(ctx context.Context, scenarioName string) (map[string]string, func(), error) {
 	noop := func() {}
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, noop, nil
 	}
-	config, err := signing.NewFileRepository().Get(context.Background(), scenarioName)
+	config, err := signing.NewFileRepository().Get(ctx, scenarioName)
 	if err != nil {
 		return nil, noop, fmt.Errorf("load signing config: %w", err)
 	}
-	return managedSigningEnv(config)
+	return managedSigningEnv(ctx, config)
 }
 
 // managedKeyAuthority is the read seam for managed signing material.
@@ -972,7 +994,7 @@ var (
 	importManagedSigningKey = importSecretKey
 )
 
-func managedSigningEnv(config *signingtypes.SigningConfig) (map[string]string, func(), error) {
+func managedSigningEnv(ctx context.Context, config *signingtypes.SigningConfig) (map[string]string, func(), error) {
 	noop := func() {}
 	if config == nil || !config.Enabled || config.Linux == nil || config.Linux.ManagedKey == nil {
 		return nil, noop, nil
@@ -1006,7 +1028,7 @@ func managedSigningEnv(config *signingtypes.SigningConfig) (map[string]string, f
 	_ = os.Chmod(homedir, 0o700)
 	cleanup := func() { _ = os.RemoveAll(homedir) }
 
-	if err := importManagedSigningKey(context.Background(), homedir, secret); err != nil {
+	if err := importManagedSigningKey(ctx, homedir, secret); err != nil {
 		cleanup()
 		return nil, noop, err
 	}

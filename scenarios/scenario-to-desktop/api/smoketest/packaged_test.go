@@ -108,11 +108,11 @@ func TestLaunchPhaseDurationsReadPackagedLaunchJSON(t *testing.T) {
 
 func TestMeasuredUserDataIsFreshForColdAndReusedForWarmRelaunch(t *testing.T) {
 	cold := &Status{Condition: "cold"}
-	if protocol, demo := measuredUserDataDirPath("run", "protocol", cold), measuredUserDataDirPath("run", "demo", cold); protocol == demo {
+	if protocol, demo := smokeUserDataDirPath("run", "protocol", cold), smokeUserDataDirPath("run", "demo", cold); protocol == demo {
 		t.Fatalf("cold protocol and measured launch share user data: %q", protocol)
 	}
 	warm := &Status{Condition: "warm"}
-	if protocol, demo := measuredUserDataDirPath("run", "protocol", warm), measuredUserDataDirPath("run", "demo", warm); protocol != demo {
+	if protocol, demo := smokeUserDataDirPath("run", "protocol", warm), smokeUserDataDirPath("run", "demo", warm); protocol != demo {
 		t.Fatalf("warm relaunch uses different user data: %q != %q", protocol, demo)
 	}
 }

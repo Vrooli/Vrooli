@@ -29,6 +29,28 @@ func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
 	}
 }
 
+func TestValidateToolProfilesUsesFinitePathlessDeclarations(t *testing.T) {
+	valid := []ToolProfilePackage{{ToolID: "blender", ProfileID: "blender-5.2.2-linux-x64", OS: "linux", Architecture: "amd64", TreeSHA256: strings.Repeat("a", 64)}}
+	if err := ValidateToolProfiles(valid); err != nil {
+		t.Fatalf("valid renderer declaration rejected: %v", err)
+	}
+	tests := []struct {
+		name     string
+		profiles []ToolProfilePackage
+	}{
+		{"unknown selector", []ToolProfilePackage{{ToolID: "custom", ProfileID: "x", OS: "linux", Architecture: "amd64", TreeSHA256: strings.Repeat("a", 64)}}},
+		{"duplicate selector", append(valid, valid[0])},
+		{"bad digest", []ToolProfilePackage{{ToolID: "blender", ProfileID: "x", OS: "linux", Architecture: "amd64", TreeSHA256: "../../outside"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateToolProfiles(tt.profiles); err == nil {
+				t.Fatal("expected declaration rejection")
+			}
+		})
+	}
+}
+
 func TestManifestValidateAuthenticationModes(t *testing.T) {
 	base := func(profile *AuthenticationProfile) Manifest {
 		return Manifest{

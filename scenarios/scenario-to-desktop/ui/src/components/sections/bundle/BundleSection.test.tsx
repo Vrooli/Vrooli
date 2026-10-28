@@ -3,9 +3,9 @@
  * Tests stage status display, bundle details, and warning states.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@/test-utils";
-import { act } from "@testing-library/react";
+import { act, fireEvent, waitFor } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
 import { BundleSection } from "./BundleSection";
 import { usePipelineStore } from "../../../store";
@@ -25,6 +25,21 @@ beforeEach(() => {
 });
 
 describe("BundleSection", () => {
+  it("sends selected verified renderer-pack inputs to the bundle run", async () => {
+    const runBundleStage = vi.fn(async () => "run-id");
+    act(() => usePipelineStore.setState({ runBundleStage } as never));
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
+    fireEvent.change(screen.getByLabelText("Verified tool artifact root"), { target: { value: "/release" } });
+    fireEvent.change(screen.getByLabelText("Artifact trust mode"), { target: { value: "development-local" } });
+    fireEvent.click(screen.getByLabelText("blender"));
+    fireEvent.click(screen.getByRole("button", { name: "Generate bundle" }));
+    await waitFor(() => expect(runBundleStage).toHaveBeenCalledWith({
+      toolArtifactRoot: "/release",
+      artifactTrustMode: "development-local",
+      rendererToolProfiles: ["blender"],
+    }));
+  });
+
   it("makes development-local non-promotion visible", () => {
     act(() => {
       usePipelineStore.setState({

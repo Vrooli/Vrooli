@@ -123,13 +123,11 @@ func (d *MockDialer) SetShouldFail(fail bool) {
 	d.mu.Unlock()
 }
 
-// Dial implements net.Dial behavior.
-func (d *MockDialer) Dial(network, address string) (net.Conn, error) {
-	return d.DialTimeout(network, address, time.Second)
-}
-
-// DialTimeout implements net.DialTimeout behavior.
-func (d *MockDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+// DialContext implements the runtime connection contract.
+func (d *MockDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.shouldFail {

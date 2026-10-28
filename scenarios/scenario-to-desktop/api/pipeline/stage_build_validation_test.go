@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/shared/errors"
@@ -39,13 +40,6 @@ func TestBuildStageInitializesProvenanceAndMapsTerminalResults(t *testing.T) {
 	if !ok || status.Status != "building" || status.Metadata["git_commit_hash"] != "abc" || status.PlatformResults["linux"].Status != "pending" {
 		t.Fatalf("initialized status = %#v", status)
 	}
-	for _, wait := range []*WaitError{
-		{Kind: WaitErrorStore}, {Kind: WaitErrorTimeout}, {Kind: WaitErrorCancelled}, {Kind: WaitErrorOther},
-	} {
-		if mapped := stage.buildWaitError(wait, "build-1", []string{"linux"}); mapped == nil || mapped.Code == "" {
-			t.Fatalf("buildWaitError(%v) = %#v", wait.Kind, mapped)
-		}
-	}
 	result := &StageResult{}
 	if stage.handleBuildResult(result, &build.Status{Status: BuildStatusReady}) || len(result.Logs) == 0 {
 		t.Fatalf("ready build result = %#v", result)
@@ -63,9 +57,10 @@ func TestBuildStageInitializesProvenanceAndMapsTerminalResults(t *testing.T) {
 
 type buildServiceSpy struct{}
 
-func (*buildServiceSpy) PerformDesktopBuild(string, *build.BuildRequest)                    {}
-func (*buildServiceSpy) PerformScenarioDesktopBuild(string, string, string, []string, bool) {}
-func (*buildServiceSpy) BuildPlatform(string, string, string, string, string)               {}
+func (*buildServiceSpy) PerformDesktopBuild(context.Context, string, *build.BuildRequest) {}
+func (*buildServiceSpy) PerformScenarioDesktopBuild(context.Context, string, string, string, []string, bool) {
+}
+func (*buildServiceSpy) BuildPlatform(context.Context, string, string, string, string, string) {}
 
 func writeBundleValidationFixture(t *testing.T, packageJSON string) string {
 	t.Helper()
@@ -112,5 +107,46 @@ func TestValidateBundleConfigurationAcceptsStringAndObjectResources(t *testing.T
 		if !result.Valid || !result.BundleExists || !result.IncludedInBuild || result.BundlePath == "" {
 			t.Fatalf("valid bundle result = %#v", result)
 		}
+	}
+}
+
+type cancellingBuildService struct {
+	buildServiceSpy
+	started chan struct{}
+	stopped chan struct{}
+}
+
+func (s *cancellingBuildService) PerformScenarioDesktopBuild(ctx context.Context, _ string, _ string, _ string, _ []string, _ bool) {
+	close(s.started)
+	<-ctx.Done()
+	close(s.stopped)
+}
+func TestBuildStageCancellationWaitsForBuildExecutionToStop(t *testing.T) {
+	service := &cancellingBuildService{started: make(chan struct{}), stopped: make(chan struct{})}
+	stage := NewBuildStage(WithBuildStore(build.NewStore()), WithBuildService(service))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan *StageResult, 1)
+	go func() {
+		done <- stage.Execute(ctx, &StageInput{DesktopPath: t.TempDir(), Config: &PipelineConfig{ScenarioName: "fixture", Platforms: []string{"linux"}}})
+	}()
+	select {
+	case <-service.started:
+	case <-time.After(time.Second):
+		t.Fatal("build did not start")
+	}
+	cancel()
+	select {
+	case result := <-done:
+		if result.Status != StatusCancelled {
+			t.Fatalf("stage outcome: %#v", result)
+		}
+		select {
+		case <-service.stopped:
+		default:
+			t.Fatal("stage returned before build stopped")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("build cancellation did not return")
 	}
 }

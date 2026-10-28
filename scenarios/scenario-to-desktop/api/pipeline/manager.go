@@ -470,6 +470,7 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *PipelineConfig) *
 		config.BundleManifestPath = userConfig.BundleManifestPath
 		config.ResourceArtifactRoot = userConfig.ResourceArtifactRoot
 		config.ToolArtifactRoot = userConfig.ToolArtifactRoot
+		config.RendererToolProfiles = append([]string(nil), userConfig.RendererToolProfiles...)
 		config.Clean = userConfig.Clean
 		config.Sign = userConfig.Sign
 		config.Publish = userConfig.Publish

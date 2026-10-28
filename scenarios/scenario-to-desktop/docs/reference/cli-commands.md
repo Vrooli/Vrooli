@@ -31,6 +31,34 @@ Show CLI and API version information.
 
 ## Custom Commands
 
+### Optional managed renderer profiles for bundle staging
+
+The `pipeline run` command supports `--tool-artifact-root`,
+`--renderer-tool-profiles`, and `--artifact-trust-mode`. The renderer selector
+is finite: `blender`, `ffmpeg-video`, or both. It must point at a verified
+release-v1 directory containing the matching renderer roles and pinned Linux
+amd64 trees. For local private-bundle work, use `development-local`; that mode
+is unsigned and cannot be promoted. This path does not provision tools and does
+not change the normal `host-required` tool declaration.
+
+To validate only package staging, keep the pipeline limited to its bundle stage:
+
+```bash
+scenario-to-desktop pipeline run device-studio \
+  --stages bundle --platforms linux --location-mode staging \
+  --tool-artifact-root "$RELEASE_DIR" \
+  --renderer-tool-profiles blender,ffmpeg-video \
+  --artifact-trust-mode development-local
+```
+
+The bundle stage must resolve a valid Electron bundle manifest for the target
+scenario. Its default is `platforms/electron/bundle/bundle.json` in the
+scenario; staging mode resolves a manifest under the pipeline staging output.
+The stage may ask the configured manifest generator to create it. The pipeline
+verifies the release directory and each selected tree before copying packages
+to fixed bundle paths. Successful staging proves package integrity only, not a
+standalone-app launch, rendering workflow, license grant, or production release.
+
 ## Agent-driven validation
 
 The matrix surface is the provider-neutral, UI-free route for desktop

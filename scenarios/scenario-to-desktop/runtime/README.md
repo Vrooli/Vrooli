@@ -282,6 +282,12 @@ func main() {
 }
 ```
 
+`Supervisor.Done()` closes after shutdown returns. Command hosts must not exit
+on the internal cancellation context: service/resource cleanup may still be
+running. Shutdown requests native service stops before cancelling their process
+contexts, allowing application cleanup hooks to complete. Deadline escalation
+and harness containment remain distinct from a successful native shutdown.
+
 ### Command-Line Tools
 
 **Runtime Daemon:**
@@ -471,6 +477,15 @@ The runtime is driven by a `bundle.json` manifest:
 | `port_open` | Wait for TCP port to accept connections | `port_name`, `timeout_ms` |
 | `log_match` | Wait for pattern in logs | `pattern`, `timeout_ms` |
 | `dependencies_ready` | Wait for dependent services | (none) |
+
+`health_success` probes immediately and waits 100 ms between failed probes.
+The readiness `timeout_ms` (default 30 seconds) bounds the startup window;
+`health.interval_ms` and `health.retries` do not shorten that window.
+Cancellation and deadline expiry interrupt the wait between probes. HTTP,
+TCP and command probes inherit the startup context and retain a 2 second ceiling.
+Port readiness shares context-aware TCP dialing with a 500 ms probe limit and
+cancellable 250 ms retry waits. `CheckOnce` keeps the configured health timeout
+for an individual monitoring request.
 
 ## GPU Requirements
 

@@ -13,7 +13,19 @@ import type {
     StoredTokens,
     StoredUser,
     DesktopLinkOptions,
+    DesktopLinkQuery,
+    DesktopLinkStatus,
+    DesktopDisconnectResult,
+    CreditSessionShareStatus,
+    CreditBalanceStatus,
 } from "./types";
+
+export function parseConfiguredCredentialStatus(result: unknown): boolean {
+    if (typeof result !== "object" || result === null || !("configured" in result) || typeof result.configured !== "boolean") {
+        throw new Error("credential status response is invalid");
+    }
+    return result.configured;
+}
 
 /**
  * Create an auth manager with injected dependencies.
@@ -34,11 +46,16 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         onStoreEntitlementLease,
         onGetEntitlementLease,
         onClearEntitlementLease,
+        onStoreLPBSCreditRefreshToken,
+        onHasLPBSCreditRefreshToken,
+        onClearLPBSCreditRefreshToken,
         onResolveLocalIdentityProof,
+        onGetDesktopInstallationId,
     } = deps;
 
     let tokenRefreshTimer: NodeJS.Timeout | null = null;
     let memoryTokens: StoredTokens | null = null;
+    let creditSessionSharingEnabled = false;
 
     // The credential authority is the recovery source for the signed lease.
     // It intentionally does not recover website access or refresh tokens.
@@ -57,6 +74,14 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         };
     }
 
+    async function readAccessToken(): Promise<string | null> {
+        const tokens = await getStoredTokens();
+        if (!tokens?.accessToken) return null;
+        if (timer.now() < new Date(tokens.expiresAt).getTime()) return tokens.accessToken;
+        if (!await refreshTokens()) return null;
+        return (await getStoredTokens())?.accessToken ?? null;
+    }
+
     /**
      * Store tokens securely using Electron's safeStorage.
      */
@@ -72,20 +97,17 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             await storage.ensureDir(parentDir);
         }
 
-        // Persist the website session only inside Electron safeStorage. This
-        // keeps relaunches signed in without creating a plaintext token file.
-        const persisted = JSON.stringify({
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
-            expiresAt: tokens.expiresAt,
-            ...(tokens.entitlementLease ? { entitlementLease: tokens.entitlementLease } : {}),
-        });
-        if (safeStorage.isEncryptionAvailable()) {
+        // Website access and refresh tokens are process-memory compatibility
+        // state. Only the signed desktop entitlement lease is durable.
+        const persisted = tokens.entitlementLease
+            ? JSON.stringify({ entitlementLease: tokens.entitlementLease })
+            : null;
+        if (persisted && safeStorage.isEncryptionAvailable()) {
             const encrypted = safeStorage.encryptString(persisted);
             await storage.writeFile(config.tokensFile, encrypted);
         } else {
-            // The platform credential authority is the secure fallback. Never
-            // place a lease, access token, or refresh token in an unencrypted file.
+            // The platform credential authority is the secure lease fallback.
+            // Never put website session tokens in a durable file.
             if (tokens.entitlementLease && onStoreEntitlementLease) {
                 await onStoreEntitlementLease(tokens.entitlementLease);
             }
@@ -128,19 +150,14 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
 
             const decrypted = safeStorage.decryptString(fileContent);
             const parsed = JSON.parse(decrypted) as Partial<StoredTokens>;
-            if (typeof parsed.accessToken === "string" && typeof parsed.refreshToken === "string" && typeof parsed.expiresAt === "string") {
-                return {
-                    accessToken: parsed.accessToken,
-                    refreshToken: parsed.refreshToken,
-                    expiresAt: parsed.expiresAt,
-                    ...(typeof parsed.entitlementLease === "string" ? { entitlementLease: parsed.entitlementLease } : {}),
-                };
+            if (typeof parsed.entitlementLease === "string") {
+                // Sanitize older files that may contain compatibility tokens.
+                const lease = await leaseOnlyTokens(parsed.entitlementLease);
+                if (lease) await storeAuthTokens(lease);
+                return lease;
             }
-            return leaseOnlyTokens(
-                typeof parsed.entitlementLease === "string"
-                    ? parsed.entitlementLease
-                    : await getAuthorityLease(),
-            );
+            try { await storage.deleteFile(config.tokensFile); } catch { /* stale file is not an auth source */ }
+            return leaseOnlyTokens(await getAuthorityLease());
         } catch (error: unknown) {
             if (error instanceof Error && "code" in error && error.code === "ENOENT") {
                 return leaseOnlyTokens(await getAuthorityLease());
@@ -191,8 +208,10 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
     /**
      * Clear all auth data.
      */
-    async function clearAuthData(): Promise<void> {
+    async function clearAuthData(): Promise<boolean> {
+        let cleared = true;
         memoryTokens = null;
+        creditSessionSharingEnabled = false;
         if (tokenRefreshTimer) {
             timer.clearTimeout(tokenRefreshTimer);
             tokenRefreshTimer = null;
@@ -204,6 +223,7 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             const code = error instanceof Error && "code" in error ? error.code : undefined;
             if (code !== "ENOENT") {
                 console.error("[Auth] Failed to delete tokens:", error);
+                cleared = false;
             }
         }
 
@@ -213,6 +233,7 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             const code = error instanceof Error && "code" in error ? error.code : undefined;
             if (code !== "ENOENT") {
                 console.error("[Auth] Failed to delete user info:", error);
+                cleared = false;
             }
         }
 
@@ -221,8 +242,35 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                 await onClearEntitlementLease();
             } catch (error) {
                 console.warn("[Auth] Failed to clear entitlement lease:", error);
+                cleared = false;
             }
         }
+        if (onClearLPBSCreditRefreshToken) {
+            try {
+                await onClearLPBSCreditRefreshToken();
+            } catch (error) {
+                console.warn("[Auth] Failed to clear LPBS credit credential:", error);
+                cleared = false;
+            }
+        }
+        return cleared;
+    }
+
+    async function signOutSession(): Promise<boolean> {
+        const tokens = await getStoredTokens();
+        const localCleared = await clearAuthData();
+        if (tokens?.accessToken) {
+            try {
+                await http.fetch(`${config.lpbsUrl}/api/v1/auth/logout`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${tokens.accessToken}` },
+                });
+            } catch (error) {
+                console.warn("[Auth] Logout API call failed:", error);
+            }
+        }
+        onAuthChange("signed-out");
+        return localCleared;
     }
 
     /**
@@ -263,6 +311,12 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             });
 
             if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    try { await onClearLPBSCreditRefreshToken?.(); } catch { /* status remains unavailable to the owner */ }
+                    if (creditSessionSharingEnabled) {
+                        creditSessionSharingEnabled = false;
+                    }
+                }
                 console.error("[Auth] Token refresh failed:", response.status);
                 onAuthChange("session-expired");
                 return false;
@@ -279,6 +333,15 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                 refreshToken: newTokens.refresh_token,
                 expiresAt: newTokens.expires_at,
             });
+            if (creditSessionSharingEnabled && onStoreLPBSCreditRefreshToken) {
+                try {
+                    await onStoreLPBSCreditRefreshToken(newTokens.refresh_token);
+                } catch {
+                    // Keep ordinary sign-in usable if owner provisioning fails.
+                    try { await onClearLPBSCreditRefreshToken?.(); } catch { /* Gateway owner status remains authoritative */ }
+                    creditSessionSharingEnabled = false;
+                }
+            }
             scheduleTokenRefresh(newTokens.expires_at);
             onAuthChange("tokens-refreshed");
             console.log("[Auth] Tokens refreshed successfully");
@@ -333,7 +396,34 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         onAuthChange("tokens-received");
     }
 
-    async function completeDesktopLink(options: DesktopLinkOptions & { state: string }): Promise<void> {
+    function parseDesktopLinkStatus(value: unknown, resource: string, installationId: string, expectedScopes?: string[]): DesktopLinkStatus {
+        const envelope = value && typeof value === "object" ? value as { link?: Record<string, unknown> } : {};
+        const link = envelope.link;
+        const scopes = link?.scopes;
+        if (!link || link.installation_id !== installationId || link.resource !== resource ||
+            link.audience !== `scenario:${resource}` || typeof link.local_principal !== "string" ||
+            !link.local_principal.trim() || typeof link.business_account_id !== "string" ||
+            !link.business_account_id.trim() || !Array.isArray(scopes) || scopes.length === 0 ||
+            scopes.some((scope) => typeof scope !== "string" || !scope.startsWith(`${resource}:`)) ||
+            new Set(scopes).size !== scopes.length ||
+            (expectedScopes && (expectedScopes.length !== scopes.length || [...expectedScopes].sort().join("\n") !== [...(scopes as string[])].sort().join("\n")))) {
+            throw new Error("desktop link owner returned an invalid binding");
+        }
+        return {
+            state: "linked",
+            localPrincipal: link.local_principal,
+            businessAccountId: link.business_account_id,
+            scopes: scopes as string[],
+        };
+    }
+
+    async function installationIdFor(options: DesktopLinkOptions): Promise<string> {
+        const installationId = options.installationId?.trim() || await onGetDesktopInstallationId?.();
+        if (!installationId?.trim()) throw new Error("desktop installation identity is unavailable");
+        return installationId.trim();
+    }
+
+    async function completeDesktopLink(options: DesktopLinkOptions & { installationId: string; state: string }): Promise<DesktopLinkStatus> {
         if (!onLoopbackAuthorization || !createCodeChallenge) {
             throw new Error("desktop linking is not configured");
         }
@@ -383,11 +473,13 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         }
         const result = await response.json() as {
             entitlement_lease?: { token?: string; expires_at?: string };
+            link?: Record<string, unknown>;
         };
         const lease = result.entitlement_lease;
         if (!lease || typeof lease.token !== "string" || !lease.token || typeof lease.expires_at !== "string") {
             throw new Error("desktop link response did not contain a signed entitlement lease");
         }
+        const status = parseDesktopLinkStatus(result, options.resource, options.installationId, options.scopes);
         await storeAuthTokens({
             accessToken: "",
             refreshToken: "",
@@ -395,6 +487,7 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             entitlementLease: lease.token,
         });
         onAuthChange("tokens-received");
+        return status;
     }
 
     const manager: IAuthManager = {
@@ -410,50 +503,143 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
             return { state };
         },
 
-        async connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<void> {
+        async connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<DesktopLinkStatus> {
             const state = options.state ?? uuid.generate();
-            await completeDesktopLink({ ...options, state });
+            const installationId = await installationIdFor(options);
+            return completeDesktopLink({ ...options, installationId, state });
+        },
+
+        async getDesktopLinkStatus(options: DesktopLinkQuery): Promise<DesktopLinkStatus> {
+            const resource = options.resource.trim();
+            if (!resource || !onGetDesktopInstallationId || !onResolveLocalIdentityProof) {
+                return { state: "unavailable", scopes: [], message: "Desktop identity verification is unavailable." };
+            }
+            try {
+                const installationId = await onGetDesktopInstallationId();
+                const proof = await onResolveLocalIdentityProof();
+                if (!proof) return { state: "unavailable", scopes: [], message: "Local identity proof is unavailable." };
+                const query = new URLSearchParams({ installation_id: installationId, resource });
+                const response = await http.fetch(`${config.lpbsUrl}/api/v1/desktop/links/local?${query}`, {
+                    headers: { Authorization: `Bearer ${proof}` },
+                });
+                if (response.status === 404) return { state: "unlinked", scopes: [] };
+                if (response.status === 401) return { state: "expired", scopes: [], message: "Local identity verification expired." };
+                if (response.status === 403) return { state: "revoked", scopes: [], message: "The account link was revoked." };
+                if (!response.ok) return { state: "unavailable", scopes: [], message: `Account status is unavailable (${response.status}).` };
+                return parseDesktopLinkStatus(await response.json(), resource, installationId);
+            } catch {
+                return { state: "unavailable", scopes: [], message: "Unable to reach the account-link owner." };
+            }
+        },
+
+        async disconnectDesktop(options: DesktopLinkQuery): Promise<DesktopDisconnectResult> {
+            let remoteRevocation: DesktopDisconnectResult["remoteRevocation"] = "uncertain";
+            const resource = options.resource.trim();
+            try {
+                const installationId = await onGetDesktopInstallationId?.();
+                const proof = await onResolveLocalIdentityProof?.();
+                if (resource && installationId && proof) {
+                    const response = await http.fetch(`${config.lpbsUrl}/api/v1/desktop/links/local`, {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${proof}`, "Content-Type": "application/json" },
+                        body: JSON.stringify({ installation_id: installationId, resource }),
+                    });
+                    // The local-link owner confirms revocation with 204 No Content.
+                    // A generic 2xx response is not enough to claim that outcome.
+                    if (response.status === 204) remoteRevocation = "confirmed";
+                }
+            } catch {
+                // Local credential cleanup remains safe even when LPBS is offline.
+            }
+            const localCleared = await signOutSession();
+            return { localCleared, remoteRevocation };
+        },
+
+        async getCreditSessionShareStatus(): Promise<CreditSessionShareStatus> {
+            if (!onHasLPBSCreditRefreshToken) return { state: "unavailable" };
+            try {
+                const configured = await onHasLPBSCreditRefreshToken();
+                if (configured) return { state: "shared" };
+                const tokens = await getStoredTokens();
+                if (!tokens?.refreshToken) return { state: "signed_out" };
+                return { state: "not_shared" };
+            } catch {
+                return { state: "unavailable" };
+            }
+        },
+
+        async getCreditBalance(): Promise<CreditBalanceStatus> {
+            try {
+                const accessToken = await readAccessToken();
+                if (!accessToken) return { state: "signed_out" };
+                const response = await http.fetch(`${config.lpbsUrl}/landing_page_business_suite.v1.AccountService/GetMyCredits`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "Connect-Protocol-Version": "1" },
+                    body: "{}",
+                });
+                if (!response.ok) return { state: response.status === 401 ? "signed_out" : "unavailable" };
+                const result = await response.json() as {
+                    balance?: { balanceCredits?: unknown; updatedAt?: unknown };
+                    displayCreditsLabel?: unknown;
+                    displayCreditsMultiplier?: unknown;
+                };
+                const raw = result.balance?.balanceCredits;
+                const balanceCredits = typeof raw === "string" && /^-?\d+$/.test(raw)
+                    ? raw
+                    : typeof raw === "number" && Number.isSafeInteger(raw) ? String(raw) : null;
+                const label = result.displayCreditsLabel;
+                const multiplier = result.displayCreditsMultiplier;
+                if (balanceCredits === null || typeof label !== "string" || !label.trim() ||
+                    typeof multiplier !== "number" || !Number.isFinite(multiplier) || multiplier < 0) {
+                    return { state: "unavailable" };
+                }
+                const updated = result.balance?.updatedAt;
+                const walletUpdatedAt = typeof updated === "string" && Number.isFinite(Date.parse(updated))
+                    ? updated : undefined;
+                return {
+                    state: "available", balanceCredits, displayCreditsLabel: label.trim(),
+                    displayCreditsMultiplier: multiplier, ...(walletUpdatedAt ? { walletUpdatedAt } : {}),
+                    fetchedAt: new Date(timer.now()).toISOString(), source: "LPBS",
+                };
+            } catch {
+                return { state: "unavailable" };
+            }
+        },
+
+        async setCreditSessionSharing(enabled: boolean): Promise<CreditSessionShareStatus> {
+            if (!enabled) {
+                if (!onClearLPBSCreditRefreshToken) return { state: "unavailable" };
+                try {
+                    creditSessionSharingEnabled = false;
+                    await onClearLPBSCreditRefreshToken();
+                    return { state: "not_shared", localCleared: true, remoteRevocation: "uncertain" };
+                } catch {
+                    return { state: "unavailable", localCleared: false, remoteRevocation: "uncertain" };
+                }
+            }
+            if (!safeStorage.isEncryptionAvailable() || !onStoreLPBSCreditRefreshToken || !onClearLPBSCreditRefreshToken) {
+                return { state: "unavailable" };
+            }
+            const tokens = await getStoredTokens();
+            if (!tokens?.refreshToken) return { state: "signed_out" };
+            try {
+                await onStoreLPBSCreditRefreshToken(tokens.refreshToken);
+                creditSessionSharingEnabled = true;
+                return { state: "shared" };
+            } catch {
+                creditSessionSharingEnabled = false;
+                try { await onClearLPBSCreditRefreshToken(); } catch { /* state remains unavailable */ }
+                return { state: "unavailable" };
+            }
         },
 
         async signOut(): Promise<void> {
-            // Get tokens BEFORE clearing (needed for logout API call)
-            const tokens = await getStoredTokens();
-
-            // Clear local auth data
-            await clearAuthData();
-
-            // Try to call logout endpoint (best effort)
-            if (tokens?.accessToken) {
-                try {
-                    await http.fetch(`${config.lpbsUrl}/api/v1/auth/logout`, {
-                        method: "POST",
-                        headers: { "Authorization": `Bearer ${tokens.accessToken}` },
-                    });
-                } catch (error) {
-                    console.warn("[Auth] Logout API call failed:", error);
-                }
-            }
-
-            onAuthChange("signed-out");
+            await signOutSession();
             console.log("[Auth] Signed out");
         },
 
         async getAccessToken(): Promise<string | null> {
-            const tokens = await getStoredTokens();
-            if (!tokens || !tokens.accessToken) return null;
-
-            // Check if token is expired
-            const expiresAt = new Date(tokens.expiresAt).getTime();
-            if (timer.now() >= expiresAt) {
-                // Try to refresh
-                const refreshed = await refreshTokens();
-                if (!refreshed) return null;
-
-                const newTokens = await getStoredTokens();
-                return newTokens?.accessToken ?? null;
-            }
-
-            return tokens.accessToken;
+            return readAccessToken();
         },
 
         async getEntitlementLease(): Promise<string | null> {

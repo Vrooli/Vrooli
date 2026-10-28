@@ -88,7 +88,12 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		Guidance:       Guidance,
 	}
 	target := fmt.Sprintf("scenarios/%s/%s", msg.GetScenario(), msg.GetSurface())
-	if resolution.HostTool || resolution.HostToolRefresh {
+	if msg.GetScenario() == "vrooli" && msg.GetSurface() == "control-plane" {
+		target = "Vrooli control-plane root Go module"
+	}
+	if resolution.Profile.LifecycleMode == "resource-agent" {
+		target = "resource-owned harness " + msg.GetScenario() + " (exact user-prefix installation)"
+	} else if resolution.HostTool || resolution.HostToolRefresh {
 		target = "managed host tool " + msg.GetScenario() + " (private frozen candidate)"
 		if resolution.HostToolRefresh {
 			target = "host-tool dependency source " + msg.GetScenario() + " (private lock-refresh candidate; no runtime installation)"
@@ -134,6 +139,12 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.NextSteps = append(resp.NextSteps, "Review the generated complete lock and source hashes before separately admitting normal resource acquisition and runtime qualification.")
 			return connect.NewResponse(resp), nil
 		}
+		if len(resolution.PythonLockfiles) > 0 {
+			resp.SourceUpdated = true
+			resp.Message = "Updated canonical Python dependency inputs and hashed locks; no runtime was installed.\n" + strings.TrimSpace(output)
+			resp.NextSteps = append(resp.NextSteps, "Verify the owning input/lock conformance, then use the normal scenario or resource lifecycle to converge its private environment.")
+			return connect.NewResponse(resp), nil
+		}
 		resp.Installed = true
 		verb := "Installed"
 		if resolution.TemplateVersion != "" {
@@ -144,6 +155,10 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		}
 		resp.Message = fmt.Sprintf("%s (%s): %s/%s into %s via %s.", verb,
 			verdict, msg.GetEcosystem(), msg.GetPackageName(), target, resolution.PackageManager)
+		if resolution.Profile.LifecycleMode == "resource-agent" {
+			resp.NextSteps = append(resp.NextSteps, "Verify selected executable/version through the resource owner before launch; retain the prior installation for rollback.")
+			return connect.NewResponse(resp), nil
+		}
 		if resolution.HostTool {
 			resp.NextSteps = append(resp.NextSteps, "Verify managed bytes: vrooli host install hyperframes --dry-run", "Qualify one bounded local composition before fresh-film production; no browser was downloaded.")
 			return connect.NewResponse(resp), nil

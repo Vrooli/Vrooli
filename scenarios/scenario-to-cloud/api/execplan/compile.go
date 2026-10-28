@@ -1232,6 +1232,9 @@ func engineBindingSpecs(in CompileInputs) []string {
 func migrationPosture(in CompileInputs, update bool) string {
 	switch {
 	case !update:
+		if len(legacyInventory(in)) > 0 {
+			return domain.MigrationPostureGreenfieldWithData
+		}
 		return domain.MigrationPostureGreenfield
 	case in.Observations.DataSchemaVersion != "":
 		return domain.MigrationPostureProductionEvolution

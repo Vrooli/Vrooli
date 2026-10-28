@@ -255,3 +255,65 @@ func TestInstallDependencyEnforcesScenarioScopeBeforeEffects(t *testing.T) {
 		}
 	}
 }
+
+func TestPythonLockUpdateDoesNotClaimRuntimeInstallation(t *testing.T) {
+	repo := t.TempDir()
+	writeRegistry(t, repo, `{"records":[{"ecosystem":"pip","package_name":"trimesh","version_range":"4.7.4","state":"approved","rationale":"Isolated mesh fixture","allowed_surfaces":["api"]}]}`)
+	api := filepath.Join(repo, "scenarios", "demo", "api")
+	owner := filepath.Join(api, "internal", "pydeps")
+	if err := os.MkdirAll(owner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for path, content := range map[string]string{
+		filepath.Join(api, "requirements.txt"):    "-r internal/pydeps/requirements.lock\n",
+		filepath.Join(owner, "requirements.in"):   "trimesh>=4\n",
+		filepath.Join(owner, "requirements.lock"): "trimesh==4.7.3\n",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	installer := &recordingInstaller{}
+	h := &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer}
+	result, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "demo", Surface: "api", Ecosystem: "pip", PackageName: "trimesh", Version: "4.7.4", Apply: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !installer.called || result.Msg.Blocked || !result.Msg.SourceUpdated || result.Msg.Installed {
+		t.Fatalf("lock update was reported as runtime install: %+v", result.Msg)
+	}
+}
+
+func TestHarnessInstallGovernanceBeforeEffects(t *testing.T) {
+	for _, tc := range []struct{ state, version, surface, verdict string }{{"approved", "0.164.0", "host-tool", "approved"}, {"denied", "0.164.0", "host-tool", "denied"}, {"approved", "0.163.0", "host-tool", "out_of_range"}, {"approved", "0.164.0", "cli", "surface_not_allowed"}, {"unrecorded", "0.164.0", "host-tool", "unrecorded"}} {
+		t.Run(tc.verdict, func(t *testing.T) {
+			root := t.TempDir()
+			record := `{"records":[]}`
+			if tc.state != "unrecorded" {
+				record = fmt.Sprintf(`{"records":[{"ecosystem":"npm","package_name":"@openai/codex","state":"%s","rationale":"Reviewed fixture.","version_range":"0.164.0","allowed_surfaces":["%s"]}]}`, tc.state, tc.surface)
+			}
+			writeRegistry(t, root, record)
+			dir := filepath.Join(root, "resources", "codex")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "resources", "codex", "resource.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "resource.json"), data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			installer := &recordingInstaller{}
+			h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+			resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "codex", Surface: "host-tool", Ecosystem: "npm", PackageName: "@openai/codex", Version: tc.version, ExactVersion: true, Apply: true}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := tc.verdict == "approved"
+			if installer.called != want || resp.Msg.GetInstalled() != want || resp.Msg.GetBlocked() == want || resp.Msg.GetVerdict() != tc.verdict {
+				t.Fatalf("unsafe governance outcome: called=%v resp=%v", installer.called, resp.Msg)
+			}
+		})
+	}
+}

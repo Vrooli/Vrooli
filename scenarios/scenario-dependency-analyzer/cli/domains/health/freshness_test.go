@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -134,9 +135,13 @@ func TestDiscoverGoSurfacesIncludesNonAPIModules(t *testing.T) {
 	writeFreshnessFile(t, filepath.Join(root, "scenarios", "demo", "cli", "go.mod"), "module example.com/demo-cli\n")
 	writeFreshnessFile(t, filepath.Join(root, "scenarios", "demo", "ui", "package.json"), "{}\n")
 
-	surfaces, err := discoverGoSurfaces(root)
+	modules, err := discoverGoModules(root)
 	if err != nil {
-		t.Fatalf("discoverGoSurfaces: %v", err)
+		t.Fatalf("discoverGoModules: %v", err)
+	}
+	surfaces, err := discoverGoSurfacesFromModules(root, modules)
+	if err != nil {
+		t.Fatalf("discoverGoSurfacesFromModules: %v", err)
 	}
 	got := map[string]string{}
 	for _, surface := range surfaces {
@@ -382,7 +387,7 @@ func TestCheckGoSurfacesRunsConcurrentlyAndPreservesOrder(t *testing.T) {
 	}
 }
 
-func TestCheckGoFreshnessRetriesColdModuleAsNeedsDownloadWithoutDirtyingClean(t *testing.T) {
+func TestCheckGoFreshnessColdModuleRemainsUnqualified(t *testing.T) {
 	root := t.TempDir()
 	surface := goSurface{scenario: "demo", surface: "api", goMod: filepath.Join(root, "scenarios/demo/api/go.mod")}
 	writeFreshnessFile(t, surface.goMod, "module demo\ngo 1.25.0\n")
@@ -403,8 +408,8 @@ func TestCheckGoFreshnessRetriesColdModuleAsNeedsDownloadWithoutDirtyingClean(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Clean {
-		t.Fatalf("needs_download changed clean verdict: %+v", report)
+	if report.Clean || report.Summary.NeedsDownload != 1 {
+		t.Fatalf("cold cache cannot qualify module freshness: %+v", report)
 	}
 }
 
@@ -424,6 +429,281 @@ func TestCheckGoFreshnessDoesNotRetryKnownInRepoModule(t *testing.T) {
 	if got.Status != "error" || calls != 1 {
 		t.Fatalf("report=%+v calls=%d", got, calls)
 	}
+}
+
+func TestFreshnessCacheInvalidatesChangedLocalDependencyClosure(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOPROXY", "off")
+	writeLocalFreshnessFixture(t, root)
+	initFreshnessGitRepo(t, root)
+
+	initial := checkFreshnessModule(t, root, "scenarios/consumer/api")
+	if !initial.Clean || reportSurface(t, initial, "scenarios/consumer/api").CacheHit {
+		t.Fatalf("initial consumer report = %+v, want an uncached clean check", initial)
+	}
+	unchanged := checkFreshnessModule(t, root, "scenarios/consumer/api")
+	if item := reportSurface(t, unchanged, "scenarios/consumer/api"); item.Status != "clean" || !item.CacheHit {
+		t.Fatalf("unchanged consumer = %+v, want clean cache hit", item)
+	}
+	unrelated := checkFreshnessModule(t, root, "scenarios/unrelated/api")
+	if !unrelated.Clean || reportSurface(t, unrelated, "scenarios/unrelated/api").CacheHit {
+		t.Fatalf("initial unrelated report = %+v, want an uncached clean check", unrelated)
+	}
+
+	writeFreshnessFile(t, filepath.Join(root, "packages/shared/go.mod"), "module example.test/shared\n\ngo 1.23\n\nrequire example.test/dep v0.0.0\n\nreplace example.test/dep => ../dep\n")
+	writeFreshnessFile(t, filepath.Join(root, "packages/shared/shared.go"), "package shared\n\nimport \"example.test/dep\"\n\nconst Value = dep.Value\n")
+
+	touched, err := checkFreshness(context.Background(), root, freshnessRequest{touched: true, concurrency: 1})
+	if err != nil {
+		t.Fatalf("touched check: %v", err)
+	}
+	consumer := reportSurface(t, touched, "scenarios/consumer/api")
+	if consumer.Status != "stale" || consumer.CacheHit {
+		t.Fatalf("touched consumer = %+v, want uncached stale after upstream local module change", consumer)
+	}
+	if !strings.Contains(strings.Join(consumer.DiffPaths, "\n"), "scenarios/consumer/api/go.mod") {
+		t.Fatalf("touched consumer diff paths = %#v, want consumer go.mod", consumer.DiffPaths)
+	}
+	if _, included := findSurface(touched.Surfaces, "scenarios/unrelated/api"); included {
+		t.Fatalf("unrelated surface was included in touched report: %+v", touched.Surfaces)
+	}
+
+	exact := checkFreshnessModule(t, root, "scenarios/consumer/api")
+	if item := reportSurface(t, exact, "scenarios/consumer/api"); item.Status != "stale" || !item.CacheHit {
+		t.Fatalf("exact consumer = %+v, want cached stale result under changed closure key", item)
+	}
+	unrelatedAfter := checkFreshnessModule(t, root, "scenarios/unrelated/api")
+	if item := reportSurface(t, unrelatedAfter, "scenarios/unrelated/api"); item.Status != "clean" || !item.CacheHit {
+		t.Fatalf("unrelated consumer = %+v, want unaffected clean cache hit", item)
+	}
+}
+
+func TestFreshnessCacheInvalidatesChangedSurfaceMetadata(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOPROXY", "off")
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "root.go"), "package root\n")
+	writeFreshnessFile(t, filepath.Join(root, "packages/unused/go.mod"), "module example.test/unused\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "packages/unused/unused.go"), "package unused\n")
+
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.23\n\n// clean cache-index seed\n")
+	first := checkFreshnessModule(t, root, ".")
+	if !first.Clean || reportSurface(t, first, "root").Status != "clean" {
+		t.Fatalf("initial root report = %+v, want clean", first)
+	}
+
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.23\n\nrequire example.test/unused v0.0.0\n\nreplace example.test/unused => ./packages/unused\n")
+	second := checkFreshnessModule(t, root, ".")
+	rootResult := reportSurface(t, second, "root")
+	if rootResult.Status != "stale" || rootResult.CacheHit {
+		t.Fatalf("changed root module = %+v, want uncached stale result after same-path metadata change", rootResult)
+	}
+}
+
+func TestFreshnessDependencyFingerprintStopsAtNestedModules(t *testing.T) {
+	root := t.TempDir()
+	surfaceDir := filepath.Join(root, "scenarios/consumer/api")
+	dependencyDir := filepath.Join(root, "packages/shared")
+	writeFreshnessFile(t, filepath.Join(surfaceDir, "go.mod"), "module example.test/consumer\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(surfaceDir, "consumer.go"), "package consumer\n")
+	writeFreshnessFile(t, filepath.Join(dependencyDir, "go.mod"), "module example.test/shared\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(dependencyDir, "shared.go"), "package shared\n")
+	nestedDir := filepath.Join(dependencyDir, "fixtures/nested")
+	writeFreshnessFile(t, filepath.Join(nestedDir, "go.mod"), "module example.test/nested\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(nestedDir, "nested.go"), "package nested\n")
+
+	modules := map[string]goModule{
+		"example.test/consumer": {dir: surfaceDir, module: "example.test/consumer", requires: map[string]struct{}{"example.test/shared": {}}},
+		"example.test/shared":   {dir: dependencyDir, module: "example.test/shared", requires: map[string]struct{}{}},
+	}
+	surface := goSurface{goMod: filepath.Join(surfaceDir, "go.mod"), module: "example.test/consumer"}
+	key := func() string {
+		t.Helper()
+		surfaces := []goSurface{surface}
+		attachFreshnessCacheFingerprints(surfaces, modules)
+		value, ok := freshnessCacheKey(surfaces[0])
+		if !ok {
+			t.Fatal("freshnessCacheKey unexpectedly refused complete module inputs")
+		}
+		return value
+	}
+
+	initial := key()
+	writeFreshnessFile(t, filepath.Join(nestedDir, "nested.go"), "package nested\n\nconst Changed = true\n")
+	if nestedChanged := key(); nestedChanged != initial {
+		t.Fatalf("nested module source changed cache key: before=%s after=%s", initial, nestedChanged)
+	}
+	writeFreshnessFile(t, filepath.Join(dependencyDir, "shared.go"), "package shared\n\nconst Changed = true\n")
+	if parentChanged := key(); parentChanged == initial {
+		t.Fatalf("owning module source change did not change cache key: %s", parentChanged)
+	}
+}
+
+func TestFreshnessCacheDoesNotPublishWhenSurfaceChangesDuringCheck(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOPROXY", "off")
+	moduleDir := filepath.Join(root, "scenarios/demo/api")
+	sourcePath := filepath.Join(moduleDir, "main.go")
+	writeFreshnessFile(t, filepath.Join(moduleDir, "go.mod"), "module example.test/demo\n\ngo 1.23\n")
+	writeFreshnessFile(t, sourcePath, "package demo\n\nconst Value = 1\n")
+	preCheckKey := freshnessCacheKeyForModule(t, root, "scenarios/demo/api")
+
+	previous := runGoCommand
+	calls := 0
+	runGoCommand = func(_ context.Context, _ string, args ...string) (string, bool, error) {
+		calls++
+		if !reflect.DeepEqual(args, []string{"mod", "tidy", "-diff"}) {
+			t.Fatalf("go args = %#v, want tidy diff", args)
+		}
+		if calls == 1 {
+			if err := os.WriteFile(sourcePath, []byte("package demo\n\nconst Value = 2\n"), 0o644); err != nil {
+				t.Fatalf("mutate surface during check: %v", err)
+			}
+			return "", true, nil
+		}
+		return "diff --git a/go.mod b/go.mod\n", false, nil
+	}
+	t.Cleanup(func() { runGoCommand = previous })
+
+	first := checkFreshnessModule(t, root, "scenarios/demo/api")
+	if item := reportSurface(t, first, "scenarios/demo/api"); item.Status != "clean" || item.CacheHit {
+		t.Fatalf("first check = %+v, want uncached clean observation", item)
+	}
+	if _, err := os.Stat(filepath.Join(freshnessCacheDir(root), preCheckKey+".json")); !os.IsNotExist(err) {
+		t.Fatalf("pre-check identity cache entry stat error = %v, want no entry for changed inputs", err)
+	}
+
+	second := checkFreshnessModule(t, root, "scenarios/demo/api")
+	if item := reportSurface(t, second, "scenarios/demo/api"); item.Status != "stale" || item.CacheHit {
+		t.Fatalf("second check = %+v, want a fresh stale result after the surface changed", item)
+	}
+	if calls != 2 {
+		t.Fatalf("go calls = %d, want both checks to execute", calls)
+	}
+}
+
+func TestFreshnessCacheDoesNotPublishWhenDependencyChangesDuringCheck(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOPROXY", "off")
+	writeLocalFreshnessFixture(t, root)
+	preCheckKey := freshnessCacheKeyForModule(t, root, "scenarios/consumer/api")
+
+	previous := runGoCommand
+	calls := 0
+	runGoCommand = func(_ context.Context, _ string, args ...string) (string, bool, error) {
+		calls++
+		if !reflect.DeepEqual(args, []string{"mod", "tidy", "-diff"}) {
+			t.Fatalf("go args = %#v, want tidy diff", args)
+		}
+		if calls == 1 {
+			writeFreshnessFile(t, filepath.Join(root, "packages/shared/shared.go"), "package shared\n\nconst Value = \"changed during check\"\n")
+			return "", true, nil
+		}
+		return "diff --git a/go.mod b/go.mod\n", false, nil
+	}
+	t.Cleanup(func() { runGoCommand = previous })
+
+	first := checkFreshnessModule(t, root, "scenarios/consumer/api")
+	if item := reportSurface(t, first, "scenarios/consumer/api"); item.Status != "clean" || item.CacheHit {
+		t.Fatalf("first check = %+v, want uncached clean observation", item)
+	}
+	if _, err := os.Stat(filepath.Join(freshnessCacheDir(root), preCheckKey+".json")); !os.IsNotExist(err) {
+		t.Fatalf("captured dependency identity cache entry stat error = %v, want no entry for changed inputs", err)
+	}
+
+	second := checkFreshnessModule(t, root, "scenarios/consumer/api")
+	if item := reportSurface(t, second, "scenarios/consumer/api"); item.Status != "stale" || item.CacheHit {
+		t.Fatalf("second check = %+v, want fresh stale result after dependency change", item)
+	}
+	if calls != 2 {
+		t.Fatalf("go calls = %d, want both checks to execute", calls)
+	}
+}
+
+func freshnessCacheKeyForModule(t *testing.T, root, module string) string {
+	t.Helper()
+	modules, err := discoverGoModules(root)
+	if err != nil {
+		t.Fatalf("discover modules: %v", err)
+	}
+	surfaces, err := discoverGoSurfacesFromModules(root, modules)
+	if err != nil {
+		t.Fatalf("discover surfaces: %v", err)
+	}
+	surfaces = filterGoSurfacesByModule(root, surfaces, module)
+	if len(surfaces) != 1 {
+		t.Fatalf("selected surfaces = %d, want 1 for %s", len(surfaces), module)
+	}
+	attachFreshnessCacheFingerprints(surfaces, modules)
+	key, ok := freshnessCacheKey(surfaces[0])
+	if !ok {
+		t.Fatalf("cache identity unavailable for %s", module)
+	}
+	return key
+}
+
+func checkFreshnessModule(t *testing.T, root, module string) freshnessReport {
+	t.Helper()
+	report, err := checkFreshness(context.Background(), root, freshnessRequest{module: module, concurrency: 1})
+	if err != nil {
+		t.Fatalf("check module %s: %v", module, err)
+	}
+	return report
+}
+
+func reportSurface(t *testing.T, report freshnessReport, moduleDir string) freshnessSurfaceReport {
+	t.Helper()
+	for _, item := range report.Surfaces {
+		modulePath := filepath.ToSlash(filepath.Dir(item.GoModPath))
+		if modulePath == moduleDir || (moduleDir == "root" && modulePath == ".") {
+			return item
+		}
+	}
+	t.Fatalf("surface %q absent from report: %+v", moduleDir, report.Surfaces)
+	return freshnessSurfaceReport{}
+}
+
+func findSurface(surfaces []freshnessSurfaceReport, moduleDir string) (freshnessSurfaceReport, bool) {
+	for _, item := range surfaces {
+		modulePath := filepath.ToSlash(filepath.Dir(item.GoModPath))
+		if modulePath == moduleDir || (moduleDir == "root" && modulePath == ".") {
+			return item, true
+		}
+	}
+	return freshnessSurfaceReport{}, false
+}
+
+func writeLocalFreshnessFixture(t *testing.T, root string) {
+	t.Helper()
+	writeFreshnessFile(t, filepath.Join(root, "packages/shared/go.mod"), "module example.test/shared\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "packages/shared/shared.go"), "package shared\n\nconst Value = \"shared\"\n")
+	writeFreshnessFile(t, filepath.Join(root, "packages/dep/go.mod"), "module example.test/dep\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "packages/dep/dep.go"), "package dep\n\nconst Value = \"dep\"\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios/consumer/api/go.mod"), "module example.test/consumer\n\ngo 1.23\n\nrequire example.test/shared v0.0.0\n\nreplace example.test/shared => ../../../packages/shared\nreplace example.test/dep => ../../../packages/dep\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios/consumer/api/main.go"), "package consumer\n\nimport \"example.test/shared\"\n\nvar Value = shared.Value\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios/unrelated/api/go.mod"), "module example.test/unrelated\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios/unrelated/api/main.go"), "package unrelated\n\nconst Value = \"unrelated\"\n")
+}
+
+func initFreshnessGitRepo(t *testing.T, root string) {
+	t.Helper()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, output)
+		}
+	}
+	run("init", "-q")
+	run("config", "user.email", "fixture@example.test")
+	run("config", "user.name", "Freshness Fixture")
+	run("add", ".")
+	run("commit", "-qm", "fixture baseline")
 }
 
 func TestCheckFreshnessAddsReconcileActionForErroredSurfaces(t *testing.T) {
@@ -449,6 +729,28 @@ func TestCheckFreshnessAddsReconcileActionForErroredSurfaces(t *testing.T) {
 	}
 	if got.NextActions[0].Fixability != "guided" {
 		t.Fatalf("next action fixability = %q, want guided", got.NextActions[0].Fixability)
+	}
+}
+
+func TestCheckFreshnessModuleApplyActionPreservesAndQuotesSelector(t *testing.T) {
+	root := t.TempDir()
+	selector := "scenarios/demo api's"
+	moduleDir := filepath.Join(root, filepath.FromSlash(selector))
+	writeFreshnessFile(t, filepath.Join(moduleDir, "go.mod"), "module example.com/demo\n")
+	stubRunGo(t, []stubGoCall{
+		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.mod b/go.mod\n"},
+	})
+
+	got, err := checkFreshness(context.Background(), root, freshnessRequest{module: selector, concurrency: 1})
+	if err != nil {
+		t.Fatalf("checkFreshness: %v", err)
+	}
+	if got.Summary.Stale != 1 || len(got.NextActions) != 1 {
+		t.Fatalf("report = %+v, want one stale selected module and one apply action", got)
+	}
+	want := "scenario-dependency-analyzer freshness --module 'scenarios/demo api'\\''s' --apply"
+	if got.NextActions[0].Command != want {
+		t.Fatalf("next action command = %q, want %q", got.NextActions[0].Command, want)
 	}
 }
 
@@ -529,4 +831,116 @@ func stubRunGo(t *testing.T, calls []stubGoCall) *int {
 	}
 	t.Cleanup(func() { runGoCommand = previous })
 	return &count
+}
+
+func TestDiscoverGoModulesPreservesRootOwnerAgainstRetainedCopy(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios", "demo", "evidence", "go.mod"), "module example.com/root\n")
+	modules, err := discoverGoModules(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if modules["example.com/root"].dir != root {
+		t.Fatalf("retained copy shadowed root owner: %+v", modules)
+	}
+}
+
+func TestFreshnessUnknownModuleCannotReportCleanZeroChecks(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n")
+	_, err := checkFreshness(context.Background(), root, freshnessRequest{module: "missing/go.mod"})
+	if err == nil || !strings.Contains(err.Error(), "no Go module matches") {
+		t.Fatalf("unknown selector must fail, got %v", err)
+	}
+}
+
+func TestFreshnessAmbiguousNonRootModuleCannotReportClean(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"real", "retained"} {
+		writeFreshnessFile(t, filepath.Join(root, name, "go.mod"), "module example.com/duplicate\n")
+	}
+	_, err := checkFreshness(context.Background(), root, freshnessRequest{module: "example.com/duplicate"})
+	if err == nil || !strings.Contains(err.Error(), "multiple source directories") {
+		t.Fatalf("ambiguous module must fail, got %v", err)
+	}
+}
+
+func TestModuleDotSelectsOnlyRoot(t *testing.T) {
+	root := t.TempDir()
+	surfaces := []goSurface{
+		{goMod: filepath.Join(root, "go.mod"), module: "example.com/root"},
+		{goMod: filepath.Join(root, "other", "go.mod"), module: "example.com/other"},
+	}
+	got := filterGoSurfacesByModule(root, surfaces, ".")
+	if len(got) != 1 || got[0].module != "example.com/root" {
+		t.Fatalf("dot selector expanded beyond root: %+v", got)
+	}
+	if got := filterGoSurfacesByModule(root, surfaces, " "); len(got) != 0 {
+		t.Fatalf("whitespace selector selected modules: %+v", got)
+	}
+}
+
+func TestExplicitEmptyModuleRefusesBeforeApply(t *testing.T) {
+	for _, selector := range []string{"", " "} {
+		t.Run(selector, func(t *testing.T) {
+			calls := stubRunGo(t, nil)
+			err := runFreshness([]string{"--module", selector, "--apply"})
+			if err == nil || !strings.Contains(err.Error(), "nonempty") {
+				t.Fatalf("empty selector must refuse: %v", err)
+			}
+			if *calls != 0 {
+				t.Fatal("empty selector executed Go")
+			}
+		})
+	}
+}
+
+func TestExplicitModulePathDisambiguatesRetainedCopies(t *testing.T) {
+	root := t.TempDir()
+	for _, path := range []string{"resources/go.mod", "scenarios/demo/evidence/go.mod"} {
+		writeFreshnessFile(t, filepath.Join(root, path), "module example.com/resources\n")
+	}
+	stubRunGo(t, []stubGoCall{{args: []string{"mod", "tidy", "-diff"}, clean: true}})
+	got, err := checkFreshness(context.Background(), root, freshnessRequest{module: "resources/go.mod", concurrency: 1, noCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Summary.Checked != 1 || len(got.Surfaces) != 1 || got.Surfaces[0].GoModPath != "resources/go.mod" {
+		t.Fatalf("explicit owner selection changed: %+v", got)
+	}
+}
+
+func TestExplicitModuleSymlinkCannotEscapeRoot(t *testing.T) {
+	root := t.TempDir()
+	external := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(external, "go.mod"), "module example.com/external\n")
+	if err := os.Symlink(external, filepath.Join(root, "outside")); err != nil {
+		t.Fatal(err)
+	}
+	stubRunGo(t, nil)
+	_, err := checkFreshness(context.Background(), root, freshnessRequest{module: "outside", apply: true})
+	if err == nil || !strings.Contains(err.Error(), "escapes repository") {
+		t.Fatalf("escaped owner must refuse: %v", err)
+	}
+}
+
+func TestKilledModuleRetryCannotReportClean(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n")
+	previousOffline, previousNetwork := runGoCommand, runGoNetwork
+	runGoCommand = func(context.Context, string, ...string) (string, bool, error) {
+		return "", false, errors.New("go: module lookup disabled by GOPROXY=off")
+	}
+	runGoNetwork = func(context.Context, string, ...string) (string, bool, error) {
+		return "", false, errors.New("signal: killed: go: finding module for package example.com/dep")
+	}
+	t.Cleanup(func() { runGoCommand, runGoNetwork = previousOffline, previousNetwork })
+	got, err := checkFreshness(context.Background(), root, freshnessRequest{module: "go.mod", noCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Clean || got.Summary.NeedsDownload != 1 || !strings.Contains(got.Surfaces[0].Error, "killed") {
+		t.Fatalf("killed resolution cannot qualify freshness: %+v", got)
+	}
 }

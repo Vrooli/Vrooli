@@ -157,6 +157,13 @@ the build-time default. The recording integrity gate was also corrected to
 accept this dark application based on high-contrast content while still
 rejecting a uniform dark desktop.
 
+Provider-owned desktop matrix runs now carry the selected deployment mode to
+Workflow Health. Bundled artifacts omit the Tier 1 API/renderer URL overrides
+and use the generated Electron bootstrap's private runtime discovery. The
+existing scenario-discovery routing remains in place when the binding is
+absent or the deployment is not bundled; unknown deployment modes are refused
+before the desktop journey starts.
+
 ## Recording-path correction
 
 Live-desktop previously persisted a recording without decoding it, which made

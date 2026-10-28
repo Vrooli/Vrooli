@@ -483,7 +483,7 @@ func TestAgentService_Execute(t *testing.T) {
 	assert.True(t, result.Success)
 	assert.Equal(t, "run-exec", result.RunID)
 	assert.Equal(t, "Found the bug in build config", result.Output)
-	assert.Equal(t, int32(1500), result.TokensUsed)
+	assert.Equal(t, int64(1500), result.TokensUsed)
 	assert.InDelta(t, 0.05, result.CostEstimate, 0.001)
 }
 

@@ -410,6 +410,43 @@ func TestResolveRejectsBadSurfaceAndEcosystem(t *testing.T) {
 	}
 }
 
+func TestResolveSupportsFixedVrooliControlPlaneGoTarget(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.test/vrooli\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(repoRoot, "vrooli", "control-plane", "go", "github.com/ulikunitz/xz", "v0.5.17")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != repoRoot || r.ManifestPath != filepath.Join(repoRoot, "go.mod") {
+		t.Fatalf("control-plane target root/manifest = %q/%q, want %q/go.mod", r.SurfaceRoot, r.ManifestPath, repoRoot)
+	}
+	if r.PackageManager != "go" || r.Command() != "go get github.com/ulikunitz/xz@v0.5.17" {
+		t.Fatalf("control-plane plan = manager %q command %q", r.PackageManager, r.Command())
+	}
+}
+
+func TestResolveRestrictsControlPlaneTarget(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.test/vrooli\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ scenario, surface, ecosystem string }{
+		{"device-studio", "control-plane", "go"},
+		{"vrooli", "control-plane", "npm"},
+		{"vrooli", "control-plane/../api", "go"},
+		{"vrooli", "control-plane/child", "go"},
+		{"vrooli", "control-plane\\child", "go"},
+	} {
+		t.Run(tc.scenario+"/"+tc.surface+"/"+tc.ecosystem, func(t *testing.T) {
+			if _, err := Resolve(repoRoot, tc.scenario, tc.surface, tc.ecosystem, "github.com/ulikunitz/xz", "v0.5.17"); err == nil {
+				t.Fatal("unsafe control-plane target was accepted")
+			}
+		})
+	}
+}
+
 func TestResolveNeverGuessesManagerFromLanguageAlone(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"package.json": "{}"})

@@ -58,12 +58,12 @@ func TestManagedSigningEnvMaterializesAndCleansUp(t *testing.T) {
 	}
 	imported := withManagedSigningSeams(t, authority)
 
-	env, cleanup, err := managedSigningEnv(&signingtypes.SigningConfig{
+	env, cleanup, err := managedSigningEnv(context.Background(), &signingtypes.SigningConfig{
 		Enabled: true,
 		Linux:   &signingtypes.LinuxSigningConfig{GPGKeyID: "ABC123", ManagedKey: &signingtypes.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"}},
 	})
 	if err != nil {
-		t.Fatalf("managedSigningEnv() error = %v", err)
+		t.Fatalf("managedSigningEnv(context.Background(), ) error = %v", err)
 	}
 	homedir := env[signingtypes.DefaultManagedHomedirEnv]
 	if homedir == "" {
@@ -86,15 +86,15 @@ func TestManagedSigningEnvMaterializesAndCleansUp(t *testing.T) {
 }
 
 func TestManagedSigningEnvSkipsWithoutManagedKey(t *testing.T) {
-	env, _, err := managedSigningEnv(&signingtypes.SigningConfig{Enabled: true, Linux: &signingtypes.LinuxSigningConfig{GPGKeyID: "ABC123"}})
+	env, _, err := managedSigningEnv(context.Background(), &signingtypes.SigningConfig{Enabled: true, Linux: &signingtypes.LinuxSigningConfig{GPGKeyID: "ABC123"}})
 	if err != nil || env != nil {
-		t.Fatalf("managedSigningEnv() = %#v, %v", env, err)
+		t.Fatalf("managedSigningEnv(context.Background(), ) = %#v, %v", env, err)
 	}
 }
 
 func TestManagedSigningEnvFailsClosedWithoutAuthority(t *testing.T) {
 	withManagedSigningSeams(t, &fakeManagedAuthority{available: false})
-	if _, _, err := managedSigningEnv(&signingtypes.SigningConfig{
+	if _, _, err := managedSigningEnv(context.Background(), &signingtypes.SigningConfig{
 		Enabled: true,
 		Linux:   &signingtypes.LinuxSigningConfig{GPGKeyID: "ABC123", ManagedKey: &signingtypes.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"}},
 	}); err == nil {
@@ -103,7 +103,7 @@ func TestManagedSigningEnvFailsClosedWithoutAuthority(t *testing.T) {
 }
 
 func TestResolveManagedSigningEnvForPlatformSkipsNonLinux(t *testing.T) {
-	env, cleanup, err := resolveManagedSigningEnvForPlatform("demo", "mac")
+	env, cleanup, err := resolveManagedSigningEnvForPlatform(context.Background(), "demo", "mac")
 	if err != nil || env != nil {
 		t.Fatalf("non-linux platform = %#v, %v", env, err)
 	}

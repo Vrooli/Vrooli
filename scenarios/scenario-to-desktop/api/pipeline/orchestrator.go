@@ -98,7 +98,7 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 
 	// Default logger
 	if o.logger == nil {
-		o.logger = &SlogLogger{Logger: slog.Default()}
+		o.logger = slog.Default()
 	}
 
 	// Default scenario root
@@ -137,16 +137,6 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 
 	return o
 }
-
-// SlogLogger adapts slog.Logger to the Logger interface.
-type SlogLogger struct {
-	Logger *slog.Logger
-}
-
-func (l *SlogLogger) Info(msg string, args ...interface{})  { l.Logger.Info(msg, args...) }
-func (l *SlogLogger) Warn(msg string, args ...interface{})  { l.Logger.Warn(msg, args...) }
-func (l *SlogLogger) Error(msg string, args ...interface{}) { l.Logger.Error(msg, args...) }
-func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg, args...) }
 
 // RunPipeline starts a new pipeline execution.
 // If an idempotency key is provided and a pipeline with that key exists, the existing
@@ -478,6 +468,9 @@ func applyConfigStringFields(dst, src *PipelineConfig) {
 	if src.ToolArtifactRoot != "" {
 		dst.ToolArtifactRoot = src.ToolArtifactRoot
 	}
+	if len(src.RendererToolProfiles) > 0 {
+		dst.RendererToolProfiles = append([]string(nil), src.RendererToolProfiles...)
+	}
 	if src.DeploymentMode != "" {
 		dst.DeploymentMode = src.DeploymentMode
 	}
@@ -600,6 +593,7 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		BundleManifestPath:      parentStatus.Config.BundleManifestPath,
 		ResourceArtifactRoot:    parentStatus.Config.ResourceArtifactRoot,
 		ToolArtifactRoot:        parentStatus.Config.ToolArtifactRoot,
+		RendererToolProfiles:    append([]string(nil), parentStatus.Config.RendererToolProfiles...),
 		Sign:                    parentStatus.Config.Sign,
 		ArtifactTrustMode:       parentStatus.Config.ArtifactTrustMode,
 		DeployConfig:            parentStatus.Config.DeployConfig,

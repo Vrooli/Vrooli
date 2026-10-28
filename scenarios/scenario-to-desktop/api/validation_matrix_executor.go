@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,6 +36,9 @@ type validationDesktopOwner interface {
 	StartSession(context.Context, livedesktop.SessionConfig) (*livedesktop.Session, error)
 	ExecuteAction(context.Context, string, string, json.RawMessage) (*livedesktop.ActionResult, error)
 	LaunchElectronValidation(context.Context, string, string, target.ElectronLaunchOptions, target.RendererExpectation) (*domainv1.AppTarget, error)
+	RequestElectronValidationExit(context.Context, string) error
+	WaitElectronValidationExit(context.Context, string) error
+	RestartElectronValidation(context.Context, string) (*domainv1.AppTarget, error)
 	StopSession(string) error
 }
 
@@ -114,6 +119,22 @@ func (e validationMatrixLocalExecutor) Execute(ctx context.Context, request vali
 }
 
 func (e validationMatrixLocalExecutor) findValidationArtifact(request validationmatrix.CellRequest) (string, error) {
+	if path := strings.TrimSpace(request.ArtifactPath); path != "" {
+		if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+			return "", fmt.Errorf("selected desktop artifact must have an absolute clean path")
+		}
+		digest, err := hex.DecodeString(strings.TrimPrefix(request.ArtifactDigest, "sha256:"))
+		if err != nil || !strings.HasPrefix(request.ArtifactDigest, "sha256:") || len(digest) != sha256.Size {
+			return "", fmt.Errorf("selected desktop artifact requires its exact SHA-256 digest")
+		}
+		info, err := os.Lstat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			return "", fmt.Errorf("selected desktop artifact is not a readable regular file")
+		}
+		// Execute verifies these bytes against ArtifactDigest before launch.
+		// Do not rediscover a different build from the scenario source tree.
+		return path, nil
+	}
 	scenarioName := request.Cell.GetScenarioName()
 	if e.builder != nil {
 		artifact, err := e.builder.Build(context.Background(), deliveryramp.BuildRequest{SourceRef: scenarioName})
@@ -141,7 +162,8 @@ func (e validationMatrixLocalExecutor) executeProviderJourney(ctx context.Contex
 		ScenarioRoot: e.scenarioRoot, ArtifactPath: artifactPath, ArtifactDigest: request.ArtifactDigest,
 		JourneyID: request.Cell.GetJourneyId(), WorkflowPath: request.Journey.SourcePath,
 		TargetID: request.Cell.GetTargetId(), ProfileID: profileID(request.Cell.GetEnvironmentProfile()),
-		TargetAvailable: targetAvailable,
+		TargetAvailable: targetAvailable, DeploymentMode: request.DeploymentMode,
+		BrowserAutomationStudioVariant: request.BrowserAutomationStudioVariant,
 	})
 	return validationmatrix.CellResult{Disposition: mapValidationDisposition(result.Disposition), Reason: result.Reason, Evidence: result.Evidence}
 }
@@ -230,12 +252,16 @@ func smokeEvidence(status *smoketest.Status, captureService *captures.Service, r
 }
 
 func fileDigest(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	digest := sha256.Sum256(data)
-	return "sha256:" + hex.EncodeToString(digest[:]), nil
+	defer file.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func firstNonEmpty(values ...string) string {

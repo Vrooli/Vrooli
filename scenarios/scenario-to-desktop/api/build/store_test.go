@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -314,11 +315,11 @@ type mockCommandRunner struct {
 	dirs  []string
 }
 
-func (m *mockCommandRunner) Run(dir, command string) ([]byte, error) {
-	return m.RunWithEnv(dir, command, nil)
+func (m *mockCommandRunner) Run(ctx context.Context, dir, command string) ([]byte, error) {
+	return m.RunWithEnv(ctx, dir, command, nil)
 }
 
-func (m *mockCommandRunner) RunWithEnv(dir, command string, _ map[string]string) ([]byte, error) {
+func (m *mockCommandRunner) RunWithEnv(ctx context.Context, dir, command string, _ map[string]string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

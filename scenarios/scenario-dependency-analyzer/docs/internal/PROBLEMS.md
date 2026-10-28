@@ -1,5 +1,34 @@
 # Problems and Solutions - Scenario Dependency Analyzer
 
+## 2026-10-22 — Embedded Python lock forwarding
+
+Image Tools' `api/requirements.txt` forwards to the embedded
+`internal/pydeps/requirements.lock` and is not an installable host environment.
+The gateway currently previews `pip install` against that wrapper, bypassing
+the declared ranged-input/hashed-lock owner. Reproduced by the approved hybrid
+scene delivery's `deps install pip/omegaconf@2.3.0 --scenario image-tools
+--surface api --json` preview; no install was executed.
+
+Required repair: recognize a single local lock forwarder, resolve it within the
+declared surface including symlinks, update its canonical input and hashed lock
+through the existing wheel-only compiler, and leave the forwarding file intact.
+Refuse missing/escaping targets; preserve ordinary requirements manifests.
+This is a bounded dependency-owner repair needed by the approved image-to-object
+runtime, not a scenario-wide maturity claim. Keep source and lock publication
+coherent and retain focused regression/native-consumer evidence.
+
+Implementation checkpoint: forwarding now resolves to the contained canonical
+owner, rejects symlinked/nonregular/oversized input and missing or escaping
+closures, and updates the requested package without collapsing distinct PEP 503
+identities. All source and lock files are staged before publication, original
+modes are preserved, and publication errors restore earlier files. This does
+not claim crash-atomic multi-file publication; conformance verification remains
+required after interruption. Focused installgateway and dependencygovernance
+packages pass. The native SDA instance adopted the repair on 2026-10-22 at
+10:24:22 America/New_York; evidence is retained under the hybrid-device-scenes
+full-delivery evidence root. TripoSR dependency resolution/qualification remains
+separate work; a repaired route alone does not prove that runtime installed.
+
 ## Problems Discovered (2025-09-28)
 
 ### 1. CLI-API Graph Type Mismatch

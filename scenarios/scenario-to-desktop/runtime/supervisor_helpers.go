@@ -259,15 +259,10 @@ func (s *Supervisor) IsStarted() bool {
 	return s.started
 }
 
-// Done closes when the runtime is shutting down, whether shutdown was initiated
-// by an OS signal or by the authenticated control API. Runtime command hosts use
-// it to exit after a control-plane /shutdown request rather than leaving an
-// orphaned process behind.
+// Done closes after Shutdown returns, so command hosts cannot exit while
+// service, resource and control API cleanup is still in progress.
 func (s *Supervisor) Done() <-chan struct{} {
-	if s.runtimeCtx == nil {
-		return nil
-	}
-	return s.runtimeCtx.Done()
+	return s.shutdownDone
 }
 
 // AllServicesReady returns true if all services are ready.

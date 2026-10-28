@@ -17,18 +17,6 @@ import "time"
 // to complete vs. failing fast on stuck builds. The values below work well
 // for typical scenarios but may need adjustment for specific environments.
 const (
-	// DefaultBuildTimeout is the maximum time to wait for a build to complete.
-	// Builds can take significant time for large Electron apps with multiple platforms.
-	//
-	// Lever impacts:
-	//   Increase: Allow larger apps with multiple platforms to complete; prevents
-	//             false failures on slow machines or when building all platforms.
-	//   Decrease: Fail faster on stuck builds; reduces resource waste but may
-	//             cause false failures on complex builds.
-	//   Range: 10m (single platform, fast machine) to 60m (all platforms, slow machine)
-	//   Default rationale: 30m allows for typical multi-platform builds with some margin.
-	DefaultBuildTimeout = 30 * time.Minute
-
 	// DefaultGenerationTimeout is the maximum time to wait for desktop wrapper generation.
 	//
 	// Lever impacts:
@@ -75,14 +63,6 @@ const (
 // TUNING GUIDE: Polling intervals balance responsiveness against CPU/network load.
 // Shorter intervals detect completion faster but increase resource usage.
 const (
-	// DefaultBuildPollInterval is how often to check build status.
-	//
-	// Lever impacts:
-	//   Increase: Reduce CPU load during builds; completion detection slightly delayed.
-	//   Decrease: Detect build completion faster; increases CPU polling overhead.
-	//   Range: 1s (responsive) to 10s (resource-constrained environments)
-	DefaultBuildPollInterval = 2 * time.Second
-
 	// DefaultGenerationPollInterval is how often to check generation status.
 	//
 	// Lever impacts:

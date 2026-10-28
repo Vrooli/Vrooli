@@ -39,12 +39,21 @@ func main() {
 	uploadSuccess := flag.Bool("upload-success", false, "Simulate telemetry upload success")
 	uploadError := flag.Bool("upload-error", false, "Simulate telemetry upload error")
 	telemetryPath := flag.String("telemetry-path", "", "Output telemetry path")
+	userData := flag.String("user-data-dir", "", "Isolated desktop profile directory")
 	flag.Parse()
 
 	// Check for smoke test mode
 	if !*smokeTest {
 		_, _ = fmt.Fprintln(os.Stdout, "Test fixture - run with --smoke-test flag")
 		os.Exit(0)
+	}
+	if *userData != "" {
+		if err := os.MkdirAll(*userData, 0o700); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Fprintln(os.Stdout, "FIXTURE_PROFILE_CREATED=true")
+		fmt.Fprintln(os.Stdout, "FIXTURE_TEMP_ROOT="+os.TempDir())
 	}
 
 	runSmokeTestFixture(*delay, *failInit, *failReady, *failResult, *noExit, *crash, *uploadSuccess, *uploadError, *telemetryPath)

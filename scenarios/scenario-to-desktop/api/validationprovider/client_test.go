@@ -1,12 +1,18 @@
 package validationprovider
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -51,6 +57,79 @@ func TestValidateIsolationEvidence(t *testing.T) {
 				t.Fatal("invalid isolation evidence was accepted")
 			}
 		})
+	}
+}
+
+type fixedURLResolver string
+
+func (r fixedURLResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return string(r), nil
+}
+
+type bindingCaptureProvider struct {
+	binding *scenariovalidationv1.DesktopValidationBinding
+}
+
+func (p *bindingCaptureProvider) StartValidationRun(_ context.Context, request *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
+	p.binding = request.Msg.GetDesktopBinding()
+	return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "provider-run"}}), nil
+}
+
+func (p *bindingCaptureProvider) GetValidationRun(context.Context, *connect.Request[scenariovalidationv1.GetValidationRunRequest]) (*connect.Response[scenariovalidationv1.GetValidationRunResponse], error) {
+	return connect.NewResponse(&scenariovalidationv1.GetValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "provider-run"}}), nil
+}
+
+func (p *bindingCaptureProvider) WaitValidationRun(context.Context, *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error) {
+	return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "provider-run"}}), nil
+}
+
+func (p *bindingCaptureProvider) AbortValidationRun(context.Context, *connect.Request[scenariovalidationv1.AbortValidationRunRequest]) (*connect.Response[scenariovalidationv1.AbortValidationRunResponse], error) {
+	return connect.NewResponse(&scenariovalidationv1.AbortValidationRunResponse{}), nil
+}
+
+func TestExecuteCarriesBundledRuntimeInConnectBinding(t *testing.T) {
+	provider := &bindingCaptureProvider{}
+	path, handler := scenariovalidationconnect.NewDurableValidationRunServiceHandler(provider)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewClient(fixedURLResolver(server.URL), server.Client())
+	client.Execute(context.Background(), Request{
+		MatrixRunID: "matrix", CellID: "cell", ScenarioName: "demo", ScenarioPath: "/scenario",
+		WorkflowPath: "bas/cases/journey.json", Target: &domainv1.AppTarget{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "http://127.0.0.1:41235", ApiUrl: "http://127.0.0.1:41236", TestDatabaseRoot: "/private/session/test-database"},
+		ProfileID: "normal", ContextID: "context", ArtifactDigest: "sha256:artifact", BundledRuntime: true,
+		IsolationLeaseID: "matrix:cell", PrepareIsolationRestart: true,
+	})
+	if provider.binding == nil || !provider.binding.GetBundledRuntime() {
+		t.Fatalf("provider binding = %+v, want bundled_runtime=true", provider.binding)
+	}
+	if provider.binding.GetApiUrl() != "http://127.0.0.1:41236" {
+		t.Fatalf("provider API binding = %q, want owner-discovered target API endpoint", provider.binding.GetApiUrl())
+	}
+	if provider.binding.GetTestDatabaseRoot() != "/private/session/test-database" {
+		t.Fatalf("provider test database root = %q, want target-owned private root", provider.binding.GetTestDatabaseRoot())
+	}
+	if provider.binding.GetIsolationLeaseId() != "matrix:cell" || !provider.binding.GetPrepareIsolationRestart() || provider.binding.GetResumeIsolationRestart() {
+		t.Fatalf("provider restart binding = %+v, want prepare phase for stable lease", provider.binding)
+	}
+}
+
+func TestExecutePersistsSelectedBASVariantInDurableBinding(t *testing.T) {
+	provider := &bindingCaptureProvider{}
+	path, handler := scenariovalidationconnect.NewDurableValidationRunServiceHandler(provider)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewClient(fixedURLResolver(server.URL), server.Client())
+	client.Execute(context.Background(), Request{
+		MatrixRunID: "matrix", CellID: "cell", ScenarioName: "demo", ScenarioPath: "/scenario",
+		WorkflowPath: "bas/cases/journey.json", Target: &domainv1.AppTarget{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "http://127.0.0.1:41235"},
+		ProfileID: "normal", ContextID: "context", ArtifactDigest: "sha256:artifact", BrowserAutomationStudioVariant: "preview-2",
+	})
+	if provider.binding == nil || provider.binding.GetBrowserAutomationStudioVariant() != "preview-2" {
+		t.Fatalf("durable binding = %+v, want selected BAS variant preview-2", provider.binding)
 	}
 }
 

@@ -50,12 +50,12 @@ describe("useScenarioState", () => {
       });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.hasInitiallyLoaded).toBe(true);
       });
 
       expect(result.current.state).toBeNull();
       expect(result.current.formState).toBeNull();
-      expect(result.current.hasInitiallyLoaded).toBe(true);
+      expect(result.current.isLoading).toBe(false);
     });
 
     it("returns state when scenario has saved state", async () => {
@@ -69,14 +69,14 @@ describe("useScenarioState", () => {
       });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.hasInitiallyLoaded).toBe(true);
       });
 
       expect(result.current.state).toEqual(mockState);
       expect(result.current.formState).toEqual(mockState.form_state);
       expect(result.current.serverHash).toBe("abc123");
       expect(result.current.localHash).toBe("abc123");
-      expect(result.current.hasInitiallyLoaded).toBe(true);
+      expect(result.current.isLoading).toBe(false);
     });
 
     it("handles query error", async () => {

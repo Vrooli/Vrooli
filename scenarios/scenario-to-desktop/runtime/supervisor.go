@@ -166,11 +166,12 @@ type Supervisor struct {
 	server *http.Server
 
 	// Concurrency control.
-	mu         sync.RWMutex
-	stateMu    sync.RWMutex
-	wg         sync.WaitGroup
-	cancel     context.CancelFunc
-	runtimeCtx context.Context
+	mu           sync.RWMutex
+	stateMu      sync.RWMutex
+	wg           sync.WaitGroup
+	cancel       context.CancelFunc
+	runtimeCtx   context.Context
+	shutdownDone chan struct{}
 }
 
 // Manifest is an alias for the manifest package type for convenience.
@@ -207,6 +208,7 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		peerHome:      opts.PeerHomeDir,
 		serviceStatus: make(map[string]ServiceStatus),
 		statusChanges: make(chan struct{}, 1),
+		shutdownDone:  make(chan struct{}),
 		procs:         make(map[string]*serviceProcess),
 		instanceID:    newInstanceID(),
 		manifestHash:  hashManifest(opts.Manifest),
@@ -685,19 +687,28 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 	s.stateMu.Lock()
 	if !s.started {
 		s.stateMu.Unlock()
-		return nil
+		if s.runtimeCtx == nil {
+			return nil
+		}
+		select {
+		case <-s.shutdownDone:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	s.started = false
 	s.stateMu.Unlock()
+	defer close(s.shutdownDone)
 
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop services in reverse dependency order.
+	// Stop services before cancelling their process contexts, so native cleanup
+	// hooks can finish instead of exec.CommandContext killing them immediately.
 	s.stopServices(ctx)
 	if s.resourceServer != nil {
 		_ = s.resourceServer.Stop(ctx)
+	}
+	if s.cancel != nil {
+		s.cancel()
 	}
 	done := make(chan struct{})
 	go func() {

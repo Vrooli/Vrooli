@@ -253,6 +253,11 @@ export function registerAuthHandlers(
     const channels: string[] = [];
     const { authManager } = deps;
 
+    const requireTrustedLocalRenderer = (event: Electron.IpcMainInvokeEvent) => {
+        const rawURL = event.senderFrame?.url ?? event.sender.getURL();
+        if (!isTrustedLocalRendererURL(rawURL)) throw new Error("desktop account IPC requires a trusted local renderer");
+    };
+
     // auth:sign-in - Start sign-in flow
     ipcMain.handle(AUTH_CHANNELS.SIGN_IN, async (_event, options?: { state?: string }) => {
         return authManager.signIn(options);
@@ -260,10 +265,42 @@ export function registerAuthHandlers(
     channels.push(AUTH_CHANNELS.SIGN_IN);
 
     // auth:connect-desktop - Link the authenticated LPBS account to a local identity.
-    ipcMain.handle(AUTH_CHANNELS.CONNECT_DESKTOP, async (_event, options) => {
-        await authManager.connectDesktop(options);
+    ipcMain.handle(AUTH_CHANNELS.CONNECT_DESKTOP, async (event, options) => {
+        requireTrustedLocalRenderer(event);
+        return authManager.connectDesktop(options);
     });
     channels.push(AUTH_CHANNELS.CONNECT_DESKTOP);
+
+    ipcMain.handle(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS, async (event, options) => {
+        requireTrustedLocalRenderer(event);
+        return authManager.getDesktopLinkStatus(options);
+    });
+    channels.push(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS);
+
+    ipcMain.handle(AUTH_CHANNELS.DISCONNECT_DESKTOP, async (event, options) => {
+        requireTrustedLocalRenderer(event);
+        return authManager.disconnectDesktop(options);
+    });
+    channels.push(AUTH_CHANNELS.DISCONNECT_DESKTOP);
+
+    ipcMain.handle(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS, async (event) => {
+        requireTrustedLocalRenderer(event);
+        return authManager.getCreditSessionShareStatus();
+    });
+    channels.push(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS);
+
+    ipcMain.handle(AUTH_CHANNELS.GET_CREDIT_BALANCE, async (event) => {
+        requireTrustedLocalRenderer(event);
+        return authManager.getCreditBalance();
+    });
+    channels.push(AUTH_CHANNELS.GET_CREDIT_BALANCE);
+
+    ipcMain.handle(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING, async (event, enabled: unknown) => {
+        requireTrustedLocalRenderer(event);
+        if (typeof enabled !== "boolean") throw new Error("credit session sharing requires an explicit boolean choice");
+        return authManager.setCreditSessionSharing(enabled);
+    });
+    channels.push(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING);
 
     // auth:sign-out - Sign out
     ipcMain.handle(AUTH_CHANNELS.SIGN_OUT, async () => {

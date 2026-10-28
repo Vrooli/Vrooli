@@ -2,10 +2,61 @@ package screenrecording
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"syscall"
 	"testing"
 	"time"
 )
+
+func TestNativeCaptureCancellationStopsAndReapsInterruptIgnoringRecorder(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("X11 recorder cancellation uses Unix signals")
+	}
+	for _, deadline := range []bool{false, true} {
+		t.Run(fmt.Sprintf("deadline=%t", deadline), func(t *testing.T) {
+			dir := t.TempDir()
+			command := filepath.Join(dir, "ffmpeg")
+			if err := os.WriteFile(command, []byte("#!/bin/sh\ntrap '' INT\nfor output; do :; done\nprintf partial > \"$output\"\nexec sleep 300\n"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			recorder := NewNativeFFmpegRecorder(command)
+			id, err := recorder.StartCapture(context.Background(), CaptureConfig{Display: ":99", Width: 640, Height: 480, FPS: 10, OutputPath: filepath.Join(dir, "capture.mp4")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			session := recorder.sessions[id]
+			t.Cleanup(func() {
+				if session.cmd.Process.Kill() == nil {
+					select {
+					case <-session.done:
+					case <-time.After(2 * time.Second):
+						t.Error("fixture recorder did not exit")
+					}
+				}
+			})
+			ctx, cancel := context.WithCancel(context.Background())
+			want := context.Canceled
+			if deadline {
+				cancel()
+				ctx, cancel = context.WithTimeout(context.Background(), 20*time.Millisecond)
+				want = context.DeadlineExceeded
+			} else {
+				cancel()
+			}
+			defer cancel()
+			if _, err := recorder.StopCapture(ctx, id); !errors.Is(err, want) {
+				t.Errorf("stop error = %v; want %v", err, want)
+			}
+			if err := session.cmd.Process.Signal(syscall.Signal(0)); !errors.Is(err, os.ErrProcessDone) {
+				t.Errorf("recorder still alive or unreaped after cancellation: %v", err)
+			}
+		})
+	}
+}
 
 // mockExecutor implements CommandExecutor for tests.
 type mockExecutor struct {

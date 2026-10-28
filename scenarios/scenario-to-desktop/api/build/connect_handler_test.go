@@ -21,14 +21,14 @@ type scenarioCall struct {
 	clean              bool
 }
 
-func (s *connectBuildService) PerformDesktopBuild(_ string, request *BuildRequest) {
+func (s *connectBuildService) PerformDesktopBuild(ctx context.Context, _ string, request *BuildRequest) {
 	s.desktop <- request
 }
 
-func (s *connectBuildService) PerformScenarioDesktopBuild(id, scenario, path string, platforms []string, clean bool) {
+func (s *connectBuildService) PerformScenarioDesktopBuild(ctx context.Context, id, scenario, path string, platforms []string, clean bool) {
 	s.scenario <- scenarioCall{id: id, scenario: scenario, path: path, platforms: platforms, clean: clean}
 }
-func (*connectBuildService) BuildPlatform(string, string, string, string, string) {}
+func (*connectBuildService) BuildPlatform(context.Context, string, string, string, string, string) {}
 
 func newConnectBuildService() (*ConnectService, *connectBuildService, *InMemoryStore) {
 	service := &connectBuildService{desktop: make(chan *BuildRequest, 1), scenario: make(chan scenarioCall, 1)}
@@ -141,3 +141,37 @@ func TestPlatformProtoNormalizesCanonicalArchitectureValues(t *testing.T) {
 }
 
 func boolPtr(value bool) *bool { return &value }
+
+type asyncLifetimeBuildService struct {
+	connectBuildService
+	observed chan context.Context
+	release  chan struct{}
+}
+
+func (s *asyncLifetimeBuildService) PerformDesktopBuild(ctx context.Context, _ string, _ *BuildRequest) {
+	s.observed <- ctx
+	<-s.release
+}
+func TestStartBuildDetachesAcceptedRequestAndRetainsOwnerDeadline(t *testing.T) {
+	service := &asyncLifetimeBuildService{observed: make(chan context.Context, 1), release: make(chan struct{})}
+	defer close(service.release)
+	handler := NewConnectService(NewHandler(service, NewStore()))
+	requestCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if _, err := handler.StartBuild(requestCtx, connect.NewRequest(&domainv1.BuildRequest{DesktopPath: t.TempDir()})); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	select {
+	case buildCtx := <-service.observed:
+		if buildCtx.Err() != nil {
+			t.Fatalf("accepted build inherited RPC cancellation: %v", buildCtx.Err())
+		}
+		deadline, ok := buildCtx.Deadline()
+		if !ok || time.Until(deadline) > DefaultBuildTimeout || time.Until(deadline) < DefaultBuildTimeout-time.Second {
+			t.Fatalf("missing owner deadline: %v %t", deadline, ok)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("accepted build did not execute")
+	}
+}

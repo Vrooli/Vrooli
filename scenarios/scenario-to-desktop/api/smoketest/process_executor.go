@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,6 +130,7 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 type executionCapture struct {
 	stdout, stderr, combined *limitedWriter
 	processSessionID         string
+	processScopeRoot         string
 }
 
 func newProcessSessionID() string {
@@ -154,15 +157,39 @@ func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args,
 	if len(env) > 0 {
 		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	}
-	capture := executionCapture{stdout: newLimitedWriter(e.maxOutputBytes), stderr: newLimitedWriter(e.maxOutputBytes), combined: newLimitedWriter(e.maxOutputBytes), processSessionID: sessionID}
+	capture := executionCapture{stdout: newLimitedWriter(e.maxOutputBytes), stderr: newLimitedWriter(e.maxOutputBytes), combined: newLimitedWriter(e.maxOutputBytes), processSessionID: sessionID, processScopeRoot: smokeProcessRoot(env)}
 	cmd.Stdout = io.MultiWriter(capture.stdout, capture.combined)
 	cmd.Stderr = io.MultiWriter(capture.stderr, capture.combined)
 	return cmd, capture
 }
 
+// smokeProcessRoot accepts only the owner's paired run identity and temporary
+// directory. An ambient TMPDIR or arbitrary working directory is not a scope.
+func smokeProcessRoot(env []string) string {
+	values := make(map[string]string, len(env))
+	for _, entry := range env {
+		if key, value, ok := strings.Cut(entry, "="); ok {
+			values[key] = value
+		}
+	}
+	id := values["SMOKE_TEST_RUN_ID"]
+	if id == "" || id == "." || id == ".." || filepath.Base(id) != id {
+		return ""
+	}
+	root := smokeUserDataDirPath(id, "", nil)
+	if values["TMPDIR"] != root || !filepath.IsAbs(root) {
+		return ""
+	}
+	canonical, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return ""
+	}
+	return canonical
+}
+
 func (c executionCapture) result(duration time.Duration, cmd *exec.Cmd, waitCompleted bool) *ExecutionResult {
-	truncated := c.stdout.truncatedBytes + c.stderr.truncatedBytes
-	result := &ExecutionResult{Stdout: c.stdout.String(), Stderr: c.stderr.String(), Combined: c.combined.String(), ExitCode: -1, Duration: duration, Truncated: truncated > 0, TruncatedBytes: truncated, ProcessSessionID: c.processSessionID}
+	truncated := c.combined.truncatedBytes
+	result := &ExecutionResult{Stdout: c.stdout.String(), Stderr: c.stderr.String(), Combined: c.combined.String(), ExitCode: -1, Duration: duration, Truncated: truncated > 0, TruncatedBytes: truncated, ProcessSessionID: c.processSessionID, processScopeRoot: c.processScopeRoot}
 	if waitCompleted && cmd.ProcessState != nil {
 		result.ExitCode = cmd.ProcessState.ExitCode()
 	}
@@ -229,7 +256,7 @@ func (e *DefaultProcessExecutor) assertNoSessionDescendants(result *ExecutionRes
 	if result == nil || result.ProcessSessionID == "" {
 		return result, fmt.Errorf("post-launch descendant assertion unavailable: launch session marker missing")
 	}
-	remaining, err := cleanupProcessSession(result.ProcessSessionID, e.killGracePeriod)
+	remaining, err := cleanupProcessSession(result.ProcessSessionID, result.processScopeRoot, e.killGracePeriod)
 	if err != nil {
 		result.RemainingDescendantPIDs = []int{-1}
 		result.Stderr += fmt.Sprintf("\npost-launch descendant assertion unavailable: %v", err)

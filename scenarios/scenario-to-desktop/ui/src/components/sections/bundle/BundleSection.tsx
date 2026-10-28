@@ -38,6 +38,7 @@ import {
   selectIsRunning,
 } from "../../../store";
 import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
 import { Select } from "../../ui/select";
 import { Progress } from "../../ui/progress";
 import { BundleStepHeader } from "./BundleStepHeader";
@@ -96,6 +97,9 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       "idle",
     );
     const [tier, setTier] = useState("tier-2-desktop");
+    const [toolArtifactRoot, setToolArtifactRoot] = useState("");
+    const [artifactTrust, setArtifactTrust] = useState<"" | "development-local" | "production">("");
+    const [rendererProfiles, setRendererProfiles] = useState<string[]>([]);
 
     // Pipeline store state - single source of truth
     const bundleResult = usePipelineStore((s) => s.bundleResult);
@@ -188,11 +192,14 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       }
 
       try {
-        await runBundleStage({});
+        const config = rendererProfiles.length > 0
+          ? { toolArtifactRoot, artifactTrustMode: artifactTrust, rendererToolProfiles: rendererProfiles }
+          : {};
+        await runBundleStage(config);
       } catch {
         // Error is handled by the store
       }
-    }, [scenarioName, runBundleStage]);
+    }, [scenarioName, runBundleStage, toolArtifactRoot, artifactTrust, rendererProfiles]);
 
     // Derived state - use store directly, no local cache
     const displayDetails = bundleResult;
@@ -429,6 +436,22 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
                   disabled={isBusy}
                 />
               )}
+              <div className="space-y-2 border-t border-slate-800 pt-3">
+                <p className="text-xs font-medium text-slate-200">Optional renderer packs</p>
+                <p className="text-[11px] text-slate-400">Select pinned renderer trees from an existing verified release directory.</p>
+                <Input aria-label="Verified tool artifact root" value={toolArtifactRoot} onChange={(event) => setToolArtifactRoot(event.target.value)} placeholder="Verified release directory" disabled={isBusy} />
+                <Select aria-label="Artifact trust mode" value={artifactTrust} onChange={(event) => setArtifactTrust(event.target.value as typeof artifactTrust)} disabled={isBusy}>
+                  <option value="">Choose trust mode</option>
+                  <option value="development-local">development-local (not promotable)</option>
+                  <option value="production">production (signed release)</option>
+                </Select>
+                {(["blender", "ffmpeg-video"] as const).map((profile) => (
+                  <label key={profile} className="flex items-center gap-2 text-xs text-slate-300">
+                    <input type="checkbox" checked={rendererProfiles.includes(profile)} disabled={isBusy} onChange={(event) => setRendererProfiles((current) => event.target.checked ? [...current, profile] : current.filter((item) => item !== profile))} />
+                    {profile}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Step 2: Generate Bundle */}
