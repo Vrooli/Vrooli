@@ -170,3 +170,87 @@ func TestPutPreference_InvalidBodyIsBadRequest(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
+
+// seedTwoSources declares two producing scenarios, each with one category, and
+// stores a preference row for each, so a source filter has something to cut.
+func seedTwoSources(t *testing.T, r http.Handler, store *preferences.Storage) {
+	t.Helper()
+	ctx := context.Background()
+	const now = "2026-10-28T00:00:00Z"
+	for _, src := range []struct{ source, category string }{
+		{"web-console", "session.input_needed"},
+		{"git-control-tower", "review"},
+	} {
+		require.NoError(t, store.UpsertDeclaredSource(ctx, src.source, src.source, "", "", now))
+		require.NoError(t, store.UpsertDeclaredCategory(ctx, src.source, src.category, src.category, "", true, "normal", now))
+		put := do(t, r, http.MethodPut, "/api/v1/notifications/preferences", map[string]any{
+			"source_scenario": src.source,
+			"category":        src.category,
+			"enabled":         false,
+		})
+		require.Equal(t, http.StatusOK, put.Code)
+	}
+}
+
+func catalogSources(t *testing.T, r http.Handler, path string) (sources, prefSources []string) {
+	t.Helper()
+	rec := doWithoutIdentity(t, r, http.MethodGet, path)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var body catalogResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	for _, s := range body.Sources {
+		sources = append(sources, s.SourceScenario)
+	}
+	for _, p := range body.Preferences {
+		prefSources = append(prefSources, p.SourceScenario)
+	}
+	return sources, prefSources
+}
+
+func TestCatalog_SourceFilterScopesToOneScenario(t *testing.T) {
+	r, store := newServer(t)
+	seedTwoSources(t, r, store)
+
+	// Unfiltered: the hub's own Settings page sees every source.
+	sources, prefs := catalogSources(t, r, "/api/v1/notifications/catalog")
+	require.ElementsMatch(t, []string{"web-console", "git-control-tower"}, sources)
+	require.ElementsMatch(t, []string{"web-console", "git-control-tower"}, prefs)
+
+	// Filtered: a scenario's settings page sees only its own source and rows.
+	sources, prefs = catalogSources(t, r, "/api/v1/notifications/catalog?source_scenario=web-console")
+	require.Equal(t, []string{"web-console"}, sources)
+	require.Equal(t, []string{"web-console"}, prefs)
+}
+
+func TestCatalog_SourceFilterAcceptsListsAndUnknownSources(t *testing.T) {
+	r, store := newServer(t)
+	seedTwoSources(t, r, store)
+
+	sources, _ := catalogSources(t, r, "/api/v1/notifications/catalog?source_scenario=web-console,git-control-tower")
+	require.ElementsMatch(t, []string{"web-console", "git-control-tower"}, sources)
+
+	sources, _ = catalogSources(t, r, "/api/v1/notifications/catalog?source_scenario=web-console&source_scenario=git-control-tower")
+	require.ElementsMatch(t, []string{"web-console", "git-control-tower"}, sources)
+
+	// A scenario that has declared nothing yet gets an empty catalog, never
+	// every other scenario's categories.
+	sources, prefs := catalogSources(t, r, "/api/v1/notifications/catalog?source_scenario=not-registered")
+	require.Empty(t, sources)
+	require.Empty(t, prefs)
+}
+
+func TestPreferences_SourceFilter(t *testing.T) {
+	r, store := newServer(t)
+	seedTwoSources(t, r, store)
+
+	rec := doWithoutIdentity(t, r, http.MethodGet, "/api/v1/notifications/preferences?source_scenario=git-control-tower")
+	require.Equal(t, http.StatusOK, rec.Code)
+	var listed struct {
+		Preferences []struct {
+			SourceScenario string `json:"source_scenario"`
+		} `json:"preferences"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &listed))
+	require.Len(t, listed.Preferences, 1)
+	require.Equal(t, "git-control-tower", listed.Preferences[0].SourceScenario)
+}

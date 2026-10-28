@@ -28,6 +28,7 @@ describe("App composition", () => {
       </Providers>,
       { withoutRouter: true },
     );
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    // Both responsive brand locations can be mounted; visibility belongs to the shell.
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
   });
 });

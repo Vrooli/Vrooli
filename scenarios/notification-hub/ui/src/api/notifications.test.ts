@@ -73,20 +73,33 @@ describe("browser push registration", () => {
     }
   });
 
-  it("forwards routed test mode through the actual Connect client only when explicitly requested", async () => {
-    window.history.replaceState({}, "", "/?vrooli_test_mode=1");
+  it("forwards routed test mode and selected fixtures only when explicitly requested", async () => {
+    window.history.replaceState({}, "", "/settings/reach?vrooli_test_mode=1&e21_fixture=webpush-content-access&e22_fixture=settings-owner&e22_case=e21-device-read-failure-dark-phone&e22_fault=device-read-failure");
     const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 401 }));
     vi.stubGlobal("fetch", fetchMock);
     try {
       await expect(identityClient.getSession({})).rejects.toBeDefined();
       const [, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
       expect(new Headers(init.headers).get("X-Vrooli-Test-Mode")).toBe("1");
+      expect(new Headers(init.headers).get("X-Notification-Hub-E21-Fixture")).toBe("webpush-content-access");
+      expect(new Headers(init.headers).get("X-Notification-Hub-E22-Fixture")).toBe("settings-owner");
+      expect(new Headers(init.headers).get("X-Notification-Hub-E22-Case")).toBe("e21-device-read-failure-dark-phone");
+      expect(new Headers(init.headers).get("X-Notification-Hub-E22-Fault")).toBe("device-read-failure");
+
+      window.history.replaceState({}, "", "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-device-read-failure-dark-phone&e22_fault=device-read-failure");
+      await expect(recipientsClient.listDevices({})).rejects.toBeDefined();
+      const settingsInit = vi.mocked(fetch).mock.calls.at(-1)?.[1] as RequestInit;
+      expect(new Headers(settingsInit.headers).has("X-Notification-Hub-E22-Fault")).toBe(false);
 
       window.history.replaceState({}, "", "/");
       fetchMock.mockClear();
       await expect(identityClient.getSession({})).rejects.toBeDefined();
       const [, ordinaryInit] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
       expect(new Headers(ordinaryInit.headers).has("X-Vrooli-Test-Mode")).toBe(false);
+      expect(new Headers(ordinaryInit.headers).has("X-Notification-Hub-E21-Fixture")).toBe(false);
+      expect(new Headers(ordinaryInit.headers).has("X-Notification-Hub-E22-Fixture")).toBe(false);
+      expect(new Headers(ordinaryInit.headers).has("X-Notification-Hub-E22-Case")).toBe(false);
+      expect(new Headers(ordinaryInit.headers).has("X-Notification-Hub-E22-Fault")).toBe(false);
     } finally {
       window.history.replaceState({}, "", "/");
       vi.unstubAllGlobals();

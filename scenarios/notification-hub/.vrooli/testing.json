@@ -136,7 +136,7 @@
         },
         "react_vite_ui": {
           "language": "typescript",
-            "framework": "vitest",
+          "framework": "vitest",
           "package_manager": "pnpm",
           "coverage": {
             "minimum_percent": 85,
@@ -239,6 +239,135 @@
         "reserve": 1,
         "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
       }
+    }
+  },
+  "workflow": {
+    "evidence": {
+      "common_inputs": [
+        "scenarios/notification-hub/.vrooli/service.json",
+        "scenarios/notification-hub/api/main.go",
+        "scenarios/notification-hub/api/internal/**",
+        "scenarios/notification-hub/api/go.mod",
+        "scenarios/notification-hub/api/go.sum",
+        "scenarios/notification-hub/ui/package.json",
+        "scenarios/notification-hub/ui/pnpm-lock.yaml",
+        "scenarios/notification-hub/ui/index.html",
+        "scenarios/notification-hub/ui/vite.config.*",
+        "scenarios/notification-hub/ui/src/App.tsx",
+        "scenarios/notification-hub/ui/src/main.tsx",
+        "scenarios/notification-hub/ui/src/app/**",
+        "scenarios/notification-hub/ui/src/layout/**",
+        "scenarios/notification-hub/ui/src/components/**",
+        "scenarios/notification-hub/ui/src/hooks/**",
+        "scenarios/notification-hub/ui/src/theme/**",
+        "scenarios/notification-hub/ui/src/i18n/**",
+        "scenarios/notification-hub/ui/src/consts/**",
+        "scenarios/notification-hub/ui/src/api/**",
+        "scenarios/notification-hub/ui/src/styles.css",
+        "scenarios/notification-hub/ui/src/design-tokens.css",
+        "scenarios/notification-hub/ui/src/features/session/**",
+        "scenarios/notification-hub/ui/src/features/health/**",
+        "scenarios/notification-hub/ui/src/features/routedTestMode.ts",
+        "scenarios/notification-hub/ui/public/**",
+        "scenarios/notification-hub/docs/concepts/FLOWS.md",
+        "packages/proto/schemas/notification-hub/**",
+        "packages/proto/gen/typescript/notification-hub/**",
+        "packages/proto/gen/go/notification-hub/**",
+        "packages/react-component-library/package.json",
+        "packages/api-base/src/**",
+        "packages/iframe-bridge/src/**",
+        "packages/ui-selectors/src/**",
+        "scenarios/react-component-library/library/**",
+        "scenarios/notification-hub/ui/tsconfig*.json",
+        "scenarios/notification-hub/ui/postcss.config.*",
+        "scenarios/notification-hub/ui/tailwind.config.*",
+        "packages/api-core/**",
+        "packages/binaryfetch/**",
+        "packages/capability-registry-go/**",
+        "packages/cli-core/**",
+        "packages/envkit-go/**",
+        "packages/platform-go/**",
+        "packages/repo-contract-go/**",
+        "internal/credentialpolicy/*.go",
+        "internal/credentialspec/*.go",
+        "internal/fsx/*.go",
+        "internal/hostreqspec/*.go",
+        "internal/logx/*.go",
+        "internal/tuning/*.go",
+        "internal/shell/*.go",
+        "internal/hostreqkit/*.go",
+        "internal/repocontractmeta/*.go",
+        "internal/config/*.go",
+        "internal/buildflags/*.go",
+        "internal/clock/*.go",
+        "internal/operatorcapability/*.go",
+        "internal/portspec/*.go",
+        "internal/process/*.go",
+        "internal/scenario/*.go",
+        "internal/storagetime/*.go",
+        "internal/values/*.go",
+        "internal/scenarioruntime/*.go",
+        "internal/buildinfo/*.go",
+        "internal/network/*.go",
+        "internal/hostsession/*.go",
+        "internal/workloadowner/*.go",
+        "internal/hostinventory/*.go",
+        "internal/hostpressure/*.go",
+        "internal/setpoint/*.go",
+        "internal/capacity/*.go",
+        "internal/operatorstate/*.go",
+        "internal/storageactivity/*.go",
+        "internal/privilegebroker/*.go",
+        "internal/securestore/*.go",
+        "internal/credentialauthority/*.go",
+        "packages/credential-authority-go/*.go"
+      ],
+      "scopes": [
+        {
+          "id": "quiet-hours",
+          "case_patterns": [
+            "bas/cases/e22/quiet-*.json",
+            "bas/cases/e22/e22-quiet-*.json"
+          ],
+          "inputs": [
+            "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/QuietHoursPanel.tsx"
+          ]
+        },
+        {
+          "id": "escalation-order",
+          "case_patterns": [
+            "bas/cases/e22/order-*.json"
+          ],
+          "inputs": [
+            "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/EscalationOrderPanel.tsx"
+          ]
+        },
+        {
+          "id": "settings-integrated",
+          "case_patterns": [
+            "bas/cases/e22/settings-owner*.json"
+          ],
+          "inputs": [
+            "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/QuietHoursPanel.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/EscalationOrderPanel.tsx"
+          ]
+        },
+        {
+          "id": "reach-and-preferences",
+          "case_patterns": [
+            "bas/cases/e21/*.json",
+            "bas/cases/e23/*.json"
+          ],
+          "inputs": [
+            "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
+            "scenarios/notification-hub/ui/src/features/reach/**",
+            "scenarios/notification-hub/ui/src/pages/ReachPage.tsx"
+          ]
+        }
+      ]
     }
   }
 }

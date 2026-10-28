@@ -1,9 +1,9 @@
 {
   "metadata": {
     "name": "e4-asks-read-failure-light",
-    "description": "Captures NH13.6 from a disposable routed test-pool fixture in light theme.",
+    "description": "Given the leased disposable recipient fixture on a phone, when the owner uses the destination drawer, then the selected light request-read failure state is shown.",
     "requirement": "OT-P0-001",
-    "version": "1",
+    "version": "2",
     "labels": {
       "reset": "none",
       "routed_isolation": "true",
@@ -32,7 +32,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "notification-hub",
-          "scenario_path": "/settings?vrooli_test_mode=1&e4_fixture=asks-read-failure",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1&e4_fixture=asks-read-failure",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
@@ -70,11 +70,23 @@
       }
     },
     {
+      "id": "open-menu-for-focus-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "focus-asks-tab",
       "action": {
         "type": "ACTION_TYPE_FOCUS",
         "focus": {
-          "selector": "@selector/layout.navTab(key=asks)",
+          "selector": "@selector/layout.navLink(key=asks)",
           "scroll": true
         },
         "metadata": {
@@ -137,7 +149,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(async()=>{const deadline=Date.now()+15000;while(!document.body.innerText.includes('Requests couldn’t be loaded.')){if(Date.now()>=deadline)throw new Error('NH13.6 failure copy did not render');await new Promise(resolve=>setTimeout(resolve,100));}return {failureCopyVisible:true}})()"
+          "expression": "(async()=>{const deadline=Date.now()+15000;while(!document.body.innerText.includes('Requests couldn\u2019t be loaded.')){if(Date.now()>=deadline)throw new Error('NH13.6 failure copy did not render');await new Promise(resolve=>setTimeout(resolve,100));}return {failureCopyVisible:true}})()"
         },
         "metadata": {
           "label": "Wait for the authoritative read failure copy before checking or capturing it"
@@ -152,7 +164,7 @@
           "selector": "@selector/pages.asks",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "Requests couldn’t be loaded."
+            "string_value": "Requests couldn\u2019t be loaded."
           },
           "timeout_ms": 15000,
           "failure_message": "NH13.6 selected state is visible"
@@ -203,7 +215,7 @@
     {
       "id": "e3",
       "source": "reload-clean-query-cache",
-      "target": "focus-asks-tab",
+      "target": "open-menu-for-focus-asks-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -252,6 +264,12 @@
       "id": "capture-selected-state-edge",
       "source": "verify-phone-theme-and-dpr",
       "target": "capture-selected-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-focus-asks-tab-edge",
+      "source": "open-menu-for-focus-asks-tab",
+      "target": "focus-asks-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

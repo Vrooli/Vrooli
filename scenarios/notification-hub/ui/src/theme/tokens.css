@@ -1,52 +1,68 @@
 /*
- * Semantic light/dark theme tokens.
+ * Hub-owned semantic mapping from the selected Night signal palette into the
+ * shared shell's canonical tokens. Values come from the selected originals,
+ * with the approved HISTORY-COMPLETE amendment correcting light text contrast;
+ * the generated design kit and shared RCL release remain untouched.
  *
- * These are the variables that change between light and dark mode. Primitive
- * design-kit tokens (raw palette, type ramp, spacing scale) live in
- * `design-tokens.css`, which is generated per-scenario by
- * `template-manager generate` from the selected design kit. This file
- * intentionally references those primitives by name and only re-binds them
- * under a `[data-theme="dark"]` selector — so swapping design kits never
- * requires touching this file, and dark mode never requires touching the
- * design kit.
- *
- * `ThemeProvider` toggles `data-theme` on `<html>` between `"light"` and
- * `"dark"` (or removes it for `system`, which falls back to the
- * `prefers-color-scheme` media query below). The `:root` block holds the
- * light defaults so an unscripted page still renders with sensible colors.
+ * ThemeProvider publishes data-resolved-theme for explicit and system choices.
+ * The media fallback covers the page before React mounts.
  */
 
 :root {
-  --surface-app: var(--color-background, #ffffff);
-  --surface-elevated: var(--color-surface, #f7f7f8);
-  --surface-muted: var(--color-surface-muted, #eef0f3);
-  --text-primary: var(--color-foreground, #0f172a);
-  --text-muted: var(--color-muted-foreground, #525866);
-  --border-subtle: var(--color-border, #e2e5ea);
-  --accent: var(--color-primary, #4f46e5);
-  --accent-foreground: var(--color-primary-foreground, #ffffff);
+  --color-background: #f7f9fc;
+  --color-shell: #f7f9fc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f9fc;
+  --color-surface-raised: #ffffff;
+  --color-field: #ffffff;
+  --color-foreground: #172332;
+  --color-muted-foreground: #5c6c7d;
+  --color-border: #8594a4;
+  --color-primary: #466dd5;
+  --color-primary-foreground: #ffffff;
+  --color-focus: #466dd5;
+
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
 }
 
-[data-theme="dark"] {
-  --surface-app: var(--color-background-dark, #0b1020);
-  --surface-elevated: var(--color-surface-dark, #131a2e);
-  --surface-muted: var(--color-surface-muted-dark, #1b2240);
-  --text-primary: var(--color-foreground-dark, #e6e8ef);
-  --text-muted: var(--color-muted-foreground-dark, #9aa3b8);
-  --border-subtle: var(--color-border-dark, #2a3357);
-  --accent: var(--color-primary-dark, #818cf8);
-  --accent-foreground: var(--color-primary-foreground-dark, #0b1020);
+:root[data-resolved-theme="dark"],
+:root[data-theme="dark"] {
+  --color-background: #10181e;
+  --color-shell: #10181e;
+  --color-surface: #17232c;
+  --color-surface-muted: #17232c;
+  --color-surface-raised: #17232c;
+  --color-field: #15222c;
+  --color-foreground: #f1f4f7;
+  --color-muted-foreground: #b3c1cc;
+  --color-border: #354653;
+  --color-primary: #466dd5;
+  --color-primary-foreground: #ffffff;
+  --color-focus: #7294ec;
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --surface-app: var(--color-background-dark, #0b1020);
-    --surface-elevated: var(--color-surface-dark, #131a2e);
-    --surface-muted: var(--color-surface-muted-dark, #1b2240);
-    --text-primary: var(--color-foreground-dark, #e6e8ef);
-    --text-muted: var(--color-muted-foreground-dark, #9aa3b8);
-    --border-subtle: var(--color-border-dark, #2a3357);
-    --accent: var(--color-primary-dark, #818cf8);
-    --accent-foreground: var(--color-primary-foreground-dark, #0b1020);
+  :root:not([data-resolved-theme="light"]):not([data-theme="light"]) {
+    --color-background: #10181e;
+    --color-shell: #10181e;
+    --color-surface: #17232c;
+    --color-surface-muted: #17232c;
+    --color-surface-raised: #17232c;
+    --color-field: #15222c;
+    --color-foreground: #f1f4f7;
+    --color-muted-foreground: #b3c1cc;
+    --color-border: #354653;
+    --color-primary: #466dd5;
+    --color-primary-foreground: #ffffff;
+    --color-focus: #7294ec;
+    color-scheme: dark;
   }
 }

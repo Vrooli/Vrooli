@@ -1,4 +1,8 @@
 {
+  "branding": {
+    "brand": "chimesail",
+    "targets": ["web-public-v1"]
+  },
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "storage": {
@@ -80,7 +84,7 @@
   "service": {
     "parent": "vrooli",
     "name": "notification-hub",
-    "displayName": "Notification Hub",
+    "displayName": "Chimesail",
     "description": "Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver",
     "version": "0.0.1",
     "type": "business-application",

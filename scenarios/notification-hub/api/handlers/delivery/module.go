@@ -42,7 +42,7 @@ func (h *handler) GetTimeline(ctx context.Context, req *connect.Request[v1.GetTi
 	}
 	out := &v1.GetTimelineResponse{}
 	for _, n := range items {
-		out.Notifications = append(out.Notifications, notifications.ToProto(n))
+		out.Notifications = append(out.Notifications, notifications.ToRecipientReadProto(n))
 	}
 	return connect.NewResponse(out), nil
 }

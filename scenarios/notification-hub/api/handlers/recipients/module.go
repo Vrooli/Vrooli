@@ -11,6 +11,7 @@ import (
 	"notification-hub/internal/module"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients/recipients_v1connect"
@@ -128,8 +129,72 @@ func (h *handler) UpsertChannelAddress(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	address, err := h.service.UpsertChannelAddress(ctx, s, hub.ChannelAddress{ID: req.Msg.GetId(), DeviceID: req.Msg.GetDeviceId(), Channel: req.Msg.GetChannel(), Address: req.Msg.GetAddress(), ApprovedLabels: req.Msg.GetApprovedLabels()})
+	input := hub.ChannelAddress{ID: req.Msg.GetId(), DeviceID: req.Msg.GetDeviceId(), Channel: req.Msg.GetChannel(), Address: req.Msg.GetAddress(), ApprovedLabels: req.Msg.GetApprovedLabels()}
+	if input.ID == "" {
+		// Legacy clients may omit an ID for a one-shot create. New clients use
+		// CreateChannelAddress with a caller-stable ID for retry reconciliation.
+		input.ID = uuid.NewString()
+	}
+	// Preserve the legacy operation's create-or-update shape, but only an
+	// exact owner-scoped ID can update. Natural-key conflicts fall through to
+	// the insert-only create path and never mutate the existing row.
+	address, err := h.service.UpdateChannelAddress(ctx, s, input)
+	if errors.Is(err, sql.ErrNoRows) {
+		address, err = h.service.CreateChannelAddress(ctx, s, input)
+	}
 	if err != nil {
+		if errors.Is(err, hub.ErrChannelAddressConflict) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(channelAddressProto(address)), nil
+}
+
+func (h *handler) ListChannelAddresses(ctx context.Context, req *connect.Request[v1.ListChannelAddressesRequest]) (*connect.Response[v1.ListChannelAddressesResponse], error) {
+	s, err := subject(ctx, req.Header(), h.verifier)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	addresses, err := h.service.ListChannelAddresses(ctx, s)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &v1.ListChannelAddressesResponse{}
+	for _, address := range addresses {
+		out.Addresses = append(out.Addresses, channelAddressProto(address))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *handler) CreateChannelAddress(ctx context.Context, req *connect.Request[v1.CreateChannelAddressRequest]) (*connect.Response[v1.ChannelAddress], error) {
+	s, err := subject(ctx, req.Header(), h.verifier)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	address, err := h.service.CreateChannelAddress(ctx, s, hub.ChannelAddress{ID: req.Msg.GetId(), DeviceID: req.Msg.GetDeviceId(), Channel: req.Msg.GetChannel(), Address: req.Msg.GetAddress(), ApprovedLabels: req.Msg.GetApprovedLabels()})
+	if err != nil {
+		if errors.Is(err, hub.ErrChannelAddressConflict) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, err)
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(channelAddressProto(address)), nil
+}
+
+func (h *handler) UpdateChannelAddress(ctx context.Context, req *connect.Request[v1.UpdateChannelAddressRequest]) (*connect.Response[v1.ChannelAddress], error) {
+	s, err := subject(ctx, req.Header(), h.verifier)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	address, err := h.service.UpdateChannelAddress(ctx, s, hub.ChannelAddress{ID: req.Msg.GetId(), Address: req.Msg.GetAddress(), ApprovedLabels: req.Msg.GetApprovedLabels()})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(channelAddressProto(address)), nil
@@ -225,6 +290,9 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "recipients_device_upsert", Path: connectv1.RecipientsServiceUpsertDeviceProcedure, Method: http.MethodPost, Summary: "Register or update a device", Category: "recipients"},
 	{ID: "recipients_device_remove", Path: connectv1.RecipientsServiceRemoveDeviceProcedure, Method: http.MethodPost, Summary: "Remove a device", Category: "recipients"},
 	{ID: "recipients_address_upsert", Path: connectv1.RecipientsServiceUpsertChannelAddressProcedure, Method: http.MethodPost, Summary: "Register or update a channel address", Category: "recipients"},
+	{ID: "recipients_address_list", Path: connectv1.RecipientsServiceListChannelAddressesProcedure, Method: http.MethodPost, Summary: "List owner-scoped channel addresses", Category: "recipients"},
+	{ID: "recipients_address_create", Path: connectv1.RecipientsServiceCreateChannelAddressProcedure, Method: http.MethodPost, Summary: "Create a channel address with stable-ID retry", Category: "recipients"},
+	{ID: "recipients_address_update", Path: connectv1.RecipientsServiceUpdateChannelAddressProcedure, Method: http.MethodPost, Summary: "Update one owner-scoped channel address", Category: "recipients"},
 	{ID: "recipients_address_remove", Path: connectv1.RecipientsServiceRemoveChannelAddressProcedure, Method: http.MethodPost, Summary: "Remove a channel address", Category: "recipients"},
 	{ID: "recipients_quiet_window_set", Path: connectv1.RecipientsServiceSetQuietWindowProcedure, Method: http.MethodPost, Summary: "Configure quiet hours", Category: "recipients"},
 	{ID: "recipients_quiet_window_list", Path: connectv1.RecipientsServiceListQuietWindowsProcedure, Method: http.MethodPost, Summary: "List quiet hours", Category: "recipients"},

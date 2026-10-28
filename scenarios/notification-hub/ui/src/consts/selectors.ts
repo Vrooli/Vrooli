@@ -27,6 +27,7 @@ const literalSelectors = {
   layout: {
     shell: "layout-shell",
     main: "layout-shell-main",
+    menu: "layout-shell-menu",
   },
   theme: {
     switcher: "theme-switcher",
@@ -41,6 +42,10 @@ const literalSelectors = {
     delivery: "page-delivery",
     deliveryDetail: "page-delivery-detail",
   },
+  delivery: {
+    analyticsRecordsAction: "delivery-analytics-records-link",
+    analyticsRetry: "delivery-analytics-retry",
+  },
   asks: {
     list: "asks-list",
     item: "asks-item",
@@ -50,6 +55,14 @@ const literalSelectors = {
     note: "ask-note",
     status: "ask-status",
     defaultNotice: "ask-default-notice",
+  },
+  reach: {
+    root: "reach-settings",
+    emptyDevices: "reach-empty-devices",
+    addBrowser: "reach-add-browser",
+    refreshDevices: "reach-refresh-devices",
+    permissionRecovery: "reach-permission-recovery",
+    permissionRecoveryBack: "reach-permission-recovery-back",
   },
   session: {
     form: "session-form",
@@ -63,6 +76,34 @@ const literalSelectors = {
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
+  },
+  quietHours: {
+    root: "quiet-hours-root",
+    openWeek: "quiet-hours-open-week",
+    saveButton: "quiet-hours-save",
+    stageRemoval: "quiet-hours-stage-removal",
+    review: "quiet-hours-review",
+    reviewButton: "quiet-hours-review-button",
+    message: "quiet-hours-message",
+    checkSavedButton: "quiet-hours-check-saved",
+    timezoneReview: "quiet-hours-timezone-review",
+    timezoneReviewStage: "quiet-hours-timezone-review-stage",
+    timezoneReviewKeepEditing: "quiet-hours-timezone-review-keep-editing",
+  },
+  escalationOrder: {
+    root: "escalation-order-root",
+    openButton: "escalation-order-open",
+    list: "escalation-order-list",
+    addSelect: "escalation-order-add-select",
+    addButton: "escalation-order-add",
+    clearButton: "escalation-order-clear",
+    confirmClear: "escalation-order-confirm-clear",
+    cancelClear: "escalation-order-cancel-clear",
+    saveButton: "escalation-order-save",
+    checkSavedButton: "escalation-order-check-saved",
+    editButton: "escalation-order-edit",
+    review: "escalation-order-review",
+    message: "escalation-order-message",
   },
 } satisfies LiteralSelectorTree;
 
@@ -84,21 +125,10 @@ const dynamicSelectorDefinitions = {
         },
       },
     }),
-    navTab: defineDynamicSelector({
-      description: "Mobile navigation tab by canonical nav key",
-      testIdPattern: "layout-nav-link-${key}-tab",
-      params: {
-        key: {
-          type: "enum",
-          values: [
-            "dashboard",
-            "asks",
-            "history",
-            "delivery",
-            "settings",
-          ] as const,
-        },
-      },
+    visibleNavLink: defineDynamicSelector({
+      description: "Visible primary destination in sidebar, compact menu or bottom navigation",
+      selectorPattern: '[data-testid="layout-nav-link-${key}"]:visible, [data-testid="layout-nav-link-${key}-tab"]:visible',
+      params: { key: { type: "enum", values: ["dashboard", "asks", "history", "delivery", "settings"] as const } },
     }),
 
   },
@@ -111,9 +141,9 @@ const dynamicSelectorDefinitions = {
   },
   history: {
     filterLink: defineDynamicSelector({
-      description: "History filter link by terminal outcome state",
+      description: "History filter link by request lifecycle state",
       testIdPattern: "history-filter-${state}",
-      params: { state: { type: "enum", values: ["all", "answered", "defaulted", "expired"] as const } },
+      params: { state: { type: "enum", values: ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn"] as const } },
     }),
   },
   settingsPage: {
@@ -126,6 +156,85 @@ const dynamicSelectorDefinitions = {
       description: "Locale choice radio button on the settings page",
       testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  quietHours: {
+    timezoneReviewInput: defineDynamicSelector({
+      description: "New timezone input on a quiet-window timezone review",
+      testIdPattern: "quiet-hours-timezone-review-input-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    timezoneReviewOpen: defineDynamicSelector({
+      description: "Open the explicit quiet-window timezone review for a weekday index",
+      testIdPattern: "quiet-hours-timezone-review-open-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    editDay: defineDynamicSelector({
+      description: "Open the quiet-hours editor for a weekday index",
+      testIdPattern: "quiet-hours-edit-day-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    doneDay: defineDynamicSelector({
+      description: "Stage and close the quiet-hours editor for a weekday index",
+      testIdPattern: "quiet-hours-done-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    cancelDay: defineDynamicSelector({
+      description: "Discard and close the quiet-hours editor for a weekday index",
+      testIdPattern: "quiet-hours-cancel-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    dayEnabled: defineDynamicSelector({
+      description: "Quiet-hours enabled checkbox by weekday index",
+      testIdPattern: "quiet-hours-enabled-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    dayStart: defineDynamicSelector({
+      description: "Quiet-hours start-time input by weekday index",
+      testIdPattern: "quiet-hours-start-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    dayEnd: defineDynamicSelector({
+      description: "Quiet-hours end-time input by weekday index",
+      testIdPattern: "quiet-hours-end-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    dayTimezone: defineDynamicSelector({
+      description: "Quiet-hours timezone input by weekday index",
+      testIdPattern: "quiet-hours-timezone-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+    removeDay: defineDynamicSelector({
+      description: "Stage removal of the saved quiet window for a weekday index",
+      testIdPattern: "quiet-hours-remove-${day}",
+      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
+    }),
+  },
+  escalationOrder: {
+    channelChoice: defineDynamicSelector({
+      description: "Supported channel choice in the escalation-order Add a channel view",
+      testIdPattern: "escalation-order-channel-choice-${channel}",
+      params: { channel: { type: "enum", values: ["browser", "email", "webhook", "web_push"] as const } },
+    }),
+    channelRow: defineDynamicSelector({
+      description: "Escalation channel row by stable channel key",
+      testIdPattern: "escalation-order-channel-${channel}",
+      params: { channel: { type: "string" } },
+    }),
+    moveUp: defineDynamicSelector({
+      description: "Escalation channel move-up control by stable channel key",
+      testIdPattern: "escalation-order-up-${channel}",
+      params: { channel: { type: "string" } },
+    }),
+    moveDown: defineDynamicSelector({
+      description: "Escalation channel move-down control by stable channel key",
+      testIdPattern: "escalation-order-down-${channel}",
+      params: { channel: { type: "string" } },
+    }),
+    remove: defineDynamicSelector({
+      description: "Escalation channel removal control by stable channel key",
+      testIdPattern: "escalation-order-remove-${channel}",
+      params: { channel: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

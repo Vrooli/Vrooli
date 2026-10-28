@@ -8,6 +8,9 @@ import { RecipientsService } from "@vrooli/proto-types/notification-hub/v1/recip
 
 const TEST_MODE_QUERY = "vrooli_test_mode";
 const TEST_MODE_HEADER = "X-Vrooli-Test-Mode";
+const E21_FIXTURE_HEADER = "X-Notification-Hub-E21-Fixture";
+const E22_FIXTURE_HEADER = "X-Notification-Hub-E22-Fixture";
+const E22_FAULT_HEADER = "X-Notification-Hub-E22-Fault";
 
 function isRoutedTestMode(): boolean {
   return typeof window !== "undefined" && new URLSearchParams(window.location.search).get(TEST_MODE_QUERY) === "1";
@@ -23,7 +26,20 @@ const sessionFetch: typeof fetch = (input, init) => {
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init?.headers).forEach((value, name) => headers.set(name, value));
   headers.set("X-Vrooli-Browser-Session", "1");
-  if (isRoutedTestMode()) headers.set(TEST_MODE_HEADER, "1");
+  if (isRoutedTestMode()) {
+    headers.set(TEST_MODE_HEADER, "1");
+    const search = new URLSearchParams(window.location.search);
+    const e21Fixture = search.get("e21_fixture");
+    if (e21Fixture === "reach-empty" || e21Fixture === "webpush-content-access") headers.set(E21_FIXTURE_HEADER, e21Fixture);
+    if (search.get("e22_fixture") === "settings-owner") {
+      headers.set(E22_FIXTURE_HEADER, "settings-owner");
+      const e22Case = search.get("e22_case");
+      if (e22Case) headers.set("X-Notification-Hub-E22-Case", e22Case);
+      if (window.location.pathname === "/settings/reach" && (e22Case === "e21-device-read-failure-light-phone" || e22Case === "e21-device-read-failure-dark-phone") && search.get("e22_fault") === "device-read-failure") {
+        headers.set(E22_FAULT_HEADER, "device-read-failure");
+      }
+    }
+  }
   return fetch(input, { ...init, headers, credentials: "same-origin" }).then((response) => {
     if (response.status === 401 && typeof window !== "undefined") {
       window.dispatchEvent(new Event("notification-hub:session-expired"));
@@ -33,6 +49,22 @@ const sessionFetch: typeof fetch = (input, init) => {
 };
 
 const transport = createScenarioConnectTransport({ fetch: sessionFetch });
+
+export type DeliveryAttemptRead = {
+  channel: string;
+  attempt: number;
+  outcome: string;
+  reason?: string;
+  next_attempt_at?: string;
+  created_at: string;
+};
+
+export async function getDeliveryAttempts(notificationId: string, limit = 100): Promise<{ attempts: DeliveryAttemptRead[]; truncated: boolean }> {
+  const response = await sessionFetch(`/api/v1/notifications/${encodeURIComponent(notificationId)}/attempts?limit=${limit}`);
+  if (!response.ok) throw new Error(`attempt read failed (${response.status})`);
+  return response.json() as Promise<{ attempts: DeliveryAttemptRead[]; truncated: boolean }>;
+}
+
 export const notificationsClient: Client<typeof NotificationsService> = createClient(NotificationsService, transport);
 export const deliveryClient: Client<typeof DeliveryService> = createClient(DeliveryService, transport);
 export const recipientsClient: Client<typeof RecipientsService> = createClient(RecipientsService, transport);

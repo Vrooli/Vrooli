@@ -152,15 +152,18 @@ func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsks
 	if recipient == "" {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("recipient not found"))
 	}
-	asks, err := h.service.ListAsks(ctx, recipient, req.Msg.GetOpenOnly(), int(req.Msg.GetLimit()))
+	page, err := h.service.ListAsksPage(ctx, recipient, hub.AskListOptions{
+		OpenOnly: req.Msg.GetOpenOnly(), Limit: int(req.Msg.GetLimit()),
+		Cursor: req.Msg.GetCursor(), Query: req.Msg.GetQuery(), StateFilter: req.Msg.GetStateFilter(),
+	})
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := make([]*v1.Ask, 0, len(asks))
-	for _, ask := range asks {
+	out := make([]*v1.Ask, 0, len(page.Asks))
+	for _, ask := range page.Asks {
 		out = append(out, h.toProto(ask))
 	}
-	return connect.NewResponse(&v1.ListAsksResponse{Asks: out}), nil
+	return connect.NewResponse(&v1.ListAsksResponse{Asks: out, NextCursor: page.NextCursor}), nil
 }
 
 func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
@@ -169,7 +172,7 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		options = append(options, &v1.AskOption{Key: option.Key, Label: option.Label})
 	}
 	return &v1.Ask{
-		Id: ask.ID, NotificationId: ask.NotificationID, Question: ask.Question, Options: options,
+		Id: ask.ID, NotificationId: ask.NotificationID, Question: ask.Question, Title: ask.Title, Options: options,
 		Recommended: ask.Recommended, RecommendationReason: ask.RecommendationReason, DefaultAnswer: ask.DefaultAnswer,
 		Reversible: ask.Reversible, Urgency: ask.Urgency, ContextUrl: ask.ContextURL,
 		BigPicture: ask.BigPicture, TechnicalDetails: ask.TechnicalDetails, Deadline: ask.Deadline,

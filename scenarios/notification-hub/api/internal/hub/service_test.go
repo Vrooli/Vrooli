@@ -150,6 +150,26 @@ func TestSend_IsIdempotentAndLeavesDurableTerminalState(t *testing.T) {
 	require.Contains(t, reason, "no recipient configured")
 }
 
+func TestListDeliveryAttemptsForRecipientIsBoundedAndScoped(t *testing.T) {
+	service, db := testService(t)
+	id := insertPending(t, db, "alice", "private body", "private")
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for i := 1; i <= 3; i++ {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, 'push', 'secret-machine', ?, 'retrying', 'timeout', 'later', ?)`, id, i, now)
+		require.NoError(t, err)
+	}
+	rows, truncated, err := service.ListDeliveryAttemptsForRecipient(context.Background(), id, "alice", 2)
+	require.NoError(t, err)
+	require.True(t, truncated)
+	require.Len(t, rows, 2)
+	require.Equal(t, 1, rows[0].Attempt)
+	require.NotEmpty(t, rows[0].CreatedAt)
+	_, _, err = service.ListDeliveryAttemptsForRecipient(context.Background(), id, "", 2)
+	require.ErrorIs(t, err, hub.ErrNotFound)
+	_, _, err = service.ListDeliveryAttemptsForRecipient(context.Background(), id, "bob", 2)
+	require.ErrorIs(t, err, hub.ErrNotFound)
+}
+
 // [REQ:NOTIFICA-P0-005][REQ:NOTIFICA-P0-008][REQ:NOTIFICA-P0-010]
 func TestProcess_RedactsSensitiveContentAndRecordsRetryReceipt(t *testing.T) {
 	service, db := testService(t)
@@ -238,6 +258,61 @@ func TestRecipients_DevicesAndQuietWindowsAreDurable(t *testing.T) {
 	n, _, err := service.Get(context.Background(), id)
 	require.NoError(t, err)
 	require.Equal(t, "held", n.State)
+}
+
+func TestSetQuietWindowRejectsAmbiguousOrHeldTimesWithoutReplacingCurrentWindow(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	current, err := service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: "22:00", End: "23:00", Timezone: "UTC"})
+	require.NoError(t, err)
+	for _, tc := range []struct{ start, end string }{{"22:00", "22:00"}, {"bad", "23:00"}, {"22:00", "08:00"}} {
+		_, err := service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: tc.start, End: tc.end, Timezone: "UTC"})
+		require.ErrorIs(t, err, hub.ErrInvalidArgument)
+		windows, readErr := service.ListQuietWindows(ctx, "alice")
+		require.NoError(t, readErr)
+		require.Len(t, windows, 1)
+		require.Equal(t, current.ID, windows[0].ID)
+		require.Equal(t, "22:00", windows[0].Start)
+	}
+	_, err = service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: "21:00", End: "23:00", Timezone: "Not/A_Real_Zone"})
+	require.ErrorIs(t, err, hub.ErrInvalidArgument)
+	windows, err := service.ListQuietWindows(ctx, "alice")
+	require.NoError(t, err)
+	require.Len(t, windows, 1)
+	require.Equal(t, current.ID, windows[0].ID)
+}
+
+func TestSetQuietWindowReplacementIsAtomicWhenNewRowInsertFails(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	current, err := service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: "22:00", End: "23:00", Timezone: "UTC"})
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TRIGGER fail_quiet_insert BEFORE INSERT ON quiet_windows BEGIN SELECT RAISE(ABORT, 'fixture insert failure'); END`)
+	require.NoError(t, err)
+	_, err = service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: "21:00", End: "23:00", Timezone: "Asia/Tokyo"})
+	require.Error(t, err)
+	windows, err := service.ListQuietWindows(ctx, "alice")
+	require.NoError(t, err)
+	require.Len(t, windows, 1)
+	require.Equal(t, current.ID, windows[0].ID)
+	require.Equal(t, "22:00", windows[0].Start)
+	require.Equal(t, "UTC", windows[0].Timezone)
+}
+
+func TestSetEscalationChainIsAtomicAndPreservesUnknownChannelKeys(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	_, err := service.SetEscalationChain(ctx, "alice", []string{"email", "future-channel"})
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TRIGGER fail_escalation_insert BEFORE INSERT ON escalation_chains WHEN NEW.channel='blocked-channel' BEGIN SELECT RAISE(ABORT, 'fixture insert failure'); END`)
+	require.NoError(t, err)
+	_, err = service.SetEscalationChain(ctx, "alice", []string{"webhook", "blocked-channel"})
+	require.Error(t, err)
+	chain, err := service.GetEscalationChain(ctx, "alice")
+	require.NoError(t, err)
+	require.Len(t, chain.Steps, 2)
+	require.Equal(t, "email", chain.Steps[0].Channel)
+	require.Equal(t, "future-channel", chain.Steps[1].Channel)
 }
 
 // [REQ:NOTIFICA-P0-006]
@@ -530,8 +605,12 @@ func TestAsk_EscalatesThroughConfiguredChannelsThenExpires(t *testing.T) {
 	require.NoError(t, err)
 	_, err = service.SetEscalationChain(context.Background(), "alice", []string{"email"})
 	require.NoError(t, err)
-	askID, _, err := service.Ask(context.Background(), "alice", "approve", []string{"yes", "no"}, clock.now.Add(time.Second), "critical", "ask-1")
+	ask, _, err := service.AskWithSpec(context.Background(), hub.AskSpec{
+		Recipient: "alice", Question: "approve", Options: []hub.AskOption{{Key: "yes", Label: "yes"}, {Key: "no", Label: "no"}},
+		Urgency: "critical", SensitivityLabel: "critical", Deadline: clock.now.Add(time.Second), IdempotencyKey: "ask-1",
+	})
 	require.NoError(t, err)
+	askID := ask.ID
 	clock.now = clock.now.Add(2 * time.Second)
 	service.SetClockForTest(clock)
 	require.NoError(t, service.ProcessEscalations(context.Background()))

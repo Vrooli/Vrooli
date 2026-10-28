@@ -59,5 +59,13 @@ export const librarySelectors = {
   },
   "data-display.health-card": {
   },
+  "react-component-library:SettingsList": {
+  },
+  "controls.switch": {
+    "root": "controls.switch",
+  },
+  "forms.form-field": {
+    "root": "forms.form-field",
+  },
 } as const;
 // vrooli:library-selectors end

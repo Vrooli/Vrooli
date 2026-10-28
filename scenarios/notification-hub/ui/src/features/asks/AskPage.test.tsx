@@ -3,12 +3,16 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
 
-import { renderWithProviders } from "../../test-utils";
+import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { setLocale } from "../../i18n";
 import { selectors } from "../../consts/selectors";
 import { conversationsClient, identityClient } from "../../api/notifications";
 import { orderedOptions, remainingUntil, safeContextUrl } from "./askView";
-import { clearAskDrafts, readAskDraft } from "./askDrafts";
+import {
+  clearAskDrafts,
+  readAskDraft,
+  readAskAttempt,
+} from "./askDrafts";
 import { TestAppRouter } from "../../app/routes";
 
 vi.mock("../../api/notifications", () => ({
@@ -109,6 +113,45 @@ describe("AskPage", () => {
     expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this draft" });
   });
 
+  it("restores the subject-scoped unsent draft after a page reload", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    const first = renderAsk();
+    const options = await screen.findAllByTestId(selectors.asks.option);
+    await user.click(options.find((option) => option.getAttribute("data-option-key") === "close")!);
+    await user.click(screen.getByText("Add a note (optional)"));
+    await user.type(screen.getByTestId(selectors.asks.note), "resume after refresh");
+    first.unmount();
+
+    renderAsk();
+    const restored = await screen.findAllByTestId(selectors.asks.option);
+    expect(restored.find((option) => option.getAttribute("data-option-key") === "close")).toBeChecked();
+    expect(screen.getByTestId(selectors.asks.note)).toHaveValue("resume after refresh");
+    expect(conversationsClient.answer).not.toHaveBeenCalled();
+  });
+
+  it("keeps each owner's draft private when the verified session identity changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    const view = renderAsk();
+    const options = await screen.findAllByTestId(selectors.asks.option);
+    await user.click(options.find((option) => option.getAttribute("data-option-key") === "close")!);
+    await user.click(screen.getByText("Add a note (optional)"));
+    await user.type(screen.getByTestId(selectors.asks.note), "owner one's private note");
+
+    view.queryClient.setQueryData(["owner-session"], {
+      signedIn: true,
+      subject: "owner-2",
+      email: "other@example.test",
+    });
+    await waitFor(() => expect(conversationsClient.getAsk).toHaveBeenCalledTimes(2));
+    const secondOwnerOptions = await screen.findAllByTestId(selectors.asks.option);
+    await waitFor(() => expect(secondOwnerOptions.every((option) => !(option as HTMLInputElement).checked)).toBe(true));
+    expect(screen.getByTestId(selectors.asks.note)).toHaveValue("");
+    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "owner one's private note" });
+    expect(readAskDraft("owner-2", "ask-1")).toEqual({ answer: "", note: "" });
+  });
+
   it("shows the recommended option first and the default with its countdown", async () => {
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: pendingAsk(),
@@ -124,6 +167,16 @@ describe("AskPage", () => {
     expect(screen.getByTestId(selectors.asks.defaultNotice)).toHaveTextContent(
       "Re-aim at quality applies in 3 h",
     );
+  });
+
+  it("keeps the selected answer form accessible by role and label", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    const view = renderAsk();
+
+    expect(await screen.findAllByRole("radio")).toHaveLength(2);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(pendingAsk().question);
+    expect(screen.getByRole("button", { name: "Submit answer" })).toBeDisabled();
+    await expectNoA11yViolations(view.container);
   });
 
   it("shows a producer-withdrawn request without answer controls or answer attribution", async () => {
@@ -331,6 +384,8 @@ describe("AskPage", () => {
       (option) => option.getAttribute("data-option-key") === "close",
     )!;
     await user.click(close);
+    await user.click(screen.getByText("Add a note (optional)"));
+    await user.type(screen.getByTestId(selectors.asks.note), "private draft note");
     await user.click(screen.getByRole("button", { name: "Submit answer" }));
     expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
 
@@ -338,8 +393,103 @@ describe("AskPage", () => {
     expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check answer status" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.asks.option)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.asks.note)).not.toBeInTheDocument();
+    expect(screen.queryByText("private draft note")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Check answer status" }));
     expect(await screen.findByText(/earlier answer may still finish/)).toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores an uncertain immutable attempt after refresh without replaying it", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    vi.mocked(conversationsClient.answer).mockRejectedValueOnce(new Error("connection lost"));
+    const first = renderAsk();
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    await user.click(screen.getByText("Add a note (optional)"));
+    await user.type(screen.getByTestId(selectors.asks.note), "submitted once");
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
+    expect(readAskAttempt("owner-1", "ask-1")).toEqual({
+      answer: "close",
+      note: "submitted once",
+      subject: "owner-1",
+    });
+    first.unmount();
+
+    renderAsk();
+    expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.asks.note)).toHaveValue("submitted once");
+    expect(screen.getByRole("button", { name: "Check answer status" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an uncertain attempt private and unreplayed after the verified identity changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    vi.mocked(conversationsClient.answer).mockRejectedValueOnce(new Error("connection lost"));
+    const view = renderAsk();
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    await user.click(screen.getByText("Add a note (optional)"));
+    await user.type(screen.getByTestId(selectors.asks.note), "owner one's private attempt");
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    expect(await screen.findByText(/We could not confirm whether this answer was recorded/)).toBeInTheDocument();
+
+    view.queryClient.setQueryData(["owner-session"], {
+      signedIn: true,
+      subject: "owner-2",
+      email: "other@example.test",
+    });
+    await waitFor(() => expect(conversationsClient.getAsk).toHaveBeenCalledTimes(2));
+    expect(await screen.findAllByTestId(selectors.asks.option)).toHaveLength(2);
+    expect(screen.queryByText(/We could not confirm whether this answer was recorded/)).not.toBeInTheDocument();
+    expect(screen.getByTestId(selectors.asks.note)).toHaveValue("");
+    expect(readAskAttempt("owner-1", "ask-1")).toEqual({
+      answer: "close",
+      note: "owner one's private attempt",
+      subject: "owner-1",
+    });
+    expect(readAskAttempt("owner-2", "ask-1")).toBeNull();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps one pending attempt locked through an open read and confirms a delayed commit", async () => {
+    const user = userEvent.setup();
+    let finishAnswer!: (value: unknown) => void;
+    vi.mocked(conversationsClient.getAsk)
+      .mockResolvedValueOnce({ ask: pendingAsk() } as never)
+      .mockResolvedValueOnce({ ask: pendingAsk() } as never)
+      .mockResolvedValueOnce({
+        ask: { ...pendingAsk(), state: "answered", answer: "close", note: "delayed", answerLabel: "Close the goal" },
+      } as never);
+    vi.mocked(conversationsClient.answer).mockImplementation(
+      () => new Promise((resolve) => { finishAnswer = resolve; }) as never,
+    );
+    renderAsk();
+    const close = (await screen.findAllByTestId(selectors.asks.option)).find(
+      (option) => option.getAttribute("data-option-key") === "close",
+    )!;
+    await user.click(close);
+    await user.click(screen.getByText("Add a note (optional)"));
+    await user.type(screen.getByTestId(selectors.asks.note), "delayed");
+    await user.click(screen.getByRole("button", { name: "Submit answer" }));
+    await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "Check answer status" }));
+    expect(await screen.findByText(/earlier answer may still finish/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
+
+    finishAnswer({});
+    expect(await screen.findByText("Answer recorded: Close the goal")).toBeInTheDocument();
     expect(conversationsClient.answer).toHaveBeenCalledTimes(1);
   });
 
@@ -376,6 +526,28 @@ describe("AskPage", () => {
     await user.click(screen.getByRole("button", { name: "Submit answer" }));
     await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledTimes(1));
     expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "close", note: "" });
+  });
+
+  it("keeps the original default and its time visible after a later answer", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        state: "answered",
+        answer: "close",
+        answerLabel: "Close the goal",
+        defaultAnswer: "re-aim",
+        defaultAppliedAt: "2026-10-24T14:10:00Z",
+        late: true,
+      },
+    } as never);
+    renderAsk();
+
+    const status = await screen.findByTestId(selectors.asks.status);
+    expect(status).toHaveTextContent("Recorded default");
+    expect(status).toHaveTextContent("Re-aim at quality");
+    expect(status).toHaveTextContent("Default applied");
+    expect(status).toHaveTextContent("The requester may already have acted on the default.");
+    expect(status.querySelector("time")).toHaveAttribute("dateTime", "2026-10-24T14:10:00Z");
   });
 });
 

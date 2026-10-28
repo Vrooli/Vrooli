@@ -4,9 +4,9 @@
 // and flags the worker as stale when they differ — so a worker iOS refused to
 // swap is visible instead of silent. Keep this a simple literal the panel can
 // also parse out of the served source with a regex.
-const SW_VERSION = "2026-10-14.5";
-const CACHE_NAME = "notification-hub-app-shell-v1";
-const APP_SHELL_URLS = ["./", "./site.webmanifest"];
+const SW_VERSION = "2026-10-25.1";
+const CACHE_NAME = "notification-hub-app-shell-v2";
+const APP_SHELL_URLS = ["./", "./public/site.webmanifest"];
 
 // Where a notification tap stashes its intended destination. iOS does NOT honor
 // a URL passed to navigate()/openWindow() from a backgrounded home-screen app —
@@ -75,10 +75,10 @@ self.addEventListener("push", (event) => {
   } catch {
     payload = { body: event.data ? event.data.text() : "Notification available" };
   }
-  event.waitUntil(self.registration.showNotification(payload.title || "Notification Hub", {
+  event.waitUntil(self.registration.showNotification(payload.title || "Chimesail", {
     body: payload.body || "Notification available",
     tag: payload.id || undefined,
-    icon: payload.icon || undefined,
+    icon: payload.icon || "/public/icon-192.png",
     data: { id: payload.id || "", url: payload.url || "" },
   }));
 });

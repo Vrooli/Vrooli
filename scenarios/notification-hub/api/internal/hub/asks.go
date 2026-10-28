@@ -2,7 +2,9 @@ package hub
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,6 +100,7 @@ type AskSpec struct {
 // AskRecord is the read model of one ask. Reading it never changes it.
 type AskRecord struct {
 	ID                   string
+	Title                string
 	NotificationID       string
 	Recipient            string
 	Question             string
@@ -495,7 +498,8 @@ func sameCorrelation(a, b map[string]string) bool {
 const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
   COALESCE(ans.answer, ''), COALESCE(ans.answered_by, ''), COALESCE(ans.answered_at, ''), COALESCE(ans.note, ''), COALESCE(ans.late, 0),
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
-  COALESCE((SELECT n.requested_by FROM notifications n WHERE n.id = a.notification_id), '')
+  COALESCE((SELECT n.requested_by FROM notifications n WHERE n.id = a.notification_id), ''),
+  COALESCE((SELECT n.title FROM notifications n WHERE n.id = a.notification_id), '')
 FROM asks a LEFT JOIN answers ans ON ans.ask_id = a.id`
 
 func scanAsk(row rowScanner) (AskRecord, error) {
@@ -503,7 +507,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	var allowedJSON, optionsJSON, correlationJSON string
 	var reversible, late int
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
-		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.FirstDeliveredAt, &record.Recipient)
+		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.FirstDeliveredAt, &record.Recipient, &record.Title)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
 	}
@@ -553,30 +557,126 @@ func (s *Service) GetAskForRecipient(ctx context.Context, id, recipient string) 
 	return scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ? AND a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?)`, strings.TrimSpace(id), recipient))
 }
 
-// ListAsks returns the recipient's asks newest first. openOnly limits the
-// list to asks that still wait for an answer.
+// ListAsks is the first-page convenience used by existing internal callers.
+// Browser and API callers use ListAsksPage to continue through every result.
 func (s *Service) ListAsks(ctx context.Context, recipient string, openOnly bool, limit int) ([]AskRecord, error) {
-	if limit <= 0 || limit > 200 {
-		limit = 50
+	page, err := s.ListAsksPage(ctx, recipient, AskListOptions{OpenOnly: openOnly, Limit: limit})
+	return page.Asks, err
+}
+
+type AskListOptions struct {
+	OpenOnly    bool
+	Limit       int
+	Cursor      string
+	Query       string
+	StateFilter string
+}
+
+type AskListPage struct {
+	Asks       []AskRecord
+	NextCursor string
+}
+
+type askListCursor struct {
+	Version   int    `json:"v"`
+	Scope     string `json:"scope"`
+	CreatedAt string `json:"created_at"`
+	ID        string `json:"id"`
+}
+
+// ListAsksPage searches the recipient's full retained inventory before applying
+// a stable keyset boundary. Reads never resolve, answer or otherwise change asks.
+// Pages are live: newly created rows appear on refresh, not midway through older pages.
+func (s *Service) ListAsksPage(ctx context.Context, recipient string, opts AskListOptions) (AskListPage, error) {
+	if strings.TrimSpace(recipient) == "" {
+		return AskListPage{}, ErrNotFound
 	}
+	if opts.Limit <= 0 {
+		opts.Limit = 50
+	}
+	if opts.Limit > 200 {
+		opts.Limit = 200
+	}
+	opts.Query = strings.TrimSpace(opts.Query)
+	if !utf8.ValidString(opts.Query) || utf8.RuneCountInString(opts.Query) > 500 {
+		return AskListPage{}, fmt.Errorf("%w: search must be valid UTF-8 and at most 500 characters", ErrInvalidArgument)
+	}
+	state := strings.TrimSpace(opts.StateFilter)
+	if state == "" {
+		state = "all"
+	}
+	if opts.OpenOnly {
+		if state != "all" && state != "awaiting" && state != AskPending && state != AskEscalated {
+			return AskListPage{}, fmt.Errorf("%w: open_only conflicts with state_filter", ErrInvalidArgument)
+		}
+		if state == "all" {
+			state = "awaiting"
+		}
+	}
+	switch state {
+	case "all", "awaiting", AskPending, AskEscalated, AskAnswered, AskDefaulted, AskExpired, AskWithdrawn:
+	default:
+		return AskListPage{}, fmt.Errorf("%w: unknown state_filter", ErrInvalidArgument)
+	}
+	scopeBytes, _ := json.Marshal([]string{recipient, opts.Query, state})
+	scope := fmt.Sprintf("%x", sha256.Sum256(scopeBytes))
 	query := askSelect + ` WHERE a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?)`
-	if openOnly {
+	args := []any{recipient}
+	if state == "awaiting" {
 		query += ` AND a.state IN ('pending', 'escalated')`
+	} else if state != "all" {
+		query += ` AND a.state = ?`
+		args = append(args, state)
 	}
-	rows, err := s.db.QueryContext(ctx, query+` ORDER BY a.created_at DESC LIMIT ?`, recipient, limit)
+	if opts.Query != "" {
+		// User wildcards are literal. Include option labels so readable answers,
+		// not only their machine keys, are searchable without loading all records.
+		pattern := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(strings.ToLower(opts.Query)) + "%"
+		query += ` AND (LOWER(a.question) LIKE ? ESCAPE '\' OR LOWER(a.source) LIKE ? ESCAPE '\' OR LOWER(a.options_json) LIKE ? ESCAPE '\' OR LOWER(a.default_answer) LIKE ? ESCAPE '\' OR LOWER(a.requester_ref) LIKE ? ESCAPE '\' OR LOWER(COALESCE(ans.answer, '')) LIKE ? ESCAPE '\' OR LOWER(COALESCE(ans.note, '')) LIKE ? ESCAPE '\' OR LOWER((SELECT n.title FROM notifications n WHERE n.id = a.notification_id)) LIKE ? ESCAPE '\')`
+		for range 8 {
+			args = append(args, pattern)
+		}
+	}
+	if opts.Cursor != "" {
+		if len(opts.Cursor) > 2048 {
+			return AskListPage{}, fmt.Errorf("%w: cursor is too long", ErrInvalidArgument)
+		}
+		var cursor askListCursor
+		decoded, err := base64.RawURLEncoding.DecodeString(opts.Cursor)
+		if err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Version != 1 || cursor.Scope != scope || cursor.CreatedAt == "" || cursor.ID == "" {
+			return AskListPage{}, fmt.Errorf("%w: cursor does not match this search", ErrInvalidArgument)
+		}
+		if _, err := time.Parse(time.RFC3339Nano, cursor.CreatedAt); err != nil {
+			return AskListPage{}, fmt.Errorf("%w: invalid cursor time", ErrInvalidArgument)
+		}
+		query += ` AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))`
+		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
+	}
+	args = append(args, opts.Limit+1)
+	rows, err := s.db.QueryContext(ctx, query+` ORDER BY a.created_at DESC, a.id DESC LIMIT ?`, args...)
 	if err != nil {
-		return nil, err
+		return AskListPage{}, err
 	}
 	defer rows.Close()
-	var out []AskRecord
+	out := make([]AskRecord, 0, opts.Limit+1)
 	for rows.Next() {
 		record, scanErr := scanAsk(rows)
 		if scanErr != nil {
-			return nil, scanErr
+			return AskListPage{}, scanErr
 		}
 		out = append(out, record)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return AskListPage{}, err
+	}
+	page := AskListPage{Asks: out}
+	if len(out) > opts.Limit {
+		page.Asks = out[:opts.Limit]
+		last := page.Asks[len(page.Asks)-1]
+		encoded, _ := json.Marshal(askListCursor{Version: 1, Scope: scope, CreatedAt: last.CreatedAt, ID: last.ID})
+		page.NextCursor = base64.RawURLEncoding.EncodeToString(encoded)
+	}
+	return page, nil
 }
 
 // DefaultEligibleAt is when the sweep may apply the ask's default:

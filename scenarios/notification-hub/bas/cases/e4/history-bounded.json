@@ -1,9 +1,9 @@
 {
   "metadata": {
     "name": "e4-bounded-history",
-    "description": "Reads the bounded closed-ask history from the leased disposable recipient pool.",
+    "description": "Given the leased disposable recipient fixture on a phone, when the owner reads Updates and follows its exact returned ask in both themes before using the destination navigation, then complete searchable History, filters and five-destination keyboard navigation remain available. Current target: NH-DESIGN-20261025-HISTORY-COMPLETE; traverse archive beyond 200 and retain search/filter/keyboard/read-only protection.",
     "requirement": "OT-P0-001",
-    "version": "1",
+    "version": "3",
     "labels": {
       "reset": "none",
       "routed_isolation": "true",
@@ -24,7 +24,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "notification-hub",
-          "scenario_path": "/settings?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1&e4_fixture=empty-open-asks",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
@@ -50,11 +50,323 @@
       }
     },
     {
+      "id": "assert-e4-linked-update",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.dashboard",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 answered history fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The informational Updates feed contains the exact E4 history notification"
+        },
+        "metadata": {
+          "label": "Read the informational E4 history update"
+        }
+      }
+    },
+    {
+      "id": "capture-e4-linked-update",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the informational E4 Updates row before following its decision link"
+        }
+      }
+    },
+    {
+      "id": "focus-exact-e4-decision-link",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const link=[...document.querySelectorAll('a')].find(node=>node.textContent.trim()==='Open decision');if(!link)throw new Error('Open decision link is missing for the returned E4 ask');const url=new URL(link.href);if(url.pathname!=='/asks/e4-test-answered-ask')throw new Error(`unexpected decision destination ${url.pathname}`);if(url.search!=='?vrooli_test_mode=1')throw new Error(`routed-test context was not preserved: ${url.search}`);link.focus();if(document.activeElement!==link)throw new Error('exact decision link did not receive keyboard focus');return {notificationId:'e4-test-history',askId:'e4-test-answered-ask',href:link.getAttribute('href')}})()",
+          "store_result": "e4LinkedDecision"
+        },
+        "metadata": {
+          "label": "Verify the exact notification-to-ask link and focus it for keyboard activation"
+        }
+      }
+    },
+    {
+      "id": "capture-focused-e4-decision-link",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the focused exact E4 decision link in light appearance"
+        }
+      }
+    },
+    {
+      "id": "open-e4-linked-decision-by-keyboard",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Follow the exact Open decision link with Enter"
+        }
+      }
+    },
+    {
+      "id": "assert-e4-linked-ask-destination",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 history answer fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The exact linked E4 ask route did not load its question"
+        },
+        "metadata": {
+          "label": "Confirm the exact linked ask destination is shown"
+        }
+      }
+    },
+    {
+      "id": "assert-e4-linked-ask-is-read-only",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.status",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Answered"
+          },
+          "timeout_ms": 5000,
+          "failure_message": "Following the link must not change the already answered fixture ask"
+        },
+        "metadata": {
+          "label": "The linked answered ask remains read-only"
+        }
+      }
+    },
+    {
+      "id": "capture-e4-linked-ask-destination",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the exact E4 linked ask destination"
+        }
+      }
+    },
+    {
+      "id": "open-settings-for-dark-e4-link",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Settings to exercise the exact Updates decision journey in dark appearance"
+        }
+      }
+    },
+    {
+      "id": "set-dark-for-e4-link",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=dark)"
+        },
+        "metadata": {
+          "label": "Choose dark appearance through the registered Settings control"
+        }
+      }
+    },
+    {
+      "id": "return-to-dark-updates",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Updates in the routed dark E4 fixture"
+        }
+      }
+    },
+    {
+      "id": "assert-dark-e4-linked-update",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.dashboard",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 answered history fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The informational Updates feed contains the exact E4 history notification in dark appearance"
+        },
+        "metadata": {
+          "label": "Read the informational E4 update in dark appearance"
+        }
+      }
+    },
+    {
+      "id": "capture-dark-e4-linked-update",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the E4 Updates row in phone dark appearance"
+        }
+      }
+    },
+    {
+      "id": "focus-dark-exact-e4-decision-link",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const link=[...document.querySelectorAll('a')].find(node=>node.textContent.trim()==='Open decision');if(!link)throw new Error('Open decision link is missing for the returned E4 ask');const url=new URL(link.href);if(url.pathname!=='/asks/e4-test-answered-ask')throw new Error(`unexpected decision destination ${url.pathname}`);if(url.search!=='?vrooli_test_mode=1')throw new Error(`routed-test context was not preserved: ${url.search}`);if(document.documentElement.dataset.resolvedTheme!=='dark')throw new Error('dark appearance was not active for the E4 Updates journey');link.focus();if(document.activeElement!==link)throw new Error('exact decision link did not receive keyboard focus');return {notificationId:'e4-test-history',askId:'e4-test-answered-ask',href:link.getAttribute('href'),theme:document.documentElement.dataset.resolvedTheme}})()",
+          "store_result": "e4DarkLinkedDecision"
+        },
+        "metadata": {
+          "label": "Verify and focus the exact routed decision link in dark appearance"
+        }
+      }
+    },
+    {
+      "id": "capture-focused-dark-e4-decision-link",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the focused exact E4 decision link in dark appearance"
+        }
+      }
+    },
+    {
+      "id": "open-dark-e4-linked-decision-by-keyboard",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Follow the dark appearance Open decision link with Enter"
+        }
+      }
+    },
+    {
+      "id": "assert-dark-e4-linked-ask-destination",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 history answer fixture"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The exact dark appearance E4 link did not load its ask"
+        },
+        "metadata": {
+          "label": "Confirm the exact linked ask route in dark appearance"
+        }
+      }
+    },
+    {
+      "id": "capture-dark-e4-linked-ask",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the exact linked ask destination in phone dark appearance"
+        }
+      }
+    },
+    {
+      "id": "return-to-settings-after-dark-e4-link",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Return to Settings to restore the existing History case light appearance"
+        }
+      }
+    },
+    {
+      "id": "restore-light-after-dark-e4-link",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=light)"
+        },
+        "metadata": {
+          "label": "Restore light appearance before the existing History assertions"
+        }
+      }
+    },
+    {
+      "id": "return-to-updates-after-e4-link",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Return to routed Updates in light appearance to continue the existing bounded History journey"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-open-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "open-history",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=history)"
+          "selector": "@selector/layout.visibleNavLink(key=history)"
         },
         "metadata": {
           "label": "Open History through mobile primary navigation"
@@ -76,6 +388,18 @@
         },
         "metadata": {
           "label": "Closed ask appears in History"
+        }
+      }
+    },
+    {
+      "id": "select-history-after-nh162-detail",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.visibleNavLink(key=history)"
+        },
+        "metadata": {
+          "label": "Return through the accepted drawer to the routed synthetic History list"
         }
       }
     },
@@ -105,10 +429,10 @@
           "selector": "@selector/pages.history",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "up to 200 returned decisions"
+            "string_value": "Awaiting answer"
           },
           "timeout_ms": 15000,
-          "failure_message": "History discloses its 200-row loaded cap"
+          "failure_message": "Current amended History behavior must remain visible: Awaiting answer"
         },
         "metadata": {
           "label": "History discloses its 200-row loaded cap"
@@ -148,10 +472,10 @@
           "selector": "@selector/pages.history",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "No decisions match this filter."
+            "string_value": "No matching requests"
           },
           "timeout_ms": 15000,
-          "failure_message": "Filtered empty state stays distinct from an empty loaded history"
+          "failure_message": "Current amended History behavior must remain visible: No matching requests"
         },
         "metadata": {
           "label": "Filtered empty state stays distinct from an empty loaded history"
@@ -190,10 +514,10 @@
           "selector": "@selector/pages.history",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "No matching loaded requests"
+            "string_value": "No matching requests"
           },
           "timeout_ms": 15000,
-          "failure_message": "NH16.1 selected search heading appears after History settles"
+          "failure_message": "Current amended History behavior must remain visible: No matching requests"
         },
         "metadata": {
           "label": "Selected NH16.1 loaded-history search heading is visible"
@@ -203,15 +527,9 @@
     {
       "id": "assert-nh16-mobile-search-copy",
       "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "@selector/pages.history",
-          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
-          "expected": {
-            "string_value": "mobile"
-          },
-          "timeout_ms": 15000,
-          "failure_message": "NH16.1 selected search text and incomplete-account boundary remain visible"
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const page=document.querySelector('[data-testid=\"page-history\"]'),input=document.getElementById('request-search'),filters=page.querySelector('nav');if(input?.value!=='mobile'||new URL(location.href).searchParams.get('q')!=='mobile')throw new Error('Search context lost');if(!filters||getComputedStyle(filters).display==='none'||!filters.innerText.includes('Awaiting answer'))throw new Error('Lifecycle filters must stay available during search');if(page.innerText.includes('Older matching records may exist'))throw new Error('Search still claims to inspect a local slice');return {query:input.value,filters:filters.innerText,scope:'all retained recipient requests'}})()"
         },
         "metadata": {
           "label": "Selected NH16.1 mobile query and honest boundary are visible"
@@ -223,7 +541,7 @@
       "action": {
         "type": "ACTION_TYPE_INPUT",
         "input": {
-          "selector": "#history-search",
+          "selector": "#request-search",
           "value": "mobile",
           "clear_first": true
         },
@@ -240,10 +558,10 @@
           "selector": "@selector/pages.history",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "Older matching records may exist"
+            "string_value": "Try another search or change the status filter."
           },
           "timeout_ms": 15000,
-          "failure_message": "NH16.1 text search states its incomplete-account boundary"
+          "failure_message": "Current amended History behavior must remain visible: Try another search or change the status filter."
         },
         "metadata": {
           "label": "Selected NH16.1 search retains the honest incomplete-account boundary"
@@ -314,14 +632,26 @@
       }
     },
     {
+      "id": "open-menu-for-route-updates",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "route-updates",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=dashboard)"
+          "selector": "@selector/layout.visibleNavLink(key=dashboard)"
         },
         "metadata": {
-          "label": "Navigate to updates through mobile lower navigation"
+          "label": "Navigate to updates through the mobile destination drawer"
         }
       }
     },
@@ -330,7 +660,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/layout.navTab(key=dashboard)",
+          "selector": "@selector/layout.visibleNavLink(key=dashboard)",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "attribute_name": "aria-current",
           "expected": {
@@ -345,14 +675,26 @@
       }
     },
     {
+      "id": "open-menu-for-route-asks",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "route-asks",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=asks)"
+          "selector": "@selector/layout.visibleNavLink(key=asks)"
         },
         "metadata": {
-          "label": "Navigate to asks through mobile lower navigation"
+          "label": "Navigate to asks through the mobile destination drawer"
         }
       }
     },
@@ -361,7 +703,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/layout.navTab(key=asks)",
+          "selector": "@selector/layout.visibleNavLink(key=asks)",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "attribute_name": "aria-current",
           "expected": {
@@ -376,14 +718,26 @@
       }
     },
     {
+      "id": "open-menu-for-route-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "route-history",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=history)"
+          "selector": "@selector/layout.visibleNavLink(key=history)"
         },
         "metadata": {
-          "label": "Navigate to history through mobile lower navigation"
+          "label": "Navigate to history through the mobile destination drawer"
         }
       }
     },
@@ -392,7 +746,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/layout.navTab(key=history)",
+          "selector": "@selector/layout.visibleNavLink(key=history)",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "attribute_name": "aria-current",
           "expected": {
@@ -407,14 +761,26 @@
       }
     },
     {
+      "id": "open-menu-for-route-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "route-delivery",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=delivery)"
+          "selector": "@selector/layout.visibleNavLink(key=delivery)"
         },
         "metadata": {
-          "label": "Navigate to delivery through mobile lower navigation"
+          "label": "Navigate to delivery through the mobile destination drawer"
         }
       }
     },
@@ -423,7 +789,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/layout.navTab(key=delivery)",
+          "selector": "@selector/layout.visibleNavLink(key=delivery)",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "attribute_name": "aria-current",
           "expected": {
@@ -438,14 +804,26 @@
       }
     },
     {
+      "id": "open-menu-for-route-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "route-settings",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=settings)"
+          "selector": "@selector/layout.visibleNavLink(key=settings)"
         },
         "metadata": {
-          "label": "Navigate to settings through mobile lower navigation"
+          "label": "Navigate to settings through the mobile destination drawer"
         }
       }
     },
@@ -454,7 +832,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/layout.navTab(key=settings)",
+          "selector": "@selector/layout.visibleNavLink(key=settings)",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "attribute_name": "aria-current",
           "expected": {
@@ -469,11 +847,23 @@
       }
     },
     {
+      "id": "open-menu-for-return-to-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "return-to-history",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=history)"
+          "selector": "@selector/layout.visibleNavLink(key=history)"
         },
         "metadata": {
           "label": "Return to History after exercising all five destinations"
@@ -485,11 +875,405 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const shell=document.querySelector('[data-testid=\"layout-shell\"]'); const nav=document.querySelector('[data-rcl-bottom-nav]'); const menu=document.querySelector('.nh-mobile-menu > button'); const links=[...document.querySelectorAll('[data-testid$=\"-tab\"]')]; const rect=n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}}; const result={viewport:{width:innerWidth,height:innerHeight},body:{clientWidth:document.body.clientWidth,scrollWidth:document.body.scrollWidth},document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth},shell:shell?rect(shell):null,menu:menu?rect(menu):null,nav:nav?rect(nav):null,destinations:links.map(link=>({testId:link.dataset.testid,href:link.getAttribute('href'),current:link.getAttribute('aria-current'),rect:rect(link)}))}; document.activeElement?.blur(); return result; })()",
+          "expression": "(() => { const shell=document.querySelector('[data-testid=\"layout-shell\"]'); const nav=document.querySelector('[data-rcl-app-shell-sidebar]'); const menu=document.querySelector('[data-testid=\"layout-shell-menu\"]'); const links=[...document.querySelectorAll('[data-rcl-app-shell-link]')]; const rect=n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}}; const root=document.documentElement; const priorTop=root.style.getPropertyValue('--safe-area-inset-top'),priorBottom=root.style.getPropertyValue('--safe-area-inset-bottom'); let safeArea; try {root.style.setProperty('--safe-area-inset-top','44px');root.style.setProperty('--safe-area-inset-bottom','34px'); const header=document.querySelector('[data-rcl-app-shell-header]'),main=document.querySelector('[data-rcl-app-shell-main]'); const sr=shell.getBoundingClientRect(),hr=header.getBoundingClientRect(),bottom=parseFloat(getComputedStyle(main).paddingBottom); if(sr.top<44||hr.top<44||sr.bottom>innerHeight+1||main.getBoundingClientRect().bottom>document.querySelector('[data-rcl-app-shell-tabs]').getBoundingClientRect().top+1||parseFloat(getComputedStyle(document.querySelector('[data-rcl-app-shell-tabs] nav')).paddingBottom)<34)throw new Error('Safe areas must protect header and main without viewport overflow: '+JSON.stringify({shellTop:sr.top,headerTop:hr.top,shellBottom:sr.bottom,viewport:innerHeight,bottomPadding:bottom}));safeArea={top:44,bottom:34,shellTop:sr.top,headerTop:hr.top,shellBottom:sr.bottom,bottomPadding:bottom};}finally{if(priorTop)root.style.setProperty('--safe-area-inset-top',priorTop);else root.style.removeProperty('--safe-area-inset-top');if(priorBottom)root.style.setProperty('--safe-area-inset-bottom',priorBottom);else root.style.removeProperty('--safe-area-inset-bottom');}const result={safeArea,viewport:{width:innerWidth,height:innerHeight},body:{clientWidth:document.body.clientWidth,scrollWidth:document.body.scrollWidth},document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth},shell:shell?rect(shell):null,menu:menu?rect(menu):null,nav:nav?rect(nav):null,destinations:links.map(link=>({testId:link.dataset.testid,href:link.getAttribute('href'),current:link.getAttribute('aria-current'),rect:rect(link)}))}; document.activeElement?.blur(); return result; })()",
           "store_result": "nh16PhoneMeasurements"
         },
         "metadata": {
-          "label": "Measure selected phone layout widths and destination target geometry"
+          "label": "Verify nonzero safe insets and measure phone navigation without viewport overflow"
+        }
+      }
+    },
+    {
+      "id": "focus-history-answer-detail-link",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const link=[...document.querySelectorAll('[data-testid=\\\"page-history\\\"] a')].find(node=>node.getAttribute('href')?.startsWith('/asks/e4-test-answered-ask'));if(!link)throw new Error('Answered history row has no exact detail link');const url=new URL(link.href);if(url.pathname!=='/asks/e4-test-answered-ask'||url.search!=='?vrooli_test_mode=1')throw new Error('History detail link lost its exact route or routed context: '+url.href);link.focus();if(document.activeElement!==link)throw new Error('History detail link did not receive keyboard focus');return {href:link.getAttribute('href'),theme:document.documentElement.dataset.resolvedTheme}})()",
+          "store_result": "historyDetailLink"
+        },
+        "metadata": {
+          "label": "Focus the exact answered-history detail link and verify its routed context"
+        }
+      }
+    },
+    {
+      "id": "open-history-answer-by-keyboard",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Open the answered History detail using Enter"
+        }
+      }
+    },
+    {
+      "id": "assert-history-answer-detail",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 history answer fixture"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "The answered History detail route shows the exact E4 ask"
+        },
+        "metadata": {
+          "label": "The answered History detail route shows the exact E4 ask"
+        }
+      }
+    },
+    {
+      "id": "assert-history-answer-read-only",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.status",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Answered"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "The exact History detail remains already answered"
+        },
+        "metadata": {
+          "label": "The exact History detail remains already answered"
+        }
+      }
+    },
+    {
+      "id": "assert-history-detail-test-context",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const url=new URL(location.href);const text=document.body.innerText;if(url.pathname!=='/asks/e4-test-answered-ask'||url.search!=='?vrooli_test_mode=1')throw new Error('History detail route context changed: '+url.href);if(!text.includes('Answered'))throw new Error('The E4 ask is not displayed as answered');if([...document.querySelectorAll('button')].some(button=>/submit answer|send answer/i.test(button.innerText)))throw new Error('An answer control appeared on the answered detail');return {href:location.pathname+location.search,theme:document.documentElement.dataset.resolvedTheme}})()"
+        },
+        "metadata": {
+          "label": "Confirm History detail preserved the routed test context and remains read-only"
+        }
+      }
+    },
+    {
+      "id": "return-to-history-after-detail",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the accepted mobile destination drawer from the read-only ask detail"
+        }
+      }
+    },
+    {
+      "id": "assert-history-clear-footer",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const page=document.querySelector('[data-testid=\"page-history\"]');const button=[...page.querySelectorAll('button')].find(b=>b.textContent.trim()==='Clear filters');if(!button)throw new Error('Clear filters is missing');const r=button.getBoundingClientRect();if(r.height<44)throw new Error('Clear filters target is too small');button.focus();if(document.activeElement!==button)throw new Error('Clear filters did not receive focus');return {accessibleName:button.innerText.trim(),height:r.height,theme:document.documentElement.dataset.resolvedTheme}})()"
+        },
+        "metadata": {
+          "label": "Verify the separated clear-filter footer and focus its accessible button"
+        }
+      }
+    },
+    {
+      "id": "clear-history-filters-by-keyboard",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Clear the History text filter with Enter"
+        }
+      }
+    },
+    {
+      "id": "assert-history-filters-cleared",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Validate the recording fix"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Clear filters restores the selected NH16.2 answered row"
+        },
+        "metadata": {
+          "label": "Clear filters restores the selected synthetic answered row"
+        }
+      }
+    },
+    {
+      "id": "assert-history-clear-context",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const input=document.getElementById('request-search'),url=new URL(location.href),page=document.querySelector('[data-testid=\"page-history\"]');if(input?.value||url.searchParams.has('q')||url.searchParams.has('state'))throw new Error('Filters remained after clear');if(url.pathname!=='/history'||url.searchParams.get('vrooli_test_mode')!=='1')throw new Error('Routed test context lost');if([...page.querySelectorAll('button')].some(b=>b.textContent.trim()==='Clear filters'))throw new Error('Clear control remains with no filters');return {href:location.pathname+location.search,query:input.value}})()"
+        },
+        "metadata": {
+          "label": "Confirm clear removes local filters and preserves only routed test mode"
+        }
+      }
+    },
+    {
+      "id": "select-history-after-detail",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.visibleNavLink(key=history)"
+        },
+        "metadata": {
+          "label": "Return to History through the accepted mobile drawer with routed test context"
+        }
+      }
+    },
+    {
+      "id": "select-nh162-history-fixture",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=nh16.2-history",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Select the deterministic NH16.2 fixture through the existing routed Updates entry"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-nh162-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the accepted mobile destination drawer for synthetic History"
+        }
+      }
+    },
+    {
+      "id": "route-to-nh162-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.visibleNavLink(key=history)"
+        },
+        "metadata": {
+          "label": "Consume the selected NH16.2 fixture on the routed History page"
+        }
+      }
+    },
+    {
+      "id": "assert-nh162-history-inventory",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{\n const page=()=>document.querySelector('[data-testid=\"page-history\"]');\n const rows=()=>[...(page()?.querySelectorAll('ul > li')??[])];\n const waitFor=(condition)=>new Promise((resolve,reject)=>{if(condition())return resolve();const observer=new MutationObserver(()=>{if(condition()){clearTimeout(timer);observer.disconnect();resolve();}});const timer=setTimeout(()=>{observer.disconnect();reject(new Error('History continuation did not settle'));},15000);observer.observe(document.body,{childList:true,subtree:true,attributes:true});});\n await waitFor(()=>rows().length>0);\n for(let pageIndex=0;pageIndex<10;pageIndex++){\n  const button=[...page().querySelectorAll('button')].find(b=>b.textContent.trim()==='Load more');\n  if(!button)break;\n  await waitFor(()=>!button.disabled);const before=rows().length;button.click();await waitFor(()=>rows().length>before||!!page().querySelector('[role=\"alert\"]'));\n  if(page().querySelector('[role=\"alert\"]'))throw new Error('History continuation failed');\n }\n const records=rows(),first=records[0],text=page().innerText;\n if(records.length<230)throw new Error('Older archive records must be reachable beyond 200: '+records.length);\n if(new Set(records.map(r=>r.querySelector('a')?.getAttribute('href'))).size!==records.length)throw new Error('Duplicate request across pages');\n if(!text.includes('Archived review 30')||!text.includes('DEMO-ARCHIVE-30'))throw new Error('Archive sentinel beyond old limit was not reached');\n if(!first.innerText.includes('Validate the recording fix')||!first.innerText.includes('DEMO-H200')||!first.innerText.includes('Answered')||!first.querySelector('time[datetime]'))throw new Error('Concise first row lost identity/outcome/exact time');\n if(text.includes('Older records are not available'))throw new Error('Obsolete fixed-cap disclaimer remains');\n const link=first.querySelector('a'),url=new URL(link.href);\n if(url.pathname!=='/asks/e4-test-answered-ask'||url.search!=='?vrooli_test_mode=1')throw new Error('Exact detail route/context lost');\n document.querySelector('main')?.scrollTo({top:0});\n return {loadedRows:records.length,archiveReached:true,first:first.innerText,detailHref:link.getAttribute('href'),theme:document.documentElement.dataset.resolvedTheme};\n})()"
+        },
+        "metadata": {
+          "label": "Prove the routed page serves the full deterministic selected synthetic History inventory and exact top-row detail link"
+        }
+      }
+    },
+    {
+      "id": "capture-nh162-history-fixture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the current routed 200-row NH16.2 History fixture"
+        }
+      }
+    },
+    {
+      "id": "focus-nh162-history-detail",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const page=document.querySelector('[data-testid=\"page-history\"]');const link=[...(page?.querySelectorAll('a')??[])].find(node=>node.getAttribute('href')?.startsWith('/asks/e4-test-answered-ask'));if(!link)throw new Error('The selected NH16.2 answered row has no exact detail link');const url=new URL(link.href);if(url.pathname!=='/asks/e4-test-answered-ask'||url.search!=='?vrooli_test_mode=1')throw new Error('Synthetic history detail route/context changed: '+url.href);link.focus();if(document.activeElement!==link)throw new Error('Synthetic history detail link did not receive keyboard focus');return {href:link.getAttribute('href'),theme:document.documentElement.dataset.resolvedTheme}})()",
+          "store_result": "nh162HistoryDetailLink"
+        },
+        "metadata": {
+          "label": "Focus the selected top-row answered detail link and confirm routed context"
+        }
+      }
+    },
+    {
+      "id": "open-nh162-history-detail-by-keyboard",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Open the exact selected NH16.2 answered detail with Enter"
+        }
+      }
+    },
+    {
+      "id": "assert-nh162-history-detail-question",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Validate the recording fix"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "The selected NH16.2 top History row opens its exact synthetic ask"
+        },
+        "metadata": {
+          "label": "Confirm the selected top-row ask detail loads"
+        }
+      }
+    },
+    {
+      "id": "assert-nh162-history-detail-read-only",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.status",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Answered"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "The synthetic answered History detail remains read-only"
+        },
+        "metadata": {
+          "label": "Confirm the NH16.2 detail remains answered and read-only"
+        }
+      }
+    },
+    {
+      "id": "assert-nh162-history-detail-context",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const url=new URL(location.href),text=document.body.innerText;if(url.pathname!=='/asks/e4-test-answered-ask'||url.search!=='?vrooli_test_mode=1')throw new Error('NH16.2 detail route lost its exact routed test context: '+url.href);if(!text.includes('Validate the recording fix')||!text.includes('Answered'))throw new Error('The selected ask is not displayed as answered');if([...document.querySelectorAll('button')].some(button=>/submit answer|send answer/i.test(button.innerText)))throw new Error('An answer control appeared on the answered fixture detail');return {href:location.pathname+location.search,theme:document.documentElement.dataset.resolvedTheme,readOnly:true}})()"
+        },
+        "metadata": {
+          "label": "Verify exact synthetic detail context and read-only state"
+        }
+      }
+    },
+    {
+      "id": "return-from-nh162-detail-to-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the accepted destination drawer from the synthetic answered detail"
+        }
+      }
+    },
+    {
+      "id": "normalize-nh16-capture-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const result={top:getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom:getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim(),theme:root.dataset.resolvedTheme};if(result.top!=='0px'||result.bottom!=='0px')throw new Error('Selected capture safe area did not match the zero-inset original: '+JSON.stringify(result));return result})()"
+        },
+        "metadata": {
+          "label": "Match the selected original viewport safe-area crop for visual capture"
+        }
+      }
+    },
+    {
+      "id": "normalize-search-capture-crop",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const s=document.querySelector('[data-rcl-app-shell]');if(s && Math.abs(s.getBoundingClientRect().top)>1)throw new Error('capture shell must align to the zero-inset original');return {top:getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),bottom:getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim(),shellTop:s?.getBoundingClientRect().top??null,theme:r.dataset.resolvedTheme}})()",
+          "store_result": "normalize-search-capture-crop"
+        }
+      }
+    },
+    {
+      "id": "normalize-list-capture-crop",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const s=document.querySelector('[data-rcl-app-shell]'),h=document.querySelector('[data-rcl-app-shell-header]'),m=document.querySelector('[data-rcl-app-shell-main]'),rect=n=>{if(!n)return null;const x=n.getBoundingClientRect();return {top:x.top,bottom:x.bottom,height:x.height}};return {safeTop:getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),safeBottom:getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim(),shell:rect(s),header:rect(h),main:rect(m),body:{top:rect(document.body),scrollY,innerHeight,clientHeight:document.documentElement.clientHeight,scrollHeight:document.documentElement.scrollHeight},visualViewport:window.visualViewport?{offsetTop:visualViewport.offsetTop,pageTop:visualViewport.pageTop,height:visualViewport.height,scale:visualViewport.scale}:null,theme:r.dataset.resolvedTheme}})()",
+          "store_result": "nh16CaptureGeometry"
+        }
+      }
+    },
+    {
+      "id": "wait-server-search-results",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "h3:has-text(\"No matching requests\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "search-older-archive",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "#request-search",
+          "value": "Archived review 30",
+          "clear_first": true
+        }
+      }
+    },
+    {
+      "id": "wait-older-archive",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-request-id=\"e4-test-nh162-ask-archive-030\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "verify-older-search",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const page=document.querySelector('[data-testid=\"page-history\"]'),rows=page.querySelectorAll('[data-request-id]'),input=document.getElementById('request-search');if(input.value!=='Archived review 30'||rows.length!==1||rows[0].dataset.requestId!=='e4-test-nh162-ask-archive-030'||!rows[0].innerText.includes('DEMO-ARCHIVE-30'))throw new Error('Server search did not find the exact record beyond the old 200-row boundary');return {query:input.value,rows:rows.length,found:rows[0].dataset.requestId,beyondOriginalCap:true};})()"
+        }
+      }
+    },
+    {
+      "id": "clear-older-search",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Clear filters\")"
+        }
+      }
+    },
+    {
+      "id": "wait-first-page-after-search",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-request-id=\"e4-test-answered-ask\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
         }
       }
     }
@@ -538,15 +1322,141 @@
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "e-nh16-seq36-08",
+      "id": "e-e28-update-01",
       "source": "return-to-updates-after-theme",
-      "target": "open-history",
+      "target": "assert-e4-linked-update",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-02",
+      "source": "assert-e4-linked-update",
+      "target": "capture-e4-linked-update",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-03",
+      "source": "capture-e4-linked-update",
+      "target": "focus-exact-e4-decision-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-04",
+      "source": "focus-exact-e4-decision-link",
+      "target": "capture-focused-e4-decision-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e33-light-capture-then-open",
+      "source": "capture-focused-e4-decision-link",
+      "target": "open-e4-linked-decision-by-keyboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-05",
+      "source": "open-e4-linked-decision-by-keyboard",
+      "target": "assert-e4-linked-ask-destination",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-06",
+      "source": "assert-e4-linked-ask-destination",
+      "target": "assert-e4-linked-ask-is-read-only",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-07",
+      "source": "assert-e4-linked-ask-is-read-only",
+      "target": "capture-e4-linked-ask-destination",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-08",
+      "source": "capture-e4-linked-ask-destination",
+      "target": "open-settings-for-dark-e4-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-10",
+      "source": "set-dark-for-e4-link",
+      "target": "return-to-dark-updates",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-11",
+      "source": "return-to-dark-updates",
+      "target": "assert-dark-e4-linked-update",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-12",
+      "source": "assert-dark-e4-linked-update",
+      "target": "capture-dark-e4-linked-update",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-13",
+      "source": "capture-dark-e4-linked-update",
+      "target": "focus-dark-exact-e4-decision-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-14",
+      "source": "focus-dark-exact-e4-decision-link",
+      "target": "capture-focused-dark-e4-decision-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e33-dark-capture-then-open",
+      "source": "capture-focused-dark-e4-decision-link",
+      "target": "open-dark-e4-linked-decision-by-keyboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-15",
+      "source": "open-dark-e4-linked-decision-by-keyboard",
+      "target": "assert-dark-e4-linked-ask-destination",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-16",
+      "source": "assert-dark-e4-linked-ask-destination",
+      "target": "capture-dark-e4-linked-ask",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-17",
+      "source": "capture-dark-e4-linked-ask",
+      "target": "return-to-settings-after-dark-e4-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-18",
+      "source": "return-to-settings-after-dark-e4-link",
+      "target": "restore-light-after-dark-e4-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-19",
+      "source": "restore-light-after-dark-e4-link",
+      "target": "return-to-updates-after-e4-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e28-update-20",
+      "source": "return-to-updates-after-e4-link",
+      "target": "open-menu-for-open-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-nh16-seq36-08",
+      "source": "open-settings-for-dark-e4-link",
+      "target": "set-dark-for-e4-link",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e-nh16-seq36-09",
       "source": "open-history",
-      "target": "route-updates",
+      "target": "open-menu-for-route-updates",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -558,7 +1468,7 @@
     {
       "id": "e-nh16-seq36-11",
       "source": "assert-route-updates",
-      "target": "route-asks",
+      "target": "open-menu-for-route-asks",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -570,7 +1480,7 @@
     {
       "id": "e-nh16-seq36-13",
       "source": "assert-route-asks",
-      "target": "route-history",
+      "target": "open-menu-for-route-history",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -582,7 +1492,7 @@
     {
       "id": "e-nh16-seq36-15",
       "source": "assert-route-history",
-      "target": "route-delivery",
+      "target": "open-menu-for-route-delivery",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -594,7 +1504,7 @@
     {
       "id": "e-nh16-seq36-17",
       "source": "assert-route-delivery",
-      "target": "route-settings",
+      "target": "open-menu-for-route-settings",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -606,19 +1516,19 @@
     {
       "id": "e-nh16-seq36-19",
       "source": "assert-route-settings",
-      "target": "return-to-history",
+      "target": "open-menu-for-return-to-history",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e-nh16-seq36-20",
       "source": "return-to-history",
-      "target": "assert-closed-ask",
+      "target": "normalize-nh16-capture-safe-area",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e-nh16-seq36-21",
       "source": "assert-closed-ask",
-      "target": "assert-answer-state",
+      "target": "focus-history-answer-detail-link",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -660,7 +1570,7 @@
     {
       "id": "e-nh16-seq36-28",
       "source": "enter-nh16-mobile-query",
-      "target": "assert-nh16-mobile-search-heading",
+      "target": "wait-server-search-results",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -678,7 +1588,241 @@
     {
       "id": "e-nh16-seq36-31",
       "source": "record-nh16-phone-measurements",
+      "target": "normalize-search-capture-crop",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-open-history-edge",
+      "source": "open-menu-for-open-history",
+      "target": "open-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-route-updates-edge",
+      "source": "open-menu-for-route-updates",
+      "target": "route-updates",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-route-asks-edge",
+      "source": "open-menu-for-route-asks",
+      "target": "route-asks",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-route-history-edge",
+      "source": "open-menu-for-route-history",
+      "target": "route-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-route-delivery-edge",
+      "source": "open-menu-for-route-delivery",
+      "target": "route-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-route-settings-edge",
+      "source": "open-menu-for-route-settings",
+      "target": "route-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-return-to-history-edge",
+      "source": "open-menu-for-return-to-history",
+      "target": "return-to-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-focus-history-answer-detail-link-to-open-history-answer-by-keyboard",
+      "source": "focus-history-answer-detail-link",
+      "target": "open-history-answer-by-keyboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-open-history-answer-by-keyboard-to-assert-history-answer-detail",
+      "source": "open-history-answer-by-keyboard",
+      "target": "assert-history-answer-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-assert-history-answer-detail-to-assert-history-answer-read-only",
+      "source": "assert-history-answer-detail",
+      "target": "assert-history-answer-read-only",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-assert-history-answer-read-only-to-assert-history-detail-test-context",
+      "source": "assert-history-answer-read-only",
+      "target": "assert-history-detail-test-context",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-assert-history-detail-test-context-to-return-to-history-after-detail",
+      "source": "assert-history-detail-test-context",
+      "target": "return-to-history-after-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-return-to-history-after-detail-to-assert-answer-state",
+      "source": "return-to-history-after-detail",
+      "target": "select-history-after-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-assert-nh16-mobile-search-boundary-to-assert-history-clear-footer",
+      "source": "assert-nh16-mobile-search-boundary",
+      "target": "assert-history-clear-footer",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-assert-history-clear-footer-to-clear-history-filters-by-keyboard",
+      "source": "assert-history-clear-footer",
+      "target": "clear-history-filters-by-keyboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-clear-history-filters-by-keyboard-to-assert-history-filters-cleared",
+      "source": "clear-history-filters-by-keyboard",
+      "target": "assert-history-filters-cleared",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-assert-history-filters-cleared-to-assert-history-clear-context",
+      "source": "assert-history-filters-cleared",
+      "target": "assert-history-clear-context",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-select-history-after-detail-to-assert-answer-state",
+      "source": "select-history-after-detail",
+      "target": "select-nh162-history-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e34-normalize-nh16-capture-safe-area-to-assert-closed-ask",
+      "source": "normalize-nh16-capture-safe-area",
+      "target": "assert-closed-ask",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-01",
+      "source": "select-nh162-history-fixture",
+      "target": "open-menu-for-nh162-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-02",
+      "source": "open-menu-for-nh162-history",
+      "target": "route-to-nh162-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-03",
+      "source": "route-to-nh162-history",
+      "target": "assert-nh162-history-inventory",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-04",
+      "source": "assert-nh162-history-inventory",
+      "target": "search-older-archive",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-05",
+      "source": "capture-nh162-history-fixture",
+      "target": "focus-nh162-history-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-06",
+      "source": "focus-nh162-history-detail",
+      "target": "open-nh162-history-detail-by-keyboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-07",
+      "source": "open-nh162-history-detail-by-keyboard",
+      "target": "assert-nh162-history-detail-question",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-08",
+      "source": "assert-nh162-history-detail-question",
+      "target": "assert-nh162-history-detail-read-only",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-09",
+      "source": "assert-nh162-history-detail-read-only",
+      "target": "assert-nh162-history-detail-context",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-10",
+      "source": "assert-nh162-history-detail-context",
+      "target": "return-from-nh162-detail-to-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-11",
+      "source": "return-from-nh162-detail-to-history",
+      "target": "select-history-after-nh162-detail",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-e35-nh162-12",
+      "source": "select-history-after-nh162-detail",
+      "target": "assert-answer-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-normalize-search-capture-crop-to-assert-nh16-mobile-search-boundary",
+      "source": "normalize-search-capture-crop",
       "target": "assert-nh16-mobile-search-boundary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e-normalize-list-capture-crop-to-capture-nh162-history-fixture",
+      "source": "normalize-list-capture-crop",
+      "target": "capture-nh162-history-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "server-search-to-heading",
+      "source": "wait-server-search-results",
+      "target": "assert-nh16-mobile-search-heading",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "archive-search-0",
+      "source": "search-older-archive",
+      "target": "wait-older-archive",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "archive-search-1",
+      "source": "wait-older-archive",
+      "target": "verify-older-search",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "archive-search-2",
+      "source": "verify-older-search",
+      "target": "clear-older-search",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "archive-search-3",
+      "source": "clear-older-search",
+      "target": "wait-first-page-after-search",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "archive-search-4",
+      "source": "wait-first-page-after-search",
+      "target": "normalize-list-capture-crop",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

@@ -1,6 +1,9 @@
-# Notification Hub
+# Chimesail (Notification Hub)
 
 Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver
+
+The customer-facing brand is Chimesail; the technical scenario/API identity remains
+`notification-hub`.
 
 This scenario provides
 the standard full-stack Vrooli scenario shape:
@@ -130,6 +133,7 @@ without an Access login, such as `http://localhost:<UI_PORT>`.
 |---|---|
 | Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
 | Establish UI design language | `DESIGN.md` at this scenario's root |
+| Read the current selected UX, user amendments and verified refinements | [`Current design target`](docs/concepts/FLOWS.md#current-design-target-and-amendments) |
 | Author UX intent | [`experience/README.md`](experience/README.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
@@ -148,7 +152,7 @@ without an Access login, such as `http://localhost:<UI_PORT>`.
 1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
 2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
 3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
+4. **Read root `DESIGN.md` and the [current design target](docs/concepts/FLOWS.md#current-design-target-and-amendments) before UI work.** Tokens, motion, and status semantics remain binding. Apply current user amendments and verified refinements alongside selected mockups; preserve useful existing behavior absent from screenshots.
 5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
 6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
 7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.

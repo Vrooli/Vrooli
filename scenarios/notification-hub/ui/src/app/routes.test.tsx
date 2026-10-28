@@ -17,6 +17,7 @@ vi.mock("../api/notifications", () => ({
   deliveryClient: { getTimeline: vi.fn(() => Promise.resolve({ notifications: [] })) },
 }));
 vi.mock("../pages/SettingsPage", () => ({ SettingsPage: () => <div data-testid="page-settings" /> }));
+vi.mock("../pages/ReachPage", () => ({ ReachPage: () => <div data-testid="page-reach" /> }));
 vi.mock("../pages/DashboardPage", () => ({ DashboardPage: () => <div data-testid="page-dashboard" /> }));
 
 describe("AppRouter", () => {
@@ -37,6 +38,11 @@ describe("AppRouter", () => {
   it("renders the settings page at /settings", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(await screen.findByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+
+  it("renders Reach as a nested Settings destination", async () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/settings/reach"]} />, { withoutRouter: true });
+    expect(await screen.findByTestId("page-reach")).toBeInTheDocument();
   });
 
   it("preserves both ask route contracts", () => {

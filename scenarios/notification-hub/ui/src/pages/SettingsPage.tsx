@@ -1,18 +1,34 @@
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Avatar } from "@vrooli/react-component-library/Avatar/1";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1.0.1";
+import { Switch } from "@vrooli/react-component-library/Switch/1.0.13";
 import { Bell, BellOff, RefreshCw } from "lucide-react";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { usePreferenceStorageUnavailable, useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { recipientsClient, registerBrowserPushSubscription } from "../api/notifications";
-import { forceServiceWorkerUpdate, readConnectionStatus, type ConnectionStatus } from "../api/serviceWorker";
-import { fetchEventIntegrationConfig, updateEventIntegrationConfig, type EventIntegrationConfig } from "../api/integrations";
 import { fetchNotificationCatalog, updateNotificationPreference, MIN_URGENCY_CHOICES, type CatalogCategory, type CatalogSource, type NotificationPreference } from "../api/preferences";
-import { useEffect, useState } from "react";
-import { getInjectedConfig } from "@vrooli/api-base";
-import { SessionPanel, useSession } from "../features/session/SessionGate";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSession } from "../features/session/SessionGate";
+import { SessionPanel } from "../features/session/SessionGate";
+import { Link, useLocation } from "react-router-dom";
+import { useQuietEditorHeader } from "../layout/AppShell";
+import { preserveRoutedTestMode } from "../features/routedTestMode";
+import { QuietHoursPanel } from "../features/settings/QuietHoursPanel";
+import { EscalationOrderPanel } from "../features/settings/EscalationOrderPanel";
+
+function preserveSettingsTestContext(path: string, search: string): string {
+  const destination = preserveRoutedTestMode(path, search);
+  const current = new URLSearchParams(search);
+  if (current.get("vrooli_test_mode") !== "1") return destination;
+  const target = new URL(destination, "http://notification-hub.local");
+  for (const key of ["e21_fixture", "e22_fixture"] as const) {
+    const value = current.get(key);
+    if (value) target.searchParams.set(key, value);
+  }
+  return `${target.pathname}${target.search}${target.hash}`;
+}
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -23,23 +39,64 @@ const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
  */
 export function SettingsPage() {
   const { t } = useTranslation();
-  const currentLocale = getCurrentLocale();
+  const queryClient = useQueryClient();
   const { choice, setTheme } = useTheme();
   const preferenceStorageUnavailable = usePreferenceStorageUnavailable();
+  const location = useLocation();
+  const [focusedSettingsPanel, setFocusedSettingsPanel] = useState<"quiet" | "order" | null>(() => new URLSearchParams(location.search).get("panel") === "quiet" ? "quiet" : null);
+  const setQuietEditorHeader = useQuietEditorHeader();
+  const quietPanelWasFocused = useRef(false);
+  const handleQuietFocus = useCallback((focused: boolean) => {
+    setFocusedSettingsPanel(focused ? "quiet" : null);
+    if (focused) {
+      quietPanelWasFocused.current = true;
+      return;
+    }
+    if (!quietPanelWasFocused.current) return;
+    quietPanelWasFocused.current = false;
+    const restoreFocus = () => document.querySelector<HTMLElement>(`[data-testid="${selectors.quietHours.openWeek}"]`)?.focus({ preventScroll: true });
+    if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(restoreFocus);
+    else window.setTimeout(restoreFocus, 0);
+  }, []);
+  const handleQuietHeaderChange = useCallback((header: Parameters<NonNullable<typeof setQuietEditorHeader>>[0]) => {
+    setQuietEditorHeader?.(header);
+  }, [setQuietEditorHeader]);
+  const handleOrderFocus = useCallback((focused: boolean) => setFocusedSettingsPanel(focused ? "order" : null), []);
+  useEffect(() => {
+    if (focusedSettingsPanel !== "quiet") return;
+    const main = document.getElementById(`${selectors.layout.shell}-main`);
+    if (main) main.scrollTop = 0;
+  }, [focusedSettingsPanel]);
   const session = useSession();
-  const queryClient = useQueryClient();
   const signedIn = Boolean(session.data?.signedIn);
-  // Device metadata and the public VAPID key are recipient-scoped reads; only
-  // subscription registration requires the signed-in owner session.
-  const devices = useQuery({ queryKey: ["recipient-devices"], queryFn: () => recipientsClient.listDevices({}) });
-  const eventConfig = useQuery({ queryKey: ["event-integration-config"], queryFn: fetchEventIntegrationConfig });
-  const [eventForm, setEventForm] = useState<EventIntegrationConfig>({ events_api_base: "", webhook_url: "", pattern: "incident.*", sensitivity_by_severity: { critical: "critical", warning: "sensitive", informational: "public" } });
-  const eventUpdate = useMutation({ mutationFn: updateEventIntegrationConfig, onSuccess: (config) => setEventForm(config) });
-  const [pushMessage, setPushMessage] = useState("");
+  const subject = session.data?.subject ?? "";
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [expiredSettingsSubject, setExpiredSettingsSubject] = useState("");
+  useEffect(() => {
+    const onExpired = () => {
+      setExpiredSettingsSubject(subject);
+      setSessionExpired(true);
+      setSignInOpen(false);
+    };
+    window.addEventListener("notification-hub:session-expired", onExpired);
+    return () => window.removeEventListener("notification-hub:session-expired", onExpired);
+  }, [subject]);
+  useEffect(() => {
+    if (signedIn) setSessionExpired(false);
+  }, [signedIn]);
+  const requestedView = new URLSearchParams(location.search).get("view");
+  const allSettingsView = requestedView === "all";
+  const preferencesView = requestedView === "preferences";
+  const retainingProtectedSettings = sessionExpired && Boolean(expiredSettingsSubject) && allSettingsView;
 
   // Catalog and recipient preference views are ordinary configured-recipient
   // reads. Preference changes remain behind the owner identity check.
-  const catalog = useQuery({ queryKey: ["notification-catalog"], queryFn: fetchNotificationCatalog });
+  const catalog = useQuery({
+    queryKey: ["notification-catalog"],
+    queryFn: fetchNotificationCatalog,
+    enabled: !sessionExpired && ((signedIn && !preferencesView) || allSettingsView),
+  });
   const preferenceUpdate = useMutation({ mutationFn: updateNotificationPreference, onSuccess: () => void catalog.refetch() });
   const prefIndex = new Map<string, NotificationPreference>();
   for (const p of catalog.data?.preferences ?? []) prefIndex.set(`${p.source_scenario}\u0000${p.category}`, p);
@@ -50,168 +107,160 @@ export function SettingsPage() {
   };
   const savePref = (next: NotificationPreference) => preferenceUpdate.mutate(next);
 
-  useEffect(() => {
-    if (eventConfig.data) setEventForm(eventConfig.data);
-  }, [eventConfig.data]);
+  if (sessionExpired && !retainingProtectedSettings) {
+    return <SessionExpiredRecovery draftRetained={false} signInOpen={signInOpen} onSignIn={() => setSignInOpen(true)} onBack={() => setSignInOpen(false)} onPreferences={() => { setSessionExpired(false); setSignInOpen(false); }} />;
+  }
 
-  const enablePush = async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      // iOS exposes Web Push only to Home Screen apps, never to a Safari tab.
-      setPushMessage("This browser does not offer push here. On iPhone, tap Share → Add to Home Screen, open Notification Hub from the Home Screen icon, then try again.");
-      return;
-    }
-    // Read the key at tap time: the cached device query may still be loading
-    // or retrying, and an empty cache must not read as "not configured".
-    let publicKey = devices.data?.vapidPublicKey;
-    let keyError = "";
-    if (!publicKey && signedIn) {
-      try {
-        publicKey = (await recipientsClient.listDevices({})).vapidPublicKey;
-      } catch (error) {
-        keyError = error instanceof Error ? error.message : String(error);
-      }
-    }
-    publicKey = publicKey
-      || getInjectedConfig()?.VAPID_PUBLIC_KEY as string | undefined
-      || import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-    if (!publicKey) {
-      if (keyError) setPushMessage(`Could not load this hub's push key: ${keyError}`);
-      else if (!signedIn) setPushMessage("Sign in before enabling notifications.");
-      else setPushMessage("This hub has no push key configured.");
-      return;
-    }
-    let registrationAccepted = false;
-    try {
-      await registerBrowserPushSubscription(base64UrlToBytes(publicKey) as unknown as BufferSource);
-      registrationAccepted = true;
-      await devices.refetch();
-      // The panel may still have an older browser read in flight. Cancel it
-      // before taking the post-registration snapshot so fetchQuery cannot
-      // reuse that pre-registration promise or let it overwrite fresh state.
-      await queryClient.cancelQueries({ queryKey: ["connection-status"], exact: true });
-      const connection = await queryClient.fetchQuery<ConnectionStatus>({
-        queryKey: ["connection-status"],
-        queryFn: readConnectionStatus,
-        staleTime: 0,
-      });
-      setPushMessage(connection.subscribed
-        ? "This browser is registered for Web Push."
-        : "The Hub accepted the registration, but this browser still reports no active push subscription. Check again or try enabling notifications once more.");
-    } catch (error) {
-      if (!registrationAccepted) {
-        setPushMessage(error instanceof Error ? error.message : "Push registration failed.");
-      } else {
-        setPushMessage(error instanceof Error
-          ? `Registration succeeded, but this browser's subscription status could not be verified: ${error.message}`
-          : "Registration succeeded, but this browser's subscription status could not be verified.");
-      }
-    }
-  };
+  if (((!signedIn && !session.isPending && !allSettingsView) || (preferencesView && (signedIn || session.isPending))) && !retainingProtectedSettings) {
+    const ownerRequired = !preferencesView && !signInOpen;
+    const preferences = preferencesView && !signInOpen;
+    const signIn = signInOpen;
+    return (
+      <section
+        data-testid={selectors.pages.settings}
+        aria-label={t(ownerRequired ? strings.settings.ownerRequiredLabel : preferences ? signedIn ? strings.settings.preferencesSessionTitle : strings.settings.appearanceLanguageTitle : strings.session.title)}
+        className="-mx-4 -mt-4 flex min-h-[calc(100dvh-3.5rem)] flex-col sm:-mx-8"
+      >
+        <div className="mx-auto w-full max-w-3xl px-4 pt-5 sm:px-8">
+          <Link to={preferences || signIn ? "/settings" : "/settings?view=all"} className="text-sm font-medium underline" onClick={() => setSignInOpen(false)}>
+            ← {t(strings.pages.settings.title)}
+          </Link>
+        </div>
+
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-5 sm:px-8 sm:py-8 sm:gap-6">
+          {ownerRequired && <>
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-app-muted-foreground">{t(strings.settings.ownerRequiredLabel)}</p>
+              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-5xl">{t(strings.settings.ownerRequiredHeading)}</h1>
+              <p className="text-base leading-relaxed sm:text-2xl">{t(strings.settings.ownerRequiredBody)}</p>
+            </div>
+            <Link to="/settings?view=preferences" className="flex items-center justify-between gap-4 border-b border-app-border py-5 text-start">
+              <span className="flex flex-col gap-1">
+                <span className="text-lg font-bold sm:text-2xl">{t(strings.settings.appearanceLanguageTitle)}</span>
+                <span className="text-sm text-app-muted-foreground sm:text-lg">{t(strings.settings.appearanceLanguageBody)}</span>
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-2xl text-app-muted-foreground">›</span>
+            </Link>
+            <aside className="border-s-4 border-app-warning ps-4 py-3">
+              <p className="text-base font-bold">{t(strings.settings.returnAfterSignInTitle)}</p>
+              <p className="mt-2 text-base leading-relaxed">{t(strings.settings.returnAfterSignInBody)}</p>
+            </aside>
+          </>}
+
+          {preferences && <>
+            <p className="text-sm text-app-muted-foreground">
+              {t(signedIn ? strings.settings.preferencesSessionIntro : strings.settings.browserOnly)}
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              {t(signedIn ? strings.settings.preferencesSessionTitle : strings.settings.appearanceLanguageTitle)}
+            </h1>
+            <AppearanceLanguageControls
+              choice={choice}
+              setTheme={setTheme}
+              preferenceStorageUnavailable={preferenceStorageUnavailable}
+              layout="select"
+            />
+            {!preferenceStorageUnavailable && <>
+              <section className="flex flex-col gap-2 border-t border-app-border pt-5" aria-labelledby="browser-session-heading">
+                <h2 id="browser-session-heading" className="text-sm font-semibold uppercase text-app-muted-foreground">
+                  {t(strings.session.sectionTitle)}
+                </h2>
+                {signedIn ? <SessionPanel /> : session.isPending ? null : <p role="status" className="text-sm text-app-muted-foreground">{t(strings.session.hubSessionInactive)}</p>}
+                <p className="text-sm text-app-muted-foreground">{t(strings.session.draftsBrowserOnly)}</p>
+              </section>
+              {!signedIn && !session.isPending && <Button className="min-h-12 w-full sm:w-fit" type="button" variant="outline" onClick={() => setSignInOpen(true)}>
+                {t(strings.settings.openSignIn)}
+              </Button>}
+            </>}
+          </>}
+
+          {signIn && <>
+            <button type="button" onClick={() => setSignInOpen(false)} className="w-fit text-sm font-medium underline">
+              ← {t(strings.settings.backToOwnerRequired)}
+            </button>
+            <SessionPanel />
+          </>}
+        </div>
+
+        {preferences && <footer className="sticky bottom-0 border-t border-app-border bg-app-surface-muted px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-8">
+          <Link to="/settings?view=all" className="mx-auto flex min-h-12 w-full max-w-3xl items-center justify-center rounded-lg border border-app-border bg-transparent px-4 py-3 text-center font-medium hover:bg-app-surface-raised">
+            {t(preferenceStorageUnavailable ? strings.settings.continueToSettings : strings.reach.backToSettings)}
+          </Link>
+        </footer>}
+
+        {ownerRequired && <footer className="sticky bottom-0 flex gap-3 border-t border-app-border bg-app-surface-muted px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-8">
+              <Button className="min-h-12 flex-1" type="button" variant="primary" onClick={() => setSignInOpen(true)}>
+            {t(strings.settings.openSignIn)}
+          </Button>
+              <Link to="/settings?view=preferences" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-app-border px-4 py-3 text-center font-medium hover:bg-app-surface-raised">
+            {t(strings.settings.openPreferences)}
+              </Link>
+        </footer>}
+      </section>
+    );
+  }
 
   return (
     <section
       data-testid={selectors.pages.settings}
-      aria-labelledby="settings-heading"
-      className="flex flex-col gap-6"
+      aria-label={focusedSettingsPanel === "quiet" ? t(strings.settings.ownerSettingsTitle) : focusedSettingsPanel === "order" ? t(strings.settings.ownerSettingsTitle) : t(strings.settings.preferencesSessionTitle)}
+      className={focusedSettingsPanel === "quiet" || focusedSettingsPanel === "order" ? "flex min-h-0 flex-1 flex-col" : "flex flex-col gap-6"}
     >
+    <div
+      hidden={sessionExpired}
+      aria-hidden={sessionExpired}
+      style={sessionExpired ? { display: "none" } : undefined}
+      key={retainingProtectedSettings ? expiredSettingsSubject : subject}
+      className={focusedSettingsPanel === "quiet" || focusedSettingsPanel === "order" ? "flex min-h-0 flex-1 flex-col" : "flex flex-col gap-6"}
+    >
+    <div hidden={focusedSettingsPanel !== null} className={focusedSettingsPanel === null ? "flex flex-col gap-6" : "hidden"}>
       <h2 id="settings-heading" className="text-2xl font-semibold">
-        {t(strings.pages.settings.title)}
+        {t(strings.settings.preferencesSessionTitle)}
       </h2>
+      <p className="text-sm text-app-muted-foreground">{t(strings.settings.preferencesSessionIntro)}</p>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
-          {t(strings.pages.settings.themeHeading)}
+      <AppearanceLanguageControls
+        choice={choice}
+        setTheme={setTheme}
+        preferenceStorageUnavailable={preferenceStorageUnavailable}
+      />
+
+      <section className="flex flex-col gap-2" aria-labelledby="settings-session-heading">
+        <h3 id="settings-session-heading" className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.session.sectionTitle)}
         </h3>
-        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex flex-wrap gap-2">
-          {THEME_CHOICES.map((c) => (
-            <Button
-              key={c}
-              type="button"
-              variant={choice === c ? "primary" : "secondary"}
-              size="sm"
-              role="radio"
-              aria-checked={choice === c}
-              onClick={() => setTheme(c)}
-              data-testid={selectors.settingsPage.themeOption({ choice: c })}
-            >
-              {t(strings.theme.choice[c])}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
-          {t(strings.pages.settings.localeHeading)}
-        </h3>
-        <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} className="flex flex-wrap gap-2">
-          {SUPPORTED_LOCALES.map((lng) => (
-            <Button
-              key={lng}
-              type="button"
-              variant={currentLocale === lng ? "primary" : "secondary"}
-              size="sm"
-              role="radio"
-              aria-checked={currentLocale === lng}
-              onClick={() => void setLocale(lng)}
-              data-testid={selectors.settingsPage.localeOption({ code: lng })}
-            >
-              {getLocaleConfig(lng).nativeLabel}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {preferenceStorageUnavailable && (
-        <aside role="status" aria-live="polite" aria-atomic="true" className="border-s-4 border-app-warning ps-4 py-3">
-          <p className="font-semibold">{t(strings.preferenceStorage.title)}</p>
-          <p>{t(strings.preferenceStorage.body)}</p>
-          <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.preferenceStorage.noAccountChange)}</p>
-        </aside>
-      )}
-
-      <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">Notification devices</h3>
-        <p className="text-sm text-app-muted-foreground">Register this browser, inspect paired channels, and keep sensitive content governed by channel approval.</p>
         <SessionPanel />
-        {signedIn && <Button type="button" variant="primary" onClick={() => void enablePush()}>Enable browser notifications</Button>}
-        {pushMessage && <p role="status" className="text-sm text-app-muted-foreground">{pushMessage}</p>}
-        <ConnectionStatusPanel />
-        <ul className="space-y-2 text-sm" aria-label="Registered notification devices">
-          {devices.data?.devices.map((device) => <li key={device.id} className="rounded border border-app-border px-3 py-2">{device.name} <span className="text-app-muted-foreground">{device.channels.join(", ") || "no channels"}</span></li>)}
-        </ul>
+        <p className="text-sm text-app-muted-foreground">{t(strings.session.draftsBrowserOnly)}</p>
+      </section>
+
+      <section className="flex flex-col gap-2" aria-labelledby="reach-settings-heading">
+        <h3 id="reach-settings-heading" className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.reach.title)}
+        </h3>
+        <p className="text-sm text-app-muted-foreground">{t(strings.reach.settingsSummary)}</p>
+        <Link to={preserveSettingsTestContext("/settings/reach", location.search)} onClick={() => queryClient.removeQueries({ queryKey: ["recipient-devices"], exact: true })} className="inline-flex w-fit items-center rounded-lg border border-app-border px-4 py-2 font-medium hover:bg-app-surface-raised">
+          {t(strings.reach.openSettings)}
+        </Link>
+      </section>
+
+      {!signedIn && <section role="status" className="rounded-panel border border-app-border p-4">
+        <h3 className="text-lg font-semibold">{t(strings.settings.ownerSettingsTitle)}</h3>
+        <p className="text-sm text-app-muted-foreground">{t(strings.settings.ownerSettingsSignIn)}</p>
+      </section>}
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">{t(strings.settings.integrationTitle)}</h3>
+        <aside role="status" aria-label={`${t(strings.settings.integrationTitle)}: ${t(strings.settings.integrationLockedTitle)}`} className="rounded-panel border border-app-border bg-app-surface-raised p-4">
+          <p className="font-medium">{t(strings.settings.integrationLockedTitle)}</p>
+          <p className="mt-1 text-sm text-app-muted-foreground">{t(strings.settings.integrationLockedBody)}</p>
+          <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.settings.integrationUnchanged)}</p>
+        </aside>
       </div>
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">Event integration</h3>
-        <p className="text-sm text-app-muted-foreground">Update the live vrooli-events subscription without restarting notification-hub.</p>
-        <label className="flex flex-col gap-1 text-sm">Events API base
-          <input className="rounded border border-app-border bg-app-background px-3 py-2" value={eventForm.events_api_base} onChange={(event) => setEventForm({ ...eventForm, events_api_base: event.target.value })} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">Webhook URL
-          <input className="rounded border border-app-border bg-app-background px-3 py-2" value={eventForm.webhook_url} onChange={(event) => setEventForm({ ...eventForm, webhook_url: event.target.value })} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">Event pattern
-          <input className="rounded border border-app-border bg-app-background px-3 py-2" value={eventForm.pattern} onChange={(event) => setEventForm({ ...eventForm, pattern: event.target.value })} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">Critical sensitivity
-          <input className="rounded border border-app-border bg-app-background px-3 py-2" value={eventForm.sensitivity_by_severity?.critical ?? ""} onChange={(event) => setEventForm({ ...eventForm, sensitivity_by_severity: { ...eventForm.sensitivity_by_severity, critical: event.target.value } })} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">Warning sensitivity
-          <input className="rounded border border-app-border bg-app-background px-3 py-2" value={eventForm.sensitivity_by_severity?.warning ?? ""} onChange={(event) => setEventForm({ ...eventForm, sensitivity_by_severity: { ...eventForm.sensitivity_by_severity, warning: event.target.value } })} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">Informational sensitivity
-          <input className="rounded border border-app-border bg-app-background px-3 py-2" value={eventForm.sensitivity_by_severity?.informational ?? ""} onChange={(event) => setEventForm({ ...eventForm, sensitivity_by_severity: { ...eventForm.sensitivity_by_severity, informational: event.target.value } })} />
-        </label>
-        <Button type="button" variant="secondary" disabled={eventUpdate.isPending} onClick={() => eventUpdate.mutate(eventForm)}>Save event integration</Button>
-        {eventConfig.isError && <p aria-live="polite" className="text-sm text-app-muted-foreground">Event integration settings are unavailable.</p>}
-        {eventUpdate.isError && <p aria-live="polite" className="text-sm text-app-muted-foreground">Event integration update failed.</p>}
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">Notification preferences</h3>
-        <p className="text-sm text-app-muted-foreground">Choose which scenarios may notify you and the minimum urgency per category.</p>
-        {!signedIn && <p className="text-sm text-app-muted-foreground">Sign in to change notification preferences.</p>}
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">{t(strings.settings.notificationPreferencesTitle)}</h3>
+        <p className="text-sm text-app-muted-foreground">{t(strings.settings.notificationPreferencesIntro)}</p>
+        {!signedIn && <p className="text-sm text-app-muted-foreground">{t(strings.settings.notificationPreferencesSignIn)}</p>}
 
         {catalog.isError ? (
           <NotificationsMessage
@@ -249,165 +298,242 @@ export function SettingsPage() {
           catalog.data?.sources.map((source: CatalogSource) => {
             const sourceName = source.display_name || source.source_scenario;
             return (
-              <div key={source.source_scenario} data-testid={`notification-source-${source.source_scenario}`} className="flex flex-col gap-2 rounded-lg border border-app-border bg-app-surface-raised px-3 py-3">
-                <div className="flex items-center gap-2.5">
-                  <Avatar name={sourceName} size="xs" shape="rounded" />
-                  <h4 className="text-sm font-semibold text-app-foreground">{sourceName}</h4>
-                </div>
-                {categoriesFor(source).map((category) => (
-                  <PreferenceRow
-                    key={category.category}
-                    label={category.display_name || category.category || `All ${sourceName} notifications`}
-                    description={category.description || undefined}
-                    pref={effectivePref(source.source_scenario, category.category, category.default_enabled, category.default_min_urgency)}
-                    disabled={preferenceUpdate.isPending || !signedIn}
-                    onChange={savePref}
-                  />
-                ))}
-              </div>
+              <SettingsList
+                key={source.source_scenario}
+                data-testid={`notification-source-${source.source_scenario}`}
+                variant="auto"
+                density="comfortable"
+              >
+                <SettingsList.Group label={(
+                  <div className="flex items-center gap-2.5">
+                    <Avatar name={sourceName} size="xs" shape="rounded" />
+                    <h4 className="text-sm font-semibold text-app-foreground">{sourceName}</h4>
+                  </div>
+                )}>
+                  {categoriesFor(source).map((category) => {
+                    const label = category.display_name || category.category || `All ${sourceName} notifications`;
+                    const pref = effectivePref(source.source_scenario, category.category, category.default_enabled, category.default_min_urgency);
+                    return (
+                      <SettingsList.Row
+                        key={category.category}
+                        label={label}
+                        hint={category.description || undefined}
+                        control="wide"
+                      >
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+                          <Switch
+                            checked={pref.enabled}
+                            disabled={preferenceUpdate.isPending || !signedIn}
+                            aria-label={t(strings.settings.notificationPreferenceEnable, { category: label })}
+                            onCheckedChange={(enabled) => savePref({ ...pref, enabled })}
+                          />
+                          <label className="flex min-h-11 items-center justify-between gap-3 text-sm sm:justify-start">
+                            <span>{t(strings.settings.notificationPreferenceMinimumUrgency)}</span>
+                            <select
+                              className="min-h-11 rounded-control border border-app-border bg-app-background px-3"
+                              aria-label={`${label} · ${t(strings.settings.notificationPreferenceMinimumUrgency)}`}
+                              value={pref.min_urgency || "low"}
+                              disabled={preferenceUpdate.isPending || !signedIn}
+                              onChange={(event) => savePref({ ...pref, min_urgency: event.target.value })}
+                            >
+                              {MIN_URGENCY_CHOICES.map((choice) => (
+                                <option key={choice} value={choice}>{t(strings.settings.notificationUrgency[choice])}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      </SettingsList.Row>
+                    );
+                  })}
+                </SettingsList.Group>
+              </SettingsList>
             );
           })
         )}
         {signedIn && preferenceUpdate.isError && <p aria-live="polite" className="text-sm text-app-muted-foreground">Notification preference update failed.</p>}
       </div>
+    </div>
+    {(signedIn || retainingProtectedSettings) && <>
+      <div hidden={focusedSettingsPanel === "order"} className={focusedSettingsPanel === "quiet" ? "flex min-h-0 flex-1 flex-col" : undefined}>
+        <QuietHoursPanel
+          focused={focusedSettingsPanel === "quiet"}
+          onFocusedChange={handleQuietFocus}
+          backToSettingsLabel={t(strings.pages.settings.title)}
+          onEditorHeaderChange={setQuietEditorHeader && !sessionExpired ? handleQuietHeaderChange : undefined}
+        />
+      </div>
+      <div hidden={focusedSettingsPanel === "quiet"} className={focusedSettingsPanel === "order" ? "flex min-h-0 flex-1 flex-col" : undefined}>
+        <EscalationOrderPanel
+          focused={focusedSettingsPanel === "order"}
+          onFocusedChange={handleOrderFocus}
+          onEditorHeaderChange={setQuietEditorHeader && !sessionExpired ? handleQuietHeaderChange : undefined}
+        />
+      </div>
+    </>}
+    </div>
+    {retainingProtectedSettings && <SessionExpiredRecovery draftRetained signInOpen={signInOpen} onSignIn={() => setSignInOpen(true)} onBack={() => setSignInOpen(false)} onPreferences={() => { setSessionExpired(false); setSignInOpen(false); }} />}
     </section>
   );
 }
 
-/**
- * Connection status: makes the push pipeline observable so a device that looks
- * "enabled" but isn't actually connected — or is running a stale service worker
- * iOS refused to swap — shows the gap instead of hiding it. "Update now" forces
- * a waiting worker to activate and reloads.
- */
-function ConnectionStatusPanel() {
-  const status = useQuery({
-    queryKey: ["connection-status"],
-    queryFn: readConnectionStatus,
-    // Reopening the home-screen app refocuses the window; re-read so the panel
-    // reflects a worker that activated (or didn't) since it was last seen.
-    refetchOnWindowFocus: true,
-  });
-  const update = useMutation({
-    mutationFn: forceServiceWorkerUpdate,
-    onSuccess: () => void status.refetch(),
-  });
-  const data = status.data;
-
-  const worker: StatusTone = !data ? "muted" : !data.controlled ? "bad" : data.stale ? "warn" : "good";
-  const subscription: StatusTone = !data ? "muted" : data.subscribed ? "good" : "bad";
-  const permissionTone: StatusTone = !data
-    ? "muted"
-    : data.permission === "granted"
-      ? "good"
-      : data.permission === "denied"
-        ? "bad"
-        : "warn";
-
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-app-border bg-app-surface-raised px-3 py-3" data-testid="connection-status">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold text-app-foreground">Connection status</h4>
-        <SecondaryButton
-          testId="connection-status-refresh"
-          onClick={() => void status.refetch()}
-          icon={<RefreshCw className={`h-4 w-4 ${status.isFetching ? "animate-spin" : ""}`} aria-hidden="true" />}
-        >
-          Check again
-        </SecondaryButton>
-      </div>
-
-      {!data?.supported && data && (
-        <p className="text-xs text-app-muted-foreground" data-testid="connection-unsupported">
-          Push isn&apos;t available in this browser context. On iPhone, add Notification Hub to your Home Screen and open it from there.
-        </p>
-      )}
-
-      <StatusRow tone={permissionTone} label="Notification permission" value={data ? data.permission : "checking…"} testId="connection-permission" />
-      <StatusRow tone={subscription} label="This device" value={data ? (data.subscribed ? `subscribed (${data.endpointHost})` : "not subscribed") : "checking…"} testId="connection-subscription" />
-      <StatusRow
-        tone={worker}
-        label="Service worker"
-        value={
-          !data
-            ? "checking…"
-            : !data.controlled
-              ? "no active worker"
-              : data.stale
-                ? `stale — running ${data.runningVersion ?? "?"}, latest ${data.availableVersion ?? "?"}`
-                : `up to date (${data.runningVersion ?? data.availableVersion ?? "?"})`
-        }
-        testId="connection-worker"
-      />
-
-      {data?.stale && (
-        <div className="flex flex-col gap-1">
-          <Button type="button" variant="primary" disabled={update.isPending} onClick={() => update.mutate()} data-testid="connection-update">
-            {update.isPending ? "Updating…" : "Update now"}
-          </Button>
-          <p className="text-xs text-app-muted-foreground">
-            A newer version is deployed. If this persists on iPhone, fully close the app (swipe it away) and reopen it.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-type StatusTone = "good" | "warn" | "bad" | "muted";
-
-function StatusRow({ tone, label, value, testId }: { tone: StatusTone; label: string; value: string; testId: string }) {
-  const dot: Record<StatusTone, string> = {
-    good: "bg-green-500",
-    warn: "bg-amber-500",
-    bad: "bg-red-500",
-    muted: "bg-app-surface-muted",
-  };
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm" data-testid={testId}>
-      <span className="flex items-center gap-2 text-app-muted-foreground">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${dot[tone]}`} aria-hidden="true" />
-        {label}
-      </span>
-      <span className="min-w-0 truncate text-app-foreground" data-testid={`${testId}-value`}>{value}</span>
-    </div>
-  );
-}
-
-function PreferenceRow({ label, description, pref, disabled, onChange }: {
-  label: string;
-  description?: string;
-  pref: NotificationPreference;
-  disabled: boolean;
-  onChange: (next: NotificationPreference) => void;
+function SessionExpiredRecovery({
+  draftRetained,
+  signInOpen,
+  onSignIn,
+  onBack,
+  onPreferences,
+}: {
+  draftRetained: boolean;
+  signInOpen: boolean;
+  onSignIn: () => void;
+  onBack: () => void;
+  onPreferences: () => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-2.5 first:border-t-0 first:pt-0">
-      <div className="flex min-w-0 flex-col">
-        <span className="text-sm text-app-foreground">{label}</span>
-        {description && <span className="text-xs text-app-muted-foreground">{description}</span>}
+    <section
+      aria-label={t(strings.settings.sessionExpiredTitle)}
+      className="-mx-4 -mt-4 flex min-h-[calc(100dvh-3.5rem)] flex-col sm:-mx-8"
+    >
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:px-8 sm:py-8 sm:gap-6">
+        {signInOpen ? (
+          <>
+            <button type="button" onClick={onBack} className="w-fit text-sm font-medium underline">
+              ← {t(strings.settings.sessionExpiredTitle)}
+            </button>
+            <SessionPanel />
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-app-muted-foreground">{t(strings.settings.sessionExpiredEyebrow)}</p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t(strings.settings.sessionExpiredTitle)}</h1>
+            <aside className="border-s-4 border-app-warning ps-4 py-3">
+              <p className="text-lg font-bold">{t(draftRetained ? strings.settings.sessionExpiredDraftTitle : strings.settings.sessionExpiredRecoveryTitle)}</p>
+              <p className="mt-2 text-base leading-relaxed">{t(draftRetained ? strings.settings.sessionExpiredDraftBody : strings.settings.sessionExpiredRecoveryBody)}</p>
+            </aside>
+            <p className="text-base leading-relaxed">{t(strings.settings.sessionExpiredPrivacyBody)}</p>
+            <p className="text-sm text-app-muted-foreground">{t(strings.settings.sessionExpiredOtherOwner)}</p>
+          </>
+        )}
       </div>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1 text-sm">
-          <input
-            type="checkbox"
-            checked={pref.enabled}
-            disabled={disabled}
-            onChange={(event) => onChange({ ...pref, enabled: event.target.checked })}
-          />
-          Enabled
-        </label>
-        <label className="flex items-center gap-1 text-sm">Min urgency
+      {!signInOpen && <footer className="sticky bottom-0 flex gap-3 border-t border-app-border bg-app-surface-muted px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-8">
+        <Button className="min-h-12 flex-1 rounded-lg" type="button" variant="primary" onClick={onSignIn}>
+          {t(strings.settings.openSignIn)}
+        </Button>
+        <Link to="/settings?view=preferences" onClick={onPreferences} className="flex min-h-12 flex-1 items-center justify-center rounded-lg border border-app-border px-4 text-center font-medium">
+          {t(strings.settings.openPreferences)}
+        </Link>
+      </footer>}
+    </section>
+  );
+}
+
+function AppearanceLanguageControls({
+  choice,
+  setTheme,
+  preferenceStorageUnavailable,
+  layout = "radio",
+}: {
+  choice: ThemeChoice;
+  setTheme: (choice: ThemeChoice) => void;
+  preferenceStorageUnavailable: boolean;
+  layout?: "radio" | "select";
+}) {
+  const { t } = useTranslation();
+  const currentLocale = getCurrentLocale();
+  if (layout === "select") {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="settings-appearance" className="text-base font-semibold">{t(strings.pages.settings.themeHeading)}</label>
           <select
-            className="rounded border border-app-border bg-app-background px-2 py-1"
-            value={pref.min_urgency || "low"}
-            disabled={disabled}
-            onChange={(event) => onChange({ ...pref, min_urgency: event.target.value })}
+            id="settings-appearance"
+            aria-label={t(strings.theme.switcherLabel)}
+            className="min-h-12 w-full rounded-xl border-2 border-app-border bg-app-surface-raised px-4 text-base text-app-foreground"
+            value={choice}
+            onChange={(event) => setTheme(event.currentTarget.value as ThemeChoice)}
           >
-            {MIN_URGENCY_CHOICES.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
+            {THEME_CHOICES.map((theme) => <option key={theme} value={theme}>{t(strings.theme.choice[theme])}</option>)}
           </select>
-        </label>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="settings-language" className="text-base font-semibold">{t(strings.pages.settings.displayLanguageHeading)}</label>
+          <select
+            id="settings-language"
+            aria-label={t(strings.locale.switcherLabel)}
+            className="min-h-12 w-full rounded-xl border-2 border-app-border bg-app-surface-raised px-4 text-base text-app-foreground"
+            value={currentLocale}
+            onChange={(event) => void setLocale(event.currentTarget.value as (typeof SUPPORTED_LOCALES)[number])}
+          >
+            {SUPPORTED_LOCALES.map((locale) => <option key={locale} value={locale}>{getLocaleConfig(locale).nativeLabel}</option>)}
+          </select>
+        </div>
+        {preferenceStorageUnavailable && (
+          <>
+            <aside role="status" aria-live="polite" aria-atomic="true" className="border-s-4 border-app-warning ps-4 py-3">
+              <p className="font-semibold">{t(strings.preferenceStorage.title)}</p>
+              <p>{t(strings.preferenceStorage.body)}</p>
+            </aside>
+            <p className="text-sm text-app-muted-foreground">
+              {t(strings.preferenceStorage.noAccountChange)} {t(strings.preferenceStorage.otherDraftsStay)}
+            </p>
+          </>
+        )}
       </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.pages.settings.themeHeading)}
+        </h3>
+        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex flex-wrap gap-2">
+          {THEME_CHOICES.map((theme) => (
+            <button
+              key={theme}
+              type="button"
+              role="radio"
+              aria-checked={choice === theme}
+              onClick={() => setTheme(theme)}
+              data-testid={selectors.settingsPage.themeOption({ choice: theme })}
+              className={`min-h-11 rounded-full border px-3 text-sm font-semibold ${choice === theme ? "border-app-primary bg-app-primary text-app-primary-foreground" : "border-app-border bg-app-surface text-app-foreground"}`}
+            >
+              {t(strings.theme.choice[theme])}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.pages.settings.localeHeading)}
+        </h3>
+        <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} className="flex flex-wrap gap-2">
+          {SUPPORTED_LOCALES.map((locale) => (
+            <button
+              key={locale}
+              type="button"
+              role="radio"
+              aria-checked={currentLocale === locale}
+              onClick={() => void setLocale(locale)}
+              data-testid={selectors.settingsPage.localeOption({ code: locale })}
+              className={`min-h-11 rounded-full border px-3 text-sm font-semibold ${currentLocale === locale ? "border-app-primary bg-app-primary text-app-primary-foreground" : "border-app-border bg-app-surface text-app-foreground"}`}
+            >
+              {getLocaleConfig(locale).nativeLabel}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {preferenceStorageUnavailable && (
+        <aside role="status" aria-live="polite" aria-atomic="true" className="border-s-4 border-app-warning ps-4 py-3">
+          <p className="font-semibold">{t(strings.preferenceStorage.title)}</p>
+          <p>{t(strings.preferenceStorage.body)}</p>
+          <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.preferenceStorage.noAccountChange)}</p>
+          <p className="text-sm text-app-muted-foreground">{t(strings.preferenceStorage.otherDraftsStay)}</p>
+        </aside>
+      )}
     </div>
   );
 }
@@ -495,10 +621,4 @@ function SecondaryButton({ children, onClick, testId, icon }: {
       {children}
     </button>
   );
-}
-
-function base64UrlToBytes(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
-  const decoded = atob(normalized);
-  return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
 }

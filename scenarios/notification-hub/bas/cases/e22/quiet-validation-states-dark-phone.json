@@ -1,0 +1,695 @@
+{
+  "metadata": {
+    "name": "e22-quiet-validation-states-dark-phone",
+    "description": "Exercise equal, malformed, and overnight quiet-window drafts on dark phone without saving.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e22-quiet-validation-states-dark-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Exercise equal, malformed, and overnight quiet-window drafts on dark phone without saving.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-quiet-validation-states-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open leased owner settings fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Settings"
+          }
+        }
+      },
+      {
+        "id": "select-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Select dark theme"
+          }
+        }
+      },
+      {
+        "id": "open-monday",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open Monday quiet-window editor"
+          }
+        }
+      },
+      {
+        "id": "wait-monday-editor",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Monday editor fields"
+          }
+        }
+      },
+      {
+        "id": "equal-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set equal-time start"
+          }
+        }
+      },
+      {
+        "id": "equal-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set equal-time end"
+          }
+        }
+      },
+      {
+        "id": "equal-timezone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Match selected Etc/UTC timezone"
+          }
+        }
+      },
+      {
+        "id": "assert-equal-time",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Start and end are the same"
+            },
+            "failure_message": "Equal times remain invalid and do not become an all-day window"
+          },
+          "metadata": {
+            "label": "Verify equal-time validation"
+          }
+        }
+      },
+      {
+        "id": "blur-equal",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();return {active:document.activeElement?.tagName}})()",
+            "store_result": "equalBlur"
+          },
+          "metadata": {
+            "label": "Clear field focus before capture"
+          }
+        }
+      },
+      {
+        "id": "zero-insets-equal",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('selected phone state needs zero insets');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "equalStateInsets"
+          },
+          "metadata": {
+            "label": "Normalize selected zero-inset viewport"
+          }
+        }
+      },
+      {
+        "id": "capture-equal",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture equal-time state"
+          }
+        }
+      },
+      {
+        "id": "invalid-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "25:30",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set malformed start time"
+          }
+        }
+      },
+      {
+        "id": "invalid-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Restore selected state end time to 14:00"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-end",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const end=document.querySelector('[data-testid=\\\"quiet-hours-end-1\\\"]')?.value;if(end!=='14:00')throw new Error(`invalid-time selected end mismatch: ${end}`);return {end}})()"
+          },
+          "metadata": {
+            "label": "Verify the selected malformed-time fixture retains the 14:00 end value"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-time",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "The start time isn’t valid"
+            },
+            "failure_message": "Malformed time is rejected before persistence"
+          },
+          "metadata": {
+            "label": "Verify malformed-time validation"
+          }
+        }
+      },
+      {
+        "id": "blur-invalid",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();return {active:document.activeElement?.tagName}})()",
+            "store_result": "invalidBlur"
+          },
+          "metadata": {
+            "label": "Clear field focus before capture"
+          }
+        }
+      },
+      {
+        "id": "zero-insets-invalid",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('selected phone state needs zero insets');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "invalidStateInsets"
+          },
+          "metadata": {
+            "label": "Normalize selected zero-inset viewport"
+          }
+        }
+      },
+      {
+        "id": "capture-invalid",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture malformed-time state"
+          }
+        }
+      },
+      {
+        "id": "timezone-valid-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected window start"
+          }
+        }
+      },
+      {
+        "id": "timezone-valid-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected window end"
+          }
+        }
+      },
+      {
+        "id": "invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Moon/Base",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected invalid IANA time zone"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "The time zone isn’t recognized"
+            },
+            "failure_message": "Invalid timezone is rejected before persistence"
+          },
+          "metadata": {
+            "label": "Verify invalid time zone validation"
+          }
+        }
+      },
+      {
+        "id": "blur-invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();return {active:document.activeElement?.tagName}})()",
+            "store_result": "invalidZoneBlur"
+          },
+          "metadata": {
+            "label": "Clear field focus before capture"
+          }
+        }
+      },
+      {
+        "id": "zero-insets-invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('selected phone state needs zero insets');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "invalidZoneInsets"
+          },
+          "metadata": {
+            "label": "Normalize selected zero-inset viewport"
+          }
+        }
+      },
+      {
+        "id": "capture-invalid-zone",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture invalid-timezone state"
+          }
+        }
+      },
+      {
+        "id": "restore-overnight-zone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Restore selected overnight timezone"
+          }
+        }
+      },
+      {
+        "id": "overnight-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "22:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set overnight start"
+          }
+        }
+      },
+      {
+        "id": "overnight-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "07:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set overnight end"
+          }
+        }
+      },
+      {
+        "id": "overnight-timezone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set selected Etc/UTC time zone"
+          }
+        }
+      },
+      {
+        "id": "assert-overnight-held",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "An updated scheduling contract is needed"
+            },
+            "failure_message": "Unsupported overnight window stays held and cannot be saved"
+          },
+          "metadata": {
+            "label": "Verify overnight remains held"
+          }
+        }
+      },
+      {
+        "id": "blur-overnight",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();return {active:document.activeElement?.tagName}})()",
+            "store_result": "overnightBlur"
+          },
+          "metadata": {
+            "label": "Clear field focus before capture"
+          }
+        }
+      },
+      {
+        "id": "zero-insets-overnight",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('selected phone state needs zero insets');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "overnightStateInsets"
+          },
+          "metadata": {
+            "label": "Normalize selected zero-inset viewport"
+          }
+        }
+      },
+      {
+        "id": "capture-overnight",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture overnight-held state"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "validation-timezone-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-01",
+        "source": "wait-settings",
+        "target": "select-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-02",
+        "source": "select-theme",
+        "target": "open-monday",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-03",
+        "source": "open-monday",
+        "target": "wait-monday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-04",
+        "source": "wait-monday-editor",
+        "target": "equal-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-05",
+        "source": "equal-start",
+        "target": "equal-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-06",
+        "source": "equal-end",
+        "target": "equal-timezone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-07",
+        "source": "equal-timezone",
+        "target": "assert-equal-time",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-08",
+        "source": "assert-equal-time",
+        "target": "blur-equal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-09",
+        "source": "blur-equal",
+        "target": "zero-insets-equal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-10",
+        "source": "zero-insets-equal",
+        "target": "capture-equal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-11",
+        "source": "capture-equal",
+        "target": "invalid-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-12",
+        "source": "invalid-start",
+        "target": "invalid-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-13",
+        "source": "assert-invalid-time",
+        "target": "blur-invalid",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-14",
+        "source": "blur-invalid",
+        "target": "zero-insets-invalid",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-15",
+        "source": "zero-insets-invalid",
+        "target": "capture-invalid",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-16",
+        "source": "capture-invalid",
+        "target": "timezone-valid-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-17",
+        "source": "timezone-valid-start",
+        "target": "timezone-valid-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-18",
+        "source": "timezone-valid-end",
+        "target": "invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-19",
+        "source": "invalid-zone",
+        "target": "assert-invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-20",
+        "source": "assert-invalid-zone",
+        "target": "blur-invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-21",
+        "source": "blur-invalid-zone",
+        "target": "zero-insets-invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-22",
+        "source": "zero-insets-invalid-zone",
+        "target": "capture-invalid-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-23",
+        "source": "capture-invalid-zone",
+        "target": "restore-overnight-zone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-24",
+        "source": "restore-overnight-zone",
+        "target": "overnight-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-25",
+        "source": "overnight-start",
+        "target": "overnight-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-26",
+        "source": "overnight-end",
+        "target": "overnight-timezone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-27",
+        "source": "overnight-timezone",
+        "target": "assert-overnight-held",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-28",
+        "source": "assert-overnight-held",
+        "target": "blur-overnight",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-29",
+        "source": "blur-overnight",
+        "target": "zero-insets-overnight",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-30",
+        "source": "zero-insets-overnight",
+        "target": "capture-overnight",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-invalid-end",
+        "source": "invalid-end",
+        "target": "assert-invalid-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "validation-timezone-invalid-end-verified",
+        "source": "assert-invalid-end",
+        "target": "assert-invalid-time",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

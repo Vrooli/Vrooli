@@ -40,7 +40,7 @@ and the presentation. These fields are parallel to `decisionFacts`.
 
 | Field | Required | Meaning |
 |---|---|---|
-| `title` (or `subject`) | no | Short headline. When absent, the hub builds one from the source branding and category |
+| `title` (or `subject`) | no | Short headline, shown exactly as sent (no source prefix). When absent, the hub falls back to the source's display name |
 | `body` | yes | The message shown to the recipient |
 | `urgency` | no | `low`, `normal` (default), `high` or `critical`. Only `critical` can pass a quiet window, and only when that window allows it |
 | `sensitivity` | no | `public`, `private` (default), `sensitive` or `critical`. **Producer-declared** — see below |
@@ -48,6 +48,29 @@ and the presentation. These fields are parallel to `decisionFacts`.
 | `context_url` | no | Deep link into the source scenario |
 | `dedupe_key` | no | Producer-supplied dedupe key; collapses repeats from the same producer |
 | `correlation` | no | String map (at most 1 KB) echoed downstream |
+
+### Writing the title and body
+
+A phone shows roughly 30 to 40 title characters and three body lines, and on
+iOS every notification carries the installed app's icon and name, not the
+source's. Write for that:
+
+- **The title says what happened, specifically.** Lead with the outcome and,
+  for a problem, the reason: "Agent interrupted: model at capacity", not
+  "Agent interrupted"; "Commit message ready · Vrooli", not "Update".
+- **Do not name the source scenario or Notification Hub.** The hub sends the
+  title as written, and source names spend the space the outcome needs.
+- **The body's first line says which one.** Several sessions, runs, or jobs
+  run at once, so name the subject in human terms: a session's tab name and
+  agent, a run's task title, a proposal's commit subject.
+- **The next line says what to do or adds the detail** (the agent's question,
+  the error, "Open the session to resume or retry"). Separate lines with `\n`.
+- **Never send ids or raw keys** when a human name exists; fall back to a short
+  id only when nothing else names the subject.
+
+Examples in the tree: `web-console/api/session_notifications.go`,
+`agent-manager/api/internal/orchestration/run_outcome_events.go`,
+`git-control-tower/api/gct_notifications.go`.
 
 ### Producer-declared sensitivity
 
@@ -175,6 +198,13 @@ contract level; shapes live with the service definition.
 | `GetNotificationPreferences` | Return the recipient's current preferences |
 | `SetNotificationPreference` | Upsert one `(source_scenario, category?)` preference |
 
+These are served today as plain REST (`GET /api/v1/notifications/catalog`,
+`GET|PUT /api/v1/notifications/preferences`). Both reads accept an optional
+`source_scenario` filter (repeatable or comma-separated). Notification Hub's
+own Settings page reads unfiltered; a producing scenario's settings page MUST
+pass its own slug so it shows only the categories it declared. See
+[scenario notification settings](../research/scenario-notification-settings.md).
+
 ## Centralized Delivery (and Why)
 
 **Delivery stays in notification-hub.** There is one installed progressive web
@@ -203,6 +233,22 @@ discouraged:
 The division of labor is therefore stable: **producers own facts and
 configuration; the hub owns copy, branding resolution, the preference gate,
 and the single act of delivery.**
+
+## Maturity Path For A Scenario
+
+| Tier | Status | What the scenario does |
+|---|---|---|
+| T0: publish | Available | Publish `*.notification.v1` facts (above) and declare categories in `.vrooli/notifications.json` |
+| T1: own settings section | Web Console only; extraction planned | Show only its own categories in its settings page, filtered with `?source_scenario=<name>` |
+| T2: own identity on web push | Research | Its installed PWA receives its notifications (own icon, name, tap target), still routed by the hub |
+| T3: native push | Research; iOS blocked | Native app from `scenario-to-*` receives push via APNs, FCM, or a desktop channel |
+
+T0 is all a scenario needs today. Research and plans for the later tiers:
+[`../research/scenario-notification-settings.md`](../research/scenario-notification-settings.md)
+(T1) and [`../research/scenario-owned-delivery.md`](../research/scenario-owned-delivery.md)
+(T2 and T3). Until the hub ships per-device routing, a scenario must **not**
+register its own push subscription with the hub: it would be delivered in
+addition to Chimesail, not instead of it.
 
 ## Cross-References
 

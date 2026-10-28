@@ -13,6 +13,7 @@ import { AsksPage } from "../features/asks/AsksPage";
 import { HistoryPage } from "../features/asks/HistoryPage";
 import { DeliveryPage } from "../pages/DeliveryPage";
 import { DeliveryDetailPage } from "../pages/DeliveryDetailPage";
+import { ReachPage } from "../pages/ReachPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -33,6 +34,7 @@ export const routes: RouteObject[] = [
       { path: "delivery", element: <DeliveryPage /> },
       { path: "delivery/:notificationId", element: <DeliveryDetailPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "settings/reach", element: <ReachPage /> },
     ],
   },
 ];

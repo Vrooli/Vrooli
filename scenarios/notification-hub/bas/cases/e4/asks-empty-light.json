@@ -1,9 +1,9 @@
 {
   "metadata": {
     "name": "e4-asks-empty-light",
-    "description": "Captures NH13.4 from a disposable routed test-pool fixture in light theme.",
+    "description": "Given the leased disposable recipient fixture on a phone, when the owner uses the destination drawer, then the selected light empty Needs you state is shown.",
     "requirement": "OT-P0-001",
-    "version": "1",
+    "version": "2",
     "labels": {
       "reset": "none",
       "routed_isolation": "true",
@@ -32,7 +32,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "notification-hub",
-          "scenario_path": "/settings?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1&e4_fixture=empty-open-asks",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
@@ -70,11 +70,23 @@
       }
     },
     {
+      "id": "open-menu-for-focus-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "focus-asks-tab",
       "action": {
         "type": "ACTION_TYPE_FOCUS",
         "focus": {
-          "selector": "@selector/layout.navTab(key=asks)",
+          "selector": "@selector/layout.navLink(key=asks)",
           "scroll": true
         },
         "metadata": {
@@ -177,7 +189,7 @@
     {
       "id": "e3",
       "source": "reload-clean-query-cache",
-      "target": "focus-asks-tab",
+      "target": "open-menu-for-focus-asks-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -214,6 +226,12 @@
       "id": "capture-selected-state-edge",
       "source": "verify-phone-theme-and-dpr",
       "target": "capture-selected-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-focus-asks-tab-edge",
+      "source": "open-menu-for-focus-asks-tab",
+      "target": "focus-asks-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

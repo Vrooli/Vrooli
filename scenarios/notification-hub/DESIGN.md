@@ -319,3 +319,13 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Introduce a new product theme without updating the scenario's root `DESIGN.md`.
 - Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
 - Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
+
+
+## Chimesail install and browser identity
+
+The customer-facing identity is Chimesail, adopted through Brand Manager.
+`brand-manager:theme-color-token-override`: Browser chrome and the install manifest use
+`#0b1728`, the generated midnight icon container, to keep launch and browser identity
+consistent. This deliberate brand color differs from the base kit surface token above;
+it does not change the selected light/dark product surfaces or their existing theme tokens.
+The current design amendments remain in `docs/concepts/FLOWS.md`.

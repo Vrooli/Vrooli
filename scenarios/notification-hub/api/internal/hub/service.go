@@ -180,10 +180,9 @@ func (s *Service) resolveIconURL(ctx context.Context, sourceScenario string) str
 
 // resolveDisplayName returns the source scenario's human display name from the
 // branding seam, or "" when none resolves (tests, or an unknown source). It is
-// used to self-identify a relayed notification in its title: on iOS every
-// notification shows notification-hub's own app icon regardless of the icon we
-// send (Safari ignores the per-notification icon), so the title is the only
-// place the operator can see which scenario a notification is actually from.
+// the title fallback when a producer sent no headline. (On iOS every
+// notification shows the hub's own app icon regardless of the icon we send;
+// producers name their subject in the title/body instead of a source prefix.)
 func (s *Service) resolveDisplayName(ctx context.Context, sourceScenario string) string {
 	sourceScenario = strings.TrimSpace(sourceScenario)
 	if sourceScenario == "" {
@@ -199,23 +198,15 @@ func (s *Service) resolveDisplayName(ctx context.Context, sourceScenario string)
 	return ""
 }
 
-// titleWithSource prefixes a notification title with its source's display name
-// so a relayed notification is self-identifying on iOS. It is a no-op when the
-// name is empty or the title already leads with it (a source that already
-// names itself is not doubled up).
-func titleWithSource(displayName, title string) string {
-	displayName = strings.TrimSpace(displayName)
-	title = strings.TrimSpace(title)
-	if displayName == "" {
+// pushTitle is the producer's headline, unprefixed. A source prefix spent
+// most of the space iOS shows before truncating, and the operator asked for
+// titles that say what happened rather than who said it. The source name is
+// only a fallback for a producer that sent no title.
+func pushTitle(displayName, title string) string {
+	if title = strings.TrimSpace(title); title != "" {
 		return title
 	}
-	if title == "" {
-		return displayName
-	}
-	if strings.HasPrefix(strings.ToLower(title), strings.ToLower(displayName)) {
-		return title
-	}
-	return displayName + " — " + title
+	return strings.TrimSpace(displayName)
 }
 
 // defaultIconURL resolves the source scenario's PWA app icon to an absolute,
@@ -999,7 +990,7 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		if strings.TrimSpace(n.ContextURL) != "" {
 			url = n.ContextURL
 		}
-		msg := PushMessage{Title: titleWithSource(s.resolveDisplayName(ctx, n.SourceScenario), n.Title), Body: body, Tag: n.ID, URL: url}
+		msg := PushMessage{Title: pushTitle(s.resolveDisplayName(ctx, n.SourceScenario), n.Title), Body: body, Tag: n.ID, URL: url}
 		if s.iconURL != nil {
 			msg.Icon = s.resolveIconURL(ctx, n.SourceScenario)
 		}
@@ -1120,19 +1111,39 @@ func (s *Service) SetQuietWindow(ctx context.Context, recipient string, window Q
 	if recipient == "" || window.Weekday < 0 || window.Weekday > 6 || window.Start == "" || window.End == "" || window.Timezone == "" {
 		return QuietWindow{}, fmt.Errorf("%w: recipient, weekday, start, end, and timezone are required", ErrInvalidArgument)
 	}
+	start, startErr := time.Parse("15:04", window.Start)
+	end, endErr := time.Parse("15:04", window.End)
+	if startErr != nil || endErr != nil || start.Format("15:04") != window.Start || end.Format("15:04") != window.End {
+		return QuietWindow{}, fmt.Errorf("%w: quiet window times must use 24-hour HH:MM", ErrInvalidArgument)
+	}
+	if window.Start == window.End {
+		return QuietWindow{}, fmt.Errorf("%w: quiet window start and end must differ", ErrInvalidArgument)
+	}
+	if window.End < window.Start {
+		return QuietWindow{}, fmt.Errorf("%w: overnight quiet windows are held pending policy support", ErrInvalidArgument)
+	}
 	if _, err := time.LoadLocation(window.Timezone); err != nil {
 		return QuietWindow{}, fmt.Errorf("%w: invalid timezone", ErrInvalidArgument)
 	}
 	if err := s.EnsureRecipient(ctx, recipient); err != nil {
 		return QuietWindow{}, err
 	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM quiet_windows WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?) AND weekday = ?`, recipient, window.Weekday)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return QuietWindow{}, err
 	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM quiet_windows WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?) AND weekday = ?`, recipient, window.Weekday); err != nil {
+		return QuietWindow{}, err
+	}
 	window.ID = uuid.NewString()
-	_, err = s.db.ExecContext(ctx, `INSERT INTO quiet_windows (id, recipient_id, weekday, start_time, end_time, timezone, critical_override) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?, ?, ?)`, window.ID, recipient, window.Weekday, window.Start, window.End, window.Timezone, boolInt(window.CriticalOverride))
-	return window, err
+	if _, err := tx.ExecContext(ctx, `INSERT INTO quiet_windows (id, recipient_id, weekday, start_time, end_time, timezone, critical_override) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?, ?, ?)`, window.ID, recipient, window.Weekday, window.Start, window.End, window.Timezone, boolInt(window.CriticalOverride)); err != nil {
+		return QuietWindow{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return QuietWindow{}, err
+	}
+	return window, nil
 }
 
 func (s *Service) inQuietWindow(ctx context.Context, recipient, urgency string, now time.Time) (bool, error) {
@@ -1402,6 +1413,56 @@ type DeliveryAttemptRecord struct {
 	Outcome   string `json:"outcome"`
 	Reason    string `json:"reason,omitempty"`
 	CreatedAt string `json:"created_at"`
+}
+
+// RecipientDeliveryAttempt is the safe owner-facing attempt projection. It
+// deliberately excludes machine/provider identifiers and notification content.
+type RecipientDeliveryAttempt struct {
+	Channel       string `json:"channel"`
+	Attempt       int    `json:"attempt"`
+	Outcome       string `json:"outcome"`
+	NextAttemptAt string `json:"next_attempt_at,omitempty"`
+	CreatedAt     string `json:"created_at"`
+}
+
+// ListDeliveryAttemptsForRecipient returns bounded durable attempts only when
+// the notification belongs to the configured recipient. Empty/foreign owners
+// both fail closed as NotFound.
+func (s *Service) ListDeliveryAttemptsForRecipient(ctx context.Context, id, recipient string, limit int) ([]RecipientDeliveryAttempt, bool, error) {
+	recipient = strings.TrimSpace(recipient)
+	if recipient == "" {
+		return nil, false, ErrNotFound
+	}
+	var exists int
+	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM notifications WHERE id = ? AND requested_by = ?`, id, recipient).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
+		return nil, false, ErrNotFound
+	} else if err != nil {
+		return nil, false, err
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT channel, attempt_number, outcome, next_attempt_at, created_at FROM delivery_attempts WHERE notification_id = ? ORDER BY created_at, attempt_number, id LIMIT ?`, id, limit+1)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	out := make([]RecipientDeliveryAttempt, 0)
+	for rows.Next() {
+		var item RecipientDeliveryAttempt
+		if err := rows.Scan(&item.Channel, &item.Attempt, &item.Outcome, &item.NextAttemptAt, &item.CreatedAt); err != nil {
+			return nil, false, err
+		}
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	truncated := len(out) > limit
+	if truncated {
+		out = out[:limit]
+	}
+	return out, truncated, nil
 }
 
 // ListDeliveryProjection returns the newest legacy-prefix notifications and

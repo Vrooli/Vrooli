@@ -209,3 +209,11 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+
+## Work ladder
+
+- Rung: W3
+- Evidence: current managed NH13.5 light/dark phone captures use the identity-verified selected originals, 390×844 CSS viewport, zero insets, asserted header top, and byte-matched served build. The header is present; current header weight/color and dark disclosure rail remain visible mismatches. Current audit is in `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/selected-original-identity-audit.json`.
+- Result: focused UI suite passed 76/76; type-check, string/selector freshness and managed freshness passed. All 17 registered current E22 order/quiet cases and the five focused E21 readback journeys have passing durable runs; current combined owner journey `bc619f5d-aaa4-448f-b963-ca1d32dd198a` also passed (150 lease-pool requests, zero primary/test-root writes); the empty-draft case now waits for editor readiness before saved-readback assertions. Its critical-only disclosure and vertical content remain an honest visual mismatch. E43 remains rough with 47 captures, 0 matches, 47 mismatches, 61 unavailable rows; do not infer surface acceptance.
+- Measured: 2026-10-25.

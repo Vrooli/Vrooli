@@ -26,8 +26,36 @@ body {
   padding: 0;
 }
 
-/* The shared shell owns its phone header, skip link, and bottom navigation.
-   Start the shell below the status area; BottomNav applies the bottom inset. */
+body:has(.quiet-editor-shell) {
+  background-image: linear-gradient(
+    to bottom,
+    var(--color-surface) 0 var(--safe-area-inset-top),
+    var(--color-background) var(--safe-area-inset-top) 100%
+  );
+}
+
+.quiet-editor-shell[data-main-mode="fill"] [data-rcl-app-shell-main] {
+  padding: clamp(var(--space-sm), 3vw, var(--space-lg));
+  padding-block-end: calc(clamp(var(--space-sm), 3vw, var(--space-lg)) + var(--safe-area-inset-bottom));
+}
+
+@media (min-width: 48rem) {
+  .quiet-editor-shell [data-rcl-app-shell-header],
+  .quiet-editor-shell [data-rcl-app-shell-main] {
+    max-inline-size: 58.75rem;
+  }
+
+  .quiet-editor-shell [data-rcl-app-shell-main] {
+    padding-block-start: calc(clamp(var(--space-sm), 3vw, var(--space-lg)) - 3px);
+  }
+
+  .quiet-editor-shell[data-main-mode="fill"] [data-rcl-app-shell-main] {
+    padding-block-start: calc(clamp(var(--space-sm), 3vw, var(--space-lg)) - 3px);
+  }
+}
+
+/* The page header clears the top inset; the fixed drawer and main pane own
+   their own safe padding. Subtract the offset to keep the shell in the viewport. */
 [data-rcl-app-shell] {
   --rcl-app-shell-block-size: calc(100dvh - var(--safe-area-inset-top));
   block-size: var(--rcl-app-shell-block-size);
@@ -45,55 +73,62 @@ body {
 }
 
 @media (max-width: 47.999rem) {
-  [data-rcl-app-shell-header][data-mobile-only="false"] {
-    display: flex;
-    padding-inline: var(--space-xs);
-  }
-
-  [data-rcl-app-shell-header][data-mobile-only="false"] > :last-child {
-    display: none;
-  }
-
-  .history-state-filters[data-search-active="true"] {
-    display: none;
-  }
-
-  .nh-mobile-header-content {
-    order: -1;
-    flex: 1 1 auto;
-    min-inline-size: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    width: auto;
-  }
-
   [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu] {
-    inline-size: max-content !important;
+    inline-size: var(--tap-target-min);
     min-inline-size: var(--tap-target-min);
-    padding-inline: var(--space-xs);
+    min-block-size: 44px;
   }
 
-  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu] [data-rcl-icon-button-glyph] {
-    display: none;
-  }
-
-  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu]::after {
-    content: attr(aria-label);
-    font: var(--text-label);
-    white-space: nowrap;
-  }
-
-  html:lang(en) [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu][aria-expanded="false"]::after {
-    content: "Menu";
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu-region] {
+    order: 2;
+    margin-inline-start: auto;
   }
 
   [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu-panel] {
     inset-inline-start: auto;
     inset-inline-end: 0;
+    max-inline-size: calc(100vw - var(--safe-area-inset-left) - var(--safe-area-inset-right) - 1.25rem);
   }
 
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-header] {
+    min-block-size: 3.5rem;
+    padding-inline: 0.625rem;
+  }
+
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-header-brand] {
+    order: -1;
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+
+  .delivery-context-shell [data-rcl-app-shell-header] {
+    min-block-size: 3.5rem;
+    padding-inline: 0.625rem;
+  }
+
+  .delivery-context-shell [data-rcl-app-shell-header-brand] {
+    display: none !important;
+  }
+
+  .delivery-context-shell[data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu] {
+    min-inline-size: var(--tap-target-min);
+    min-block-size: 44px;
+  }
+
+  .delivery-context-shell [data-selected-delivery-header] {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  .delivery-context-shell[data-mobile-nav="menu-tabs"] [data-rcl-app-shell-menu] {
+    color: var(--color-foreground);
+  }
+
+  [data-rcl-app-shell][data-mobile-nav="menu-tabs"] [data-rcl-app-shell-header-brand] .rcl-app-shell__brand {
+    min-block-size: 3.5rem;
+    padding-inline: 0;
+    font: 600 0.75rem/1rem var(--font-sans);
+  }
 
 }
 
@@ -101,11 +136,84 @@ body {
   [data-rcl-app-shell-header][data-mobile-only="false"] {
     display: none;
   }
+
+  [data-rcl-app-shell-sidebar] [data-rcl-sidebar-shell] {
+    background: var(--color-background);
+  }
+
+  [data-rcl-app-shell-sidebar] .rcl-app-shell__brand {
+    justify-content: center;
+    padding-inline: var(--space-2xs);
+  }
+
+  [data-rcl-app-shell-sidebar] [data-rcl-app-shell-link] {
+    inline-size: min(12rem, calc(100% - 2rem));
+    justify-content: center;
+    gap: 0;
+    margin-inline: auto;
+    padding-inline: var(--space-xs);
+  }
+
+  [data-rcl-app-shell-sidebar] [data-rcl-app-shell-link-icon] {
+    display: none;
+  }
+
+  [data-rcl-app-shell-sidebar] [data-rcl-app-shell-link-label] {
+    flex: none;
+    overflow: visible;
+    text-align: center;
+  }
+
+  [data-rcl-app-shell-sidebar] [data-rcl-app-shell-link][aria-current="page"] {
+    background: #e4edff;
+    box-shadow: none;
+  }
+
+  :root[data-resolved-theme="dark"] [data-rcl-app-shell-sidebar] [data-rcl-app-shell-link][aria-current="page"],
+  :root[data-theme="dark"] [data-rcl-app-shell-sidebar] [data-rcl-app-shell-link][aria-current="page"] {
+    background: #1f3144;
+  }
+}
+
+@media (max-width: 47.999rem) {
+  .quiet-editor-shell [data-rcl-app-shell-header] [data-rcl-app-shell-menu] {
+    order: 2;
+    margin-inline-start: auto;
+  }
+
+  .quiet-editor-shell [data-rcl-app-shell-header] [data-selected-quiet-editor-header] {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  .quiet-editor-shell[data-mobile-nav="menu-tabs"] [data-rcl-app-shell-header][data-mobile-only="false"] [data-rcl-app-shell-header-brand] {
+    display: none !important;
+  }
+}
+
+@media (min-width: 48rem) {
+  .quiet-editor-shell [data-rcl-app-shell-header][data-mobile-only="false"] {
+    display: flex;
+  }
+}
+
+.quiet-editor-shell [data-testid^="quiet-hours-editor-"] [role="alert"] {
+  border-inline-start-color: #ffd36d;
 }
 
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* One focus indicator surrounds both the icon and the search input. */
+.request-search-field:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.request-search-field input:focus-visible {
+  outline: none;
 }
 
 @layer utilities {

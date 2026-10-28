@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"notification-hub/internal/hub"
@@ -34,7 +35,36 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 	return module.Module{Name: "notifications", Mount: func(r *mux.Router) {
 		path, svc := connectv1.NewNotificationsServiceHandler(h)
 		r.PathPrefix(path).Handler(svc)
+		r.HandleFunc("/api/v1/notifications/{id}/attempts", h.readAttempts).Methods(http.MethodGet)
 	}, Endpoints: Endpoints}
+}
+
+type attemptsReadResponse struct {
+	Attempts  []hub.RecipientDeliveryAttempt `json:"attempts"`
+	Truncated bool                           `json:"truncated"`
+}
+
+func (h *handler) readAttempts(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+	items, truncated, err := h.service.ListDeliveryAttemptsForRecipient(r.Context(), mux.Vars(r)["id"], h.service.ResolveRecipient(r.Context()), limit)
+	if errors.Is(err, hub.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		http.Error(w, "delivery attempts unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(attemptsReadResponse{Attempts: items, Truncated: truncated})
 }
 
 func (h *handler) Send(ctx context.Context, req *connect.Request[v1.SendRequest]) (*connect.Response[v1.SendResponse], error) {
@@ -111,7 +141,7 @@ func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) 
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	out := &v1.GetResponse{Notification: ToProto(n)}
+	out := &v1.GetResponse{Notification: ToRecipientReadProto(n)}
 	for _, receipt := range receipts {
 		out.Receipts = append(out.Receipts, receiptProtoForRead(receipt))
 	}
@@ -126,13 +156,21 @@ func (h *handler) List(ctx context.Context, req *connect.Request[v1.ListRequest]
 	}
 	out := &v1.ListResponse{}
 	for _, item := range items {
-		out.Notifications = append(out.Notifications, ToProto(item))
+		out.Notifications = append(out.Notifications, ToRecipientReadProto(item))
 	}
 	return connect.NewResponse(out), nil
 }
 
 func ToProto(n hub.Notification) *shared.Notification {
 	return &shared.Notification{Id: n.ID, RequestedBy: n.RequestedBy, Title: n.Title, Body: n.Body, Urgency: n.Urgency, SensitivityLabel: n.SensitivityLabel, IdempotencyKey: n.IdempotencyKey, DedupeKey: n.DedupeKey, State: StateProto(n.State), Reason: n.Reason, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt, ContextUrl: n.ContextURL}
+}
+
+func ToRecipientReadProto(n hub.Notification) *shared.Notification {
+	// State event reasons can contain raw adapter errors. Recipient reads have
+	// localized state meanings for explanation, so do not expose that raw text.
+	projection := ToProto(n)
+	projection.Reason = ""
+	return projection
 }
 
 func StateProto(state string) shared.NotificationState {
@@ -157,9 +195,10 @@ func StateProto(state string) shared.NotificationState {
 }
 
 func receiptProtoForRead(r hub.Receipt) *shared.DeliveryReceipt {
-	// Provider IDs may be web-push endpoint URLs. The configured-recipient
-	// projection never exposes them, regardless of request identity.
-	return &shared.DeliveryReceipt{Id: r.ID, NotificationId: r.NotificationID, Channel: r.Channel, MachineId: r.MachineID, DeliveredAt: r.DeliveredAt}
+	// Provider IDs may be web-push endpoint URLs and machine IDs reveal
+	// recipient infrastructure. The configured-recipient projection exposes
+	// neither identifier, regardless of request identity.
+	return &shared.DeliveryReceipt{Id: r.ID, NotificationId: r.NotificationID, Channel: r.Channel, DeliveredAt: r.DeliveredAt}
 }
 
-var Endpoints = []module.EndpointDescriptor{{ID: "notifications_send", Path: connectv1.NotificationsServiceSendProcedure, Method: http.MethodPost, Summary: "Accept a notification and return its durable id", Category: "notifications"}, {ID: "notifications_relay", Path: connectv1.NotificationsServiceRelayProcedure, Method: http.MethodPost, Summary: "Accept a bridge-safe base64 notification payload", Category: "notifications"}, {ID: "notifications_get", Path: connectv1.NotificationsServiceGetProcedure, Method: http.MethodPost, Summary: "Read notification state and receipts", Category: "notifications"}, {ID: "notifications_list", Path: connectv1.NotificationsServiceListProcedure, Method: http.MethodPost, Summary: "List the delivery timeline", Category: "notifications"}}
+var Endpoints = []module.EndpointDescriptor{{ID: "notifications_send", Path: connectv1.NotificationsServiceSendProcedure, Method: http.MethodPost, Summary: "Accept a notification and return its durable id", Category: "notifications"}, {ID: "notifications_relay", Path: connectv1.NotificationsServiceRelayProcedure, Method: http.MethodPost, Summary: "Accept a bridge-safe base64 notification payload", Category: "notifications"}, {ID: "notifications_get", Path: connectv1.NotificationsServiceGetProcedure, Method: http.MethodPost, Summary: "Read notification state and receipts", Category: "notifications"}, {ID: "notifications_list", Path: connectv1.NotificationsServiceListProcedure, Method: http.MethodPost, Summary: "List the delivery timeline", Category: "notifications"}, {ID: "notifications_delivery_attempts", Path: "/api/v1/notifications/{id}/attempts", Method: http.MethodGet, Summary: "Read bounded recipient-scoped delivery attempts", Category: "notifications"}}

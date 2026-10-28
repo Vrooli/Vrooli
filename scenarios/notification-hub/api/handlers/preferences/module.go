@@ -115,8 +115,57 @@ type putPreferenceRequest struct {
 	ChannelOverride string `json:"channel_override"`
 }
 
+// sourceFilter parses the optional `source_scenario` query parameter that
+// scopes the catalog and preference reads to one or more producing scenarios.
+// It accepts repeated parameters and comma-separated values
+// (?source_scenario=a&source_scenario=b or ?source_scenario=a,b). A nil result
+// means "no filter": every source is returned, which is what the hub's own
+// Settings page wants. A scenario's own settings page passes its slug so it
+// shows only the categories it declared.
+func sourceFilter(r *http.Request) map[string]struct{} {
+	var out map[string]struct{}
+	for _, raw := range r.URL.Query()["source_scenario"] {
+		for _, part := range strings.Split(raw, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				if out == nil {
+					out = map[string]struct{}{}
+				}
+				out[part] = struct{}{}
+			}
+		}
+	}
+	return out
+}
+
+func filterSources(sources []preferences.Source, filter map[string]struct{}) []preferences.Source {
+	if filter == nil {
+		return sources
+	}
+	out := make([]preferences.Source, 0, len(filter))
+	for _, src := range sources {
+		if _, ok := filter[src.SourceScenario]; ok {
+			out = append(out, src)
+		}
+	}
+	return out
+}
+
+func filterPreferences(prefs []preferences.Preference, filter map[string]struct{}) []preferences.Preference {
+	if filter == nil {
+		return prefs
+	}
+	out := make([]preferences.Preference, 0, len(prefs))
+	for _, p := range prefs {
+		if _, ok := filter[p.SourceScenario]; ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func (h *handler) getCatalog(w http.ResponseWriter, r *http.Request) {
 	recipient := h.configuredRecipient(r.Context())
+	filter := sourceFilter(r)
 	sources, err := h.store.ListCatalog(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -127,7 +176,10 @@ func (h *handler) getCatalog(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, catalogResponse{Sources: sourceViews(sources), Preferences: preferenceViews(prefs)})
+	writeJSON(w, catalogResponse{
+		Sources:     sourceViews(filterSources(sources, filter)),
+		Preferences: preferenceViews(filterPreferences(prefs, filter)),
+	})
 }
 
 func (h *handler) getPreferences(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +189,7 @@ func (h *handler) getPreferences(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, preferencesResponse{Preferences: preferenceViews(prefs)})
+	writeJSON(w, preferencesResponse{Preferences: preferenceViews(filterPreferences(prefs, sourceFilter(r)))})
 }
 
 func (h *handler) putPreference(w http.ResponseWriter, r *http.Request) {

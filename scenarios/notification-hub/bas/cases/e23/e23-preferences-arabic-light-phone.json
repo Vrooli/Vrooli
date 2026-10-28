@@ -1,0 +1,131 @@
+{
+  "metadata": {
+    "name": "e23-preferences-arabic-light-phone",
+    "description": "Capture selected Arabic light phone preferences using the disposable owner fixture; locale and appearance are browser-local only.",
+    "requirement": "NOTIFICA-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "e23-preferences-arabic-light-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings through the disposable leased owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/pages.settings",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the Settings page"
+          }
+        }
+      },
+      {
+        "id": "select-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Select light appearance for the exact selected state"
+          }
+        }
+      },
+      {
+        "id": "select-arabic",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.localeOption(code=ar)"
+          },
+          "metadata": {
+            "label": "Select Arabic using the browser-local preference control"
+          }
+        }
+      },
+      {
+        "id": "assert-arabic-direction",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const html=document.documentElement;if(html.lang!=='ar'||html.dir!=='rtl')throw new Error(`expected Arabic RTL, got ${html.lang}/${html.dir}`);if(localStorage.getItem('vrooli.locale')!=='ar')throw new Error('Arabic locale was not persisted to browser storage');if(localStorage.getItem('vrooli.theme')!==\"light\")throw new Error('appearance was not persisted to browser storage');return {lang:html.lang,dir:html.dir,theme:localStorage.getItem('vrooli.theme'),storage:'browser-local'}})()"
+          },
+          "metadata": {
+            "label": "Verify locale, RTL direction, and appearance persisted in browser-local preferences"
+          }
+        }
+      },
+      {
+        "id": "capture-settings",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture current Settings preferences state"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "open-settings-to-wait-settings",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "wait-settings-to-select-theme",
+        "source": "wait-settings",
+        "target": "select-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "select-theme-to-select-arabic",
+        "source": "select-theme",
+        "target": "select-arabic",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "select-arabic-to-assert-arabic-direction",
+        "source": "select-arabic",
+        "target": "assert-arabic-direction",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "assert-arabic-direction-to-capture-settings",
+        "source": "assert-arabic-direction",
+        "target": "capture-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

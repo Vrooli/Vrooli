@@ -22,7 +22,7 @@ Each workflow JSON must include:
 Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
 
 ```bash
-vrooli scenario test notification-hub
+vrooli scenario test notification-hub --phases structure,workflow
 ```
 
 The server-owned suite rebuilds and validates the playbook registry. The tracked
@@ -30,6 +30,20 @@ The server-owned suite rebuilds and validates the playbook registry. The tracked
 they validate, and what fixtures they depend on. (Only `bas/cases/**` are
 executed by the Playbooks phase — `flows/` and `actions/` are reusable building
 blocks.)
+
+For a changed existing case, iterate with `workflow-health validate start-selected
+notification-hub --case-paths bas/cases/<path>.json --idempotency-key <source-attempt>`
+and wait on the returned run with `workflow-health validate wait <run-id>`.
+Reuse that receipt while its source remains unchanged; broaden at integration.
+The validation owner waits for routed fixture contention and owns browser cleanup.
+
+E4's anonymous fixtures use `/settings?view=all&vrooli_test_mode=1` for the
+registered radio theme controls before returning to the journey under test. Keep
+the fixture query and routed-test context. This precondition sets browser-local
+appearance; it does not prove the separate public Preferences composition or
+grant owner mutation authority. Linked answered asks are checked through the
+registered `asks.question` and `asks.status` elements; no `pages.ask` container
+is rendered by the current answered-ask view.
 
 ## Performance-capture flows (`intent: "performance"`)
 

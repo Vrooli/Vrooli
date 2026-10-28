@@ -116,3 +116,25 @@ contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
 - [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns
+
+
+## Request search and continuation
+
+`ConversationsService/ListAsks` reads the current recipient's retained requests without
+changing their state. `query` is a literal substring search over question/title, source,
+answer/options, answer note and requester reference. `state_filter` accepts `all` (default),
+`awaiting` (pending and escalated), `pending`, `escalated`, `answered`, `defaulted`, `expired`
+and `withdrawn`. Search and state filtering apply on the server before pagination.
+
+`limit` is a page size (default 50, maximum 200), not a total-result cap. Continue with
+`next_cursor` as the next request's `cursor`; an empty value means the current query reached
+the end. Cursors bind to recipient/query/state; changing those requires a fresh first page.
+The compatibility `open_only` shortcut selects awaiting requests; conflicting filters fail
+with InvalidArgument. Invalid/foreign-query cursors fail rather than silently restarting.
+
+Pages use a live newest-first keyset with ID as the equal-time tiebreaker. Newly created
+requests appear on refresh. State transitions can change a live result set between reads;
+this is not a frozen snapshot. History exposes the full lifecycle and Needs you fixes the
+state to awaiting. Both share search, accessible Load more/retry and detail-return context.
+The product target is `../concepts/FLOWS.md`, amendment
+`NH-DESIGN-20261025-HISTORY-COMPLETE`; older latest-200 screenshots are historical.

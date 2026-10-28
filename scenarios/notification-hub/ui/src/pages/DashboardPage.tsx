@@ -11,7 +11,7 @@ import { deliveryStateKey, formatDeliveryTime } from "../features/delivery/deliv
 import { preserveRoutedTestMode } from "../features/routedTestMode";
 
 const UPDATE_LIMIT = 20;
-const ASK_LOOKUP_LIMIT = 50;
+const ASK_LOOKUP_LIMIT = 200;
 
 /** Updates is an informational feed; viewing it never changes notification state. */
 export function DashboardPage() {
@@ -29,13 +29,14 @@ export function DashboardPage() {
   });
   const askByNotification = useMemo(() => {
     const byNotification = new Map<string, string>();
+    if (asks.isError) return byNotification;
     for (const ask of asks.data?.asks ?? []) {
       if (ask.notificationId && !byNotification.has(ask.notificationId)) {
         byNotification.set(ask.notificationId, ask.id);
       }
     }
     return byNotification;
-  }, [asks.data]);
+  }, [asks.data, asks.isError]);
   const notifications = updates.data?.notifications ?? [];
 
   return (
@@ -53,7 +54,11 @@ export function DashboardPage() {
         {updates.isPending && <p role="status">{t(strings.asks.detail.loading)}</p>}
         {updates.isError && <p role="alert">{t(strings.pages.dashboard.loadError)}</p>}
         {updates.isError && updates.data && <p role="status">{t(strings.pages.dashboard.stale)}</p>}
+        {asks.isPending && <p role="status">{t("pages.dashboard.checkingDecisionLinks", { defaultValue: "Checking linked decisions…" })}</p>}
         {asks.isError && <p role="status">{t(strings.pages.dashboard.askLinksUnavailable)}</p>}
+        <p className="text-sm text-app-muted-foreground">
+          {t("pages.dashboard.decisionLinkScope", { defaultValue: "Decision links are matched against up to {{limit}} returned asks; older matches may be omitted.", limit: ASK_LOOKUP_LIMIT })}
+        </p>
         {!updates.isPending && !updates.isError && notifications.length === 0 && (
           <p className="text-app-muted-foreground">{t(strings.pages.dashboard.emptyReturned)}</p>
         )}
@@ -91,7 +96,6 @@ export function DashboardPage() {
                     <p className="text-sm">
                       <span className="font-medium">{t(strings.pages.delivery.states[state])}</span>
                       <span className="text-app-muted-foreground"> — {t(strings.pages.delivery.meanings[state])}</span>
-                      {item.reason && <span className="text-app-muted-foreground"> — {item.reason}</span>}
                     </p>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                       <Link

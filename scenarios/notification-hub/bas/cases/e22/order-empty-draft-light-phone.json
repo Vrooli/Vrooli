@@ -1,0 +1,339 @@
+{
+  "metadata": {
+    "name": "e22-order-empty-draft-light-phone",
+    "description": "Operate the selected light phone empty-order draft in the lease-pinned fixture; persist a supported baseline, then verify an empty replacement remains local until the owner chooses Save.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e22-order-empty-draft-light-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Operate the selected light phone empty-order draft in the lease-pinned fixture; persist a supported baseline, then verify an empty replacement remains local until the owner chooses Save.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_order=single&e22_case=e22-order-empty-draft-light-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased single-channel owner fixture with saved Web Push"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for routed Settings"
+          }
+        }
+      },
+      {
+        "id": "select-light-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Set light phone appearance"
+          }
+        }
+      },
+      {
+        "id": "open-order-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open the saved escalation order"
+          }
+        }
+      },
+      {
+        "id": "open-channel-choice",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.addSelect"
+          },
+          "metadata": {
+            "label": "Open supported channel choices"
+          }
+        }
+      },
+      {
+        "id": "choose-email",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.channelChoice(channel=email)"
+          },
+          "metadata": {
+            "label": "Stage Email after saved Web Push"
+          }
+        }
+      },
+      {
+        "id": "wait-order-draft-after-add",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.saveButton",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Email selection to return to the order editor"
+          }
+        }
+      },
+      {
+        "id": "assert-email-draft",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Saved order: Web Push"
+            },
+            "failure_message": "Email is only staged and Web Push is still the saved baseline"
+          },
+          "metadata": {
+            "label": "Verify Email remains draft-only before save"
+          }
+        }
+      },
+      {
+        "id": "save-email-order",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.saveButton"
+          },
+          "metadata": {
+            "label": "Save the supported Web Push then Email order in the isolated test lease"
+          }
+        }
+      },
+      {
+        "id": "assert-order-readback",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Order saved and confirmed"
+            },
+            "failure_message": "The new channel order was confirmed by readback"
+          },
+          "metadata": {
+            "label": "Verify order save returned a confirmed readback"
+          }
+        }
+      },
+      {
+        "id": "return-to-order-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.editButton"
+          },
+          "metadata": {
+            "label": "Return to the saved order editor"
+          }
+        }
+      },
+      {
+        "id": "stage-clear",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.clearButton"
+          },
+          "metadata": {
+            "label": "Stage an empty order for review"
+          }
+        }
+      },
+      {
+        "id": "confirm-clear-draft",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.confirmClear"
+          },
+          "metadata": {
+            "label": "Confirm the local empty draft without saving it"
+          }
+        }
+      },
+      {
+        "id": "assert-empty-draft-title",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "No escalation channels"
+            },
+            "failure_message": "The cleared draft is visibly empty"
+          },
+          "metadata": {
+            "label": "Verify empty-draft title"
+          }
+        }
+      },
+      {
+        "id": "assert-saved-baseline",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/escalationOrder.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Your saved order is still Web Push, then Email."
+            },
+            "failure_message": "The previously saved order remains visible and unchanged"
+          },
+          "metadata": {
+            "label": "Verify cleared draft preserves the saved order baseline"
+          }
+        }
+      },
+      {
+        "id": "capture-empty-draft",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected light phone empty-order draft before persistence"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e22-empty-draft-light-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-01",
+        "source": "wait-settings",
+        "target": "select-light-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-02",
+        "source": "select-light-theme",
+        "target": "open-order-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-03",
+        "source": "open-order-editor",
+        "target": "open-channel-choice",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-04",
+        "source": "open-channel-choice",
+        "target": "choose-email",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-05",
+        "source": "choose-email",
+        "target": "wait-order-draft-after-add",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-06",
+        "source": "assert-email-draft",
+        "target": "save-email-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-07",
+        "source": "save-email-order",
+        "target": "assert-order-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-08",
+        "source": "assert-order-readback",
+        "target": "return-to-order-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-09",
+        "source": "return-to-order-editor",
+        "target": "stage-clear",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-10",
+        "source": "stage-clear",
+        "target": "confirm-clear-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-11",
+        "source": "confirm-clear-draft",
+        "target": "assert-empty-draft-title",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-12",
+        "source": "assert-empty-draft-title",
+        "target": "assert-saved-baseline",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-13",
+        "source": "assert-saved-baseline",
+        "target": "capture-empty-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-empty-draft-light-05b",
+        "source": "wait-order-draft-after-add",
+        "target": "assert-email-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

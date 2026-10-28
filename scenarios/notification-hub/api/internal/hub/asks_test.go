@@ -3,6 +3,7 @@ package hub_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -378,6 +379,97 @@ func TestProcessEscalations_AppliesDefaultAtLeastTheFloorAfterDelivery(t *testin
 	require.Equal(t, "evt-floor", event.Payload["requester_ref"])
 }
 
+// [REQ:NOTIFICA-P1-011]
+func TestProcessEscalations_CriticalAskAdvancesAndRecordsStep(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	start := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: start})
+	spec := decisionSpec(start, "evt-critical-escalation")
+	spec.DefaultAnswer = ""
+	spec.Reversible = false
+	spec.Urgency = "critical"
+	spec.SensitivityLabel = "public"
+	ask, _, err := service.AskWithSpec(ctx, spec)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		n, _, getErr := service.Get(ctx, ask.NotificationID)
+		return getErr == nil && n.State == "unroutable"
+	}, time.Second, 10*time.Millisecond)
+
+	// Configure the fake adapter after initial routing so this call can only
+	// observe a delivery caused by the escalation step.
+	email := &recordingEmail{}
+	service.SetEmailSender(email)
+	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "owner laptop", MachineID: "local"})
+	require.NoError(t, err)
+	_, err = service.UpsertChannelAddress(ctx, "alice", hub.ChannelAddress{DeviceID: device.ID, Channel: "email", Address: "owner@example.test", ApprovedLabels: []string{"public"}})
+	require.NoError(t, err)
+	_, err = service.SetEscalationChain(ctx, "alice", []string{"email"})
+	require.NoError(t, err)
+	service.SetClockForTest(fixedClock{now: start.Add(2 * time.Hour)})
+	require.NoError(t, service.ProcessEscalations(ctx))
+	got, err := service.GetAsk(ctx, ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, hub.AskEscalated, got.State)
+	require.Equal(t, "critical", got.Urgency)
+	require.Equal(t, []string{"owner@example.test"}, email.addresses)
+	var steps int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM escalation_steps WHERE ask_id=? AND channel='email' AND outcome='delivered'`, ask.ID).Scan(&steps))
+	require.Equal(t, 1, steps)
+}
+
+// [REQ:NOTIFICA-P1-011]
+func TestProcessEscalations_NonCriticalAskExpiresWithoutEscalationEffects(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	start := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: start})
+	spec := decisionSpec(start, "evt-high-expiry")
+	spec.DefaultAnswer = ""
+	spec.Reversible = false
+	spec.Urgency = "high"
+	spec.SensitivityLabel = "public"
+	ask, _, err := service.AskWithSpec(ctx, spec)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		n, _, getErr := service.Get(ctx, ask.NotificationID)
+		return getErr == nil && n.State == "unroutable"
+	}, time.Second, 10*time.Millisecond)
+
+	// A configured chain and recording adapter make any accidental escalation
+	// visible while keeping this package test fully isolated.
+	email := &recordingEmail{}
+	service.SetEmailSender(email)
+	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "owner laptop", MachineID: "local"})
+	require.NoError(t, err)
+	_, err = service.UpsertChannelAddress(ctx, "alice", hub.ChannelAddress{DeviceID: device.ID, Channel: "email", Address: "owner@example.test", ApprovedLabels: []string{"public"}})
+	require.NoError(t, err)
+	_, err = service.SetEscalationChain(ctx, "alice", []string{"email"})
+	require.NoError(t, err)
+	var attemptsBefore, receiptsBefore int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM delivery_attempts WHERE notification_id=?`, ask.NotificationID).Scan(&attemptsBefore))
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM receipts WHERE notification_id=?`, ask.NotificationID).Scan(&receiptsBefore))
+
+	service.SetClockForTest(fixedClock{now: start.Add(2 * time.Hour)})
+	require.NoError(t, service.ProcessEscalations(ctx))
+	got, err := service.GetAsk(ctx, ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, hub.AskExpired, got.State)
+	require.Contains(t, got.Reason, "non-critical")
+	require.Empty(t, email.addresses, "non-critical expiry must not call the escalation adapter")
+	var steps, attempts, receipts int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM escalation_steps WHERE ask_id=?`, ask.ID).Scan(&steps))
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM delivery_attempts WHERE notification_id=?`, ask.NotificationID).Scan(&attempts))
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM receipts WHERE notification_id=?`, ask.NotificationID).Scan(&receipts))
+	require.Zero(t, steps, "direct expiry must not create an escalation step or report delivery success")
+	require.Equal(t, attemptsBefore, attempts, "direct expiry must not create an escalation delivery attempt")
+	require.Equal(t, receiptsBefore, receipts, "direct expiry must not create a delivery receipt")
+	n, _, err := service.Get(ctx, ask.NotificationID)
+	require.NoError(t, err)
+	require.NotEqual(t, "delivered", n.State)
+}
+
 // [REQ:NOTIFICA-P1-010]
 func TestProcess_SuppressesResolvedAskNotificationsButPreservesOpenAndDefaulted(t *testing.T) {
 	ctx := context.Background()
@@ -481,7 +573,7 @@ func TestAnswerAsk_PublishesResolutionOnceAndLateAnswerSupersedesDefault(t *test
 }
 
 // [REQ:NOTIFICA-P0-005][REQ:NOTIFICA-P1-011]
-func TestAsk_QuietWindowHoldsHighUrgencyAskAndItsEscalation(t *testing.T) {
+func TestAsk_QuietWindowHoldsCriticalAskAndItsEscalation(t *testing.T) {
 	service, db := testService(t)
 	email := &recordingEmail{}
 	service.SetEmailSender(email)
@@ -493,11 +585,15 @@ func TestAsk_QuietWindowHoldsHighUrgencyAskAndItsEscalation(t *testing.T) {
 	require.NoError(t, err)
 	_, err = service.SetEscalationChain(context.Background(), "alice", []string{"email"})
 	require.NoError(t, err)
-	_, err = service.SetQuietWindow(context.Background(), "alice", hub.QuietWindow{Weekday: 1, Start: "22:00", End: "23:59", Timezone: "UTC", CriticalOverride: true})
+	_, err = service.SetQuietWindow(context.Background(), "alice", hub.QuietWindow{Weekday: 1, Start: "22:00", End: "23:59", Timezone: "UTC", CriticalOverride: false})
 	require.NoError(t, err)
 
-	askID, n, err := service.Ask(context.Background(), "alice", "approve?", []string{"yes", "no"}, quietNow.Add(time.Minute), "public", "quiet-ask")
+	ask, n, err := service.AskWithSpec(context.Background(), hub.AskSpec{
+		Recipient: "alice", Question: "approve?", Options: []hub.AskOption{{Key: "yes", Label: "yes"}, {Key: "no", Label: "no"}},
+		Urgency: "critical", SensitivityLabel: "public", Deadline: quietNow.Add(time.Minute), IdempotencyKey: "quiet-ask",
+	})
 	require.NoError(t, err)
+	askID := ask.ID
 	require.NoError(t, service.Process(context.Background(), n.ID))
 	held, _, err := service.Get(context.Background(), n.ID)
 	require.NoError(t, err)
@@ -573,4 +669,114 @@ func TestAnswerAsk_RecordsTheVerifiedHumanAsAnsweredBy(t *testing.T) {
 	fell, err := service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: third.ID, Answer: "close", Actor: "alice"})
 	require.NoError(t, err)
 	require.Equal(t, "alice", fell.AnsweredBy, "answered_by falls back to the actor when no verified human is supplied")
+}
+
+// Real-volume regression: filtering must precede page boundaries, including ties.
+func TestAskSearchPagesAllRetainedRecordsAndKeepsRecipientScope(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: now})
+	ids := make([]string, 0, 235)
+	for i := 0; i < 235; i++ {
+		spec := decisionSpec(now, fmt.Sprintf("page-%03d", i))
+		spec.Question = fmt.Sprintf("Review request %03d", i)
+		if i == 0 {
+			spec.Question = "Find literal 100%_done older request"
+		}
+		if i == 234 {
+			spec.Recipient = "bob"
+			spec.Question = "Foreign private request"
+		}
+		ask, _, err := service.AskWithSpec(ctx, spec)
+		require.NoError(t, err)
+		ids = append(ids, ask.ID)
+		// Identical timestamps intentionally exercise the ID tiebreaker. Creating
+		// rows via the real domain preserves schema/recipient and answer invariants.
+		if i < 210 {
+			_, err = db.ExecContext(ctx, `UPDATE asks SET state='expired', resolved_at=? WHERE id=?`, now.Format(time.RFC3339Nano), ask.ID)
+			require.NoError(t, err)
+		} else if i%2 == 0 && i != 234 {
+			_, err = db.ExecContext(ctx, `UPDATE asks SET state='escalated' WHERE id=?`, ask.ID)
+			require.NoError(t, err)
+		}
+	}
+	seen := map[string]bool{}
+	cursor := ""
+	var previous string
+	for {
+		page, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Limit: 50, Cursor: cursor})
+		require.NoError(t, err)
+		require.LessOrEqual(t, len(page.Asks), 50)
+		for _, ask := range page.Asks {
+			require.False(t, seen[ask.ID], "no duplicates at equal timestamps")
+			require.NotEqual(t, ids[234], ask.ID)
+			if previous != "" {
+				require.Greater(t, previous, ask.ID)
+			}
+			previous = ask.ID
+			seen[ask.ID] = true
+		}
+		cursor = page.NextCursor
+		if cursor == "" {
+			break
+		}
+	}
+	require.Len(t, seen, 234, "all accessible rows remain reachable past 200")
+
+	// Put the only match behind >200 newer rows. Search still finds it directly.
+	_, err := db.ExecContext(ctx, `UPDATE asks SET created_at=? WHERE id=?`, now.Add(-time.Hour).Format(time.RFC3339Nano), ids[0])
+	require.NoError(t, err)
+	match, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Limit: 10, Query: "100%_done", StateFilter: "expired"})
+	require.NoError(t, err)
+	require.Len(t, match.Asks, 1)
+	require.Equal(t, ids[0], match.Asks[0].ID)
+	require.Empty(t, match.NextCursor)
+	absent, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Query: "100XXdone"})
+	require.NoError(t, err)
+	require.Empty(t, absent.Asks)
+	foreign, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Query: "Foreign private"})
+	require.NoError(t, err)
+	require.Empty(t, foreign.Asks)
+	awaiting, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Limit: 200, StateFilter: "awaiting"})
+	require.NoError(t, err)
+	require.Len(t, awaiting.Asks, 24)
+	pending, escalated := false, false
+	for _, ask := range awaiting.Asks {
+		require.True(t, ask.Open())
+		pending = pending || ask.State == hub.AskPending
+		escalated = escalated || ask.State == hub.AskEscalated
+	}
+	require.True(t, pending)
+	require.True(t, escalated)
+
+	// Insertion ahead of the cursor cannot duplicate/skip an unchanged older row.
+	first, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Limit: 20})
+	require.NoError(t, err)
+	require.NotEmpty(t, first.NextCursor)
+	service.SetClockForTest(fixedClock{now: now.Add(time.Minute)})
+	_, _, err = service.AskWithSpec(ctx, decisionSpec(now.Add(time.Minute), "new-head"))
+	require.NoError(t, err)
+	next, err := service.ListAsksPage(ctx, "alice", hub.AskListOptions{Limit: 20, Cursor: first.NextCursor})
+	require.NoError(t, err)
+	for _, a := range first.Asks {
+		for _, b := range next.Asks {
+			require.NotEqual(t, a.ID, b.ID)
+		}
+	}
+	for _, opts := range []hub.AskListOptions{
+		{Cursor: first.NextCursor, Query: "different"},
+		{Cursor: first.NextCursor, StateFilter: "awaiting"},
+		{Cursor: "broken"},
+		{StateFilter: "invented"},
+		{OpenOnly: true, StateFilter: "answered"},
+		{Query: strings.Repeat("x", 501)},
+	} {
+		_, err := service.ListAsksPage(ctx, "alice", opts)
+		require.ErrorIs(t, err, hub.ErrInvalidArgument)
+	}
+	_, err = service.ListAsksPage(ctx, "bob", hub.AskListOptions{Cursor: first.NextCursor})
+	require.ErrorIs(t, err, hub.ErrInvalidArgument)
+	_, err = service.ListAsksPage(ctx, "", hub.AskListOptions{})
+	require.ErrorIs(t, err, hub.ErrNotFound)
 }

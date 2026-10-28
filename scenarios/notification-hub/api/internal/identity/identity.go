@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
@@ -18,6 +19,16 @@ const OwnerCookieName = "notification_hub_owner_token"
 
 type Verifier interface {
 	Validate(context.Context, string) (owneridentity.Identity, error)
+}
+
+// WithLeasedTestOwner attaches the disposable fixture identity to a test-mode
+// request. Its caller must first pin an active routed test lease; production
+// identity is never inferred from the browser's test-fixture header.
+func WithLeasedTestOwner(ctx context.Context, subject string) context.Context {
+	if !database.IsTestMode(ctx) || strings.TrimSpace(subject) == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, ownerContextKey{}, ownerContext{identity: owneridentity.Identity{Subject: strings.TrimSpace(subject)}})
 }
 
 // ProducerSubject accepts a scoped, server-verified run for notification ingress.

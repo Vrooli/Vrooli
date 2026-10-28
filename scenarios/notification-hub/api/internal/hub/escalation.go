@@ -16,24 +16,26 @@ const escalationSlice = 5 * time.Minute
 // background sweep.
 //
 // A reversible ask with a default never escalates or expires: the sweep
-// applies its default once it is due (see applyDefaultIfDue). Every other
-// overdue ask follows the recipient's escalation chain and then expires.
+// applies its default once it is due (see applyDefaultIfDue). Critical asks
+// without an applicable default follow the recipient's escalation chain;
+// non-critical asks expire directly when their response window elapses.
 func (s *Service) ProcessEscalations(ctx context.Context) error {
 	now := s.clock.Now().UTC()
-	rows, err := s.db.QueryContext(ctx, `SELECT id, notification_id, default_answer, reversible FROM asks WHERE state IN ('pending', 'escalated') AND deadline <= ? ORDER BY deadline`, now.Format(time.RFC3339Nano))
+	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.notification_id, a.default_answer, a.reversible, n.urgency FROM asks a JOIN notifications n ON n.id=a.notification_id WHERE a.state IN ('pending', 'escalated') AND a.deadline <= ? ORDER BY a.deadline`, now.Format(time.RFC3339Nano))
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	type dueAsk struct {
 		id, notificationID, defaultAnswer string
+		urgency                           string
 		reversible                        bool
 	}
 	var due []dueAsk
 	for rows.Next() {
 		var item dueAsk
 		var reversible int
-		if err := rows.Scan(&item.id, &item.notificationID, &item.defaultAnswer, &reversible); err != nil {
+		if err := rows.Scan(&item.id, &item.notificationID, &item.defaultAnswer, &reversible, &item.urgency); err != nil {
 			return err
 		}
 		item.reversible = reversible != 0
@@ -50,9 +52,27 @@ func (s *Service) ProcessEscalations(ctx context.Context) error {
 			}
 			continue
 		}
+		if item.urgency != "critical" {
+			if err := s.expireNonCriticalAsk(ctx, item.id); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := s.escalateAsk(ctx, item.id, item.notificationID); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *Service) expireNonCriticalAsk(ctx context.Context, askID string) error {
+	nowText := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason='non-critical ask expired without escalation', resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, nowText, nowText, askID)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed == 1 {
+		s.kickResolutions(ctx)
 	}
 	return nil
 }

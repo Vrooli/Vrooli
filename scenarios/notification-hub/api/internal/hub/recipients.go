@@ -23,6 +23,8 @@ type ChannelAddress struct {
 	ApprovedLabels                 []string
 }
 
+var ErrChannelAddressConflict = errors.New("channel address already exists with a different identity or value")
+
 type EscalationStep struct {
 	Ordinal int
 	Channel string
@@ -194,6 +196,112 @@ func (s *Service) UpsertChannelAddress(ctx context.Context, recipient string, ad
 	return s.channelAddressByID(ctx, recipient, address.ID)
 }
 
+// ListChannelAddresses returns only addresses belonging to devices owned by recipient.
+func (s *Service) ListChannelAddresses(ctx context.Context, recipient string) ([]ChannelAddress, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.device_id, a.channel, a.address, a.approved_labels FROM channel_addresses a JOIN devices d ON d.id=a.device_id JOIN recipients r ON r.id=d.recipient_id WHERE r.subject=? ORDER BY a.created_at, a.id`, strings.TrimSpace(recipient))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ChannelAddress
+	for rows.Next() {
+		var address ChannelAddress
+		var labels string
+		if err := rows.Scan(&address.ID, &address.DeviceID, &address.Channel, &address.Address, &labels); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal([]byte(labels), &address.ApprovedLabels)
+		out = append(out, address)
+	}
+	return out, rows.Err()
+}
+
+// CreateChannelAddress is insert-only. The caller supplies a stable ID so a
+// retry after a lost response can read back its own successful create. A
+// natural-key conflict never changes the existing row.
+func (s *Service) CreateChannelAddress(ctx context.Context, recipient string, address ChannelAddress) (ChannelAddress, error) {
+	address.ID = strings.TrimSpace(address.ID)
+	address.DeviceID = strings.TrimSpace(address.DeviceID)
+	address.Channel = strings.TrimSpace(address.Channel)
+	address.Address = strings.TrimSpace(address.Address)
+	if address.ID == "" || address.DeviceID == "" || address.Channel == "" || address.Address == "" {
+		return ChannelAddress{}, fmt.Errorf("id, device_id, channel, and address are required")
+	}
+	if len(address.ApprovedLabels) == 0 {
+		address.ApprovedLabels = []string{"public"}
+	}
+	labels, err := json.Marshal(uniqueStrings(address.ApprovedLabels))
+	if err != nil {
+		return ChannelAddress{}, err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO channel_addresses (id, device_id, channel, address, approved_labels, created_at) SELECT ?, d.id, ?, ?, ?, ? FROM devices d JOIN recipients r ON r.id=d.recipient_id WHERE d.id=? AND r.subject=? ON CONFLICT(id) DO NOTHING`, address.ID, address.Channel, address.Address, string(labels), s.clock.Now().UTC().Format("2006-01-02T15:04:05.999999999Z07:00"), address.DeviceID, strings.TrimSpace(recipient))
+	if err != nil {
+		// The unique(device_id, channel) constraint is the atomic race guard.
+		// A matching stable-ID retry is handled below; otherwise return a
+		// conflict without modifying the row that won the race.
+		if _, readErr := s.channelAddressByDeviceChannel(ctx, recipient, address.DeviceID, address.Channel); readErr == nil {
+			return ChannelAddress{}, ErrChannelAddressConflict
+		}
+		return ChannelAddress{}, err
+	}
+	existing, err := s.channelAddressByID(ctx, recipient, address.ID)
+	if err != nil {
+		return ChannelAddress{}, sql.ErrNoRows
+	}
+	if existing.DeviceID != address.DeviceID || existing.Channel != address.Channel || existing.Address != address.Address || !equalStrings(uniqueStrings(existing.ApprovedLabels), uniqueStrings(address.ApprovedLabels)) {
+		return ChannelAddress{}, ErrChannelAddressConflict
+	}
+	return existing, nil
+}
+
+// UpdateChannelAddress can alter only destination and approval labels on the
+// exact owner-scoped address row identified by ID.
+func (s *Service) UpdateChannelAddress(ctx context.Context, recipient string, address ChannelAddress) (ChannelAddress, error) {
+	address.ID = strings.TrimSpace(address.ID)
+	address.Address = strings.TrimSpace(address.Address)
+	if address.ID == "" || address.Address == "" {
+		return ChannelAddress{}, fmt.Errorf("id and address are required")
+	}
+	if len(address.ApprovedLabels) == 0 {
+		address.ApprovedLabels = []string{"public"}
+	}
+	labels, err := json.Marshal(uniqueStrings(address.ApprovedLabels))
+	if err != nil {
+		return ChannelAddress{}, err
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE channel_addresses SET address=?, approved_labels=? WHERE id=? AND device_id IN (SELECT d.id FROM devices d JOIN recipients r ON r.id=d.recipient_id WHERE r.subject=?)`, address.Address, string(labels), address.ID, strings.TrimSpace(recipient))
+	if err != nil {
+		return ChannelAddress{}, err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return ChannelAddress{}, sql.ErrNoRows
+	}
+	return s.channelAddressByID(ctx, recipient, address.ID)
+}
+
+func (s *Service) channelAddressByDeviceChannel(ctx context.Context, recipient, deviceID, channel string) (ChannelAddress, error) {
+	var address ChannelAddress
+	var labels string
+	err := s.db.QueryRowContext(ctx, `SELECT a.id, a.device_id, a.channel, a.address, a.approved_labels FROM channel_addresses a JOIN devices d ON d.id=a.device_id JOIN recipients r ON r.id=d.recipient_id WHERE r.subject=? AND a.device_id=? AND a.channel=?`, strings.TrimSpace(recipient), deviceID, channel).Scan(&address.ID, &address.DeviceID, &address.Channel, &address.Address, &labels)
+	if err != nil {
+		return ChannelAddress{}, err
+	}
+	_ = json.Unmarshal([]byte(labels), &address.ApprovedLabels)
+	return address, nil
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Service) channelAddressByID(ctx context.Context, recipient, id string) (ChannelAddress, error) {
 	var out ChannelAddress
 	var labels string
@@ -250,18 +358,30 @@ func (s *Service) SetEscalationChain(ctx context.Context, recipient string, chan
 	if err := s.EnsureRecipient(ctx, recipient); err != nil {
 		return EscalationChain{}, err
 	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM escalation_chains WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?)`, recipient)
+	// Replace the complete order atomically. A failed insert must leave the
+	// previous owner configuration intact, and unknown keys remain valid so a
+	// newer channel can be reviewed by an older client without being erased.
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return EscalationChain{}, err
 	}
-	for ordinal, channel := range uniqueStrings(channels) {
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM escalation_chains WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?)`, recipient); err != nil {
+		return EscalationChain{}, err
+	}
+	ordinal := 0
+	for _, channel := range uniqueStrings(channels) {
 		channel = strings.TrimSpace(channel)
 		if channel == "" {
 			continue
 		}
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO escalation_chains (id, recipient_id, ordinal, channel) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?)`, uuid.NewString(), recipient, ordinal, channel); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO escalation_chains (id, recipient_id, ordinal, channel) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?)`, uuid.NewString(), recipient, ordinal, channel); err != nil {
 			return EscalationChain{}, err
 		}
+		ordinal++
+	}
+	if err := tx.Commit(); err != nil {
+		return EscalationChain{}, err
 	}
 	return s.GetEscalationChain(ctx, recipient)
 }

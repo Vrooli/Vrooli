@@ -25,8 +25,10 @@
   --color-primary-foreground: #ffffff;
   --color-accent: #0891b2;
   --color-success: #16a34a;
+  --reach-success-rail: #17684f;
   --color-danger: #dc2626;
   --color-warning: #d97706;
+  --reach-guidance-rail: #80560b;
   --color-info: #0284c7;
   --color-focus: #2563eb;
   --scrollbar-thumb: #94a3b8;
@@ -159,6 +161,7 @@
   --text-heading-sm: 600 16px / 22px var(--font-sans);
   --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
   --text-wall: clamp(5rem, 16vw, 20rem);
+  --tracking-caps: .08em;
 /* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],
@@ -175,8 +178,10 @@
   --color-primary-foreground: #020617;
   --color-accent: #22d3ee;
   --color-success: #22c55e;
+  --reach-success-rail: #8cdfbd;
   --color-danger: #f87171;
   --color-warning: #f59e0b;
+  --reach-guidance-rail: #ffd166;
   --color-info: #38bdf8;
   --color-focus: #60a5fa;
   --scrollbar-thumb: #475569;
@@ -202,8 +207,10 @@
     --color-primary-foreground: #020617;
     --color-accent: #22d3ee;
     --color-success: #22c55e;
+    --reach-success-rail: #8cdfbd;
     --color-danger: #f87171;
     --color-warning: #f59e0b;
+    --reach-guidance-rail: #ffd166;
     --color-info: #38bdf8;
     --color-focus: #60a5fa;
     --scrollbar-thumb: #475569;

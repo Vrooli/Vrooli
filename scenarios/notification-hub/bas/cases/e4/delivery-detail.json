@@ -1,9 +1,9 @@
 {
   "metadata": {
     "name": "e4-delivery-detail-receipt",
-    "description": "Reads current delivery state and adapter receipt from the leased disposable pool.",
+    "description": "Given the leased disposable recipient fixture on a phone, when the owner uses the destination drawer, then Delivery details distinguish state, adapter receipts and unavailable evidence.",
     "requirement": "OT-P0-001",
-    "version": "1",
+    "version": "2",
     "labels": {
       "reset": "none",
       "routed_isolation": "true",
@@ -24,7 +24,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "notification-hub",
-          "scenario_path": "/settings?vrooli_test_mode=1",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
@@ -40,12 +40,24 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "notification-hub",
-          "scenario_path": "/updates?vrooli_test_mode=1",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=delivery-pending-state",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
         "metadata": {
-          "label": "Return to routed Updates before testing Delivery"
+          "label": "Return to Updates and select the leased Pending record for this journey"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-open-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
         }
       }
     },
@@ -54,7 +66,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=delivery)"
+          "selector": "@selector/layout.navLink(key=delivery)"
         },
         "metadata": {
           "label": "Open Delivery through mobile primary navigation"
@@ -268,11 +280,23 @@
       }
     },
     {
+      "id": "open-menu-for-return-delivery-no-receipt",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
       "id": "return-delivery-no-receipt",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=delivery)"
+          "selector": "@selector/layout.navLink(key=delivery)"
         },
         "metadata": {
           "label": "Return to the Delivery list"
@@ -284,7 +308,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-held)"
+          "selector": "@selector/delivery.recordDetailsLink(id=DEMO-N043)"
         },
         "metadata": {
           "label": "Open a record without an adapter receipt"
@@ -299,7 +323,7 @@
           "selector": "@selector/pages.deliveryDetail",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "No adapter receipt was returned. Reach remains unknown."
+            "string_value": "No receipt does not mean unread, offline or a failed answer."
           },
           "timeout_ms": 15000,
           "failure_message": "Missing receipt keeps reach unknown"
@@ -310,14 +334,54 @@
       }
     },
     {
-      "id": "return-delivery-unknown",
+      "id": "open-menu-for-return-delivery-unknown",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/layout.navTab(key=delivery)"
+          "selector": "@selector/layout.menu"
         },
         "metadata": {
-          "label": "Return to the Delivery list for unknown status"
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
+      "id": "return-delivery-unknown",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=delivery-unknown-state",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Select the leased unknown-state fixture from Updates"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-unknown-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open destination drawer after selecting unknown state"
+        }
+      }
+    },
+    {
+      "id": "navigate-to-unknown-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navLink(key=delivery)"
+        },
+        "metadata": {
+          "label": "Open Delivery with the leased unknown state"
         }
       }
     },
@@ -326,7 +390,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-unknown)"
+          "selector": "@selector/delivery.recordDetailsLink(id=DEMO-N043)"
         },
         "metadata": {
           "label": "Open an unrecognized delivery status"
@@ -341,7 +405,7 @@
           "selector": "@selector/pages.deliveryDetail",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
-            "string_value": "Unknown status"
+            "string_value": "The returned state isn\u2019t recognized"
           },
           "timeout_ms": 15000,
           "failure_message": "Unknown delivery values remain explicit"
@@ -362,6 +426,50 @@
           "label": "Choose light with the registered Settings theme control"
         }
       }
+    },
+    {
+      "id": "assert-no-success-from-unknown",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.deliveryDetail",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "No delivery success is assumed"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "An unrecognized delivery state must not imply delivery success"
+        },
+        "metadata": {
+          "label": "Unrecognized state does not imply success"
+        }
+      }
+    },
+    {
+      "id": "set-selected-capture-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('Selected artwork comparison requires the zero-inset phone viewport');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+          "store_result": "selectedCaptureSafeArea"
+        },
+        "metadata": {
+          "label": "Match the selected phone artwork\u2019s zero-inset viewport while retaining separate nonzero-inset shell coverage"
+        }
+      }
+    },
+    {
+      "id": "set-unknown-capture-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('Selected artwork comparison requires the zero-inset phone viewport');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+          "store_result": "unknownCaptureSafeArea"
+        },
+        "metadata": {
+          "label": "Reapply the selected artwork\u2019s zero-inset viewport after the direct unknown-state navigation"
+        }
+      }
     }
   ],
   "edges": [
@@ -380,7 +488,7 @@
     {
       "id": "e1-light",
       "source": "return-to-updates-after-theme",
-      "target": "open-delivery",
+      "target": "set-selected-capture-safe-area",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -458,7 +566,7 @@
     {
       "id": "e14",
       "source": "assert-state-and-receipt",
-      "target": "return-delivery-no-receipt",
+      "target": "open-menu-for-return-delivery-no-receipt",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
@@ -476,18 +584,62 @@
     {
       "id": "e17",
       "source": "assert-no-receipt",
-      "target": "return-delivery-unknown",
+      "target": "open-menu-for-return-delivery-unknown",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e18",
       "source": "return-delivery-unknown",
-      "target": "open-unknown",
+      "target": "open-menu-for-unknown-delivery",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e19",
       "source": "open-unknown",
+      "target": "set-unknown-capture-safe-area",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-open-delivery-edge",
+      "source": "open-menu-for-open-delivery",
+      "target": "open-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-return-delivery-no-receipt-edge",
+      "source": "open-menu-for-return-delivery-no-receipt",
+      "target": "return-delivery-no-receipt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-return-delivery-unknown-edge",
+      "source": "open-menu-for-return-delivery-unknown",
+      "target": "return-delivery-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "assert-no-success-from-unknown-edge",
+      "source": "assert-unknown",
+      "target": "assert-no-success-from-unknown",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "source": "open-menu-for-unknown-delivery",
+      "target": "navigate-to-unknown-delivery"
+    },
+    {
+      "source": "navigate-to-unknown-delivery",
+      "target": "open-unknown"
+    },
+    {
+      "id": "selected-capture-safe-area-to-destination",
+      "source": "set-selected-capture-safe-area",
+      "target": "open-menu-for-open-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "unknown-capture-safe-area-to-assert",
+      "source": "set-unknown-capture-safe-area",
       "target": "assert-unknown",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }

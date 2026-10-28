@@ -30,8 +30,8 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/updates", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "asks", path: "/asks", labelKey: strings.layout.nav.asks },
+  { key: "dashboard", path: "/updates", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "history", path: "/history", labelKey: strings.layout.nav.history },
   { key: "delivery", path: "/delivery", labelKey: strings.layout.nav.delivery },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
