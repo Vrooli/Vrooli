@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeSuggestionTrailers, parseMessage, serializeMessage } from "./message";
+import { mergeContinuationMessage, mergeSuggestionTrailers, parseMessage, serializeMessage } from "./message";
 
 describe("Git message fields", () => {
   it("round-trips description paragraphs and unknown folded trailers in order", () => {
@@ -27,5 +27,32 @@ describe("Git message fields", () => {
       { key: "Vrooli-Plan", value: "ABC" }, { key: "Vrooli-Plan", value: "abc" },
     ])).toBe("X-Unknown: keep\nVrooli-Plan: ABC\nVrooli-Plan: abc");
     expect(mergeSuggestionTrailers("X-Unknown: first\n  rest", [{ key: "X-Unknown", value: "first rest" }, { key: "X-Unknown", value: "first" }])).toBe("X-Unknown: first\n  rest\nX-Unknown: first");
+  });
+});
+
+
+describe("history continuation messages", () => {
+  const continuation = "Related work p2\n\nVrooli-Effort: effort:work\nVrooli-Continues: abc123";
+  it("adds continuation references without replacing an existing title or description", () => {
+    const existing = "fix: AI drafted summary\n\nKeep the AI description.\n\nX-Custom: preserve\n  folded detail";
+    expect(mergeContinuationMessage(existing, continuation)).toBe(existing + "\nVrooli-Effort: effort:work\nVrooli-Continues: abc123");
+  });
+  it.each(["", " \n\t"])("prefills an empty editor (%j)", existing => {
+    expect(mergeContinuationMessage(existing, continuation)).toBe(continuation);
+  });
+  it("preserves body indentation, line endings and existing trailing whitespace", () => {
+    const existing = "Human summary\r\n\r\n    indented code example  \r\n";
+    expect(mergeContinuationMessage(existing, "Next p2\n\nVrooli-Continues: abc123")).toBe(existing + "\r\n\r\nVrooli-Continues: abc123");
+    const linked = "Human summary\n\n    indented code example\n\nVrooli-Continues: abc123\n\n";
+    expect(mergeContinuationMessage(linked, "Next p2\n\nVrooli-Continues: abc123")).toBe(linked);
+    expect(mergeContinuationMessage(linked, "Other p2\n\nVrooli-Continues: def456")).toBe(linked.trimEnd() + "\nVrooli-Continues: def456\n\n");
+  });
+  it("keeps repeated selections idempotent and retains distinct references", () => {
+    const once = mergeContinuationMessage("Human summary", continuation);
+    expect(mergeContinuationMessage(once, continuation)).toBe(once);
+    expect(mergeContinuationMessage(once, "Other work p3\n\nVrooli-Continues: def456")).toBe(once + "\nVrooli-Continues: def456");
+  });
+  it("preserves an existing description even if its title is still empty", () => {
+    expect(mergeContinuationMessage("\n\nDescription being written", continuation)).toBe("\n\nDescription being written\n\nVrooli-Effort: effort:work\nVrooli-Continues: abc123");
   });
 });

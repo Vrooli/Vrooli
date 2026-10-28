@@ -132,7 +132,7 @@ func (h *Handler) Inference() http.HandlerFunc {
 			return
 		}
 		var req intelligence.InferenceRequest
-		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10))
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<20))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&req); err != nil {
 			deps.WriteJSONError(w, http.StatusBadRequest, "Invalid request body", "validation")
@@ -158,7 +158,7 @@ func (h *Handler) Inference() http.HandlerFunc {
 			"id": response.ID, "role": req.Role, "content": response.Content,
 			"prompt_tokens": response.PromptTokens, "completion_tokens": response.CompletionTokens,
 			"total_tokens": response.TotalTokens, "credits_charged": response.CreditsCharged,
-			"finish_reason": response.FinishReason,
+			"finish_reason": response.FinishReason, "spend_authorization": response.SpendAuthorization, "accounting_status": response.AccountingStatus, "actual_cost_micros": response.ActualCostMicros,
 		})
 	}
 }
@@ -177,6 +177,16 @@ func ValidateInferenceRequest(req *intelligence.InferenceRequest) error {
 	}
 	if req.MaxTokens < 0 || req.MaxTokens > maxMaxTokens {
 		return fmt.Errorf("max_tokens must be between 0 and %d", maxMaxTokens)
+	}
+	if req.SpendLimit != nil {
+		if req.Role != "device.geometry.vrooli_credits" || req.SpendLimit.FundingRoute != "vrooli_credits" || req.SpendLimit.MaxCostMicros <= 0 {
+			return errors.New("spend-limited inference is supported only for the explicit Vrooli-credits geometry role")
+		}
+		if len(req.Images) < 1 || len(req.Images) > 4 || int(req.SpendLimit.ImageCount) != len(req.Images) || len(req.SpendLimit.ReferenceSHA256) != len(req.Images) {
+			return errors.New("spend-limited geometry requires its complete bounded reference image set")
+		}
+	} else if len(req.Images) > 0 || strings.HasPrefix(req.Role, "device.geometry.") {
+		return errors.New("geometry inference requires an explicit spend ceiling and immutable image set")
 	}
 	if strings.TrimSpace(req.ConstraintsJSON) != "" && !json.Valid([]byte(req.ConstraintsJSON)) {
 		return errors.New("constraints_json must be valid JSON")

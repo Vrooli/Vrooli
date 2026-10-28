@@ -234,6 +234,22 @@ func (s *WorkflowService) UpdateExecutionResultPath(ctx context.Context, executi
 var _ executionwriter.ExecutionIndexRepository = (*WorkflowService)(nil)
 
 func (s *WorkflowService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	execution, err := s.repo.GetExecution(ctx, id)
+	if err != nil || execution == nil || execution.CompletedAt == nil {
+		return execution, err
+	}
+	// A persisted terminal status precedes deferred sink cleanup. Readers that
+	// use completion to release routed fixtures must join that local owner too.
+	// Ending an observation cancels only the read, never the durable execution.
+	if value, ok := s.executionCancels.Load(id); ok {
+		if control, ok := value.(executionControl); ok && control.done != nil {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-control.done:
+			}
+		}
+	}
 	return s.repo.GetExecution(ctx, id)
 }
 

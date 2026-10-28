@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -148,7 +150,15 @@ func (s *Store) ImportOperatorInputsSource(ctx context.Context, sourcePath strin
 
 func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePath, adapterID, bookID, accountID string, apply bool) (*OperatorImportReport, error) {
 	var root map[string]any
-	if err := json.Unmarshal(data, &root); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&root); err != nil {
+		return nil, fmt.Errorf("operator-inputs JSON: %w", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
 		return nil, fmt.Errorf("operator-inputs JSON: %w", err)
 	}
 	if strings.TrimSpace(adapterID) == "" || strings.TrimSpace(bookID) == "" {
@@ -167,6 +177,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 	type prepared struct {
 		path, kind, unit, status, reason string
 		value                            float64
+		amountMinor                      int64
 		window                           int
 		observed                         *time.Time
 	}
@@ -190,9 +201,28 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 			report.Fields = append(report.Fields, field)
 			continue
 		}
-		number, ok := obj["value"].(float64)
+		number, ok := obj["value"].(json.Number)
 		if !ok {
 			return nil, fmt.Errorf("operator-inputs field %s has non-numeric value", path)
+		}
+		var numericValue float64
+		var amountMinor int64
+		var parseErr error
+		if kind == "monetary" {
+			amountMinor, parseErr = parseMinorUnits(number)
+			if parseErr != nil {
+				field.Status = "rejected"
+				field.Reason = "value must be a whole int64 number of currency minor units"
+				preparedFields = append(preparedFields, prepared{path: path, kind: kind, unit: unit, status: field.Status, reason: field.Reason, window: window})
+				report.Findings++
+				report.Fields = append(report.Fields, field)
+				continue
+			}
+		} else {
+			numericValue, parseErr = number.Float64()
+			if parseErr != nil {
+				return nil, fmt.Errorf("operator-inputs field %s has non-numeric value: %w", path, parseErr)
+			}
 		}
 		var observed *time.Time
 		if raw, ok := obj["updatedAt"].(string); ok && strings.TrimSpace(raw) != "" {
@@ -207,7 +237,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 		if observed != nil && s.now().UTC().Sub(*observed) > time.Duration(window)*24*time.Hour {
 			field.Status, field.Reason = "stale", "observation is older than the declared staleness window"
 		}
-		preparedFields = append(preparedFields, prepared{path: path, kind: kind, unit: unit, status: field.Status, reason: field.Reason, value: number, window: window, observed: observed})
+		preparedFields = append(preparedFields, prepared{path: path, kind: kind, unit: unit, status: field.Status, reason: field.Reason, value: numericValue, amountMinor: amountMinor, window: window, observed: observed})
 		if kind == "derived-rate" {
 			field.Status, field.Reason = "rejected", "derived rate is computed from journal telemetry and cannot be imported as a posting"
 			report.Findings++
@@ -226,7 +256,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 	for i := range preparedFields {
 		field := &report.Fields[i]
 		p := preparedFields[i]
-		if p.status == "pending-operator" || p.status == "absent" || p.status == "not-applicable-pre-launch" || p.kind == "derived-rate" || p.status == "stale" || p.kind == "measure" {
+		if p.status == "pending-operator" || p.status == "absent" || p.status == "not-applicable-pre-launch" || p.status == "rejected" || p.kind == "derived-rate" || p.status == "stale" || p.kind == "measure" {
 			continue
 		}
 		target := accountID
@@ -245,7 +275,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 			target = resolved
 		}
 		now := s.now().UTC()
-		event := &sharedpb.MoneyEvent{ExternalId: "operator-inputs:" + p.path, AdapterId: adapterID, AccountId: target, BookId: bookID, AmountMinor: int64(p.value), Currency: bookCurrency, OccurredAt: timestamppb.New(now), FetchedAt: timestamppb.New(now), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, Category: p.path, Description: "Imported operator input from " + sourcePath}
+		event := &sharedpb.MoneyEvent{ExternalId: "operator-inputs:" + p.path, AdapterId: adapterID, AccountId: target, BookId: bookID, AmountMinor: p.amountMinor, Currency: bookCurrency, OccurredAt: timestamppb.New(now), FetchedAt: timestamppb.New(now), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, Category: p.path, Description: "Imported operator input from " + sourcePath}
 		_, duplicate, err := s.journal.Ingest(ctx, event, "operator")
 		if err != nil {
 			return nil, fmt.Errorf("operator-inputs field %s: %w", p.path, err)
@@ -281,6 +311,14 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 	}
 	report.Applied = true
 	return report, nil
+}
+
+func parseMinorUnits(value json.Number) (int64, error) {
+	rational, ok := new(big.Rat).SetString(value.String())
+	if !ok || !rational.IsInt() || !rational.Num().IsInt64() {
+		return 0, fmt.Errorf("not an int64 minor-unit amount")
+	}
+	return rational.Num().Int64(), nil
 }
 
 func operatorFieldClass(path string) (kind, unit string, window int) {

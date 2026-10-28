@@ -159,7 +159,7 @@ func (h *handlers) execute(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.ExecuteRoute(context.Background(), connect.NewRequest(&routingv1.ExecuteRouteRequest{
 		Request:   req,
-		InputText: ctx.Flag("input"),
+		InputText: ctx.Flag("input-text"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("execute route", err, nil)

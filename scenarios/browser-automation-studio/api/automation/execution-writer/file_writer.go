@@ -1211,6 +1211,14 @@ func normalizeActionType(actionType string) string {
 
 // sanitizeOutcomeWithConfig applies configurable size limits from ArtifactCollectionSettings.
 func (r *FileWriter) sanitizeOutcomeWithConfig(out contracts.StepOutcome, cfg config.ArtifactCollectionSettings) contracts.StepOutcome {
+	// The outcome itself is embedded in the timeline, so disabling an artifact
+	// must remove its payload before that core projection is serialized too.
+	if !cfg.CollectScreenshots {
+		out.Screenshot = nil
+	}
+	if !cfg.CollectDOMSnapshots {
+		out.DOMSnapshot = nil
+	}
 	maxScreenshot := cfg.MaxScreenshotBytes
 	if maxScreenshot <= 0 {
 		maxScreenshot = contracts.ScreenshotMaxBytes

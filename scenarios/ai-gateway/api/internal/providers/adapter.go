@@ -90,9 +90,10 @@ type ExecutionRequest struct {
 	Temperature *float64
 	// SchemaJSON is passed through the provider's native structured-output
 	// request field. The gateway still validates the returned value locally.
-	SchemaJSON  string
-	Attachments []*sharedv1.Attachment
-	SpendLimit  *inferencev1.SpendLimit
+	SchemaJSON           string
+	Attachments          []*sharedv1.Attachment
+	SpendLimit           *inferencev1.SpendLimit
+	ExpectedWorkerDigest string
 }
 
 type ExecutionResult struct {
@@ -485,6 +486,9 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 		}
 		if req.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY {
 			args = append(args, "--require-loopback")
+		}
+		if digest := strings.TrimSpace(req.ExpectedWorkerDigest); digest != "" {
+			args = append(args, "--require-worker-digest", digest)
 		}
 		if req.MaxOutputTokens > 0 {
 			args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))

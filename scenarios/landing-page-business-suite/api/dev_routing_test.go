@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/devrouting"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
+)
 
 func TestLeaseDatabaseName(t *testing.T) {
 	got, err := leaseDatabaseName("workflow-health/ABC-123")
@@ -31,5 +38,18 @@ func TestIsSQLitePlaceholder(t *testing.T) {
 	}
 	if isSQLitePlaceholder("postgres://user:secret@localhost:5433/db") {
 		t.Fatal("Postgres DSN must not be recognized as a SQLite placeholder")
+	}
+}
+
+func TestPostgresTestPoolRoutingServiceForwardsSharedRestartPreconditions(t *testing.T) {
+	service := &postgresTestPoolRoutingService{RoutingServiceHandler: devrouting.NewService(nil, nil)}
+
+	_, err := service.PrepareTestPoolRestart(context.Background(), connect.NewRequest(&routingv1.PrepareTestPoolRestartRequest{LeaseId: "lease"}))
+	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
+		t.Fatalf("PrepareTestPoolRestart error code = %v, want %v (error: %v)", code, connect.CodeFailedPrecondition, err)
+	}
+	_, err = service.ResumeTestPool(context.Background(), connect.NewRequest(&routingv1.ResumeTestPoolRequest{LeaseId: "lease"}))
+	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
+		t.Fatalf("ResumeTestPool error code = %v, want %v (error: %v)", code, connect.CodeFailedPrecondition, err)
 	}
 }

@@ -3,6 +3,8 @@ package restores
 import (
 	"context"
 	"fmt"
+
+	"data-backup-manager/internal/dbschema"
 )
 
 // addedColumns lists columns introduced on the restores table after it first
@@ -23,7 +25,7 @@ var addedColumns = []struct {
 // async-restore heartbeat column (updated_at) land on a database that predates
 // it without losing restore history.
 func EnsureColumns(ctx context.Context, db SQLExecutor) error {
-	existing, err := tableColumns(ctx, db)
+	existing, err := dbschema.TableColumns(ctx, db, "restores")
 	if err != nil {
 		return err
 	}
@@ -36,32 +38,4 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 		}
 	}
 	return nil
-}
-
-func tableColumns(ctx context.Context, db SQLExecutor) (map[string]struct{}, error) {
-	rows, err := db.QueryContext(ctx, "PRAGMA table_info(restores)")
-	if err != nil {
-		return nil, fmt.Errorf("introspect restores columns: %w", err)
-	}
-	defer rows.Close()
-
-	cols := map[string]struct{}{}
-	for rows.Next() {
-		var (
-			cid        int
-			name       string
-			ctype      string
-			notNull    int
-			dfltValue  any
-			primaryKey int
-		)
-		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dfltValue, &primaryKey); err != nil {
-			return nil, fmt.Errorf("scan table_info row: %w", err)
-		}
-		cols[name] = struct{}{}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate table_info rows: %w", err)
-	}
-	return cols, nil
 }

@@ -2,6 +2,43 @@
 
 Known issues, tech debt, and deferred work for the git-control-tower scenario.
 
+## Corrected — history continuation overwrites an existing message (2026-10-22)
+
+Operator: “It should only set the message if not already set, so that I can use
+the ai suggest and also set a trailer, and the order doesn't matter.”
+
+- Rung: localized W3 correction. The history callback called setCommitMessage
+  with the entire continuation message. Both desktop and mobile use that callback.
+  Recall found related staged-message work, with run reranking/source-ledger
+  degraded; the observed setter directly establishes this cause.
+- App now uses a functional update through mergeContinuationMessage. Empty or
+  whitespace-only editors still prefill the historical continuation message.
+  Existing editor text keeps priority; only the continuation references merge.
+  Existing trailer parsing is reused by the history and AI merge paths, retaining
+  custom/folded current trailers and deduplicating identical key/value references.
+- Focused regressions cover existing AI title/body, empty editor, description
+  without title, repeated/distinct references, and actual composer adoption with
+  history first and AI first. Existing desktop/mobile history callback tests pass.
+  Independent review caught parse/serialize stripping Markdown indentation.
+  Corrected by appending only new references to original text and inserting into
+  an existing trailer block before its terminal whitespace. No-op selection
+  returns original text verbatim; added CRLF/indentation/whitespace regression.
+  Final independent review found no remaining material issue.
+  All 97 final focused tests, lint and type-check pass:
+  `/tmp/gct-continue-final-focused.log`, `/tmp/gct-continue-{lint,types}.log`.
+- Canonical make restart rebuilt and activated index-DNrFcF_O.js; API reports
+  healthy/readiness=true. `/tmp/gct-continue-final-restart.log` and served HTML retain
+  activation evidence. No staging command was issued. The final index comparison
+  observes concurrent nutrition-planner changes; GCT index entries are unchanged.
+  No model call or real commit was used for validation.
+- Test Genie unit `20261023-005016-e58fe347` retains the existing global UI
+  coverage failure: lines/statements 64.82%, functions 61.42%, branches 70.32%
+  versus 85%. Its bounded diagnostic summary reports 651 tests passed; no full
+  unit-green claim. This suite predates the final formatting-preservation fix;
+  the final focused checks include it. Findings payload `/tmp/gct-continue-unit-findings.json`,
+  925240 bytes, sha256
+  `d9e807c26c25e216af6932dd0c4693a3013b1a83754bd388012992c79b83eac1`.
+
 ## Corrected — committed suggestion retained for the next staged selection (2026-10-22)
 
 Operator feedback: “I accepted its proposal and committed with that. But then the

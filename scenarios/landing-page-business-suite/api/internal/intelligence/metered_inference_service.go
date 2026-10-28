@@ -136,7 +136,7 @@ func (s *MeteredInferenceService) ExecuteInference(ctx context.Context, userIden
 		messages = append([]AIMessage{{Role: "system", Content: "Apply these caller constraints exactly:\n" + strings.TrimSpace(req.ConstraintsJSON)}}, messages...)
 	}
 	return s.ExecuteChat(ctx, userIdentity, AIRequest{
-		Model: policy.Model, Messages: messages, MaxTokens: req.MaxTokens, Metadata: req.Metadata,
+		Model: policy.Model, Messages: messages, Images: req.Images, MaxTokens: req.MaxTokens, Metadata: req.Metadata, SpendLimit: req.SpendLimit, spendLimitTrusted: true,
 	})
 }
 
@@ -150,6 +150,12 @@ func defaultModelPricing() map[string]ModelPricing {
 // ExecuteChat executes a non-streaming chat completion.
 // Credits are checked and charged atomically to prevent TOCTOU race conditions.
 func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+	if req.SpendLimit != nil {
+		if !req.spendLimitTrusted {
+			return nil, errors.New("spend-limited inference is available only through an approved capability role")
+		}
+		return s.executeSpendCapped(ctx, userIdentity, req)
+	}
 	// Validate model
 	if !allowedModels[req.Model] {
 		return nil, fmt.Errorf("%w: %s", ErrModelNotAllowed, req.Model)
@@ -190,7 +196,7 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 	// Convert messages to OpenRouter format
 	orMessages := make([]OpenRouterMessage, len(req.Messages))
 	for i, msg := range req.Messages {
-		orMessages[i] = OpenRouterMessage(msg)
+		orMessages[i] = OpenRouterMessage{Role: msg.Role, Content: msg.Content}
 	}
 
 	// Execute the chat request

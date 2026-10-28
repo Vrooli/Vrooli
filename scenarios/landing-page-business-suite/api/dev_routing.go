@@ -23,10 +23,10 @@ import (
 )
 
 type postgresTestPoolRoutingService struct {
-	delegate routing_v1connect.RoutingServiceHandler
-	primary  string
-	mu       sync.Mutex
-	leases   map[string]string
+	routing_v1connect.RoutingServiceHandler
+	primary string
+	mu      sync.Mutex
+	leases  map[string]string
 }
 
 func registerScenarioDevRouting(router *mux.Router, routedDB *database.RoutedDB, roots *filerouting.RoutedRoots) error {
@@ -37,7 +37,7 @@ func registerScenarioDevRouting(router *mux.Router, routedDB *database.RoutedDB,
 	if err != nil {
 		return err
 	}
-	service := &postgresTestPoolRoutingService{delegate: devrouting.NewService(routedDB, roots), primary: primary, leases: make(map[string]string)}
+	service := &postgresTestPoolRoutingService{RoutingServiceHandler: devrouting.NewService(routedDB, roots), primary: primary, leases: make(map[string]string)}
 	if !devrouting.RegisterWithFileRootsService(devRoutingMux{router: router}, routedDB, roots, service) {
 		return fmt.Errorf("development routing is disabled or incomplete")
 	}
@@ -59,7 +59,7 @@ func (s *postgresTestPoolRoutingService) InstallTestPool(ctx context.Context, re
 	}
 	message := proto.Clone(req.Msg).(*routingv1.InstallTestPoolRequest)
 	message.Dsn = poolDSN
-	response, err := s.delegate.InstallTestPool(ctx, connect.NewRequest(message))
+	response, err := s.RoutingServiceHandler.InstallTestPool(ctx, connect.NewRequest(message))
 	if err != nil {
 		if databaseName != "" {
 			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
@@ -77,7 +77,7 @@ func (s *postgresTestPoolRoutingService) InstallTestPool(ctx context.Context, re
 }
 
 func (s *postgresTestPoolRoutingService) ClearTestPool(ctx context.Context, req *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
-	response, err := s.delegate.ClearTestPool(ctx, req)
+	response, err := s.RoutingServiceHandler.ClearTestPool(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +92,6 @@ func (s *postgresTestPoolRoutingService) ClearTestPool(ctx context.Context, req 
 		}
 	}
 	return response, nil
-}
-
-func (s *postgresTestPoolRoutingService) HeartbeatTestPool(ctx context.Context, req *connect.Request[routingv1.HeartbeatTestPoolRequest]) (*connect.Response[routingv1.HeartbeatTestPoolResponse], error) {
-	return s.delegate.HeartbeatTestPool(ctx, req)
 }
 
 func isSQLitePlaceholder(dsn string) bool {

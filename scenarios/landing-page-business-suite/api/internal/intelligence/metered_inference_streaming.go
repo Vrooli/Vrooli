@@ -51,7 +51,7 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 
 	orMessages := make([]OpenRouterMessage, len(req.Messages))
 	for i, msg := range req.Messages {
-		orMessages[i] = OpenRouterMessage(msg)
+		orMessages[i] = OpenRouterMessage{Role: msg.Role, Content: msg.Content}
 	}
 
 	usage, err := client.ChatStream(ctx, OpenRouterChatRequest{Model: req.Model, Messages: orMessages}, func(content string) {

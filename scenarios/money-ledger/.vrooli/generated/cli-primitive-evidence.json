@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "money-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "c9a0b143e5e7f71549b3852197ec1ebfccfa352da5ae633d918f87ba5410f77d",
+  "manifest_hash": "9ad045a2b334d45fc5439853105fda8fac054d2c6a0318a60acc5def9845f488",
   "commands": [
     {
       "path": "ingest adapter-register",
@@ -27,6 +27,14 @@
       "group": "ingest",
       "command": "adapters-list",
       "binding": "IngestService.ListAdapters",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ingest crypto-preview",
+      "group": "ingest",
+      "command": "crypto-preview",
+      "binding": "IngestService.PreviewCryptoObservation",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

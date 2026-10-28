@@ -224,10 +224,18 @@ evidence:
 | Verdict | Meaning | Effect on local candidate |
 |---|---|---|
 | `fit` | Broker admits the footprint. | Eligible. |
-| `unknown_capacity` | Broker unavailable/errored or no footprint declared. | Eligible (advisory — never blocks). |
+| `unknown_capacity` | Broker unavailable/errored, or no footprint was declared. | With no declared footprint, capacity is not gated. With a declared footprint, the local candidate is rejected until admission is verified. |
 | `reclaim_required` | Admitted, but only by reclaiming, with enforcement on. | Eligible. |
 | `insufficient_capacity` | Broker cannot admit the footprint. | Rejected. |
 | `advisory_reclaim_unavailable` | Admission needs reclaim but enforcement is advisory. | Rejected (treated as unavailable to avoid OOM). |
+
+Planning probes release any temporary claim immediately. A declared footprint
+must pass that probe for a local route to be planned. Execution then takes a new
+claim and requires a live claim ID plus a grant at least as large as the declared
+footprint; a prior `fit` probe alone is not execution admission. If the
+execution-time claim is denied, unknown, too small, or lacks a claim ID, the
+local attempt is skipped before provider generation. Any claim ID returned by a
+denied attempt is released best-effort.
 
 Profile behavior when a local candidate is rejected for capacity:
 
@@ -237,9 +245,12 @@ Profile behavior when a local candidate is rejected for capacity:
   remote merely because local capacity is constrained.
 
 An op-scoped capacity claim is held around the local execution attempt and
-released best-effort afterward; a crash falls back to the claim's bounded TTL.
-Capacity verdicts feed analytics (the `route_events.capacity_rejections`
-measure) but are policy filters only — never hidden route scoring.
+released best-effort afterward, including provider failures and execution-time
+rejection. If release cannot complete or the process crashes, the claim's
+bounded TTL is the cleanup backstop. Successful fallback evidence retains the
+capacity rejection that caused the prior local attempt to be skipped. Capacity
+verdicts feed analytics (the `route_events.capacity_rejections` measure) but
+are policy filters only — never hidden route scoring.
 
 ## Resource Alignment Recommendations
 

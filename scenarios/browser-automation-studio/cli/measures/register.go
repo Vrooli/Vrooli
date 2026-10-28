@@ -10,6 +10,7 @@ import (
 	basmeasuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/measures"
 	basmeasuresconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/measures/measuresv1connect"
 	sharedmeasuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -67,5 +68,10 @@ func measure[T any](ctx cliapp.RunContext, call measureCall[T], format func(*T) 
 	if !ok {
 		return fmt.Errorf("measure response is not a protobuf message")
 	}
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{Summary: []string{format(resp.Msg)}, ResultsHeading: "Measure", Results: []string{format(resp.Msg)}})
+	return cliapp.RenderProtoListWithJSONOptions(ctx, msg, cliapp.ListReport{Summary: []string{format(resp.Msg)}, ResultsHeading: "Measure", Results: []string{format(resp.Msg)}}, protojson.MarshalOptions{
+		UseProtoNames:     true,
+		EmitDefaultValues: true,
+		Multiline:         true,
+		Indent:            "  ",
+	})
 }

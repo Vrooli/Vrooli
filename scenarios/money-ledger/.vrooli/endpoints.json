@@ -191,6 +191,14 @@
       "category": "ledger"
     },
     {
+      "id": "ingest_crypto_preview",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/PreviewCryptoObservation",
+      "method": "POST",
+      "summary": "Preview exact crypto observations without posting or budget credit",
+      "description": "",
+      "category": ""
+    },
+    {
       "id": "ingest_register",
       "path": "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter",
       "method": "POST",

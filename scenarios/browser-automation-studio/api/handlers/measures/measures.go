@@ -98,8 +98,9 @@ func ratio(n, d int64) float64 {
 }
 
 type spec struct {
-	decl  measurelib.MeasureDeclaration
-	value func(Aggregate) string
+	decl        measurelib.MeasureDeclaration
+	value       func(Aggregate) string
+	denominator func(Aggregate) int64
 }
 
 func specs() []spec {
@@ -109,13 +110,17 @@ func specs() []spec {
 	return []spec{
 		{measurelib.MeasureDeclaration{Name: ExecutionSuccessRate, Scenario: "browser-automation-studio", Domain: "executions", Intent: "Fraction of terminal browser executions that completed successfully.", Questions: []string{"what is the browser execution pass rate", "how often do browser executions succeed", "what fraction of executions passed"}, Params: params(), Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "rate", Unit: "ratio", SummaryTemplate: "{rate} execution pass rate ({window})"}, Effect: measurelib.EffectRead, RunEligible: true}, func(a Aggregate) string {
 			return strconv.FormatFloat(ratio(a.SuccessfulExecutions, a.TerminalExecutions), 'f', -1, 64)
-		}},
-		{measurelib.MeasureDeclaration{Name: ExecutionDurationP95, Scenario: "browser-automation-studio", Domain: "executions", Intent: "95th percentile duration of completed browser executions.", Questions: []string{"what is the p95 browser execution duration", "how long do browser executions take", "what is the slowest typical browser execution"}, Params: params(), Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "durationMs", Unit: "milliseconds", SummaryTemplate: "{durationMs} ms p95 execution duration ({window})"}, Effect: measurelib.EffectRead, RunEligible: true}, func(a Aggregate) string { return strconv.FormatFloat(a.DurationP95Ms, 'f', -1, 64) }},
-		{measurelib.MeasureDeclaration{Name: StepFailureRate, Scenario: "browser-automation-studio", Domain: "execution_metrics", Intent: "Fraction of recorded execution steps that failed.", Questions: []string{"what is the browser step failure rate", "how many execution steps fail", "are browser workflow steps failing"}, Params: params(), Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "rate", Unit: "ratio", SummaryTemplate: "{rate} step failure rate ({window})"}, Effect: measurelib.EffectRead, RunEligible: true}, func(a Aggregate) string { return strconv.FormatFloat(ratio(a.FailedSteps, a.StepCount), 'f', -1, 64) }},
+		}, func(a Aggregate) int64 { return a.TerminalExecutions }},
+		{measurelib.MeasureDeclaration{Name: ExecutionDurationP95, Scenario: "browser-automation-studio", Domain: "executions", Intent: "95th percentile duration of completed browser executions.", Questions: []string{"what is the p95 browser execution duration", "how long do browser executions take", "what is the slowest typical browser execution"}, Params: params(), Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "durationMs", Unit: "milliseconds", SummaryTemplate: "{durationMs} ms p95 execution duration ({window})"}, Effect: measurelib.EffectRead, RunEligible: true}, func(a Aggregate) string { return strconv.FormatFloat(a.DurationP95Ms, 'f', -1, 64) }, nil},
+		{measurelib.MeasureDeclaration{Name: StepFailureRate, Scenario: "browser-automation-studio", Domain: "execution_metrics", Intent: "Fraction of recorded execution steps that failed.", Questions: []string{"what is the browser step failure rate", "how many execution steps fail", "are browser workflow steps failing"}, Params: params(), Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "rate", Unit: "ratio", SummaryTemplate: "{rate} step failure rate ({window})"}, Effect: measurelib.EffectRead, RunEligible: true}, func(a Aggregate) string { return strconv.FormatFloat(ratio(a.FailedSteps, a.StepCount), 'f', -1, 64) }, func(a Aggregate) int64 { return a.StepCount }},
 		{measurelib.MeasureDeclaration{Name: SelectorFailureRate, Scenario: "browser-automation-studio", Domain: "telemetry", Intent: "Fraction of interaction traces whose selector interaction failed.", Questions: []string{"what is the selector failure rate", "how often do browser selectors fail", "are locator interactions failing"}, Params: params(), Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "rate", Unit: "ratio", SummaryTemplate: "{rate} selector failure rate ({window})"}, Effect: measurelib.EffectRead, RunEligible: true}, func(a Aggregate) string {
 			return strconv.FormatFloat(ratio(a.FailedSelectors, a.SelectorTraces), 'f', -1, 64)
-		}},
+		}, func(a Aggregate) int64 { return a.SelectorTraces }},
 	}
+}
+
+func unavailableError(name string) error {
+	return fmt.Errorf("measure %q is unavailable: no observations in the selected time window", name)
 }
 
 func resolveWindow(tw *sharedmeasuresv1.TimeWindow, now time.Time) (measurelib.Range, error) {
@@ -140,6 +145,9 @@ func declarationRegistry(m Metrics, now func() time.Time) (*measurelib.Registry,
 			a, err := m.Aggregate(ctx, rng.From, rng.To)
 			if err != nil {
 				return measurelib.MeasureResult{}, err
+			}
+			if s.denominator != nil && s.denominator(a) == 0 {
+				return measurelib.MeasureResult{}, unavailableError(s.decl.Name)
 			}
 			return measurelib.MeasureResult{Value: s.value(a), Provenance: measurelib.Provenance{ExecutedQuery: "BAS execution/metrics/telemetry aggregate over [from,to)"}}, nil
 		}); err != nil {
@@ -180,6 +188,9 @@ func (h *Handler) value(ctx context.Context, name string, tw *sharedmeasuresv1.T
 	}
 	for _, s := range specs() {
 		if s.decl.Name == name {
+			if s.denominator != nil && s.denominator(a) == 0 {
+				return 0, connect.NewError(connect.CodeFailedPrecondition, unavailableError(name))
+			}
 			v, e := strconv.ParseFloat(s.value(a), 64)
 			return v, e
 		}
@@ -194,6 +205,7 @@ func (h *Handler) ExecutionSuccessRate(ctx context.Context, req *connect.Request
 	}
 	return connect.NewResponse(&basmeasuresv1.RateResponse{Rate: v}), nil
 }
+
 func (h *Handler) ExecutionDurationP95(ctx context.Context, req *connect.Request[basmeasuresv1.MeasureRequest]) (*connect.Response[basmeasuresv1.DurationResponse], error) {
 	v, e := h.value(ctx, ExecutionDurationP95, req.Msg.GetWindow())
 	if e != nil {
@@ -201,6 +213,7 @@ func (h *Handler) ExecutionDurationP95(ctx context.Context, req *connect.Request
 	}
 	return connect.NewResponse(&basmeasuresv1.DurationResponse{DurationMs: v}), nil
 }
+
 func (h *Handler) StepFailureRate(ctx context.Context, req *connect.Request[basmeasuresv1.MeasureRequest]) (*connect.Response[basmeasuresv1.RateResponse], error) {
 	v, e := h.value(ctx, StepFailureRate, req.Msg.GetWindow())
 	if e != nil {
@@ -208,6 +221,7 @@ func (h *Handler) StepFailureRate(ctx context.Context, req *connect.Request[basm
 	}
 	return connect.NewResponse(&basmeasuresv1.RateResponse{Rate: v}), nil
 }
+
 func (h *Handler) SelectorFailureRate(ctx context.Context, req *connect.Request[basmeasuresv1.MeasureRequest]) (*connect.Response[basmeasuresv1.RateResponse], error) {
 	v, e := h.value(ctx, SelectorFailureRate, req.Msg.GetWindow())
 	if e != nil {

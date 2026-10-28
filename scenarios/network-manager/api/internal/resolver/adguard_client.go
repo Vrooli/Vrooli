@@ -1,11 +1,8 @@
 package resolver
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -38,7 +35,7 @@ func (c ResourceBackedAdGuardClient) Check(ctx context.Context, cfg BackendConfi
 		return errStatus.status, nil
 	}
 
-	status, code, err := getAdGuardJSON[adGuardServerStatus](ctx, client, adGuardStatusEndpoint)
+	status, code, err := GetAdGuardJSON[adGuardServerStatus](ctx, client, adGuardStatusEndpoint)
 	if err != nil {
 		return ClientStatus{
 			Status:   "unreachable",
@@ -78,7 +75,7 @@ func (c ResourceBackedAdGuardClient) Check(ctx context.Context, cfg BackendConfi
 		out.Warnings = append(out.Warnings, "AdGuard Home protection/filtering is disabled or unknown.")
 	}
 
-	if dnsInfo, dnsCode, dnsErr := getAdGuardJSON[adGuardDNSInfo](ctx, client, adGuardDNSInfoEndpoint); dnsErr == nil && dnsCode >= 200 && dnsCode < 300 {
+	if dnsInfo, dnsCode, dnsErr := GetAdGuardJSON[adGuardDNSInfo](ctx, client, adGuardDNSInfoEndpoint); dnsErr == nil && dnsCode >= 200 && dnsCode < 300 {
 		out.Upstreams = cleanUniqueStrings(dnsInfo.UpstreamDNS)
 		out.Checks = append(out.Checks, "DNS info endpoint returned successfully.")
 	} else if dnsErr != nil {
@@ -111,7 +108,7 @@ func (c ResourceBackedAdGuardClient) PreviewUpstreams(ctx context.Context, cfg B
 	if errStatus != nil {
 		return nil, fmt.Errorf("cannot preview AdGuard upstreams: %s", firstWarning(errStatus.status))
 	}
-	info, code, err := getAdGuardJSON[adGuardDNSInfo](ctx, client, adGuardDNSInfoEndpoint)
+	info, code, err := GetAdGuardJSON[adGuardDNSInfo](ctx, client, adGuardDNSInfoEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("read current AdGuard upstreams: %w", err)
 	}
@@ -138,18 +135,11 @@ func (c ResourceBackedAdGuardClient) UpdateUpstreams(context.Context, BackendCon
 	return ClientStatus{}, nil, fmt.Errorf("%w: persistent AdGuard upstream updates require policy rollback support", ErrClientUnsupported)
 }
 
-type adGuardClient struct {
-	baseURL   string
-	creds     Credentials
-	transport http.RoundTripper
-	timeout   time.Duration
-}
-
 type clientErrorStatus struct {
 	status ClientStatus
 }
 
-func (c ResourceBackedAdGuardClient) client(ctx context.Context, cfg BackendConfig) (*adGuardClient, *clientErrorStatus) {
+func (c ResourceBackedAdGuardClient) client(ctx context.Context, cfg BackendConfig) (*AdGuardHomeClient, *clientErrorStatus) {
 	creds, err := c.Secrets.ResolveAdGuardCredentials(ctx, cfg)
 	if err != nil {
 		return nil, &clientErrorStatus{status: ClientStatus{
@@ -158,77 +148,19 @@ func (c ResourceBackedAdGuardClient) client(ctx context.Context, cfg BackendConf
 			Checks:   []string{"Credential resolution failed before contacting AdGuard Home."},
 		}}
 	}
-	timeout := c.Timeout
-	if timeout <= 0 {
-		timeout = 10 * time.Second
-	}
-	transport := c.HTTP
-	if transport == nil {
-		transport = &http.Transport{Proxy: http.ProxyFromEnvironment}
-	}
-	return &adGuardClient{
-		baseURL:   strings.TrimRight(cfg.BaseURL, "/"),
-		creds:     creds,
-		transport: transport,
-		timeout:   timeout,
-	}, nil
+	return NewAdGuardHomeClient(cfg.BaseURL, creds, c.HTTP, c.Timeout), nil
 }
 
-func getAdGuardJSON[T any](ctx context.Context, client *adGuardClient, endpoint string) (T, int, error) {
-	var zero T
-	resp, err := client.do(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return zero, 0, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return zero, resp.StatusCode, nil
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&zero); err != nil {
-		return zero, resp.StatusCode, fmt.Errorf("decode %s: %w", endpoint, err)
-	}
-	return zero, resp.StatusCode, nil
-}
-
-func (c ResourceBackedAdGuardClient) queryLogConfig(ctx context.Context, client *adGuardClient) (adGuardQueryLogConfig, string, int, error) {
-	config, code, err := getAdGuardJSON[adGuardQueryLogConfig](ctx, client, adGuardQueryLogConfigEndpoint)
+func (c ResourceBackedAdGuardClient) queryLogConfig(ctx context.Context, client *AdGuardHomeClient) (adGuardQueryLogConfig, string, int, error) {
+	config, code, err := GetAdGuardJSON[adGuardQueryLogConfig](ctx, client, adGuardQueryLogConfigEndpoint)
 	if err == nil && code >= 200 && code < 300 {
 		return config, adGuardQueryLogConfigEndpoint, code, nil
 	}
 	if code != http.StatusNotFound && code != http.StatusMethodNotAllowed {
 		return config, adGuardQueryLogConfigEndpoint, code, err
 	}
-	config, legacyCode, legacyErr := getAdGuardJSON[adGuardQueryLogConfig](ctx, client, adGuardLegacyQueryLogEndpoint)
+	config, legacyCode, legacyErr := GetAdGuardJSON[adGuardQueryLogConfig](ctx, client, adGuardLegacyQueryLogEndpoint)
 	return config, adGuardLegacyQueryLogEndpoint, legacyCode, legacyErr
-}
-
-func (c *adGuardClient) do(ctx context.Context, method, endpoint string, body any) (*http.Response, error) {
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.timeout)
-		defer cancel()
-	}
-
-	var reader io.Reader
-	if body != nil {
-		var buf bytes.Buffer
-		if err := json.NewEncoder(&buf).Encode(body); err != nil {
-			return nil, fmt.Errorf("encode request body: %w", err)
-		}
-		reader = &buf
-	}
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+endpoint, reader)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if c.creds.Username != "" || c.creds.Password != "" {
-		req.SetBasicAuth(c.creds.Username, c.creds.Password)
-	}
-	return c.transport.RoundTrip(req)
 }
 
 type adGuardServerStatus struct {
@@ -257,8 +189,8 @@ type adGuardClientEntry struct {
 	IP   string   `json:"ip,omitempty"`
 }
 
-func (c ResourceBackedAdGuardClient) applyClientEvidence(ctx context.Context, client *adGuardClient, out *ClientStatus) {
-	payload, code, err := getAdGuardJSON[adGuardClientsPayload](ctx, client, adGuardClientsEndpoint)
+func (c ResourceBackedAdGuardClient) applyClientEvidence(ctx context.Context, client *AdGuardHomeClient, out *ClientStatus) {
+	payload, code, err := GetAdGuardJSON[adGuardClientsPayload](ctx, client, adGuardClientsEndpoint)
 	if err != nil {
 		out.EnforcementStatus = "unverified"
 		out.Warnings = append(out.Warnings, "Router/client DNS evidence could not be checked from AdGuard client metadata.")

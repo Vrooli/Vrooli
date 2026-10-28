@@ -1,11 +1,8 @@
 package inventory
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -36,7 +33,7 @@ func (s AdGuardClientDiscoverySource) Discover(ctx context.Context) ([]Observati
 		return nil, findings, ErrUnsupported
 	}
 
-	payload, code, err := getInventoryJSON[adGuardClientsPayload](ctx, client, adGuardClientsEndpoint)
+	payload, code, err := resolver.GetAdGuardJSON[adGuardClientsPayload](ctx, client, adGuardClientsEndpoint)
 	if err != nil {
 		return nil, []string{"AdGuard Home clients endpoint could not be reached; inventory was not changed."}, err
 	}
@@ -56,7 +53,7 @@ func (s AdGuardClientDiscoverySource) Discover(ctx context.Context) ([]Observati
 	}, nil
 }
 
-func (s AdGuardClientDiscoverySource) client(ctx context.Context) (*adGuardInventoryClient, []string, error) {
+func (s AdGuardClientDiscoverySource) client(ctx context.Context) (*resolver.AdGuardHomeClient, []string, error) {
 	if s.Backends == nil {
 		return nil, []string{"Resolver backend repository is unavailable; AdGuard client discovery is disabled."}, fmt.Errorf("resolver backend repository unavailable")
 	}
@@ -75,27 +72,7 @@ func (s AdGuardClientDiscoverySource) client(ctx context.Context) (*adGuardInven
 	if err != nil {
 		return nil, []string{"AdGuard Home credential could not be resolved through the credential authority; no resolver client evidence was imported."}, err
 	}
-	timeout := s.Timeout
-	if timeout <= 0 {
-		timeout = 10 * time.Second
-	}
-	transport := s.HTTP
-	if transport == nil {
-		transport = &http.Transport{Proxy: http.ProxyFromEnvironment}
-	}
-	return &adGuardInventoryClient{
-		baseURL:   strings.TrimRight(cfg.BaseURL, "/"),
-		creds:     creds,
-		transport: transport,
-		timeout:   timeout,
-	}, nil, nil
-}
-
-type adGuardInventoryClient struct {
-	baseURL   string
-	creds     resolver.Credentials
-	transport http.RoundTripper
-	timeout   time.Duration
+	return resolver.NewAdGuardHomeClient(cfg.BaseURL, creds, s.HTTP, s.Timeout), nil, nil
 }
 
 type adGuardClientsPayload struct {
@@ -238,48 +215,4 @@ func cleanInventoryStrings(values []string) []string {
 		out = append(out, value)
 	}
 	return out
-}
-
-func getInventoryJSON[T any](ctx context.Context, client *adGuardInventoryClient, endpoint string) (T, int, error) {
-	var zero T
-	resp, err := client.do(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return zero, 0, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return zero, resp.StatusCode, nil
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&zero); err != nil {
-		return zero, resp.StatusCode, fmt.Errorf("decode %s: %w", endpoint, err)
-	}
-	return zero, resp.StatusCode, nil
-}
-
-func (c *adGuardInventoryClient) do(ctx context.Context, method, endpoint string, body any) (*http.Response, error) {
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.timeout)
-		defer cancel()
-	}
-	var reader io.Reader
-	if body != nil {
-		var buf bytes.Buffer
-		if err := json.NewEncoder(&buf).Encode(body); err != nil {
-			return nil, fmt.Errorf("encode request body: %w", err)
-		}
-		reader = &buf
-	}
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+endpoint, reader)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if c.creds.Username != "" || c.creds.Password != "" {
-		req.SetBasicAuth(c.creds.Username, c.creds.Password)
-	}
-	return c.transport.RoundTrip(req)
 }

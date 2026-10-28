@@ -164,3 +164,7 @@ These are real parts of managing money and are **not** domains here. Each is exc
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — dependency contracts
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — boundary registry
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test strategy
+
+## Read-only crypto observation preview
+
+The existing ingest owner provides a bounded preview of an externally observed EVM balance or transfer leg. It preserves exact atomic integer strings and network/asset identities; source-reported pending/included/finalized/removed/reverted states do not become independently verified finality. Optional book/account lookups establish scope only. Preview never writes a posting, receipt, valuation or budget credit. Missing accountable wallet ownership and authorized valuation remain explicit holds; the caller cannot supply an approval flag. Removed observations require the accepted original correction receipt. This research extension does not create another inventory book or payment capability.

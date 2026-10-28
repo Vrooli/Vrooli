@@ -2554,3 +2554,41 @@ func BenchmarkSourceFingerprint(b *testing.B) {
 		}
 	})
 }
+
+func TestDescribeRetainsAllSurfacesWhileDerivedCacheWriterIsBusy(t *testing.T) {
+	repo, root := writeScenarioFixture(t,"cache-contention")
+	_ = root
+	db, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "cache.db")+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(1)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(2)
+	if _, err := db.ExecContext(context.Background(), CacheSchema()); err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateCacheSchema(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	locker, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer locker.Close()
+	if _, err = locker.ExecContext(context.Background(), "BEGIN IMMEDIATE"); err != nil {
+		t.Fatal(err)
+	}
+	defer locker.ExecContext(context.Background(), "ROLLBACK")
+	report, err := NewService(WithCacheRepository(NewSQLiteCacheRepository(db))).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "cache-contention", RepoRoot: repo}, Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SURFACES}, UseCache: true})
+	if err != nil {
+		t.Fatalf("fresh inventory must survive a contended derived cache write: %v", err)
+	}
+	requireSurface(t, report.GetSurfaces(), "api", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
+	requireSurface(t, report.GetSurfaces(), "runtime", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
+	if report.GetCache().GetState() != "write_failed" {
+		t.Fatalf("cache state=%q, want explicit write_failed", report.GetCache().GetState())
+	}
+	if len(report.GetWarnings()) == 0 {
+		t.Fatal("cache failure must remain visible")
+	}
+}

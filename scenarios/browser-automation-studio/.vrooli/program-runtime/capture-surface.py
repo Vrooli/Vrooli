@@ -19,7 +19,7 @@ envelope = {
     "inputs": {"url": url, "viewport": viewport, "theme": theme, "direction": direction,
                "wait_for": wait_for or None, "wait_until": wait_until, "settle_ms": settle_ms,
                "device_scale_factor": device_scale_factor},
-    "signals": {"artifact_id": None, "screenshot_ref": None, "snapshot_ref": None, "url": url,
+    "signals": {"artifact_id": None, "screenshot_ref": None, "snapshot_ref": None, "screenshot_view_url": None, "snapshot_view_url": None, "url": url,
                 "viewport": viewport, "theme": theme, "direction": direction,
                 "captured_at": None, "readiness": None},
     "errors": [], "evidence": []
@@ -93,6 +93,8 @@ def step_act():
     snapshot = by_type.get("capture_type_dom_tree") or by_type.get("dom_tree")
     envelope["signals"]["screenshot_ref"] = (screenshot or {}).get("reference")
     envelope["signals"]["snapshot_ref"] = (snapshot or {}).get("reference")
+    envelope["signals"]["screenshot_view_url"] = ((screenshot or {}).get("metadata") or {}).get("view_url")
+    envelope["signals"]["snapshot_view_url"] = ((snapshot or {}).get("metadata") or {}).get("view_url")
     if execution_id:
         envelope["evidence"].append("execution:" + str(execution_id))
     if envelope["signals"]["screenshot_ref"]:

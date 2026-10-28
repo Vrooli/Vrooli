@@ -79,6 +79,36 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 	return s.reservationService().ReserveCredits(ctx, userIdentity, tier, limitKey, amount)
 }
 
+// ReserveUSDSpendCap converts a USD micro-dollar ceiling using the current
+// authoritative LPBS cost multiplier, rounds upward, and reserves that amount.
+func (s *UsageService) ReserveUSDSpendCap(ctx context.Context, userIdentity, tier string, costMicros int64, operationID string) (string, int64, int64, error) {
+	if costMicros <= 0 || s.limitsSvc == nil {
+		return "", 0, 0, fmt.Errorf("current credit limit authority is unavailable")
+	}
+	limit, err := s.limitsSvc.GetLimit(ctx, tier, "ai_credits", nil)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("load current AI credit conversion: %w", err)
+	}
+	if limit == nil || limit.LimitType != "cost_based" || limit.CostMultiplier <= 0 {
+		return "", 0, 0, fmt.Errorf("current AI credit conversion is unavailable")
+	}
+	if costMicros > (int64(^uint64(0)>>1)-9999)/limit.CostMultiplier {
+		return "", 0, 0, fmt.Errorf("spend ceiling conversion overflows")
+	}
+	units := (costMicros*limit.CostMultiplier + 9999) / 10000
+	if units <= 0 {
+		return "", 0, 0, fmt.Errorf("spend ceiling conversion is invalid")
+	}
+	id, err := s.reservationService().ReserveCreditsWithID(ctx, userIdentity, tier, "ai_credits", units, operationID)
+	return id, units, limit.CostMultiplier, err
+}
+
+// RetainUncertainReservation makes a provider-dispatch hold survive automatic
+// expiry until an owner reconciles its outcome.
+func (s *UsageService) RetainUncertainReservation(ctx context.Context, reservationID string) error {
+	return s.reservationService().RetainUncertainReservation(ctx, reservationID)
+}
+
 func (s *UsageService) FinalizeReservationWithMetadata(ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
 	return s.reservationService().FinalizeReservationWithMetadata(ctx, reservationID, amount, appBundleKey, model)
 }

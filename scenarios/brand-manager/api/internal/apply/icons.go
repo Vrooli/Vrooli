@@ -108,7 +108,7 @@ func (s *service) renderTarget(ctx context.Context, style render.Style, mark, sm
 	variant := toRenderVariant(target.Variant)
 	switch target.Format {
 	case "svg":
-		return render.Compose(mark, small, style, render.Vector, edge, false)
+		return render.Compose(mark, small, style, variant, edge, useSmall)
 	case "png":
 		svg, err := render.Compose(mark, small, style, variant, edge, useSmall)
 		if err != nil {

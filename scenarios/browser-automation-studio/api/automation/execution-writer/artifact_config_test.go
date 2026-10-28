@@ -96,6 +96,38 @@ func TestSetArtifactConfigForExecutionNilClears(t *testing.T) {
 	}
 }
 
+func TestNoneArtifactProfileOmitsScreenshotAndDOMFromTimelineOutcome(t *testing.T) {
+	root := t.TempDir()
+	writer := NewFileWriter(noopRepo{}, nil, nil, NewStaticRoot(root))
+	none := config.DefaultArtifactSettingsForProfile(config.ProfileNone)
+	writer.SetArtifactConfig(&none)
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+
+	_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepType:    "navigate",
+		Success:     true,
+		Screenshot:  &contracts.Screenshot{Data: []byte("sensitive-image-payload")},
+		DOMSnapshot: &contracts.DOMSnapshot{HTML: "<html>finance-bearing page</html>"},
+	})
+	require.NoError(t, err)
+
+	timelineData, err := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), protoTimelineFileName))
+	require.NoError(t, err)
+	var timeline bastimeline.ExecutionTimeline
+	require.NoError(t, (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(timelineData, &timeline))
+	require.Len(t, timeline.Entries, 1)
+	var savedOutcome map[string]any
+	for _, artifact := range timeline.Entries[0].GetAggregates().GetArtifacts() {
+		if value := artifact.GetPayload()["outcome"]; value != nil {
+			savedOutcome, _ = contracts.JsonValueToAny(value).(map[string]any)
+		}
+	}
+	require.NotNil(t, savedOutcome)
+	require.NotContains(t, savedOutcome, "screenshot")
+	require.NotContains(t, savedOutcome, "dom_snapshot")
+}
+
 func TestForgetPreservesDurableAndOtherActiveExecution(t *testing.T) {
 	root := t.TempDir()
 	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(root))

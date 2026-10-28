@@ -35,6 +35,14 @@ func invalid(err error) error  { return connect.NewError(connect.CodeInvalidArgu
 func internal(err error) error { return connect.NewError(connect.CodeInternal, err) }
 func notFound(err error) error { return connect.NewError(connect.CodeNotFound, err) }
 
+func (s *Service) PreviewCryptoObservation(ctx context.Context, req *connect.Request[ingestpb.PreviewCryptoObservationRequest]) (*connect.Response[ingestpb.PreviewCryptoObservationResponse], error) {
+	out, err := s.store.PreviewCryptoObservation(ctx, req.Msg)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (s *Service) RegisterAdapter(ctx context.Context, req *connect.Request[ingestpb.RegisterAdapterRequest]) (*connect.Response[ingestpb.RegisterAdapterResponse], error) {
 	a, err := s.store.RegisterAdapter(ctx, req.Msg.Adapter)
 	if err != nil {
@@ -127,6 +135,7 @@ func (s *Service) OperatorInputStatus(ctx context.Context, req *connect.Request[
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "ingest_crypto_preview", Method: http.MethodPost, Path: ingestconnect.IngestServicePreviewCryptoObservationProcedure, Summary: "Preview exact crypto observations without posting or budget credit"},
 	ep("ingest_register", "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter", "Register a money adapter"),
 	ep("ingest_list", "/vrooli.money_ledger.v1.ingest.IngestService/ListAdapters", "List money adapters"),
 	ep("ingest_event", "/vrooli.money_ledger.v1.ingest.IngestService/IngestEvent", "Admit one typed money event"),

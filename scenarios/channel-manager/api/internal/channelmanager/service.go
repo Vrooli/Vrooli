@@ -21,6 +21,7 @@ var (
 	ErrCadence         = errors.New("identity daily cadence ceiling reached")
 	ErrForbiddenAction = errors.New("action is forbidden in the active warming phase")
 	ErrPaused          = errors.New("identity queue is paused or quarantined")
+	ErrRetired         = errors.New("retired identity cannot accept new actions")
 )
 
 type Provenance struct {
@@ -695,6 +696,9 @@ func (s *Service) Enqueue(identityID, kind string, at time.Time, seed uint64, ke
 	i := s.Identities[identityID]
 	if i == nil {
 		return nil, errors.New("identity not found")
+	}
+	if i.Status == "retired" || i.Lifecycle == "retired" {
+		return nil, ErrRetired
 	}
 	if i.Status == "paused" || i.Status == "quarantined" {
 		return nil, ErrPaused

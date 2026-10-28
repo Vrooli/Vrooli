@@ -3,6 +3,8 @@ package destinations
 import (
 	"context"
 	"fmt"
+
+	"data-backup-manager/internal/dbschema"
 )
 
 // addedColumns lists columns introduced after the initial destinations table
@@ -32,7 +34,7 @@ var addedColumns = []struct {
 // columns already exist, so nothing is added). Call it after EnsureSchemas has
 // created the base table.
 func EnsureColumns(ctx context.Context, db SQLExecutor) error {
-	existing, err := tableColumns(ctx, db)
+	existing, err := dbschema.TableColumns(ctx, db, "destinations")
 	if err != nil {
 		return err
 	}
@@ -45,32 +47,4 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 		}
 	}
 	return nil
-}
-
-func tableColumns(ctx context.Context, db SQLExecutor) (map[string]struct{}, error) {
-	rows, err := db.QueryContext(ctx, "PRAGMA table_info(destinations)")
-	if err != nil {
-		return nil, fmt.Errorf("introspect destinations columns: %w", err)
-	}
-	defer rows.Close()
-
-	cols := map[string]struct{}{}
-	for rows.Next() {
-		var (
-			cid        int
-			name       string
-			ctype      string
-			notNull    int
-			dfltValue  any
-			primaryKey int
-		)
-		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dfltValue, &primaryKey); err != nil {
-			return nil, fmt.Errorf("scan table_info row: %w", err)
-		}
-		cols[name] = struct{}{}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate table_info rows: %w", err)
-	}
-	return cols, nil
 }

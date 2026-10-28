@@ -66,6 +66,9 @@ the interaction, not a backend or a promise about production latency.
    Existing message text and unknown trailers MUST survive parsing, navigation,
    regeneration and comparison. Conventional validation MUST inspect the title
    separately from the body/trailers. Commit authority remains unchanged.
+   History Continue actions merge continuation trailers into existing editor text
+   and prefill the continuation message only when the editor is empty. AI adoption
+   and continuation selection preserve each other's references in either order.
 3. Suggest MUST first collect bounded evidence programmatically with no model
    or agent call. The UI MUST show gathering state and allow cancellation.
    The collector MUST read staged Git objects, never substitute working files.

@@ -1,11 +1,9 @@
 package policy
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -218,28 +216,10 @@ func (a AdGuardResolverPolicyAdapter) client(ctx context.Context) (*adGuardPolic
 	if err != nil {
 		return nil, fmt.Errorf("resolve AdGuard Home credentials: %w", err)
 	}
-	timeout := a.Timeout
-	if timeout <= 0 {
-		timeout = 10 * time.Second
-	}
-	transport := a.HTTP
-	if transport == nil {
-		transport = &http.Transport{Proxy: http.ProxyFromEnvironment}
-	}
-	return &adGuardPolicyClient{
-		baseURL:   strings.TrimRight(cfg.BaseURL, "/"),
-		creds:     creds,
-		transport: transport,
-		timeout:   timeout,
-	}, nil
+	return &adGuardPolicyClient{resolver.NewAdGuardHomeClient(cfg.BaseURL, creds, a.HTTP, a.Timeout)}, nil
 }
 
-type adGuardPolicyClient struct {
-	baseURL   string
-	creds     resolver.Credentials
-	transport http.RoundTripper
-	timeout   time.Duration
-}
+type adGuardPolicyClient struct{ *resolver.AdGuardHomeClient }
 
 type adGuardFilteringStatus struct {
 	UserRules []string `json:"user_rules"`
@@ -267,11 +247,11 @@ type adGuardRollbackHandle struct {
 }
 
 func (c *adGuardPolicyClient) filteringStatus(ctx context.Context) (adGuardFilteringStatus, int, error) {
-	return getPolicyJSON[adGuardFilteringStatus](ctx, c, adGuardFilteringStatusEndpoint)
+	return resolver.GetAdGuardJSON[adGuardFilteringStatus](ctx, c.AdGuardHomeClient, adGuardFilteringStatusEndpoint)
 }
 
 func (c *adGuardPolicyClient) status(ctx context.Context) (adGuardStatus, int, error) {
-	return getPolicyJSON[adGuardStatus](ctx, c, adGuardStatusEndpoint)
+	return resolver.GetAdGuardJSON[adGuardStatus](ctx, c.AdGuardHomeClient, adGuardStatusEndpoint)
 }
 
 func (c *adGuardPolicyClient) setRules(ctx context.Context, rules []string) (int, error) {
@@ -286,57 +266,13 @@ func (c *adGuardPolicyClient) setProtection(ctx context.Context, enabled bool, d
 	return c.requestStatus(ctx, http.MethodPost, adGuardProtectionEndpoint, adGuardProtectionUpdate{Enabled: enabled, Duration: millis})
 }
 
-func getPolicyJSON[T any](ctx context.Context, client *adGuardPolicyClient, endpoint string) (T, int, error) {
-	var zero T
-	resp, err := client.do(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return zero, 0, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return zero, resp.StatusCode, nil
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&zero); err != nil {
-		return zero, resp.StatusCode, fmt.Errorf("decode %s: %w", endpoint, err)
-	}
-	return zero, resp.StatusCode, nil
-}
-
 func (c *adGuardPolicyClient) requestStatus(ctx context.Context, method, endpoint string, body any) (int, error) {
-	resp, err := c.do(ctx, method, endpoint, body)
+	resp, err := c.Do(ctx, method, endpoint, body)
 	if err != nil {
 		return 0, err
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode, nil
-}
-
-func (c *adGuardPolicyClient) do(ctx context.Context, method, endpoint string, body any) (*http.Response, error) {
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.timeout)
-		defer cancel()
-	}
-	var reader io.Reader
-	if body != nil {
-		var buf bytes.Buffer
-		if err := json.NewEncoder(&buf).Encode(body); err != nil {
-			return nil, fmt.Errorf("encode request body: %w", err)
-		}
-		reader = &buf
-	}
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+endpoint, reader)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if c.creds.Username != "" || c.creds.Password != "" {
-		req.SetBasicAuth(c.creds.Username, c.creds.Password)
-	}
-	return c.transport.RoundTrip(req)
 }
 
 func previewEffects(change Change) []string {

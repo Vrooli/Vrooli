@@ -1,13 +1,19 @@
 package measures
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	coredb "github.com/vrooli/api-core/database"
 	measurelib "github.com/vrooli/measures-go"
+	basmeasuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/measures"
 	_ "modernc.org/sqlite"
 )
 
@@ -62,6 +68,92 @@ func TestRegistryComputesDeclaredMeasuresFromOneAggregate(t *testing.T) {
 		if got.Provenance.ExecutedQuery == "" || got.Provenance.ComputedAt.IsZero() {
 			t.Errorf("%s: missing provenance: %+v", name, got.Provenance)
 		}
+	}
+}
+
+func TestRegistryReportsRateMeasuresUnavailableWithoutObservations(t *testing.T) {
+	registry, err := declarationRegistry(fakeMetrics{}, func() time.Time {
+		return time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{ExecutionSuccessRate, StepFailureRate, SelectorFailureRate} {
+		_, err := registry.Execute(context.Background(), measurelib.MeasureRequest{
+			Measure: name,
+			Params:  map[string]string{"window": "last_7d"},
+		})
+		if err == nil {
+			t.Errorf("%s with no observations returned a value", name)
+			continue
+		}
+		if !strings.Contains(err.Error(), "is unavailable: no observations") {
+			t.Errorf("%s error = %q, want unavailable observation error", name, err)
+		}
+	}
+}
+
+func TestRateConnectMethodsReportEmptyWindowUnavailable(t *testing.T) {
+	handler := &Handler{
+		metrics: fakeMetrics{},
+		now:     func() time.Time { return time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC) },
+	}
+	request := connect.NewRequest(&basmeasuresv1.MeasureRequest{})
+	for _, tc := range []struct {
+		name string
+		call func() error
+	}{
+		{name: ExecutionSuccessRate, call: func() error { _, err := handler.ExecutionSuccessRate(context.Background(), request); return err }},
+		{name: StepFailureRate, call: func() error { _, err := handler.StepFailureRate(context.Background(), request); return err }},
+		{name: SelectorFailureRate, call: func() error { _, err := handler.SelectorFailureRate(context.Background(), request); return err }},
+	} {
+		err := tc.call()
+		if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
+			t.Errorf("%s empty-window Connect code = %v, want %v (err=%v)", tc.name, code, connect.CodeFailedPrecondition, err)
+		}
+		if err == nil || !strings.Contains(err.Error(), tc.name) || !strings.Contains(err.Error(), "unavailable") {
+			t.Errorf("%s empty-window error does not identify unavailable measure: %v", tc.name, err)
+		}
+	}
+}
+
+func TestMeasuresHTTPReportsEmptyRateWindowAsUnprocessable(t *testing.T) {
+	registry, err := declarationRegistry(fakeMetrics{}, func() time.Time {
+		return time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/execute", bytes.NewBufferString(
+		`{"measure":"execution_metrics.step-failure-rate","params":{"window":"last_7d"}}`,
+	))
+	response := httptest.NewRecorder()
+	registry.Handler().ServeHTTP(response, req)
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("empty-window HTTP status = %d, want %d; body=%q", response.Code, http.StatusUnprocessableEntity, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "unavailable: no observations") {
+		t.Fatalf("empty-window HTTP response does not explain unavailability: %q", response.Body.String())
+	}
+}
+
+func TestZeroStepFailuresWithRecordedStepsRemainAvailable(t *testing.T) {
+	registry, err := declarationRegistry(fakeMetrics{aggregate: Aggregate{StepCount: 7}}, func() time.Time {
+		return time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := registry.Execute(context.Background(), measurelib.MeasureRequest{
+		Measure: StepFailureRate,
+		Params:  map[string]string{"window": "last_7d"},
+	})
+	if err != nil {
+		t.Fatalf("observed zero-failure rate returned error: %v", err)
+	}
+	if got.Value != "0" {
+		t.Fatalf("observed zero-failure rate = %q, want 0", got.Value)
 	}
 }
 

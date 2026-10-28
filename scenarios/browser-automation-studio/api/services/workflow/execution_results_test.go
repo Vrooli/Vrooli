@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"os"
@@ -1350,4 +1351,60 @@ func TestResumeRejectsUncertainBrowserEffectAfterCheckpoint(t *testing.T) {
 			t.Fatalf("uncertain operation admitted replacement execution: runner=%t index=%s original=%s", runnerCalled, repo.index.ID, original)
 		}
 	})
+}
+
+func TestTerminalObservationJoinsCleanupWithoutCancellingTheExecution(t *testing.T) {
+	for _, cancelRead := range []bool{false, true} {
+		t.Run(fmt.Sprint(cancelRead), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				release := make(chan struct{})
+				service, repo, invoke := newCompletionFixture(t, "saved", func(context.Context, executor.Request) error { return nil })
+				service.eventSinkFactory = func() events.Sink {
+					return &delayedCompletionSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits), release: release}
+				}
+				if got := invoke(context.Background(), false); got.err != nil {
+					t.Fatal(got.err)
+				}
+				synctest.Wait()
+				if repo.index.CompletedAt == nil {
+					t.Fatal("fixture did not persist terminal status before cleanup")
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				type observed struct {
+					execution *database.ExecutionIndex
+					err       error
+				}
+				done := make(chan observed, 1)
+				go func() { e, err := service.GetExecution(ctx, repo.index.ID); done <- observed{e, err} }()
+				synctest.Wait()
+				select {
+				case got := <-done:
+					t.Fatalf("terminal read released ownership before cleanup: %+v", got)
+				default:
+				}
+				if cancelRead {
+					cancel()
+					synctest.Wait()
+					if got := <-done; !errors.Is(got.err, context.Canceled) {
+						t.Fatalf("read cancellation: %+v", got)
+					}
+					if _, ok := service.executionCancels.Load(repo.index.ID); !ok {
+						t.Fatal("read cancellation discarded the durable owner")
+					}
+				}
+				close(release)
+				synctest.Wait()
+				if !cancelRead {
+					if got := <-done; got.err != nil || got.execution.CompletedAt == nil {
+						t.Fatalf("joined read: %+v", got)
+					}
+				}
+				latest, err := service.GetExecution(context.Background(), repo.index.ID)
+				if err != nil || latest.Status != database.ExecutionStatusCompleted {
+					t.Fatalf("observation changed the execution: %+v %v", latest, err)
+				}
+			})
+		})
+	}
 }

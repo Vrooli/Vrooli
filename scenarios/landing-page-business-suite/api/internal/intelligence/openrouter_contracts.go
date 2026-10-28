@@ -17,10 +17,12 @@ type OpenRouterClient interface {
 }
 
 type OpenRouterChatRequest struct {
-	Model    string                  `json:"model"`
-	Messages []OpenRouterMessage     `json:"messages"`
-	Stream   bool                    `json:"stream,omitempty"`
-	Usage    *OpenRouterUsageRequest `json:"usage,omitempty"`
+	Model     string                    `json:"model"`
+	Messages  []OpenRouterMessage       `json:"messages"`
+	MaxTokens int                       `json:"max_tokens,omitempty"`
+	Stream    bool                      `json:"stream,omitempty"`
+	Usage     *OpenRouterUsageRequest   `json:"usage,omitempty"`
+	Provider  *OpenRouterProviderPolicy `json:"provider,omitempty"`
 }
 
 type OpenRouterUsageRequest struct {
@@ -29,7 +31,38 @@ type OpenRouterUsageRequest struct {
 
 type OpenRouterMessage struct {
 	Role    string `json:"role"`
-	Content string `json:"content"`
+	Content any    `json:"content"`
+}
+
+type OpenRouterProviderPolicy struct {
+	Only              []string           `json:"only"`
+	AllowFallbacks    bool               `json:"allow_fallbacks"`
+	RequireParameters bool               `json:"require_parameters"`
+	MaxPrice          OpenRouterMaxPrice `json:"max_price"`
+}
+
+type OpenRouterMaxPrice struct {
+	Prompt     float64 `json:"prompt"`
+	Completion float64 `json:"completion"`
+	Request    float64 `json:"request"`
+	Image      float64 `json:"image"`
+}
+
+type OpenRouterEndpointMetadata struct {
+	Provider          string
+	ContextTokens     int
+	PromptPrice       float64
+	CompletionPrice   float64
+	RequestPrice      float64
+	ImagePrice        float64
+	RequestPriceKnown bool
+	ImagePriceKnown   bool
+}
+
+// OpenRouterEndpointMetadataClient is optional so existing test and legacy
+// clients remain compatible; hard-cap requests require the live metadata seam.
+type OpenRouterEndpointMetadataClient interface {
+	CurrentEndpoints(context.Context, string) ([]OpenRouterEndpointMetadata, error)
 }
 
 type OpenRouterChatResponse struct {
@@ -45,6 +78,7 @@ type OpenRouterUsage struct {
 	CompletionTokens int   `json:"completion_tokens"`
 	TotalTokens      int   `json:"total_tokens"`
 	CostMicros       int64 `json:"cost_micros"`
+	CostReported     bool  `json:"-"`
 }
 
 // OpenRouterClientOptions configures the provider HTTP implementation.

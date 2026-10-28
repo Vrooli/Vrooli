@@ -6,6 +6,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -352,18 +353,37 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 	}
 	p.Id = uuid.NewString()
 	e.Id = p.Id
-	p.Event = e
-	p.ReversalOf = rev
-	p.Actor = actor
-	_, err = s.db.ExecContext(ctx, `INSERT INTO postings(id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.Id, e.ExternalId, e.AdapterId, e.AccountId, e.BookId, e.AmountMinor, e.Currency, e.OccurredAt.AsTime().UTC().Format(time.RFC3339Nano), e.FetchedAt.AsTime().UTC().Format(time.RFC3339Nano), int32(e.Basis), e.Description, e.Category, actor, s.now().UTC().Format(time.RFC3339Nano))
+	created = s.now().UTC().Format(time.RFC3339Nano)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, false, err
 	}
-	if err := s.recordAudit(ctx, "posting", p.Id, actor, "ingested money event", ""); err != nil {
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.ExecContext(ctx, `INSERT INTO postings(id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(adapter_id,external_id) DO NOTHING`, p.Id, e.ExternalId, e.AdapterId, e.AccountId, e.BookId, e.AmountMinor, e.Currency, e.OccurredAt.AsTime().UTC().Format(time.RFC3339Nano), e.FetchedAt.AsTime().UTC().Format(time.RFC3339Nano), int32(e.Basis), e.Description, e.Category, actor, created)
+	if err != nil {
 		return nil, false, err
 	}
-	p.Audit, err = s.loadAudit(ctx, p.Id)
-	return &p, false, err
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return nil, false, err
+	}
+	duplicate := inserted == 0
+	if duplicate {
+		// A concurrent writer may have accepted this exact source identity after
+		// the initial read. Return its canonical posting after transaction closure.
+		if err = tx.QueryRowContext(ctx, `SELECT id FROM postings WHERE adapter_id=? AND external_id=?`, e.AdapterId, e.ExternalId).Scan(&p.Id); err != nil {
+			return nil, false, err
+		}
+	} else {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO ledger_audit(id,entity_type,entity_id,actor,reason,prior_value,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), "posting", p.Id, actor, "ingested money event", "", created); err != nil {
+			return nil, false, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, false, err
+	}
+	accepted, err := s.GetPosting(ctx, p.Id)
+	return accepted, duplicate, err
 }
 
 func (s *Store) GetPosting(ctx context.Context, id string) (*sharedpb.Posting, error) {
@@ -460,37 +480,64 @@ func (s *Store) ListPostings(ctx context.Context, accountID, bookID, from, to st
 	return out, nil
 }
 
+// Reverse is an idempotent correction of one immutable accepted posting.
+// The first write in the transaction acquires SQLite's writer lock, so the
+// absence check and insertion are one atomic statement across handles.
 func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedpb.Posting, error) {
 	if strings.TrimSpace(reason) == "" {
 		return nil, errors.New("reversal reason is required")
 	}
-	var e sharedpb.MoneyEvent
-	var occurred, fetched string
-	err := s.db.QueryRowContext(ctx, `SELECT external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,description,category FROM postings WHERE id=?`, id).Scan(&e.ExternalId, &e.AdapterId, &e.AccountId, &e.BookId, &e.AmountMinor, &e.Currency, &occurred, &fetched, &e.Description, &e.Category)
+	original, err := s.GetPosting(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("posting %q not found: %w", id, err)
+		return nil, err
 	}
-	ot, _ := time.Parse(time.RFC3339Nano, occurred)
-	ft, _ := time.Parse(time.RFC3339Nano, fetched)
-	e.OccurredAt = timestamppb.New(ot)
-	e.FetchedAt = timestamppb.New(ft)
+	if original.Event.AmountMinor == math.MinInt64 {
+		return nil, errors.New("posting amount cannot be negated in int64")
+	}
+	e := *original.Event
 	e.AmountMinor = -e.AmountMinor
-	e.ExternalId = "reversal:" + id + ":" + uuid.NewString()
+	e.ExternalId = "reversal:" + id
 	e.Basis = sharedpb.Basis_BASIS_OPERATOR_ASSERTED
 	e.Description = strings.TrimSpace(reason)
-	p := &sharedpb.Posting{Id: uuid.NewString(), Event: &e, ReversalOf: id, Actor: actor}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO postings(id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,reversal_of,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.Id, e.ExternalId, e.AdapterId, e.AccountId, e.BookId, e.AmountMinor, e.Currency, e.OccurredAt.AsTime().UTC().Format(time.RFC3339Nano), e.FetchedAt.AsTime().UTC().Format(time.RFC3339Nano), int32(e.Basis), e.Description, e.Category, id, actor, s.now().UTC().Format(time.RFC3339Nano))
+	reversalID := uuid.NewString()
+	e.Id = reversalID
+	created := s.now().UTC().Format(time.RFC3339Nano)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.recordAudit(ctx, "posting", p.Id, actor, "reversing entry: "+reason, id); err != nil {
-		return nil, err
-	}
-	p.Audit, err = s.loadAudit(ctx, p.Id)
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.ExecContext(ctx, `INSERT INTO postings(id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,reversal_of,actor,created_at)
+ SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM postings WHERE reversal_of=?)
+ ON CONFLICT(adapter_id,external_id) DO NOTHING`, reversalID, e.ExternalId, e.AdapterId, e.AccountId, e.BookId, e.AmountMinor, e.Currency, e.OccurredAt.AsTime().UTC().Format(time.RFC3339Nano), e.FetchedAt.AsTime().UTC().Format(time.RFC3339Nano), int32(e.Basis), e.Description, e.Category, id, actor, created, id)
 	if err != nil {
 		return nil, err
 	}
-	return p, nil
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if inserted == 1 {
+		_, err = tx.ExecContext(ctx, `INSERT INTO ledger_audit(id,entity_type,entity_id,actor,reason,prior_value,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), "posting", reversalID, actor, "reversing entry: "+reason, id, created)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Historical corrections used UUID external IDs. Reuse their accepted
+		// record without rewriting history; refuse ambiguous historical duplicates.
+		var count int
+		err = tx.QueryRowContext(ctx, `SELECT COUNT(*),MIN(id) FROM postings WHERE reversal_of=?`, id).Scan(&count, &reversalID)
+		if err != nil {
+			return nil, fmt.Errorf("read accepted correction: %w", err)
+		}
+		if count != 1 {
+			return nil, fmt.Errorf("posting has %d accepted corrections; manual reconciliation required", count)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.GetPosting(ctx, reversalID)
 }
 
 func (s *Store) Transfer(ctx context.Context, fromAccount, toAccount string, amount int64, currency, externalID, description string, occurred *timestamppb.Timestamp, actor string) ([]*sharedpb.Posting, error) {

@@ -4,11 +4,7 @@
 package hetzner
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -111,51 +107,5 @@ func (p *Provider) mapServer(s server) provider.Instance {
 }
 
 func (p *Provider) do(ctx context.Context, method, path string, payload, out any) error {
-	if p.Token == nil {
-		return fmt.Errorf("%w: Hetzner credential source unavailable", provider.ErrProviderUnavailable)
-	}
-	token, err := p.Token(ctx)
-	if err != nil {
-		return fmt.Errorf("%w: resolve Hetzner credential: %v", provider.ErrProviderUnavailable, err)
-	}
-	var body io.Reader
-	if payload != nil {
-		encoded, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewReader(encoded)
-	}
-	base := p.BaseURL
-	if base == "" {
-		base = "https://api.hetzner.cloud/v1"
-	}
-	req, err := http.NewRequestWithContext(ctx, method, base+path, body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	client := p.HTTPClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("%w: %v", provider.ErrProviderUnavailable, err)
-	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
-			return fmt.Errorf("%w: Hetzner returned %s: %s", provider.ErrProviderUnavailable, resp.Status, string(data))
-		}
-		return fmt.Errorf("Hetzner returned %s: %s", resp.Status, string(data))
-	}
-	if out != nil && len(data) > 0 {
-		if err := json.Unmarshal(data, out); err != nil {
-			return fmt.Errorf("decode Hetzner response: %w", err)
-		}
-	}
-	return nil
+	return provider.DoJSONRequest(ctx, p.Token, p.HTTPClient, p.BaseURL, "https://api.hetzner.cloud/v1", "Hetzner", method, path, payload, out)
 }

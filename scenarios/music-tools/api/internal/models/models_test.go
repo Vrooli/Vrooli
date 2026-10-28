@@ -159,6 +159,7 @@ func TestSeedCompositionLyricsCapabilitiesAndExactVariants(t *testing.T) {
 		{"", true, "ace-step"},
 		{"acestep-v15-turbo", true, "ace-step"},
 		{"acestep-v15-sft", true, "ace-step"},
+		{"yue2-q8", true, "songgen"},
 	} {
 		m, err := r.SelectComposition(tc.variant, tc.lyrics)
 		if err != nil || m.Engine != tc.want || (tc.variant != "" && m.Variant != tc.variant) {
@@ -175,6 +176,9 @@ func TestSeedCompositionLyricsCapabilitiesAndExactVariants(t *testing.T) {
 	r, err = LoadSeed(true)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := r.SelectComposition("yue2-q8", true); !errors.Is(err, ErrRestrictedModel) {
+		t.Fatalf("research-only YuE2 must be refused in the permissive lane: %v", err)
 	}
 	if _, err := r.SelectComposition("", false); !errors.Is(err, ErrRestrictedModel) {
 		t.Fatalf("license refusal silently changed preferred engine: %v", err)

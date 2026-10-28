@@ -178,7 +178,8 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	}
 	report.TotalFacts = int32(len(report.GetFacts()))
 	if err := s.cache.PutReport(ctx, reportPlan, report); err != nil {
-		return nil, err
+		report.Cache = reportPlan.metadata("write_failed", err.Error())
+		report.Warnings = append(report.Warnings, &factsv1.Warning{Code: "report_cache_write_failed", Message: err.Error(), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
 	}
 	return pageReport(report, req.GetPageSize(), req.GetPageToken())
 }

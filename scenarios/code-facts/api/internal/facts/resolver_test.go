@@ -1,6 +1,7 @@
 package facts
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,6 +59,49 @@ func TestResolveTargetKindsUseDeclaredRoots(t *testing.T) {
 	if err != nil || len(control.GetRootPaths()) != 2 {
 		t.Fatalf("control-plane roots = %v, err=%v; want cmd/vrooli and internal", control.GetRootPaths(), err)
 	}
+}
+
+func TestResolveScenarioHonorsExplicitPhysicalPath(t *testing.T) {
+	repo := t.TempDir()
+	canonical := filepath.Join(repo, "scenarios", "demo")
+	copyRoot := filepath.Join(t.TempDir(), "demo")
+	for _, dir := range []string{canonical, copyRoot} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resolved, err := resolveTarget(&factsv1.CodeTarget{
+		Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo", RepoRoot: repo, Path: copyRoot,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.GetRootPath() != copyRoot || resolved.GetScenario() != "demo" {
+		t.Fatalf("resolved root=%q scenario=%q; want %q and demo", resolved.GetRootPath(), resolved.GetScenario(), copyRoot)
+	}
+}
+
+func TestDescribeScenarioUsesSurfacesFromExplicitPhysicalPath(t *testing.T) {
+	repo := t.TempDir()
+	canonical := filepath.Join(repo, "scenarios", "demo")
+	copyRoot := filepath.Join(t.TempDir(), "demo")
+	for _, dir := range []string{filepath.Join(canonical, "ui"), filepath.Join(copyRoot, "api")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := NewService().Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo", RepoRoot: repo, Path: copyRoot},
+		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SURFACES},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.GetTarget().GetRootPath() != copyRoot {
+		t.Fatalf("target root = %q, want %q", report.GetTarget().GetRootPath(), copyRoot)
+	}
+	requireSurface(t, report.GetSurfaces(), "api", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
+	requireSurface(t, report.GetSurfaces(), "ui", factsv1.SurfaceStatus_SURFACE_STATUS_MISSING)
 }
 
 func TestValidateTargetRejectsDeferredKindsByName(t *testing.T) {

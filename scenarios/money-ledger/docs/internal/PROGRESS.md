@@ -184,3 +184,11 @@ them. They do not assert that an old failure or gap still exists.
 - **2026-08-17 — phase-8-contract**: The remaining Phase 8 operator boundary is the production book name and currency; no production book or live normalization has been performed without those values.
 
 - **2026-08-17 — operator-entry-repair**: Twelve fields remain deliberately absent as `pending-operator`.
+
+## 2026-10-27 — research correction retry safety
+
+The receive-wallet investigation reproduced duplicate negative corrections after a retry and unrepresentable negation of `math.MinInt64`. `ledger.Store.Reverse` now uses one stable correction identity, atomically commits posting and audit, and returns the accepted correction on retry. Existing historical duplicates are retained and require manual reconciliation. Isolated focused checks pass, including actual database close/reopen, two independent concurrent SQLite connections and injected audit-failure rollback. No operator postings were created or modified. Scenario-wide scoped validation remains pending; evidence is retained in the crypto-foundations renewal workspace.
+
+### 2026-10-27 — Atomic original acceptance recovery
+
+An injected audit failure reproduced an unaudited original posting. Ingest now commits posting and audit together; rollback/retry, actual SQLite close/reopen lost-reply replay, and concurrent independent-connection submissions pass with one canonical posting/audit. Duplicate source-ID policy is unchanged. Focused owner tests cover this source repair; serving reload and scoped Test Genie phases remain pending.

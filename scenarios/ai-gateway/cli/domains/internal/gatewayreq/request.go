@@ -1,6 +1,7 @@
 package gatewayreq
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	privacy, err := parsePrivacy(ctx.Flag("privacy"))
+	privacy, err := parsePrivacy(ctx.Flag("privacy-class"))
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +35,34 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	maxCost, err := parseFloat64(ctx.Flag("max-cost-usd"), "max-cost-usd")
 	if err != nil {
 		return nil, err
+	}
+	requiredVRAM, err := parseInt64(ctx.Flag("required-vram-bytes"), "required-vram-bytes")
+	if err != nil {
+		return nil, err
+	}
+	expectedDigest := ""
+	if ctx.FlagDeclared("expected-worker-digest") {
+		expectedDigest = strings.TrimSpace(ctx.Flag("expected-worker-digest"))
+	}
+	if expectedDigest != "" {
+		if requiredVRAM <= 0 {
+			return nil, fmt.Errorf("--expected-worker-digest requires a positive --required-vram-bytes")
+		}
+		digest := strings.TrimPrefix(strings.ToLower(expectedDigest), "sha256:")
+		if len(digest) != 64 {
+			return nil, fmt.Errorf("--expected-worker-digest must be a SHA-256 digest")
+		}
+		if _, err := hex.DecodeString(digest); err != nil {
+			return nil, fmt.Errorf("--expected-worker-digest must be a SHA-256 digest: %w", err)
+		}
+	}
+	metadata := map[string]string{}
+	if requiredVRAM > 0 {
+		metadata["required_vram_bytes"] = strconv.FormatInt(requiredVRAM, 10)
+		metadata["capacity_allow_reclaim"] = "false"
+	}
+	if expectedDigest != "" {
+		metadata["expected_worker_digest"] = expectedDigest
 	}
 	// GatewayRequest.sampling is deliberately not settable from the CLI. Every
 	// command that builds this message wraps it in an envelope (ExecuteRouteRequest,
@@ -53,6 +82,7 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 		MaxCostUsd:      maxCost,
 		MaxOutputTokens: maxTokens,
 		RequestId:       ctx.Flag("request-id"),
+		Metadata:        metadata,
 	}, nil
 }
 
@@ -116,6 +146,17 @@ func parseInt32(value, name string) (int32, error) {
 		return 0, fmt.Errorf("--%s must be an integer: %w", name, err)
 	}
 	return int32(n), nil
+}
+
+func parseInt64(value, name string) (int64, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("--%s must be a positive integer", name)
+	}
+	return n, nil
 }
 
 func parseFloat64(value, name string) (float64, error) {

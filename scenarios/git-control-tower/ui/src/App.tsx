@@ -23,6 +23,7 @@ import { HistoryFileList } from "./components/HistoryFileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
+import { mergeContinuationMessage } from "./features/commit-message/message";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
@@ -1678,9 +1679,9 @@ export default function App() {
     []
   );
 
-  // Handle "continue" action: pre-fill commit message with incremented pN
+  // Add history references while preserving a message already being composed.
   const handleContinueCommit = useCallback((message: string) => {
-    setCommitMessage(message);
+    setCommitMessage(current => mergeContinuationMessage(current, message));
     setViewingCommit(null);
     setSelectedFile(undefined);
     setSelectedFiles([]);

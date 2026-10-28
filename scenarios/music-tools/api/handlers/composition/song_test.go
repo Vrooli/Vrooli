@@ -62,7 +62,7 @@ func songTestServer(t *testing.T, model models.Model, mutate func(*songReceipt))
 }
 
 func TestSongModelsUseDurablePipelineWithoutACEClaims(t *testing.T) {
-	for _, variant := range []string{"minimax-music3-nf4", "heartmula-3b"} {
+	for _, variant := range []string{"minimax-music3-nf4", "heartmula-3b", "yue2-q8"} {
 		t.Run(variant, func(t *testing.T) {
 			model := songTestModel(t, variant)
 			server := songTestServer(t, model, nil)

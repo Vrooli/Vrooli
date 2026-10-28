@@ -362,6 +362,38 @@ func TestOperatorInputsRouteToTheAccountKindPositionReads(t *testing.T) {
 	require.True(t, position.RunwayAvailable, "runway must be computable once cash and burn are both observed")
 }
 
+func TestOperatorImportRejectsFractionalMinorUnitsAndKeepsIntegerInputs(t *testing.T) {
+	s, ctx := newIngestStore(t)
+	book, _ := operatorBookWithStandardAccounts(t, s, ctx, "Minor Unit Validation")
+	_, err := s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-console", Name: "Operator console", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
+	require.NoError(t, err)
+
+	data := operatorPayload(t, map[string]any{
+		"cash":              1250,
+		"monthlyBurn.aiApi": 1250.75,
+	})
+	report, err := s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", book.Id, "")
+	require.NoError(t, err)
+	require.True(t, report.Applied)
+	require.Equal(t, 1, report.Written)
+	require.Equal(t, 1, report.Findings)
+
+	fields := make(map[string]OperatorFieldReport, len(report.Fields))
+	for _, field := range report.Fields {
+		fields[field.Path] = field
+	}
+	require.Equal(t, "current", fields["cash"].Status)
+	require.True(t, fields["cash"].Written)
+	require.Equal(t, "rejected", fields["monthlyBurn.aiApi"].Status)
+	require.False(t, fields["monthlyBurn.aiApi"].Written)
+	require.Contains(t, fields["monthlyBurn.aiApi"].Reason, "whole int64 number of currency minor units")
+
+	position, err := s.journal.Position(ctx, book.Id)
+	require.NoError(t, err)
+	require.EqualValues(t, 1250, position.CashMinor, "integer minor-unit amounts should retain their value")
+	require.Zero(t, position.ExpenseMinor, "fractional minor units must not be truncated into a posting")
+}
+
 // A book that cannot supply an unambiguous target must produce a named finding.
 // Guessing an account yields a wrong figure that looks right. [REQ:CTR-006]
 func TestUnroutableOperatorInputIsReportedRatherThanGuessed(t *testing.T) {

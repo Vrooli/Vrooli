@@ -18,6 +18,7 @@ import {
 } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { renderWithProviders } from "../../test-utils/renderWithProviders";
 import { CommitMessageComposer } from "./CommitMessageComposer";
+import { mergeContinuationMessage, parseMessage } from "./message";
 import { CommitPanel } from "../../components/CommitPanel";
 import { useCommit } from "../../lib/hooks-core";
 import { createCommit } from "../../lib/api";
@@ -33,9 +34,9 @@ const suggestion = () => create(StagedMessageSuggestionSchema, { id: "suggestion
 const collection = (withMessage = true) => create(StagedMessageCollectionSchema, { id: "collection-1", snapshot, status: withMessage ? "partial" : "no_suggestions", suggestions: withMessage ? [suggestion()] : [], contexts: [{ id: "context-1", title: "Matching saved work", kind: "proposal", detail: "Retained content matches api/source.go", matchedPaths: ["api/source.go"], status: "available" }] });
 const job = (status = "running") => create(StagedMessageJobSchema, { id: "job-1", executionId: "owner-1", repositoryId: "repo-1", snapshotDigest: snapshot.digest, snapshot, status, applicable: true, createdAt: new Date().toISOString(), phase: "Reading staged changes", ...(status === "succeeded" ? { result: suggestion() } : {}) });
 
-function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1" }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string }) {
+function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string }) {
   const [message, setMessage] = useState(initial);
-  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} /><output data-testid="serialized-message">{message}</output></>;
+  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
 }
 function reviewEvidence() {
   const summary = screen.getByText("Review evidence");
@@ -69,6 +70,25 @@ beforeEach(() => {
 });
 
 describe("staged commit message composer", () => {
+  it.each(["history first", "AI first"])("keeps the AI message and history references in either order (%s)", async order => {
+    const continuation = "Earlier work p2\n\nVrooli-Effort: effort:work\nVrooli-Continues: abc123";
+    renderWithProviders(<Harness continuation={continuation} />);
+    const continueFromHistory = () => fireEvent.click(screen.getByRole("button", { name: "Continue from history" }));
+    if (order === "history first") continueFromHistory();
+    await gathered();
+    fireEvent.click(screen.getByRole("button", { name: "Use partial suggestion" }));
+    await waitFor(() => expect(screen.getByTestId("commit-message-input")).toHaveValue("fix: retain staged source"));
+    if (order === "AI first") continueFromHistory();
+    continueFromHistory();
+    expect(screen.getByTestId("commit-message-input")).toHaveValue("fix: retain staged source");
+    expect(screen.getByTestId("commit-message-description")).toHaveValue("Read the selected version and related updates.");
+    const fields = parseMessage(screen.getByTestId("serialized-message").textContent ?? "");
+    expect(fields.trailers.split("\n").sort()).toEqual([
+      "Vrooli-Continues: abc123", "Vrooli-Effort: effort:work", "Vrooli-Proposal: saved-reference",
+    ].sort());
+    expect(startMessage).not.toHaveBeenCalled();
+  });
+
   it.each(["navigation", "reload"])("retires an accepted agent draft after a confirmed commit and collects fresh evidence after %s", async mode => {
     localStorage.setItem("gct.messageDraft.repo-1", JSON.stringify({ jobID: "job-1" }));
     vi.mocked(getMessageJob).mockResolvedValue(job("succeeded"));

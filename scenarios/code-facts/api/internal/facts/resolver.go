@@ -45,7 +45,14 @@ func targetRoot(target *factsv1.CodeTarget) (root string, repoRoot string, err e
 		if err != nil {
 			return "", "", err
 		}
-		root = filepath.Join(repoRoot, "scenarios", target.GetScenario())
+		if path := strings.TrimSpace(target.GetPath()); path != "" {
+			root, err = filepath.Abs(path)
+			if err != nil {
+				return "", "", fmt.Errorf("resolve scenario path: %w", err)
+			}
+		} else {
+			root = filepath.Join(repoRoot, "scenarios", target.GetScenario())
+		}
 	case factsv1.TargetKind_TARGET_KIND_PROJECT, factsv1.TargetKind_TARGET_KIND_REPO, factsv1.TargetKind_TARGET_KIND_CONTROL_PLANE, factsv1.TargetKind_TARGET_KIND_PACKAGE:
 		repoOverride := strings.TrimSpace(target.GetRepoRoot())
 		// Preserve the existing generic-project API, where callers supplied the

@@ -361,3 +361,21 @@ func TestAdapterMeteredRoleRejectsTemperature(t *testing.T) { // [REQ:AIGW-PROVI
 		t.Fatalf("metered TemperatureSupport() = %q, want %q", got, SamplingRejected)
 	}
 }
+
+func TestOllamaExecutionCommandRequiresExpectedWorkerDigest(t *testing.T) {
+	digest := "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+	command, err := (Adapter{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local"}).executionCommand(ExecutionRequest{
+		Kind:                 sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:                 "chat.small",
+		InputText:            "hello",
+		Profile:              sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		ExpectedWorkerDigest: digest,
+	})
+	if err != nil {
+		t.Fatalf("executionCommand() error = %v", err)
+	}
+	joined := strings.Join(command.Args, " ")
+	if !strings.Contains(joined, "--require-loopback") || !strings.Contains(joined, "--require-worker-digest "+digest) {
+		t.Fatalf("args = %v, want loopback and worker-digest requirements", command.Args)
+	}
+}

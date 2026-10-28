@@ -157,14 +157,15 @@ func allowReclaim(req *sharedv1.GatewayRequest) bool {
 
 // probeCapacity returns a capacity verdict for a local candidate without holding
 // a reservation (claim then immediate release). Used by planning/preview. A nil
-// adapter or an absent footprint yields a non-blocking verdict.
+// adapter or an absent footprint yields a non-blocking verdict. A declared
+// footprint requires an actual fit before the route can be selected.
 func (s *Service) probeCapacity(ctx context.Context, req *sharedv1.GatewayRequest) CapacityEvaluation {
-	if s.capacity == nil {
-		return CapacityEvaluation{Verdict: CapacityNotEvaluated}
-	}
 	bytes := capacityRequirementBytes(req.GetMetadata())
 	if bytes <= 0 {
 		return CapacityEvaluation{Verdict: CapacityUnknown}
+	}
+	if s.capacity == nil {
+		return CapacityEvaluation{Verdict: CapacityUnknown, RequiredBytes: bytes}
 	}
 	eval, err := s.capacity.Claim(ctx, CapacityRequest{OwnerID: capacityOwner(req), RequiredBytes: bytes, AllowReclaim: allowReclaim(req)})
 	if eval.ClaimID != "" {
@@ -179,17 +180,24 @@ func (s *Service) probeCapacity(ctx context.Context, req *sharedv1.GatewayReques
 
 // acquireCapacity holds an op-scoped claim around a local execution attempt. The
 // returned evaluation carries the live ClaimID the caller must release. Non-local
-// candidates, a nil adapter, or an absent footprint return a zero evaluation.
+// candidates and absent footprints return a zero evaluation; a missing adapter
+// for a declared footprint returns unknown and is rejected before execution.
 func (s *Service) acquireCapacity(ctx context.Context, req *sharedv1.GatewayRequest, candidate *routingv1.RouteCandidate) CapacityEvaluation {
-	if s.capacity == nil || !strings.EqualFold(candidate.GetLocality(), "local") {
+	if !strings.EqualFold(candidate.GetLocality(), "local") {
 		return CapacityEvaluation{}
 	}
 	bytes := capacityRequirementBytes(req.GetMetadata())
 	if bytes <= 0 {
 		return CapacityEvaluation{Verdict: CapacityUnknown}
 	}
+	if s.capacity == nil {
+		return CapacityEvaluation{Verdict: CapacityUnknown, RequiredBytes: bytes}
+	}
 	eval, err := s.capacity.Claim(ctx, CapacityRequest{OwnerID: capacityOwner(req), RequiredBytes: bytes, AllowReclaim: allowReclaim(req)})
 	if err != nil {
+		if eval.ClaimID != "" {
+			s.releaseCapacity(ctx, eval)
+		}
 		return CapacityEvaluation{Verdict: CapacityUnknown, RequiredBytes: bytes}
 	}
 	return eval
@@ -260,6 +268,8 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 	attempts := s.executionAttempts(plan)
 	var failures []string
 	var lastFailureClass FailureClass
+	var lastCapacityEval CapacityEvaluation
+	var capacityRejection *CapacityEvaluation
 	for i, candidate := range attempts {
 		adapter, ok := s.adapters[candidate.GetProvider()]
 		if !ok {
@@ -309,14 +319,36 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		// broker ledger shows the reservation as CLAIMED. Release is best-effort in
 		// all paths; a crash falls back to the claim's bounded TTL.
 		capEval := s.acquireCapacity(ctxExec, req, candidate)
+		if strings.EqualFold(candidate.GetLocality(), "local") && capacityRequirementBytes(req.GetMetadata()) > 0 {
+			lastCapacityEval = capEval
+			if !capacityExecutionAdmitted(capEval, capacityRequirementBytes(req.GetMetadata()), allowReclaim(req)) {
+				if capEval.Verdict == CapacityFit {
+					capEval.Verdict = CapacityUnknown
+					lastCapacityEval.Verdict = CapacityUnknown
+				}
+				candidate.CapacityVerdict = string(capEval.Verdict)
+				candidate.RejectionReason = "insufficient_capacity"
+				s.releaseCapacity(ctxExec, capEval)
+				rejected := capEval
+				capacityRejection = &rejected
+				cancel()
+				lastFailureClass = FailurePolicyError
+				failures = append(failures, fmt.Sprintf("%s: execution-time capacity admission is not verified (%s)", candidate.GetProvider(), capacityReason(capEval)))
+				if i == 0 && !plan.fallbackAllowed {
+					break
+				}
+				continue
+			}
+		}
 		result, err := adapter.Execute(ctxExec, providers.ExecutionRequest{
-			Kind:            req.GetKind(),
-			Role:            req.GetRole(),
-			InputText:       input,
-			MaxOutputTokens: req.GetMaxOutputTokens(),
-			Timeout:         timeoutDuration(req.GetTimeoutMs()),
-			Temperature:     temperature,
-			Attachments:     req.GetAttachments(),
+			Kind:                 req.GetKind(),
+			Role:                 req.GetRole(),
+			InputText:            input,
+			MaxOutputTokens:      req.GetMaxOutputTokens(),
+			Timeout:              timeoutDuration(req.GetTimeoutMs()),
+			Temperature:          temperature,
+			Attachments:          req.GetAttachments(),
+			ExpectedWorkerDigest: strings.TrimSpace(req.GetMetadata()["expected_worker_digest"]),
 		})
 		s.releaseCapacity(ctxExec, capEval)
 		cancel()
@@ -343,7 +375,11 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		}
 		ev.BreakerState = candidate.GetBreakerState()
 		applySamplingEvidence(ev, temperature, resolvedRole.TemperatureSupport())
-		applyCapacityEvidence(ev, candidate, capEval)
+		evidenceCapacity := capEval
+		if evidenceCapacity.RequiredBytes == 0 && capacityRejection != nil {
+			evidenceCapacity = *capacityRejection
+		}
+		applyCapacityEvidence(ev, candidate, evidenceCapacity)
 		if err := s.repo.Create(ctx, ev); err != nil {
 			return nil, fmt.Errorf("persist successful route evidence: %w", err)
 		}
@@ -358,6 +394,14 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 
 	ev := s.evidence(req, plan, "failed", time.Since(started), len(failures) > 1, failures)
 	ev.FailureClass = string(lastFailureClass)
+	if lastCapacityEval.RequiredBytes > 0 {
+		for _, candidate := range plan.candidates {
+			if candidate.GetSelected() {
+				applyCapacityEvidence(ev, candidate, lastCapacityEval)
+				break
+			}
+		}
+	}
 	if err := s.repo.Create(ctx, ev); err != nil {
 		return nil, fmt.Errorf("persist failed route evidence: %w", err)
 	}
@@ -530,20 +574,31 @@ func policyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, provider
 }
 
 // capacityAdmits evaluates local capacity for a local candidate, annotates its
-// verdict, and reports whether it stays eligible. Remote candidates, a nil
-// adapter, or an absent footprint always admit.
+// verdict, and reports whether it stays eligible. Remote candidates and
+// requests without a declared footprint always admit.
 func (s *Service) capacityAdmits(ctx context.Context, req *sharedv1.GatewayRequest, candidate *routingv1.RouteCandidate) bool {
-	if !strings.EqualFold(candidate.GetLocality(), "local") || s.capacity == nil {
+	if !strings.EqualFold(candidate.GetLocality(), "local") {
+		return true
+	}
+	if capacityRequirementBytes(req.GetMetadata()) <= 0 {
 		return true
 	}
 	eval := s.probeCapacity(ctx, req)
 	candidate.CapacityVerdict = string(eval.Verdict)
-	if eval.Verdict.blocksLocal() {
+	if !capacityVerdictAdmitted(eval, allowReclaim(req)) || eval.GrantedBytes < eval.RequiredBytes {
 		candidate.RejectionReason = "insufficient_capacity"
 		candidate.Reasons = append(candidate.Reasons, capacityReason(eval))
 		return false
 	}
 	return true
+}
+
+func capacityVerdictAdmitted(eval CapacityEvaluation, allowReclaim bool) bool {
+	return eval.Verdict == CapacityFit || (allowReclaim && eval.Verdict == CapacityReclaimRequired)
+}
+
+func capacityExecutionAdmitted(eval CapacityEvaluation, requiredBytes int64, allowReclaim bool) bool {
+	return capacityVerdictAdmitted(eval, allowReclaim) && eval.ClaimID != "" && eval.GrantedBytes >= requiredBytes
 }
 
 func rejectedCandidate(provider, role, locality, reason, code string) *routingv1.RouteCandidate {

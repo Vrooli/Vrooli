@@ -73,7 +73,7 @@ var WebPublicV1 = Profile{
 	Version: 1,
 	Root:    "ui/public/public",
 	Targets: []Target{
-		{ID: "logo", Path: "logo.svg", Format: "svg", Width: 512, Height: 512, Variant: VariantVector, Wiring: WiringLinkIcon},
+		{ID: "logo", Path: "logo.svg", Format: "svg", Width: 512, Height: 512, Variant: VariantRounded, Wiring: WiringLinkIcon},
 		{ID: "favicon-16", Path: "favicon-16.png", Format: "png", Width: 16, Height: 16, Variant: VariantRounded, SmallMarkAllowed: true, Wiring: WiringLinkIcon},
 		{ID: "favicon-32", Path: "favicon-32.png", Format: "png", Width: 32, Height: 32, Variant: VariantRounded, SmallMarkAllowed: true, Wiring: WiringLinkIcon},
 		{ID: "favicon-196", Path: "favicon-196.png", Format: "png", Width: 196, Height: 196, Variant: VariantRounded, Wiring: WiringNone},

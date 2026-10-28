@@ -542,7 +542,14 @@ func TestAPIKeyService_Test_OpenRouter_Success(t *testing.T) {
 
 	// Verify the request was made
 	if len(mockHTTP.requests) != 1 {
-		t.Errorf("Expected 1 request, got %d", len(mockHTTP.requests))
+		t.Fatalf("Expected 1 request, got %d", len(mockHTTP.requests))
+	}
+	req := mockHTTP.requests[0]
+	if req.URL.String() != "https://openrouter.ai/api/v1/auth/key" {
+		t.Errorf("Expected OpenRouter auth URL, got '%s'", req.URL.String())
+	}
+	if req.Header.Get("Authorization") != "Bearer sk-or-test" {
+		t.Errorf("Expected OpenRouter bearer token, got '%s'", req.Header.Get("Authorization"))
 	}
 }
 

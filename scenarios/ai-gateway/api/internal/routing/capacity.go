@@ -21,7 +21,8 @@ const (
 	CapacityFit          CapacityVerdict = "fit"
 	CapacityInsufficient CapacityVerdict = "insufficient_capacity"
 	// CapacityUnknown means the broker could not be consulted (unavailable/errored)
-	// or no footprint was declared. It is advisory and never blocks routing.
+	// or no footprint was declared. It remains advisory for requests without an
+	// explicit footprint; a declared footprint requires verified admission.
 	CapacityUnknown CapacityVerdict = "unknown_capacity"
 	// CapacityReclaimRequired means the broker would admit the route but only by
 	// reclaiming capacity from other holders, and enforcement is on.
@@ -106,18 +107,22 @@ func (a *CLICapacityAdapter) Claim(ctx context.Context, req CapacityRequest) (Ca
 	if !req.AllowReclaim {
 		priority = "batch"
 	}
-	out, err := a.run(ctx,
+	args := []string{
 		"capacity", "claim",
 		"--owner-kind", "op",
 		"--owner-id", req.OwnerID,
 		"--resource-kind", "vram",
 		"--gpu-index", strconv.Itoa(a.GPUIndex),
 		"--preferred", strconv.FormatInt(req.RequiredBytes, 10),
-		"--floor", "0",
+		"--floor", strconv.FormatInt(req.RequiredBytes, 10),
 		"--priority", priority,
 		"--ttl", capacityClaimTTL,
 		"--json",
-	)
+	}
+	if !req.AllowReclaim {
+		args = append(args, "--no-reclaim")
+	}
+	out, err := a.run(ctx, args...)
 	if err != nil {
 		return CapacityEvaluation{Verdict: CapacityUnknown, RequiredBytes: req.RequiredBytes}, fmt.Errorf("capacity claim: %w", err)
 	}

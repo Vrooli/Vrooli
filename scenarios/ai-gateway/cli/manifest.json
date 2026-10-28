@@ -522,6 +522,11 @@
               "description": "Optional maximum output token budget"
             },
             {
+              "name": "required-vram-bytes",
+              "description": "Explicit local execution VRAM footprint; requests no-reclaim capacity admission",
+              "local_only": true
+            },
+            {
               "name": "request-id",
               "description": "Optional caller request id"
             }
@@ -593,6 +598,16 @@
             {
               "name": "max-output-tokens",
               "description": "Optional maximum output token budget"
+            },
+            {
+              "name": "required-vram-bytes",
+              "description": "Explicit local execution VRAM footprint; requests no-reclaim capacity admission",
+              "local_only": true
+            },
+            {
+              "name": "expected-worker-digest",
+              "description": "Require the active local Ollama worker to match this SHA-256 digest and return per-call processor evidence",
+              "local_only": true
             },
             {
               "name": "request-id",

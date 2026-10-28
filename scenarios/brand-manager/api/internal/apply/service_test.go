@@ -113,6 +113,11 @@ func TestApply_ProfilesIconSetAndMarkerBlock(t *testing.T) {
 
 	// Targets live under the /public/* layout, not the URL root.
 	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/logo.svg"))
+	// The SVG is wired as a browser icon: the white mark needs its contrasting
+	// container on light chrome, just as the PNG favicon does.
+	svgIcon := string(ws.Written("web-console", "ui/public/public/logo.svg"))
+	require.Contains(t, svgIcon, `viewBox="0 0 512 512"`)
+	require.Contains(t, svgIcon, `<rect`)
 	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/favicon-16.png"))
 	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/maskable-icon-512.png"))
 	require.NotEmpty(t, ws.Written("web-console", "ui/public/public/og-image.png"))

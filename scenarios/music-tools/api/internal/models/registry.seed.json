@@ -128,8 +128,8 @@
       "profile": "minimax-music3-nf4",
       "url_variable": "SONGGEN_URL",
       "default_url": "http://127.0.0.1:8897",
-      "catalog_sha256": "be83ffd6c6911520f6ecca1e3612c5613b6119cbbccefb746e2461a1e5b05780",
-      "artifact_sha256": "8c5a98a2382b7ea518773871f2f038f4a19af751ec4d57992376fc270adfc571",
+      "catalog_sha256": "32680b7e31856afae45b99c8108e61316fee7750c8301e80172b60451ce00804",
+      "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201",
       "source_revision": "diffusers-0.41.0",
       "weight_files": 24,
       "versions": {
@@ -191,8 +191,8 @@
       "profile": "heartmula-3b",
       "url_variable": "SONGGEN_URL",
       "default_url": "http://127.0.0.1:8897",
-      "catalog_sha256": "be83ffd6c6911520f6ecca1e3612c5613b6119cbbccefb746e2461a1e5b05780",
-      "artifact_sha256": "8c5a98a2382b7ea518773871f2f038f4a19af751ec4d57992376fc270adfc571",
+      "catalog_sha256": "32680b7e31856afae45b99c8108e61316fee7750c8301e80172b60451ce00804",
+      "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201",
       "source_revision": "5858ca8f1ffe58d62be7c007ea55f1033c5ca456",
       "weight_files": 13,
       "versions": {
@@ -210,6 +210,65 @@
       "min_guidance": 0.01,
       "max_guidance": 20,
       "timeout_seconds": 7200
+    },
+    "voice_reference": {
+      "supported": false,
+      "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
+      "source": "resources/songgen/server/profiles.json"
+    }
+  },
+  {
+    "id": "audio-cpp/Yue2-3B-GGUF:yue2-q8",
+    "display_name": "YuE2 Q8 \u2014 native full-score planning",
+    "variant": "yue2-q8",
+    "revision": "cca74d8980c00f30ab8d52248a367c01ad633ec2",
+    "licence": "restricted",
+    "installed": false,
+    "bytes": 4532008588,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 10737418240,
+      "min_ram_bytes": 25769803776,
+      "cpu_capable": false
+    },
+    "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+    "commercial_use": "no",
+    "commercial_use_notes": "CC-BY-NC profile qualified only for private noncommercial research; no production/commercial permission established.",
+    "base_model_lineage": "m-a-p/YuE2-3B@1a96eca688d6ae5d7f0feb88573fec89920fcd19; audio-cpp Q8/F16 conversion",
+    "known_risks": "Experimental native full-score route. Q8/F16 differs from upstream BF16/F32. Duration is a semantic-token upper bound; truncation flags and full-song listening remain decisive. No voice reference. Native output PCM16.",
+    "checksum": "52be345b5155bf9ef0b2411e7df8d1d2b8e13b6d977a2f70c35612ec69b1f591",
+    "disk_floor_bytes": 2147483648,
+    "engine": "songgen",
+    "composition_preference": 100,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Native YuE2 accepts original authored words and generates an inspectable score; delivery requires listening.",
+      "source": "https://github.com/0xShug0/audio.cpp/blob/41c1f8ffa0d13a1b7e366e30ea5fe5ab8d169d48/docs/models/yue2.md"
+    },
+    "runtime": {
+      "protocol": "song-v1",
+      "resource": "songgen",
+      "profile": "yue2-q8",
+      "url_variable": "SONGGEN_URL",
+      "default_url": "http://127.0.0.1:8897",
+      "catalog_sha256": "32680b7e31856afae45b99c8108e61316fee7750c8301e80172b60451ce00804",
+      "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201",
+      "source_revision": "audio.cpp@41c1f8ffa0d13a1b7e366e30ea5fe5ab8d169d48",
+      "weight_files": 8,
+      "versions": {
+        "audio.cpp": "0.9.3"
+      },
+      "min_duration": 1,
+      "max_duration": 180,
+      "default_steps": 8,
+      "min_steps": 1,
+      "max_steps": 100,
+      "default_guidance": 1.0,
+      "min_guidance": 0.01,
+      "max_guidance": 20,
+      "timeout_seconds": 1800
     },
     "voice_reference": {
       "supported": false,

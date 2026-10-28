@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
@@ -27,6 +28,11 @@ type UsageMetadataFinalizer interface {
 
 type UsageCostFinalizer interface {
 	FinalizeReservationWithCost(context.Context, string, int64, string, string, int64, int, int, string) error
+}
+
+type CostCapUsageServicer interface {
+	ReserveUSDSpendCap(context.Context, string, string, int64, string) (string, int64, int64, error)
+	RetainUncertainReservation(context.Context, string) error
 }
 
 func finalizeUsage(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
@@ -72,11 +78,14 @@ type APIKeyServicer interface {
 
 // AIRequest is one chat-completion request accepted by the gateway.
 type AIRequest struct {
-	Model     string      `json:"model"`
-	Messages  []AIMessage `json:"messages"`
-	Stream    bool        `json:"stream"`
-	MaxTokens int         `json:"max_tokens,omitempty"`
-	Metadata  AIMetadata  `json:"metadata,omitempty"`
+	Model             string      `json:"model"`
+	Messages          []AIMessage `json:"messages"`
+	Images            []AIImage   `json:"images,omitempty"`
+	Stream            bool        `json:"stream"`
+	MaxTokens         int         `json:"max_tokens,omitempty"`
+	Metadata          AIMetadata  `json:"metadata,omitempty"`
+	SpendLimit        *SpendLimit `json:"spend_limit,omitempty"`
+	spendLimitTrusted bool
 }
 
 // InferenceRequest is the public, provider-neutral metered contract. Callers
@@ -88,6 +97,25 @@ type InferenceRequest struct {
 	ConstraintsJSON string      `json:"constraints_json,omitempty"`
 	MaxTokens       int         `json:"max_tokens,omitempty"`
 	Metadata        AIMetadata  `json:"metadata,omitempty"`
+	Images          []AIImage   `json:"images,omitempty"`
+	SpendLimit      *SpendLimit `json:"spend_limit,omitempty"`
+}
+
+// SpendLimit carries a caller-authorized maximum into the canonical metered
+// owner. It is a hard cap policy request, not a price quote.
+type SpendLimit struct {
+	MaxCostMicros    int64    `json:"max_cost_micros"`
+	OperationID      string   `json:"operation_id"`
+	InputFingerprint string   `json:"input_fingerprint"`
+	ReferenceSHA256  []string `json:"reference_sha256"`
+	ImageCount       int32    `json:"image_count"`
+	FundingRoute     string   `json:"funding_route"`
+}
+
+type AIImage struct {
+	Data      string `json:"data"`
+	MediaType string `json:"media_type"`
+	SHA256    string `json:"sha256"`
 }
 
 type AIMessage struct {
@@ -101,14 +129,17 @@ type AIMetadata struct {
 }
 
 type AIResponse struct {
-	ID               string `json:"id"`
-	Model            string `json:"model"`
-	Content          string `json:"content"`
-	PromptTokens     int    `json:"prompt_tokens"`
-	CompletionTokens int    `json:"completion_tokens"`
-	TotalTokens      int    `json:"total_tokens"`
-	CreditsCharged   int64  `json:"credits_charged"`
-	FinishReason     string `json:"finish_reason,omitempty"`
+	ID                 string                          `json:"id"`
+	Model              string                          `json:"model"`
+	Content            string                          `json:"content"`
+	PromptTokens       int                             `json:"prompt_tokens"`
+	CompletionTokens   int                             `json:"completion_tokens"`
+	TotalTokens        int                             `json:"total_tokens"`
+	CreditsCharged     int64                           `json:"credits_charged"`
+	FinishReason       string                          `json:"finish_reason,omitempty"`
+	SpendAuthorization *inferencev1.SpendAuthorization `json:"spend_authorization,omitempty"`
+	AccountingStatus   string                          `json:"accounting_status,omitempty"`
+	ActualCostMicros   *int64                          `json:"actual_cost_micros,omitempty"`
 }
 
 type AIStreamEvent struct {

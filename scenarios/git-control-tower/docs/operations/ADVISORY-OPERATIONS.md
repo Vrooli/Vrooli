@@ -38,6 +38,12 @@ unconfirmed jobs retain their handle for cancellation/reconnect. A commit cannot
 clear a newer investigation or a different repository's session; server-side job
 history remains available.
 
+History **Continue as** adds continuation references to the current message. It
+prefills the continuation title/message only when the editor is empty. Existing
+titles, descriptions and custom trailers survive; selecting the same history
+item again does not duplicate its references. AI adoption also retains these
+trailers, so either action can come first.
+
 `AdvisoryService.CollectStagedMessage` retains an immutable selection using HEAD
 and the index's path, mode, and blob identities. Working-tree content is never
 substituted for staged bytes. `CheckStagedMessage` compares this identity before

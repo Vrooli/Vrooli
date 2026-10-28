@@ -253,16 +253,47 @@ func usageEventMetadata(metadata map[string]string) (int64, int, int, string) {
 // requests could exceed the credit limit.
 // Returns the reservation ID on success.
 func (s *ReservationService) ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error) {
-	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, 0)
+	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, 0, "")
+}
+
+// ReserveCreditsWithID binds an owner operation identity to the durable
+// reservation primary key. A repeated identity cannot dispatch twice.
+func (s *ReservationService) ReserveCreditsWithID(ctx context.Context, userIdentity, tier, limitKey string, amount int64, reservationID string) (string, error) {
+	if strings.TrimSpace(reservationID) == "" {
+		return "", fmt.Errorf("reservation id is required")
+	}
+	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, 0, reservationID)
 }
 
 // ReserveCreditsWithWindow applies a caller-provided bounded reservation
 // window while preserving the default ReserveCredits contract.
 func (s *ReservationService) ReserveCreditsWithWindow(ctx context.Context, userIdentity, tier, limitKey string, amount int64, window time.Duration) (string, error) {
-	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, window)
+	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, window, "")
 }
 
-func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64, requestedWindow time.Duration) (string, error) {
+// RetainUncertainReservation holds a pending reservation beyond automatic
+// cleanup when provider dispatch may have succeeded but usage is unknown.
+func (s *ReservationService) RetainUncertainReservation(ctx context.Context, reservationID string) error {
+	if strings.TrimSpace(reservationID) == "" {
+		return fmt.Errorf("reservation_id is required")
+	}
+	var query string
+	if s.dialect == "sqlite" {
+		query = `UPDATE credit_reservations SET expires_at = ? WHERE id = ? AND status = 'pending'`
+	} else {
+		query = `UPDATE credit_reservations SET expires_at = $1 WHERE id = $2 AND status = 'pending'`
+	}
+	result, err := s.db.ExecContext(ctx, query, time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC), reservationID)
+	if err != nil {
+		return fmt.Errorf("retain uncertain credit reservation: %w", err)
+	}
+	if count, err := result.RowsAffected(); err == nil && count != 1 {
+		return fmt.Errorf("pending reservation was not retained")
+	}
+	return nil
+}
+
+func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64, requestedWindow time.Duration, requestedID string) (string, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
 	tier = strings.TrimSpace(strings.ToLower(tier))
 	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
@@ -366,7 +397,10 @@ func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, t
 		return "", fmt.Errorf("reservation window exceeds maximum of %s", s.maxReservationWindow)
 	}
 	// Create the reservation with the configured bounded window.
-	reservationID := s.generateID()
+	reservationID := strings.TrimSpace(requestedID)
+	if reservationID == "" {
+		reservationID = s.generateID()
+	}
 	expiresAt := s.now().Add(window)
 
 	var insertQuery string

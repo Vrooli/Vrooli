@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Capture one URL once and return durable screenshot and computed accessibility snapshot references tied to one BAS execution identity.",
+  "purpose": "Capture one URL once and return durable screenshot and computed DOM-tree references tied to one BAS execution identity.",
   "inputs": {
     "url": {
       "type": "string",
@@ -94,13 +94,15 @@
     "signals": {
       "artifact_id": "BAS execution identity",
       "screenshot_ref": "durable screenshot artifact reference",
-      "snapshot_ref": "durable computed snapshot artifact reference",
+      "snapshot_ref": "durable computed DOM-tree artifact reference",
       "url": "captured URL",
       "viewport": "resolved viewport input",
       "theme": "resolved theme",
       "direction": "resolved direction",
       "captured_at": "capture completion time when supplied by BAS",
-      "readiness": "bounded BAS readiness diagnostics"
+      "readiness": "bounded BAS readiness diagnostics",
+      "screenshot_view_url": "BAS-owned relative HTTP retrieval path when supplied",
+      "snapshot_view_url": "BAS-owned relative HTTP retrieval path when supplied"
     },
     "errors": {
       "classes": [

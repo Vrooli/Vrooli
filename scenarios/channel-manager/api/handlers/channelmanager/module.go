@@ -642,7 +642,7 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 
 func writeError(w http.ResponseWriter, err error) {
 	status := http.StatusBadRequest
-	if errors.Is(err, core.ErrPaused) || errors.Is(err, core.ErrCadence) || errors.Is(err, core.ErrForbiddenAction) || errors.Is(err, core.ErrPreconditions) {
+	if errors.Is(err, core.ErrPaused) || errors.Is(err, core.ErrRetired) || errors.Is(err, core.ErrCadence) || errors.Is(err, core.ErrForbiddenAction) || errors.Is(err, core.ErrPreconditions) {
 		status = http.StatusConflict
 	}
 	writeJSON(w, status, map[string]string{"error": err.Error()})

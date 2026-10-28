@@ -65,3 +65,5 @@ implement the shared token-gated reindex protocol; their tuning is intentionally
 pinned, so they advertise no config-write endpoint. Search registration is best-effort and
 must never prevent Code Facts from serving its own API; a missing Search Hub is
 reported as degraded rather than hidden.
+
+Fresh Describe inventory remains authoritative when its derived report-cache publication is contended or unavailable. The report returns complete discovered surfaces with explicit `write_failed` cache metadata and a warning; this is not a cache hit. Source extraction failures remain errors.

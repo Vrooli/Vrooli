@@ -12,6 +12,7 @@ comprehensive requirement sync remain open.
 
 | Date | Author | Status | Summary |
 |---|---|---|---|
+| 2026-10-28 | Codex | partial | **Shared provider JSON transport** - Moved the identical authenticated JSON request path for DigitalOcean and Hetzner into the provider-neutral owner, retaining provider labels and default URLs at call sites. The two provider package test suites pass identically; scoped Test Genie tidiness passes, while unit is blocked by a missing root go.sum entry and two unrelated UI locale tests. The new transport receives a high-complexity finding; broader unit health remains open. |
 | 2026-09-04 | Codex | partial | **Credential boundary re-audited** - Hetzner and DigitalOcean adapters resolve tokens through injected call-time token sources and return typed provider-unavailable errors when absent; no provider token is read from environment or persisted. Existing adapter tests and API vet remain clean. |
 | 2026-09-04 | Codex | partial | **Ceiling reporting aligned with enforcement** - MeterService now reports active held reservations, including renewed rows joined through their instance tenant, instead of finalized usage records that understated occupied ceiling. Tagged handler coverage and constrained API vet pass. |
 | 2026-09-04 | Codex | partial | **Tenant ceiling read surface fixed** - MeterService now receives the configured tenant ceiling at composition time and returns it with usage, replacing the misleading `-1` sentinel. Added tagged handler coverage; focused test and constrained API vet pass. |
