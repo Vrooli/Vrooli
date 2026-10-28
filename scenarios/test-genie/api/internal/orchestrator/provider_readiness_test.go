@@ -142,28 +142,114 @@ func TestCheckProviderReadinessCancellationUnblocksQueuedRun(t *testing.T) {
 	}
 }
 
-func TestCheckProviderReadinessBoundsProviderLeaseWait(t *testing.T) {
-	previousTimeout := providerLeaseWaitTimeout
-	providerLeaseWaitTimeout = 20 * time.Millisecond
-	t.Cleanup(func() { providerLeaseWaitTimeout = previousTimeout })
-
-	manager := providerreadiness.NewManager()
+func TestCheckProviderReadinessWaitsForProviderOwnerWithoutSpendingProbeBudget(t *testing.T) {
+	manager := &providerreadiness.Manager{}
+	probeEntered := make(chan struct{})
+	probeHasDeadline := make(chan bool, 1)
+	manager.Probe = func(ctx context.Context, _ providerreadiness.Input) (providerreadiness.ProbeResult, error) {
+		_, hasDeadline := ctx.Deadline()
+		probeHasDeadline <- hasDeadline
+		close(probeEntered)
+		probeCtx, cancelProbe := context.WithTimeout(ctx, 20*time.Millisecond)
+		defer cancelProbe()
+		if err := probeCtx.Err(); err != nil {
+			return providerreadiness.ProbeResult{}, err
+		}
+		return providerreadiness.ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+	}
 	release := manager.LeaseProvider("unit-health")
-	defer release()
 	policy := phasepolicy.RequiredProviderPolicy()
 	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
 	o := &SuiteOrchestrator{readiness: manager}
 
-	started := time.Now()
-	plan := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo"},
-		[]phases.Definition{providerDef(phases.Name("unit"), "unit-health", policy)}, io.Discard, nil)
-	defer plan.releaseProviders()
-	if elapsed := time.Since(started); elapsed > time.Second {
-		t.Fatalf("provider lease wait took %s; want bounded wait", elapsed)
+	done := make(chan providerReadinessPlan, 1)
+	started := make(chan struct{})
+	go func() {
+		close(started)
+		done <- o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo"},
+			[]phases.Definition{providerDef(phases.Name("unit"), "unit-health", policy)}, io.Discard, nil)
+	}()
+	<-started
+	// The owner holds longer than the probe's simulated 20ms budget. That budget
+	// starts only after the lease is released and the probe actually begins.
+	time.Sleep(75 * time.Millisecond)
+	release()
+	select {
+	case plan := <-done:
+		defer plan.releaseProviders()
+		if len(plan.Active) != 1 || len(plan.Blocked) != 0 {
+			t.Fatalf("queued readiness after owner release = %+v, want active provider", plan)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("readiness did not proceed after provider owner released its lease")
 	}
-	if len(plan.Active) != 0 || !errors.Is(plan.Blocked["unit"].Err, context.DeadlineExceeded) {
-		t.Fatalf("bounded queued plan = %+v", plan)
+	select {
+	case <-probeEntered:
+	default:
+		t.Fatal("provider probe did not run after owner released its lease")
 	}
+	if hasDeadline := <-probeHasDeadline; hasDeadline {
+		t.Fatal("provider ownership wait deadline leaked into the probe context")
+	}
+}
+
+func TestCheckProviderReadinessCancellationReleasesPartialExecutionLeases(t *testing.T) {
+	t.Setenv("TEST_GENIE_PROVIDER_READINESS_CONCURRENCY", "serial")
+	manager := providerreadiness.NewManager()
+	blockedProviderRelease := manager.LeaseProvider("b-health")
+	defer blockedProviderRelease()
+	policy := phasepolicy.Policy{
+		ProviderReadiness: phasepolicy.ProviderReadinessNone,
+		ProviderLifecycle: phasepolicy.ProviderLifecycleNone,
+	}
+	o := &SuiteOrchestrator{readiness: manager}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan providerReadinessPlan, 1)
+	go func() {
+		done <- o.checkProviderReadiness(ctx, workspacepkg.Environment{ScenarioName: "demo"}, []phases.Definition{
+			providerDef(phases.Name("unit"), "a-health", policy),
+			providerDef(phases.Name("api"), "b-health", policy),
+		}, io.Discard, nil)
+	}()
+
+	// The final acquisition is sorted, so holding b-health makes the run hold
+	// a-health while it waits. Repeatedly taking and releasing a-health lets the
+	// test distinguish the run's hold from the interval before its goroutine runs.
+	for attempt := 0; attempt < 20; attempt++ {
+		probeCtx, cancelProbe := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		probeRelease, err := manager.LeaseProviderContext(probeCtx, "a-health")
+		cancelProbe()
+		if errors.Is(err, context.DeadlineExceeded) {
+			cancel()
+			select {
+			case plan := <-done:
+				defer plan.releaseProviders()
+				if len(plan.Active) != 0 || len(plan.Blocked) != 2 {
+					t.Fatalf("canceled partial-lease plan = %+v", plan)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("canceled provider lease wait did not return")
+			}
+			reacquireCtx, cancelReacquire := context.WithTimeout(context.Background(), time.Second)
+			defer cancelReacquire()
+			release, err := manager.LeaseProviderContext(reacquireCtx, "a-health")
+			if err != nil {
+				t.Fatalf("first provider lease remained held after cancellation: %v", err)
+			}
+			release()
+			return
+		}
+		if err != nil {
+			t.Fatalf("checking first provider lease: %v", err)
+		}
+		// The check goroutine had not acquired a-health yet; release our probe
+		// lease and allow it to proceed to the blocked second provider.
+		probeRelease()
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	t.Fatal("readiness did not acquire the first provider before waiting on the held second provider")
 }
 
 func TestCheckProviderReadinessConcurrentPreservesOutcomeOrderAndProviderExclusion(t *testing.T) {

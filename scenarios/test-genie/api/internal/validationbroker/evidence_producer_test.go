@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	repocontract "github.com/vrooli/repo-contract-go"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
@@ -285,15 +285,20 @@ func newRetainedSetTestRuns(t *testing.T, runID string) *retainedSetTestRuns {
 	return &retainedSetTestRuns{fakeSuiteRuns: &fakeSuiteRuns{}, owner: owner}
 }
 
+func repoRootForEvidenceProducerTest(t *testing.T) string {
+	t.Helper()
+	root, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root for evidence producer test: %v", err)
+	}
+	return root
+}
+
 func TestProducerReceiptSetPassesUnchangedIntoValidationIntent(t *testing.T) {
 	ctx := context.Background()
 	identity := &validationv1.SourceIdentity{SchemaVersion: 1, Identity: "ci:v1:owner-handoff"}
 	providerIdentity := &validationv1.SourceIdentity{SchemaVersion: 1, Identity: "ci:v1:bas-provider"}
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "../../../../../"))
+	repoRoot := repoRootForEvidenceProducerTest(t)
 	pinned, err := (DescriptorEvidenceResolver{RepoRoot: repoRoot}).ResolveEvidenceProducer(ctx, "browser-automation-studio", "evidence-completeness", "browser-automation-studio")
 	if err != nil {
 		t.Fatal(err)
@@ -545,11 +550,7 @@ func TestEvidenceProducerDeadlineExpiryDuringWaitDrainsLateSuccess(t *testing.T)
 }
 
 func TestCheckedInBASEvidenceProducerDeclarationResolvesBoundedOutput(t *testing.T) {
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "../../../../../"))
+	repoRoot := repoRootForEvidenceProducerTest(t)
 	pinned, err := (DescriptorEvidenceResolver{RepoRoot: repoRoot}).ResolveEvidenceProducer(context.Background(), "browser-automation-studio", "evidence-completeness", "browser-automation-studio")
 	if err != nil {
 		t.Fatal(err)

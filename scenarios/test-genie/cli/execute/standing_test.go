@@ -114,6 +114,51 @@ func TestHistoricalStandingIsExplicitlyNonCanonical(t *testing.T) {
 	}
 }
 
+func TestTerminalObservationCountIsPreservedAndHistoricalUnknownStaysOmitted(t *testing.T) {
+	count := uint32(3)
+	response := &runspb.WaitRunResponse{TerminalRun: &runspb.RunInfo{
+		RunId:  "run-count",
+		Target: "demo",
+		Status: "passed",
+		Phases: []*runspb.PhaseInfo{{Name: "workflow", Status: "passed", ObservationCount: &count}},
+	}}
+	view := BuildRunStandingViewFromWaitResponse(t.Context(), response, nil)
+	if view.PhaseSummary.ObservationCount == nil || *view.PhaseSummary.ObservationCount != 3 || len(view.Phases) != 1 || view.Phases[0].ObservationCount == nil || *view.Phases[0].ObservationCount != 3 {
+		t.Fatalf("terminal count projection = summary:%v phases:%+v", view.PhaseSummary.ObservationCount, view.Phases)
+	}
+	encoded, err := json.Marshal(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"observationCount":3`) || strings.Contains(string(encoded), `"observations":[`) {
+		t.Fatalf("compact terminal JSON should carry count without observation payloads: %s", encoded)
+	}
+
+	legacy := BuildRunStandingViewFromWaitResponse(t.Context(), &runspb.WaitRunResponse{TerminalRun: &runspb.RunInfo{
+		RunId:  "legacy-run",
+		Target: "demo",
+		Status: "passed",
+		Phases: []*runspb.PhaseInfo{{Name: "workflow", Status: "passed"}},
+	}}, nil)
+	if legacy.PhaseSummary.ObservationCount != nil || legacy.Phases[0].ObservationCount != nil {
+		t.Fatalf("legacy phase with no retained count must remain unknown: summary=%v phase=%+v", legacy.PhaseSummary.ObservationCount, legacy.Phases[0])
+	}
+	encodedLegacy, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encodedLegacy), `"observationCount"`) {
+		t.Fatalf("legacy unknown count was serialized as a value: %s", encodedLegacy)
+	}
+
+	zero := uint32(0)
+	knownZero := phasesFromTerminalRun(&runspb.RunInfo{Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "passed", ObservationCount: &zero}}})
+	zeroSummary := summarizePhases(knownZero)
+	if zeroSummary.ObservationCount == nil || *zeroSummary.ObservationCount != 0 {
+		t.Fatalf("known zero count must remain distinguishable from unknown: %v", zeroSummary.ObservationCount)
+	}
+}
+
 func TestTopPriorityFromPhasesSelectsLowestRungHighestUnlock(t *testing.T) {
 	priority := TopPriorityFromPhases([]Phase{
 		{

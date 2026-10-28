@@ -90,7 +90,46 @@ func createEvidenceProductionCall(factory clientFactory) func(cliapp.OperationCo
 		if !operation.BoolFlag("yes") {
 			return nil, fmt.Errorf("evidence production requires --yes confirmation")
 		}
-		payload, err := os.ReadFile(operation.Flag("request-file"))
+		request, err := evidenceProductionRequest(operation)
+		if err != nil {
+			return nil, err
+		}
+		client, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		response, err := client.CreateEvidenceProduction(context.Background(), connect.NewRequest(request))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	}
+}
+
+func evidenceProductionRequest(operation cliapp.OperationContext) (*validationv1.CreateEvidenceProductionRequest, error) {
+	requestFile := operation.Flag("request-file")
+	direct := map[string]string{
+		"idempotency-key":             operation.Flag("idempotency-key"),
+		"provider":                    operation.Flag("provider"),
+		"producer":                    operation.Flag("producer"),
+		"candidate-scenario":          operation.Flag("candidate-scenario"),
+		"expected-candidate-identity": operation.Flag("expected-candidate-identity"),
+		"caller-scenario":             operation.Flag("caller-scenario"),
+		"caller-execution-id":         operation.Flag("caller-execution-id"),
+		"plan-id":                     operation.Flag("plan-id"),
+	}
+	hasDirect := false
+	for _, value := range direct {
+		if value != "" {
+			hasDirect = true
+			break
+		}
+	}
+	if requestFile != "" && hasDirect {
+		return nil, fmt.Errorf("choose either --request-file or direct evidence-production fields")
+	}
+	if requestFile != "" {
+		payload, err := os.ReadFile(requestFile)
 		if err != nil {
 			return nil, fmt.Errorf("read evidence production request: %w", err)
 		}
@@ -98,16 +137,28 @@ func createEvidenceProductionCall(factory clientFactory) func(cliapp.OperationCo
 		if err := protojson.Unmarshal(payload, &request); err != nil {
 			return nil, fmt.Errorf("decode evidence production request: %w", err)
 		}
-		client, err := factory()
-		if err != nil {
-			return nil, err
-		}
-		response, err := client.CreateEvidenceProduction(context.Background(), connect.NewRequest(&request))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+		return &request, nil
 	}
+	if !hasDirect {
+		return nil, fmt.Errorf("provide --request-file or direct evidence-production fields")
+	}
+	request := &validationv1.CreateEvidenceProductionRequest{
+		IdempotencyKey:    direct["idempotency-key"],
+		Provider:          direct["provider"],
+		Producer:          direct["producer"],
+		CandidateScenario: direct["candidate-scenario"],
+		CallerScenario:    direct["caller-scenario"],
+		CallerExecutionId: direct["caller-execution-id"],
+		PlanId:            direct["plan-id"],
+	}
+	if identityJSON := direct["expected-candidate-identity"]; identityJSON != "" {
+		identity := &validationv1.SourceIdentity{}
+		if err := protojson.Unmarshal([]byte(identityJSON), identity); err != nil {
+			return nil, fmt.Errorf("decode expected candidate identity: %w", err)
+		}
+		request.ExpectedCandidateIdentity = identity
+	}
+	return request, nil
 }
 
 type clientFactory func() (validationconnect.ValidationServiceClient, error)
@@ -284,5 +335,19 @@ func receiptLines(receipt *validationv1.ValidationReceipt) []string {
 	if receipt == nil {
 		return []string{"receipt unavailable"}
 	}
-	return []string{fmt.Sprintf("receipt=%s", receipt.GetReceiptId()), fmt.Sprintf("lineage=%s", receipt.GetLineageId()), fmt.Sprintf("state=%s revision=%d", receipt.GetState(), receipt.GetRevision()), fmt.Sprintf("reason=%s", receipt.GetReasonCode())}
+	lines := []string{fmt.Sprintf("receipt=%s", receipt.GetReceiptId()), fmt.Sprintf("lineage=%s", receipt.GetLineageId()), fmt.Sprintf("state=%s revision=%d", receipt.GetState(), receipt.GetRevision()), fmt.Sprintf("reason=%s", receipt.GetReasonCode())}
+	if len(receipt.GetEvidence()) == 0 {
+		return append(lines, "evidence=none")
+	}
+	for _, evidence := range receipt.GetEvidence() {
+		if evidence == nil {
+			continue
+		}
+		reference := fmt.Sprintf("evidence=%s id=%s owner=%s", evidence.GetKind(), evidence.GetEvidenceId(), evidence.GetOwner())
+		if evidence.GetUri() != "" {
+			reference += " uri=" + evidence.GetUri()
+		}
+		lines = append(lines, reference)
+	}
+	return lines
 }

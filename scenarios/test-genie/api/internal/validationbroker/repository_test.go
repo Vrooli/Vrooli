@@ -251,6 +251,38 @@ func TestReceiptTransitionsAreLegalDurableAndIdempotent(t *testing.T) { // [REQ:
 	}
 }
 
+func TestTerminalFailureWithoutChildEvidenceReferencesItsDurableReceipt(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
+	repo := NewRepository(testsqllite(t))
+	created, err := repo.Admit(context.Background(), validIntent("plan-manager", "terminal-failure-evidence"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err := repo.Transition(context.Background(), created.Receipt.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_QUEUED, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed, err := repo.Transition(context.Background(), queued.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_FAILED, func(receipt *validationv1.ValidationReceipt) error {
+		receipt.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_MISSING
+		receipt.Detail = "required producer evidence was unavailable"
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed.GetState() != validationv1.ReceiptState_RECEIPT_STATE_FAILED || len(failed.GetEvidence()) != 1 {
+		t.Fatalf("terminal failure evidence = %#v", failed.GetEvidence())
+	}
+	reference := failed.GetEvidence()[0]
+	wantURI := "test-genie://validation/receipts/" + failed.GetReceiptId()
+	if reference.GetEvidenceId() != failed.GetReceiptId() || reference.GetKind() != "test-genie-validation-receipt" || reference.GetOwner() != "test-genie" || reference.GetSubjectId() != failed.GetReceiptId() || reference.GetUri() != wantURI {
+		t.Fatalf("terminal failure reference = %#v", reference)
+	}
+	persisted, err := repo.Get(context.Background(), failed.GetReceiptId())
+	if err != nil || len(persisted.GetEvidence()) != 1 || persisted.GetEvidence()[0].GetUri() != wantURI {
+		t.Fatalf("persisted terminal failure evidence = %#v err=%v", persisted.GetEvidence(), err)
+	}
+}
+
 func TestTerminalReuseCopiesEvidenceIntoSameLineage(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
 	repo := NewRepository(testsqllite(t))
 	created, err := repo.Admit(context.Background(), validIntent("caller-a", "first"))

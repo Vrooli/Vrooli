@@ -143,21 +143,27 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	executionCtx := ctx
 	var isolationLease IsolationLease
 	if opts.Isolation != nil && !opts.DryRun {
-		lease, err := opts.Isolation.Acquire(ctx, scenario, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().UnixNano())))
+		leaseID := firstNonEmpty(opts.IsolationLeaseID, opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().UnixNano()))
+		lease, err := opts.Isolation.Acquire(ctx, scenario, leaseID)
 		if err != nil {
 			report.Isolation.InstallError = err.Error()
 			report.Findings = append(report.Findings, isolationFinding("routed test isolation was not installed: "+err.Error()))
+		} else if lease == nil {
+			report.Isolation.InstallError = "isolation coordinator returned no lease"
+			report.Findings = append(report.Findings, isolationFinding(report.Isolation.InstallError))
 		} else {
 			isolationLease = lease
 			report.Isolation = lease.Evidence()
-			// Electron validation binds the workflow to the provider-issued lease,
-			// so a coordinator that reports installation without a stable lease
-			// identity is not sufficient proof.
-			if opts.ElectronTarget != nil && strings.TrimSpace(report.Isolation.LeaseID) == "" {
-				report.Isolation.InstallError = "isolation coordinator did not provide a lease identity"
+			// An acquired coordinator object is not itself proof of routed
+			// isolation. Require both its installed state and a stable lease
+			// identity before allowing any asset that requires isolation to reach
+			// BAS, including explicitly routed observer workflows.
+			proofErr := isolationProofError(report.Isolation)
+			if proofErr != "" {
+				report.Isolation.Installed = false
+				report.Isolation.InstallError = proofErr
 				report.Findings = append(report.Findings, isolationFinding(report.Isolation.InstallError))
 			} else {
-				report.Isolation.Installed = true
 				isolationInstalled = true
 			}
 			runCtx, cancel := context.WithCancel(ctx)
@@ -171,13 +177,21 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 					}
 				}()
 			}
-			if opts.ExtraHeaders == nil {
-				opts.ExtraHeaders = map[string]string{}
+			if isolationInstalled {
+				if opts.ExtraHeaders == nil {
+					opts.ExtraHeaders = map[string]string{}
+				}
+				opts.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
+				opts.ExtraHeaders["X-Vrooli-Test-Lease-ID"] = report.Isolation.LeaseID
+				executionCtx = runCtx
 			}
-			opts.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
-			opts.ExtraHeaders["X-Vrooli-Test-Lease-ID"] = report.Isolation.LeaseID
 			defer func() {
+				installError := report.Isolation.InstallError
 				report.Isolation = lease.Close(context.Background())
+				if proofErr != "" {
+					report.Isolation.Installed = false
+					report.Isolation.InstallError = installError
+				}
 				if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
 					report.Isolation.HeartbeatError = heartbeatErr.Error()
 					report.Findings = append(report.Findings, isolationFinding("routed test isolation heartbeat failed: "+heartbeatErr.Error()))
@@ -190,7 +204,6 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 				}
 				validation.SortFindings(report.Findings)
 			}()
-			executionCtx = runCtx
 		}
 	}
 	// Resolve the target to an absolute path before it feeds workflow reads or
@@ -202,6 +215,9 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	}
 	writer := artifacts.NewWriter(targetDir, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
 	for _, asset := range selected {
+		if executionCtx.Err() != nil {
+			break
+		}
 		run := s.runAsset(executionCtx, writer, asset, targetDir, opts, isolationInstalled, isolationLease, scenario, static.Findings)
 		report.Runs = append(report.Runs, run)
 		switch {
@@ -255,6 +271,16 @@ func isolationHealthError(lease IsolationLease) error {
 		return health.Err()
 	}
 	return nil
+}
+
+func isolationProofError(evidence IsolationEvidence) string {
+	if !evidence.Installed {
+		return "isolation coordinator did not report an installed routed test lease"
+	}
+	if strings.TrimSpace(evidence.LeaseID) == "" {
+		return "isolation coordinator did not provide a lease identity"
+	}
+	return ""
 }
 
 func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool, lease IsolationLease, runtimeScenario string, staticFindings []validation.Finding) (run WorkflowRun) {
@@ -352,6 +378,9 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 			ValidationContext: validationContext,
 		},
 	})
+	if result != nil {
+		run.ExecutionID = result.ExecutionID
+	}
 	if err != nil {
 		run.Status = "failed"
 		if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
@@ -519,6 +548,9 @@ func refusalReason(asset workflows.WorkflowAsset, isolationInstalled bool, stati
 		return "workflow JSON did not parse; static validation must pass before execution"
 	}
 	if !asset.Safety.Mutating {
+		if asset.Safety.RequiresIsolation && !isolationInstalled {
+			return "workflow execution requires proven routed test isolation"
+		}
 		return ""
 	}
 	if !asset.Safety.RequiresConfirmation {

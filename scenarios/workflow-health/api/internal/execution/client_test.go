@@ -2,8 +2,11 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -87,6 +90,9 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(
 		apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure,
 		func(_ context.Context, req *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+			if got := req.Msg.GetParameters().GetStartUrl(); got != "" {
+				t.Fatalf("legacy execution start URL = %q, want empty", got)
+			}
 			if req.Msg.GetWaitForCompletion() {
 				t.Fatal("workflow-health must use BAS asynchronous execution")
 			}
@@ -142,6 +148,9 @@ func TestExecuteAdhocCarriesAppTargetAndValidationContext(t *testing.T) {
 	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(
 		apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure,
 		func(_ context.Context, req *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+			if got := req.Msg.GetParameters().GetStartUrl(); got != "file:///app" {
+				t.Fatalf("bound Electron start URL = %q, want renderer URL", got)
+			}
 			target := req.Msg.GetOptions().GetAppTarget()
 			if target.GetTargetKind() != "electron" || target.GetTargetId() != "target-1" || target.GetRendererId() != "renderer-1" || target.GetCdpTransport() != "loopback-authenticated" {
 				t.Fatalf("app target = %+v", target)
@@ -206,5 +215,165 @@ func TestControlPlaneHeadersExcludeTargetAuthentication(t *testing.T) {
 	})
 	if len(got) != 1 || got["X-Trace"] != "trace-1" {
 		t.Fatalf("control-plane headers = %#v, want only X-Trace", got)
+	}
+}
+
+func TestExecuteAdhocRetainsOneChildAcrossObservationWindowsAndTransientRead(t *testing.T) {
+	var starts, reads, stops atomic.Int32
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, func(context.Context, *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+		starts.Add(1)
+		return connect.NewResponse(&basexecution.ExecuteAdhocResponse{ExecutionId: "same-child"}), nil
+	}))
+	mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(apiconnect.ExecutionsServiceGetExecutionProcedure, func(_ context.Context, req *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		if req.Msg.ExecutionId != "same-child" {
+			t.Error("observation switched execution")
+		}
+		n := reads.Add(1)
+		if n == 2 {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("temporary status outage"))
+		}
+		e := &basexecution.Execution{ExecutionId: "same-child", Status: basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING}
+		if n >= 3 {
+			e.Status = basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED
+			e.CompletedAt = timestamppb.Now()
+		}
+		return connect.NewResponse(&basapi.GetExecutionResponse{Execution: e}), nil
+	}))
+	mux.Handle(apiconnect.ExecutionsServiceStopExecutionProcedure, connect.NewUnaryHandler(apiconnect.ExecutionsServiceStopExecutionProcedure, func(context.Context, *connect.Request[basapi.StopExecutionRequest]) (*connect.Response[basapi.StopExecutionResponse], error) {
+		stops.Add(1)
+		return connect.NewResponse(&basapi.StopExecutionResponse{Status: "stopped"}), nil
+	}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewConnectClient(server.URL, server.Client())
+	client.timeout = 40 * time.Millisecond
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	result, err := client.ExecuteAdhoc(ctx, ExecuteRequest{Definition: map[string]any{"metadata": map[string]any{"name": "long-owner", "execution_mode": "observer"}, "nodes": []any{}}})
+	if err != nil || result.Status != basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED || starts.Load() != 1 || stops.Load() != 0 {
+		t.Fatalf("observation window ended or replaced durable work: result=%v err=%v starts=%d stops=%d", result, err, starts.Load(), stops.Load())
+	}
+}
+
+func TestExecuteAdhocOwnerAbortJoinsBrowserCleanupAndPreservesChildIdentity(t *testing.T) {
+	seen, stopping, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var observed sync.Once
+	var terminal atomic.Bool
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, func(context.Context, *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+		return connect.NewResponse(&basexecution.ExecuteAdhocResponse{ExecutionId: "abort-child"}), nil
+	}))
+	mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(apiconnect.ExecutionsServiceGetExecutionProcedure, func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		observed.Do(func() { close(seen) })
+		e := &basexecution.Execution{ExecutionId: "abort-child", Status: basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING}
+		if terminal.Load() {
+			e.Status = basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED
+			e.CompletedAt = timestamppb.Now()
+		}
+		return connect.NewResponse(&basapi.GetExecutionResponse{Execution: e}), nil
+	}))
+	mux.Handle(apiconnect.ExecutionsServiceStopExecutionProcedure, connect.NewUnaryHandler(apiconnect.ExecutionsServiceStopExecutionProcedure, func(ctx context.Context, req *connect.Request[basapi.StopExecutionRequest]) (*connect.Response[basapi.StopExecutionResponse], error) {
+		if req.Msg.ExecutionId != "abort-child" {
+			t.Error("aborted another execution")
+		}
+		close(stopping)
+		select {
+		case <-release:
+			terminal.Store(true)
+			return connect.NewResponse(&basapi.StopExecutionResponse{Status: "stopped"}), nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewConnectClient(server.URL, server.Client())
+	client.timeout = 10 * time.Second
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	type returned struct {
+		result *ExecuteResult
+		err    error
+	}
+	done := make(chan returned, 1)
+	go func() {
+		r, e := client.ExecuteAdhoc(ctx, ExecuteRequest{Definition: map[string]any{"metadata": map[string]any{"name": "abort-owner", "execution_mode": "observer"}, "nodes": []any{}}})
+		done <- returned{r, e}
+	}()
+	<-seen
+	cancel()
+	<-stopping
+	select {
+	case r := <-done:
+		t.Fatalf("returned before browser cleanup: %+v", r)
+	default:
+	}
+	close(release)
+	r := <-done
+	if !errors.Is(r.err, context.Canceled) || r.result == nil || r.result.ExecutionID != "abort-child" || !terminal.Load() {
+		t.Fatalf("unsettled or unidentified cancellation: %+v", r)
+	}
+}
+
+// BAS records terminal status before its cancellation owner finishes cleanup.
+// A timed-out Stop must be retried and joined even when Get reports CompletedAt.
+func TestOwnerAbortDoesNotMistakeTerminalStatusForCleanupAfterStopTimeout(t *testing.T) {
+	var stops atomic.Int32
+	secondStop, release := make(chan struct{}), make(chan struct{})
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.ExecutionsServiceStopExecutionProcedure, connect.NewUnaryHandler(apiconnect.ExecutionsServiceStopExecutionProcedure, func(ctx context.Context, req *connect.Request[basapi.StopExecutionRequest]) (*connect.Response[basapi.StopExecutionResponse], error) {
+		if req.Msg.ExecutionId != "cleanup-owner" {
+			t.Error("switched cancellation owner")
+		}
+		if stops.Add(1) == 1 {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		close(secondStop)
+		select {
+		case <-release:
+			return connect.NewResponse(&basapi.StopExecutionResponse{Status: "stopped"}), nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}))
+	mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(apiconnect.ExecutionsServiceGetExecutionProcedure, func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		return connect.NewResponse(&basapi.GetExecutionResponse{Execution: &basexecution.Execution{ExecutionId: "cleanup-owner", Status: basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED, CompletedAt: timestamppb.Now()}}), nil
+	}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewConnectClient(server.URL, server.Client())
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	type outcome struct {
+		result *ExecuteResult
+		err    error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		r, e := client.settleCancelledExecution(ctx, "cleanup-owner", nil, 100*time.Millisecond)
+		done <- outcome{r, e}
+	}()
+	select {
+	case got := <-done:
+		t.Fatalf("released fixture on terminal stamp without cleanup acknowledgement: %+v", got)
+	case <-secondStop:
+	case <-time.After(5 * time.Second):
+		t.Fatal("did not retry the timed-out cleanup owner")
+	}
+	select {
+	case got := <-done:
+		t.Fatalf("released fixture before owner joined: %+v", got)
+	default:
+	}
+	close(release)
+	select {
+	case got := <-done:
+		if !errors.Is(got.err, context.Canceled) || got.result == nil || got.result.ExecutionID != "cleanup-owner" || stops.Load() != 2 {
+			t.Fatalf("incorrect cancellation disposition: %+v stops=%d", got, stops.Load())
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("did not return after cleanup acknowledgement")
 	}
 }

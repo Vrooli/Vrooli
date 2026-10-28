@@ -10,7 +10,7 @@
     {
       "id": "TESTGENIE-REMEDIATION-UX-P1",
       "title": "Remediation evidence UX",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Deliver UI workflows that inspect execution findings, select remediation evidence, distinguish provisional agent completion from verified reruns, and review deltas.",

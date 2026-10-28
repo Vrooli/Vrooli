@@ -46,41 +46,15 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 			matrixTargets = append(matrixTargets, targets...)
 		}
 		captures := c.captureMatrix(ctx, capturer, matrixTargets)
-		for _, profile := range profiles {
-			targets := targetsByProfile[profileKey(profile)]
-			snapshots := map[string]Snapshot{}
-			fingerprints := map[string]string{}
-			for _, target := range targets {
-				captured := captures[captureTargetKey(target)]
-				snapshot, err := captured.snapshot, captured.err
-				if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
-					findings = append(findings, spec.Finding{
-						Code:       spec.CodeCaptureUnavailable,
-						Severity:   spec.SeverityInfo,
-						Message:    fmt.Sprintf("accessibility capture unavailable for active page %q state %q at viewport %q", page.Page.ID, target.StateID, target.ViewportID),
-						Locations:  []string{loc},
-						Suggestion: "Start browser-automation-studio and the target UI, then rerun the experience phase.",
-					})
-					findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
-					continue
-				}
-				snapshots[target.StateID] = snapshot
-				if target.ExampleName != "" {
-					snapshots[target.ExampleName] = snapshot
-				}
-				fingerprints[target.StateID] = snapshotFingerprint(snapshot)
+		findings = append(findings, c.reconcileCaptures(ctx, report.Scenario, loc, page, profiles, targetsByProfile, captures, func(target CaptureTarget) spec.Finding {
+			return spec.Finding{
+				Code:       spec.CodeCaptureUnavailable,
+				Severity:   spec.SeverityInfo,
+				Message:    fmt.Sprintf("accessibility capture unavailable for active page %q state %q at viewport %q", page.Page.ID, target.StateID, target.ViewportID),
+				Locations:  []string{loc},
+				Suggestion: "Start browser-automation-studio and the target UI, then rerun the experience phase.",
 			}
-			for _, target := range targets {
-				snapshot, ok := snapshots[target.StateID]
-				if !ok {
-					continue
-				}
-				target.StateFingerprints = fingerprints
-				result := reconcileActivePage(loc, page, target, snapshot, snapshots)
-				findings = append(findings, result.Findings...)
-				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
-			}
-		}
+		})...)
 		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
 		findings = append(findings, unverifiableStateSetupFindings(loc, page)...)
 	}
@@ -105,44 +79,52 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 			matrixTargets = append(matrixTargets, targets...)
 		}
 		captures := c.captureMatrix(ctx, capturer, matrixTargets)
-		for _, profile := range profiles {
-			targets := targetsByProfile[profileKey(profile)]
-			snapshots := map[string]Snapshot{}
-			fingerprints := map[string]string{}
-			for _, target := range targets {
-				captured := captures[captureTargetKey(target)]
-				snapshot, err := captured.snapshot, captured.err
-				if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
-					findings = append(findings, spec.Finding{
-						Code:       spec.CodeCaptureUnavailable,
-						Severity:   spec.SeverityInfo,
-						Message:    fmt.Sprintf("accessibility capture unavailable for active component %q example %q at viewport %q", component.Component.ID, target.ExampleName, target.ViewportID),
-						Locations:  []string{loc},
-						Suggestion: "Start browser-automation-studio and the RCL UI, then rerun the experience phase.",
-					})
-					findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
-					continue
-				}
-				snapshots[target.StateID] = snapshot
-				if target.ExampleName != "" {
-					snapshots[target.ExampleName] = snapshot
-				}
-				fingerprints[target.StateID] = snapshotFingerprint(snapshot)
+		findings = append(findings, c.reconcileCaptures(ctx, report.Scenario, loc, page, profiles, targetsByProfile, captures, func(target CaptureTarget) spec.Finding {
+			return spec.Finding{
+				Code:       spec.CodeCaptureUnavailable,
+				Severity:   spec.SeverityInfo,
+				Message:    fmt.Sprintf("accessibility capture unavailable for active component %q example %q at viewport %q", component.Component.ID, target.ExampleName, target.ViewportID),
+				Locations:  []string{loc},
+				Suggestion: "Start browser-automation-studio and the RCL UI, then rerun the experience phase.",
 			}
-			for _, target := range targets {
-				snapshot, ok := snapshots[target.StateID]
-				if !ok {
-					continue
-				}
-				target.StateFingerprints = fingerprints
-				result := reconcileActivePage(loc, page, target, snapshot, snapshots)
-				findings = append(findings, result.Findings...)
-				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
-			}
-		}
+		})...)
 		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
 	}
 	sortFindings(findings)
+	return findings
+}
+
+func (c Check) reconcileCaptures(ctx context.Context, scenario, loc string, page spec.PageDocument, profiles []CaptureProfile, targetsByProfile map[string][]CaptureTarget, captures map[string]captureResult, captureUnavailable func(CaptureTarget) spec.Finding) []spec.Finding {
+	var findings []spec.Finding
+	for _, profile := range profiles {
+		targets := targetsByProfile[profileKey(profile)]
+		snapshots := map[string]Snapshot{}
+		fingerprints := map[string]string{}
+		for _, target := range targets {
+			captured := captures[captureTargetKey(target)]
+			snapshot, err := captured.snapshot, captured.err
+			if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
+				findings = append(findings, captureUnavailable(target))
+				findings = append(findings, c.persistEvidence(ctx, scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
+				continue
+			}
+			snapshots[target.StateID] = snapshot
+			if target.ExampleName != "" {
+				snapshots[target.ExampleName] = snapshot
+			}
+			fingerprints[target.StateID] = snapshotFingerprint(snapshot)
+		}
+		for _, target := range targets {
+			snapshot, ok := snapshots[target.StateID]
+			if !ok {
+				continue
+			}
+			target.StateFingerprints = fingerprints
+			result := reconcileActivePage(loc, page, target, snapshot, snapshots)
+			findings = append(findings, result.Findings...)
+			findings = append(findings, c.persistEvidence(ctx, scenario, loc, page, target, snapshot, result.Evidence)...)
+		}
+	}
 	return findings
 }
 

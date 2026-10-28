@@ -35,6 +35,20 @@ type Record struct {
 	ExecutionBinding *scenariovalidationv1.DesktopValidationBinding
 }
 
+// ActiveRun is the bounded durable inventory item used by lifecycle drain.
+type ActiveRun struct {
+	ID    string
+	State core.State
+}
+
+// LifecycleFence is the provider-owned admission state retained across a
+// managed process replacement.
+type LifecycleFence struct {
+	Closed    bool
+	Operation string
+	Revision  int64
+}
+
 type Repository struct{ DB DB }
 
 // ListInterrupted returns provider work that was durable but not terminal at
@@ -55,6 +69,53 @@ func (r Repository) ListInterrupted(ctx context.Context) ([]Record, error) {
 		out = append(out, record)
 	}
 	return out, rows.Err()
+}
+
+func (r Repository) ListActive(ctx context.Context) ([]ActiveRun, error) {
+	rows, err := r.DB.QueryContext(ctx, `SELECT id, state FROM validation_runs WHERE state IN (?, ?) ORDER BY created_at, id`, string(core.StateQueued), string(core.StateRunning))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ActiveRun
+	for rows.Next() {
+		var item ActiveRun
+		var state string
+		if err := rows.Scan(&item.ID, &state); err != nil {
+			return nil, err
+		}
+		item.State = core.State(state)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r Repository) GetLifecycleFence(ctx context.Context) (LifecycleFence, error) {
+	var fence LifecycleFence
+	var closed int
+	err := r.DB.QueryRowContext(ctx, `SELECT closed, operation_id, revision FROM validation_lifecycle_fence WHERE singleton = 1`).Scan(&closed, &fence.Operation, &fence.Revision)
+	if err != nil {
+		return LifecycleFence{}, err
+	}
+	fence.Closed = closed != 0
+	return fence, nil
+}
+
+// UpdateLifecycleFence uses a single compare-and-swap statement so a stale
+// lifecycle request cannot overwrite a newer revision.
+func (r Repository) UpdateLifecycleFence(ctx context.Context, expectedRevision int64, next LifecycleFence) error {
+	result, err := r.DB.ExecContext(ctx, `UPDATE validation_lifecycle_fence SET closed = ?, operation_id = ?, revision = ? WHERE singleton = 1 AND revision = ?`, boolInt(next.Closed), next.Operation, next.Revision, expectedRevision)
+	if err != nil {
+		return err
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if updated != 1 {
+		return fmt.Errorf("stale lifecycle fence revision %d", expectedRevision)
+	}
+	return nil
 }
 
 func (r Repository) FindByIdempotency(ctx context.Context, key string) (Record, error) {

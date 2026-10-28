@@ -20,7 +20,7 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 
 - Package: `api/internal/orchestrator/targetruntime`
 - Surface: `Manager.EnsureRunning()`, `RestartWithEnv()`, `Restore()`, and `Cleanup()`
-- Why it exists: runtime-backed phases need one path-aware lifecycle boundary for starting and discovering the scenario under test. This avoids phase-local port fallbacks and keeps temporary generated scenarios isolated from Test Genie's own runtime environment.
+- Why it exists: runtime-backed phases need one path-aware lifecycle boundary for starting and discovering the scenario under test. Existing surfaces are resolved through `api-core/discovery`, which reads canonical runtime registration and port bindings; legacy process records remain a compatibility fallback only. This avoids phase-local port fallbacks and keeps temporary generated scenarios isolated from Test Genie's own runtime environment.
 
 ### Workflow seed DB detection
 

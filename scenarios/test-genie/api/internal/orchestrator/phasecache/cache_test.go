@@ -124,6 +124,49 @@ func TestKeyChangesForEachIdentityPart(t *testing.T) {
 	}
 }
 
+func TestKeyVersionBumpDoesNotReuseLegacyEntries(t *testing.T) {
+	store := New(t.TempDir())
+	identity := Identity{ScopedInputDigest: "input", ProviderBuildIdentity: "provider", DescriptorSnapshotHash: "descriptor", ExecutionConfiguration: "config"}
+	const legacyV1Key = "pc:sha256:ffd26fafac6e63d97d87d9d122989260aee3283b80d79a008b2a6c2ed1aceaf7"
+
+	legacy := phases.ExecutionResult{Name: "unit", Status: "passed"}
+	if err := store.Save(legacyV1Key, "legacy-run", legacy); err != nil {
+		t.Fatal(err)
+	}
+	legacyPath := filepath.Join(store.root, safeName(legacyV1Key)+".json")
+	legacyBytesBefore, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Demote(legacyV1Key, "legacy audit mismatch"); err != nil {
+		t.Fatal(err)
+	}
+
+	currentKey := Key(identity)
+	if currentKey == legacyV1Key {
+		t.Fatal("current identity key still matches the pre-execution v1 entry")
+	}
+	if _, ok, err := store.Load(currentKey); err != nil || ok {
+		t.Fatalf("legacy entry served under current identity: ok=%v err=%v", ok, err)
+	}
+	legacyBytesAfter, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("legacy entry should remain for normal retention: %v", err)
+	}
+	if string(legacyBytesAfter) != string(legacyBytesBefore) {
+		t.Fatal("key version change mutated the retained legacy entry")
+	}
+
+	current := phases.ExecutionResult{Name: "unit", Status: "passed"}
+	if err := store.Save(currentKey, "current-run", current); err != nil {
+		t.Fatal(err)
+	}
+	entry, ok, err := store.Load(currentKey)
+	if err != nil || !ok || entry.RunID != "current-run" || entry.Phase.Status != "passed" {
+		t.Fatalf("current v2 entry was not reusable: entry=%+v ok=%v err=%v", entry, ok, err)
+	}
+}
+
 func TestAuditSamplingAndDemotionAreFailClosed(t *testing.T) {
 	t.Setenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT", "100")
 	store := New(t.TempDir())

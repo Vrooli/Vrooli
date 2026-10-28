@@ -2,12 +2,14 @@ package runs
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -55,7 +57,10 @@ func TestRunWaitJSONParksInsideAgentManagerRun(t *testing.T) {
 	defer am.Close()
 
 	t.Setenv("AGENT_MANAGER_API_BASE", am.URL)
-	t.Setenv(cliutil.EnvIdentityToken, "agent-token")
+	// Keep this test's broker lookup isolated from a live Agent Manager while
+	// retaining a structurally valid ordinary run identity for the fallback.
+	t.Setenv("TMPDIR", t.TempDir())
+	t.Setenv(cliutil.EnvIdentityToken, ordinaryRunToken(runID))
 
 	// Contain a park-failure regression: if park did not short-circuit, runWait
 	// would build the client and hit this (empty) stream server rather than a real
@@ -69,4 +74,14 @@ func TestRunWaitJSONParksInsideAgentManagerRun(t *testing.T) {
 	if !strings.Contains(buf.String(), "PARKED") {
 		t.Fatalf("expected the parked tool-result, got: %q", buf.String())
 	}
+}
+
+func ordinaryRunToken(runID string) string {
+	payload, _ := json.Marshal(map[string]any{
+		"run_id": runID,
+		"iat":    time.Now().Unix(),
+		"exp":    time.Now().Add(time.Hour).Unix(),
+		"meta":   map[string]string{},
+	})
+	return base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
 }

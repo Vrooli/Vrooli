@@ -4,6 +4,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"workflow-health/internal/artifacts"
 	"workflow-health/internal/execution"
@@ -30,13 +33,18 @@ import (
 const basScenario = "browser-automation-studio"
 
 type Deps struct {
-	Logger       *log.Logger
-	Engine       *internalvalidation.Engine
-	MaturitySpec *assessment.Spec
-	RepoRoot     string
-	Environment  *commonv1.CaptureEnvironment
-	BASClient    execution.BASClient
-	Ledger       workflowrun.Repository
+	Logger         *log.Logger
+	Engine         *internalvalidation.Engine
+	MaturitySpec   *assessment.Spec
+	RepoRoot       string
+	Environment    *commonv1.CaptureEnvironment
+	BASClient      execution.BASClient
+	BASURLResolver interface {
+		ResolveScenarioURLDefault(context.Context, string) (string, error)
+	}
+	Ledger               workflowrun.Repository
+	EvidenceIdentity     evidenceIdentityResolver
+	EvidenceRuntimeFresh func(context.Context, string) error
 }
 
 type connectHandler struct {
@@ -44,6 +52,12 @@ type connectHandler struct {
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
 	notices map[string]chan struct{}
+
+	lifecycleMu        sync.Mutex
+	lifecyclePrepareMu sync.Mutex
+	lifecycleAdmitting int
+	lifecycleChanged   chan struct{}
+	providerInstanceID string
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
@@ -53,7 +67,10 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Engine == nil {
 		d.Engine = internalvalidation.NewEngine()
 	}
-	return &connectHandler{deps: d, cancels: map[string]context.CancelFunc{}, notices: map[string]chan struct{}{}}
+	return &connectHandler{
+		deps: d, cancels: map[string]context.CancelFunc{}, notices: map[string]chan struct{}{},
+		lifecycleChanged: make(chan struct{}), providerInstanceID: uuid.NewString(),
+	}
 }
 
 func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
@@ -158,6 +175,7 @@ type providerReport struct {
 	Runs      []execution.WorkflowRun
 	Summary   execution.Summary
 	Isolation execution.IsolationEvidence
+	Evidence  []evidenceSnapshot
 }
 
 func (h *connectHandler) run(ctx context.Context, scenario, path string, opts execution.Options) (providerReport, error) {
@@ -173,7 +191,7 @@ func (h *connectHandler) run(ctx context.Context, scenario, path string, opts ex
 		}
 		return providerReport{Scenario: report.Scenario, Findings: report.Findings, Catalog: report.Catalog}, nil
 	}
-	client, err := h.basClient(ctx)
+	client, err := h.basClient(ctx, opts.BASVariant)
 	if err != nil {
 		return providerReport{}, err
 	}
@@ -193,7 +211,39 @@ func (h *connectHandler) run(ctx context.Context, scenario, path string, opts ex
 	}, nil
 }
 
-func (h *connectHandler) basClient(ctx context.Context) (execution.BASClient, error) {
+func browserAutomationStudioAddress(variant string) (string, error) {
+	variant = strings.TrimSpace(variant)
+	if variant == "" {
+		return basScenario, nil
+	}
+	address := basScenario + "@" + variant
+	node, scenario, parsedVariant, err := cliutil.SplitAddress(address)
+	expected := basScenario + "@" + strings.ToLower(variant)
+	if strings.EqualFold(variant, cliutil.DefaultVariant) {
+		expected = basScenario
+	}
+	if err != nil || node != "" || scenario != basScenario || parsedVariant == "" || cliutil.InstanceSlug(scenario, parsedVariant) != expected {
+		return "", fmt.Errorf("invalid %s instance variant %q", basScenario, variant)
+	}
+	return cliutil.InstanceSlug(scenario, parsedVariant), nil
+}
+
+func (h *connectHandler) basClient(ctx context.Context, variant string) (execution.BASClient, error) {
+	if strings.TrimSpace(variant) != "" {
+		address, err := browserAutomationStudioAddress(variant)
+		if err != nil {
+			return nil, err
+		}
+		resolve := h.deps.BASURLResolver
+		if resolve == nil {
+			resolve = scenarioURLResolver{}
+		}
+		base, err := resolve.ResolveScenarioURLDefault(ctx, address)
+		if err != nil {
+			return nil, fmt.Errorf("resolve %s URL for workflow execution: %w", address, err)
+		}
+		return execution.NewConnectClient(base, nil), nil
+	}
 	if h.deps.BASClient != nil {
 		return h.deps.BASClient, nil
 	}
@@ -205,6 +255,12 @@ func (h *connectHandler) basClient(ctx context.Context) (execution.BASClient, er
 		return nil, fmt.Errorf("resolve %s URL for workflow execution: %w", basScenario, err)
 	}
 	return execution.NewConnectClient(base, nil), nil
+}
+
+type scenarioURLResolver struct{}
+
+func (scenarioURLResolver) ResolveScenarioURLDefault(ctx context.Context, scenario string) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, scenario)
 }
 
 func validationStatusOptions(report providerReport) []assessment.ValidationResponseOption {
@@ -231,6 +287,7 @@ func nativeDetail(report providerReport) (*structpb.Struct, error) {
 				"installed":                            report.Isolation.Installed,
 				"lease_id":                             report.Isolation.LeaseID,
 				"install_error":                        report.Isolation.InstallError,
+				"lease_waits":                          report.Isolation.LeaseWaits,
 				"heartbeat_error":                      report.Isolation.HeartbeatError,
 				"clear_error":                          report.Isolation.ClearError,
 				"test_pool_requests":                   report.Isolation.TestPoolRequests,
@@ -239,6 +296,17 @@ func nativeDetail(report providerReport) (*structpb.Struct, error) {
 				"primary_root_writes_during_test_mode": report.Isolation.PrimaryRootWritesDuringTestMode,
 			},
 		},
+	}
+	if report.Evidence != nil {
+		encoded, err := json.Marshal(report.Evidence)
+		if err != nil {
+			return nil, err
+		}
+		var snapshots any
+		if err := json.Unmarshal(encoded, &snapshots); err != nil {
+			return nil, err
+		}
+		payload["evidence_snapshots"] = snapshots
 	}
 	return structpb.NewStruct(payload)
 }

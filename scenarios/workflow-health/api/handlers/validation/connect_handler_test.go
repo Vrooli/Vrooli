@@ -2,11 +2,13 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"github.com/gorilla/mux"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -29,8 +31,67 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+type recordingBASURLResolver struct {
+	address string
+	base    string
+	err     error
+}
+
+func (r *recordingBASURLResolver) ResolveScenarioURLDefault(_ context.Context, address string) (string, error) {
+	r.address = address
+	return r.base, r.err
+}
+
+func TestBASClientRoutesExplicitVariantThroughScenarioResolver(t *testing.T) {
+	t.Setenv("BROWSER_AUTOMATION_STUDIO_API_BASE", "http://127.0.0.1:19999")
+	resolver := &recordingBASURLResolver{base: "http://127.0.0.1:15555"}
+	handler := NewConnectHandler(Deps{BASURLResolver: resolver})
+	client, err := handler.basClient(context.Background(), " Preview-2 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client == nil || resolver.address != "browser-automation-studio@preview-2" {
+		t.Fatalf("client=%v resolved address=%q, want explicit canonical preview-2 instance", client, resolver.address)
+	}
+}
+
+func TestValidationRunIdempotencyIncludesFullDesktopBinding(t *testing.T) {
+	target := core.Target{Scenario: "demo", Path: "/demo"}
+	binding := &scenariovalidationv1.DesktopValidationBinding{BrowserAutomationStudioVariant: "preview-2", IsolationLeaseId: "parent:cell", PrepareIsolationRestart: true}
+	record := workflowrun.Record{
+		Run:              core.Run{Target: target},
+		ExecutionBinding: binding,
+	}
+	if !matchesRequest(record, target, nil, binding) {
+		t.Fatal("identical desktop binding should permit idempotent replay")
+	}
+	changed := proto.Clone(binding).(*scenariovalidationv1.DesktopValidationBinding)
+	changed.ResumeIsolationRestart = true
+	if matchesRequest(record, target, nil, changed) {
+		t.Fatal("idempotency replay with a different restart phase was accepted")
+	}
+}
+
+func TestBASClientPreservesDefaultInjectionAndRejectsMalformedExplicitVariant(t *testing.T) {
+	injected := &validationFakeBASClient{}
+	handler := NewConnectHandler(Deps{BASClient: injected})
+	client, err := handler.basClient(context.Background(), "")
+	if err != nil || client != injected {
+		t.Fatalf("empty variant client=%v err=%v, want injected default client", client, err)
+	}
+	if _, err := handler.basClient(context.Background(), "preview/other"); err == nil {
+		t.Fatal("malformed explicit variant was accepted")
+	}
+	resolver := &recordingBASURLResolver{err: errors.New("missing registered instance")}
+	handler = NewConnectHandler(Deps{BASURLResolver: resolver, BASClient: injected})
+	if _, err := handler.basClient(context.Background(), "preview-2"); err == nil || resolver.address != "browser-automation-studio@preview-2" {
+		t.Fatalf("explicit resolver address=%q err=%v, want resolver failure for selected instance", resolver.address, err)
+	}
+}
 
 func TestValidateScenarioReturnsSharedProviderResponse(t *testing.T) {
 	handler := testHandler(t)
@@ -418,7 +479,7 @@ func (f *selectedRecordingBAS) ExecuteAdhoc(ctx context.Context, req execution.E
 }
 
 func TestCompleteSelectedTargetContextBindingPreservesExecutionSelector(t *testing.T) {
-	binding := &scenariovalidationv1.DesktopValidationBinding{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "app://planner", ScenarioName: "personal-planner", ArtifactDigest: "sha256:artifact", ContextId: "context", CdpTransport: "http", ProfileId: "profile"}
+	binding := &scenariovalidationv1.DesktopValidationBinding{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "http://127.0.0.1:41235/projects", ScenarioName: "personal-planner", ArtifactDigest: "sha256:artifact", ContextId: "context", CdpTransport: "http", ProfileId: "profile", BrowserAutomationStudioVariant: "preview-2"}
 	record := workflowrun.Record{Run: core.Run{ID: "provider-run"}, BrowserCasePaths: []string{"bas/cases/calendar/duplicate-submit-once.json"}, ExecutionBinding: binding}
 	opts, err := executionOptions(record)
 	require.NoError(t, err)
@@ -430,8 +491,43 @@ func TestCompleteSelectedTargetContextBindingPreservesExecutionSelector(t *testi
 	require.Equal(t, "renderer", opts.ElectronTarget.RendererID)
 	require.Equal(t, "context", opts.ValidationContext.ContextID)
 	require.Equal(t, "provider-run", opts.ValidationContext.IsolationLeaseID)
+	require.Equal(t, "preview-2", opts.BASVariant)
 	h, _ := selectedFixture(t)
 	_, err = h.StartSelectedValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: record.BrowserCasePaths}, DesktopBinding: &scenariovalidationv1.DesktopValidationBinding{TargetId: "target", ContextId: "context"}}))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	require.Contains(t, err.Error(), "complete target")
+}
+
+func TestSavedDesktopBindingCannotFallBackToFleetIsolation(t *testing.T) {
+	legacy := &scenariovalidationv1.DesktopValidationBinding{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "app://planner", ScenarioName: "personal-planner", ArtifactDigest: "sha256:artifact", ContextId: "context", CdpTransport: "http", ProfileId: "profile"}
+	legacyOptions, err := executionOptions(workflowrun.Record{ExecutionBinding: legacy})
+	require.NoError(t, err, "false/default bundled_runtime preserves legacy scenario routing")
+	legacyIsolation, ok := legacyOptions.Isolation.(*execution.RoutingIsolation)
+	require.True(t, ok)
+	require.Equal(t, reflect.ValueOf(execution.NewRoutingIsolation().ResolveTarget).Pointer(), reflect.ValueOf(legacyIsolation.ResolveTarget).Pointer(), "legacy binding keeps the fleet discovery resolver")
+
+	for _, binding := range []*scenariovalidationv1.DesktopValidationBinding{
+		{TargetId: "incomplete", BundledRuntime: true},
+		{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "app://planner", ScenarioName: "personal-planner", ArtifactDigest: "sha256:artifact", ContextId: "context", CdpTransport: "http", ProfileId: "profile", BundledRuntime: true},
+	} {
+		_, err := executionOptions(workflowrun.Record{ExecutionBinding: binding})
+		require.Error(t, err, "bundled desktop isolation requires a complete loopback HTTP API binding")
+	}
+	bundled := *legacy
+	bundled.BundledRuntime = true
+	bundled.RendererUrl = "http://127.0.0.1:41235/projects"
+	bundled.ApiUrl = "http://127.0.0.1:41236"
+	dbRoot := t.TempDir()
+	require.NoError(t, os.Chmod(dbRoot, 0o700))
+	bundled.TestDatabaseRoot = dbRoot
+	bundledOptions, err := executionOptions(workflowrun.Record{ExecutionBinding: &bundled})
+	require.NoError(t, err)
+	bundledIsolation, ok := bundledOptions.Isolation.(*execution.RoutingIsolation)
+	require.True(t, ok)
+	require.Equal(t, "http://127.0.0.1:41236", bundledOptions.ElectronTarget.APIURL)
+	require.Equal(t, dbRoot, bundledOptions.ElectronTarget.TestDatabaseRoot)
+	require.True(t, bundledOptions.ElectronTarget.BundledRuntime)
+	resolved, err := bundledIsolation.ResolveTarget(context.Background(), "personal-planner")
+	require.NoError(t, err)
+	require.Equal(t, "http://127.0.0.1:41236", resolved)
 }

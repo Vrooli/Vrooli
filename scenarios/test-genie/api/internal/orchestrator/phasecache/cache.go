@@ -282,7 +282,11 @@ func selectPruneVictims(entries []pruneEntry, policy PrunePolicy, totalBytes int
 }
 
 func Key(id Identity) string {
-	payload := strings.Join([]string{"v1", id.ScopedInputDigest, id.ProviderBuildIdentity, id.DescriptorSnapshotHash, id.ExecutionConfiguration}, "\n")
+	// v2 changes cache identity to represent the pre-execution phase inputs.
+	// Entries written under v1 may have been keyed before the complete input
+	// identity was available, so they must remain retained for normal pruning
+	// but cannot be served by the corrected runtime.
+	payload := strings.Join([]string{"v2", id.ScopedInputDigest, id.ProviderBuildIdentity, id.DescriptorSnapshotHash, id.ExecutionConfiguration}, "\n")
 	sum := sha256.Sum256([]byte(payload))
 	return "pc:sha256:" + hex.EncodeToString(sum[:])
 }

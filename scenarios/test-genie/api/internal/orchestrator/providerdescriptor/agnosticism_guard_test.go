@@ -91,6 +91,10 @@ func TestTestGenieSourceIsProviderAgnostic(t *testing.T) {
 		// agent-manager is the control-plane remediation integration, not a
 		// test-genie phase provider. Keep its literal explicit and reviewable.
 		filepath.ToSlash(filepath.Join(sourceRoot, "agentmanager", "client.go")) + "::agent-manager": "control-plane remediation client",
+		// The descriptor loader reads Prompt Manager's active skill-pack index
+		// and indexes scenario-owned skills; this is catalog validation input,
+		// not provider phase dispatch. Keep the owner integration exact-file scoped.
+		filepath.ToSlash(filepath.Join(sourceRoot, "internal", "orchestrator", "providerdescriptor", "descriptor.go")) + "::prompt-manager": "active skill-catalog owner integration for recommended-skill validation",
 	})
 	if err != nil {
 		t.Fatal(err)

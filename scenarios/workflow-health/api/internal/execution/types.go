@@ -22,22 +22,26 @@ type AssetSelector struct {
 }
 
 type Options struct {
-	IncludeExecution   bool
-	DryRun             bool
-	RunID              string
-	Selector           AssetSelector
-	AllowFlowExecution bool
-	InitialParams      map[string]any
-	InitialStore       map[string]any
-	Env                map[string]any
-	ExtraHeaders       map[string]string
-	CollectConsole     bool
-	CollectNetwork     bool
-	CollectDOM         bool
-	RequiresVideo      bool
-	RequiresTrace      bool
-	RequiresHAR        bool
-	Isolation          IsolationCoordinator
+	IncludeExecution        bool
+	DryRun                  bool
+	RunID                   string
+	IsolationLeaseID        string
+	PrepareIsolationRestart bool
+	ResumeIsolationRestart  bool
+	BASVariant              string
+	Selector                AssetSelector
+	AllowFlowExecution      bool
+	InitialParams           map[string]any
+	InitialStore            map[string]any
+	Env                     map[string]any
+	ExtraHeaders            map[string]string
+	CollectConsole          bool
+	CollectNetwork          bool
+	CollectDOM              bool
+	RequiresVideo           bool
+	RequiresTrace           bool
+	RequiresHAR             bool
+	Isolation               IsolationCoordinator
 	// ElectronTarget attaches selected existing workflow assets to a
 	// target-owned Electron renderer. ValidationContext is required with it.
 	ElectronTarget    *ElectronTarget
@@ -60,6 +64,7 @@ type Report struct {
 type IsolationEvidence struct {
 	Installed                       bool
 	LeaseID                         string
+	LeaseWaits                      int
 	InstallError                    string
 	HeartbeatError                  string
 	ClearError                      string
@@ -67,6 +72,8 @@ type IsolationEvidence struct {
 	PrimaryDuringTestModeRequests   int64
 	TestRootWrites                  int64
 	PrimaryRootWritesDuringTestMode int64
+	RestartPrepared                 bool
+	RestartResumed                  bool
 }
 
 func (e IsolationEvidence) Leaked() bool {
@@ -154,15 +161,22 @@ type ExecuteOptions struct {
 }
 
 type ElectronTarget struct {
-	TargetID       string
-	CDPEndpoint    string
-	RendererID     string
-	RendererURL    string
-	RendererTitle  string
-	ScenarioName   string
-	ArtifactDigest string
-	ContextID      string
-	CDPTransport   string
+	TargetID                string
+	CDPEndpoint             string
+	RendererID              string
+	RendererURL             string
+	APIURL                  string
+	TestDatabaseRoot        string
+	DownloadRoot            string
+	IsolationLeaseID        string
+	PrepareIsolationRestart bool
+	ResumeIsolationRestart  bool
+	RendererTitle           string
+	ScenarioName            string
+	ArtifactDigest          string
+	ContextID               string
+	CDPTransport            string
+	BundledRuntime          bool
 }
 
 type ValidationContext struct {

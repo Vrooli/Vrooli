@@ -43,6 +43,7 @@ const (
 var evidenceKindPattern = regexp.MustCompile(`^[a-z0-9]+(?:[._-][a-z0-9]+)*$`)
 var evidenceProducerNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 var evidenceProducerPlaceholderPattern = regexp.MustCompile(`\{([^{}]+)\}`)
+var scenarioScopePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type Descriptor struct {
 	SchemaVersion string `json:"schemaVersion"`
@@ -75,6 +76,7 @@ type Descriptor struct {
 	Comparison                 Comparison                  `json:"comparison,omitempty"`
 	Validation                 Validation                  `json:"validation"`
 	EvidenceProducers          map[string]EvidenceProducer `json:"evidenceProducers,omitempty"`
+	ProducerOnly               bool                        `json:"-"`
 	Targets                    Targets                     `json:"targets,omitempty"`
 	Applicability              Applicability               `json:"applicability"`
 	Policy                     Policy                      `json:"policy"`
@@ -268,6 +270,9 @@ type Diagnostic struct {
 type LoadOptions struct {
 	RepoRoot string
 	Paths    []string
+	// Scenario narrows repository discovery to one provider while preserving the
+	// same descriptor glob, schema validation and producer index as a full load.
+	Scenario string
 	// SkillIDs optionally supplies the active Prompt Manager catalog. Repository
 	// loads derive it from Prompt Manager's pack order; callers that validate an
 	// isolated descriptor can supply the same catalog explicitly.
@@ -275,8 +280,9 @@ type LoadOptions struct {
 }
 
 type LoadResult struct {
-	Descriptors []Descriptor
-	Diagnostics []Diagnostic
+	Descriptors          []Descriptor
+	ProducerDeclarations []Descriptor
+	Diagnostics          []Diagnostic
 }
 
 func (r LoadResult) Err() error {
@@ -317,7 +323,14 @@ func Load(opts LoadOptions) LoadResult {
 		if repoRoot == "" {
 			repoRoot = "."
 		}
-		matches, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "test-genie*.json"))
+		scenarioGlob := "*"
+		if opts.Scenario != "" {
+			if !scenarioScopePattern.MatchString(opts.Scenario) {
+				return LoadResult{Diagnostics: []Diagnostic{{Code: "invalid_scenario_scope", Message: fmt.Sprintf("scenario scope %q must be a scenario slug", opts.Scenario)}}}
+			}
+			scenarioGlob = opts.Scenario
+		}
+		matches, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", scenarioGlob, ".vrooli", "test-genie*.json"))
 		if err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Code: "glob_failed", Message: err.Error()})
 			return LoadResult{Diagnostics: diagnostics}
@@ -327,12 +340,28 @@ func Load(opts LoadOptions) LoadResult {
 	sort.Strings(paths)
 
 	seen := map[string]string{}
+	seenProducers := map[string]string{}
 	descriptors := make([]Descriptor, 0, len(paths))
+	producerDeclarations := make([]Descriptor, 0, len(paths))
 	schemaPath := descriptorSchemaPath(opts.RepoRoot, paths)
 	for _, path := range paths {
 		descriptor, ds := loadOne(path, skillIDs, schemaPath)
 		diagnostics = append(diagnostics, ds...)
 		if len(ds) > 0 {
+			continue
+		}
+		if len(descriptor.EvidenceProducers) > 0 {
+			for producerName := range descriptor.EvidenceProducers {
+				key := descriptor.Scenario + "/" + producerName
+				if firstPath, ok := seenProducers[key]; ok {
+					diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "duplicate_evidence_producer", Message: fmt.Sprintf("evidence producer %q is already declared by %s", producerName, firstPath)})
+					continue
+				}
+				seenProducers[key] = path
+			}
+			producerDeclarations = append(producerDeclarations, descriptor)
+		}
+		if descriptor.ProducerOnly {
 			continue
 		}
 		phaseKey := phasekeys.NormalizeKey(descriptor.Phase)
@@ -348,7 +377,7 @@ func Load(opts LoadOptions) LoadResult {
 		descriptors = append(descriptors, descriptor)
 	}
 	diagnostics = append(diagnostics, validateLineage(descriptors)...)
-	return LoadResult{Descriptors: descriptors, Diagnostics: diagnostics}
+	return LoadResult{Descriptors: descriptors, ProducerDeclarations: producerDeclarations, Diagnostics: diagnostics}
 }
 
 // validateLineage keeps immutable machine keys primary. Aliases and supersedes
@@ -404,6 +433,17 @@ func loadOne(path string, skillIDs map[string]struct{}, schemaPath string) (Desc
 		diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "invalid_path", Message: "descriptor must live under a scenario .vrooli directory with a test-genie*.json name"})
 	} else if descriptor.Scenario != scenario {
 		diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "scenario_mismatch", Message: fmt.Sprintf("scenario %q must match directory %q", descriptor.Scenario, scenario)})
+	}
+	if strings.TrimSpace(descriptor.Phase) == "" && len(descriptor.EvidenceProducers) > 0 {
+		descriptor.ProducerOnly = true
+		if schemaPath == "" {
+			return Descriptor{}, []Diagnostic{{Path: path, Code: "schema_unavailable", Message: "producer-only declarations require the canonical Test Genie descriptor schema"}}
+		}
+		diagnostics = append(diagnostics, validateEvidenceProducers(&descriptor)...)
+		if len(diagnostics) > 0 {
+			return Descriptor{}, diagnostics
+		}
+		return descriptor, nil
 	}
 	if maturityExists(path) {
 		diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "leftover_maturity_json", Message: ".vrooli/maturity.json must be removed after descriptor cutover"})
@@ -594,6 +634,48 @@ func maturityExists(descriptorPath string) bool {
 	return err == nil
 }
 
+func validateEvidenceProducers(d *Descriptor) []Diagnostic {
+	var out []Diagnostic
+	add := func(code, msg string) {
+		out = append(out, Diagnostic{Path: d.Path, Code: code, Message: msg})
+	}
+	for name, producer := range d.EvidenceProducers {
+		if !evidenceProducerNamePattern.MatchString(name) {
+			add("invalid_evidence_producer_name", fmt.Sprintf("evidence producer name %q must match %s", name, evidenceProducerNamePattern))
+		}
+		if len(producer.Argv) == 0 || strings.TrimSpace(producer.Argv[0]) == "" {
+			add("invalid_evidence_producer_argv", fmt.Sprintf("evidence producer %q requires literal argv with an executable", name))
+		}
+		for _, arg := range producer.Argv {
+			if strings.TrimSpace(arg) == "" {
+				add("invalid_evidence_producer_argv", fmt.Sprintf("evidence producer %q argv entries must be non-empty strings", name))
+			}
+			for _, placeholder := range evidenceProducerPlaceholderPattern.FindAllStringSubmatch(arg, -1) {
+				if placeholder[1] != "run_id" && placeholder[1] != "output_dir" {
+					add("invalid_evidence_producer_placeholder", fmt.Sprintf("evidence producer %q uses unsupported placeholder {%s}", name, placeholder[1]))
+				}
+			}
+		}
+		clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(producer.WorkingDirectory)))
+		rootWorkingDirectory := producer.WorkingDirectory == "." || clean == "."
+		if producer.WorkingDirectory == "" || filepath.IsAbs(producer.WorkingDirectory) || (!rootWorkingDirectory && clean == ".") || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			add("invalid_evidence_producer_path", fmt.Sprintf("evidence producer %q workingDirectory must be a non-empty scenario-relative path", name))
+		}
+		if producer.Timeout == "" {
+			add("invalid_evidence_producer_timeout", fmt.Sprintf("evidence producer %q requires a positive Go duration", name))
+		} else if timeout, err := time.ParseDuration(producer.Timeout); err != nil || timeout <= 0 {
+			add("invalid_evidence_producer_timeout", fmt.Sprintf("evidence producer %q timeout must be a positive Go duration", name))
+		} else {
+			producer.TimeoutValue = timeout
+		}
+		if producer.MaximumOutputBytes <= 0 || producer.MaximumOutputBytes > 16<<20 {
+			add("invalid_evidence_producer_output_limit", fmt.Sprintf("evidence producer %q maximumOutputBytes must be between 1 and 16777216", name))
+		}
+		d.EvidenceProducers[name] = producer
+	}
+	return out
+}
+
 func validateDescriptor(d *Descriptor) []Diagnostic {
 	var out []Diagnostic
 	add := func(code, msg string) {
@@ -627,42 +709,7 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 	if d.Validation.Contract != "scenario-validation/v1" {
 		add("invalid_validation_contract", "validation.contract must be scenario-validation/v1")
 	}
-	for name, producer := range d.EvidenceProducers {
-		if !evidenceProducerNamePattern.MatchString(name) {
-			add("invalid_evidence_producer_name", fmt.Sprintf("evidence producer name %q must match %s", name, evidenceProducerNamePattern))
-		}
-		if len(producer.Argv) == 0 || strings.TrimSpace(producer.Argv[0]) == "" {
-			add("invalid_evidence_producer_argv", fmt.Sprintf("evidence producer %q requires literal argv with an executable", name))
-		}
-		for _, arg := range producer.Argv {
-			if strings.TrimSpace(arg) == "" {
-				add("invalid_evidence_producer_argv", fmt.Sprintf("evidence producer %q argv entries must be non-empty strings", name))
-			}
-			for _, placeholder := range evidenceProducerPlaceholderPattern.FindAllStringSubmatch(arg, -1) {
-				if placeholder[1] != "run_id" && placeholder[1] != "output_dir" {
-					add("invalid_evidence_producer_placeholder", fmt.Sprintf("evidence producer %q uses unsupported placeholder {%s}", name, placeholder[1]))
-				}
-			}
-		}
-		for field, value := range map[string]string{"workingDirectory": producer.WorkingDirectory} {
-			clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(value)))
-			rootWorkingDirectory := field == "workingDirectory" && (value == "." || clean == ".")
-			if value == "" || filepath.IsAbs(value) || (!rootWorkingDirectory && clean == ".") || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-				add("invalid_evidence_producer_path", fmt.Sprintf("evidence producer %q %s must be a non-empty scenario-relative path", name, field))
-			}
-		}
-		if producer.Timeout == "" {
-			add("invalid_evidence_producer_timeout", fmt.Sprintf("evidence producer %q requires a positive timeout", name))
-		} else if timeout, err := time.ParseDuration(producer.Timeout); err != nil || timeout <= 0 {
-			add("invalid_evidence_producer_timeout", fmt.Sprintf("evidence producer %q timeout must be a positive Go duration", name))
-		} else {
-			producer.TimeoutValue = timeout
-		}
-		if producer.MaximumOutputBytes <= 0 || producer.MaximumOutputBytes > 16<<20 {
-			add("invalid_evidence_producer_output_limit", fmt.Sprintf("evidence producer %q maximumOutputBytes must be between 1 and 16777216", name))
-		}
-		d.EvidenceProducers[name] = producer
-	}
+	out = append(out, validateEvidenceProducers(d)...)
 	if len(d.Targets.Kinds) == 0 {
 		add("missing_targets", "targets.kinds is required; declare the target kinds this provider actually validates")
 	}

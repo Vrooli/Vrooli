@@ -41,8 +41,8 @@ func TestProviderBuildChangeInvalidatesCachedPassAndFailure(t *testing.T) {
 			if err := phasecache.New(env.PhaseCacheRoot).Save(phasecache.Key(oldIdentity), "old-run", phases.ExecutionResult{Name: "api", Status: status}); err != nil {
 				t.Fatal(err)
 			}
-			_, _, found, _ := Load("", env, "new-run", filepath.Join(t.TempDir(), "api.log"), phase, currentReady)
-			if found {
+			lookup := Load("", env, "new-run", filepath.Join(t.TempDir(), "api.log"), phase, currentReady)
+			if lookup.Found {
 				t.Fatalf("%s result from old provider build was reused", status)
 			}
 		})
@@ -69,7 +69,7 @@ func TestProviderPhaseWithoutLiveBuildIdentityIsNotCacheable(t *testing.T) {
 		if _, ok := Identity(env, phase, readiness); ok {
 			t.Fatalf("provider phase got cache identity without live build evidence: %+v", readiness)
 		}
-		if _, _, found, _ := Load("", env, "current-run", filepath.Join(t.TempDir(), "api.log"), phase, readiness); found {
+		if lookup := Load("", env, "current-run", filepath.Join(t.TempDir(), "api.log"), phase, readiness); lookup.Found {
 			t.Fatalf("provider phase reused cache without live build evidence: %+v", readiness)
 		}
 	}

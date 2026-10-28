@@ -3,11 +3,11 @@ package validation
 import (
 	"context"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 
 	"test-genie/internal/providerconformance"
@@ -15,11 +15,11 @@ import (
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	root, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", ".."))
+	return root
 }
 
 func newTestService(t *testing.T) *Service {

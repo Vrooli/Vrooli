@@ -10,12 +10,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phasecacheidentity"
 	phasespkg "test-genie/internal/orchestrator/phases"
@@ -26,6 +26,8 @@ import (
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -59,11 +61,10 @@ func TestIsLinkedWorktreeDistinguishesPrimaryAndStrictWorktree(t *testing.T) {
 }
 
 func TestFileDeterminedProviderPhasesAreCacheEligible(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
 	o, err := NewSuiteOrchestrator(filepath.Join(repoRoot, "scenarios"))
 	if err != nil {
 		t.Fatalf("NewSuiteOrchestrator: %v", err)
@@ -131,9 +132,9 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	result, audit, found, _ := phasecacheidentity.Load("", env, "current-run", filepath.Join(runLogDir, "structure.log"), phase, nil)
-	if !found || audit || !result.CacheHit || result.CacheSourceRunID != "source-run" {
-		t.Fatalf("cache lookup = found=%t audit=%t result=%+v", found, audit, result)
+	lookup := phasecacheidentity.Load("", env, "current-run", filepath.Join(runLogDir, "structure.log"), phase, nil)
+	if !lookup.Found || lookup.Audit || !lookup.Result.CacheHit || lookup.Result.CacheSourceRunID != "source-run" {
+		t.Fatalf("cache lookup = %+v", lookup)
 	}
 	if _, err := os.Stat(filepath.Join(runLogDir, "structure.log")); err != nil {
 		t.Fatalf("cache-hit log not written under current run directory: %v", err)
@@ -226,8 +227,267 @@ func TestRunSelectedPhasesServesCacheBeforeAdmission(t *testing.T) {
 	if failed || len(results) != 1 || !results[0].CacheHit {
 		t.Fatalf("cached execution = failed:%t results:%+v, want one cache hit", failed, results)
 	}
+	if results[0].ObservationCount != nil {
+		t.Fatalf("legacy cache entry without retained detail became known zero: %v", *results[0].ObservationCount)
+	}
 	if broker.acquires != 0 || metrics.AdmissionAttempts != 0 || metrics.BatchCount != 0 {
 		t.Fatalf("cache hit entered scheduler: acquires=%d attempts=%d batches=%d", broker.acquires, metrics.AdmissionAttempts, metrics.BatchCount)
+	}
+}
+
+func TestRunSelectedPhasesCachesKnownZeroObservationCount(t *testing.T) {
+	var calls atomic.Int32
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName: "demo", ScenarioDir: scenarioDir,
+		PhaseCacheRoot:           filepath.Join(t.TempDir(), "cache"),
+		DescriptorSnapshotDigest: "descriptor:test", ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"input.txt"}}
+	phase.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		calls.Add(1)
+		return phasespkg.RunReport{}
+	}
+	orchestrator := &SuiteOrchestrator{phaseTimeout: time.Second}
+
+	fresh, failed, _ := orchestrator.runSelectedPhasesWithRunID(
+		context.Background(), env, runnability.RunContext{}, "fresh-run", t.TempDir(),
+		[]phasespkg.Definition{phase}, nil, false, nil, nil, nil,
+	)
+	if failed || len(fresh) != 1 || fresh[0].CacheHit || fresh[0].ObservationCount == nil || *fresh[0].ObservationCount != 0 {
+		t.Fatalf("fresh empty phase = failed:%t results:%+v; want a fresh result with known zero count", failed, fresh)
+	}
+
+	hit, failed, _ := orchestrator.runSelectedPhasesWithRunID(
+		context.Background(), env, runnability.RunContext{}, "cache-hit-run", t.TempDir(),
+		[]phasespkg.Definition{phase}, nil, false, nil, nil, nil,
+	)
+	if failed || len(hit) != 1 || !hit[0].CacheHit || hit[0].ObservationCount == nil || *hit[0].ObservationCount != 0 {
+		t.Fatalf("cached empty phase = failed:%t results:%+v; want cache hit preserving known zero count", failed, hit)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("phase runner calls=%d; want one fresh execution and one cache hit", calls.Load())
+	}
+}
+
+func TestBaselineCaptureExecutesDespiteReusableCacheEntry(t *testing.T) {
+	var calls atomic.Int32
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName: "demo", ScenarioDir: scenarioDir, CaptureProfile: "baseline",
+		ArtifactRoot:             filepath.Join(t.TempDir(), "cache"),
+		DescriptorSnapshotDigest: "descriptor:test", ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"input.txt"}}
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should have a cache identity")
+	}
+	if err := phasecache.New(env.EffectivePhaseCacheRoot()).Save(phasecache.Key(identity), "prior-run", phasespkg.ExecutionResult{Name: "structure", Status: phaseStatusPassed}); err != nil {
+		t.Fatal(err)
+	}
+	phase.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		calls.Add(1)
+		return phasespkg.RunReport{Observations: []phasespkg.Observation{phasespkg.NewSuccessObservation("baseline execution")}}
+	}
+	results, failed, _ := (&SuiteOrchestrator{phaseTimeout: time.Second}).runSelectedPhasesWithRunID(
+		context.Background(), env, runnability.RunContext{}, "baseline-run", t.TempDir(),
+		[]phasespkg.Definition{phase}, nil, false, nil, nil, nil,
+	)
+	if failed || len(results) != 1 || results[0].CacheHit || calls.Load() != 1 {
+		t.Fatalf("baseline run = failed:%t results:%+v calls:%d; want fresh phase execution", failed, results, calls.Load())
+	}
+}
+
+func TestPhaseCacheDoesNotPublishWhenInputsChangeDuringExecution(t *testing.T) {
+	for _, status := range []string{phaseStatusPassed, phaseStatusFailed} {
+		for _, changeInput := range []bool{false, true} {
+			name := status + "/input-unchanged"
+			if changeInput {
+				name = status + "/input-changed"
+			}
+			t.Run(name, func(t *testing.T) {
+				scenarioDir := t.TempDir()
+				inputPath := filepath.Join(scenarioDir, "input.txt")
+				if err := os.WriteFile(inputPath, []byte("before"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				env := workspacepkg.Environment{
+					ScenarioName: "demo", ScenarioDir: scenarioDir,
+					ArtifactRoot:             filepath.Join(t.TempDir(), "cache"),
+					DescriptorSnapshotDigest: "descriptor:test", ExecutionConfigurationDigest: "config:test",
+				}
+				phase := staticDef(phasespkg.Name("structure"))
+				phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"input.txt"}}
+				started := make(chan struct{})
+				release := make(chan struct{})
+				phase.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+					close(started)
+					<-release
+					if status == phaseStatusFailed {
+						return phasespkg.RunReport{Err: errors.New("fixture failure")}
+					}
+					return phasespkg.RunReport{Observations: []phasespkg.Observation{phasespkg.NewSuccessObservation("fixture pass")}}
+				}
+				before, ok := phasecacheidentity.Identity(env, phase, nil)
+				if !ok {
+					t.Fatal("pre-execution cache identity unavailable")
+				}
+				runLogDir := t.TempDir()
+				type execution struct {
+					results []PhaseExecutionResult
+					failed  bool
+				}
+				done := make(chan execution, 1)
+				go func() {
+					results, failed, _ := (&SuiteOrchestrator{phaseTimeout: 5 * time.Second}).runSelectedPhasesWithRunID(
+						context.Background(), env, runnability.RunContext{}, "current-run", runLogDir,
+						[]phasespkg.Definition{phase}, nil, false, nil, nil, nil,
+					)
+					done <- execution{results: results, failed: failed}
+				}()
+				select {
+				case <-started:
+				case <-time.After(5 * time.Second):
+					close(release)
+					t.Fatal("phase did not start")
+				}
+				if changeInput {
+					if err := os.WriteFile(inputPath, []byte("after"), 0o644); err != nil {
+						close(release)
+						t.Fatal(err)
+					}
+				}
+				close(release)
+				var got execution
+				select {
+				case got = <-done:
+				case <-time.After(5 * time.Second):
+					t.Fatal("phase did not finish")
+				}
+				if len(got.results) != 1 || got.results[0].Status != status || got.failed != (status == phaseStatusFailed) {
+					t.Fatalf("execution = failed:%t results:%+v, want status %s", got.failed, got.results, status)
+				}
+				store := phasecache.New(env.EffectivePhaseCacheRoot())
+				_, foundBefore, err := store.Load(phasecache.Key(before))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !changeInput {
+					if !foundBefore {
+						t.Fatalf("unchanged-input %s result was not cached", status)
+					}
+					return
+				}
+				if foundBefore {
+					t.Fatalf("%s result was cached under pre-execution identity after input changed", status)
+				}
+				after, ok := phasecacheidentity.Identity(env, phase, nil)
+				if !ok {
+					t.Fatal("post-execution cache identity unavailable")
+				}
+				_, foundAfter, err := store.Load(phasecache.Key(after))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if foundAfter {
+					t.Fatalf("%s result was cached under post-edit identity despite running across an input change", status)
+				}
+			})
+		}
+	}
+}
+
+func TestPhaseCacheAuditInputChangeDoesNotDemoteAnotherIdentity(t *testing.T) {
+	t.Setenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT", "100")
+	scenarioDir := t.TempDir()
+	inputPath := filepath.Join(scenarioDir, "input.txt")
+	if err := os.WriteFile(inputPath, []byte("before"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName: "demo", ScenarioDir: scenarioDir,
+		ArtifactRoot:             filepath.Join(t.TempDir(), "cache"),
+		DescriptorSnapshotDigest: "descriptor:test", ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"input.txt"}}
+	before, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("pre-execution cache identity unavailable")
+	}
+	if err := os.WriteFile(inputPath, []byte("after"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("post-edit cache identity unavailable")
+	}
+	store := phasecache.New(env.EffectivePhaseCacheRoot())
+	seed := phasespkg.ExecutionResult{Name: "structure", Status: phaseStatusPassed}
+	for key, runID := range map[string]string{phasecache.Key(before): "before-run", phasecache.Key(after): "after-run"} {
+		if err := store.Save(key, runID, seed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(inputPath, []byte("before"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	phase.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		close(started)
+		<-release
+		return phasespkg.RunReport{Err: errors.New("different audited verdict")}
+	}
+	runLogDir := t.TempDir()
+	type auditExecution struct {
+		results []PhaseExecutionResult
+		failed  bool
+	}
+	done := make(chan auditExecution, 1)
+	go func() {
+		results, failed, _ := (&SuiteOrchestrator{phaseTimeout: 5 * time.Second}).runSelectedPhasesWithRunID(
+			context.Background(), env, runnability.RunContext{}, "audit-run", runLogDir,
+			[]phasespkg.Definition{phase}, nil, false, nil, nil, nil,
+		)
+		done <- auditExecution{results: results, failed: failed}
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		close(release)
+		t.Fatal("audit phase did not start")
+	}
+	if err := os.WriteFile(inputPath, []byte("after"), 0o644); err != nil {
+		close(release)
+		t.Fatal(err)
+	}
+	close(release)
+	select {
+	case got := <-done:
+		if len(got.results) != 1 || !got.results[0].CacheAudit || got.results[0].CacheAuditMismatch {
+			t.Fatalf("changed-input audit result = failed:%t results:%+v, want an inconclusive audit without mismatch", got.failed, got.results)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("audit phase did not finish")
+	}
+	for label, identity := range map[string]phasecache.Identity{"pre-execution": before, "post-edit": after} {
+		entry, found, err := store.Load(phasecache.Key(identity))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !found || entry.Phase.Status != phaseStatusPassed {
+			t.Fatalf("%s cache entry was changed/demoted after incomparable audit: found=%t entry=%+v", label, found, entry)
+		}
 	}
 }
 
@@ -255,8 +515,8 @@ func TestPrunedPhaseCacheEntryRecomputesIdenticalVerdict(t *testing.T) {
 	if err := store.Save(phasecache.Key(identity), "source-run", expected); err != nil {
 		t.Fatal(err)
 	}
-	cached, _, found, _ := phasecacheidentity.Load("", env, "cached-run", filepath.Join(t.TempDir(), "cached.log"), phase, nil)
-	if !found {
+	cached := phasecacheidentity.Load("", env, "cached-run", filepath.Join(t.TempDir(), "cached.log"), phase, nil)
+	if !cached.Found {
 		t.Fatal("expected the seeded cache entry to load")
 	}
 
@@ -267,13 +527,13 @@ func TestPrunedPhaseCacheEntryRecomputesIdenticalVerdict(t *testing.T) {
 	if len(pruned.DeletedEntries) != 1 {
 		t.Fatalf("prune result = %+v", pruned)
 	}
-	if _, _, found, _ := phasecacheidentity.Load("", env, "recompute-run", filepath.Join(t.TempDir(), "recompute.log"), phase, nil); found {
+	if lookup := phasecacheidentity.Load("", env, "recompute-run", filepath.Join(t.TempDir(), "recompute.log"), phase, nil); lookup.Found {
 		t.Fatal("evicted entry must become a cache miss")
 	}
 
 	recomputed := phasespkg.ExecutionResult{Name: "structure", Status: "failed", Findings: []*architecturev1.ArchitectureFinding{{Code: "stable-finding"}}}
-	if !phasecache.Equivalent(cached, recomputed) {
-		t.Fatalf("recomputed verdict differs from cached verdict: cached=%+v recomputed=%+v", cached, recomputed)
+	if !phasecache.Equivalent(cached.Result, recomputed) {
+		t.Fatalf("recomputed verdict differs from cached verdict: cached=%+v recomputed=%+v", cached.Result, recomputed)
 	}
 }
 
@@ -371,8 +631,64 @@ func TestCompactTerminalSnapshotDropsDetailedPhasePayloads(t *testing.T) {
 	if phase.LogPath != "" || len(phase.Observations) != 0 || len(phase.Findings) != 0 || phase.Metrics != nil {
 		t.Fatalf("snapshot retained detailed phase payload: %+v", phase)
 	}
+	if phase.ObservationCount == nil || *phase.ObservationCount != 1 {
+		t.Fatalf("snapshot observation count = %v, want 1", phase.ObservationCount)
+	}
 	if phase.Name != "security" || phase.Status != "failed" || phase.DurationSeconds != 3 || phase.ClassificationSource != phasespkg.ClassificationSourceProvider {
 		t.Fatalf("snapshot lost compact phase summary: %+v", phase)
+	}
+}
+
+func TestObservationCountPresenceSurvivesCompactionSummaryAndManifest(t *testing.T) {
+	unknown := PhaseExecutionResult{Name: "unit", Status: phaseStatusPassed}
+	compact := CompactTerminalSnapshot(&SuiteExecutionResult{Phases: []PhaseExecutionResult{unknown}})
+	if compact.Phases[0].ObservationCount != nil {
+		t.Fatalf("legacy compact phase became known zero: %+v", compact.Phases[0])
+	}
+	if got := SummarizePhases([]PhaseExecutionResult{unknown}); got.ObservationCount != nil {
+		t.Fatalf("summary of unknown phase count = %v, want unknown", got.ObservationCount)
+	}
+	zero := uint32(0)
+	knownZero := PhaseExecutionResult{Name: "unit", Status: phaseStatusPassed, ObservationCount: &zero}
+	if got := SummarizePhases([]PhaseExecutionResult{knownZero}); got.ObservationCount == nil || *got.ObservationCount != 0 {
+		t.Fatalf("known zero summary = %v, want present zero", got.ObservationCount)
+	}
+	if got := SummarizePhases([]PhaseExecutionResult{knownZero, unknown}); got.ObservationCount != nil {
+		t.Fatalf("mixed known and unknown total = %v, want unknown", got.ObservationCount)
+	}
+
+	scenarioDir := t.TempDir()
+	runID := "unknown-observation-count"
+	runDir := sharedartifacts.RunDir(scenarioDir, runID)
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sharedartifacts.RunFindingsArtifactPath(scenarioDir, runID), []byte(`{"phases":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeEvidenceManifest(scenarioDir, runID, "demo", SuiteVerdictPass, time.Now(), []phaseResultView{{Name: "unit", Status: phaseStatusPassed}}); err != nil {
+		t.Fatalf("write evidence manifest: %v", err)
+	}
+	manifest, err := executionevidence.ReadManifest(runDir)
+	if err != nil {
+		t.Fatalf("read evidence manifest: %v", err)
+	}
+	if manifest.Phases[0].ObservationCount != nil {
+		t.Fatalf("manifest turned unknown phase count into zero: %v", *manifest.Phases[0].ObservationCount)
+	}
+}
+
+func TestFreshPhaseWithNoObservationsRecordsKnownZero(t *testing.T) {
+	phase := staticDef(phasespkg.Name("unit"))
+	phase.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		return phasespkg.RunReport{}
+	}
+	results, failed, _ := (&SuiteOrchestrator{phaseTimeout: time.Second}).runSelectedPhasesWithRunID(
+		context.Background(), workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()},
+		runnability.RunContext{}, "empty-observations", t.TempDir(), []phasespkg.Definition{phase}, nil, false, nil, nil, nil,
+	)
+	if failed || len(results) != 1 || results[0].ObservationCount == nil || *results[0].ObservationCount != 0 {
+		t.Fatalf("fresh zero-observation phase = failed:%t results:%+v", failed, results)
 	}
 }
 
@@ -390,7 +706,7 @@ func TestFinalizeRunRecordPersistsCanonicalTerminalSnapshot(t *testing.T) {
 	result := &SuiteExecutionResult{
 		RunID: runID, ScenarioName: "demo", StartedAt: started, CompletedAt: completed,
 		Success: false, Verdict: SuiteVerdictFail, PlannedPhases: []string{"unit"},
-		Phases: []PhaseExecutionResult{{Name: "unit", Status: "failed", DurationSeconds: 12}},
+		Phases: []PhaseExecutionResult{{Name: "unit", Status: "failed", DurationSeconds: 12, Observations: []phasespkg.Observation{phasespkg.NewErrorObservation("failure 1"), phasespkg.NewErrorObservation("failure 2"), phasespkg.NewErrorObservation("failure 3")}}},
 	}
 	(&SuiteOrchestrator{}).finalizeRunRecord(dir, runID, result, []phaseResultView{{
 		Name: "unit", Status: "failed", DurationSeconds: 12,
@@ -413,6 +729,9 @@ func TestFinalizeRunRecordPersistsCanonicalTerminalSnapshot(t *testing.T) {
 	}
 	if persisted.RunID != runID || len(persisted.Phases) != 1 || persisted.Phases[0].DurationSeconds != 12 {
 		t.Fatalf("persisted terminal result = %+v", persisted)
+	}
+	if persisted.Phases[0].ObservationCount == nil || *persisted.Phases[0].ObservationCount != 3 || len(persisted.Phases[0].Observations) != 0 {
+		t.Fatalf("persisted phase summary should retain count only: %+v", persisted.Phases[0])
 	}
 }
 
@@ -542,19 +861,47 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	return scenarioDir
 }
 
-func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
+func stubRuntimePhaseRunners(t *testing.T, orchestrator *SuiteOrchestrator) {
+	t.Helper()
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
 	}
 	// Provider-backed phases are covered in the phase package. Orchestration
-	// tests replace every discovered runner and detach its provider transport,
-	// so a future provider phase needs no fixture registration and a minimal
-	// fake scenario never depends on live provider APIs.
+	// tests replace every discovered runner and install test-only readiness, so
+	// a future provider phase needs no fixture registration and a minimal fake
+	// scenario never depends on live provider APIs or host lifecycle commands.
 	for _, spec := range orchestrator.catalog.All() {
 		spec.Runner = noOp
 		spec.Delegated = nil
 		orchestrator.catalog.Register(spec)
 	}
+	stubProviderReadiness(t, orchestrator)
+}
+
+// Execute orchestration tests exercise phase selection and scheduling with
+// temporary scenarios. Their provider readiness must stay in-process too: the
+// default manager can invoke `vrooli scenario start` when a provider probe
+// fails, which would mutate the developer's running scenario during `go test`.
+func stubProviderReadiness(t *testing.T, orchestrator *SuiteOrchestrator) {
+	t.Helper()
+	orchestrator.readiness = &providerreadiness.Manager{
+		Probe: func(context.Context, providerreadiness.Input) (providerreadiness.ProbeResult, error) {
+			return providerreadiness.ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+		},
+		Lifecycle: rejectingTestProviderLifecycle{t: t},
+	}
+}
+
+type rejectingTestProviderLifecycle struct{ t *testing.T }
+
+func (l rejectingTestProviderLifecycle) Start(context.Context, string, io.Writer) error {
+	l.t.Errorf("provider lifecycle start must not run in orchestration unit tests")
+	return errors.New("provider lifecycle start is forbidden in orchestration unit tests")
+}
+
+func (l rejectingTestProviderLifecycle) Restart(context.Context, string, io.Writer) error {
+	l.t.Errorf("provider lifecycle restart must not run in orchestration unit tests")
+	return errors.New("provider lifecycle restart is forbidden in orchestration unit tests")
 }
 
 func TestDiscoverPhaseDefinitionsIgnoresScenarioLocalScripts(t *testing.T) {
@@ -617,7 +964,7 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 				return phasespkg.RunReport{}
 			},
 		})
-		stubRuntimePhaseRunners(orchestrator)
+		stubRuntimePhaseRunners(t, orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -868,7 +1215,7 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
-		stubRuntimePhaseRunners(orchestrator)
+		stubRuntimePhaseRunners(t, orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -1042,7 +1389,7 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
-		stubRuntimePhaseRunners(orchestrator)
+		stubRuntimePhaseRunners(t, orchestrator)
 		stubSyncer := &stubRequirementsSyncer{
 			outcome: &reqsync.SyncOutcome{Synced: true, OTComplete: 1, OTTotal: 3},
 		}
@@ -1171,7 +1518,7 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
-		stubRuntimePhaseRunners(orchestrator)
+		stubRuntimePhaseRunners(t, orchestrator)
 		// Force structure to fail so fail-fast halts the rest. Descriptor-
 		// discovered prerequisites (including portability) run before structure;
 		// the failure is injected via the runner rather than by corrupting the
@@ -1246,7 +1593,7 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
-		stubRuntimePhaseRunners(orchestrator)
+		stubRuntimePhaseRunners(t, orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -1301,7 +1648,7 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
-		stubRuntimePhaseRunners(orchestrator)
+		stubRuntimePhaseRunners(t, orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -1349,6 +1696,7 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubProviderReadiness(t, orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -1383,6 +1731,7 @@ func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubProviderReadiness(t, orchestrator)
 		orchestrator.catalog.Register(phaseSpec{
 			Name: PhaseName("slow"),
 			Runner: func(ctx context.Context, env PhaseEnvironment, logWriter io.Writer) PhaseRunReport {
@@ -1798,7 +2147,7 @@ func TestSuiteLifetimeLossCannotPublishSuccessfulRunnerResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stubRuntimePhaseRunners(orchestrator)
+	stubRuntimePhaseRunners(t, orchestrator)
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 	cause := errors.New("renew demand lease job-test: owner unavailable")

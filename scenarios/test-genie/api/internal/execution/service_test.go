@@ -38,8 +38,23 @@ func TestSuiteExecutionServicePersistsOnlyCompactPhaseHistory(t *testing.T) {
 	if stored.Name != "security" || stored.Status != "failed" || stored.DurationSeconds != 2 {
 		t.Fatalf("compact phase lost summary fields: %+v", stored)
 	}
+	if stored.ObservationCount == nil || *stored.ObservationCount != 1 {
+		t.Fatalf("compact phase observation count = %v, want 1", stored.ObservationCount)
+	}
 	if !stored.CacheHit || stored.CacheSourceRunID != "source-run" || !stored.CacheAudit {
 		t.Fatalf("compact phase lost cache provenance: %+v", stored)
+	}
+}
+
+func TestCompactPhaseResultsPreservesUnknownAndKnownZeroCounts(t *testing.T) {
+	unknown := compactPhaseResults([]phases.ExecutionResult{{Name: "legacy", Status: "passed"}})[0]
+	if unknown.ObservationCount != nil {
+		t.Fatalf("legacy compact phase count = %v, want unknown", *unknown.ObservationCount)
+	}
+	zero := uint32(0)
+	knownZero := compactPhaseResults([]phases.ExecutionResult{{Name: "unit", Status: "passed", ObservationCount: &zero}})[0]
+	if knownZero.ObservationCount == nil || *knownZero.ObservationCount != 0 {
+		t.Fatalf("known zero compact phase count = %v, want present zero", knownZero.ObservationCount)
 	}
 }
 

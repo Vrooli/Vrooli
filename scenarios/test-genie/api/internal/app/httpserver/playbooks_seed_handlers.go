@@ -1,8 +1,10 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/phases/isolation"
+	"test-genie/internal/orchestrator/targetruntime"
 	"test-genie/internal/orchestrator/workspace"
 
 	"github.com/google/uuid"
@@ -18,6 +21,18 @@ import (
 )
 
 var applyPlaybooksSeed = phases.ApplyPlaybooksSeed
+
+// resolveSeedTargetAPI reuses the same process-record/runtime URL resolver as
+// Test Genie suite execution. Seed apply requires a live target API because it
+// installs a routed storage lease on that service; it must not guess a URL or
+// start a separately named shadow target.
+var resolveSeedTargetAPI = func(ctx context.Context, scenarioName, scenarioDir string) (string, error) {
+	urls := targetruntime.New(scenarioName, scenarioDir).LiveSurfaces(ctx)
+	if strings.TrimSpace(urls.API) == "" {
+		return "", fmt.Errorf("scenario %s has no live API URL", scenarioName)
+	}
+	return urls.API, nil
+}
 
 type seedSession struct {
 	Scenario string
@@ -76,6 +91,12 @@ func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request
 		s.writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	apiURL, err := resolveSeedTargetAPI(r.Context(), name, scenarioDir)
+	if err != nil {
+		s.writeError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	ws.SetRuntimeURLs("", apiURL)
 	env := ws.Environment()
 	env.ScenarioDir = scenarioDir
 

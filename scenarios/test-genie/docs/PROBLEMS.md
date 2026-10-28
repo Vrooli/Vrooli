@@ -9,6 +9,44 @@
 - W3 evidence: server-owned contracts run `20260905-022400-cdb57dc6` passed at L4 after the runtime manifest and help parser were repaired. The earlier comprehensive run `20260905-013206-b061dbcf` still records failures in other R0 gates, so the scenario is not yet globally green.
 - Measured: 2026-09-05
 
+## Updated 2026-10-28 — Validation digest wall-budget evidence
+
+**Symptom:** Bounded digest runs timed out at 15s twice and at 20s once.
+
+**Confirmed mechanism:** The declared `budget.wall_ms` is enforced by Program
+Runtime. The original two runs hit 15000ms; a later 50-receipt run hit 20009ms
+under a 20000ms contract. The slow interval inside the Test Genie binding is
+unknown: cancelled runs recorded no per-binding invocation events, and owner
+runtime logs were unavailable.
+
+**Current setting:** `budget.wall_ms=25000`, selected to leave about 25% headroom
+over the latest measured p95 lower bound of 20009ms. The 5-run portfolio sample
+was 2 succeeded / 3 failed; its percentile includes deadline-censored failures,
+so it does not establish natural completion latency. Two runs under a 30000ms
+setting succeeded in 3.242s and 8.920s, both below 15s; the current 25000ms
+setting has not been run. This is an evidence-based budget adjustment, not a
+confirmed fix for the intermittent delay.
+
+The successful 50-row digest counted 50 terminal receipts, 47 with evidence.
+Three historical failed receipts lacked evidence references: two
+`IDENTITY_CHANGED` and one `REQUIRED_EVIDENCE_MISSING`. New terminal
+transitions without child or external evidence now carry a typed locator to
+their canonical Test Genie receipt. Focused regression controls verify the
+locator on required and authorized missing-evidence outcomes, and verify that
+real child-run evidence remains the reference when available.
+
+The three receipts in the retained 50-row sample are immutable and were not
+rewritten. Their historical evidence gap remains under QA investigation
+(`knw-1793198896217744114`); the new invariant prevents the same locator gap on
+future terminal outcomes. The timeout observation is also filed as
+`knw-1793198583299327035` and remains unresolved.
+
+**Evidence:** Research receipt
+`/home/matthalloran8/.vrooli/research/topics/validation-quality/runs/prepared-20261028/evidence/test-genie-validation-digest-runtime-and-report-controls.json`.
+
+Work record: `5cc55408-bd63-4b7c-bff8-42f067c2351a`.
+Budget reassessment work record: `a1ad9f68-7659-4ad0-ac28-c5e4fa85c780`; Program Runtime task record: `93ecd11c-dc50-4798-97fc-e4eee1d69841`.
+
 ## Resolved 2026-07-10 — Descriptor phase additions broke fixed test registries
 
 **Symptom:** The full API suite failed after the descriptor-owned `templates`

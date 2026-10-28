@@ -89,6 +89,10 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 		if phase, ok := resultPhases[p.Name]; ok {
 			info.PhasePresentation = phase.PhasePresentation
 			info.FindingsSummary = phase.FindingsSummary
+			if phase.ObservationCount != nil {
+				count := *phase.ObservationCount
+				info.ObservationCount = &count
+			}
 		}
 		phases = append(phases, info)
 	}

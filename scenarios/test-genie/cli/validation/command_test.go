@@ -16,11 +16,13 @@ import (
 
 type fakeValidationClient struct {
 	validationconnect.ValidationServiceClient
-	calls map[string]int
+	calls             map[string]int
+	productionRequest *validationv1.CreateEvidenceProductionRequest
+	evidence          []*validationv1.EvidenceReference
 }
 
 func (f *fakeValidationClient) receipt() *validationv1.ValidationReceipt {
-	return &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_RUNNING, ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE, Revision: 2}
+	return &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_RUNNING, ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE, Revision: 2, Evidence: f.evidence}
 }
 
 func (f *fakeValidationClient) ResolveSourceIdentity(context.Context, *connect.Request[validationv1.ResolveSourceIdentityRequest]) (*connect.Response[validationv1.ResolveSourceIdentityResponse], error) {
@@ -33,8 +35,9 @@ func (f *fakeValidationClient) CreateValidation(context.Context, *connect.Reques
 	return connect.NewResponse(&validationv1.CreateValidationResponse{Receipt: f.receipt()}), nil
 }
 
-func (f *fakeValidationClient) CreateEvidenceProduction(context.Context, *connect.Request[validationv1.CreateEvidenceProductionRequest]) (*connect.Response[validationv1.CreateEvidenceProductionResponse], error) {
+func (f *fakeValidationClient) CreateEvidenceProduction(_ context.Context, request *connect.Request[validationv1.CreateEvidenceProductionRequest]) (*connect.Response[validationv1.CreateEvidenceProductionResponse], error) {
 	f.calls["produce-evidence"]++
+	f.productionRequest = request.Msg
 	return connect.NewResponse(&validationv1.CreateEvidenceProductionResponse{Receipt: f.receipt()}), nil
 }
 
@@ -127,6 +130,81 @@ func TestValidationCommandsCoverEveryLifecycleRPC(t *testing.T) {
 	}
 }
 
+func TestValidationGetRendersEvidenceLocatorForHumanReaders(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeValidationClient{
+		calls: map[string]int{},
+		evidence: []*validationv1.EvidenceReference{{
+			EvidenceId: "receipt-1",
+			Kind:       "test-genie-validation-receipt",
+			Owner:      "test-genie",
+			Uri:        "test-genie://validation/receipts/receipt-1",
+		}},
+	}
+	group, err := register(manifest, func() (validationconnect.ValidationServiceClient, error) { return fake, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range group.Subcommands {
+		if command.Name != "get" {
+			continue
+		}
+		var stdout, stderr bytes.Buffer
+		ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, []string{"receipt-1"}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := command.RunCtx(ctx); err != nil {
+			t.Fatal(err)
+		}
+		for _, expected := range []string{
+			"evidence=test-genie-validation-receipt",
+			"id=receipt-1",
+			"owner=test-genie",
+			"uri=test-genie://validation/receipts/receipt-1",
+		} {
+			if !strings.Contains(stdout.String(), expected) {
+				t.Fatalf("human receipt output %q missing %q", stdout.String(), expected)
+			}
+		}
+		return
+	}
+	t.Fatal("missing get command")
+}
+
+func TestValidationGetMakesMissingEvidenceVisible(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeValidationClient{calls: map[string]int{}}
+	group, err := register(manifest, func() (validationconnect.ValidationServiceClient, error) { return fake, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range group.Subcommands {
+		if command.Name != "get" {
+			continue
+		}
+		var stdout, stderr bytes.Buffer
+		ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, []string{"receipt-1"}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := command.RunCtx(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(stdout.String(), "evidence=none") {
+			t.Fatalf("human receipt output %q does not expose missing evidence", stdout.String())
+		}
+		return
+	}
+	t.Fatal("missing get command")
+}
+
 func TestEvidenceProductionRefusesUnconfirmedBeforeReadingOrDispatch(t *testing.T) {
 	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
 	if err != nil {
@@ -159,4 +237,100 @@ func TestEvidenceProductionRefusesUnconfirmedBeforeReadingOrDispatch(t *testing.
 		return
 	}
 	t.Fatal("missing produce-evidence command")
+}
+
+func TestEvidenceProductionAcceptsDirectTypedFields(t *testing.T) {
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeValidationClient{calls: map[string]int{}}
+	group, err := register(manifest, func() (validationconnect.ValidationServiceClient, error) { return fake, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range group.Subcommands {
+		if command.Name != "produce-evidence" {
+			continue
+		}
+		var stdout, stderr bytes.Buffer
+		args := []string{
+			"--idempotency-key", "evidence-key",
+			"--provider", "browser-automation-studio",
+			"--producer", "evidence-completeness",
+			"--candidate-scenario", "browser-automation-studio",
+			"--expected-candidate-identity", `{"schemaVersion":1,"identity":"ci:v1:source"}`,
+			"--caller-scenario", "qualification",
+			"--caller-execution-id", "execution-1",
+			"--plan-id", "plan-1",
+			"--yes", "--json",
+		}
+		ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, args, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatalf("parse direct producer request: %v", err)
+		}
+		if err := command.RunCtx(ctx); err != nil {
+			t.Fatalf("run direct producer request: %v", err)
+		}
+		request := fake.productionRequest
+		if request == nil || request.GetIdempotencyKey() != "evidence-key" || request.GetProvider() != "browser-automation-studio" || request.GetProducer() != "evidence-completeness" || request.GetCandidateScenario() != "browser-automation-studio" || request.GetCallerScenario() != "qualification" || request.GetCallerExecutionId() != "execution-1" || request.GetPlanId() != "plan-1" {
+			t.Fatalf("direct fields did not reach typed request: %+v", request)
+		}
+		if got := request.GetExpectedCandidateIdentity(); got == nil || got.GetSchemaVersion() != 1 || got.GetIdentity() != "ci:v1:source" {
+			t.Fatalf("expected candidate identity = %+v", got)
+		}
+		if fake.calls["produce-evidence"] != 1 {
+			t.Fatalf("CreateEvidenceProduction calls=%d, want 1", fake.calls["produce-evidence"])
+		}
+		return
+	}
+	t.Fatal("missing produce-evidence command")
+}
+
+func TestEvidenceProductionRejectsMissingOrMixedRequestModesBeforeDispatch(t *testing.T) {
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCalls := 0
+	group, err := register(manifest, func() (validationconnect.ValidationServiceClient, error) {
+		clientCalls++
+		return &fakeValidationClient{calls: map[string]int{}}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "request.json")
+	if err := os.WriteFile(file, []byte(`{"idempotencyKey":"key"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{name: "missing both modes", args: []string{"--yes", "--json"}},
+		{name: "mixed modes", args: []string{"--request-file", file, "--provider", "owner", "--yes", "--json"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, command := range group.Subcommands {
+				if command.Name != "produce-evidence" {
+					continue
+				}
+				var stdout, stderr bytes.Buffer
+				ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, tc.args, nil, &stdout, &stderr)
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = command.RunCtx(ctx)
+				if err == nil {
+					t.Fatal("invalid request mode was accepted")
+				}
+				if clientCalls != 0 {
+					t.Fatalf("invalid request mode constructed %d clients", clientCalls)
+				}
+				return
+			}
+			t.Fatal("missing produce-evidence command")
+		})
+	}
 }

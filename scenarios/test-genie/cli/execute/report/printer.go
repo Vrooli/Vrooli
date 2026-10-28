@@ -604,8 +604,8 @@ func (p *Printer) printSummary(resp execTypes.Response) {
 		}
 		fmt.Fprintf(p.w, "%s • %d total\n", results, total)
 		fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
-		if resp.PhaseSummary.ObservationCount > 0 {
-			fmt.Fprintf(p.w, "  • Observations recorded: %d\n", resp.PhaseSummary.ObservationCount)
+		if resp.PhaseSummary.ObservationCount != nil && *resp.PhaseSummary.ObservationCount > 0 {
+			fmt.Fprintf(p.w, "  • Observations recorded: %d\n", *resp.PhaseSummary.ObservationCount)
 		}
 		fmt.Fprintf(p.w, "  • Status: %s failures detected (see analysis below)\n", p.color.Yellow("⚠"))
 	}

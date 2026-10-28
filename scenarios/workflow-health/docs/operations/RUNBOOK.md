@@ -57,6 +57,39 @@ counters before original-consumer acceptance. Planner D6 additionally requires
 its existing task's lawful owner continuation and independent review; these
 commands do not authorize another worker or accept E1, F8, F6 or A2.
 
+## Reusing current browser evidence
+
+Workflow Health retains a dependency snapshot with new durable browser runs.
+It asks Test Genie's existing content-identity owner to hash the declared inputs
+before and after execution. Get/Wait project current applicability separately
+from the immutable execution result. A changed bundle name alone does not
+invalidate a snapshot whose declared dependencies remain identical.
+
+Scenarios may declare reviewed scopes in `.vrooli/testing.json` under
+`workflow.evidence`: `common_inputs` contains repository-relative file globs
+shared by every case; `scopes` contains `id`, `case_patterns` (scenario-relative
+case globs), and repository-relative `inputs`. Scope input lists must cover the
+implementation, fixture/API behavior, shared shell/styles/components, test
+configuration and applicable product target. Workflow Health always includes
+the declaration and the selected workflows' dependency closure. Unmapped cases
+use the conservative complete scenario/build-input identity; missing or
+ambiguous declarations do not establish narrow reuse. No historical snapshot
+is invented for an older run.
+
+Source drift during execution, missing inputs, an unavailable identity owner,
+failed/skipped work, or incomplete isolation leaves evidence unusable for a
+passing gate. Applicability proves the captured source dependencies remain
+unchanged; it does not establish visual acceptance or replace the original
+served-build qualification. Shared changes invalidate every affected scope.
+
+Delivery journey gates may reference exact Workflow Health runs with a slice
+cell `gate G2=receipt workflow-health:<run-id>[,<run-id>...]`. Declare the required
+case paths in the gate as `G2 journey: <case-path>,<case-path> @ workflow-health`.
+`agent-manager effort epoch-check` reads the owner receipts, checks current
+applicability and complete case coverage, and derives its result without copying
+counts into the brief. A receipt gate never grants independent acceptance of
+other review/custom gates.
+
 ## Common Incidents
 
 | Symptom | Checks | Fix | Escalation |

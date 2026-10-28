@@ -65,11 +65,88 @@ func TestEvidenceProducerDeclarationAndSafeResolution(t *testing.T) {
 	if got := result.Descriptors[0].EvidenceProducers["refresh"].Argv[1]; got != "{run_id}" {
 		t.Fatalf("descriptor argv mutated across resolutions: %q", got)
 	}
+	if len(result.ProducerDeclarations) != 1 || result.ProducerDeclarations[0].Scenario != "search-hub" {
+		t.Fatalf("producer declaration projection = %+v, want the validated phase declaration", result.ProducerDeclarations)
+	}
 
 	bad := strings.Replace(body, `"{run_id}"`, `"{caller_argv}"`, 1)
 	badResult := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", bad)}})
 	if !hasDiagnostic(badResult.Diagnostics, "invalid_evidence_producer_placeholder") {
 		t.Fatalf("unknown placeholder was accepted: %+v", badResult.Diagnostics)
+	}
+}
+
+func TestProducerOnlyDeclarationDoesNotBecomeValidationPhase(t *testing.T) {
+	root, paths := writeSchemaFixtureDescriptors(t, map[string]string{"browser-automation-studio": `{
+  "$schema":"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion":"1.0.0",
+  "scenario":"browser-automation-studio",
+  "evidenceProducers":{"evidence-completeness":{"argv":["node","api/cmd/evidence-completeness-cohort/qualification.mjs","{output_dir}"],"workingDirectory":".","timeout":"10m","maximumOutputBytes":16777216}}
+}`})
+	loaded := Load(LoadOptions{RepoRoot: root, Paths: paths})
+	if err := loaded.Err(); err != nil {
+		t.Fatalf("load producer-only declaration: %v", err)
+	}
+	if len(loaded.Descriptors) != 0 {
+		t.Fatalf("producer-only declaration entered phase catalog: %+v", loaded.Descriptors)
+	}
+	if len(loaded.ProducerDeclarations) != 1 || loaded.ProducerDeclarations[0].ProducerOnly != true {
+		t.Fatalf("producer-only declaration projection = %+v", loaded.ProducerDeclarations)
+	}
+	resolved, err := loaded.ProducerDeclarations[0].ResolveEvidenceProducer(filepath.Join(root, "scenarios", "browser-automation-studio"), "evidence-completeness", "run-1")
+	if err != nil {
+		t.Fatalf("resolve producer-only declaration: %v", err)
+	}
+	if len(resolved.Argv) != 3 || resolved.Argv[2] != "/dev/shm/tg-output" {
+		t.Fatalf("resolved producer argv = %v", resolved.Argv)
+	}
+}
+
+func TestProducerOnlyDeclarationRejectsPartialPhaseFields(t *testing.T) {
+	root, paths := writeSchemaFixtureDescriptors(t, map[string]string{"browser-automation-studio": `{
+  "$schema":"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion":"1.0.0",
+  "scenario":"browser-automation-studio",
+  "phase":"evidence-completeness",
+  "evidenceProducers":{"evidence-completeness":{"argv":["true"],"workingDirectory":".","timeout":"1m","maximumOutputBytes":1024}}
+}`})
+	loaded := Load(LoadOptions{RepoRoot: root, Paths: paths})
+	if err := loaded.Err(); err == nil || !strings.Contains(err.Error(), "schema_validation_failed") {
+		t.Fatalf("partial phase descriptor was reinterpreted as producer metadata: %v", err)
+	}
+}
+
+func TestProducerOnlyDeclarationRequiresCanonicalSchema(t *testing.T) {
+	path := writeDescriptor(t, "browser-automation-studio", `{
+  "$schema":"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion":"1.0.0",
+  "scenario":"browser-automation-studio",
+  "evidenceProducers":{"evidence-completeness":{"argv":["true"],"workingDirectory":".","timeout":"1m","maximumOutputBytes":1024}}
+}`)
+	loaded := Load(LoadOptions{Paths: []string{path}})
+	if !hasDiagnostic(loaded.Diagnostics, "schema_unavailable") {
+		t.Fatalf("producer-only declaration passed without the canonical schema: %+v", loaded.Diagnostics)
+	}
+}
+
+func TestLoadRejectsDuplicateProducerAcrossDescriptorShapes(t *testing.T) {
+	phaseBody := strings.Replace(validDescriptor("browser-automation-studio", "contracts"),
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true},"evidenceProducers":{"evidence-completeness":{"argv":["node","qualification.mjs"],"workingDirectory":".","timeout":"1m","maximumOutputBytes":1024}}`, 1)
+	phaseBody = strings.Replace(phaseBody, "{\n  \"schemaVersion\"", "{\n  \"$schema\":\"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json\",\n  \"schemaVersion\"", 1)
+	producerBody := `{
+  "$schema":"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion":"1.0.0",
+  "scenario":"browser-automation-studio",
+  "evidenceProducers":{"evidence-completeness":{"argv":["node","qualification.mjs"],"workingDirectory":".","timeout":"1m","maximumOutputBytes":1024}}
+}`
+	root, paths := writeSchemaFixtureDescriptors(t, map[string]string{
+		"browser-automation-studio/test-genie-phase.json":    phaseBody,
+		"browser-automation-studio/test-genie-producer.json": producerBody,
+	})
+	loaded := Load(LoadOptions{RepoRoot: root, Paths: paths})
+	if !hasDiagnostic(loaded.Diagnostics, "duplicate_evidence_producer") {
+		t.Fatalf("duplicate producer across phase and producer-only declarations was accepted: %+v", loaded.Diagnostics)
 	}
 }
 
@@ -452,6 +529,45 @@ func writeDescriptor(t *testing.T, scenario, body string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func writeSchemaFixtureDescriptors(t *testing.T, declarations map[string]string) (string, []string) {
+	t.Helper()
+	root := t.TempDir()
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "test-genie", "schemas", "test-genie-phase-descriptor.schema.json"))
+	if err != nil {
+		t.Fatalf("read canonical descriptor schema: %v", err)
+	}
+	schemaPath := filepath.Join(root, "scenarios", "test-genie", "schemas", "test-genie-phase-descriptor.schema.json")
+	if err := os.MkdirAll(filepath.Dir(schemaPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(schemaPath, schema, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for name, body := range declarations {
+		scenario, filename, found := strings.Cut(name, "/")
+		if !found {
+			filename = "test-genie.json"
+		}
+		if filename == "" || filepath.Base(filename) != filename || !strings.HasSuffix(filename, ".json") {
+			t.Fatalf("invalid fixture declaration name %q", name)
+		}
+		path := filepath.Join(root, "scenarios", scenario, ".vrooli", filename)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, path)
+	}
+	return root, paths
 }
 
 func hasDiagnostic(diagnostics []Diagnostic, code string) bool {

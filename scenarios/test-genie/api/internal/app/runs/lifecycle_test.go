@@ -255,6 +255,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	fake := newRPCFake(root + "/demo")
 	fake.result.Phases = []phases.ExecutionResult{{
 		Name: "architecture", Status: "passed", DurationSeconds: 7,
+		Observations: []phases.Observation{phases.NewSuccessObservation("one"), phases.NewSuccessObservation("two"), phases.NewSuccessObservation("three")},
 		PhasePresentation: &commonv1.PhasePresentation{
 			Provider:             "architecture-health",
 			Phase:                "architecture",
@@ -329,6 +330,9 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	if phase := terminalRun.GetPhases()[0]; phase.GetName() != "architecture" || phase.GetStatus() != "passed" || phase.GetDurationSeconds() != 7 {
 		t.Fatalf("terminal phase = %+v", phase)
 	}
+	if phase := terminalRun.GetPhases()[0]; phase.ObservationCount == nil || phase.GetObservationCount() != 3 {
+		t.Fatalf("terminal phase observation count = %v, want 3", phase.ObservationCount)
+	}
 	show, err := svc.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: runID}))
 	if err != nil {
 		t.Fatalf("GetRun(terminal): %v", err)
@@ -337,8 +341,17 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	if show.Msg.GetTerminalSnapshotSchemaVersion() != wr2.Msg.GetTerminalSnapshotSchemaVersion() ||
 		showPhase.GetName() != terminalRun.GetPhases()[0].GetName() ||
 		showPhase.GetStatus() != terminalRun.GetPhases()[0].GetStatus() ||
-		showPhase.GetDurationSeconds() != terminalRun.GetPhases()[0].GetDurationSeconds() {
+		showPhase.GetDurationSeconds() != terminalRun.GetPhases()[0].GetDurationSeconds() ||
+		showPhase.GetObservationCount() != terminalRun.GetPhases()[0].GetObservationCount() {
 		t.Fatalf("wait/show terminal mismatch: wait=%+v show=%+v", terminalRun, show.Msg.GetRun())
+	}
+	restarted := NewService(root, runmanager.New(newRPCFake(root+"/demo"), root), nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
+	restartedWait, err := restarted.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: "demo", RunId: runID}))
+	if err != nil {
+		t.Fatalf("WaitRun after manager restart: %v", err)
+	}
+	if restartedWait.Msg.GetTerminalRun().GetPhases()[0].GetObservationCount() != 3 {
+		t.Fatalf("restarted terminal observation count = %v, want 3", restartedWait.Msg.GetTerminalRun().GetPhases()[0].ObservationCount)
 	}
 	standings := wr2.Msg.GetStatus().GetTerminalPresentations()
 	if len(standings) != 1 {

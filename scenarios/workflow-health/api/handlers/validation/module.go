@@ -14,9 +14,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/lifecycle"
 	corevalidationrun "github.com/vrooli/api-core/validationrun"
 	"github.com/vrooli/maturity-go/assessment"
 
+	commonv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
@@ -42,10 +44,12 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB) module.M
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	durablePath, durableHandler := scenariovalidationconnect.NewDurableValidationRunServiceHandler(handler)
 	selectedPath, selectedHandler := scenariovalidationconnect.NewSelectedValidationRunServiceHandler(handler)
+	lifecyclePath, lifecycleHandler := commonv1connect.NewLifecycleMaintenanceServiceHandler(handler)
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler}, connectx.ServiceMount{Path: durablePath, Handler: durableHandler}, connectx.ServiceMount{Path: selectedPath, Handler: selectedHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: lifecyclePath, Handler: lifecycle.LoopbackOnly(lifecycleHandler)})
 			r.HandleFunc("/api/v1/validation/catalog", handler.CatalogHTTP).Methods("GET")
 		},
 		Endpoints: Endpoints,

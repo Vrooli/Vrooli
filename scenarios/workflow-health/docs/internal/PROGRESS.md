@@ -121,3 +121,8 @@ complete target/context-only binding now preserves the selected case paths and
 checks the primary observation file is absent independently of write counters.
 This completes the component's focused and prescribed broader source checks;
 serving adoption and original D6 remain under the recorded owner holds above.
+
+
+## 2026-10-26 — Scoped browser evidence applicability
+
+Completed localized W3 repair: durable browser runs retain dependency snapshots through the existing Test Genie content-identity owner, and Get/Wait report current/stale/unknown applicability separately from retained outcomes. Reviewed declarations and fallback behavior are documented in the operations runbook. Native unit run `20261026-014403-637e8877` passed; transitive BAS fragments and unrelated mid-run edits have regressions. Managed API adoption is healthy. Live Notification Hub receipt `887e7a12-3a44-4d5d-a45b-3be1a408bcd4` passed 2/2 cases with qualified snapshots and clean isolation; Agent Manager's original-consumer gate independently read it as 2/2 current. Evidence and broader-suite limitations are retained in `delivery-evidence-reuse-20261026` and A101's dated implementation disposition. This proves receipt reuse, not Notification Hub visual or whole-surface acceptance.

@@ -620,6 +620,9 @@ func TestMissingGCTEvidenceFailsClosedUnlessExplicitlyDegraded(t *testing.T) { /
 			if receipt.GetState() != test.want || receipt.GetReasonCode() != validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_MISSING {
 				t.Fatalf("receipt = %#v", receipt)
 			}
+			if len(receipt.GetEvidence()) != 1 || receipt.GetEvidence()[0].GetKind() != terminalReceiptEvidenceKind || receipt.GetEvidence()[0].GetEvidenceId() != receipt.GetReceiptId() {
+				t.Fatalf("terminal evidence locator = %#v", receipt.GetEvidence())
+			}
 		})
 	}
 }
@@ -648,7 +651,7 @@ func TestMidRunIdentityChangeRetainsEvidenceButFailsReceipt(t *testing.T) { // [
 	service.SetProducer(producer)
 	receipt := createThroughService(t, service, "identity-moved")
 	receipt = waitForTerminalReceipt(t, service, receipt)
-	if receipt.GetState() != validationv1.ReceiptState_RECEIPT_STATE_FAILED || receipt.GetReasonCode() != validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED || receipt.GetObservedIdentity().GetIdentity() != "ci:v1:changed" || len(receipt.GetEvidence()) != 1 {
+	if receipt.GetState() != validationv1.ReceiptState_RECEIPT_STATE_FAILED || receipt.GetReasonCode() != validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED || receipt.GetObservedIdentity().GetIdentity() != "ci:v1:changed" || len(receipt.GetEvidence()) != 1 || receipt.GetEvidence()[0].GetKind() != "test-genie-run" {
 		t.Fatalf("identity-change receipt = %#v", receipt)
 	}
 }

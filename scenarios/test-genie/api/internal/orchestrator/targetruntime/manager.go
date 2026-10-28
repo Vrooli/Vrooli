@@ -7,15 +7,18 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/vrooli/api-core/demand"
+	"github.com/vrooli/api-core/discovery"
 	"test-genie/internal/shared"
 )
 
@@ -69,6 +72,10 @@ type (
 	PortProbe     func(ctx context.Context, port int) bool
 	PIDProbe      func(pid int) bool
 )
+
+type scenarioURLResolver interface {
+	ResolveScenarioURL(ctx context.Context, scenarioSlug, portKey string) (string, error)
+}
 
 const maxLifecycleDiagnosticBytes = 8 * 1024
 
@@ -129,6 +136,7 @@ type Manager struct {
 	runCommand       CommandRunner
 	portOpen         PortProbe
 	pidAlive         PIDProbe
+	urlResolver      scenarioURLResolver
 	demand           demand.LeaseClient
 	demandConsumerID string
 	demandRequestID  string
@@ -146,6 +154,7 @@ func New(name, scenarioDir string) *Manager {
 		runCommand:   defaultCommandRunner,
 		portOpen:     isPortOpen,
 		pidAlive:     isPIDAlive,
+		urlResolver:  discovery.NewResolver(discovery.ResolverConfig{}),
 	}
 }
 
@@ -172,6 +181,14 @@ func (m *Manager) WithProbes(portOpen PortProbe, pidAlive PIDProbe) *Manager {
 	}
 	if pidAlive != nil {
 		m.pidAlive = pidAlive
+	}
+	return m
+}
+
+// WithURLResolver overrides canonical scenario URL discovery for tests.
+func (m *Manager) WithURLResolver(resolver scenarioURLResolver) *Manager {
+	if resolver != nil {
+		m.urlResolver = resolver
 	}
 	return m
 }
@@ -241,7 +258,7 @@ func (m *Manager) EnsureRunning(ctx context.Context, needs Needs, logWriter io.W
 
 // LiveSurfaces reports the URLs of the target's currently-live surfaces. An
 // empty field means that surface is not live. Unlike EnsureRunning, it never
-// starts anything — it is a pure read of the lifecycle process records. The
+// starts anything — it is a pure read through canonical runtime discovery. The
 // self-host guard uses it to reuse a live surface instead of clobbering the
 // running process with `scenario start --clean-stale`.
 func (m *Manager) LiveSurfaces(ctx context.Context) URLs {
@@ -370,23 +387,44 @@ func (m *Manager) waitForURLs(ctx context.Context, needs Needs) (URLs, error) {
 }
 
 func (m *Manager) resolveURLs(ctx context.Context, needs Needs) (URLs, bool) {
+	urls := URLs{}
+	if m.urlResolver != nil {
+		urls.UI = m.resolveLiveURL(ctx, "UI_PORT")
+		urls.API = m.resolveLiveURL(ctx, "API_PORT")
+		if needs.UI || needs.API {
+			if (!needs.UI || urls.UI != "") && (!needs.API || urls.API != "") {
+				return urls, true
+			}
+		} else if urls.UI != "" && urls.API != "" {
+			return urls, true
+		}
+	}
+
+	// Older lifecycle integrations may still leave process records. Consult
+	// these only when canonical discovery cannot satisfy the requested surface.
 	records, err := m.readRecords()
 	if err != nil {
 		return URLs{}, false
 	}
 
-	urls := URLs{}
+	legacy := URLs{}
 	for _, record := range records {
 		if record.Port <= 0 || !m.pidAlive(record.PID) || !m.portOpen(ctx, record.Port) {
 			continue
 		}
 		step := strings.ToLower(record.Step)
-		if urls.UI == "" && strings.Contains(step, "ui") {
-			urls.UI = fmt.Sprintf("http://127.0.0.1:%d", record.Port)
+		if legacy.UI == "" && strings.Contains(step, "ui") {
+			legacy.UI = fmt.Sprintf("http://127.0.0.1:%d", record.Port)
 		}
-		if urls.API == "" && strings.Contains(step, "api") {
-			urls.API = fmt.Sprintf("http://127.0.0.1:%d", record.Port)
+		if legacy.API == "" && strings.Contains(step, "api") {
+			legacy.API = fmt.Sprintf("http://127.0.0.1:%d", record.Port)
 		}
+	}
+	if urls.UI == "" {
+		urls.UI = legacy.UI
+	}
+	if urls.API == "" {
+		urls.API = legacy.API
 	}
 	if needs.UI && urls.UI == "" {
 		return URLs{}, false
@@ -395,6 +433,22 @@ func (m *Manager) resolveURLs(ctx context.Context, needs Needs) (URLs, bool) {
 		return URLs{}, false
 	}
 	return urls, true
+}
+
+func (m *Manager) resolveLiveURL(ctx context.Context, portKey string) string {
+	resolved, err := m.urlResolver.ResolveScenarioURL(ctx, m.Name, portKey)
+	if err != nil || strings.TrimSpace(resolved) == "" {
+		return ""
+	}
+	parsed, err := url.Parse(resolved)
+	if err != nil || parsed.Port() == "" {
+		return ""
+	}
+	port, err := strconv.Atoi(parsed.Port())
+	if err != nil || port < 1 || port > 65535 || !m.portOpen(ctx, port) {
+		return ""
+	}
+	return resolved
 }
 
 type processRecord struct {

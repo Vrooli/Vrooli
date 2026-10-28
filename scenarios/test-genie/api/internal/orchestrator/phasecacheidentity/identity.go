@@ -75,33 +75,44 @@ func Identity(env workspacepkg.Environment, phase phases.Definition, readiness m
 	}, true
 }
 
-// Load returns a reusable result for a phase whose identity is unchanged.
-//
-// The four return values are the result, whether this hit should be audited,
-// whether a hit was found at all, and the cached duration.
+// Lookup carries the cache identity captured before a phase runs together
+// with the cached result found under that exact identity, if any.
+type Lookup struct {
+	Identity       phasecache.Identity
+	IdentityValid  bool
+	Result         phases.ExecutionResult
+	Audit          bool
+	Found          bool
+	CachedDuration int64
+}
+
+// Load captures the phase's current identity and returns a reusable result for
+// that identity, if available. Callers retain the lookup through execution so
+// completion and audit use the same key.
 //
 // projectRoot and logPath are passed explicitly rather than derived, so this
 // package holds no orchestrator state and its contract is visible in its
 // signature.
-func Load(projectRoot string, env workspacepkg.Environment, runID, logPath string, phase phases.Definition, readiness map[string]providerreadiness.Outcome) (phases.ExecutionResult, bool, bool, int64) {
+func Load(projectRoot string, env workspacepkg.Environment, runID, logPath string, phase phases.Definition, readiness map[string]providerreadiness.Outcome) Lookup {
+	identity, identityOK := Identity(env, phase, readiness)
+	lookup := Lookup{Identity: identity, IdentityValid: identityOK}
 	// Baseline captures are measurement runs. Reusing a cached phase would
 	// erase its execution interval and resource sample, leaving the envelope
 	// estimator with an apparently reliable but unmeasurable row.
 	if strings.EqualFold(strings.TrimSpace(env.CaptureProfile), captureprofile.NameBaseline) {
-		return phases.ExecutionResult{}, false, false, 0
+		return lookup
 	}
-	identity, ok := Identity(env, phase, readiness)
-	if !ok {
-		return phases.ExecutionResult{}, false, false, 0
+	if !identityOK {
+		return lookup
 	}
 	key := phasecache.Key(identity)
 	store := phasecache.New(env.EffectivePhaseCacheRoot())
 	entry, found, err := store.Load(key)
 	if err != nil || !found {
-		return phases.ExecutionResult{}, false, false, 0
+		return lookup
 	}
 	result := entry.Phase
-	cachedDuration := result.DurationMilliseconds
+	lookup.CachedDuration = result.DurationMilliseconds
 	result.Name = phase.Name.String()
 	result.DurationMilliseconds = 0
 	result.DurationSeconds = 0
@@ -115,32 +126,38 @@ func Load(projectRoot string, env workspacepkg.Environment, runID, logPath strin
 		"[INFO] cache hit: %s — unchanged since run %s; no input, provider build, descriptor, or execution configuration differs\n",
 		result.Status, entry.RunID)
 	if err := os.WriteFile(result.LogPath, []byte(marker), 0o644); err != nil {
-		return phases.ExecutionResult{}, false, false, 0
+		return lookup
 	}
 	if projectRoot != "" {
 		if rel, err := filepath.Rel(projectRoot, result.LogPath); err == nil {
 			result.LogPath = rel
 		}
 	}
-	return result, store.ShouldAudit(key, runID), true, cachedDuration
+	lookup.Result = result
+	lookup.Audit = store.ShouldAudit(key, runID)
+	lookup.Found = true
+	return lookup
 }
 
-// Save stores a reusable result under the phase's current identity.
+// InputsMatch reports whether the declared input digest still matches the
+// identity captured before the phase ran.
+func InputsMatch(env workspacepkg.Environment, phase phases.Definition, lookup Lookup) bool {
+	if !lookup.IdentityValid {
+		return false
+	}
+	after, err := phasecache.ScopedDigest(env.ScenarioDir, phase.Determinism.Inputs)
+	return err == nil && after == lookup.Identity.ScopedInputDigest
+}
+
+// Save stores a reusable result under the exact identity captured before the
+// phase ran.
 //
 // It is a no-op for a phase with no identity, for a status the cache may not
 // serve, and — critically — when the scoped input digest moved while the phase
-// ran. That last check is what stops a source edit mid-run from publishing a
-// result under the digest from before the edit.
-func Save(env workspacepkg.Environment, runID string, phase phases.Definition, readiness map[string]providerreadiness.Outcome, result phases.ExecutionResult) {
-	identity, ok := Identity(env, phase, readiness)
-	if !ok || !phasecache.Reusable(result) {
+// ran. It never relabels the result with a post-execution identity.
+func Save(env workspacepkg.Environment, runID string, phase phases.Definition, lookup Lookup, result phases.ExecutionResult) {
+	if !lookup.IdentityValid || !phasecache.Reusable(result) || !InputsMatch(env, phase, lookup) {
 		return
 	}
-	// Recompute immediately after the phase. A source edit during execution is
-	// never allowed to publish a result under the digest from before the edit.
-	after, err := phasecache.ScopedDigest(env.ScenarioDir, phase.Determinism.Inputs)
-	if err != nil || after != identity.ScopedInputDigest {
-		return
-	}
-	_ = phasecache.New(env.EffectivePhaseCacheRoot()).Save(phasecache.Key(identity), runID, result)
+	_ = phasecache.New(env.EffectivePhaseCacheRoot()).Save(phasecache.Key(lookup.Identity), runID, result)
 }

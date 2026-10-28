@@ -7,18 +7,34 @@
   "required": [
     "$schema",
     "schemaVersion",
-    "scenario",
-    "phase",
-    "displayName",
-    "description",
-    "source",
-    "timeout",
-    "validation",
-    "applicability",
-    "policy",
-    "runnability",
-    "docs",
-    "maturity"
+    "scenario"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "phase",
+        "displayName",
+        "description",
+        "source",
+        "timeout",
+        "validation",
+        "applicability",
+        "policy",
+        "runnability",
+        "docs",
+        "maturity"
+      ]
+    },
+    {
+      "required": ["evidenceProducers"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": { "const": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json" },
+        "schemaVersion": { "const": "1.0.0" },
+        "scenario": { "type": "string", "minLength": 1 },
+        "evidenceProducers": { "$ref": "#/properties/evidenceProducers" }
+      }
+    }
   ],
   "properties": {
     "$schema": { "const": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json" },

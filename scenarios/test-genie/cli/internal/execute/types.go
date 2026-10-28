@@ -372,6 +372,7 @@ type Phase struct {
 	RunnabilityVerdict string          `json:"runnabilityVerdict"`
 	RunnabilityReason  string          `json:"runnabilityReason"`
 	Observations       ObservationList `json:"observations"`
+	ObservationCount   *uint32         `json:"observationCount,omitempty"`
 	// PhasePresentation is the provider-owned canonical phase presentation. Both
 	// human and JSON output render this exact object; nil is explicit degraded or
 	// native evidence, never an invented maturity claim.
@@ -414,10 +415,10 @@ type RunHandle struct {
 
 // PhaseSummary provides aggregate phase statistics.
 type PhaseSummary struct {
-	Total            int `json:"total"`
-	Passed           int `json:"passed"`
-	Failed           int `json:"failed"`
-	Skipped          int `json:"skipped"`
-	DurationSeconds  int `json:"durationSeconds"`
-	ObservationCount int `json:"observationCount"`
+	Total            int     `json:"total"`
+	Passed           int     `json:"passed"`
+	Failed           int     `json:"failed"`
+	Skipped          int     `json:"skipped"`
+	DurationSeconds  int     `json:"durationSeconds"`
+	ObservationCount *uint32 `json:"observationCount,omitempty"`
 }

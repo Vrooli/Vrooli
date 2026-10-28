@@ -122,6 +122,7 @@ func phasesFromTerminalRun(run *runspb.RunInfo) []Phase {
 			PhasePresentation: phase.GetPhasePresentation(),
 			PresentationState: state,
 			FindingsSummary:   FindingsSummaryFromProto(phase.GetFindingsSummary()),
+			ObservationCount:  phase.ObservationCount,
 		})
 	}
 	return phases
@@ -156,10 +157,18 @@ func phasesFromLiveStatus(st *runspb.RunLiveStatus) []Phase {
 
 func summarizePhases(phases []Phase) execTypes.PhaseSummary {
 	var summary execTypes.PhaseSummary
+	var observationCount uint32
+	observationCountKnown := len(phases) > 0
 	for _, p := range phases {
 		summary.Total++
 		summary.DurationSeconds += int(p.DurationSeconds)
-		summary.ObservationCount += len(p.Observations)
+		if p.ObservationCount != nil {
+			observationCount += *p.ObservationCount
+		} else if p.Observations != nil {
+			observationCount += uint32(len(p.Observations))
+		} else {
+			observationCountKnown = false
+		}
 		switch strings.ToLower(p.Status) {
 		case "passed":
 			summary.Passed++
@@ -168,6 +177,9 @@ func summarizePhases(phases []Phase) execTypes.PhaseSummary {
 		case "skipped":
 			summary.Skipped++
 		}
+	}
+	if observationCountKnown {
+		summary.ObservationCount = &observationCount
 	}
 	return summary
 }

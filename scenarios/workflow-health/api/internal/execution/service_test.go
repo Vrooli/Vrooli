@@ -114,9 +114,92 @@ func TestRunScenarioDoesNotInstallIsolationForObserverCase(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, report.Summary.Passed)
+	require.Equal(t, 1, client.validateCalls)
+	require.Equal(t, 1, client.executeCalls)
 	require.False(t, isolation.acquired, "observer workflows must execute against the current target")
 	require.False(t, isolation.closed)
 	require.NotContains(t, client.lastRequest.Parameters.ExtraHeaders, "X-Vrooli-Test-Mode")
+}
+
+func TestRunScenarioRefusesRoutedObserverWhenIsolationInstallFailsBeforeBAS(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	writeRoutedObserverCase(t, root)
+	client := &fakeBASClient{}
+	isolation := &fakeIsolation{acquireErr: os.ErrPermission}
+
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Isolation:        isolation,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Zero(t, client.validateCalls)
+	require.Zero(t, client.executeCalls)
+	require.True(t, isolation.acquired)
+	require.Contains(t, report.Isolation.InstallError, "permission")
+	require.Contains(t, report.Runs[0].Error, "proven routed test isolation")
+}
+
+func TestRunScenarioExecutesRoutedObserverWithLeaseIdentity(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	writeRoutedObserverCase(t, root)
+	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "routed-observer", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
+	isolation := &fakeIsolation{evidence: IsolationEvidence{Installed: true, LeaseID: "fixture-lease"}}
+
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Isolation:        isolation,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Passed)
+	require.Equal(t, 1, client.validateCalls)
+	require.Equal(t, 1, client.executeCalls)
+	require.True(t, isolation.acquired)
+	require.True(t, isolation.closed)
+	require.True(t, report.Isolation.Installed)
+	require.Equal(t, "fixture-lease", report.Isolation.LeaseID)
+	require.Equal(t, "1", client.lastRequest.Parameters.ExtraHeaders["X-Vrooli-Test-Mode"])
+	require.Equal(t, "fixture-lease", client.lastRequest.Parameters.ExtraHeaders["X-Vrooli-Test-Lease-ID"])
+}
+
+func TestRunScenarioRefusesRoutedObserverWithoutCompleteLeaseProof(t *testing.T) {
+	for name, evidence := range map[string]IsolationEvidence{
+		"not installed":    {LeaseID: "fixture-lease"},
+		"missing identity": {Installed: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := makeExecutionFixture(t, false)
+			writeRoutedObserverCase(t, root)
+			client := &fakeBASClient{}
+			isolation := &fakeIsolation{evidence: evidence}
+
+			report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+				IncludeExecution: true,
+				Isolation:        isolation,
+			})
+			require.NoError(t, err)
+			require.Equal(t, 1, report.Summary.Refused)
+			require.Zero(t, client.validateCalls)
+			require.Zero(t, client.executeCalls)
+			require.True(t, isolation.closed, "an unproven acquired lease must still be cleaned up")
+			require.False(t, report.Isolation.Installed)
+			require.NotEmpty(t, report.Isolation.InstallError)
+			require.Contains(t, report.Runs[0].Error, "proven routed test isolation")
+		})
+	}
+}
+
+func writeRoutedObserverCase(t *testing.T, root string) {
+	t.Helper()
+	path := filepath.Join(root, "bas", "cases", "dashboard.json")
+	var doc map[string]any
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &doc))
+	metadata := doc["metadata"].(map[string]any)
+	labels := metadata["labels"].(map[string]any)
+	labels["routed_isolation"] = true
+	writeFixtureJSON(t, path, doc)
 }
 
 func TestRunScenarioBindsConfiguredTargetLocalSessionOnlyToBrowserProfile(t *testing.T) {
@@ -384,7 +467,7 @@ func TestRunScenarioBindsElectronValidationToSelectedAsset(t *testing.T) {
 	client := &fakeBASClient{}
 	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
 		IncludeExecution: true,
-		Isolation:        &fakeIsolation{evidence: IsolationEvidence{LeaseID: "lease-1"}},
+		Isolation:        &fakeIsolation{evidence: IsolationEvidence{Installed: true, LeaseID: "lease-1"}},
 		ElectronTarget: &ElectronTarget{
 			TargetID: "target-1", CDPEndpoint: "http://127.0.0.1:9222", RendererID: "renderer-1",
 			ScenarioName: "sample", ArtifactDigest: "sha256:app", ContextID: "ctx-1", CDPTransport: "loopback-authenticated",
@@ -402,7 +485,7 @@ func TestRunScenarioStopsWhenIsolationHeartbeatFails(t *testing.T) {
 	root := makeExecutionFixture(t, true)
 	client := &fakeBASClient{waitForContext: true, started: make(chan struct{})}
 	isolation := &fakeIsolation{
-		evidence:   IsolationEvidence{LeaseID: "lease-1"},
+		evidence:   IsolationEvidence{Installed: true, LeaseID: "lease-1"},
 		healthDone: make(chan struct{}),
 		healthErr:  fmt.Errorf("heartbeat unavailable"),
 	}
@@ -428,7 +511,7 @@ func TestRunScenarioStopsWhenIsolationHeartbeatFails(t *testing.T) {
 
 func TestRunScenarioCancelsBASWhenIsolationHeartbeatFailsDuringExecution(t *testing.T) {
 	root := makeExecutionFixture(t, true)
-	isolation := &fakeIsolation{evidence: IsolationEvidence{LeaseID: "lease-1"}, healthDone: make(chan struct{})}
+	isolation := &fakeIsolation{evidence: IsolationEvidence{Installed: true, LeaseID: "lease-1"}, healthDone: make(chan struct{})}
 	client := &fakeBASClient{
 		waitForContext: true,
 		cancelled:      make(chan struct{}),

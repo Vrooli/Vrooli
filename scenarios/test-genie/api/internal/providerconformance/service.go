@@ -44,6 +44,9 @@ const executionRunnerProbeBudget = 10 * time.Second
 
 type Service struct {
 	RepoRoot string
+	// codeFactsLanguageLookup is a deterministic test seam. Production leaves
+	// it nil and uses the bounded discovery-backed lookup below.
+	codeFactsLanguageLookup func(context.Context, string) (string, bool)
 	// Probe is the live provider contract seam. Nil disables live checks so
 	// the validator stays pure (descriptor-only findings).
 	Probe selfhealth.ConformanceProbe
@@ -346,9 +349,11 @@ func (s *Service) validateTargetDeclaration(ctx context.Context, report *Report,
 					report.add(Finding{Code: CodeTargetGlobUnresolvable, Severity: SeverityError, Title: "Provider target kind resolves to no repository targets", Message: fmt.Sprintf("targets.kinds includes %q, but repo-contract enumeration found no targets of that kind.", kind), Location: ".vrooli/repo-contract.json:targets", Remediation: "Fix the target roots/marker or stop declaring an empty target kind."})
 				}
 			}
-			probeCtx, cancel := context.WithTimeout(ctx, executionRunnerProbeBudget)
-			s.validateExecutionRunners(probeCtx, report, targets, declared)
-			cancel()
+			if s.Probe != nil {
+				probeCtx, cancel := context.WithTimeout(ctx, executionRunnerProbeBudget)
+				s.validateExecutionRunners(probeCtx, report, targets, declared)
+				cancel()
+			}
 		}
 	}
 }
@@ -401,7 +406,11 @@ func (s *Service) validateExecutionRunners(ctx context.Context, report *Report, 
 			if string(target.Kind) != kind {
 				continue
 			}
-			language, proven := s.codeFactsLanguage(ctx, filepath.Join(s.RepoRoot, filepath.FromSlash(target.Root)))
+			lookup := s.codeFactsLanguageLookup
+			if lookup == nil {
+				lookup = s.codeFactsLanguage
+			}
+			language, proven := lookup(ctx, filepath.Join(s.RepoRoot, filepath.FromSlash(target.Root)))
 			if !proven {
 				// A provider outage is not evidence that a repository target has no
 				// runner. Unit/quality providers report the degraded code-facts

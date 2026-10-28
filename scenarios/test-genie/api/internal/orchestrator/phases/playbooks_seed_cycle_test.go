@@ -14,6 +14,8 @@ import (
 )
 
 type routedLeaseFixture struct {
+	routingconnect.UnimplementedRoutingServiceHandler
+
 	installed bool
 	cleared   bool
 	dsn       string

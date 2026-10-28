@@ -180,6 +180,11 @@ func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionRes
 	}
 	compact := make([]phases.ExecutionResult, 0, len(results))
 	for _, result := range results {
+		observationCount, hasObservationCount := result.ObservationCountIfKnown()
+		var retainedObservationCount *uint32
+		if hasObservationCount {
+			retainedObservationCount = &observationCount
+		}
 		compact = append(compact, phases.ExecutionResult{
 			Name:                          result.Name,
 			Status:                        result.Status,
@@ -196,6 +201,7 @@ func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionRes
 			FindingSource:                 result.FindingSource,
 			PhasePresentation:             result.PhasePresentation,
 			FindingsSummary:               result.FindingsSummary,
+			ObservationCount:              retainedObservationCount,
 			Metrics:                       result.Metrics,
 			CacheHit:                      result.CacheHit,
 			CacheSourceRunID:              result.CacheSourceRunID,

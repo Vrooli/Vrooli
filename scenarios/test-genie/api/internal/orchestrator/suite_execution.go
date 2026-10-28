@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -38,6 +37,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/demand"
+	repocontract "github.com/vrooli/repo-contract-go"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
@@ -407,12 +407,12 @@ type WarningSummary struct {
 
 // PhaseSummary aggregates phase telemetry for quick status surfaces.
 type PhaseSummary struct {
-	Total            int `json:"total"`
-	Passed           int `json:"passed"`
-	Failed           int `json:"failed"`
-	Skipped          int `json:"skipped"`
-	DurationSeconds  int `json:"durationSeconds"`
-	ObservationCount int `json:"observationCount"`
+	Total            int     `json:"total"`
+	Passed           int     `json:"passed"`
+	Failed           int     `json:"failed"`
+	Skipped          int     `json:"skipped"`
+	DurationSeconds  int     `json:"durationSeconds"`
+	ObservationCount *uint32 `json:"observationCount,omitempty"`
 }
 
 // PreparationStage is a bounded timing span for work that happens before test
@@ -572,11 +572,11 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 }
 
 func sourceRepoRoot() string {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
+	root, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
 		return ""
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
+	return root
 }
 
 // Execute performs a phased test run and returns the recorded result.
@@ -1340,6 +1340,11 @@ func CompactTerminalSnapshot(result *SuiteExecutionResult) *SuiteExecutionResult
 	compact := *result
 	compact.Phases = make([]PhaseExecutionResult, 0, len(result.Phases))
 	for _, phase := range result.Phases {
+		observationCount, hasObservationCount := phase.ObservationCountIfKnown()
+		var retainedObservationCount *uint32
+		if hasObservationCount {
+			retainedObservationCount = &observationCount
+		}
 		compact.Phases = append(compact.Phases, PhaseExecutionResult{
 			Name:                 phase.Name,
 			Status:               phase.Status,
@@ -1354,6 +1359,7 @@ func CompactTerminalSnapshot(result *SuiteExecutionResult) *SuiteExecutionResult
 			PhasePresentation:    phase.PhasePresentation,
 			FindingsSummary:      phase.FindingsSummary,
 			Assessment:           phase.Assessment,
+			ObservationCount:     retainedObservationCount,
 		})
 	}
 	compact.Warnings = nil
@@ -1503,20 +1509,24 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		// trip, this keeps cache-heavy runs from reporting scheduler overhead as
 		// execution pressure. Audited hits intentionally stay on the normal path
 		// so the provider still revalidates the cached verdict at its sample rate.
-		if outcome, hasOutcome := readiness[defs[start].Name.Key()]; !hasOutcome || !outcome.BlocksExecution() {
-			verdict := resolvePhaseVerdict(defs[start], runCtx)
-			if !verdict.IsSkip() {
-				if cached, audit, found, _ := phasecacheidentity.Load(o.projectRoot, env, runID, phaseLogPath(runLogDir, defs[start].Name), defs[start], readiness); found && !audit {
-					cached.PredictedDurationMilliseconds = predicted[strings.ToLower(strings.TrimSpace(defs[start].Name.String()))]
-					if emit != nil {
-						emit(ExecutionEvent{Type: EventPhaseStart, Timestamp: time.Now(), Phase: defs[start].Name.String(), PhaseIndex: start + 1, PhaseTotal: total})
+		if !strings.EqualFold(strings.TrimSpace(env.CaptureProfile), captureprofile.NameBaseline) {
+			if outcome, hasOutcome := readiness[defs[start].Name.Key()]; !hasOutcome || !outcome.BlocksExecution() {
+				verdict := resolvePhaseVerdict(defs[start], runCtx)
+				if !verdict.IsSkip() {
+					lookup := phasecacheidentity.Load(o.projectRoot, env, runID, phaseLogPath(runLogDir, defs[start].Name), defs[start], readiness)
+					if lookup.Found && !lookup.Audit {
+						cached := lookup.Result
+						cached.PredictedDurationMilliseconds = predicted[strings.ToLower(strings.TrimSpace(defs[start].Name.String()))]
+						if emit != nil {
+							emit(ExecutionEvent{Type: EventPhaseStart, Timestamp: time.Now(), Phase: defs[start].Name.String(), PhaseIndex: start + 1, PhaseTotal: total})
+						}
+						results = append(results, cached)
+						if emit != nil {
+							emit(ExecutionEvent{Type: EventPhaseEnd, Timestamp: time.Now(), Phase: cached.Name, Status: cached.Status, DurationSeconds: cached.DurationSeconds, DurationMilliseconds: cached.DurationMilliseconds, PhasePresentation: cached.PhasePresentation, FindingsSummary: cached.FindingsSummary, Assessment: cached.Assessment})
+						}
+						start++
+						continue
 					}
-					results = append(results, cached)
-					if emit != nil {
-						emit(ExecutionEvent{Type: EventPhaseEnd, Timestamp: time.Now(), Phase: cached.Name, Status: cached.Status, DurationSeconds: cached.DurationSeconds, DurationMilliseconds: cached.DurationMilliseconds, PhasePresentation: cached.PhasePresentation, FindingsSummary: cached.FindingsSummary, Assessment: cached.Assessment})
-					}
-					start++
-					continue
 				}
 			}
 		}
@@ -1564,6 +1574,9 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		for offset, phase := range batch {
 			go func(offset int, phase phases.Definition) {
 				var result PhaseExecutionResult
+				var cacheLookup phasecacheidentity.Lookup
+				shouldSaveCacheResult := false
+				freshResult := false
 				phaseWarnings := append([]phases.Observation(nil), warnings[phase.Name.Key()]...)
 				if env.SchedulerDecision != "" {
 					phaseWarnings = append(phaseWarnings, phases.NewWarningObservation("scheduler serial calibration: "+env.SchedulerDecision))
@@ -1573,52 +1586,66 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 				}
 				if outcome, hasOutcome := readiness[phase.Name.Key()]; hasOutcome && outcome.BlocksExecution() {
 					result = o.newProviderReadinessPhaseResult(phase, runLogDir, outcome)
+					freshResult = true
 				} else if verdict := resolvePhaseVerdict(phase, runCtx); verdict.IsSkip() {
 					result = o.newSkippedPhaseResult(phase, runLogDir, verdict)
+					freshResult = true
 				} else {
-					if cached, audit, ok, cachedDuration := phasecacheidentity.Load(o.projectRoot, env, runID, phaseLogPath(runLogDir, phase.Name), phase, readiness); ok && !audit {
-						result = cached
+					lookup := phasecacheidentity.Load(o.projectRoot, env, runID, phaseLogPath(runLogDir, phase.Name), phase, readiness)
+					if lookup.Found && !lookup.Audit {
+						result = lookup.Result
 					} else {
 						result = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, phaseWarnings))
+						freshResult = true
+						cacheLookup = lookup
+						shouldSaveCacheResult = true
 						annotatePhaseRunnability(&result, verdict)
-						cacheResult := true
-						// Audit any verdict the cache is allowed to serve. This
-						// read phaseStatusPassed while only passes were
-						// cacheable; leaving it would mean a cached FAILURE is
-						// served forever and never re-checked, which is the one
-						// thing that would make caching failures unsafe.
-						if phasecache.Cacheable(cached.Status) && audit {
+						// Audit any reusable cached verdict. Inputs must still match
+						// the identity loaded before execution before this result can
+						// compare against or demote that entry.
+						if phasecache.Cacheable(lookup.Result.Status) && lookup.Audit {
+							// This execution was requested as an audit; retain its cost
+							// even if moving inputs make the comparison inconclusive.
 							result.CacheAudit = true
-							identity, identityOK := phasecacheidentity.Identity(env, phase, readiness)
-							if identityOK {
-								key := phasecache.Key(identity)
+							if !phasecacheidentity.InputsMatch(env, phase, lookup) {
+								// The provider ran while the declared inputs were moving. Its
+								// verdict cannot audit the cached identity or be cached under
+								// the post-edit tree.
+								shouldSaveCacheResult = false
+								result.Observations = append(result.Observations, phases.NewObservation("cache audit skipped because declared inputs changed during phase execution"))
+							} else {
+								key := phasecache.Key(lookup.Identity)
 								store := phasecache.New(env.EffectivePhaseCacheRoot())
-								if !phasecache.Equivalent(cached, result) {
+								if !phasecache.Equivalent(lookup.Result, result) {
 									result.CacheAuditMismatch = true
 									// Say WHAT differed. A bare mismatch count
 									// cannot distinguish "the cache was wrong"
 									// from "the world moved", which is the only
 									// question worth asking here.
-									diff := phasecache.Diff(cached, result)
+									diff := phasecache.Diff(lookup.Result, result)
 									appendPhaseCacheFinding(&result, env.ScenarioName, phase.Name.Key(),
 										"test_genie.phase_cache_audit_mismatch",
 										"cached phase result differed from the freshly executed capability result and the cache entry was demoted: "+diff)
-									_ = store.Demote(key, "audit differed from cached "+cached.Status+" result: "+diff)
-									cacheResult = false
+									_ = store.Demote(key, "audit differed from cached "+lookup.Result.Status+" result: "+diff)
+									shouldSaveCacheResult = false
 								} else {
-									result.Observations = append(result.Observations, phases.NewObservation("phase cache audit matched the cached "+cached.Status+" result"))
-									if cachedDuration > 0 && result.DurationMilliseconds >= cachedDuration*9/10 {
+									result.Observations = append(result.Observations, phases.NewObservation("phase cache audit matched the cached "+lookup.Result.Status+" result"))
+									if lookup.CachedDuration > 0 && result.DurationMilliseconds >= lookup.CachedDuration*9/10 {
 										result.CacheNoSaving = true
 										appendPhaseCacheFinding(&result, env.ScenarioName, phase.Name.Key(), "test_genie.phase_cache_audit_no_saving", "cache audit found no measured saving; the provider may be filtering its response instead of skipping the work")
-										cacheResult = false
+										shouldSaveCacheResult = false
 									}
 								}
 							}
 						}
-						if cacheResult {
-							phasecacheidentity.Save(env, runID, phase, readiness, result)
-						}
 					}
+				}
+				if freshResult && result.ObservationCount == nil {
+					observationCount := uint32(len(result.Observations))
+					result.ObservationCount = &observationCount
+				}
+				if shouldSaveCacheResult {
+					phasecacheidentity.Save(env, runID, phase, cacheLookup, result)
 				}
 				result.PredictedDurationMilliseconds = predicted[strings.ToLower(strings.TrimSpace(phase.Name.String()))]
 				if result.PredictedDurationMilliseconds < 0 {
@@ -2274,12 +2301,18 @@ func writeEvidenceManifest(scenarioDir, runID, scenario, verdict string, complet
 		Phases:        make([]executionevidence.PhaseSummary, 0, len(results)),
 	}
 	for _, result := range results {
+		observationCount, hasObservationCount := result.ObservationCountValue()
+		var retainedObservationCount *int
+		if hasObservationCount {
+			count := int(observationCount)
+			retainedObservationCount = &count
+		}
 		phase := executionevidence.PhaseSummary{
 			Name:              result.Name,
 			Status:            result.Status,
 			DurationSeconds:   result.DurationSeconds,
 			FindingCount:      len(result.Findings),
-			ObservationCount:  len(result.Observations),
+			ObservationCount:  retainedObservationCount,
 			FindingSource:     result.FindingSource,
 			PhasePresentation: result.PhasePresentation,
 			FindingsSummary:   result.FindingsSummary,
@@ -2311,6 +2344,7 @@ type phaseResultView struct {
 	Status               string
 	DurationSeconds      int
 	DurationMilliseconds int64
+	ObservationCount     *uint32
 	LogPath              string
 	LogAbs               string
 	Observations         []phases.Observation
@@ -2325,6 +2359,16 @@ type phaseResultView struct {
 	CacheSourceRunID     string
 }
 
+func (r phaseResultView) ObservationCountValue() (uint32, bool) {
+	if r.ObservationCount != nil {
+		return *r.ObservationCount, true
+	}
+	if r.Observations != nil {
+		return uint32(len(r.Observations)), true
+	}
+	return 0, false
+}
+
 func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []phaseResultView {
 	if len(results) == 0 {
 		return nil
@@ -2336,11 +2380,17 @@ func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []p
 			findings = []*architecturev1.ArchitectureFinding{}
 		}
 		name := phases.Name(result.Name)
+		observationCount, hasObservationCount := result.ObservationCountIfKnown()
+		var retainedObservationCount *uint32
+		if hasObservationCount {
+			retainedObservationCount = &observationCount
+		}
 		views = append(views, phaseResultView{
 			Name:                 result.Name,
 			Status:               result.Status,
 			DurationSeconds:      result.DurationSeconds,
 			DurationMilliseconds: result.DurationMilliseconds,
+			ObservationCount:     retainedObservationCount,
 			LogPath:              result.LogPath,
 			LogAbs:               phaseLogPath(runLogDir, name),
 			Observations:         result.Observations,
@@ -2444,12 +2494,18 @@ func SummarizePhases(phases []PhaseExecutionResult) PhaseSummary {
 
 func summarizePhaseViews(phases []phaseResultView) PhaseSummary {
 	summary := PhaseSummary{}
+	var observationCount uint32
+	observationsKnown := len(phases) > 0
 	for _, phase := range phases {
 		summary.Total++
 		if phase.DurationSeconds > 0 {
 			summary.DurationSeconds += phase.DurationSeconds
 		}
-		summary.ObservationCount += len(phase.Observations)
+		if count, known := phase.ObservationCountValue(); known {
+			observationCount += count
+		} else {
+			observationsKnown = false
+		}
 		switch strings.ToLower(phase.Status) {
 		case phaseStatusPassed:
 			summary.Passed++
@@ -2458,6 +2514,9 @@ func summarizePhaseViews(phases []phaseResultView) PhaseSummary {
 		case phaseStatusSkipped:
 			summary.Skipped++
 		}
+	}
+	if observationsKnown {
+		summary.ObservationCount = &observationCount
 	}
 	return summary
 }

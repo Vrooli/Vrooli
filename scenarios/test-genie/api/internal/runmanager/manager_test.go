@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +21,7 @@ import (
 	"test-genie/internal/targetmodel"
 
 	"github.com/vrooli/freshness-go/treedigest"
+	repocontract "github.com/vrooli/repo-contract-go"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
@@ -265,11 +265,10 @@ func TestEvidenceProducerAbortFencePreventsLateStartAndRestartReplay(t *testing.
 }
 
 func TestTypedScenarioAdmissionUsesCanonicalScenarioID(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	sourceRepoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	sourceRepoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
 	contract, err := os.ReadFile(filepath.Join(sourceRepoRoot, ".vrooli", "repo-contract.json"))
 	if err != nil {
 		t.Fatalf("read source repository contract: %v", err)
@@ -1075,11 +1074,10 @@ func TestSweepReturnsScenarioResolverFailureWhileRecoveringOtherOwners(t *testin
 
 func sweepRepositoryFixture(t *testing.T) (repoRoot, scenariosRoot string) {
 	t.Helper()
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	sourceRepoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	sourceRepoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
 	contract, err := os.ReadFile(filepath.Join(sourceRepoRoot, ".vrooli", "repo-contract.json"))
 	if err != nil {
 		t.Fatalf("read source repository contract: %v", err)

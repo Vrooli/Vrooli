@@ -37,20 +37,10 @@ func (p *providerReadinessPlan) releaseProviders() {
 
 const defaultProviderReadinessConcurrency = 4
 
-// providerLeaseWaitTimeout bounds the hand-off from readiness probes to the
-// execution phases. A server-owned run has a lifetime context that intentionally
-// survives client disconnects, so waiting on a provider lease with that context
-// alone could leave a run in preparing forever when another owner disappears.
-// A bounded wait turns that infrastructure condition into an explicit,
-// evidence-bearing provider-unavailable outcome.
-var providerLeaseWaitTimeout = 2 * time.Minute
-
-// slowProviderCheckThreshold is the point at which a provider readiness check
-// stops looking like a health probe and starts looking like a cold start.
-//
-// It is deliberately generous. The alarm exists to make a pathological case
-// visible — a 41-minute start went unnoticed — not to flag ordinary variance,
-// and an alarm that fires on ordinary variance is one that gets ignored.
+// slowProviderCheckThreshold marks provider preparation that deserves review.
+// The measured duration includes waiting for provider ownership as well as the
+// readiness probe and lifecycle work, so it does not identify which part was
+// slow by itself.
 const slowProviderCheckThreshold = 2 * time.Minute
 
 func providerReadinessConcurrency() int {
@@ -129,12 +119,10 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 			lockValue.(*sync.Mutex).Lock()
 			defer lockValue.(*sync.Mutex).Unlock()
 		}
-		// A server-owned run intentionally survives client disconnects. Bound
-		// both the provider probe and its per-provider ownership wait so a
-		// vanished owner cannot strand preparation indefinitely.
-		checkCtx, cancelCheck := context.WithTimeout(ctx, providerLeaseWaitTimeout)
-		defer cancelCheck()
-		outcome := manager.Check(checkCtx, providerreadiness.Input{
+		// Ownership waiting follows the server-owned run context: a healthy
+		// provider can remain leased while another run uses it. The readiness
+		// manager applies its own deadline to the actual provider probe.
+		outcome := manager.Check(ctx, providerreadiness.Input{
 			Phase:            def.Name.String(),
 			ProviderScenario: provider,
 			TargetScenario:   env.ScenarioName,
@@ -174,7 +162,7 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 			// reads. Say it out loud instead.
 			if result.duration >= slowProviderCheckThreshold {
 				emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf(
-					"SLOW provider check: %s took %s (threshold %s) — the provider is probably starting up rather than responding; this is provider uptime, not a Test Genie scheduling problem",
+					"SLOW provider preparation: %s took %s (threshold %s) — this duration includes provider-ownership queue wait, readiness probing, and lifecycle work; inspect the stage timings before attributing the delay",
 					provider, result.duration.Round(time.Second), slowProviderCheckThreshold))
 			}
 		}
@@ -203,10 +191,8 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	}
 	sort.Strings(providers)
 	releases := make([]func(), 0, len(providers))
-	leaseCtx, cancelLeaseWait := context.WithTimeout(ctx, providerLeaseWaitTimeout)
-	defer cancelLeaseWait()
 	for _, provider := range providers {
-		release, err := manager.LeaseProviderContext(leaseCtx, provider)
+		release, err := manager.LeaseProviderContext(ctx, provider)
 		if err != nil {
 			// No phase may execute after losing its lifetime context while
 			// waiting for provider ownership. Release every hold acquired so

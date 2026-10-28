@@ -56,6 +56,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/cliresolve v0.0.0 // indirect

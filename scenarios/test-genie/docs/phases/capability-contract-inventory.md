@@ -32,6 +32,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `architecture` | architecture-cartographer | 5 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
 | `branding` | brand-manager | 6 | provider-delegated | `scenarios/test-genie/docs/phases/branding/README.md` |
 | `business` | business-health | 4 | provider-delegated | `scenarios/test-genie/docs/phases/business/README.md` |
+| `channel-conformance` | switchboard | 3 | provider-delegated | `scenarios/switchboard/docs/internal/PROBLEMS.md` |
 | `component-tests` | react-component-library | 1 | provider-delegated | `scenarios/test-genie/docs/phases/component-tests/README.md` |
 | `contracts` | cli-health | 7 | provider-delegated (lighthouse) | `scenarios/test-genie/docs/phases/contracts/README.md` |
 | `code-facts` | code-facts | 1 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
@@ -43,12 +44,14 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `measures` | measures-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/measures/README.md` |
 | `monetization-conformance` | landing-page-business-suite | 1 | provider-delegated | `scenarios/test-genie/docs/phases/monetization-conformance/README.md` |
 | `performance` | performance-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/performance/README.md` |
+| `programs` | program-runtime | 3 | provider-delegated | `scenarios/test-genie/docs/phases/programs/README.md` |
 | `portability` | scenario-dependency-analyzer | 1 | provider-delegated | `scenarios/test-genie/docs/phases/portability/README.md` |
 | `proto` | proto-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/proto/README.md` |
 | `provider-conformance` | test-genie | 2 | provider-delegated (self) | `scenarios/test-genie/docs/phases/provider-conformance/README.md` |
 | `quality` | quality-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/quality/README.md` |
 | `search` | search-hub | 4 | provider-delegated | `scenarios/test-genie/docs/phases/search/README.md` |
 | `security` | security-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/security/README.md` |
+| `skill-set` | prompt-manager | 3 | provider-delegated | `scenarios/test-genie/docs/phases/skill-set/README.md` |
 | `soak` | audio-tools | 1 | provider-delegated | `scenarios/audio-tools/docs/test-genie/soak/README.md` |
 | `storage` | storage-manager | 5 | provider-delegated | `scenarios/test-genie/docs/phases/storage/README.md` |
 | `structure` | structure-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/structure/README.md` |

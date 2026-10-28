@@ -31,7 +31,7 @@ func TestWriterStreamsArtifactAndPublishesValidatedManifest(t *testing.T) {
 		Verdict:       "PASS",
 		Findings:      findings,
 		Phases: []PhaseSummary{{
-			Name: "security", Status: "failed", FindingCount: 2, ObservationCount: 2, Findings: &findings,
+			Name: "security", Status: "failed", FindingCount: 2, ObservationCount: intPointer(2), Findings: &findings,
 		}},
 	}
 	if err := writer.WriteManifest(manifest); err != nil {
@@ -41,6 +41,8 @@ func TestWriterStreamsArtifactAndPublishesValidatedManifest(t *testing.T) {
 		t.Fatalf("manifest was not published: %v", err)
 	}
 }
+
+func intPointer(value int) *int { return &value }
 
 func TestReadManifestDoesNotOpenDetailedArtifact(t *testing.T) {
 	root := t.TempDir()
@@ -55,6 +57,13 @@ func TestReadManifestDoesNotOpenDetailedArtifact(t *testing.T) {
 	want := Manifest{SchemaVersion: SchemaVersion, RunID: "run-1", Scenario: "demo", Verdict: "PASS", CreatedAt: time.Now().UTC(), Findings: findings, Phases: []PhaseSummary{{Name: "unit", Status: "passed"}}}
 	if err := writer.WriteManifest(want); err != nil {
 		t.Fatal(err)
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(root, ManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(manifestBytes), `"observationCount"`) {
+		t.Fatalf("unknown historical observation count must stay omitted: %s", manifestBytes)
 	}
 	if err := os.Remove(filepath.Join(root, "findings.json")); err != nil {
 		t.Fatal(err)

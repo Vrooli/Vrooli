@@ -136,6 +136,13 @@ workflow-health validate abort <run-id> --reason "operator requested stop"
 legacy `include-execution` CLI flag or blocking execution command; callers use
 the lifecycle commands above.
 
+The provider waits for a contended routed fixture lease without clearing another
+owner's lease. Browser status observation deadlines retain the same execution;
+they do not fail a case or advance to another case while its browser still runs.
+An explicit owner abort requests that execution's stop and joins its cleanup
+before releasing the routed fixture. Durable results retain the browser execution
+ID, including when the operation was cancelled.
+
 ## Scenario commands — `workflows`
 
 ### `workflow-health workflows search <query>`
@@ -238,3 +245,18 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+
+### Shared routed runtime contention
+
+A durable validation run retains its handle while another owner holds the target test pool.
+Workflow Health waits on the typed install-conflict response and resumes with the same requested
+lease after release. This service-owned wait has no slice budget and is cancelled only through
+its owning operation/context. Reattach with `validate wait`; do not start another run or clear
+the active lease. Successful isolation evidence records `lease_waits`. A cancelled waiter
+removes only its uninstalled local database. Ambiguous install failures still use exact-owner
+cleanup and preserve storage when remote cleanup cannot be confirmed.
+
+Parallel source edits do not isolate shared builds or serving artifacts. Coordinate lifecycle
+refreshes with the active product/runtime owner, retain selected-case proof for unchanged
+inputs, and run the aggregate phase at its required integration gate under docs/TESTING.md.

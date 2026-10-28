@@ -24,6 +24,15 @@
 - `evidence-manifest.json` is the versioned digest-checked index for a run's
   detailed evidence. Summaries and transports may carry references, never a
   second detailed payload.
+- Every newly terminal validation receipt has at least one typed evidence
+  locator. When no child or external evidence reference exists, the receipt
+  carries `test-genie-validation-receipt` pointing to its canonical
+  `GetValidation` record. This locator explains the terminal decision; it is
+  not a child-run artifact and never satisfies caller-required producer
+  evidence kinds. The human
+  `test-genie validation get <receipt_id>` projection displays evidence
+  kind/ID/owner/URI, or explicitly reports `evidence=none` for historical
+  receipts without references.
 
 ## Live memory
 
@@ -99,6 +108,11 @@
 - Provider repair and restart use that same mutex. They therefore cannot stop
   a provider while another run is using it, which previously surfaced as an
   `unexpected EOF` despite a healthy readiness snapshot.
+- Waiting for a provider lease follows the server-owned run context and its
+  cancellation. The provider probe has a separate deadline after ownership is
+  acquired, so a healthy provider used by another run is queued rather than
+  classified as unhealthy.
 - Runs acquire distinct provider leases in sorted provider-name order and
   release every lease with the suite-execution defer path, including errors
-  and cancellation. This keeps multi-provider runs deadlock-free and bounded.
+  and cancellation. This keeps multi-provider runs deadlock-free and
+  cancellation-aware.

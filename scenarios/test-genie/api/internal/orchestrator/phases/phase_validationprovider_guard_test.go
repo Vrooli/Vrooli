@@ -5,10 +5,11 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"test-genie/internal/orchestrator/providerdescriptor"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
@@ -151,11 +152,11 @@ func TestValidationProviderTransportDoesNotRegressToPerPhaseRunners(t *testing.T
 
 func phasePackageDir(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	return filepath.Dir(file)
+	return filepath.Join(repoRoot, "scenarios", "test-genie", "api", "internal", "orchestrator", "phases")
 }
 
 func assertNoImports(t *testing.T, path string, banned ...string) {

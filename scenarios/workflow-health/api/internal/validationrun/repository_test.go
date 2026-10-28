@@ -32,6 +32,63 @@ func TestRepositoryPersistsReplaySafeRunAndTerminalEvidence(t *testing.T) {
 	require.Error(t, repo.Update(context.Background(), found, 1), "stale commits must not overwrite recovery state")
 }
 
+func TestRepositoryLifecycleFencePersistsAcrossReopenAndRejectsStaleRevision(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(Schema)))
+	repo := Repository{DB: database}
+
+	open, err := repo.GetLifecycleFence(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, LifecycleFence{Revision: 0}, open)
+	closed := LifecycleFence{Closed: true, Operation: "restart-1", Revision: 1}
+	require.NoError(t, repo.UpdateLifecycleFence(context.Background(), open.Revision, closed))
+
+	reopened := Repository{DB: database}
+	retained, err := reopened.GetLifecycleFence(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, closed, retained)
+	require.ErrorContains(t, reopened.UpdateLifecycleFence(context.Background(), 0, LifecycleFence{Revision: 1}), "stale lifecycle fence")
+
+	resumed := LifecycleFence{Revision: 2}
+	require.NoError(t, reopened.UpdateLifecycleFence(context.Background(), retained.Revision, resumed))
+	got, err := repo.GetLifecycleFence(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, resumed, got)
+}
+
+func TestRepositoryListsOnlyQueuedAndRunningWorkForDrain(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(Schema)))
+	repo := Repository{DB: database}
+	for _, record := range []Record{
+		{Run: core.Run{ID: "queued", Target: core.Target{Scenario: "demo"}, IdempotencyKey: "queued", State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}},
+		{Run: core.Run{ID: "running", Target: core.Target{Scenario: "demo"}, IdempotencyKey: "running", State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}},
+		{Run: core.Run{ID: "done", Target: core.Target{Scenario: "demo"}, IdempotencyKey: "done", State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}},
+	} {
+		require.NoError(t, repo.Create(context.Background(), record))
+	}
+	for _, id := range []string{"running", "done"} {
+		record, err := repo.Get(context.Background(), id)
+		require.NoError(t, err)
+		next, err := core.Transition(record.Run, core.EventClaim, time.Now().UTC())
+		require.NoError(t, err)
+		next.Version++
+		record.Run = next
+		require.NoError(t, repo.Update(context.Background(), record, 1))
+	}
+	done, err := repo.Get(context.Background(), "done")
+	require.NoError(t, err)
+	terminal, err := core.Transition(done.Run, core.EventSucceed, time.Now().UTC())
+	require.NoError(t, err)
+	terminal.Version++
+	done.Run = terminal
+	require.NoError(t, repo.Update(context.Background(), done, 2))
+
+	active, err := repo.ListActive(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, []ActiveRun{{ID: "queued", State: core.StateQueued}, {ID: "running", State: core.StateRunning}}, active)
+}
+
 func TestRepositoryFreezesBrowserSelectionAcrossCASAndReopen(t *testing.T) {
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(Schema)))

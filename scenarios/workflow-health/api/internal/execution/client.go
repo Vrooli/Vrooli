@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -88,6 +89,12 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 	}
 	if req.Options.ElectronTarget != nil {
 		target := req.Options.ElectronTarget
+		if rendererURL := strings.TrimSpace(target.RendererURL); rendererURL != "" {
+			// The Electron renderer is the trusted start URL for this bound
+			// execution. This lets BAS navigate the attached renderer without
+			// asking the desktop provider to rediscover a Tier 1 scenario port.
+			basReq.Parameters.StartUrl = proto.String(rendererURL)
+		}
 		// The public BAS contract generalized the legacy electron_target field
 		// to app_target so Android WebView and future target adapters can share
 		// the same validation seam. Keep workflow-health's internal name for
@@ -99,7 +106,9 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 			RendererId: target.RendererID, RendererUrl: target.RendererURL,
 			RendererTitle: target.RendererTitle, ScenarioName: target.ScenarioName,
 			ArtifactDigest: target.ArtifactDigest, ContextId: target.ContextID,
-			CdpTransport: target.CDPTransport,
+			CdpTransport:     target.CDPTransport,
+			DownloadPath:     target.DownloadRoot,
+			TestDatabaseRoot: target.TestDatabaseRoot,
 		}
 	}
 	if req.Options.ValidationContext != nil {
@@ -130,42 +139,83 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 }
 
 func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string, headers map[string]string, timeout time.Duration) (*ExecuteResult, error) {
-	waitCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
+	warned := false
 	for {
+		if ctx.Err() != nil {
+			return c.settleCancelledExecution(ctx, executionID, headers, timeout)
+		}
+		// The timeout bounds one observation, not the durable browser operation.
+		// Renewing an attachment must never start the next case over a live child.
+		observeCtx, cancel := context.WithTimeout(ctx, timeout)
 		request := connect.NewRequest(&basapi.GetExecutionRequest{ExecutionId: executionID})
 		applyRequestHeaders(request.Header(), headers)
-		resp, err := c.executions.GetExecution(waitCtx, request)
-		if err != nil {
-			return nil, fmt.Errorf("read BAS execution %s: %w", executionID, err)
+		resp, err := c.executions.GetExecution(observeCtx, request)
+		cancel()
+		if ctx.Err() != nil {
+			return c.settleCancelledExecution(ctx, executionID, headers, timeout)
 		}
-		if resp == nil || resp.Msg == nil || resp.Msg.GetExecution() == nil {
-			return nil, fmt.Errorf("BAS returned an empty execution status for %s", executionID)
-		}
-		execution := resp.Msg.GetExecution()
-		if execution.GetCompletedAt() != nil {
-			return &ExecuteResult{
-				ExecutionID: executionID,
-				Status:      execution.GetStatus(),
-				Error:       strings.TrimSpace(execution.GetError()),
-				Execution:   execution,
-			}, nil
+		if err == nil && resp != nil && resp.Msg != nil && resp.Msg.GetExecution() != nil {
+			execution := resp.Msg.GetExecution()
+			if execution.GetCompletedAt() != nil {
+				return executionResult(executionID, execution), nil
+			}
+		} else if !warned {
+			slog.Warn("BAS observation unavailable; retaining the same durable execution", "execution_id", executionID, "error", err)
+			warned = true
 		}
 		select {
-		case <-waitCtx.Done():
-			return nil, fmt.Errorf("BAS execution %s did not complete within %s: %w", executionID, timeout, waitCtx.Err())
+		case <-ctx.Done():
 		case <-ticker.C:
 		}
 	}
 }
 
-// workflowTimeout lets an explicitly authored long-form flow own its durable
-// completion budget. The client default remains five minutes for ordinary
-// catalog assets; a larger BAS settings.timeout_ms is bounded to two hours so
-// a malformed asset cannot create an unbounded provider wait.
+func executionResult(id string, execution *basexecution.Execution) *ExecuteResult {
+	return &ExecuteResult{ExecutionID: id, Status: execution.GetStatus(), Error: strings.TrimSpace(execution.GetError()), Execution: execution}
+}
+
+// An actual owner abort joins the BAS cancellation owner before the caller may
+// release its fixture. A lost acknowledgement is not proof that cleanup ended.
+func (c *ConnectClient) settleCancelledExecution(parent context.Context, id string, headers map[string]string, timeout time.Duration) (*ExecuteResult, error) {
+	cleanup := context.WithoutCancel(parent)
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	stopNeeded, stopAcknowledged := true, false
+	for {
+		if stopNeeded {
+			stopCtx, cancel := context.WithTimeout(cleanup, timeout)
+			req := connect.NewRequest(&basapi.StopExecutionRequest{ExecutionId: id})
+			applyRequestHeaders(req.Header(), headers)
+			_, err := c.executions.StopExecution(stopCtx, req)
+			cancel()
+			if err == nil {
+				stopNeeded, stopAcknowledged = false, true
+			} else {
+				slog.Warn("BAS cancellation not yet settled; retaining fixture ownership", "execution_id", id, "error", err)
+				// Do not repeat an authority denial. The owner must reconcile it; reads
+				// cannot prove cleanup completion; ownership stays held for reconciliation.
+				if code := connect.CodeOf(err); code == connect.CodePermissionDenied || code == connect.CodeUnauthenticated {
+					stopNeeded = false
+				}
+			}
+		}
+		observeCtx, cancel := context.WithTimeout(cleanup, timeout)
+		req := connect.NewRequest(&basapi.GetExecutionRequest{ExecutionId: id})
+		applyRequestHeaders(req.Header(), headers)
+		resp, err := c.executions.GetExecution(observeCtx, req)
+		cancel()
+		if stopAcknowledged && err == nil && resp != nil && resp.Msg.GetExecution() != nil && resp.Msg.GetExecution().GetCompletedAt() != nil {
+			return executionResult(id, resp.Msg.GetExecution()), fmt.Errorf("BAS execution %s settled after owner cancellation: %w", id, parent.Err())
+		}
+		<-ticker.C
+	}
+}
+
+// workflowTimeout bounds an individual status/cleanup attachment. The BAS
+// execution owner enforces authored workflow deadlines; an observation timeout
+// does not end its operation or permit another case to start.
 func workflowTimeout(definition map[string]any, fallback time.Duration) time.Duration {
 	settings, ok := definition["settings"].(map[string]any)
 	if !ok {

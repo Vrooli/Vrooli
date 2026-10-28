@@ -30,7 +30,7 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-003 | Remediation Evidence UX | Surface requirement evidence, execution insights, and verified remediation deltas directly in the UI so operators can steer improvements without reading raw logs.
+- [ ] OT-P1-003 | Remediation Evidence UX | Surface requirement evidence, execution insights, and verified remediation deltas directly in the UI so operators can steer improvements without reading raw logs.
 
 ### 🟢 P2 – Future / expansion
 
@@ -85,6 +85,6 @@
 - `OT-P0-001` is the architectural foundation and is expected to stay complete.
 - `OT-P0-002` is delivered through findings-first remediation, with Agent Manager completion remaining provisional until Test Genie verifies a rerun.
 - `OT-P0-003` makes Test Genie the sole owner of validation producer scheduling and durable receipt state; callers retain only receipt identifiers and projections.
-- `OT-P1-003` remains planned because the current UI only partially exposes remediation history and verified deltas across all scenarios.
+- `OT-P1-003` remains in progress because the current UI only partially exposes remediation history and verified deltas across all scenarios.
 - The [Phase Capability Contract](docs/concepts/phase-capability-contract.md) is the SSOT for how phases declare their maturity ladder, North Star, and structured remediation docs, and how the provider-computed per-phase standing reaches the agent at the end of a run. Providers own the ladder + docs; Test Genie only aggregates and renders (guard-tested — no phase-specific knowledge in Test Genie). The provider-conformance phase enforces the contract (advisory first, gating for compliant phases; native phases carry an explicit documented exemption).
 - Success means the provider-backed phase catalog remains authoritative, metadata stays truthful enough for standards to be high-signal, and operators can understand execution evidence, remediation state, and next actions without digging through implementation details.

@@ -8,6 +8,71 @@
     "version"
   ],
   "properties": {
+    "workflow": {
+      "type": "object",
+      "description": "Workflow Health browser evidence configuration. Phase selection remains in phases.workflow.",
+      "properties": {
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "common_inputs",
+            "scopes"
+          ],
+          "properties": {
+            "common_inputs": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Reviewed repository-relative shared implementation, fixture, component and target dependencies."
+            },
+            "scopes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "case_patterns",
+                  "inputs"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]*$"
+                  },
+                  "case_patterns": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Scenario-relative path.Match globs of registered browser cases."
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Repository-relative dependency globs required by these cases."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "$schema": {
       "type": "string",
       "description": "JSON Schema reference"

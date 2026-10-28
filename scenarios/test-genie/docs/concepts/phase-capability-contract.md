@@ -276,11 +276,14 @@ provider owns commands, fixtures, receipt formats and semantic assertions.
 
 ### Declaration and admission
 
-The existing provider descriptor may declare an `evidenceProducers` map. Each
-named entry fixes literal argv, scenario-relative working directory, timeout,
-bounded output size, and whether it mutates managed lifecycle. The execution
-owner selects the private output directory; declarations do not grant persistent
-provider-tree writes or choose a second evidence store.
+The existing provider descriptor may declare an `evidenceProducers` map on a
+validation-phase descriptor, or in a producer-only `.vrooli/test-genie.json`
+declaration. Both shapes use the same schema, loader and producer validation;
+the producer-only shape is resolved for evidence production and never enters the
+validation-phase catalog. Each named entry fixes literal argv, scenario-relative
+working directory, timeout, bounded output size, and whether it mutates managed
+lifecycle. The execution owner selects the private output directory; declarations
+do not grant persistent provider-tree writes or choose a second evidence store.
 No caller-supplied argv, shell string, environment, executable or directory is
 accepted. Only server-derived run/output identifiers may fill explicitly supported
 argument placeholders; unknown placeholders, traversal and escaping symlinks fail.
@@ -397,7 +400,7 @@ identity; missing, foreign-run, legacy-discovered or changed evidence fails clos
 Normal validation still never starts producers. Reuse existing expiring run pin
 leases for referenced evidence through qualification and recovery, with bounded
 owner renewal/release, not a new retention store. BAS's first adopter and exact
-setpoint handoff are specified in its [qualification target](../../../browser-automation-studio/docs/internal/TESTING.md#owner-bound-qualification-handoff--implementation-target).
+setpoint handoff are specified in its [qualification target](../../../browser-automation-studio/docs/internal/TESTING.md#owner-bound-evidence-completeness-qualification).
 
 Implement this as one shared `RetainedEvidenceSet` in the existing
 `scenario-validation` protocol, carried by the TG intent and both provider

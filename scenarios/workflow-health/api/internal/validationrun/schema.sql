@@ -21,3 +21,15 @@ CREATE TABLE IF NOT EXISTS validation_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_validation_runs_parent_run_id ON validation_runs(parent_run_id);
 CREATE INDEX IF NOT EXISTS idx_validation_runs_state ON validation_runs(state);
+
+-- The maintenance fence shares the validation ledger's existing durable DB.
+-- A restart must be able to reopen admission only after the exact control-plane
+-- operation resumes the replacement process.
+CREATE TABLE IF NOT EXISTS validation_lifecycle_fence (
+  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+  closed INTEGER NOT NULL DEFAULT 0,
+  operation_id TEXT NOT NULL DEFAULT '',
+  revision INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO validation_lifecycle_fence (singleton, closed, operation_id, revision)
+VALUES (1, 0, '', 0);

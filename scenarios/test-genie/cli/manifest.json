@@ -620,7 +620,18 @@
         {
           "name": "produce-evidence",
           "description": "Run one descriptor-declared evidence producer for an expected candidate identity",
-          "flags": [{"name":"request-file","required":true,"description":"Typed CreateEvidenceProductionRequest protobuf-JSON document","bind":{"field":"request","kind":"json_file"},"bind_waiver":"The validation CLI decodes the typed producer request and cannot supply command fields."},{"name":"yes","bool":true,"description":"Confirm effectful evidence production","local_only":true}],
+          "flags": [
+            {"name":"request-file","description":"CLI-only path to a typed CreateEvidenceProductionRequest protobuf-JSON document; use either this or the direct request fields","local_only":true},
+            {"name":"idempotency-key","description":"Stable producer request idempotency key","bind":{"field":"idempotency_key"}},
+            {"name":"provider","description":"Provider that owns the declared producer","bind":{"field":"provider"}},
+            {"name":"producer","description":"Declared evidence producer name","bind":{"field":"producer"}},
+            {"name":"candidate-scenario","description":"Candidate scenario whose evidence is produced","bind":{"field":"candidate_scenario"}},
+            {"name":"expected-candidate-identity","description":"Expected candidate source identity as JSON","bind":{"field":"expected_candidate_identity","kind":"json_inline"}},
+            {"name":"caller-scenario","description":"Scenario that owns the producer call","bind":{"field":"caller_scenario"}},
+            {"name":"caller-execution-id","description":"Caller execution identity","bind":{"field":"caller_execution_id"}},
+            {"name":"plan-id","description":"Optional owning plan identifier","bind":{"field":"plan_id"}},
+            {"name":"yes","bool":true,"description":"Confirm effectful evidence production","local_only":true}
+          ],
           "binding": {"kind":"connect-rpc","service":"ValidationService","method":"CreateEvidenceProduction"},
           "governance": {"effect":"destructive","run_eligible":true,"requires_confirmation":true,"permissions":["network:internal","filesystem:read"]},
           "architecture": {"primitive":"proto_mutation"}

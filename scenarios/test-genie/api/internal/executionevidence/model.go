@@ -40,7 +40,7 @@ type PhaseSummary struct {
 	Status            string                       `json:"status"`
 	DurationSeconds   int                          `json:"durationSeconds"`
 	FindingCount      int                          `json:"findingCount"`
-	ObservationCount  int                          `json:"observationCount"`
+	ObservationCount  *int                         `json:"observationCount,omitempty"`
 	Findings          *ArtifactRef                 `json:"findings,omitempty"`
 	FindingSource     string                       `json:"findingSource,omitempty"`
 	PhasePresentation *commonv1.PhasePresentation  `json:"phasePresentation,omitempty"`
@@ -75,7 +75,7 @@ func (m Manifest) Validate() error {
 	}
 	seen := map[string]struct{}{m.Findings.ID: {}}
 	for _, phase := range m.Phases {
-		if strings.TrimSpace(phase.Name) == "" || strings.TrimSpace(phase.Status) == "" || phase.FindingCount < 0 || phase.ObservationCount < 0 {
+		if strings.TrimSpace(phase.Name) == "" || strings.TrimSpace(phase.Status) == "" || phase.FindingCount < 0 || (phase.ObservationCount != nil && *phase.ObservationCount < 0) {
 			return fmt.Errorf("%w: invalid phase summary", ErrCorruptEvidence)
 		}
 		if phase.Findings != nil {

@@ -73,7 +73,7 @@
     "evidence": "the bounded producer read"
   },
   "budget": {
-    "wall_ms": 15000,
+    "wall_ms": 25000,
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 500

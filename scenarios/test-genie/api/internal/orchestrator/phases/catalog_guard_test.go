@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -15,12 +15,11 @@ import (
 // doc-existence checks don't depend on the working directory.
 func scenarioRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	// .../scenarios/test-genie/api/internal/orchestrator/phases/<file>
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", ".."))
+	return filepath.Join(repoRoot, "scenarios", "test-genie")
 }
 
 // TestPresetsResolveAgainstCatalog is the anti-drift guard for presets: every
@@ -223,10 +222,13 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Name("branding"):                  architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
 		Name("experience"):                architecturev1.FindingSource_FINDING_SOURCE_UI,
 		Name("event-capture-conformance"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Name("channel-conformance"):       architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		// Component Tests executes the React Component Library provider and
 		// emits contract-test findings into the coverage channel.
 		Name("component-tests"): architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
 		Name("soak"):            architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		Name("programs"):        architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS,
+		Name("skill-set"):       architecturev1.FindingSource_FINDING_SOURCE_SKILLS,
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
@@ -247,7 +249,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 // every catalog phase resolves to a doc path that exists on disk, and unknown
 // phases resolve to nothing.
 func TestDocPathsCoverEveryCatalogPhase(t *testing.T) {
-	root := scenarioRoot(t)
+	repoRoot := repositoryRoot(t)
 	for _, name := range ValidPhaseNames() {
 		docs := DocPaths(name)
 		if len(docs) == 0 {
@@ -255,7 +257,7 @@ func TestDocPathsCoverEveryCatalogPhase(t *testing.T) {
 			continue
 		}
 		for _, rel := range docs {
-			abs := filepath.Join(root, strings.TrimPrefix(rel, "scenarios/test-genie/"))
+			abs := filepath.Join(repoRoot, filepath.FromSlash(rel))
 			if _, err := os.Stat(abs); err != nil {
 				t.Errorf("phase %q doc %q missing on disk (%s): %v", name, rel, abs, err)
 			}
@@ -264,6 +266,15 @@ func TestDocPathsCoverEveryCatalogPhase(t *testing.T) {
 	if got := DocPaths("nonexistent-phase"); got != nil {
 		t.Errorf("DocPaths(nonexistent) = %v, want nil", got)
 	}
+}
+
+func repositoryRoot(t *testing.T) string {
+	t.Helper()
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	return root
 }
 
 func TestGeneratedPhaseDocsMatchCommitted(t *testing.T) {

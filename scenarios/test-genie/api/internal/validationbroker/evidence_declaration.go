@@ -29,21 +29,31 @@ func (r DescriptorEvidenceResolver) ResolveEvidenceProducer(ctx context.Context,
 	if !scenarioNamePattern.MatchString(provider) || !scenarioNamePattern.MatchString(candidate) || name == "" {
 		return nil, fmt.Errorf("provider, producer, and candidate scenario must be valid names")
 	}
-	path := filepath.Join(r.RepoRoot, "scenarios", provider, ".vrooli", "test-genie.json")
-	descriptors := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: r.RepoRoot, Paths: []string{path}})
+	descriptors := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: r.RepoRoot, Scenario: provider})
 	if err := descriptors.Err(); err != nil {
 		return nil, fmt.Errorf("load provider declaration: %w", err)
 	}
-	if len(descriptors.Descriptors) != 1 {
-		return nil, fmt.Errorf("provider descriptor %s is unavailable", provider)
+	var declaration *providerdescriptor.Descriptor
+	for _, candidateDescriptor := range descriptors.ProducerDeclarations {
+		if _, ok := candidateDescriptor.EvidenceProducers[name]; !ok {
+			continue
+		}
+		if declaration != nil {
+			return nil, fmt.Errorf("provider %s has ambiguous evidence producer %q", provider, name)
+		}
+		candidate := candidateDescriptor
+		declaration = &candidate
 	}
-	descriptor := descriptors.Descriptors[0]
+	if declaration == nil {
+		return nil, fmt.Errorf("provider %s has no declared evidence producer %q", provider, name)
+	}
+	descriptor := *declaration
 	root := filepath.Join(r.RepoRoot, "scenarios", provider)
 	resolved, err := descriptor.ResolveEvidenceProducer(root, name, "pending-run-id")
 	if err != nil {
 		return nil, err
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(descriptor.Path)
 	if err != nil {
 		return nil, err
 	}

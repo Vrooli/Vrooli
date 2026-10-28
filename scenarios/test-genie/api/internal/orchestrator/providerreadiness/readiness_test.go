@@ -184,7 +184,9 @@ func TestCheckBestEffortProviderUnreachableSkips(t *testing.T) {
 }
 
 func TestCheckContractInvalidBlocksRequiredProvider(t *testing.T) {
+	lifecycle := &fakeLifecycle{}
 	manager := &Manager{
+		Lifecycle: lifecycle,
 		Probe: func(context.Context, Input) (ProbeResult, error) {
 			return ProbeResult{Reachable: true, ContractValid: false, IdentityMatch: true, Message: "bad contract"}, nil
 		},
@@ -193,6 +195,9 @@ func TestCheckContractInvalidBlocksRequiredProvider(t *testing.T) {
 	got := manager.Check(context.Background(), inputWithPolicy(phasepolicy.RequiredProviderPolicy()), io.Discard)
 	if got.Ready || got.Status != OutcomeContractInvalid {
 		t.Fatalf("outcome = %+v, want contract invalid", got)
+	}
+	if lifecycle.starts != 1 {
+		t.Fatalf("starts = %d, want one isolated start attempt", lifecycle.starts)
 	}
 }
 

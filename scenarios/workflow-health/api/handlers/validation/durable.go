@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -62,14 +64,29 @@ func (h *connectHandler) startValidationRun(ctx context.Context, req *scenariova
 	if err := target.Validate(); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	variant := req.GetDesktopBinding().GetBrowserAutomationStudioVariant()
+	if _, err := browserAutomationStudioAddress(variant); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if existing, err := h.deps.Ledger.FindByIdempotency(ctx, key); err == nil {
-		if !matchesRequest(existing, target, paths) {
+		if !matchesRequest(existing, target, paths, req.GetDesktopBinding()) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("idempotency_key belongs to a different target or browser case selection"))
 		}
 		return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: runProto(existing)}), nil
 	} else if !core.IsCode(err, core.ErrorNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	// Replays of an already accepted request remain readable during maintenance.
+	// A new durable reservation must acquire the provider's linearizable gate
+	// before static analysis, persistence, or worker dispatch.
+	releaseAdmission, err := h.admitValidation(ctx)
+	if err != nil {
+		if errors.Is(err, errValidationAdmissionClosed) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("check lifecycle admission: %w", err))
+	}
+	defer releaseAdmission()
 	static, err := h.staticResponseWithSelector(ctx, target.Scenario, target.Path, execution.AssetSelector{CasesProvided: paths != nil, CasePaths: paths})
 	if err != nil {
 		return nil, err
@@ -79,7 +96,7 @@ func (h *connectHandler) startValidationRun(ctx context.Context, req *scenariova
 		// Another handler or process may have won the unique-key insert. Only
 		// its durable identity can permit replay; never launch the losing record.
 		if existing, readErr := h.deps.Ledger.FindByIdempotency(ctx, key); readErr == nil {
-			if !matchesRequest(existing, target, paths) {
+			if !matchesRequest(existing, target, paths, req.GetDesktopBinding()) {
 				return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("idempotency_key belongs to a different target or browser case selection"))
 			}
 			return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: runProto(existing)}), nil
@@ -90,8 +107,8 @@ func (h *connectHandler) startValidationRun(ctx context.Context, req *scenariova
 	return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: runProto(record)}), nil
 }
 
-func matchesRequest(record workflowrun.Record, target core.Target, paths []string) bool {
-	return record.Run.Target.Equal(target) && (record.BrowserCasePaths == nil) == (paths == nil) && slices.Equal(record.BrowserCasePaths, paths)
+func matchesRequest(record workflowrun.Record, target core.Target, paths []string, binding *scenariovalidationv1.DesktopValidationBinding) bool {
+	return record.Run.Target.Equal(target) && (record.BrowserCasePaths == nil) == (paths == nil) && slices.Equal(record.BrowserCasePaths, paths) && proto.Equal(record.ExecutionBinding, binding)
 }
 
 func (h *connectHandler) GetValidationRun(ctx context.Context, req *connect.Request[scenariovalidationv1.GetValidationRunRequest]) (*connect.Response[scenariovalidationv1.GetValidationRunResponse], error) {
@@ -99,7 +116,7 @@ func (h *connectHandler) GetValidationRun(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, runError(err)
 	}
-	return connect.NewResponse(&scenariovalidationv1.GetValidationRunResponse{Run: runProto(record)}), nil
+	return connect.NewResponse(&scenariovalidationv1.GetValidationRunResponse{Run: h.currentEvidence(ctx, runProto(record))}), nil
 }
 
 func (h *connectHandler) WaitValidationRun(ctx context.Context, req *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error) {
@@ -117,7 +134,7 @@ func (h *connectHandler) WaitValidationRun(ctx context.Context, req *connect.Req
 			return nil, runError(err)
 		}
 		if record.Run.State.Terminal() {
-			return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: runProto(record)}), nil
+			return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: h.currentEvidence(ctx, runProto(record))}), nil
 		}
 		select {
 		case <-notice:
@@ -181,12 +198,14 @@ func (h *connectHandler) launch(id string) {
 		// column read 1 over no data for every record. The static path beside
 		// it has always collected properly; this simply does the same.
 		collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+		evidence := h.snapshotEvidence(ctx, record.Run.Target.Scenario, record.Run.Target.Path, record.BrowserCasePaths)
 		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, opts)
 		if err != nil {
 			collector.Stop()
 			h.finish(record, core.EventFail, nil, nil, err)
 			return
 		}
+		report.Evidence = h.qualifyEvidence(ctx, evidence)
 		terminal, err := h.responseForReport(report, collector.Stop())
 		if err != nil {
 			h.finish(record, core.EventFail, nil, nil, err)
@@ -205,6 +224,25 @@ func executionOptions(record workflowrun.Record) (execution.Options, error) {
 		return execution.Options{}, fmt.Errorf("saved selected desktop binding requires complete target and validation-cell identity")
 	}
 	opts := execution.Options{IncludeExecution: true, Selector: execution.AssetSelector{CasesProvided: record.BrowserCasePaths != nil, CasePaths: record.BrowserCasePaths}, RunID: record.Run.ID, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, record.Run.ID)}
+	if record.ExecutionBinding != nil {
+		opts.BASVariant = record.ExecutionBinding.GetBrowserAutomationStudioVariant()
+		opts.IsolationLeaseID = record.ExecutionBinding.GetIsolationLeaseId()
+		opts.PrepareIsolationRestart = record.ExecutionBinding.GetPrepareIsolationRestart()
+		opts.ResumeIsolationRestart = record.ExecutionBinding.GetResumeIsolationRestart()
+		if (opts.PrepareIsolationRestart || opts.ResumeIsolationRestart) && (!record.ExecutionBinding.GetBundledRuntime() || opts.IsolationLeaseID == "" || (opts.PrepareIsolationRestart && opts.ResumeIsolationRestart)) {
+			return execution.Options{}, fmt.Errorf("restart handoff requires one bundled target and a stable isolation lease identity")
+		}
+		if record.ExecutionBinding.GetBundledRuntime() {
+			isolation, err := execution.NewElectronRoutingIsolation(opts.ElectronTarget)
+			if err != nil {
+				return execution.Options{}, err
+			}
+			isolation.PrepareRestart = opts.PrepareIsolationRestart
+			isolation.ResumeRestart = opts.ResumeIsolationRestart
+			opts.ElectronTarget.DownloadRoot = isolation.DownloadRoot
+			opts.Isolation = isolation
+		}
+	}
 	if workflowPath := strings.TrimSpace(record.ExecutionBinding.GetWorkflowPath()); workflowPath != "" {
 		// Default desktop flow bindings preserve their existing narrow flow behavior.
 		opts.Selector.CasePaths = []string{workflowPath}
@@ -222,6 +260,8 @@ func electronTarget(binding *scenariovalidationv1.DesktopValidationBinding) *exe
 		TargetID: binding.GetTargetId(), CDPEndpoint: binding.GetCdpEndpoint(), RendererID: binding.GetRendererId(),
 		RendererURL: binding.GetRendererUrl(), RendererTitle: binding.GetRendererTitle(), ScenarioName: binding.GetScenarioName(),
 		ArtifactDigest: binding.GetArtifactDigest(), ContextID: binding.GetContextId(), CDPTransport: binding.GetCdpTransport(),
+		APIURL: binding.GetApiUrl(), TestDatabaseRoot: binding.GetTestDatabaseRoot(), BundledRuntime: binding.GetBundledRuntime(),
+		IsolationLeaseID: binding.GetIsolationLeaseId(), PrepareIsolationRestart: binding.GetPrepareIsolationRestart(), ResumeIsolationRestart: binding.GetResumeIsolationRestart(),
 	}
 }
 
@@ -233,9 +273,13 @@ func electronValidationContext(binding *scenariovalidationv1.DesktopValidationBi
 	if workflowID == "" {
 		workflowID = binding.GetWorkflowPath()
 	}
+	leaseID := strings.TrimSpace(binding.GetIsolationLeaseId())
+	if leaseID == "" {
+		leaseID = runID
+	}
 	return &execution.ValidationContext{
 		ContextID: binding.GetContextId(), ScenarioName: binding.GetScenarioName(), ArtifactDigest: binding.GetArtifactDigest(),
-		TargetID: binding.GetTargetId(), ProfileID: binding.GetProfileId(), WorkflowID: workflowID, IsolationLeaseID: runID,
+		TargetID: binding.GetTargetId(), ProfileID: binding.GetProfileId(), WorkflowID: workflowID, IsolationLeaseID: leaseID,
 	}
 }
 
@@ -264,6 +308,7 @@ func (h *connectHandler) finish(record workflowrun.Record, event core.Event, ter
 	}
 	_ = h.deps.Ledger.Update(context.Background(), current, next.Version-1)
 	h.signal(record.Run.ID)
+	h.signalLifecycleChange()
 }
 
 func (h *connectHandler) responseForReport(report providerReport, execMetrics *commonv1.ExecutionMetrics) (*scenariovalidationv1.ValidateScenarioResponse, error) {

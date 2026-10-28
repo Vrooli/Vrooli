@@ -24,6 +24,72 @@ type demandFixture struct {
 	err                    error
 }
 
+type scenarioURLFixture map[string]string
+
+func (f scenarioURLFixture) ResolveScenarioURL(_ context.Context, scenario, portKey string) (string, error) {
+	if scenario != "demo" {
+		return "", fmt.Errorf("unexpected scenario %q", scenario)
+	}
+	if value := f[portKey]; value != "" {
+		return value, nil
+	}
+	return "", errors.New("surface unavailable")
+}
+
+func TestLiveSurfacesUsesLegacyRecordsWhenCanonicalDiscoveryIsUnavailable(t *testing.T) {
+	home := t.TempDir()
+	writeRecord(t, home, "demo", "start-ui", 21427)
+	writeRecord(t, home, "demo", "start-api", 19349)
+	manager := New("demo", "").
+		WithHome(home).
+		WithURLResolver(scenarioURLFixture{}).
+		WithProbes(func(context.Context, int) bool { return true }, func(int) bool { return true })
+
+	got := manager.LiveSurfaces(context.Background())
+	if got.UI != "http://127.0.0.1:21427" || got.API != "http://127.0.0.1:19349" {
+		t.Fatalf("LiveSurfaces() = %+v, want legacy URLs after canonical lookup misses", got)
+	}
+}
+
+func TestLiveSurfacesMergesLegacySurfaceMissingFromCanonicalDiscovery(t *testing.T) {
+	home := t.TempDir()
+	writeRecord(t, home, "demo", "start-api", 19349)
+	manager := New("demo", "").
+		WithHome(home).
+		WithURLResolver(scenarioURLFixture{"UI_PORT": "http://localhost:21427"}).
+		WithProbes(func(_ context.Context, port int) bool { return port == 19349 || port == 21427 }, func(int) bool { return true })
+
+	got := manager.LiveSurfaces(context.Background())
+	if got.UI != "http://localhost:21427" || got.API != "http://127.0.0.1:19349" {
+		t.Fatalf("LiveSurfaces() = %+v, want canonical UI and legacy API", got)
+	}
+}
+
+func TestEnsureRunningDiscoversCanonicalPortsWithoutLegacyProcessRecords(t *testing.T) {
+	started := false
+	manager := New("demo", "").
+		WithURLResolver(scenarioURLFixture{
+			"API_PORT": "http://localhost:19349",
+			"UI_PORT":  "http://localhost:21427",
+		}).
+		WithProbes(func(_ context.Context, port int) bool { return port == 19349 || port == 21427 }, func(int) bool { return false }).
+		WithCommandRunner(func(context.Context, string, map[string]string, io.Writer, string, ...string) error {
+			started = true
+			return nil
+		})
+
+	lease, err := manager.EnsureRunning(context.Background(), Needs{API: true, UI: true}, io.Discard)
+	if err != nil {
+		t.Fatalf("EnsureRunning: %v", err)
+	}
+	if lease.Started || started {
+		t.Fatalf("canonical live target was started: lease=%+v commandStarted=%t", lease, started)
+	}
+	if lease.URLs.API != "http://localhost:19349" || lease.URLs.UI != "http://localhost:21427" {
+		t.Fatalf("canonical runtime URLs = %+v", lease.URLs)
+	}
+}
+
 func (f *demandFixture) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
 	f.acquires = append(f.acquires, req)
 	if f.err != nil {

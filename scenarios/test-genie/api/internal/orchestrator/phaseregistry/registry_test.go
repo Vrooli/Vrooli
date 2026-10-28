@@ -59,6 +59,30 @@ func TestBuildDescriptorBackedProviderPhase(t *testing.T) {
 	}
 }
 
+func TestProducerOnlyDeclarationIsExcludedFromPhaseRegistry(t *testing.T) {
+	path := writeDescriptor(t, "browser-automation-studio", `{
+  "$schema":"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion":"1.0.0",
+  "scenario":"browser-automation-studio",
+  "evidenceProducers":{"evidence-completeness":{"argv":["node","qualification.mjs","{output_dir}"],"workingDirectory":".","timeout":"10m","maximumOutputBytes":16777216}}
+}`)
+	repoRoot, err := filepath.Abs("../../../../../../")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: repoRoot, Paths: []string{path}})
+	if err := loaded.Err(); err != nil {
+		t.Fatalf("load producer-only declaration: %v", err)
+	}
+	if len(loaded.ProducerDeclarations) != 1 || len(loaded.Descriptors) != 0 {
+		t.Fatalf("loader projection = phases:%d producers:%d, want no phases and one producer", len(loaded.Descriptors), len(loaded.ProducerDeclarations))
+	}
+	built := Build(loaded.Descriptors, Options{Bindings: testBindings()})
+	if len(built.Diagnostics) != 0 || built.Registry == nil || len(built.Registry.All()) != 0 {
+		t.Fatalf("producer-only declaration altered phase registry: registry=%v diagnostics=%+v", built.Registry, built.Diagnostics)
+	}
+}
+
 func TestBuildAcceptsProgramsAndSkillsFindingSources(t *testing.T) {
 	for _, item := range []struct{ phase, provider, source string }{{"programs", "program-runtime", "programs"}, {"skill-set", "prompt-manager", "skills"}} {
 		raw := strings.Replace(validDescriptor(item.provider, item.phase), `"findingSource":"docs"`, `"findingSource":"`+item.source+`"`, 1)

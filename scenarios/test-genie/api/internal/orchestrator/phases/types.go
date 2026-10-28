@@ -366,6 +366,10 @@ type ExecutionResult struct {
 	RunnabilityVerdict string        `json:"runnabilityVerdict,omitempty"`
 	RunnabilityReason  string        `json:"runnabilityReason,omitempty"`
 	Observations       []Observation `json:"observations,omitempty"`
+	// ObservationCount is the count-only compact representation used after
+	// detailed observations are removed from terminal and history snapshots.
+	// Nil means an older compact record did not retain enough information.
+	ObservationCount *uint32 `json:"observationCount,omitempty"`
 	// FindingSource is the lower-case source token (findingid vocabulary) for
 	// the channel this phase emits into; empty for phases that produce no
 	// findings. Its presence even on a zero-finding phase is what lets a
@@ -400,6 +404,19 @@ type ExecutionResult struct {
 	CacheAudit         bool                         `json:"cacheAudit,omitempty"`
 	CacheAuditMismatch bool                         `json:"cacheAuditMismatch,omitempty"`
 	CacheNoSaving      bool                         `json:"cacheNoSaving,omitempty"`
+}
+
+// ObservationCountIfKnown returns the retained count or derives it from
+// detailed observations that remain before compaction. A nil count and nil
+// observation slice represent an older compact record whose count is unknown.
+func (r ExecutionResult) ObservationCountIfKnown() (uint32, bool) {
+	if r.ObservationCount != nil {
+		return *r.ObservationCount, true
+	}
+	if r.Observations != nil {
+		return uint32(len(r.Observations)), true
+	}
+	return 0, false
 }
 
 // NormalizeName standardizes arbitrary input into a descriptor key.

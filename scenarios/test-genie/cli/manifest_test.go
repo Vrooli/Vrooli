@@ -56,3 +56,51 @@ func TestEvidenceProductionIsGovernedAndConfirmationRequired(t *testing.T) {
 	}
 	t.Fatal("missing validation produce-evidence binding")
 }
+
+func TestEvidenceProductionArgumentsResolveToTypedRequestFields(t *testing.T) {
+	m, err := cliapp.ParseManifest(manifestBytes)
+	if err != nil {
+		t.Fatalf("parse manifest: %v", err)
+	}
+	request := (&validationv1.CreateEvidenceProductionRequest{}).ProtoReflect().Descriptor()
+	want := map[string]string{
+		"idempotency-key":             "idempotency_key",
+		"provider":                    "provider",
+		"producer":                    "producer",
+		"candidate-scenario":          "candidate_scenario",
+		"expected-candidate-identity": "expected_candidate_identity",
+		"caller-scenario":             "caller_scenario",
+		"caller-execution-id":         "caller_execution_id",
+		"plan-id":                     "plan_id",
+	}
+	for _, group := range m.Groups {
+		if group.Name != "validation" {
+			continue
+		}
+		for _, command := range group.Commands {
+			if command.Name != "produce-evidence" {
+				continue
+			}
+			schema, err := cliapp.ManifestArgs(command)
+			if err != nil {
+				t.Fatalf("resolve producer argument schema: %v", err)
+			}
+			for argument, field := range want {
+				resolved, err := cliapp.ResolveArgField(request, argument, schema)
+				if err != nil {
+					t.Fatalf("program-facing argument %q is not resolvable: %v", argument, err)
+				}
+				if len(resolved.Path) != 1 || string(resolved.Path[0].Name()) != field {
+					t.Errorf("argument %q resolves to %v, want request.%s", argument, resolved.Path, field)
+				}
+			}
+			for _, flag := range command.Flags {
+				if flag.Name == "request-file" && (!flag.LocalOnly || flag.Required || flag.Bind != nil) {
+					t.Errorf("request-file must remain an optional CLI-only input: %+v", flag)
+				}
+			}
+			return
+		}
+	}
+	t.Fatal("missing validation produce-evidence command")
+}

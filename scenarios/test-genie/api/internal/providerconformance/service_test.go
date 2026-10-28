@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/vrooli/maturity-go/assessment"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"test-genie/internal/orchestrator/providerdescriptor"
 )
 
 // fixtureRepo lays out <root>/scenarios/<name>/.vrooli/test-genie.json plus a
@@ -163,6 +165,91 @@ func TestValidateScenarioCleanDescriptor(t *testing.T) {
 	if report.Probed {
 		t.Fatal("no probe seam configured; Probed must be false")
 	}
+}
+
+func TestValidateScenarioNilProbeDoesNotResolveCodeFactsForRunnerDeclarations(t *testing.T) {
+	repoRoot, _ := fixtureRepoWithPackageTarget(t)
+	lookups := 0
+	service := New(repoRoot)
+	service.codeFactsLanguageLookup = func(context.Context, string) (string, bool) {
+		lookups++
+		return "go", true
+	}
+
+	report, err := service.ValidateScenario(context.Background(), "demo-provider", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if lookups != 0 {
+		t.Fatalf("nil live probe performed %d code-facts discovery lookups; want descriptor-only validation", lookups)
+	}
+	if report.Probed {
+		t.Fatal("nil live probe must not report a provider probe")
+	}
+}
+
+func TestValidateExecutionRunnersUsesCodeFactsWhenEnabled(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		language      string
+		wantRunnerGap bool
+	}{
+		{name: "proven Go uses registered runner", language: "go"},
+		{name: "proven unsupported language reports gap", language: "ruby", wantRunnerGap: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoRoot, scenarioDir := fixtureRepoWithPackageTarget(t)
+			lookups := 0
+			loaded := providerdescriptor.Load(providerdescriptor.LoadOptions{Paths: []string{filepath.Join(scenarioDir, ".vrooli", "test-genie.json")}})
+			if len(loaded.Descriptors) != 1 {
+				t.Fatalf("fixture descriptor did not load: diagnostics=%#v", loaded.Diagnostics)
+			}
+			service := &Service{
+				RepoRoot: repoRoot,
+				Probe: func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+					return nil, nil
+				},
+				codeFactsLanguageLookup: func(_ context.Context, target string) (string, bool) {
+					lookups++
+					if target != filepath.Join(repoRoot, "packages", "demo") {
+						t.Errorf("CodeFacts target path = %q, want package root", target)
+					}
+					return tc.language, true
+				},
+			}
+			report := Report{Scenario: "demo-provider"}
+			service.validateTargetDeclaration(context.Background(), &report, loaded.Descriptors[0])
+			if lookups != 1 {
+				t.Fatalf("configured runner check made %d CodeFacts discovery lookups, want 1", lookups)
+			}
+			foundGap := false
+			for _, finding := range report.Findings {
+				if finding.Code == CodeExecutionRunnerMissing {
+					foundGap = true
+				}
+			}
+			if foundGap != tc.wantRunnerGap {
+				t.Fatalf("runner gap = %t, want %t; findings=%v", foundGap, tc.wantRunnerGap, findingCodes(report))
+			}
+		})
+	}
+}
+
+func fixtureRepoWithPackageTarget(t *testing.T) (repoRoot, scenarioDir string) {
+	t.Helper()
+	repoRoot, scenarioDir = fixtureRepo(t, "demo-provider", func(descriptor map[string]any) {
+		targets := descriptor["targets"].(map[string]any)
+		targets["kinds"] = []any{"package"}
+	})
+	repocontracttest.WriteRepoContract(t, repoRoot, "scenarios")
+	packageRoot := filepath.Join(repoRoot, "packages", "demo")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "go.mod"), []byte("module fixture/demo\n\ngo 1.25.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return repoRoot, scenarioDir
 }
 
 func TestValidateScenarioDescriptorMissing(t *testing.T) {

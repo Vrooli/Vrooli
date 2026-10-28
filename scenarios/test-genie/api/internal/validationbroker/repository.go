@@ -24,6 +24,8 @@ import (
 
 const ReceiptSchemaVersion = 1
 
+const terminalReceiptEvidenceKind = "test-genie-validation-receipt"
+
 var (
 	ErrNotFound          = errors.New("validation receipt not found")
 	ErrInvalidIntent     = errors.New("invalid validation intent")
@@ -320,6 +322,7 @@ func (r *Repository) Transition(ctx context.Context, receiptID string, next vali
 	receipt.UpdatedAt = timestamppb.New(now)
 	if terminal(next) {
 		receipt.TerminalAt = timestamppb.New(now)
+		ensureTerminalReceiptEvidence(receipt, receipt.GetReceiptId())
 	}
 	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(receipt)
 	if err != nil {
@@ -453,6 +456,7 @@ func (r *Repository) PropagateTerminal(ctx context.Context, producer *validation
 		receipt.AchievedStrength = producer.GetAchievedStrength()
 		receipt.ObservedIdentity = cloneIdentity(producer.GetObservedIdentity())
 		receipt.Evidence = cloneEvidence(producer.GetEvidence())
+		ensureTerminalReceiptEvidence(receipt, producer.GetReceiptId())
 		receipt.Children = cloneChildren(producer.GetChildren())
 		receipt.Retry = cloneRetry(producer.GetRetry())
 		receipt.Degradation = cloneDegradation(producer.GetDegradation())
@@ -485,6 +489,30 @@ func (r *Repository) PropagateTerminal(ctx context.Context, producer *validation
 		return nil, err
 	}
 	return updated, nil
+}
+
+// ensureTerminalReceiptEvidence gives an evidence-free terminal outcome a
+// resolvable reference to its canonical durable receipt. It is only a locator
+// for the typed outcome and reason; it never stands in for a child run or
+// satisfies a caller's required producer evidence kinds.
+func ensureTerminalReceiptEvidence(receipt *validationv1.ValidationReceipt, sourceReceiptID string) {
+	if receipt == nil || len(receipt.GetEvidence()) > 0 {
+		return
+	}
+	receiptID := strings.TrimSpace(sourceReceiptID)
+	if receiptID == "" {
+		receiptID = strings.TrimSpace(receipt.GetReceiptId())
+	}
+	if receiptID == "" {
+		return
+	}
+	receipt.Evidence = append(receipt.Evidence, &validationv1.EvidenceReference{
+		EvidenceId: receiptID,
+		Kind:       terminalReceiptEvidenceKind,
+		Owner:      "test-genie",
+		SubjectId:  receiptID,
+		Uri:        "test-genie://validation/receipts/" + receiptID,
+	})
 }
 
 // CanTransition is the executable receipt state machine. It is exported so
