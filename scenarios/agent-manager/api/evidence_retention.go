@@ -69,10 +69,14 @@ func (s *Server) buildEvidenceRetention(repoRoot string, publisher operatordecis
 // decisionEffects lists the notification-hub resolution owners that live
 // outside the orchestrator.
 func (s *Server) decisionEffects() []operatordecision.DomainEffect {
-	if s.evidenceApprovals == nil {
-		return nil
+	var effects []operatordecision.DomainEffect
+	if s.orchestrator != nil {
+		effects = append(effects, s.orchestrator.InvestigationDecisionEffect())
 	}
-	return []operatordecision.DomainEffect{s.evidenceApprovals}
+	if s.evidenceApprovals != nil {
+		effects = append(effects, s.evidenceApprovals)
+	}
+	return effects
 }
 
 // evidenceEfforts adapts effort enrollments to the retention lifecycle view.

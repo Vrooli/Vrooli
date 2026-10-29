@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -302,5 +304,116 @@ func TestTaskCancelDirectHandlerRequiresOperationBeforeService(t *testing.T) {
 	h.CancelTask(response, req)
 	if response.Code != http.StatusForbidden || len(spy.cancelled) != 0 {
 		t.Fatalf("direct handler bypassed authority: status=%d calls=%d", response.Code, len(spy.cancelled))
+	}
+}
+
+func TestRunDeletionGrantAdmitsOnlyTheCoveredRun(t *testing.T) {
+	now := time.Now()
+	runID, targetID := uuid.New(), uuid.NewString()
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, now.Add(time.Hour))
+	grant := func(ops []string, targets ...string) *cliutil.VerifyResult {
+		return managementClaimsFixture(t, runID, []string{"agent-manager:read", "agent-manager:write"}, managementGrantFixture(now, managementRuleFixture("run-deletion", ops, targets)), now.Add(time.Hour))
+	}
+	if !managementGuardAllows(t, baseline, grant([]string{"run.delete"}, "agent-manager:run/"+targetID), "delete-run", targetID, true) {
+		t.Fatal("exact run-deletion grant was refused")
+	}
+	if !managementGuardAllows(t, baseline, grant([]string{"run.delete"}, "agent-manager:run/*"), "delete-run", targetID, true) {
+		t.Fatal("bounded run/* run-deletion grant was refused")
+	}
+	if managementGuardAllows(t, baseline, grant([]string{"run.delete"}, "agent-manager:run/"+uuid.NewString()), "delete-run", targetID, true) {
+		t.Fatal("run-deletion grant for another run was allowed")
+	}
+	if managementGuardAllows(t, baseline, grant([]string{"agent.manage"}, "agent-manager:*"), "delete-run", targetID, true) {
+		t.Fatal("agent.manage was allowed to delete a run")
+	}
+	if managementGuardAllows(t, baseline, grant([]string{"run.delete"}, "agent-manager:*"), "stop-run", targetID, true) {
+		t.Fatal("run.delete was allowed to stop a run")
+	}
+}
+
+func TestRunDeletionRefusalNamesTheRequestCommand(t *testing.T) {
+	runID, targetID := uuid.New(), uuid.NewString()
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, time.Now().Add(time.Hour))
+	h := New(orchestration.HandlerServices{IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: runID, TaskID: uuid.MustParse(baseline.Claims.TaskID), Subject: baseline.Claims.Subject, Scopes: baseline.Claims.Scopes}}}})
+	router := mux.NewRouter()
+	router.Use(provenance.Middleware(managementGrantVerifier{baseline: baseline}))
+	router.Use(authn.Middleware(authn.Config{}))
+	router.HandleFunc("/api/v1/runs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		h.denyRunInitiatedLifecycleOperation(w, r, "delete-run")
+	})
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/runs/"+targetID, nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, managementBaselineToken)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	var body map[string]any
+	_ = json.Unmarshal(rr.Body.Bytes(), &body)
+	want := "--policy run-deletion --target agent-manager:run/" + targetID
+	if rr.Code != http.StatusForbidden || !strings.Contains(fmt.Sprint(body["request_authority"]), want) || !strings.Contains(fmt.Sprint(body["error"]), want) {
+		t.Fatalf("status=%d body=%v, want a 403 naming %q", rr.Code, body, want)
+	}
+}
+
+func lifecycleOnTargetAllows(t *testing.T, baseline, operation *cliutil.VerifyResult, op, target string) bool {
+	t.Helper()
+	runID := uuid.MustParse(baseline.Claims.RunID)
+	h := New(orchestration.HandlerServices{IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: runID, TaskID: uuid.MustParse(baseline.Claims.TaskID), Subject: baseline.Claims.Subject, Scopes: baseline.Claims.Scopes}}}})
+	router := mux.NewRouter()
+	router.Use(provenance.Middleware(managementGrantVerifier{baseline: baseline, operation: operation}))
+	router.Use(authn.Middleware(authn.Config{}))
+	router.HandleFunc("/probe", func(w http.ResponseWriter, r *http.Request) {
+		if !h.denyRunLifecycleOnTarget(w, r, op, target, "") {
+			w.WriteHeader(http.StatusNoContent)
+		}
+	})
+	req := httptest.NewRequest(http.MethodPost, "/probe", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, managementBaselineToken)
+	req.Header.Set(cliutil.HeaderAgentOperationToken, managementOperationToken)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	return rr.Code == http.StatusNoContent
+}
+
+func TestStopAllNeedsAGrantCoveringEveryRun(t *testing.T) {
+	now := time.Now()
+	runID := uuid.New()
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, now.Add(time.Hour))
+	grant := func(targets ...string) *cliutil.VerifyResult {
+		return managementClaimsFixture(t, runID, []string{"agent-manager:read", "agent-manager:write"}, managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.manage"}, targets)), now.Add(time.Hour))
+	}
+	for _, covering := range []string{"agent-manager:run/*", "agent-manager:*"} {
+		if !lifecycleOnTargetAllows(t, baseline, grant(covering), "stop-all", "*") {
+			t.Errorf("stop-all refused under %s", covering)
+		}
+	}
+	if lifecycleOnTargetAllows(t, baseline, grant("agent-manager:run/"+uuid.NewString()), "stop-all", "*") {
+		t.Error("stop-all allowed under a grant naming one run")
+	}
+	tagged := uuid.NewString()
+	if !lifecycleOnTargetAllows(t, baseline, grant("agent-manager:run/"+tagged), "stop-run-by-tag", tagged) {
+		t.Error("stop-by-tag refused under a grant on the tagged run")
+	}
+	if lifecycleOnTargetAllows(t, baseline, grant("agent-manager:run/"+uuid.NewString()), "stop-run-by-tag", tagged) {
+		t.Error("stop-by-tag allowed under a grant on another run")
+	}
+}
+
+func TestTokenlessAgentPrincipalStillNeedsTheGrant(t *testing.T) {
+	h := New(orchestration.HandlerServices{})
+	target := uuid.NewString()
+	serve := func(grant *coreidentity.OperationGrant) int {
+		p := coreidentity.Principal{Kind: coreidentity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: grant}
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/runs/"+target, nil).WithContext(coreidentity.WithPrincipal(context.Background(), p))
+		rr := httptest.NewRecorder()
+		if !h.denyRunLifecycleOnTarget(rr, req, "delete-run", target, "") {
+			return http.StatusNoContent
+		}
+		return rr.Code
+	}
+	if got := serve(nil); got != http.StatusForbidden {
+		t.Fatalf("tokenless agent without a grant got %d, want 403", got)
+	}
+	exact := &coreidentity.OperationGrant{ID: "g", Approver: "owner", Operations: []string{"run.delete"}, Targets: []string{"agent-manager:run/" + target}, ExpiresAt: time.Now().Add(time.Hour)}
+	if got := serve(exact); got != http.StatusNoContent {
+		t.Fatalf("tokenless agent with an exact run.delete grant got %d, want admitted", got)
 	}
 }

@@ -281,6 +281,8 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
+	// The inbox ask's reference must be read while the execution still waits.
+	askRef := o.investigationDecisionRef(ctx, execution)
 	_, err = o.SignalWorkflowExecution(ctx, WorkflowExecutionSignalRequest{
 		ExecutionID:    executionID,
 		Signal:         investigationApprovalSignal,
@@ -290,6 +292,7 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if err != nil {
 		return nil, err
 	}
+	o.withdrawInvestigationDecision(ctx, run.ID, askRef)
 	// Only the "completed" decision launches an apply run; rejection/abstention
 	// terminate the workflow, so we hand the investigation run back unchanged.
 	if decision != "completed" {

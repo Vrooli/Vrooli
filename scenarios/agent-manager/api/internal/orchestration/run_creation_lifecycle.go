@@ -136,6 +136,12 @@ func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	o.notifyConversationSearch(ctx, "delete_run", id.String(), "")
+	// Events live in their own store; every other delete path removes them too.
+	if o.events != nil {
+		if err := o.events.Delete(ctx, id); err != nil {
+			return fmt.Errorf("run %s was deleted but event cleanup failed: %w", id, err)
+		}
+	}
 	return nil
 }
 

@@ -5,7 +5,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
@@ -460,5 +462,23 @@ func TestEveryMeasuresProcedureIsAgentReadable(t *testing.T) {
 	AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("PurgeData status=%d want 403", rec.Code)
+	}
+}
+
+func TestStopAllAdmitsOnlyAGrantCoveringEveryRun(t *testing.T) {
+	serve := func(targets ...string) int {
+		grant := &identity.OperationGrant{ID: "g", Approver: "owner", Operations: []string{"agent.manage"}, Targets: targets, ExpiresAt: time.Now().Add(time.Hour)}
+		p := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: grant}
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", nil)
+		r = r.WithContext(identity.WithPrincipal(r.Context(), p))
+		w := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(w, r)
+		return w.Code
+	}
+	if got := serve("agent-manager:run/*"); got != http.StatusNoContent {
+		t.Fatalf("all-runs grant got %d, want admitted", got)
+	}
+	if got := serve("agent-manager:run/" + uuid.NewString()); got != http.StatusForbidden {
+		t.Fatalf("one-run grant got %d, want 403", got)
 	}
 }

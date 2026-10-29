@@ -129,7 +129,7 @@ same change as the code.
 | P2-3 | Findings: generic-text generator, never-used review fields (operator_decision, effectiveness, before/after), Findings page; friction shown in 4 places | Friction measure + Usage › Friction (P2-D1); generator, fields and page deleted | P2-W4 / P2-W5a | closed 2026-10-29: Usage › Friction replaces Findings (`/findings` redirects); per-pattern wasted-time cost, classifier v13 (self-pairs, pipeline reads, stall bounded 5 min–2 h within a turn); Report bug (scenario-qa, scenario/command owners) / Suggest a fix (agent behaviour) / Dismiss; generator, review fields and 888 generic rows deleted |
 | P2-4 | Recommendations flat, savings double-counted across levers, raw metric dump in UI ("Still running 1 bool") | Server-side groups with combined saving and typed facts | P2-W4 | closed 2026-10-29: plans with combined, overlap-free and recoverable-before-reset savings; cross-cut friction plans never summed; UI renders groups and the focus band |
 | P2-5 | Label helpers duplicated with different output (`usageforecast/alert.go` "5h", CLI `register.go`, UI 5 copies) | One owner per side, one rule (P2-D12) | P2-W3 / P2-W5b | closed 2026-10-29: `usagelabel` owns Go labels (CLI + alerts, ±2 min rounding); `lib/format.ts` owns UI labels (P2-D12) |
-| P2-6 | Web-console test writes fixtures into the real sessions dir; 3,633 imported fixture runs | Test uses a temp dir; indexer skips test output; rows and dirs deleted under grant | P2-W2 | code closed 2026-10-29 (web-console tests isolated; indexer skips test rollouts); data deletion pending the operator: `p2-delete-fixture-dirs.sh --delete` then `p2-delete-fixture-runs.sh --delete` (4,700 dirs, 4,700 runs; run delete requires operator context) |
+| P2-6 | Web-console test writes fixtures into the real sessions dir; 3,633 imported fixture runs | Test uses a temp dir; indexer skips test output; rows and dirs deleted under grant | P2-W2 | closed 2026-10-29 (web-console tests isolated; indexer skips test rollouts; 4,700 dirs and 4,700 runs deleted by the agent under operator-approved grants, see `p2-fixture-inventory.md` Outcome; derived rows of deleted runs are now removed with the run) |
 | P2-7 | Routes with no caller: `/investigations/{id}/learning-retry`, `/runs/{id}/audit-transcript`, `/model-policy/canary/arm`, `/compare` | Deleted | P2-W6 | closed except `learning-retry`. Searched `scenarios/*`, `packages/*`, `.vrooli`, skills and docs: `/model-policy/canary/*` (handler, `CompareCanary`, metrics types), `/runs/{id}/audit-transcript` (handler; its one doc reference, TRIAGE.md, now points at `run messages`) and `/runs/investigate` (an always-400 "retired" stub; Prompt Manager has its own route of that path, not this one) are deleted with their tests and `endpoints.json` entries. **`learning-retry` stays**: it is the only way to replay a `pending` investigation learning capture (set on every completed investigation), the Agent Manager skill tells agents to call it, and no other path retries it. `invocationreadmodel.CanaryRuns/CanaryStore` are now unused (P2-W1 files) |
 | P2-8 | 16 start-up `migrate*` functions (502 LOC) incl. pass-1 one-shots run every start | Declarative schema; one-shots gated by a marker or removed | P2-W6 | closed. `connection.go` 1,384 → 637 LOC. **Rule: a one-shot is removed only when every install that follows the branch has run it (at least two weeks old).** Kept, marker-gated: `migrateQuotaEvents` and `migrateAttachedExitStatus` (added 2026-10-29, so other installs such as minimouse have not run them) now run once per database through `runOnce` (`migrations_once.go`), which records the name in `schema_migrations_done` in the migration's own transaction; later starts do one marker lookup and no scan. The orphan `stats_checkpoint` and `transcript_usage_repairs` tables are dropped the same way. Removed (weeks old): `consolidateLegacyInvestigationProjections`, `removeRetiredInvocationReadModelColumns`, the fact segment-key rebuild, `migrateRunTaskIDNullability` (192 lines), the two watch-action migrations and the investigation-sentinel delete — every live table already has the target shape (legacy `investigation_*` projection tables gone, `runs.task_id` nullable, `cohort_watch_actions` has `state`, no `status`, nullable `decision_id`, `invocation_read_model_runs` without the retired columns) and a fresh install creates it from the declarative schema. The four `runs` indexes moved into `runmodel/schema.sql`. Kept: the additive column migrations as one table-driven list (`additiveColumnMigrations`), applied once and only to tables that exist, before `EnsureSchemas`; and `retireRunFindingReviewState` (the finding-column drop has not run on this host yet: it ships with P2-W4's restart). Tests: `TestQuotaEventMigrationRunsOncePerDatabase`, `TestAttachedExitStatusMigrationRunsOncePerDatabase`, `TestRetiredBookkeepingTablesAreDroppedOnce`, `TestAdditiveColumnMigrationAddsMissingRunColumns`, `TestInitSchemaCreatesRunIndexesAndUpgradesLegacyColumnsIdempotently`. **Consequence**: an install older than those cutovers (other fleet nodes' Agent Manager DBs, if any predate them) must first run a build that still has them; this host needs nothing |
 | P2-9 | Three pricing paths (`pricing.Service`, `usageattribution.Price` fallbacks, PriceBook) | One owner; tier/cache defaults a named fallback source | P2-W6 | closed. `pricing/fallback.go` owns `FallbackTokenPrices`, the tier priors (`TierTokenPrices`) and the cache-ratio defaults (`WithDefaultCacheRatios`); `usageattribution` keeps its `Price` shape but holds no constants (`model.go` tier/fallback/ratio code now delegates), and `PriceBook` is a memo over `pricing.Service` |
@@ -158,7 +158,7 @@ same change as the code.
 | AgentManagerService RPCs | 104 (38 Unimplemented stubs) | 82 (0 stubs) | −22 |
 | `.vrooli/endpoints.json` REST entries | 166 | 135 | −31 |
 | Details 7-day tokens vs `transcript_usage` | ≈9–11× high | equal (30,893,007,112 = 30,893,007,112) | fixed |
-| Fixture runs | 4,700 | 4,700 (deletion scripts ready; operator context required) | pending operator |
+| Fixture runs | 4,700 | 0 (deleted 2026-10-29 under the storage-manager deletion grant and the `run-deletion` authorization) | −4,700 |
 | UI branch coverage | 84.7% (failing gate) | 85.9% | gate green |
 
 API non-test LOC is roughly flat because pass 2 added capability (grouped plans, friction problems and
@@ -166,3 +166,24 @@ report/dismiss, four alert kinds with hysteresis, 25 Connect adapters replacing 
 IDs, the duplicate repair, run-once markers) while deleting `internal/stats`, the friction publisher and
 finding review fields, 30 REST routes, 22 stub RPCs, one-shot migrations (`connection.go` 1,384 → 637),
 the D-15 repair and dead functions; `createRun` 736 → 50 lines.
+
+**How these LOC were counted.** Raw `wc -l` (blank and comment lines included) over non-test source only:
+`find api cli -name '*.go' ! -name '*_test.go' ! -path '*/gen/*'` and `ui/src` `.ts`/`.tsx` without tests,
+`test-utils` or `__tests__`. Docs, tests, requirements, SQL and generated code are excluded, and the
+baseline is the pass-2 start, not the last commit. The staged diff in Git Control Tower (GetRepoStatus
+`fileStats`, 2026-10-29) counts every file against commit `dc39df928a9` and reads +25,402 / −20,599 for
+the scenario. By category:
+
+| Category | Files | + | − | Net |
+|---|---|---|---|---|
+| API Go non-test | 117 | 6,186 | 6,351 | −165 |
+| CLI Go non-test | 28 | 474 | 921 | −447 |
+| UI TS non-test | 114 | 2,846 | 7,145 | −4,299 |
+| Tests (Go and UI) | 159 | 4,578 | 5,011 | −433 |
+| `p2-fixture-runs.txt` + `p2-fixture-dirs.txt` | 2 | 9,400 | 0 | +9,400 |
+| Effort docs and mockup | 10 | 1,061 | 2 | +1,059 |
+| Other (docs, requirements, `.vrooli`, CLI manifest, SQL, generated) | 46 | 857 | 1,169 | −312 |
+
+The two fixture lists were deletion inputs, one line per item, not code. They and their two scripts
+were removed after the deletion (2026-10-29). Once the scenario is restaged, its diff is about −4,600
+lines net, docs and tests included.

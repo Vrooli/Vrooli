@@ -152,6 +152,17 @@ func (r *TranscriptIndexRepository) ResetTranscriptFile(ctx context.Context, key
 	return nil
 }
 
+// deleteRunTranscriptFilesTx forgets the transcript files indexed into runIDs
+// inside the caller's transaction, when those runs are deleted.
+func deleteRunTranscriptFilesTx(ctx context.Context, executor sqlExecutor, runIDs ...string) error {
+	for _, runID := range runIDs {
+		if _, err := executor.ExecContext(ctx, `DELETE FROM transcript_files WHERE run_id = ?`, runID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *TranscriptIndexRepository) DeleteTranscriptFile(ctx context.Context, key string) error {
 	if _, err := r.db.ExecContext(ctx, `DELETE FROM transcript_files WHERE file_key = ?`, key); err != nil {
 		return wrapDBError("delete_transcript_file", "TranscriptFile", key, err)

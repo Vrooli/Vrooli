@@ -10,11 +10,16 @@ import { DataState } from "../components/feedback/DataState";
 import { ErrorNotice } from "../components/feedback/ErrorNotice";
 import { Dialog, DialogContent, DialogHeader } from "../components/ui/dialog";
 import { useApiQuery } from "../hooks/useApiQuery";
+import { useBoundedList } from "../hooks/useBoundedList";
+import { ShowMoreButton } from "../components/patterns/ShowMoreButton";
 import { apiRequest } from "../hooks/useApiTransport";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 import { formatCode, formatCount, formatDuration, formatTokens, pluralize, shortenIds } from "../lib/format";
 import { statusTone } from "../lib/display";
 import type { TypedInvestigation } from "../types";
+
+// Both lists can hold hundreds of rows; show a page at a time.
+const LIST_PAGE_SIZE = 20;
 
 /** Short columns keep their words whole; the table scrolls sideways before it breaks "Applicability" mid-word. */
 const NO_BREAK = "whitespace-nowrap break-normal";
@@ -35,8 +40,10 @@ function AvailabilityNote({ value }: { value: Availability }) {
   return <p className="text-sm text-muted-foreground" data-testid={`availability-${value.state}`}>{formatCode(value.state)}{value.reason ? `: ${value.reason}` : ""}</p>;
 }
 
-function InvestigationRows({ items }: { items: TypedInvestigation[] }) {
+function InvestigationRows({ items: all }: { items: TypedInvestigation[] }) {
+  const { visibleItems: items, total, showMore } = useBoundedList(all, LIST_PAGE_SIZE);
   return (
+    <>
     <Table>
       <table className="min-w-[56rem]">
         <caption className="sr-only">Durable investigations</caption>
@@ -58,6 +65,8 @@ function InvestigationRows({ items }: { items: TypedInvestigation[] }) {
         </tbody>
       </table>
     </Table>
+    <ShowMoreButton shown={items.length} total={total} onShowMore={showMore} testId="investigations-show-more" />
+    </>
   );
 }
 
@@ -110,9 +119,10 @@ export function InvestigationsPage() {
   };
 
   const items = lifecycle.data ?? [];
-  const signals = cohort.data?.signals ?? [];
+  const allSignals = cohort.data?.signals ?? [];
+  const { visibleItems: signals, total: signalTotal, showMore: showMoreSignals } = useBoundedList(allSignals, LIST_PAGE_SIZE);
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 sm:p-6" data-testid="investigations-page">
+    <section className="h-full overflow-y-auto overflow-x-hidden p-4 sm:p-6" data-testid="investigations-page"><div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
         title="Investigations"
         description="A completed subject run is not the same as a completed investigation. Review state, evidence coverage and current applicability here."
@@ -137,7 +147,7 @@ export function InvestigationsPage() {
           subject="Recurring friction"
           loading={cohort.loading}
           error={cohort.error}
-          isEmpty={signals.length === 0}
+          isEmpty={allSignals.length === 0}
           onRetry={cohort.refetch}
           empty={<EmptyState density="compact" title="No recurring friction this week" description="Patterns that repeat across runs appear here." />}
         >
@@ -157,6 +167,7 @@ export function InvestigationsPage() {
               </tbody>
             </table>
           </Table>
+          <ShowMoreButton shown={signals.length} total={signalTotal} onShowMore={showMoreSignals} testId="friction-signals-show-more" />
         </DataState>
         {detailError ? <ErrorNotice compact error={detailError} subject="Episode detail" /> : null}
       </section>
@@ -166,6 +177,6 @@ export function InvestigationsPage() {
           {selected ? <EpisodeDetail {...selected} /> : null}
         </DialogContent>
       </Dialog>
-    </section>
+    </div></section>
   );
 }

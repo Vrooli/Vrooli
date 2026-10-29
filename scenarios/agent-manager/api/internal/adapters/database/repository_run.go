@@ -1299,10 +1299,22 @@ func (r *runRepository) Delete(ctx context.Context, id uuid.UUID, expectedStatus
 	if deleted != 1 {
 		return domain.NewStateErrorWithID("Run", id.String(), string(expectedStatus), "delete", "run lifecycle changed before deletion; reload and retry")
 	}
+	if err := deleteRunDerivedRowsTx(ctx, tx, id.String()); err != nil {
+		return wrapDBError("delete_derived", "Run", id.String(), err)
+	}
 	if err := tx.Commit(); err != nil {
 		return wrapDBError("delete", "Run", id.String(), err)
 	}
 	return nil
+}
+
+// deleteRunDerivedRowsTx removes the rows other owners derived from runIDs
+// (read-model projection, transcript registry) in the deleting transaction.
+func deleteRunDerivedRowsTx(ctx context.Context, executor sqlExecutor, runIDs ...string) error {
+	if err := deleteRunProjectionsTx(ctx, executor, runIDs...); err != nil {
+		return err
+	}
+	return deleteRunTranscriptFilesTx(ctx, executor, runIDs...)
 }
 
 func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStatus) (int, error) {

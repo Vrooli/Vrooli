@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "5bf83cfce039f429f03778f65e99174d25b2d9a0602517d7559f7b064fffe325",
+  "manifest_hash": "6763622bfc3169aa8569d5ebc41b5ab7b2d5a0206912151b4bb2c5129fedac53",
   "commands": [
     {
       "path": "conversation context",

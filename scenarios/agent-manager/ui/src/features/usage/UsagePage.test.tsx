@@ -357,3 +357,10 @@ test("friction rows label their columns inline for phones, show command owners a
   assert.match(handoff.getAttribute("title") ?? "", /tool calls and 4\.5 M tokens of work after declaring done/);
   assert.match(rows[0]?.textContent ?? "", /typically 10 s each time/, "a typical time of a second or more is shown once");
 });
+
+test("the page owns its scroll container, since the app shell's main area does not scroll", async () => {
+  renderUsage();
+  const scroller = (await screen.findByTestId("usage-page")).parentElement;
+  expect(scroller?.className).toMatch(/\bh-full\b/);
+  expect(scroller?.className).toMatch(/\boverflow-y-auto\b/);
+});

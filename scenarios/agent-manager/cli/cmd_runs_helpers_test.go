@@ -274,9 +274,8 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "run-token")
 
 	for _, subcommand := range []string{
-		"apply-investigation", "approve", "delete",
+		"apply-investigation", "approve",
 		"reject", "sandbox-sync",
-		"stop-all", "stop-by-tag",
 	} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err == nil {
 			t.Errorf("%s was not rejected for a run identity", subcommand)
@@ -284,8 +283,9 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 	}
 
 	// Lineage operations reach the API, which admits only the caller's own
-	// lineage; quiesce reaches it to admit an effort orchestrator's own scenario.
-	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake", "quiesce", "investigate", "recover"} {
+	// lineage; quiesce reaches it to admit an effort orchestrator's own scenario;
+	// delete reaches it to admit an approved run-deletion grant on that run.
+	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake", "quiesce", "investigate", "recover", "delete", "stop-all", "stop-by-tag"} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err != nil {
 			t.Errorf("%s was unexpectedly rejected: %v", subcommand, err)
 		}

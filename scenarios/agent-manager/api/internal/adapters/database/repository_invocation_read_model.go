@@ -147,6 +147,27 @@ type sqlExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
+// runProjectionTables are the read-model tables keyed by run id. A deleted run
+// takes its rows with it, or run statistics keep counting it.
+var runProjectionTables = []string{
+	"invocation_read_model_facts", "invocation_read_model_errors", "invocation_read_model_episodes",
+	"invocation_read_model_self_report_spans", "invocation_read_model_runs", "invocation_read_model_run_signals",
+	"invocation_read_model_time_accounting", "invocation_read_model_watermarks", "invocation_read_model_pending",
+}
+
+// deleteRunProjectionsTx removes everything the read model derived from runIDs
+// inside the caller's transaction, so the run and its projection go together.
+func deleteRunProjectionsTx(ctx context.Context, executor sqlExecutor, runIDs ...string) error {
+	for _, runID := range runIDs {
+		for _, table := range runProjectionTables {
+			if _, err := executor.ExecContext(ctx, `DELETE FROM `+table+` WHERE run_id = ?`, runID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationreadmodel.RunFact) error {
 	values := strings.Repeat("?,", 40) + "?"
 	query := `INSERT INTO invocation_read_model_runs (

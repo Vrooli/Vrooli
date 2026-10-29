@@ -1230,6 +1230,7 @@ func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
 	// settles would make the apply path measure an empty set.
 	if execution, getErr := o.workflowExecutions.Get(context.Background(), executionID); getErr == nil {
 		o.persistInvestigationFindings(context.Background(), execution)
+		o.notifyInvestigationAwaitingApproval(context.Background(), execution)
 	}
 	o.workflowNudger.Enqueue(executionID)
 }

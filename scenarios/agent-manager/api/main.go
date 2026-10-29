@@ -473,6 +473,10 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 			if err := s.db.RepairDuplicateTranscriptEvents(ctx); err != nil && ctx.Err() == nil {
 				obs.Logger().Error("duplicate transcript event repair failed; it retries on the next start", "error", err.Error())
 			}
+			// Deleted runs' leftover read-model rows; same contract, run after.
+			if err := s.db.RepairOrphanRunProjections(ctx); err != nil && ctx.Err() == nil {
+				obs.Logger().Error("orphan run projection repair failed; it retries on the next start", "error", err.Error())
+			}
 		}()
 		if s.orchestrator != nil {
 			wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot, s.recovery.ReconcileDeclarationStep)

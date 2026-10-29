@@ -254,6 +254,16 @@ func isRunCreationPath(path string) bool {
 }
 
 func agentOperationRoute(r *http.Request, interactive bool) bool {
+	if r.Method == http.MethodDelete {
+		// DeleteRun admits only an exact run.delete grant on that run
+		// (denyRunInitiatedLifecycleOperation); every other DELETE stays refused.
+		route := mux.CurrentRoute(r)
+		if route == nil {
+			return false
+		}
+		template, _ := route.GetPathTemplate()
+		return template == "/api/v1/runs/{id}"
+	}
 	if r.Method == http.MethodPut {
 		// The task handler admits only the verified creator orchestrator's exact
 		// queued, undispatched brief update. It does not expose task management.
@@ -268,6 +278,12 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations",
 		apiconnect.AgentManagerServiceCreateRunProcedure:
 		return true
+	case "/api/v1/runs/stop-all":
+		// Global management stays closed to agents except under an approved
+		// agent.manage grant covering every run (agent-manager:run/* or
+		// agent-manager:*). The handler re-checks the same rule.
+		_, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:run/*")
+		return err == nil
 	case "/api/v1/runs/quiesce":
 		// The default drain only observes active runs and waits; it does not
 		// change run state. The handler verifies any supplied run credential and
@@ -333,7 +349,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// cancels the execution. It is the REST counterpart of the read-only
 		// WaitWorkflowExecution Connect procedure. Keep adjacent POST actions gated.
 		return true
-	case "/api/v1/runs/{id}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
+	case "/api/v1/runs/{id}/stop", "/api/v1/runs/tag/{tag}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
 		"/api/v1/tasks/{id}/cancel",
 		"/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/learning-retry":
 		return true

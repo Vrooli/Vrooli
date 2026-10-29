@@ -3599,13 +3599,13 @@
         },
         {
           "name": "delete",
-          "description": "Delete a run",
+          "description": "Delete a run (an agent needs an approved run-deletion grant on it)",
           "binding": {
             "kind": "local"
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]
@@ -3815,13 +3815,13 @@
         },
         {
           "name": "stop-all",
-          "description": "Stop matching runs",
+          "description": "Stop matching runs (an agent needs an agent-management grant covering every run)",
           "binding": {
             "kind": "local"
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]
@@ -3829,13 +3829,13 @@
         },
         {
           "name": "stop-by-tag",
-          "description": "Stop runs by tag",
+          "description": "Stop runs by tag (an agent needs an agent-management grant on the tagged run)",
           "binding": {
             "kind": "local"
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]

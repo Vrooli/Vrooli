@@ -14,7 +14,9 @@ import (
 // orchestrator's direct children, a worker's parked parent) and denies the rest.
 // quiesce is not listed either: the API admits an effort's running orchestrator
 // for the scenario its effort targets (a baseline promote) and refuses other
-// runs with the reason.
+// runs with the reason. delete, stop-by-tag and stop-all are not listed: the API
+// admits an approved run-deletion or agent.manage grant (stop-all: one covering
+// every run) and otherwise answers with the `vrooli agent authorize` command.
 func rejectRunIdentityLifecycleCommand(subcommand string) error {
 	token, _ := os.LookupEnv("VROOLI_AGENT_IDENTITY_TOKEN")
 	if strings.TrimSpace(token) == "" {
@@ -24,15 +26,12 @@ func rejectRunIdentityLifecycleCommand(subcommand string) error {
 	operatorOnly := map[string]struct{}{
 		"apply-investigation": {},
 		"approve":             {},
-		"delete":              {},
 		"reject":              {},
 		"sandbox-sync":        {},
-		"stop-all":            {},
-		"stop-by-tag":         {},
 	}
 	if _, restricted := operatorOnly[subcommand]; !restricted {
 		return nil
 	}
 
-	return fmt.Errorf("agent-manager run %s requires an operator context; run identities may inspect runs and use `run park`, but cannot perform this lifecycle operation", subcommand)
+	return fmt.Errorf("agent-manager run %s records an operator decision (run review, an investigation's approved recommendations, or the sandbox's review result), so no agent grant covers it; the operator answers it in Agent Manager or the decision inbox", subcommand)
 }

@@ -501,9 +501,19 @@ func (r *taskRepository) UpdateQueuedBrief(ctx context.Context, id uuid.UUID, cr
 }
 
 func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("delete", "Task", id.String(), err)
+	}
+	defer tx.Rollback()
+	// The task's runs go with it by cascade; their derived rows go here.
+	runIDs, err := taskRunIDsTx(ctx, tx, id)
+	if err != nil {
+		return wrapDBError("delete_list_runs", "Task", id.String(), err)
+	}
 	query := `DELETE FROM tasks WHERE id = ? AND status = ? AND NOT EXISTS (
 		SELECT 1 FROM runs WHERE runs.task_id = tasks.id AND runs.status NOT IN (?, ?, ?))`
-	result, err := r.db.ExecContext(ctx, query, id, string(domain.TaskStatusCancelled), string(domain.RunStatusComplete), string(domain.RunStatusFailed), string(domain.RunStatusCancelled))
+	result, err := tx.ExecContext(ctx, query, id, string(domain.TaskStatusCancelled), string(domain.RunStatusComplete), string(domain.RunStatusFailed), string(domain.RunStatusCancelled))
 	if err != nil {
 		return wrapDBError("delete", "Task", id.String(), err)
 	}
@@ -514,7 +524,30 @@ func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if deleted != 1 {
 		return domain.NewStateErrorWithID("Task", id.String(), "changed", "delete", "only a cancelled task with terminal attached runs can be deleted")
 	}
+	if err := deleteRunDerivedRowsTx(ctx, tx, runIDs...); err != nil {
+		return wrapDBError("delete_derived", "Task", id.String(), err)
+	}
+	if err := tx.Commit(); err != nil {
+		return wrapDBError("delete", "Task", id.String(), err)
+	}
 	return nil
+}
+
+func taskRunIDsTx(ctx context.Context, tx *Tx, taskID uuid.UUID) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM runs WHERE task_id = ?`, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var runID string
+		if err := rows.Scan(&runID); err != nil {
+			return nil, err
+		}
+		ids = append(ids, runID)
+	}
+	return ids, rows.Err()
 }
 
 // CreateTaskAttempt atomically claims the Task projection and records the new

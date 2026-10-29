@@ -28,6 +28,8 @@ export function UsagePage() {
   };
 
   return (
+    // The shell's main area does not scroll; each page owns its scroll container.
+    <div className="h-full overflow-y-auto overflow-x-hidden p-4 sm:p-6">
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4" data-testid="usage-page">
       <PageHeader title="Usage" description="How much subscription capacity your agents use, what uses it, and what to change." actions={<CoverageChip />} />
       <Tabs
@@ -50,6 +52,7 @@ export function UsagePage() {
           ),
         }}
       />
+    </div>
     </div>
   );
 }

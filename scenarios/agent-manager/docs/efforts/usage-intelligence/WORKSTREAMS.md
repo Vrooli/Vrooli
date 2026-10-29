@@ -38,7 +38,7 @@ Recommendation #1 applied from 2026-10-29: cap sub-agent fan-out (short worker b
 
 ## Pass 2 (SPEC §10; operator F-7/F-8)
 
-- Current: @ 2026-10-29 18:25Z. **Pass 2 accepted** (P2-A1–P2-A10 below); restart 14 (18:19Z) healthy. Only operator-owned items remain: run `p2-delete-fixture-dirs.sh --delete` and `p2-delete-fixture-runs.sh --delete` (P2-A2 data part), confirm Agent Manager notifications on the phone (P2-A3 pairing), A11 on 2026-11-05.
+- Current: @ 2026-10-29 20:15Z. **Pass 2 accepted** (P2-A1–P2-A10 below). Fixture data deleted under operator-approved grants (P2-A2 data part done; see `p2-fixture-inventory.md` Outcome). Follow-ups shipped the same day: deletion requests reachable for agents (`run-deletion` policy; storage-manager grants fast, reviewable, `--paths-file`), `stop-by-tag`/`stop-all` requestable, investigation approvals asked in the inbox and withdrawn when decided in Agent Manager, Usage/Investigations scrolling, Investigations paging, deleted runs no longer counted (derived rows removed; repair `2026-10-29-drop-orphan-run-projections`), CLI warns instead of silently dropping a grant when the identity broker is slow. Remaining operator items: confirm Agent Manager notifications on the phone (P2-A3 pairing), A11 on 2026-11-05.
 
 ### Pass 2 acceptance (live, after restart 14)
 

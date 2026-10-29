@@ -1,6 +1,8 @@
 import * as React from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useBoundedList } from "../../../hooks/useBoundedList";
+import { ShowMoreButton } from "../ShowMoreButton";
 
 interface ListItemProps {
   selected?: boolean;
@@ -113,22 +115,7 @@ export function BoundedList<T>({
   initialCount = DEFAULT_INITIAL_LIST_COUNT,
   increment = DEFAULT_LIST_INCREMENT,
 }: BoundedListProps<T>) {
-  const [visibleCount, setVisibleCount] = React.useState(() =>
-    Math.min(items.length, initialCount)
-  );
-
-  React.useEffect(() => {
-    setVisibleCount((current) => {
-      if (items.length <= initialCount) return items.length;
-      return Math.min(Math.max(current, initialCount), items.length);
-    });
-  }, [initialCount, items.length]);
-
-  const visibleItems = React.useMemo(
-    () => items.slice(0, visibleCount),
-    [items, visibleCount]
-  );
-  const hiddenCount = items.length - visibleItems.length;
+  const { visibleItems, hiddenCount, total, showMore } = useBoundedList(items, initialCount, increment);
 
   return (
     <>
@@ -139,15 +126,7 @@ export function BoundedList<T>({
       ))}
       {hiddenCount > 0 && (
         <div className="border-b border-border px-4 py-3">
-          <button
-            type="button"
-            className="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={() =>
-              setVisibleCount((current) => Math.min(items.length, current + increment))
-            }
-          >
-            Show more ({visibleItems.length} of {items.length})
-          </button>
+          <ShowMoreButton shown={visibleItems.length} total={total} onShowMore={showMore} />
         </div>
       )}
     </>

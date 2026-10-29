@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
+	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
@@ -80,9 +81,15 @@ func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *h
 }
 
 func (h *Handler) denyRunInitiatedLifecycleOperationWithGuidance(w http.ResponseWriter, r *http.Request, operation, guidance string) bool {
+	return h.denyRunLifecycleOnTarget(w, r, operation, mux.Vars(r)["id"], guidance)
+}
+
+// denyRunLifecycleOnTarget is the guard for an operation whose target is not
+// the route's {id}: a run resolved from a tag, or "*" for every run (stop-all).
+func (h *Handler) denyRunLifecycleOnTarget(w http.ResponseWriter, r *http.Request, operation, target, guidance string) bool {
 	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
 	if token == "" {
-		return false
+		return h.denyTokenlessAgent(w, r, operation, target)
 	}
 
 	verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
@@ -104,9 +111,9 @@ func (h *Handler) denyRunInitiatedLifecycleOperationWithGuidance(w http.Response
 			return false
 		}
 	}
-	target := mux.Vars(r)["id"]
-	if target != "" && (operation == "stop-run" || operation == "continue-run" || operation == "wake-run" || operation == "recover-run") {
-		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:run/"+target); err == nil {
+	grantOperation, policy := lifecycleGrant(operation)
+	if target != "" && grantOperation != "" {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", grantOperation, "agent-manager:run/"+target); err == nil {
 			return false
 		}
 	}
@@ -122,14 +129,65 @@ func (h *Handler) denyRunInitiatedLifecycleOperationWithGuidance(w http.Response
 	if operation == "create-run" && strings.TrimSpace(guidance) != "" {
 		message += ": " + strings.TrimSpace(guidance)
 	}
-	writeJSON(w, http.StatusForbidden, map[string]any{
+	body := map[string]any{
 		"error":           message,
 		"operation":       operation,
 		"run_id":          claims.RunID.String(),
 		"run_status":      string(verified.RunStatus),
 		"token_mint_time": mintTime,
-	})
+	}
+	if policy != "" && target != "" {
+		request := authorizationRequestCommand(policy, "agent-manager:run/"+target)
+		body["error"] = message + " without an approved grant; ask the operator with: " + request
+		body["request_authority"] = request
+	}
+	writeJSON(w, http.StatusForbidden, body)
 	return true
+}
+
+// denyTokenlessAgent covers an agent principal that arrived without the run
+// identity header: it is still an agent, so it needs the same grant. Operator
+// and service requests are unaffected.
+func (h *Handler) denyTokenlessAgent(w http.ResponseWriter, r *http.Request, operation, target string) bool {
+	p, ok := coreidentity.PrincipalFromContext(r.Context())
+	if !ok || p.Kind != coreidentity.ActorAgent {
+		return false
+	}
+	grantOperation, policy := lifecycleGrant(operation)
+	if grantOperation != "" && target != "" {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", grantOperation, "agent-manager:run/"+target); err == nil {
+			return false
+		}
+	}
+	recordLifecycleRefusal(operation)
+	body := map[string]any{"error": "agent identity cannot perform lifecycle operation", "operation": operation}
+	if policy != "" && target != "" {
+		request := authorizationRequestCommand(policy, "agent-manager:run/"+target)
+		body["error"] = "agent identity cannot perform lifecycle operation without an approved grant; ask the operator with: " + request
+		body["request_authority"] = request
+	}
+	writeJSON(w, http.StatusForbidden, body)
+	return true
+}
+
+// lifecycleGrant is the grant operation that admits a run identity to a named
+// run's lifecycle operation, and the reviewed policy an agent asks for to get it.
+// Operations without one (run review, global stops) stay operator decisions.
+func lifecycleGrant(operation string) (grantOperation, policy string) {
+	switch operation {
+	case "stop-run", "continue-run", "wake-run", "recover-run", "stop-run-by-tag", "stop-all":
+		return "agent.manage", "agent-management"
+	case "delete-run":
+		return "run.delete", "run-deletion"
+	}
+	return "", ""
+}
+
+// authorizationRequestCommand is the exact command a refused agent runs to ask
+// the operator for the missing grant (vrooli agent authorize; the operator
+// approves it in the inbox, and this session uses it on its next request).
+func authorizationRequestCommand(policy, target string) string {
+	return `vrooli agent authorize "$VROOLI_AGENT_SESSION" --policy ` + policy + " --target " + target + ` --reason "<why>"`
 }
 
 // runLifecycleGrantAllowsTarget checks the caller's exact, already-resolved run
@@ -145,10 +203,11 @@ func (h *Handler) runLifecycleGrantAllowsTarget(r *http.Request, operation strin
 	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
 		return false
 	}
-	if operation != "wake-run" {
+	grantOperation, _ := lifecycleGrant(operation)
+	if grantOperation == "" {
 		return false
 	}
-	_, err = authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:run/"+target.String())
+	_, err = authn.RequireOperation(r.Context(), "agent-manager:write", grantOperation, "agent-manager:run/"+target.String())
 	return err == nil
 }
 

@@ -39,7 +39,6 @@ func TestRunIdentityGuardProtectsAllOperatorLifecycleHandlers(t *testing.T) {
 		"wake":            h.WakeRun,
 		"recover":         h.RecoverRun,
 		"delete-message":  h.DeleteRunMessage,
-		"stop-by-tag":     h.StopRunByTag,
 		"approve":         h.ApproveRun,
 		"reject":          h.RejectRun,
 		"partial-approve": h.PartialApproveRun,
@@ -56,6 +55,29 @@ func TestRunIdentityGuardProtectsAllOperatorLifecycleHandlers(t *testing.T) {
 				t.Fatalf("status = %d, want %d", rr.Code, http.StatusForbidden)
 			}
 		})
+	}
+}
+
+type taggedRunService struct {
+	orchestration.RunService
+	run *domain.Run
+}
+
+func (s taggedRunService) GetRunByTag(context.Context, string) (*domain.Run, error) { return s.run, nil }
+
+func TestStopByTagRefusesARunIdentityAndNamesTheTaggedRun(t *testing.T) {
+	tagged := &domain.Run{ID: uuid.New()}
+	h := New(orchestration.HandlerServices{
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: uuid.New()}}},
+		RunService:      taggedRunService{run: tagged},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/tag/tag/stop", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "run-token")
+	req = mux.SetURLVars(req, map[string]string{"tag": "tag"})
+	rr := httptest.NewRecorder()
+	h.StopRunByTag(rr, req)
+	if rr.Code != http.StatusForbidden || !strings.Contains(rr.Body.String(), "agent-manager:run/"+tagged.ID.String()) {
+		t.Fatalf("status=%d body=%s, want 403 naming the tagged run's grant target", rr.Code, rr.Body.String())
 	}
 }
 

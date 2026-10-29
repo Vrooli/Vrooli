@@ -27,26 +27,23 @@ Verification that no real session is included:
 
 All 4,700 runs hang off one shared imported task, so `maintenance purge` (matches run **tag**, which is `agent-manager-imported` for every imported run, real ones included) is unsafe here. Do not use it.
 
-## Lists
+## Outcome (2026-10-29)
 
-- `p2-fixture-runs.txt`: `run_id|transcript_path`, 4,700 lines.
-- `p2-fixture-dirs.txt`: `session_dir<TAB>size_kb`, 4,700 lines.
+Deleted by the agent under operator-approved grants, then the lists and their
+scripts were removed:
 
-## Governed deletion (needs operator grant)
+- Folders: storage-manager deletion grant `deletion-grant-e75ef239b694b3ceef89f72b05a46f68`;
+  4,700 deleted, 0 skipped; 897 real session folders remain.
+- Runs: Agent Manager `run-deletion` authorization `27ab5ba3-b257-4c31-a65e-0f841957707a`
+  (`agent-manager:run/*`, 6 h); 4,700 deleted (6 retried after lock contention or a
+  broker timeout under 8-way parallel deletion).
+- Deleting a run did not remove its read-model rows or transcript registration
+  (10,377 runs' rows, 2.3 M fact rows). Fixed the same day: deletes now remove them, and
+  the background repair `2026-10-29-drop-orphan-run-projections` removes what earlier
+  deletes left.
 
-Order: (1) orchestrator rebuilds and restarts agent-manager so the new indexer rule (below) is live; (2) delete runs; (3) delete dirs; (4) run an import sweep and confirm no fixtures return.
-
-```
-cd scenarios/agent-manager/docs/efforts/usage-intelligence   # from the repo root
-# 2. runs: governed per-run delete (domain.CanDeleteRun allows complete runs; notifies conversation-search)
-./p2-delete-fixture-runs.sh --delete   # checked; dry run without --delete
-# 3. dirs: only the listed paths, never a glob
-./p2-delete-fixture-dirs.sh --delete   # checked; dry run without --delete
-# 4. verify
-agent-manager run import-sweep
-sqlite3 "file:scenarios/agent-manager/data/agent-manager.db?mode=ro" \
-  "select count(*) from transcript_files where path like '%/web-console/sessions/codex/%' and (path like '%/rollout-test123.jsonl' or path like '%/rollout-e2e.jsonl' or path like '%/rollout-stale.jsonl' or path like '%/rollout-resume.jsonl' or path like '%/rollout-backfill.jsonl' or path like '%/rollout-mid-session-test.jsonl')"   # expect 0
-```
+Verify: `transcript_files` holds no `rollout-{test123,e2e,stale,resume,backfill,mid-session-test}.jsonl`
+row under web-console's codex sessions dir once the repair marker is written.
 
 If the grant is for `run delete` only, step 3 is a separate host-file deletion and needs its own grant.
 

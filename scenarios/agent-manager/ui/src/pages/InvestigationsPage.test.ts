@@ -134,3 +134,23 @@ test("InvestigationsPage counts runs in the singular, shortens raw ids and label
   assert.ok(screen.getByRole("link", { name: "Evidence 2" }));
   assert.equal(document.body.textContent?.includes(uuid), false);
 });
+
+test("InvestigationsPage owns its scroll container, since the app shell's main area does not scroll", async () => {
+  episodeCohort.mockRejectedValue(new Error("unavailable"));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("no", { status: 503 })));
+  renderWithProviders(createElement(InvestigationsPage));
+  const page = await screen.findByTestId("investigations-page");
+  assert.match(page.className, /\bh-full\b/);
+  assert.match(page.className, /\boverflow-y-auto\b/);
+});
+
+test("InvestigationsPage shows recurring friction a page at a time", async () => {
+  cohort("available", Array.from({ length: 25 }, (_, i) => ({ fingerprint: `fp-${i}`, occurrences: 2n, distinctRuns: 2n, summedCostMs: 50n, confidence: "high", representativeRunIds: ["run-1"] })));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ investigations: [] }))));
+  renderWithProviders(createElement(InvestigationsPage));
+  assert.ok(await screen.findByText("fp-19"));
+  assert.equal(screen.queryByText("fp-20"), null);
+  fireEvent.click(screen.getByTestId("friction-signals-show-more"));
+  assert.ok(await screen.findByText("fp-24"));
+  assert.equal(screen.queryByTestId("friction-signals-show-more"), null);
+});

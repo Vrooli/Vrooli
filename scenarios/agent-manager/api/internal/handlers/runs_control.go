@@ -43,12 +43,19 @@ func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 
 // StopRunByTag stops a run identified by its custom tag.
 func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "stop-run-by-tag") {
-		return
-	}
 	tag := mux.Vars(r)["tag"]
 	req := apipb.StopRunByTagRequest{Tag: tag}
 	if !h.validateProto(w, r, &req) {
+		return
+	}
+	// The tag resolves to one run first, so a run identity is held to the same
+	// rule as `run stop` on that run: its lineage or an agent.manage grant.
+	tagged, err := h.svc.GetRunByTag(r.Context(), tag)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	if !h.lineageLifecycleAllowed(r, tagged.ID, false) && h.denyRunLifecycleOnTarget(w, r, "stop-run-by-tag", tagged.ID.String(), "") {
 		return
 	}
 
@@ -74,7 +81,9 @@ func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/runs/stop-all
 // Body: {"tagPrefix": "ecosystem-", "force": true}
 func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "stop-all") {
+	// Stopping every run needs an agent.manage grant that covers every run
+	// (agent-manager:run/* or agent-manager:*); a grant on named runs does not.
+	if h.denyRunLifecycleOnTarget(w, r, "stop-all", "*", "") {
 		return
 	}
 	body, err := io.ReadAll(r.Body)
