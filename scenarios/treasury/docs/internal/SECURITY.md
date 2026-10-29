@@ -53,7 +53,7 @@ decision in the scenario.
 | Service | Realm | May do | May not do |
 |---|---|---|---|
 | `AgentSpend` | agent | Request authorization, execute an automated approved charge, read its own attempt results and budget headroom. | Assert a rail outcome or manual receipt; mutate policy, budgets, gating, mandates, instruments or freeze state — **because no such method is declared on the service.** |
-| `TreasuryAdmin` | operator | Policy, budgets, mandates, instruments, approval resolution, freeze, evidence read, and operator-attested manual settlement. | — |
+| `TreasuryAdmin` | operator | Policy, budgets, mandates, instruments, approval resolution, freeze, evidence read, operator-attested manual settlement, and receive-only wallet custody. | — |
 
 The guarantee is **structural, not a permission check**. `TRS-P0-004`
 asserts against the generated proto service descriptor that `AgentSpend`
@@ -135,3 +135,13 @@ scenario storage.
 - [`ERROR-HANDLING.md`](ERROR-HANDLING.md) — error response behavior
 - [`DECISIONS.md`](DECISIONS.md) — why the gate is structural rather than a check
 - [`PROBLEMS.md`](PROBLEMS.md) — unresolved security debt
+
+## Receive-only wallet boundary
+
+The wallet domain holds only public binding metadata and independent mint witnesses in its repository. Private secp256k1 scalars and recovery passphrases are resolved in-process through Credential Authority. Its Admin methods preserve the existing operator-only and mixed-realm refusal. Fixed EIP191 control proofs bind wallet/book/operator/network/address and a bounded nonce; they expose no arbitrary typed-data or transaction signing. Provisioning creates no budget, mandate, instrument or spending authority.
+
+Signing is software execution with the scalar temporarily available to the Treasury process. Host-protected credential storage does not establish hardware-isolated signing or a nonexportable wallet key. Clearing mutable key buffers does not prove all immutable Go strings or process memory have been wiped.
+
+Owner tests challenge wrong network/message/key/scope, missing keys, lost recovery passphrases, damaged ciphertext, partial metadata failures, fresh database handles and independent-connection serialization. An actual HTTP test uses only temporary SQLite/files, TEST custody and a fake operator token. Public scalar1 vectors qualify derivation/protocol compatibility only and must never receive funds.
+
+Production provisioning remains unqualified. The current encrypted recovery bundle keeps its passphrase in the same host credential owner, so `independent_recovery_verified` remains false. Authoritative dynamic credential inventory/export coverage and independently held off-host recovery material require separate owner qualification. Host-keystore restore, permitted operator commissioning ingress and a fundable address have not been demonstrated by these isolated tests. Do not replace these missing proofs with an operator bearer resolved into an alternate agent transport.

@@ -104,12 +104,19 @@ func (h *connectHandler) GetAuthorization(ctx context.Context, request *connect.
 	if request == nil || request.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
 	}
-	if h.service == nil {
+	if h.service == nil || h.verifier == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authorization service is unavailable"))
+	}
+	claims, err := h.verifier.Verify(ctx, identityTokenFromHeaders(request.Header()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	result, err := h.service.Get(ctx, request.Msg.GetId())
 	if err != nil {
 		return nil, mapError(err)
+	}
+	if result.RequestingAgent != claims.Subject {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("authorization belongs to another owner"))
 	}
 	return connect.NewResponse(&authorizationv1.GetAuthorizationResponse{Authorization: toProto(result)}), nil
 }

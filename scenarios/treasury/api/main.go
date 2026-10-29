@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"treasury/internal/approval"
+	"treasury/internal/book"
 	"treasury/internal/capabilities"
 	"treasury/internal/identity"
 	"treasury/internal/instrument"
@@ -24,6 +25,7 @@ import (
 	"treasury/internal/rail/manual"
 	x402rail "treasury/internal/rail/x402"
 	"treasury/internal/server"
+	"treasury/internal/wallet"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -231,12 +233,18 @@ func main() {
 	ledgerCtx, stopLedger := context.WithCancel(context.Background())
 	go ledgerService.Run(ledgerCtx, 5*time.Second, log.Default())
 
+	var walletService treasuryadminH.Wallets
+	if authorityErr == nil && authority != nil {
+		walletService = wallet.NewService(wallet.NewSQLiteRepository(db), book.NewService(book.NewSQLiteRepository(db), clock), authority, clock, func(ctx context.Context, rel string) (string, error) {
+			return fileRootPath(ctx, fileRoots, storage.ClassData, rel)
+		})
+	}
 	srv := server.New(
 		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "treasury-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver),
-		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, mandateSigner),
+		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, mandateSigner, walletService),
 		x402gateH.Module(x402Gate, operatorAuthorizer),
 	)
 

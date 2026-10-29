@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "73f1a2821a4ee96a58d1c5ea2d4dcdfec95ffbc4e49244d897c7d2f05c16c128",
+  "manifest_hash": "a65ada2a0bb1e05daf924cd3da2b914e6e106681804dbc691004c217900315b3",
   "commands": [
     {
       "path": "approval list",
@@ -179,6 +179,36 @@
       "group": "settlement",
       "command": "report-outcome",
       "binding": "AgentSpend.ReportOutcome"
+    },
+    {
+      "path": "wallet create",
+      "group": "wallet",
+      "command": "create",
+      "binding": "TreasuryAdmin.CreateResearchWallet"
+    },
+    {
+      "path": "wallet get",
+      "group": "wallet",
+      "command": "get",
+      "binding": "TreasuryAdmin.GetResearchWallet"
+    },
+    {
+      "path": "wallet prove",
+      "group": "wallet",
+      "command": "prove",
+      "binding": "TreasuryAdmin.ProveResearchWallet"
+    },
+    {
+      "path": "wallet qualify-recovery",
+      "group": "wallet",
+      "command": "qualify-recovery",
+      "binding": "TreasuryAdmin.QualifyResearchWalletRecovery"
+    },
+    {
+      "path": "wallet recover",
+      "group": "wallet",
+      "command": "recover",
+      "binding": "TreasuryAdmin.RecoverResearchWallet"
     }
   ]
 }

@@ -196,6 +196,161 @@
       ]
     },
     {
+      "id": "treasuryadmin_recover_research_wallet",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecoverResearchWallet",
+      "method": "POST",
+      "summary": "Restore a missing wallet key from verified encrypted custody",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ResearchWalletRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_create_research_wallet",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateResearchWallet",
+      "method": "POST",
+      "summary": "Create a receive-only research wallet",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "CreateResearchWalletRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_get_research_wallet",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetResearchWallet",
+      "method": "POST",
+      "summary": "Read qualified public wallet custody",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ResearchWalletRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_prove_research_wallet",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ProveResearchWallet",
+      "method": "POST",
+      "summary": "Prove address control without spending authority",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ProveResearchWalletRequest"
+      },
+      "response": {
+        "type": "ProveResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_qualify_research_wallet_recovery",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/QualifyResearchWalletRecovery",
+      "method": "POST",
+      "summary": "Qualify encrypted same-host wallet recovery",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ResearchWalletRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
       "id": "treasuryadmin_create_book",
       "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateBook",
       "method": "POST",

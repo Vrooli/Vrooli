@@ -41,6 +41,7 @@ belong in [`DATA.md`](DATA.md).
 | evidence | Retain one replayable record per spend attempt. | Make every decision reconstructable afterwards, including the ones that refused. | Append-only evidence records. | reporting | query | Evidence Record, Replay | `api/internal/evidence/` |
 | ledger | Emit settled movement to `money-ledger`. | Keep the journal complete without giving it any knowledge of this scenario. | Emission log, emission idempotency. | gateway | service | Money Event, Basis, Emission | `api/internal/ledger/` |
 | identity | Verify the calling agent and resolve its authority. | Refuse spend that cannot be attributed, rather than recording it at a weaker grade. | No durable data; caches nothing across requests. | gateway | policy | Verified Claims, Fail Closed | `api/internal/identity/` |
+| wallet | Bind a receive-only EVM address to the operator custody book. | Allow research funding setup without granting spending or exposing keys. | Public address/network/book/operator metadata, credential mint witness, encrypted recovery metadata. | service | custody, query | Research Wallet, Address Control | `api/internal/wallet/`, operator-only TreasuryAdmin RPCs |
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/treasury/v1/shared/health.proto` |
 
 ## Domain Details
@@ -343,3 +344,11 @@ piece into an owning domain instead of growing infrastructure.
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — boundary registry
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test strategy
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — durable choices and their reasons
+
+### wallet — receive-only research custody
+
+The operator-authorized research extension binds an independently generated secp256k1 EOA to a book, authenticated operator and explicitly supported EVM network (Base mainnet8453 or Base Sepolia84532). Credential Authority stores scalar material by opaque logical identity; Treasury stores only public metadata and an independent durable mint witness. Missing witnessed custody, provider errors, a mismatched public address and changed creation scope refuse; a retry must never generate a replacement wallet silently.
+
+Only TreasuryAdmin may create, read, prove control or qualify recovery. The proof signs a fixed domain-separated EIP191 non-payment message including wallet/book/operator/network and a bounded nonce. No arbitrary typed data, transaction or spend signing, broadcast, mandate creation or automatic budget credit is added. AgentSpend remains structurally without these operations.
+
+Recovery qualification uses Credential Authority authenticated encrypted export for this wallet only and retains the bundle in Treasury-owned restricted data storage. An owner-held recovery passphrase supports a same-host encrypted recovery check; it is explicitly not independent off-host/operator recovery. The operator must establish a separately recoverable passphrase and off-host encrypted copy before treating disaster recovery as qualified. Public control proof, chain observation, authoritative fiat accounting and spend authorization remain distinct.

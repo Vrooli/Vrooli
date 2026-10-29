@@ -248,6 +248,150 @@
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
         }
       ]
+    },
+    {
+      "name": "wallet",
+      "description": "Receive-only research wallet custody; no spending authority.",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a receive-only wallet in operator custody.",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "book-id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "CreateResearchWallet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read and revalidate public wallet custody.",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "GetResearchWallet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prove",
+          "description": "Produce a fixed non-payment address-control proof.",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            },
+            {
+              "name": "nonce",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "ProveResearchWallet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "qualify-recovery",
+          "description": "Verify a same-host encrypted recovery bundle.",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "QualifyResearchWalletRecovery"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recover",
+          "description": "Restore a missing key from verified encrypted recovery.",
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "RecoverResearchWallet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {"domains": []},

@@ -12,7 +12,7 @@ Holds what an agent is permitted to spend and permitted to charge, evaluates eve
 
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets, [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) for the domain map, and [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md) for the choices that were made deliberately and should not be relitigated.
 
-> **Status: documented, not implemented.** Orientation gates 1-5b are complete — PRD, requirements registry, domain map, data and flow models, dependency contracts, design adaptation, experience contract, and the business, operations and internal docs. **No implementation code exists yet**, and every security mitigation described in [`docs/internal/SECURITY.md`](docs/internal/SECURITY.md) is `designed` rather than verified. Gate 0 (scaffold health) is blocked by an inherited template defect recorded in [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md).
+> **Status: implemented, with qualification recorded per boundary.** API, CLI and UI source exist. The receive-only research-wallet extension has isolated custody, recovery and HTTP checks; production wallet commissioning and independent off-host recovery remain unqualified. See [`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md) and [`docs/internal/SECURITY.md`](docs/internal/SECURITY.md) for evidence and current gaps.
 
 ---
 

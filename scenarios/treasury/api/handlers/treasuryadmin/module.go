@@ -13,6 +13,7 @@ import (
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	"treasury/internal/settlement"
+	"treasury/internal/wallet"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,7 +22,7 @@ import (
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 )
 
-func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer) module.Module {
+func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer, wallets ...Wallets) module.Module {
 	authorizations := authorization.NewSQLiteRepository(db)
 	evidenceRecorder := evidence.NewRecorder(evidence.NewSQLiteRecorder(db))
 	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorizations, relay, clock, evidenceRecorder)
@@ -30,12 +31,18 @@ func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock sch
 	mandates := mandate.NewService(mandate.NewSQLiteRepository(db), clock, signer)
 	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clock, cardIssuers)
 	settlements := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, nil, clock, budgets)
-	path, handler := authorizationconnect.NewTreasuryAdminHandler(NewConnectHandler(authorizer, books, budgets, mandates, approvals, instruments, settlements, authorizations))
+	services := []any{books, budgets, mandates, approvals, instruments, settlements, authorizations}
+	for _, service := range wallets {
+		if service != nil {
+			services = append(services, service)
+		}
+	}
+	path, handler := authorizationconnect.NewTreasuryAdminHandler(NewConnectHandler(authorizer, services...))
 	return module.Module{Name: "treasuryadmin", Mount: func(router *mux.Router) {
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 	}, Endpoints: Endpoints}
 }
 
 func Schema() string {
-	return rail.Schema() + "\n" + approval.Schema() + "\n" + instrument.Schema()
+	return rail.Schema() + "\n" + approval.Schema() + "\n" + instrument.Schema() + "\n" + wallet.Schema()
 }

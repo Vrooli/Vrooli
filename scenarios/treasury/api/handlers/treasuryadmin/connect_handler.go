@@ -16,6 +16,7 @@ import (
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
 	"treasury/internal/settlement"
+	"treasury/internal/wallet"
 
 	"connectrpc.com/connect"
 	approvalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
@@ -66,7 +67,16 @@ type Mandates interface {
 	List(context.Context) ([]mandate.Mandate, error)
 }
 
+type Wallets interface {
+	Create(context.Context, wallet.CreateInput) (wallet.Wallet, error)
+	Get(context.Context, string, string, string) (wallet.Wallet, error)
+	Prove(context.Context, string, string, string, string) (wallet.Proof, error)
+	QualifyRecovery(context.Context, string, string, string) (wallet.Wallet, error)
+	Recover(context.Context, string, string, string) (wallet.Wallet, error)
+}
+
 type connectHandler struct {
+	wallets        Wallets
 	authorizer     operatorauth.Authorizer
 	approvals      Approvals
 	instruments    Instruments
@@ -81,6 +91,8 @@ func NewConnectHandler(authorizer operatorauth.Authorizer, services ...any) auth
 	handler := &connectHandler{authorizer: authorizer}
 	for _, service := range services {
 		switch value := service.(type) {
+		case Wallets:
+			handler.wallets = value
 		case Approvals:
 			handler.approvals = value
 		case Instruments:

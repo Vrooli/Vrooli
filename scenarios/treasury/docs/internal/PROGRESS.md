@@ -34,3 +34,11 @@ Use this table shape when appending entries.
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
 - [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map
+
+## 2026-10-27 — receive-only wallet research qualification in progress
+
+A scoped research extension adds an operator-only receive-wallet custody domain, fixed non-payment EIP191 address-control proof and same-host encrypted recovery metadata using existing Credential Authority. Agent/mixed realms remain rejected and no arbitrary signing/broadcast operation exists. Isolated derivation, scope, key-loss refusal, encrypted restore/wrong-passphrase and transport negatives pass. Production provisioning is paused pending qualification of a permitted operator commissioning ingress; no live wallet was created and no address is fundable. Same-host encrypted backup does not establish off-host disaster recovery. Full source/validation/physical closure remains in progress in the crypto-foundations renewal run.
+
+### 2026-10-27 — Receive-only owner recovery and transport challenge
+
+Wallet SQL is behind its repository; independent writer serialization and random opaque namespaces prevent duplicate mint races and equal-ID key aliasing across fresh repositories. Missing-key restoration verifies staged encrypted contents against the immutable public address before active-store write. Temporary SQLite/TEST-custody HTTP checks pass create/prove/recovery/fresh-owner readback and preserve mixed-realm/wrong-network refusal with no budgets/mandates/instruments created. Production commissioning, dynamic inventory/export and independent off-host recovery remain unqualified. Local x402 controls refuse legacy upload challenges and fractional-cent quotes before signing or paid retry; no settlement policy change or provider payment occurred.

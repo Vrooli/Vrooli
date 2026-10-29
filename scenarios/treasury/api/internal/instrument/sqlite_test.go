@@ -2,9 +2,6 @@ package instrument_test
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +10,7 @@ import (
 	"treasury/internal/budget"
 	"treasury/internal/instrument"
 	"treasury/internal/mandate"
+	"treasury/internal/modules"
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	"treasury/internal/rail/manual"
@@ -33,18 +31,14 @@ type credentialResolver struct {
 }
 
 func TestProductSchemasContainNoCredentialValueColumns(t *testing.T) {
-	_, current, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root := filepath.Clean(filepath.Join(filepath.Dir(current), ".."))
-	matches, err := filepath.Glob(filepath.Join(root, "*", "schema.sql"))
-	require.NoError(t, err)
-	require.NotEmpty(t, matches)
-	for _, path := range matches {
-		contents, readErr := os.ReadFile(path)
-		require.NoError(t, readErr)
-		normalized := strings.ToLower(string(contents))
+	// Inspect the actual boot-wired embedded schemas. runtime.Caller paths are
+	// module-relative under -trimpath and cannot locate source files at runtime.
+	schemas := modules.AllSchemas()
+	require.NotEmpty(t, schemas)
+	for index, provider := range schemas {
+		normalized := strings.ToLower(provider.Schema())
 		for _, forbidden := range []string{"credential_value", "secret_value", "plaintext_secret", "card_number", "password", "access_token"} {
-			require.NotContains(t, normalized, forbidden, "%s must store a logical credential reference only", path)
+			require.NotContains(t, normalized, forbidden, "boot schema %d must store a logical credential reference only", index)
 		}
 	}
 }
