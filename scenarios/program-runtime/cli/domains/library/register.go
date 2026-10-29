@@ -32,7 +32,15 @@ type handlers struct {
 
 func parseInputPairs(raw string) (map[string]any, error) {
 	inputs := map[string]any{}
-	for _, item := range splitInputPairs(raw) {
+	var items []string
+	for _, part := range splitInputPairs(raw) {
+		if !strings.Contains(part, "=") && len(items) > 0 {
+			items[len(items)-1] += "," + part
+		} else {
+			items = append(items, part)
+		}
+	}
+	for _, item := range items {
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
@@ -260,18 +268,19 @@ func (h *handlers) list(ctx cliapp.OperationContext) (*libraryv1.ListLibraryResp
 	if args := ctx.Args(); len(args) > 0 {
 		query = strings.TrimSpace(strings.ToLower(args[0]))
 	}
-	if query == "" {
-		request := &libraryv1.ListLibraryRequest{Limit: 50}
-		r, err := h.client.ListLibrary(context.Background(), connect.NewRequest(request))
-		if err != nil {
-			return nil, cliapp.WrapAPIError("list library", err, nil)
-		}
-		return r.Msg, nil
-	}
 	request := &libraryv1.ListLibraryRequest{Query: query, Limit: 50}
 	r, err := h.client.ListLibrary(context.Background(), connect.NewRequest(request))
 	if err != nil {
-		return nil, cliapp.WrapAPIError("search library", err, nil)
+		return nil, cliapp.WrapAPIError("list library", err, nil)
+	}
+	// Discovery returns metadata. Fetch source explicitly through library get.
+	for _, program := range r.Msg.GetPrograms() {
+		if program != nil {
+			program.Source = ""
+		}
+	}
+	if query == "" {
+		return r.Msg, nil
 	}
 	type scored struct {
 		program *sharedv1.LibraryProgram

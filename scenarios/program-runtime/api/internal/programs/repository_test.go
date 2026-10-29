@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,22 @@ func newProgramsTestDB(t *testing.T) *sql.DB {
 	_, err = d.ExecContext(context.Background(), `CREATE TABLE unresolved_binding_attempts (attempted_name TEXT, provenance TEXT, occurred_at TEXT)`)
 	require.NoError(t, err)
 	return d
+}
+
+func TestEnsureCompatibilityMarksHistoricalCallerIdentityUnverified(t *testing.T) {
+	d := db.NewSQLite(t)
+	legacySchema := strings.Replace(Schema(), ",\n  caller_identity_verified INTEGER NOT NULL DEFAULT 0", "", 1)
+	require.NotEqual(t, Schema(), legacySchema)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(func() string { return legacySchema })))
+	_, err := d.ExecContext(context.Background(), `INSERT INTO programs (id, session_id, source, provenance, status, created_at, caller_run_id) VALUES ('legacy', '', '', '1', 'succeeded', '2026-01-01T00:00:00Z', 'self-reported-run')`)
+	require.NoError(t, err)
+	require.NoError(t, EnsureCompatibility(context.Background(), d))
+
+	p, err := NewRepository(d).Get(context.Background(), "legacy")
+	require.NoError(t, err)
+	require.Equal(t, "self-reported-run", p.CallerRunId)
+	require.False(t, p.CallerIdentityVerified)
+	require.NoError(t, EnsureCompatibility(context.Background(), d), "compatibility must be idempotent")
 }
 
 func TestStartupReconcilesOnlyInterruptedPrograms(t *testing.T) { // [REQ:PRT-P1-006]

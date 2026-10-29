@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Summarize recurring program failure shapes from programs mine as shape counts and three sample program ids, without materializing the corpus.",
+  "purpose": "Summarize recurring program failure shapes with ranked, shape-linked evidence and timestamps, without materializing the corpus.",
   "inputs": {
     "include_operator": {
       "type": "boolean",
@@ -31,6 +31,7 @@
     "status": {
       "enum": [
         "ok",
+        "partial",
         "unavailable",
         "refused",
         "failed"
@@ -45,12 +46,21 @@
       ]
     },
     "signals": {
-      "shapes": "count of distinct failure shapes",
-      "by_shape": "shape -> count (first 20 shapes)",
-      "top": "the three most frequent shapes"
+    "shapes": "count of distinct failure shapes",
+      "returned_shapes": "number of shape rows summarized, at most 20",
+      "complete": "whether all source rows and required evidence were available",
+      "truncated": "whether the 20-row summary bound omitted source rows",
+      "by_shape": "shape -> count (first 20 shapes; retained for existing consumers)",
+      "shape_details": "shape -> count, first_seen, last_seen, and sample_program_id",
+      "top": "the three most frequent returned shapes; only complete when status is ok",
+      "evidence_by_shape": "ranked shape -> sample program id, keyed so callers can inspect the matching failure"
     },
     "errors": {
       "classes": [
+        "source_count_unavailable",
+        "source_count_mismatch",
+        "shape_rows_truncated",
+        "shape_evidence_missing",
         "scenario_unreachable",
         "no_grant",
         "not_run_eligible",
@@ -65,22 +75,21 @@
         "no_governed_binding"
       ]
     },
-    "evidence": "sample program ids, one per shape, at most three"
+    "evidence": "available sample program ids in top order, at most three; evidence_by_shape provides the authoritative shape association"
   },
   "budget": {
     "wall_ms": 30000,
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 20
+    "materialize_limit": 20,
+    "output_bytes": 65536
   },
   "fixtures": [
     {
       "id": "live",
       "inputs": {},
       "expect": {
-        "status": [
-          "ok"
-        ]
+        "status": ["ok", "partial"]
       },
       "requires": [
         "program-runtime"

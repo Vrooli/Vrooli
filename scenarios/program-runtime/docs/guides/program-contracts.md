@@ -51,6 +51,21 @@ that intent while its record exists is refused; asynchronous versus synchronous
 observation does not change intent. Concurrent identical calls share one program
 record and execute at most once. No key means an independent submission.
 
+When the API receives a verified Agent Manager identity, the server uses its
+verified run ID and profile as persisted caller attribution; request-supplied
+run/profile fields cannot override them. Without a verified identity, those
+request fields remain caller-supplied metadata and do not prove who launched
+the program. The idempotency fingerprint still covers the exact caller fields
+submitted with the request, so a retry must preserve them. A replay can read
+the retained record only when its owner semantics allow it. A keyed record
+marked with verified caller identity can be replayed or read through
+`GetDeclaredExecution` only by that same verified run. A missing token or a
+different verified run cannot use copied caller fields and the key to observe
+its result. Historical records default to unverified attribution because
+their caller fields were not sourced from server verification; they retain
+their prior operator/key observation behavior. Skill and harness fields remain
+caller-supplied metadata.
+
 Replay returns the retained execution, including failure or `runtime_interrupted`;
 it does not repeat effects. After the admission deadline, a retained execution
 remains readable, but a missing execution is refused. Evidence retention keeps
@@ -526,6 +541,15 @@ not establish that a child returned `status: ok`. Branch on the child's status
 and propagate failures, unavailable dependencies, and incomplete evidence. The
 session-start library snapshot gives stable code during that session; child
 metadata does not establish that a parent digest pins its transitive imports.
+
+The Program Runtime record and the domain envelope answer different questions.
+The record's `PROGRAM_STATUS_SUCCEEDED` means the program execution completed;
+it does not mean the scenario task succeeded. A program can catch an owner-level
+failure and print a valid envelope whose `status` is `failed` or `partial`.
+Conversely, a runtime failure can occur before an envelope is printed or after
+an external side effect. Read the envelope's `status`, `errors`, and `signals`
+when it exists, inspect runner failure detail when it does not, and reconcile
+owner effects before retrying an action.
 
 Use this composition path for self-improvement as well as ordinary usage. Keep
 repeated collection, inference, and evidence handling in the scenario that owns

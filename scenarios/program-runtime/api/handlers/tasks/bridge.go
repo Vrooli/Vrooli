@@ -184,7 +184,7 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, err := b.Programs.Get(r.Context(), req.ProgramID)
-	if err != nil || p.GetSessionId() != req.SessionID {
+	if err != nil || p.GetSessionId() != req.SessionID || programs.RequireCallerOwner(r.Context(), p) != nil {
 		writeError(w, http.StatusForbidden, errors.New("program does not belong to session"))
 		return
 	}

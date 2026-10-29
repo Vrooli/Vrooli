@@ -19,19 +19,9 @@ def error(kind, detail, where):
 
 
 def transport_failure(exc):
-    text = str(exc)
-    for needle, status, kind in (
-        ("requires an explicit grant", "refused", "no_grant"),
-        ("not run eligible", "refused", "not_run_eligible"),
-        ("inference spend", "refused", "inference_spend_exceeded"),
-        ("inference_spend_exceeded", "refused", "inference_spend_exceeded"),
-        ("is unreachable", "unavailable", "scenario_unreachable"),
-        ("bridge unavailable", "unavailable", "scenario_unreachable"),
-        ("scenario_not_running", "unavailable", "scenario_unreachable"),
-    ):
-        if needle in text:
-            return status, kind
-    return "failed", "kernel_runtime" if isinstance(exc, (NameError, AttributeError)) else "binding_error"
+    # Preserve the bridge's typed status/class. In particular, a target 4xx
+    # remote_error is a failed inference call, not an unknown binding_error.
+    return program.classify(exc)
 
 
 def usage(value):

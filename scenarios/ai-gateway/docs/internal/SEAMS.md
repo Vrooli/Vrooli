@@ -27,6 +27,12 @@ builds that type via `create(ResponseSchema, ...)`. Both use the proto
 contract; a Go response factory is only needed when a test consumes
 fabricated response inputs.
 
+Capacity admission is also part of the typed caller contract:
+`GatewayRequest.required_vram_bytes` is the explicit, caller-declared local
+footprint. AI Gateway must not guess this value from a provider or model name.
+The CLI retains the legacy metadata value during rollout, while new API and
+Program Runtime callers use the typed field.
+
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go
 clients are the seam at the wire boundary. REST remains intentional

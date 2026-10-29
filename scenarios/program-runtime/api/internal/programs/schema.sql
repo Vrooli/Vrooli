@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS programs (
   usage_charge_micros INTEGER NOT NULL DEFAULT 0,
   usage_accounting_complete INTEGER NOT NULL DEFAULT 0,
   usage_charge_measured INTEGER NOT NULL DEFAULT 0,
-  usage_basis TEXT NOT NULL DEFAULT ''
+  usage_basis TEXT NOT NULL DEFAULT '',
+  caller_identity_verified INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_programs_session ON programs(session_id);

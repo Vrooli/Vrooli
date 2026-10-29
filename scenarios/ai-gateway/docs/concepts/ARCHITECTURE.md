@@ -89,6 +89,12 @@ The gateway request contract must be provider-neutral:
 }
 ```
 
+Local callers that need hard GPU admission set the typed
+`GatewayRequest.required_vram_bytes` constraint. The value is caller-declared;
+AI Gateway does not infer a footprint from the selected model, and an absent
+value means capacity is not evaluated. Program Runtime bindings expose the
+field through the same routed request contract.
+
 Forbidden caller fields include concrete provider model slugs, provider
 base URLs, provider API keys, and provider-specific endpoint names. A
 debug-only route override may exist later, but it must be explicit,

@@ -482,7 +482,7 @@
             {"name": "grant", "repeatable": true, "description": "Explicit binding:<id> grant for a destructive binding declared by the pinned contract.", "bind": {"field": "grants"}, "bind_waiver": "Repeated grant values supply the grants sequence."},
             {"name": "idempotency-key", "description": "Stable request key scoped to the program; requires expected-digest and admission-deadline."},
             {"name": "admission-deadline", "description": "Fixed RFC3339 deadline within 24h for keyed admission. Never renew on retry."},
-            {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."},
+            {"name": "input", "description": "key=value inputs; repeat the flag or separate pairs with commas. Quote values as JSON when a comma precedes key=.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."},
             {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay.", "default": "operator"},
             {"name": "caller-run-id", "local_only": true, "description": "Explicit caller run id; defaults to VROOLI_RUN_ID."},
             {"name": "caller-agent-profile", "local_only": true, "description": "Explicit caller agent profile; defaults to VROOLI_AGENT_PROFILE."},
@@ -628,7 +628,7 @@
             },
             {
               "name": "sandbox-workspace",
-              "description": "Optional workspace-sandbox workspace identifier."
+              "description": "Workspace-sandbox ID or absolute existing directory; direct directories are not copy-on-write sandboxes."
             },
             {
               "name": "grants",

@@ -48,6 +48,7 @@ class ClassificationPrograms(unittest.TestCase):
         self.calls = []
         self.batch = {'results': [validated()], 'usage': {}}
         self.refusal = None
+        self.remote_error = False
         self.failed_collect = None
         self.specs = [library('ai-gateway', 'classify-batch')]
         self.specs += [library('program-runtime', name) for name in ('batch-inference', 'typed-inference', 'watch-set')]
@@ -62,6 +63,9 @@ class ClassificationPrograms(unittest.TestCase):
                 raise urllib.error.HTTPError(request.full_url, 503, 'Unavailable', {}, io.BytesIO(b'{"error":"collection unavailable"}'))
             return Response({'execution_id': body['execution_id'], 'status': 'completed'})
         self.assertEqual('ai-gateway/inference/run-batch', body['binding_id'])
+        if self.remote_error:
+            payload = {'error': 'schema mismatch', 'class': 'remote_error', 'status': 'failed', 'http_status': 400}
+            raise urllib.error.HTTPError(request.full_url, 400, 'Bad Request', {}, io.BytesIO(json.dumps(payload).encode()))
         if self.refusal:
             raise urllib.error.HTTPError(request.full_url, 403, 'Refused', {}, io.BytesIO(json.dumps({'error': self.refusal}).encode()))
         return Response(self.batch)
@@ -174,6 +178,21 @@ class ClassificationPrograms(unittest.TestCase):
             self.assertEqual(kind, result['errors'][0]['class'])
             self.assertEqual([], result['signals']['labels'])
             self.assertEqual(1, len(self.calls))
+
+    def test_typed_remote_error_is_preserved_by_owner_and_consumer(self):
+        self.remote_error = True
+        owner = self.run_program(nested=False)
+        self.assertEqual('failed', owner['status'])
+        self.assertEqual('remote_error', owner['errors'][0]['class'])
+        self.assertEqual([], owner['signals']['labels'])
+        self.assertEqual(1, len(self.calls))
+
+        self.calls = []
+        consumer = self.run_program('program_runtime.batch_inference')
+        self.assertEqual('failed', consumer['status'])
+        self.assertEqual('remote_error', consumer['errors'][0]['class'])
+        self.assertEqual([], consumer['signals']['labels'])
+        self.assertEqual(1, len(self.calls))
 
     def test_delegation_collection_gaps_preserve_original_run_indices(self):
         self.failed_collect = 'run-0'

@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 // CapacityVerdict is the stable, provider-neutral result of consulting the
@@ -175,4 +177,17 @@ func capacityRequirementBytes(metadata map[string]string) int64 {
 		}
 	}
 	return 0
+}
+
+// requestCapacityRequirementBytes prefers the typed caller constraint. The
+// metadata fallback preserves compatibility with clients predating the typed
+// field; model identity is never used to guess a footprint.
+func requestCapacityRequirementBytes(req *sharedv1.GatewayRequest) int64 {
+	if req == nil {
+		return 0
+	}
+	if req.GetRequiredVramBytes() > 0 {
+		return req.GetRequiredVramBytes()
+	}
+	return capacityRequirementBytes(req.GetMetadata())
 }

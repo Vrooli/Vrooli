@@ -119,6 +119,9 @@ func main() {
 	if err := tasks.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("task schema compatibility failed: %v", err)
 	}
+	if err := programs.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("program schema compatibility failed: %v", err)
+	}
 	if err := bindings.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("binding schema compatibility failed: %v", err)
 	}

@@ -51,7 +51,8 @@
     },
     "signals": {
       "elapsed_seconds": "wall time of the gather, rounded to milliseconds",
-      "result_counts": "one count per read, in call order"
+      "result_counts": "one slot per read, in call order; integer count on success and null when that read failed",
+      "result_outcomes": "one entry per read in call order with binding, status, count, and error_class when failed"
     },
     "errors": {
       "classes": [

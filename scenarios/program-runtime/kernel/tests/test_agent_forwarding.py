@@ -1,11 +1,14 @@
 import json
 import sys
 import urllib.request
+from contextvars import ContextVar
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 from host.engine import SessionKernel, _AGENT_IDENTITY, _open_bridge_request
+from host.tasks import Tasks
 
 
 class Response:
@@ -18,7 +21,7 @@ class Response:
     def __exit__(self, *_args):
         return False
 
-    def read(self):
+    def read(self, *_args):
         return json.dumps(self.body).encode()
 
 
@@ -90,3 +93,37 @@ def test_parallel_owner_calls_preserve_agent_proof_and_failure_clears_it():
         again = kernel.execute("print(demo.work.run().count())")
         assert again["ok"]
         assert calls and all(value is None for value in calls)
+
+
+def test_learning_task_bridge_forwards_verified_agent_proof():
+    calls = []
+
+    def opened(request, **_kwargs):
+        calls.append(request)
+        return Response({"task_id": "task-1"})
+
+    owner = SimpleNamespace(
+        _bridge_url="http://127.0.0.1:1234/internal/program-runtime/bindings/execute",
+        _session_id="session-a",
+    )
+    invocation = ContextVar("test_learning_invocation", default={})
+    invocation.set({"program_id": "program-a"})
+    tasks = Tasks(owner, invocation, None, 1)
+    saved = _AGENT_IDENTITY.set("fixture-agent-proof")
+    try:
+        with patch("host.engine.urllib.request.build_opener") as builder, patch("host.engine.urllib.request.urlopen", side_effect=opened):
+            builder.return_value.open.side_effect = opened
+            result = tasks._bridge("begin", operation="fixture.child")
+    finally:
+        _AGENT_IDENTITY.reset(saved)
+
+    assert result == {"task_id": "task-1"}
+    assert len(calls) == 1
+    request = calls[0]
+    assert request.full_url.endswith("/internal/program-runtime/tasks/begin")
+    assert request.get_header("X-agent-identity-token") == "fixture-agent-proof"
+    assert json.loads(request.data) == {
+        "operation": "fixture.child",
+        "session_id": "session-a",
+        "program_id": "program-a",
+    }

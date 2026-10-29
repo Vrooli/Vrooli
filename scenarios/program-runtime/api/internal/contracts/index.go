@@ -183,6 +183,7 @@ func matchesInputType(value any, kind string) bool {
 }
 
 type Index struct {
+	loadMu    sync.Mutex
 	mu        sync.RWMutex
 	contracts []Contract
 	mtimes    map[string]int64
@@ -191,74 +192,90 @@ type Index struct {
 func NewIndex() *Index { return &Index{mtimes: map[string]int64{}} }
 
 func (i *Index) Load(repoRoot string) error {
-	root := strings.TrimSpace(repoRoot)
-	if root == "" {
-		return fmt.Errorf("repository root is required")
-	}
-	repo, err := repocontract.LoadDefault(root)
-	if err != nil {
-		return fmt.Errorf("load repository contract: %w", err)
-	}
-	targets, err := repo.EnumerateTargets(root)
-	if err != nil {
-		return fmt.Errorf("enumerate repository targets: %w", err)
-	}
-	compiler := jsonschema.NewCompiler()
-	schemaPath := filepath.Join(root, "scenarios", "program-runtime", "schemas", "program-contract.schema.json")
-	if err := compiler.AddResource(schemaPath, bytes.NewReader(mustRead(schemaPath))); err != nil {
-		return fmt.Errorf("load program contract schema: %w", err)
-	}
-	compiled, err := compiler.Compile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("compile program contract schema: %w", err)
-	}
+	return i.loadSnapshot(func() ([]Contract, map[string]int64, error) {
+		root := strings.TrimSpace(repoRoot)
+		if root == "" {
+			return nil, nil, fmt.Errorf("repository root is required")
+		}
+		repo, err := repocontract.LoadDefault(root)
+		if err != nil {
+			return nil, nil, fmt.Errorf("load repository contract: %w", err)
+		}
+		targets, err := repo.EnumerateTargets(root)
+		if err != nil {
+			return nil, nil, fmt.Errorf("enumerate repository targets: %w", err)
+		}
+		compiler := jsonschema.NewCompiler()
+		schemaPath := filepath.Join(root, "scenarios", "program-runtime", "schemas", "program-contract.schema.json")
+		if err := compiler.AddResource(schemaPath, bytes.NewReader(mustRead(schemaPath))); err != nil {
+			return nil, nil, fmt.Errorf("load program contract schema: %w", err)
+		}
+		compiled, err := compiler.Compile(schemaPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("compile program contract schema: %w", err)
+		}
 
-	loaded := make([]Contract, 0)
-	mtimes := make(map[string]int64)
-	if info, err := os.Stat(schemaPath); err == nil {
-		mtimes[schemaPath] = info.ModTime().UnixNano()
-	}
-	for _, target := range targets {
-		if target.Kind != repocontract.TargetKindScenario {
-			continue
+		loaded := make([]Contract, 0)
+		mtimes := make(map[string]int64)
+		if info, err := os.Stat(schemaPath); err == nil {
+			mtimes[schemaPath] = info.ModTime().UnixNano()
 		}
-		dir := filepath.Join(root, "scenarios", target.ID, ".vrooli", "program-runtime")
-		entries, readErr := os.ReadDir(dir)
-		if readErr != nil {
-			if os.IsNotExist(readErr) {
+		for _, target := range targets {
+			if target.Kind != repocontract.TargetKindScenario {
 				continue
 			}
-			loaded = append(loaded, Contract{Scenario: target.ID, ID: target.ID, SourcePath: dir, ValidationError: readErr.Error()})
-			continue
-		}
-		for _, entry := range entries {
-			if entry.IsDir() || entry.Name() == "note-kinds.json" || !strings.HasSuffix(entry.Name(), ".json") || strings.HasSuffix(entry.Name(), ".output.schema.json") {
-				continue
-			}
-			path := filepath.Join(dir, entry.Name())
-			info, statErr := entry.Info()
-			if statErr == nil {
-				mtimes[path] = info.ModTime().UnixNano()
-			}
-			sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
-			if sourceInfo, sourceErr := os.Stat(sourcePath); sourceErr == nil {
-				mtimes[sourcePath] = sourceInfo.ModTime().UnixNano()
-			}
-			contract := readContract(target.ID, path, compiled)
-			if contract.OutputSchemaPath != "" {
-				if info, err := os.Stat(contract.OutputSchemaPath); err == nil {
-					mtimes[contract.OutputSchemaPath] = info.ModTime().UnixNano()
+			dir := filepath.Join(root, "scenarios", target.ID, ".vrooli", "program-runtime")
+			entries, readErr := os.ReadDir(dir)
+			if readErr != nil {
+				if os.IsNotExist(readErr) {
+					continue
 				}
+				loaded = append(loaded, Contract{Scenario: target.ID, ID: target.ID, SourcePath: dir, ValidationError: readErr.Error()})
+				continue
 			}
-			loaded = append(loaded, contract)
+			for _, entry := range entries {
+				if entry.IsDir() || entry.Name() == "note-kinds.json" || !strings.HasSuffix(entry.Name(), ".json") || strings.HasSuffix(entry.Name(), ".output.schema.json") {
+					continue
+				}
+				path := filepath.Join(dir, entry.Name())
+				info, statErr := entry.Info()
+				if statErr == nil {
+					mtimes[path] = info.ModTime().UnixNano()
+				}
+				sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
+				if sourceInfo, sourceErr := os.Stat(sourcePath); sourceErr == nil {
+					mtimes[sourcePath] = sourceInfo.ModTime().UnixNano()
+				}
+				contract := readContract(target.ID, path, compiled)
+				if contract.OutputSchemaPath != "" {
+					if info, err := os.Stat(contract.OutputSchemaPath); err == nil {
+						mtimes[contract.OutputSchemaPath] = info.ModTime().UnixNano()
+					}
+				}
+				loaded = append(loaded, contract)
+			}
 		}
-	}
-	sort.SliceStable(loaded, func(a, b int) bool {
-		if loaded[a].Scenario != loaded[b].Scenario {
-			return loaded[a].Scenario < loaded[b].Scenario
-		}
-		return loaded[a].Name < loaded[b].Name
+		sort.SliceStable(loaded, func(a, b int) bool {
+			if loaded[a].Scenario != loaded[b].Scenario {
+				return loaded[a].Scenario < loaded[b].Scenario
+			}
+			return loaded[a].Name < loaded[b].Name
+		})
+		return loaded, mtimes, nil
 	})
+}
+
+func (i *Index) loadSnapshot(read func() ([]Contract, map[string]int64, error)) error {
+	// Serialize reading and publication together. If concurrent loads only lock
+	// the final assignment, an older disk snapshot can finish after and replace a
+	// newer one.
+	i.loadMu.Lock()
+	defer i.loadMu.Unlock()
+
+	loaded, mtimes, err := read()
+	if err != nil {
+		return err
+	}
 	i.mu.Lock()
 	i.contracts, i.mtimes = loaded, mtimes
 	i.mu.Unlock()

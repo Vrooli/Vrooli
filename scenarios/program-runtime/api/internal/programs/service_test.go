@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/provenance"
 
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
@@ -463,4 +464,99 @@ func TestDeadlineFailureUsesStableFailureShape(t *testing.T) { // [REQ:PRT-P1-00
 	if p.Status != programsv1.ProgramStatus_PROGRAM_STATUS_FAILED || p.FailureShape != "deadline_exceeded" || !strings.Contains(p.FailureDetail, "2s") {
 		t.Fatalf("program=%+v", p)
 	}
+}
+
+func TestAttributedCallerUsesOnlyVerifiedIdentity(t *testing.T) {
+	claimed := Caller{RunID: "spoofed-run", AgentProfile: "spoofed-profile", SkillID: "claimed-skill", Harness: "claimed-harness"}
+	t.Run("verified identity overrides run and profile claims", func(t *testing.T) {
+		ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "verified-run", ProfileKey: "verified-profile"})
+		got := attributedCaller(ctx, claimed)
+		require.Equal(t, "verified-run", got.RunID)
+		require.Equal(t, "verified-profile", got.AgentProfile)
+		require.Equal(t, "claimed-skill", got.SkillID)
+		require.Equal(t, "claimed-harness", got.Harness)
+	})
+	t.Run("absent and invalid identity do not verify caller claims", func(t *testing.T) {
+		for _, ctx := range []context.Context{
+			context.Background(),
+			provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationAbsent, RunID: "unverified-run", ProfileKey: "unverified-profile"}),
+			provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationInvalid, RunID: "invalid-run", ProfileKey: "invalid-profile"}),
+		} {
+			require.Equal(t, claimed, attributedCaller(ctx, claimed))
+		}
+	})
+}
+
+func TestVerifiedCallerAttributionCoversBothSubmissionPaths(t *testing.T) {
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "verified-run", ProfileKey: "verified-profile"})
+	claimed := Caller{RunID: "spoofed-run", AgentProfile: "spoofed-profile"}
+	t.Run("ad hoc submit", func(t *testing.T) {
+		s := NewService(Options{})
+		p, _, err := s.SubmitDeclared(ctx, "session", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, Identity{}, claimed, true)
+		require.NoError(t, err)
+		require.Equal(t, "verified-run", p.CallerRunId)
+		require.Equal(t, "verified-profile", p.CallerAgentProfile)
+		require.True(t, p.CallerIdentityVerified)
+	})
+	t.Run("declared replay and get are bound to verified owner", func(t *testing.T) {
+		s := NewService(Options{})
+		identity := Identity{ProgramName: "fixture.once", ProgramDigest: "digest", IdempotencyKey: "stable-attribution", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}
+		p, _, err := s.SubmitDeclared(ctx, "session", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, identity, claimed, true)
+		require.NoError(t, err)
+		require.Equal(t, "verified-run", p.CallerRunId)
+		require.Equal(t, "verified-profile", p.CallerAgentProfile)
+		require.True(t, p.CallerIdentityVerified)
+		_, _, err = s.SubmitDeclared(context.Background(), "", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, identity, claimed, true)
+		require.ErrorIs(t, err, ErrCallerIdentityMismatch)
+		otherRun := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "other-run", ProfileKey: "other-profile"})
+		_, _, err = s.SubmitDeclared(otherRun, "", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, identity, claimed, true)
+		require.ErrorIs(t, err, ErrCallerIdentityMismatch)
+		replay, _, err := s.SubmitDeclared(ctx, "", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, identity, claimed, true)
+		require.NoError(t, err)
+		require.Equal(t, p.Id, replay.Id)
+		require.Equal(t, "verified-run", replay.CallerRunId)
+		require.True(t, replay.CallerIdentityVerified)
+		_, err = s.GetDeclaredExecution(context.Background(), identity.ProgramName, identity.IdempotencyKey)
+		require.ErrorIs(t, err, ErrCallerIdentityMismatch)
+		_, err = s.GetDeclaredExecution(otherRun, identity.ProgramName, identity.IdempotencyKey)
+		require.ErrorIs(t, err, ErrCallerIdentityMismatch)
+		observed, err := s.GetDeclaredExecution(ctx, identity.ProgramName, identity.IdempotencyKey)
+		require.NoError(t, err)
+		require.Equal(t, p.Id, observed.Id)
+		require.Equal(t, "verified-run", observed.CallerRunId)
+	})
+}
+
+func TestLegacySelfReportedCallerDoesNotBecomeVerifiedOwner(t *testing.T) {
+	s := NewService(Options{})
+	identity := Identity{ProgramName: "fixture.legacy", ProgramDigest: "digest", IdempotencyKey: "legacy-key", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}
+	claimed := Caller{RunID: "self-reported-run", AgentProfile: "self-reported-profile"}
+	p, _, err := s.SubmitDeclared(context.Background(), "session", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, identity, claimed, true)
+	require.NoError(t, err)
+	require.False(t, p.CallerIdentityVerified)
+	require.Equal(t, "self-reported-run", p.CallerRunId)
+	observed, err := s.GetDeclaredExecution(context.Background(), identity.ProgramName, identity.IdempotencyKey)
+	require.NoError(t, err)
+	require.Equal(t, p.Id, observed.Id)
+	wrongOwner := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "other-run"})
+	require.NoError(t, RequireCallerOwner(wrongOwner, observed))
+}
+
+func TestCloseDeclaredAdmissionRequiresVerifiedOwnerForVerifiedRecord(t *testing.T) {
+	s := NewService(Options{})
+	owner := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "owner-run", ProfileKey: "codex"})
+	other := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "other-run", ProfileKey: "codex"})
+	identity := Identity{ProgramName: "fixture.close", ProgramDigest: "digest", IdempotencyKey: "close-owner", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}
+	p, err := s.CloseDeclaredAdmission(owner, "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, identity, Caller{RunID: "spoofed-run"})
+	require.NoError(t, err)
+	require.True(t, p.CallerIdentityVerified)
+	require.Equal(t, "owner-run", p.CallerRunId)
+	_, err = s.CloseDeclaredAdmission(context.Background(), "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, identity, Caller{RunID: "spoofed-run"})
+	require.ErrorIs(t, err, ErrCallerIdentityMismatch)
+	_, err = s.CloseDeclaredAdmission(other, "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, identity, Caller{RunID: "spoofed-run"})
+	require.ErrorIs(t, err, ErrCallerIdentityMismatch)
+	closed, err := s.CloseDeclaredAdmission(owner, "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, identity, Caller{RunID: "spoofed-run"})
+	require.NoError(t, err)
+	require.Equal(t, p.Id, closed.Id)
+	require.Equal(t, "owner-run", closed.CallerRunId)
 }

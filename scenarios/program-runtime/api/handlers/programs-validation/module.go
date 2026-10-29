@@ -107,7 +107,25 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	}
 	detail, _ := structpb.NewStruct(map[string]any{"findings": findingValues, "diagnostics": diagnostics, "include_execution": req.Msg.GetIncludeExecution()})
 	native, _ := anypb.New(detail)
-	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: assessmentValue, NativeDetail: native, Metrics: executionMetrics()}), nil
+	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:              scenario,
+		Status:                status,
+		Assessment:            assessmentValue,
+		NativeDetail:          native,
+		Metrics:               executionMetrics(),
+		FailureClassification: failureClassificationForStatus(status),
+	}), nil
+}
+
+func failureClassificationForStatus(status scenariovalidationv1.ValidationStatus) string {
+	switch status {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
+		return "test_failure"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR:
+		return "system"
+	default:
+		return ""
+	}
 }
 
 func validationAssessmentForFindings(repoRoot, scenario string, codes []string, level string, clean, includeExecution bool) (*commonv1.MaturityAssessment, scenariovalidationv1.ValidationStatus, error) {

@@ -1,19 +1,19 @@
 ---
 name: "program-runtime"
-description: "Use for high-arity or multi-scenario work: decide whether a governed Python program is the right shape, pick the verb, command, or scenario-owned program that fits, run it in a fresh session, and branch on the envelope instead of long tool-call loops."
+description: "Use for high-arity, multi-scenario, or bounded AI decision workflows: compose governed capabilities and reusable subprograms, run them in a fresh session, and branch on every result envelope and failure explicitly."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression","library","shape","nomination","delegation"]
+  tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression","library","shape","nomination","delegation","bounded AI decision","subprogram"]
   icon: "terminal"
   status: "active"
-  revision: 9
+  revision: 10
   createdAt: "2026-08-06T00:00:00Z"
-  updatedAt: "2026-09-09T00:00:00Z"
+  updatedAt: "2026-10-28T20:43:00Z"
   requires:
-    scenarios: ["program-runtime", "prompt-manager", "vrooli-memory", "ai-gateway", "agent-manager"]
+    scenarios: ["program-runtime", "prompt-manager", "vrooli-memory", "ai-gateway", "agent-manager", "search-hub"]
     commands: ["program-runtime bindings", "program-runtime sessions", "program-runtime programs", "program-runtime library", "program-runtime space", "vrooli-memory recall", "vrooli-memory journal", "prompt-manager skill read", "vrooli scenario"]
   learning:
     scope: "program-runtime-usage"
@@ -23,7 +23,7 @@ metadata:
 ---
 ## Tools focus: Program Runtime
 
-Use `program-runtime` when one task would otherwise be a long tool-call loop over many governed capabilities: fan out across scenario bindings, join cross-scenario reads, classify a corpus, or start several delegated runs, and return only bounded results. This skill holds the judgment `program-runtime <group> help` does not print: when a program is the right shape, which verb or scenario-owned program fits, and what to do with the envelope. Construction rules live in `path:scenarios/program-runtime/docs/guides/program-construction.md`; the standard for a scenario-owned program and its envelope lives in `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
+Use `program-runtime` when a task needs many governed operations, must reduce a large result, or should make a bounded decision over candidates retrieved by an owning scenario. A program can compose owner-managed retrieval with a declared AI decision, then return only the selected evidence. Model calls go through AI Gateway; inspect the contract and usage/routing receipt before assuming a route is cheap. Reuse promoted programs and scenario-owned subprograms when their bounded contract fits, and preserve their statuses and errors. This skill holds the judgment `program-runtime <group> help` does not print: when a program is the right shape, which verb or scenario-owned program fits, and what to do with each envelope. Construction rules live in `path:scenarios/program-runtime/docs/guides/program-construction.md`; the standard for a scenario-owned program and its envelope lives in `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
 
 Required reading before authoring or editing a program:
 - `path:scenarios/program-runtime/docs/guides/program-construction.md`
@@ -41,6 +41,8 @@ Out of scope: direct scenario process execution; ambient shell, model, or agent 
 For a discovered contract, `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>` reads its declared inputs and owning skill together. A partial result requires the indicated complete read before execution; this preparation never performs the domain action.
 
 Run `vrooli-memory recall wake --scope program-runtime-usage`. Apply a pinned note before choosing a leaf. For one binding or workflow, run `vrooli-memory recall recall "<binding id or task>" --scope program-runtime-usage --limit 5`. Memory mechanics are `prompt-manager skill read vrooli-memory`'s.
+
+For a temporary program over an operator-authorized directory outside the repository, create a session with `program-runtime sessions create --sandbox-workspace <absolute-directory> --json`, submit the program with `programs submit --session-id <id> --source-file <path> --provenance agent`, and reclaim the session when done. The directory becomes the program's working directory; relative `open()` and standard Python directory inspection work there. An absolute existing directory is a supported local workspace as well as a workspace-sandbox identifier. This is not copy-on-write isolation or a security sandbox: the Python write guard is cooperative and read access is not confined to the directory. Limit the program to the authorized paths and track its effects. A successful temporary program may be promoted or adopted under the existing library contract; a declared `library run` does not itself expose a workspace option, so verify its execution context before claiming a workspace-dependent program is reusable.
 
 ### The tree: I have a task
 
@@ -62,6 +64,11 @@ Is the task one command against one scenario?
         │       of any not passing or never validated) and signals.unavailable (reads that could not be performed — unknown,
         │       never zero); fleet-fanout ok → use signals.surfaces; unavailable → the named
         │       scenario (or the project control-plane API) is down: journal, do not estimate; binding_error → read errors[0].detail
+        ├─ A bounded decision over retrieved candidates
+        │     → retrieve candidates through their owning scenario, then use deterministic
+        │       filters first and a declared AI Gateway decision only for ambiguity     [S3]
+        │       reuse a matching owner program/subprogram; inspect child status and usage
+        │       before accepting a result or claiming a cost profile
         ├─ A label per text, closed label set
         │     → run ai-gateway.classify-batch (1–32 texts; caller supplies instruction)      [S3]
         │       typed-inference and batch-inference are examples composing this owner
@@ -77,9 +84,10 @@ Is the task one command against one scenario?
         │       is an improve row; do not work around it)
         ├─ Why do my programs keep failing?
         │     → run program-runtime.failure-triage; branch on signals.top[0]                [S3]
-        │       kernel_runtime/kernel_syntax → read programs get <sampleProgramId>
+        │       inspect signals.evidence_by_shape[shape]; then read that sample program
         │       unresolved_name → programs mine-unresolved (typo vs missing binding)
         │       refused_no_grant → the grant step below
+        │       partial → use only returned shape rows; the errors explain missing context
         ├─ Which bindings are reachable right now?
         │     → run program-runtime.registry-sweep (dry-run plan, counts by scenario)        [S3]
         │       or program-runtime bindings condition --scenario <s> for freshness           [S1]

@@ -523,8 +523,7 @@
             },
             {
               "name": "required-vram-bytes",
-              "description": "Explicit local execution VRAM footprint; requests no-reclaim capacity admission",
-              "local_only": true
+              "description": "Caller-declared local execution VRAM footprint; requests no-reclaim capacity admission"
             },
             {
               "name": "request-id",
@@ -601,8 +600,7 @@
             },
             {
               "name": "required-vram-bytes",
-              "description": "Explicit local execution VRAM footprint; requests no-reclaim capacity admission",
-              "local_only": true
+              "description": "Caller-declared local execution VRAM footprint; requests no-reclaim capacity admission"
             },
             {
               "name": "expected-worker-digest",

@@ -65,6 +65,9 @@ func (s *Service) Validate(req *sharedv1.GatewayRequest) []*sharedv1.ValidationI
 	if req.GetMaxOutputTokens() < 0 {
 		issues = append(issues, issue("max_output_tokens", "invalid", "max_output_tokens cannot be negative"))
 	}
+	if req.RequiredVramBytes != nil && req.GetRequiredVramBytes() <= 0 {
+		issues = append(issues, issue("required_vram_bytes", "invalid", "required_vram_bytes must be positive when set"))
+	}
 	issues = append(issues, validateProviderSpecificMetadata(req.GetMetadata())...)
 	issues = append(issues, validatePrivacyProfile(req)...)
 	issues = append(issues, validateAttachments(req)...)

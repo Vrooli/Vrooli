@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -1652,6 +1653,13 @@ func (r *Registry) canonicalArguments(id string, args map[string]any) (map[strin
 		}
 		if len(resolved.Path) == 0 {
 			return nil, fmt.Errorf("argument %q has an empty proto path", name)
+		}
+		field := resolved.Path[len(resolved.Path)-1]
+		if field.IsList() && value != nil {
+			kind := reflect.TypeOf(value).Kind()
+			if kind != reflect.Slice && kind != reflect.Array {
+				return nil, fmt.Errorf("argument %q expects an array", name)
+			}
 		}
 		putResolvedArgument(out, resolved.Path, value)
 	}

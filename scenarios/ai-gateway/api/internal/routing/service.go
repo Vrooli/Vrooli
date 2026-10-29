@@ -160,7 +160,7 @@ func allowReclaim(req *sharedv1.GatewayRequest) bool {
 // adapter or an absent footprint yields a non-blocking verdict. A declared
 // footprint requires an actual fit before the route can be selected.
 func (s *Service) probeCapacity(ctx context.Context, req *sharedv1.GatewayRequest) CapacityEvaluation {
-	bytes := capacityRequirementBytes(req.GetMetadata())
+	bytes := requestCapacityRequirementBytes(req)
 	if bytes <= 0 {
 		return CapacityEvaluation{Verdict: CapacityUnknown}
 	}
@@ -186,7 +186,7 @@ func (s *Service) acquireCapacity(ctx context.Context, req *sharedv1.GatewayRequ
 	if !strings.EqualFold(candidate.GetLocality(), "local") {
 		return CapacityEvaluation{}
 	}
-	bytes := capacityRequirementBytes(req.GetMetadata())
+	bytes := requestCapacityRequirementBytes(req)
 	if bytes <= 0 {
 		return CapacityEvaluation{Verdict: CapacityUnknown}
 	}
@@ -319,9 +319,9 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		// broker ledger shows the reservation as CLAIMED. Release is best-effort in
 		// all paths; a crash falls back to the claim's bounded TTL.
 		capEval := s.acquireCapacity(ctxExec, req, candidate)
-		if strings.EqualFold(candidate.GetLocality(), "local") && capacityRequirementBytes(req.GetMetadata()) > 0 {
+		if strings.EqualFold(candidate.GetLocality(), "local") && requestCapacityRequirementBytes(req) > 0 {
 			lastCapacityEval = capEval
-			if !capacityExecutionAdmitted(capEval, capacityRequirementBytes(req.GetMetadata()), allowReclaim(req)) {
+			if !capacityExecutionAdmitted(capEval, requestCapacityRequirementBytes(req), allowReclaim(req)) {
 				if capEval.Verdict == CapacityFit {
 					capEval.Verdict = CapacityUnknown
 					lastCapacityEval.Verdict = CapacityUnknown
@@ -580,7 +580,7 @@ func (s *Service) capacityAdmits(ctx context.Context, req *sharedv1.GatewayReque
 	if !strings.EqualFold(candidate.GetLocality(), "local") {
 		return true
 	}
-	if capacityRequirementBytes(req.GetMetadata()) <= 0 {
+	if requestCapacityRequirementBytes(req) <= 0 {
 		return true
 	}
 	eval := s.probeCapacity(ctx, req)

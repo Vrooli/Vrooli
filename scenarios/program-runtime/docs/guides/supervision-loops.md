@@ -19,6 +19,7 @@ never zero.**
 | Latest recorded validation verdict across a set | `program-runtime.validation-sweep` | one `validate` verb read/scenario of the LATEST RECORDED run (never starts one); `signals.attention` = not passing / never validated, `signals.unavailable` = unknown reads. Reads the primary recorded store — empty where runs are routed/isolated (`primary_root_writes=0`). |
 | Why is one flagged scenario unhealthy | `program-runtime.scenario-triage` | joins `status` + `freshness` + a bounded log tail into advisory `signals.hypotheses`. Read-only; never restarts. Log classification needs a lifecycle log — dark for registry-runtime scenarios (status + freshness still live). |
 | Program corpus health / adoption | `program-runtime.portfolio-audit`, `program-runtime.usage-triage` | keep the layer itself honest. |
+| Retained delivery-effort obligations | `agent-manager.supervision-observation-read` | One bounded effort-board page; follow its continuation token and preserve partial, stale, and unknown states. It does not dispatch work or prove completion. |
 | Runtime measure summaries / failure shapes / reachable bindings | `program-runtime.fleet-fanout`, `program-runtime.failure-triage`, `program-runtime.registry-sweep` | |
 | Agent run efficiency / setpoint / one-subject diagnosis | `agent-manager.efficiency-report`, `agent-manager.setpoint-read`, `agent-manager.investigate` + `investigation-evidence` | agent-manager-owned; reuse, don't re-author. |
 
@@ -40,9 +41,9 @@ Weekly, keep the layer honest: `portfolio-audit` + `usage-triage`.
   human-in-the-loop CLI step.
 - **Worker spawn** (`task create` + profile resolve) — a write + delegation; that is
   `delegated-run`/`watch-set` territory, not a read program.
-- **Delivery-team progress** (effort board + orchestrator coverage + outcome) — the
-  highest-value loop, but the effort-board surface has **no governed binding** today, and a
-  program must not shell out. Author it once `agent-manager/effort/*` read bindings exist.
+- **A complete delivery-team progress decision** — the observation program above is a
+  bounded read, not a substitute for examining owner evidence, judging outcomes, or
+  making the supervisor's decision. Follow the `large-effort-supervision` skill.
 
 ## Efficiency accounting
 

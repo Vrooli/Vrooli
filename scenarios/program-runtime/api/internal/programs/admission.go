@@ -12,16 +12,35 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/provenance"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
 
 var ErrRequestConflict = errors.New("declared program request key is bound to different intent")
 var ErrInvalidRequestKey = errors.New("invalid declared program request identity")
 var ErrRequestExpired = errors.New("declared program admission deadline expired; inspect owner state, do not renew the same attempt")
+var ErrCallerIdentityMismatch = errors.New("declared program admission belongs to a different verified caller")
 
 // Retention MUST preserve keyed records for at least this long. A caller pins
 // the deadline before its first request; retry cannot renew admission authority.
 const DeclaredAdmissionWindow = 24 * time.Hour
+
+// attributedCaller applies server-verified agent identity to persisted caller
+// attribution. Request fields remain caller-supplied metadata, but cannot
+// override a verified run or profile.
+func attributedCaller(ctx context.Context, caller Caller) Caller {
+	verified := provenance.FromContext(ctx)
+	if !verified.IsVerifiedAgent() {
+		return caller
+	}
+	caller.RunID = verified.RunID
+	caller.AgentProfile = verified.ProfileKey
+	return caller
+}
+
+func hasVerifiedCallerIdentity(ctx context.Context) bool {
+	return provenance.FromContext(ctx).IsVerifiedAgent()
+}
 
 func submissionID(identity Identity) string {
 	if identity.IdempotencyKey == "" {
@@ -36,7 +55,28 @@ func (s *Service) GetDeclaredExecution(ctx context.Context, name, key string) (*
 	if name == "" || strings.TrimSpace(name) != name || key == "" || len(key) > 128 || strings.TrimSpace(key) != key || strings.IndexFunc(key, unicode.IsControl) >= 0 {
 		return nil, ErrInvalidRequestKey
 	}
-	return s.repo.Get(ctx, submissionID(Identity{ProgramName: name, IdempotencyKey: key}))
+	p, err := s.repo.Get(ctx, submissionID(Identity{ProgramName: name, IdempotencyKey: key}))
+	if err != nil {
+		return nil, err
+	}
+	if err := RequireCallerOwner(ctx, p); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// Keyed observations of an agent-attributed execution require the same
+// verified run that created it. Caller-supplied fields and the idempotency key
+// are request identity, not authority to read another run's result.
+func RequireCallerOwner(ctx context.Context, p *programsv1.Program) error {
+	if p == nil || !p.GetCallerIdentityVerified() || p.GetCallerRunId() == "" {
+		return nil
+	}
+	verified := provenance.FromContext(ctx)
+	if !verified.IsVerifiedAgent() || verified.RunID != p.GetCallerRunId() {
+		return ErrCallerIdentityMismatch
+	}
+	return nil
 }
 
 // CloseDeclaredAdmission races on the same unique program row as submission.
@@ -53,7 +93,8 @@ func (s *Service) CloseDeclaredAdmission(ctx context.Context, source string, pro
 		return existing, err
 	}
 	now := s.clock().UTC().Format(time.RFC3339Nano)
-	p := &programsv1.Program{Id: submissionID(identity), Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness, FailureShape: "admission_closed", FailureDetail: "Admission closed before execution; no session or effects were started", RequestDigest: declaredRequestDigest(source, provenance, includeMaterialized, identity, caller)}
+	attribution := attributedCaller(ctx, caller)
+	p := &programsv1.Program{Id: submissionID(identity), Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: attribution.RunID, CallerAgentProfile: attribution.AgentProfile, CallerSkillId: attribution.SkillID, CallerHarness: attribution.Harness, CallerIdentityVerified: hasVerifiedCallerIdentity(ctx), FailureShape: "admission_closed", FailureDetail: "Admission closed before execution; no session or effects were started", RequestDigest: declaredRequestDigest(source, provenance, includeMaterialized, identity, caller)}
 	created, err := s.repo.Create(ctx, p)
 	if err != nil {
 		return nil, err
@@ -87,6 +128,9 @@ func (s *Service) ReplayDeclared(ctx context.Context, source string, provenance 
 		return nil, s.checkAdmissionDeadline(deadline)
 	}
 	if err != nil {
+		return nil, err
+	}
+	if err := RequireCallerOwner(ctx, p); err != nil {
 		return nil, err
 	}
 	if p.RequestDigest != declaredRequestDigest(source, provenance, includeMaterialized, identity, caller) {

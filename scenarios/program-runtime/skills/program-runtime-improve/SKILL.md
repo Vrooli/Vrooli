@@ -9,9 +9,9 @@ metadata:
   tags: ["program-runtime", "improve", "self-improvement", "control-loop", "setpoint", "act-projection", "meta-optimization"]
   icon: "gauge"
   status: "active"
-  revision: 5
+  revision: 6
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-09T00:00:00Z"
+  updatedAt: "2026-10-29T00:06:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "agent-manager", "vrooli-memory"]
     commands: ["program-runtime discovery eval", "program-runtime authoring eval", "program-runtime programs mine", "program-runtime programs governance-share", "program-runtime bindings act", "program-runtime bindings condition", "program-runtime sessions delegations", "program-runtime library list", "program-runtime shapes list", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
@@ -61,6 +61,8 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 | attribution | `programs list --provenance agent` caller run identity, the same corpus program-adoption reads | 0 unattributed agent runs | 2026-09-10: {"attributed_share":0.0,"eligible_agent_runs":200,"unattributed_agent_runs":200,"window":"last-30-days"} (out of band) |
 | external-friction | `run agent-manager.friction-digest` with inputs `scenario=program-runtime`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 2026-09-10: unavailable (read_elsewhere:agent-manager.friction-digest) |
 | fleet-improve-coverage | `run prompt-manager.skill-set-read` per scenario with ≥ 50 binding invocations in 30 d (`binding_invocations` grouped by target scenario) → usage present, improve present | every such scenario has a usage and an improve skill registered | 2026-09-10: unavailable (read_elsewhere:prompt-manager.skill-set-read) |
+
+**Interpret portfolio counts at their own grain.** `programs_executed` counts run records; rows group them by program name. `agent_runs` counts agent provenance, not a verified caller. `rows_without_identity` counts runs whose `program_name` is empty; it does not mean caller identity is missing. `unattributed_agent_runs` counts agent-provenance runs with an empty `caller_run_id`, so one run can contribute to both `agent_runs` and `unattributed_agent_runs`. Use a recorded caller run ID to establish caller attribution, and inspect an exact record with `program-runtime programs get <id> --json`. Do not compare filtered rows with unfiltered counts. The aggregation is implemented in `path:scenarios/program-runtime/api/internal/programs/repository.go`.
 
 ### 3. Sensors
 

@@ -213,7 +213,8 @@ func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, 
 	}
 	if explain || hasDiagnosticErrors(diagnostics) {
 		now := s.clock().UTC().Format(time.RFC3339Nano)
-		p := &programsv1.Program{Id: submissionID(identity), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics), ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
+		attribution := attributedCaller(ctx, caller)
+		p := &programsv1.Program{Id: submissionID(identity), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics), ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: attribution.RunID, CallerAgentProfile: attribution.AgentProfile, CallerSkillId: attribution.SkillID, CallerHarness: attribution.Harness, CallerIdentityVerified: hasVerifiedCallerIdentity(ctx)}
 		if includeMaterialized {
 			p.OutputLimitBytes = 65536
 		}
@@ -269,7 +270,8 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	}
 
 	now := s.clock().UTC().Format(time.RFC3339Nano)
-	p := &programsv1.Program{Id: submissionID(identity), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
+	attribution := attributedCaller(ctx, caller)
+	p := &programsv1.Program{Id: submissionID(identity), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: attribution.RunID, CallerAgentProfile: attribution.AgentProfile, CallerSkillId: attribution.SkillID, CallerHarness: attribution.Harness, CallerIdentityVerified: hasVerifiedCallerIdentity(ctx)}
 	if s.libraryVersion != nil {
 		p.LibraryVersion = s.libraryVersion(sessionID)
 	}
@@ -821,6 +823,7 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		// `deadline_exceeded` is checked late because several needles above are
 		// substrings of ordinary deadline messages; a caller that hit a budget
 		// should see the budget, not a guess at what it was doing.
+		{"wall-clock budget exhausted", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
 		{"deadline_exceeded", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
 		{"timed out", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
 		{"deadline exceeded", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},

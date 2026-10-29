@@ -220,8 +220,14 @@ program-runtime library promote --program-id <program-id> --name probe --descrip
 program-runtime library set-current probe --version 1
 ```
 
+`library list` and `library search` return metadata without program source, including in JSON. Fetch source explicitly with `library get`.
+
 Declared contracts are findable through `library search` and run with
-`program-runtime library run <scenario>.<name> --input k=v`. Only a current
+`program-runtime library run <scenario>.<name> --input k=v`. Repeat `--input`
+or separate pairs with commas. Unquoted comma-separated string values are
+accepted, such as `--input 'scenarios=agent-manager,prompt-manager'`. If a
+value contains a comma followed by `key=`, use a JSON string to disambiguate it,
+for example `--input 'query="a,b=c"'`. Only a current
 promoted version is callable as `lib.<name>()`; declared contracts are callable
 inside a program as `lib.<scenario>.<name>(k=v)`.
 `library get` includes one freshness/drift row for each called binding.

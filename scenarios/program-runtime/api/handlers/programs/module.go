@@ -101,6 +101,13 @@ func (h *handler) SubmitProgram(ctx context.Context, req *connect.Request[progra
 // bounded deadline elapses. It replaces a client-side GetProgram loop that ran
 // at twenty requests a second and existed only in the CLI.
 func (h *handler) WaitForProgram(ctx context.Context, req *connect.Request[programsv1.WaitForProgramRequest]) (*connect.Response[programsv1.WaitForProgramResponse], error) {
+	p, err := h.service.Get(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err := internalprograms.RequireCallerOwner(ctx, p); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	waited := budgets.BoundWait(time.Duration(req.Msg.GetTimeoutMillis()) * time.Millisecond)
 	p, terminal, err := h.service.Wait(ctx, req.Msg.GetId(), waited)
 	if err != nil {
@@ -117,6 +124,9 @@ func (h *handler) GetProgram(ctx context.Context, req *connect.Request[programsv
 	p, err := h.service.Get(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err := internalprograms.RequireCallerOwner(ctx, p); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	return connect.NewResponse(&programsv1.GetProgramResponse{Program: p}), nil
 }
@@ -141,7 +151,13 @@ func (h *handler) ListPrograms(ctx context.Context, req *connect.Request[program
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&programsv1.ListProgramsResponse{Programs: items}), nil
+	visible := items[:0]
+	for _, item := range items {
+		if internalprograms.RequireCallerOwner(ctx, item) == nil {
+			visible = append(visible, item)
+		}
+	}
+	return connect.NewResponse(&programsv1.ListProgramsResponse{Programs: visible}), nil
 }
 
 func (h *handler) PortfolioStats(ctx context.Context, req *connect.Request[programsv1.PortfolioStatsRequest]) (*connect.Response[programsv1.PortfolioStatsResponse], error) {

@@ -131,14 +131,14 @@ func (r *sqliteRepository) store(ctx context.Context, p *programsv1.Program, cre
 		}
 		*field = sealed
 	}
-	conflict := ` ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json, usage_tokens=excluded.usage_tokens, usage_charge_micros=excluded.usage_charge_micros, usage_accounting_complete=excluded.usage_accounting_complete, usage_charge_measured=excluded.usage_charge_measured, usage_basis=excluded.usage_basis`
+	conflict := ` ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json, usage_tokens=excluded.usage_tokens, usage_charge_micros=excluded.usage_charge_micros, usage_accounting_complete=excluded.usage_accounting_complete, usage_charge_measured=excluded.usage_charge_measured, usage_basis=excluded.usage_basis, caller_identity_verified=excluded.caller_identity_verified`
 	if createOnly {
 		conflict = ` ON CONFLICT(id) DO NOTHING`
 	}
 	result, err := r.db.ExecContext(ctx, `INSERT INTO programs
-	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis)
-	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`+conflict,
-		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson(), p.GetRequestDigest(), p.GetUsageTokens(), p.GetUsageChargeMicros(), boolToInt(p.GetUsageAccountingComplete()), boolToInt(p.GetUsageChargeMeasured()), p.GetUsageBasis())
+	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`+conflict,
+		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson(), p.GetRequestDigest(), p.GetUsageTokens(), p.GetUsageChargeMicros(), boolToInt(p.GetUsageAccountingComplete()), boolToInt(p.GetUsageChargeMeasured()), p.GetUsageBasis(), boolToInt(p.GetCallerIdentityVerified()))
 	if err != nil {
 		return false, fmt.Errorf("save program %q: %w", p.GetId(), err)
 	}
@@ -147,7 +147,7 @@ func (r *sqliteRepository) store(ctx context.Context, p *programsv1.Program, cre
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Program, error) {
-	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis FROM programs WHERE id = ?`, id))
+	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified FROM programs WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrProgramNotFound
 	}
@@ -162,7 +162,7 @@ func (r *sqliteRepository) List(ctx context.Context, sessionID string, includeOp
 }
 
 func (r *sqliteRepository) ListFiltered(ctx context.Context, filter ListFilter) ([]*programsv1.Program, error) {
-	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis FROM programs WHERE 1=1`
+	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified FROM programs WHERE 1=1`
 	args := make([]any, 0, 8)
 	if filter.SessionID != "" {
 		query += ` AND session_id = ?`
@@ -464,12 +464,13 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	var provenance string
 	var status, completedAt string
 	var failureCause string
-	var accountingComplete, chargeMeasured int
-	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson, &p.RequestDigest, &p.UsageTokens, &p.UsageChargeMicros, &accountingComplete, &chargeMeasured, &p.UsageBasis); err != nil {
+	var accountingComplete, chargeMeasured, callerIdentityVerified int
+	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson, &p.RequestDigest, &p.UsageTokens, &p.UsageChargeMicros, &accountingComplete, &chargeMeasured, &p.UsageBasis, &callerIdentityVerified); err != nil {
 		return nil, err
 	}
 	p.UsageAccountingComplete = accountingComplete != 0
 	p.UsageChargeMeasured = chargeMeasured != 0
+	p.CallerIdentityVerified = callerIdentityVerified != 0
 	p.Status = parseStatus(status)
 	p.CompletedAt = completedAt
 	p.FailureCause = parseFailureCause(failureCause)

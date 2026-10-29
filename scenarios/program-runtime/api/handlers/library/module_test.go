@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/provenance"
+	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 
 	programspb "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
@@ -82,6 +85,46 @@ func TestGetDeclaredExecutionIsReadOnlyAndPreservesOriginalReceipt(t *testing.T)
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	}
 	require.EqualValues(t, 1, runner.calls.Load())
+}
+
+func TestVerifiedDeclaredExecutionReplayAndGetRequireSameOwner(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(root))
+	contract, ok := index.Get("command-center", "vision-walk-prep")
+	require.True(t, ok)
+	manager := sessions.NewManager(sessions.Options{})
+	runner := &countedDeclaredRunner{}
+	service := programs.NewService(programs.Options{Runner: runner})
+	h := &handler{contracts: index, sessions: manager, programs: service}
+	owner := provenance.NewContext(t.Context(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "owner-run", ProfileKey: "codex"})
+	other := provenance.NewContext(t.Context(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "other-run", ProfileKey: "codex"})
+	key := "owner-bound-replay"
+	deadline := time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)
+	caller := &programspb.Caller{RunId: "spoofed-run", AgentProfile: "spoofed-profile"}
+	request := &programsv1.RunDeclaredProgramRequest{Name: contract.ID, ExpectedDigest: contract.Digest, IdempotencyKey: key, AdmissionDeadline: deadline, Provenance: programspb.Provenance_PROVENANCE_AGENT, Caller: caller}
+	accepted, err := h.RunDeclaredProgram(owner, connect.NewRequest(request))
+	require.NoError(t, err)
+	require.Equal(t, "owner-run", accepted.Msg.Program.CallerRunId)
+	require.Equal(t, "codex", accepted.Msg.Program.CallerAgentProfile)
+	require.True(t, accepted.Msg.Program.CallerIdentityVerified)
+	require.EqualValues(t, 1, runner.calls.Load())
+
+	query := &programsv1.GetDeclaredExecutionRequest{Name: contract.ID, IdempotencyKey: key}
+	_, err = h.GetDeclaredExecution(t.Context(), connect.NewRequest(query))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	_, err = h.GetDeclaredExecution(other, connect.NewRequest(query))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	observed, err := h.GetDeclaredExecution(owner, connect.NewRequest(query))
+	require.NoError(t, err)
+	require.True(t, observed.Msg.Found)
+	require.Equal(t, accepted.Msg.Program.Id, observed.Msg.Program.Id)
+	require.Equal(t, "owner-run", observed.Msg.Program.CallerRunId)
+
+	_, err = h.RunDeclaredProgram(other, connect.NewRequest(request))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.EqualValues(t, 1, runner.calls.Load(), "cross-run replay must not execute or replace the stored record")
 }
 
 func TestCloseDeclaredAdmissionPreservesAlreadyRunningExecution(t *testing.T) {
@@ -309,6 +352,91 @@ func TestListLibraryWithoutQueryIncludesDeclaredContractRows(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, got.Msg.GetProgram().GetSource(), "smoke-flow")
 	require.Equal(t, "contract", got.Msg.GetProgram().GetKind())
+}
+
+func TestListLibraryRefreshesChangedDeclaredSource(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "program-runtime")
+
+	liveRoot, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	for _, file := range []struct{ source, destination string }{
+		{filepath.Join(liveRoot, "scenarios", "program-runtime", "schemas", "program-contract.schema.json"), filepath.Join(fixture.Root, "scenarios", "program-runtime", "schemas", "program-contract.schema.json")},
+		{filepath.Join(liveRoot, "scenarios", "program-runtime", ".vrooli", "program-runtime", "failure-triage.json"), filepath.Join(fixture.Root, "scenarios", "program-runtime", ".vrooli", "program-runtime", "failure-triage.json")},
+		{filepath.Join(liveRoot, "scenarios", "program-runtime", ".vrooli", "program-runtime", "failure-triage.py"), filepath.Join(fixture.Root, "scenarios", "program-runtime", ".vrooli", "program-runtime", "failure-triage.py")},
+	} {
+		data, readErr := os.ReadFile(file.source)
+		require.NoError(t, readErr)
+		require.NoError(t, os.MkdirAll(filepath.Dir(file.destination), 0o755))
+		require.NoError(t, os.WriteFile(file.destination, data, 0o644))
+	}
+
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(fixture.Root))
+	db := dbtest.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(library.Schema)))
+	h := &handler{repo: library.NewRepository(db), contracts: index, repoRoot: fixture.Root}
+	list := func() string {
+		response, listErr := h.ListLibrary(context.Background(), connect.NewRequest(&programsv1.ListLibraryRequest{Limit: 100}))
+		require.NoError(t, listErr)
+		for _, program := range response.Msg.GetPrograms() {
+			if program.GetName() == "program-runtime.failure-triage" {
+				return program.GetContentDigest()
+			}
+		}
+		t.Fatal("declared failure-triage program missing from library listing")
+		return ""
+	}
+	initialDigest := list()
+
+	sourcePath := filepath.Join(fixture.Root, "scenarios", "program-runtime", ".vrooli", "program-runtime", "failure-triage.py")
+	source, err := os.ReadFile(sourcePath)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(sourcePath, append(source, []byte("# changed after index load\n")...), 0o644))
+	future := time.Now().Add(time.Second)
+	require.NoError(t, os.Chtimes(sourcePath, future, future))
+
+	refreshedDigest := list()
+	require.NotEqual(t, initialDigest, refreshedDigest, "library discovery must publish the current source digest after an edit")
+}
+
+func TestListLibraryReturnsUnavailableWhenRefreshFails(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios"), []byte("not a directory"), 0o644))
+	db := dbtest.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(t.Context(), db, apidb.SchemaProviderFunc(library.Schema)))
+	h := &handler{repo: library.NewRepository(db), contracts: contracts.NewIndex(), repoRoot: root}
+
+	_, err := h.ListLibrary(t.Context(), connect.NewRequest(&programsv1.ListLibraryRequest{Limit: 100}))
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}
+
+func BenchmarkListLibraryRefreshCost(b *testing.B) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		b.Fatal(err)
+	}
+	index := contracts.NewIndex()
+	if err := index.Load(root); err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("before_cached_index_only", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = index.List()
+		}
+	})
+	b.Run("after_refresh_before_list", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			if _, err := index.Refresh(root); err != nil {
+				b.Fatal(err)
+			}
+			_ = index.List()
+		}
+	})
 }
 
 func TestRunDeclaredProgramResolvesDefaultsWaitsAndReclaimsSession(t *testing.T) { // [REQ:REQ-P2-010]

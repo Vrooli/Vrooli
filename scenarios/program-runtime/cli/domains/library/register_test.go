@@ -16,6 +16,7 @@ import (
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared"
 )
 
 type declaredAdmissionServer struct {
@@ -24,6 +25,19 @@ type declaredAdmissionServer struct {
 	observations chan *libraryv1.GetDeclaredExecutionRequest
 	closures     chan *libraryv1.RunDeclaredProgramRequest
 	err          error
+}
+
+func TestParseInputPairsPreservesCommaSeparatedValues(t *testing.T) {
+	got, err := parseInputPairs(`scenarios=agent-manager,prompt-manager,limit=2,filter={"tags":["a","b"]}`)
+	require.NoError(t, err)
+	require.Equal(t, "agent-manager,prompt-manager", got["scenarios"])
+	require.Equal(t, float64(2), got["limit"])
+	require.Equal(t, map[string]any{"tags": []any{"a", "b"}}, got["filter"])
+	quoted, err := parseInputPairs(`query="a,b=c",limit=2`)
+	require.NoError(t, err)
+	require.Equal(t, "a,b=c", quoted["query"])
+	_, err = parseInputPairs(`missing-key,limit=2`)
+	require.ErrorContains(t, err, "input must be key=value")
 }
 
 func (s declaredAdmissionServer) CloseDeclaredAdmission(_ context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
@@ -177,4 +191,48 @@ func TestLibraryRunStatusAndOutcomeGate(t *testing.T) {
 	require.EqualError(t, h.runOutcome(nil, &libraryv1.RunDeclaredProgramResponse{Terminal: true, Program: &programsv1.Program{
 		Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, Stdout: "{'status': 'failed'}",
 	}}), `library run envelope status "failed"`)
+}
+
+// Discovery returns metadata; callers explicitly fetch source with library get.
+type discoveryLibraryServer struct {
+	libraryconnect.UnimplementedLibraryServiceHandler
+}
+
+func (discoveryLibraryServer) ListLibrary(context.Context, *connect.Request[libraryv1.ListLibraryRequest]) (*connect.Response[libraryv1.ListLibraryResponse], error) {
+	return connect.NewResponse(&libraryv1.ListLibraryResponse{Programs: []*sharedv1.LibraryProgram{{Name: "fixture.compact", Version: 3, Description: "compact observation", Kind: "contract", Source: strings.Repeat("large source\n", 1000), DeclaredInputs: []string{"scenarios"}, CalledBindingIds: []string{"vrooli/scenario/list"}}}}), nil
+}
+
+func (discoveryLibraryServer) GetLibrary(context.Context, *connect.Request[libraryv1.GetLibraryRequest]) (*connect.Response[libraryv1.GetLibraryResponse], error) {
+	return connect.NewResponse(&libraryv1.GetLibraryResponse{Program: &sharedv1.LibraryProgram{Name: "fixture.compact", Source: strings.Repeat("large source\n", 1000)}}), nil
+}
+
+func TestLibraryDiscoveryOmitsSourceAndExplicitGetRetainsIt(t *testing.T) {
+	_, handler := libraryconnect.NewLibraryServiceHandler(discoveryLibraryServer{})
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	h := &handlers{client: libraryconnect.NewLibraryServiceClient(server.Client(), server.URL)}
+	for _, query := range []string{"", "compact"} {
+		t.Run("query="+query, func(t *testing.T) {
+			var args []string
+			if query != "" {
+				args = []string{query}
+			}
+			ctx, err := cliapp.NewTestRunContextFromArgs(cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "query"}}, Flags: []cliapp.Flag{{Name: "kind"}, {Name: "limit"}}}, args, nil, nil, nil)
+			require.NoError(t, err)
+			got, err := h.list(ctx)
+			require.NoError(t, err)
+			require.Len(t, got.Programs, 1)
+			program := got.Programs[0]
+			require.Zero(t, len(program.Source), "discovery must not materialize full program sources")
+			require.Equal(t, "fixture.compact", program.Name)
+			require.Equal(t, int64(3), program.Version)
+			require.Equal(t, []string{"scenarios"}, program.DeclaredInputs)
+			require.Equal(t, []string{"vrooli/scenario/list"}, program.CalledBindingIds)
+		})
+	}
+	ctx, err := cliapp.NewTestRunContextFromArgs(cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "name", Required: true}}, Flags: []cliapp.Flag{{Name: "version"}}}, []string{"fixture.compact"}, nil, nil, nil)
+	require.NoError(t, err)
+	got, err := h.get(ctx)
+	require.NoError(t, err)
+	require.Equal(t, strings.Repeat("large source\n", 1000), got.Program.Source)
 }

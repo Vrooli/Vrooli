@@ -24,7 +24,6 @@ import urllib.parse
 import urllib.request
 from typing import Any, Iterable
 
-
 _OPEN = builtins.open
 
 
@@ -51,27 +50,6 @@ _INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.Contex
 
 # Execution-local agent proof stays separate from caller/learning metadata and
 # session globals. Resetting it prevents later submissions inheriting authority.
-_AGENT_IDENTITY: contextvars.ContextVar[str] = contextvars.ContextVar("agent_identity", default="")
-
-
-class _NoAgentRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-def _open_bridge_request(request, timeout):
-    token = _AGENT_IDENTITY.get()
-    destination = urllib.parse.urlsplit(request.full_url)
-    trusted = destination.scheme in ("http", "https") and destination.hostname in ("localhost", "127.0.0.1", "::1") and destination.username is None
-    if token and trusted:
-        request.add_header("X-Agent-Identity-Token", token)
-        # Proof-bearing local calls cannot use an ambient proxy or follow a
-        # redirect. The target owner verifies the original grant on each call.
-        return urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoAgentRedirect()).open(request, timeout=timeout)
-    request.remove_header("X-agent-identity-token")
-    return urllib.request.urlopen(request, timeout=timeout)
-
-
 class _Budgets:
     """Client-side timeouts, handed down by the Go supervisor.
 
@@ -115,6 +93,13 @@ try:
 except ImportError:  # launched by absolute path without the host dir on sys.path
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from safebuiltins import SAFE_BUILTIN_NAMES as _SAFE_BUILTIN_NAMES, SAFE_BUILTINS as _SAFE_BUILTINS
+
+try:
+    from .bridge_transport import AGENT_IDENTITY as _AGENT_IDENTITY
+    from .bridge_transport import open_bridge_request as _open_bridge_request
+except ImportError:  # The kernel also imports host modules as top-level modules.
+    from bridge_transport import AGENT_IDENTITY as _AGENT_IDENTITY
+    from bridge_transport import open_bridge_request as _open_bridge_request
 
 # `open` is re-bound to the workspace-guarded wrapper installed above, so a
 # program receives the guarded callable rather than the raw builtin.

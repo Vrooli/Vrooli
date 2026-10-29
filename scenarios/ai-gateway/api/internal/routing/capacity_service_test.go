@@ -50,7 +50,8 @@ func (f *fakeCapacity) Release(_ context.Context, claimID string) {
 
 func capReq(profile sharedv1.Profile) *sharedv1.GatewayRequest {
 	req := baseRequest(profile)
-	req.Metadata = map[string]string{"required_vram_bytes": "1000000"}
+	required := int64(1000000)
+	req.RequiredVramBytes = &required
 	return req
 }
 
@@ -83,6 +84,39 @@ func TestCapacitySufficientLocalRouteSelectedAndClaimReleased(t *testing.T) { //
 	// Every acquired claim is released (probe claim + held execution claim).
 	require.Equal(t, len(fake.claims), len(fake.releases))
 	require.NotEmpty(t, fake.releases)
+}
+
+func TestTypedFootprintOverridesLegacyMetadata(t *testing.T) {
+	runner := roleRunner()
+	runner.Results[ollamaGenerateCmd] = providers.Result{Stdout: `{"response":"ok"}`}
+	req := capReq(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.RequiredVramBytes = int64Pointer(2000000)
+	req.Metadata = map[string]string{"required_vram_bytes": "1000000"}
+	fake := &fakeCapacity{eval: routing.CapacityEvaluation{Verdict: routing.CapacityFit, GrantedBytes: 3000000, ClaimID: "claim-typed"}}
+	svc := newCapService(t, runner, fake)
+
+	resp, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.Equal(t, int64(2000000), resp.GetEvidence().GetCapacityRequiredBytes())
+	require.Equal(t, int64(2000000), fake.claims[0].RequiredBytes)
+}
+
+func TestLegacyMetadataFootprintRemainsSupported(t *testing.T) {
+	runner := roleRunner()
+	runner.Results[ollamaGenerateCmd] = providers.Result{Stdout: `{"response":"ok"}`}
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.Metadata = map[string]string{"required_vram_bytes": "1000000"}
+	fake := &fakeCapacity{eval: routing.CapacityEvaluation{Verdict: routing.CapacityFit, GrantedBytes: 2000000, ClaimID: "claim-legacy"}}
+	svc := newCapService(t, runner, fake)
+
+	resp, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.Equal(t, int64(1000000), resp.GetEvidence().GetCapacityRequiredBytes())
+	require.Equal(t, int64(1000000), fake.claims[0].RequiredBytes)
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
 }
 
 func TestCapacityInsufficientLocalFirstFallsBackToRemote(t *testing.T) { // [REQ:AIGW-CAPACITY-ROUTING]

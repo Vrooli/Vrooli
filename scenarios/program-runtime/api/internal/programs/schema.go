@@ -1,6 +1,8 @@
 package programs
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	_ "embed"
@@ -11,6 +13,37 @@ var schema string
 
 // Schema returns the programs domain schema for the central database.
 func Schema() string { return schema }
+
+// EnsureCompatibility adds fields introduced after the initial programs
+// table was created. Existing records default to unverified attribution.
+func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(programs)")
+	if err != nil {
+		return fmt.Errorf("inspect programs schema: %w", err)
+	}
+	defer rows.Close()
+	verifiedColumn := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return fmt.Errorf("scan programs schema: %w", err)
+		}
+		if name == "caller_identity_verified" {
+			verifiedColumn = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate programs schema: %w", err)
+	}
+	if !verifiedColumn {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN caller_identity_verified INTEGER NOT NULL DEFAULT 0"); err != nil {
+			return fmt.Errorf("add caller_identity_verified to programs: %w", err)
+		}
+	}
+	return nil
+}
 
 // pythonVocabulary mirrors the kernel's _PYTHON_VOCABULARY. A name here is a
 // language-level miss, never a governed-capability request.

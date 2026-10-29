@@ -72,6 +72,11 @@ func ModuleWithRun(repo *library.Repository, registry *programbindings.Registry,
 }
 
 func (h *handler) ListLibrary(ctx context.Context, req *connect.Request[libraryv1.ListLibraryRequest]) (*connect.Response[libraryv1.ListLibraryResponse], error) {
+	if h.contracts != nil && h.repoRoot != "" {
+		if _, err := h.contracts.Refresh(h.repoRoot); err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+	}
 	limit, offset := int(req.Msg.GetLimit()), int(req.Msg.GetOffset())
 	if limit <= 0 {
 		limit = 50
@@ -391,6 +396,9 @@ func (h *handler) GetDeclaredExecution(ctx context.Context, req *connect.Request
 }
 
 func declaredAdmissionError(err error) error {
+	if errors.Is(err, internalprograms.ErrCallerIdentityMismatch) {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
 	if errors.Is(err, internalprograms.ErrRequestConflict) || errors.Is(err, internalprograms.ErrRequestExpired) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}

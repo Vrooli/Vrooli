@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.batch-inference",
-  "version": "2",
+  "version": "3",
   "helpers": {
     "program": "1"
   },

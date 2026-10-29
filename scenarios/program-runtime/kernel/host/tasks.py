@@ -13,6 +13,10 @@ import urllib.error
 import uuid
 import secrets
 
+try:
+    from .bridge_transport import open_bridge_request
+except ImportError:  # The kernel also imports host modules as top-level modules.
+    from bridge_transport import open_bridge_request
 from contracts import resolve_inputs, _json_copy
 
 ACTIVE_TASK = contextvars.ContextVar("program_runtime_task", default=None)
@@ -44,7 +48,7 @@ class Tasks:
             raise ValueError("task checkpoint exceeds 256 KiB")
         request = urllib.request.Request(endpoint, data=data, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with open_bridge_request(request, timeout=self.timeout) as response:
                 return json.loads(response.read(2 * 1024 * 1024))
         except urllib.error.HTTPError as exc:
             raise RuntimeError("task checkpoint refused: " + exc.read(1024).decode(errors="replace")) from exc

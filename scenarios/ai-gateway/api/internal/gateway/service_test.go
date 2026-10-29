@@ -25,6 +25,45 @@ func TestValidateAcceptsProviderNeutralRequest(t *testing.T) { // [REQ:AIGW-CONT
 	require.Empty(t, issues)
 }
 
+func TestValidateAcceptsPositiveRequiredVRAM(t *testing.T) {
+	required := int64(6 * 1024 * 1024 * 1024)
+	issues := gateway.New().Validate(&sharedv1.GatewayRequest{
+		Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:              "chat.default",
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		RequiredVramBytes: &required,
+	})
+	require.Empty(t, issues)
+}
+
+func TestValidateRejectsNonPositiveRequiredVRAMWhenSet(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value int64
+	}{
+		{name: "zero", value: 0},
+		{name: "negative", value: -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			value := tc.value
+			issues := gateway.New().Validate(&sharedv1.GatewayRequest{
+				Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+				Role:              "chat.default",
+				Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+				PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+				RequiredVramBytes: &value,
+			})
+			require.Contains(t, fields(issues), "required_vram_bytes")
+			for _, got := range issues {
+				if got.GetField() == "required_vram_bytes" {
+					require.Equal(t, "invalid", got.GetCode())
+				}
+			}
+		})
+	}
+}
+
 func TestValidateAcceptsProviderNeutralMediaRequests(t *testing.T) { // [REQ:AIGW-MEDIA-CONTRACT]
 	svc := gateway.New()
 	for _, kind := range []sharedv1.RequestKind{

@@ -174,6 +174,13 @@ func TestDeadlineDetailClassifiesAsDeadlineExceeded(t *testing.T) {
 	}
 }
 
+func TestWallClockBudgetExhaustionClassifiesAsDeadlineExceeded(t *testing.T) {
+	shape, cause := failureShape("wall-clock budget exhausted: ceiling=1m0s consumed=1m35.39s")
+	if shape != "deadline_exceeded" || cause != programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED {
+		t.Fatalf("got %q/%v, want deadline_exceeded", shape, cause)
+	}
+}
+
 func TestWorkflowRejectionHasItsOwnFailureShape(t *testing.T) {
 	shape, cause := failureShape("remote status 400: workflow input: schema_mismatch")
 	if shape != "workflow_rejected" || cause != programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED {

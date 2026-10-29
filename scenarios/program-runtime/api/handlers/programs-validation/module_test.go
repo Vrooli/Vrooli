@@ -107,6 +107,9 @@ func TestValidationResponseRetainsNativeFailureEvidence(t *testing.T) {
 	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
 		t.Fatalf("status = %s, want FAILED for a severe finding", response.Msg.GetStatus())
 	}
+	if response.Msg.GetFailureClassification() != "test_failure" {
+		t.Fatalf("failure classification = %q, want test_failure for failed validation findings", response.Msg.GetFailureClassification())
+	}
 	assessment := response.Msg.GetAssessment()
 	if assessment.GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"] != 1 || len(assessment.GetFindings()) != 1 || assessment.GetFindings()[0].GetCode() != "programs.scenario_missing" {
 		t.Fatalf("handler assessment lost severe finding evidence: %+v", assessment)
@@ -118,6 +121,20 @@ func TestValidationResponseRetainsNativeFailureEvidence(t *testing.T) {
 	findings := detail.GetFields()["findings"].GetListValue().GetValues()
 	if len(findings) != 1 || findings[0].GetStringValue() != "programs.scenario_missing" {
 		t.Fatalf("failure evidence lost: %v", &detail)
+	}
+}
+
+func TestValidationResponseClassifiesAssessmentConstructionErrorsAsSystem(t *testing.T) {
+	h := &handler{repoRoot: t.TempDir()}
+	response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "missing"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR {
+		t.Fatalf("status = %s, want ERROR when the provider cannot load its assessment contract", response.Msg.GetStatus())
+	}
+	if response.Msg.GetFailureClassification() != "system" {
+		t.Fatalf("failure classification = %q, want system for a provider assessment error", response.Msg.GetFailureClassification())
 	}
 }
 

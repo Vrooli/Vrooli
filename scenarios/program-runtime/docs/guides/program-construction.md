@@ -12,16 +12,87 @@ not exist.
 
 ## When a program is the right move
 
-Write a program when the work has **arity** or **discard**:
+Write a program when the work has **arity**, **discard**, or a bounded decision
+that composes governed capabilities:
 
 - **Arity** — the task touches many units. Inspecting 60 scenarios is one
   program with one result, not 60 tool calls with 60 responses.
 - **Discard** — you need a small answer derived from a large intermediate.
   Counting, grouping, joining, and filtering all belong in the kernel; only the
   answer crosses back.
+- **Bounded decision** — the program retrieves a bounded candidate set through
+  its owning scenario, then applies deterministic rules or a declared AI
+  decision to choose what matters. For example,
+  the `browser-automation-studio.find-flows` contract combines persisted
+  workflow and asset candidates with Search Hub hits, then uses one
+  classification only for an ambiguous boundary or lexical miss. Its
+  `normalization_unavailable` error means an empty candidate list is not a
+  confirmed no-match; inspect status and errors before interpreting it.
+  `agent-manager.supervision-evaluate`
+  applies deterministic policy checks before at most one optional classification
+  of ambiguous evidence; Agent Manager retains cursor, decision, permission and
+  action authority. Search Hub owns retrieval and any embeddings/reranking it
+  uses; Program Runtime composes the returned evidence.
+  Route model calls through AI Gateway, declare inference in the contract, and
+  inspect the execution's usage and routing evidence before describing a path
+  as cheap. A local-first role is a routing preference, not a cost guarantee.
+
+When the same multi-step workflow recurs, prefer a reviewed promoted program or
+a scenario-owned contract callable as a subprogram over copying the workflow
+into each caller. Keep domain rules with the owner, compose only bounded
+outputs, and branch on every child status before using its result. Shared
+subprograms make error handling reusable too: preserve child errors and artifact
+identities, and let the caller decide whether a partial result is usable. See
+`Compose scenario-owned workflows` and `Reading a failure` below.
+
+### Select a result before selecting a callable
+
+Search Hub results are candidates. A selected result does not grant permission
+to call the binding or program named in that result. Keep tool selection inside
+a finite set that the parent program declares in its source. Map each candidate
+ID to a literal `lib.<scenario>.<program>` callable, and validate any AI choice
+against those IDs before calling it. Declare dependencies for every possible
+cross-scenario child owner in the parent's `.vrooli/service.json`. Each child
+still validates its own inputs and shares the parent's session, permissions,
+attribution, and budget.
+
+`discover(intent)` returns one binding ID or a null verdict; it does not call
+the binding. Do not build a binding or library path from model text. Current
+dependency analysis sees literal source references; no current check qualifies
+arbitrary dynamic dispatch. Return the selected
+candidate for a caller to review when the program does not need to execute it.
+For direct bindings, declare every eligible binding ID and effect in the parent
+contract. Keep any finite dispatch table in source; Search Hub and `discover`
+do not add bindings to that contract or grant authority.
+
+For one unsettled implementation step rather than a whole workflow, use
+`learn.act` with an independent verifier and a reviewed baseline or fallback.
+The runtime can reuse verified code before it considers inference; the owning
+contract still declares its learning and inference budget.
 
 A single read with a small response is not worth a program. Call the scenario
 CLI directly.
+
+## Temporary programs over an external workspace
+
+An agent can bind a session to an existing absolute directory, including an
+operator-authorized research folder outside the checkout:
+
+```bash
+program-runtime sessions create --name research-read --sandbox-workspace /absolute/research/path --json
+program-runtime programs submit --session-id <session-id> --source-file /absolute/program.py --provenance agent --json
+program-runtime sessions delete <session-id> --reason 'Completed research read' --json
+```
+
+The resolved directory is the kernel's working directory. Relative Python file
+reads and directory inspection can use it directly; returned output should be
+bounded. An absolute directory is a local workspace, not a copy-on-write
+workspace-sandbox. The Python write guard is cooperative, and read access is
+not confined to that directory; do not describe it as a security boundary.
+Use only paths the task authorizes and track effects. A temporary program is
+retained with its execution receipt; promotion or scenario adoption is separate.
+Declared `library run` currently exposes no workspace option, so a successful
+session-bound prototype alone does not qualify that entrypoint.
 
 ## The three addressing forms
 
@@ -136,20 +207,50 @@ programs can reuse the selected workflow in usage or self-improvement work.
 For closed-set text classification:
 
 ```python
-child = lib.ai_gateway.classify_batch(
-    corpus=["The provider timed out."], labels=["infra", "input"],
-    instruction="Identify the primary failure cause.")
-result = child.head(1)[0]
-print({"status": result["status"], "signals": result["signals"],
-       "errors": result["errors"], "artifact": child.meta()})
+envelope = program.envelope("example.classify-task", "1")
+envelope["signals"] = {}
+
+def step_classify():
+    envelope["phase"] = "classify"
+    try:
+        child = lib.ai_gateway.classify_batch(
+            corpus=["The provider timed out."], labels=["infra", "input"],
+            instruction="Identify the primary failure cause.")
+        rows = child.head(1)
+        if not rows:
+            return program.fail("failed", "missing_result", "Child returned no envelope", "classify")
+        result = rows[0]
+        if (not isinstance(result, dict)
+                or result.get("status") not in ("ok", "partial", "failed", "unavailable", "refused")
+                or not isinstance(result.get("signals"), dict)
+                or not isinstance(result.get("errors"), list)
+                or not isinstance(result.get("evidence"), list)):
+            return program.fail("failed", "invalid_response", "Child returned a malformed envelope", "classify")
+        envelope["status"] = result["status"]
+        envelope["signals"] = result["signals"]
+        envelope["errors"] = result["errors"]
+        envelope["evidence"] = result["evidence"] + [{"artifact": child.meta()}]
+    except Exception as exc:
+        status, klass = program.classify(exc)
+        return program.fail(status, klass, str(exc), "classify")
+    return "report"
+
+def step_report():
+    envelope["phase"] = "report"
+    program.report()
+    return None
+
+program.run({"classify": step_classify, "report": step_report}, "classify")
 ```
 
-Handle `partial`, `failed`, `refused`, and `unavailable` before using labels.
-An unknown result is not a healthy observation. Keep instructions and label
-vocabularies with the consumer; shared transport, validation, and accounting
-belong with the workflow owner. Use deterministic evidence grouping when
-structured error codes already answer the question; inference is for the
-remaining semantic judgment.
+Declare the child error classes and `missing_result`/`invalid_response` in the
+parent contract. Preserve a valid child's status, signals, errors, evidence,
+and artifact metadata. Handle `partial`, `failed`, `refused`, and `unavailable`
+before using labels. An unknown result is not a healthy observation. Keep
+instructions and label vocabularies with the consumer; shared transport,
+validation, and accounting belong with the workflow owner. Use deterministic
+evidence grouping when structured error codes already answer the question;
+inference is for the remaining semantic judgment.
 
 Agents may create and edit these assets under the construction rules here and
 `program-contracts.md`. Declare actual bindings and effects, bound the whole

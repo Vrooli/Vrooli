@@ -57,7 +57,10 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 		}
 	}
 	metadata := map[string]string{}
+	var requiredVRAMField *int64
 	if requiredVRAM > 0 {
+		requiredVRAMField = &requiredVRAM
+		// Keep the metadata value for older API servers during a rolling update.
 		metadata["required_vram_bytes"] = strconv.FormatInt(requiredVRAM, 10)
 		metadata["capacity_allow_reclaim"] = "false"
 	}
@@ -72,17 +75,18 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	// sampling from API callers only; `ai-gateway inference run --temperature`
 	// covers the ergonomic case because RunRequest carries `sampling` directly.
 	return &sharedv1.GatewayRequest{
-		Kind:            kind,
-		Role:            ctx.Flag("role"),
-		Profile:         profile,
-		PrivacyClass:    privacy,
-		Operation:       ctx.Flag("operation"),
-		Scenario:        ctx.Flag("scenario"),
-		TimeoutMs:       timeout,
-		MaxCostUsd:      maxCost,
-		MaxOutputTokens: maxTokens,
-		RequestId:       ctx.Flag("request-id"),
-		Metadata:        metadata,
+		Kind:              kind,
+		Role:              ctx.Flag("role"),
+		Profile:           profile,
+		PrivacyClass:      privacy,
+		Operation:         ctx.Flag("operation"),
+		Scenario:          ctx.Flag("scenario"),
+		TimeoutMs:         timeout,
+		MaxCostUsd:        maxCost,
+		MaxOutputTokens:   maxTokens,
+		RequestId:         ctx.Flag("request-id"),
+		Metadata:          metadata,
+		RequiredVramBytes: requiredVRAMField,
 	}, nil
 }
 

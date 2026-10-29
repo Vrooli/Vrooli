@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "50419652d51ff909f49af1b3e6f45c62eddb7d3b1c4379635ee2c70de1527f9d",
+  "manifest_hash": "0dbf1f31b6fe1f774f9c3769ce277beaf02db7f1c9ef5f99931242c9ddd122be",
   "commands": [
     {
       "path": "authoring eval",
@@ -214,12 +214,28 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "programs scaffold",
+      "group": "programs",
+      "command": "scaffold",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
       "path": "programs submit",
       "group": "programs",
       "command": "submit",
       "binding": "ProgramService.SubmitProgram",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "programs validate",
+      "group": "programs",
+      "command": "validate",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "programs wait",

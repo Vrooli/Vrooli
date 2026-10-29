@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/stretchr/testify/require"
@@ -128,6 +130,56 @@ func TestRefreshTracksSiblingSourceMtime(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, changed, "a source-only mtime change must trigger refresh")
 	require.Equal(t, original, index.mtimes[sourcePath])
+}
+
+func TestConcurrentLoadsCannotPublishOlderSnapshotAfterNewer(t *testing.T) {
+	index := NewIndex()
+	olderReadStarted := make(chan struct{})
+	releaseOlderRead := make(chan struct{})
+	var releaseOlderOnce sync.Once
+	releaseOlder := func() { releaseOlderOnce.Do(func() { close(releaseOlderRead) }) }
+	t.Cleanup(releaseOlder)
+	olderDone := make(chan error, 1)
+	go func() {
+		olderDone <- index.loadSnapshot(func() ([]Contract, map[string]int64, error) {
+			close(olderReadStarted)
+			<-releaseOlderRead
+			return []Contract{{ID: "demo.program", Digest: "older"}}, map[string]int64{"demo": 1}, nil
+		})
+	}()
+	<-olderReadStarted
+
+	newerReadStarted := make(chan struct{})
+	newerAttempted := make(chan struct{})
+	newerDone := make(chan error, 1)
+	go func() {
+		close(newerAttempted)
+		newerDone <- index.loadSnapshot(func() ([]Contract, map[string]int64, error) {
+			close(newerReadStarted)
+			return []Contract{{ID: "demo.program", Digest: "newer"}}, map[string]int64{"demo": 2}, nil
+		})
+	}()
+	<-newerAttempted
+
+	// On an unsynchronized index, the newer read completes while the older read
+	// is blocked. Releasing the older read then deterministically regresses the
+	// digest. A serialized load keeps the newer read queued until publication.
+	newerFinishedEarly := false
+	select {
+	case <-newerReadStarted:
+		require.NoError(t, <-newerDone)
+		newerFinishedEarly = true
+	case <-time.After(100 * time.Millisecond):
+	}
+	releaseOlder()
+	require.NoError(t, <-olderDone)
+	if !newerFinishedEarly {
+		require.NoError(t, <-newerDone)
+	}
+
+	got := index.List()
+	require.Len(t, got, 1)
+	require.Equal(t, "newer", got[0].Digest)
 }
 
 func TestIndexCoverageUsesTightestValidSubset(t *testing.T) {

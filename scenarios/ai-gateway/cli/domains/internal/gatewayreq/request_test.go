@@ -44,6 +44,7 @@ func TestFromContextCarriesNoReclaimFootprintAndExpectedWorker(t *testing.T) {
 
 	request, err := FromContext(ctx)
 	require.NoError(t, err)
+	require.EqualValues(t, 6442450944, request.GetRequiredVramBytes())
 	require.Equal(t, "6442450944", request.GetMetadata()["required_vram_bytes"])
 	require.Equal(t, "false", request.GetMetadata()["capacity_allow_reclaim"])
 	require.Equal(t, digest, request.GetMetadata()["expected_worker_digest"])

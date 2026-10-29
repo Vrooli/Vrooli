@@ -17,6 +17,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	dbtest "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -27,6 +29,154 @@ import (
 	"program-runtime/internal/sessions"
 	taskstore "program-runtime/internal/tasks"
 )
+
+func TestTaskBridgeRequiresTheOwningVerifiedRun(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.NewSQLite(t)
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{taskstore.Schema(), library.Schema(), programs.Schema()} {
+		_, err := db.Exec(schema)
+		require.NoError(t, err)
+	}
+	manager := sessions.NewManager(sessions.Options{})
+	session, err := manager.Create(ctx, "", "", nil)
+	require.NoError(t, err)
+	repo := programs.NewRepository(db)
+	_, err = repo.Create(ctx, &programsv1.Program{
+		Id:                     "program-owner",
+		SessionId:              session.ID,
+		ProgramName:            "fixture.child",
+		Status:                 programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED,
+		CallerRunId:            "run-owner",
+		CallerIdentityVerified: true,
+	})
+	require.NoError(t, err)
+
+	bridge := &Bridge{
+		Store:     taskstore.NewStore(db),
+		Contracts: contracts.NewIndex(),
+		Library:   library.NewRepository(db),
+		Sessions:  manager,
+		Programs:  programs.NewService(programs.Options{Store: db}),
+	}
+	runs := map[string]string{"owner-token": "run-owner", "other-token": "run-other"}
+	verify := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: runs[token]}}, nil
+	})
+	handler := provenance.Middleware(verify)(bridge)
+	request := func(token string) *httptest.ResponseRecorder {
+		body, err := json.Marshal(map[string]any{
+			"session_id": session.ID,
+			"program_id": "program-owner",
+			"operation":  "missing.operation",
+		})
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/internal/program-runtime/tasks/resolve", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr
+	}
+
+	ownerResponse := request("owner-token")
+	require.Equal(t, http.StatusConflict, ownerResponse.Code, ownerResponse.Body.String())
+	require.Contains(t, ownerResponse.Body.String(), "operation is not registered")
+
+	otherResponse := request("other-token")
+	require.Equal(t, http.StatusForbidden, otherResponse.Code)
+	require.Contains(t, otherResponse.Body.String(), "program does not belong to session")
+}
+
+func TestKernelTaskCheckpointForwardsVerifiedOwnerAndRejectsOtherRun(t *testing.T) {
+	ctx := context.Background()
+	t.Setenv("PROGRAM_RUNTIME_LEARNING_STATE_DIR", t.TempDir())
+	db := dbtest.NewSQLite(t)
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{taskstore.Schema(), library.Schema(), programs.Schema()} {
+		_, err := db.Exec(schema)
+		require.NoError(t, err)
+	}
+
+	store := taskstore.NewStore(db)
+	repo := library.NewRepository(db)
+	declaration := []byte(`{"name":"fixture.checkpoint","version":"1","inputs":{},"budget":{"wall_ms":10000,"output_bytes":4096},"verbs":["learn.task"]}`)
+	source := `import json
+identity = learn.task(scope="fixture-usage", operation="fixture.checkpoint", key="checkpoint/v1")
+print(json.dumps({"attempt_id": identity["attempt_id"], "task_id": identity["task_id"]}))`
+	contract := archivedFixture(t, repo, "fixture.checkpoint", source, declaration)
+
+	runs := map[string]string{"owner-token": "run-owner", "other-token": "run-other"}
+	verify := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		runID, ok := runs[token]
+		if !ok {
+			return &cliutil.VerifyResult{Valid: false}, nil
+		}
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: runID}}, nil
+	})
+	manager := sessions.NewManager(sessions.Options{})
+	session, err := manager.Create(ctx, "identity-checkpoint", "", nil)
+	require.NoError(t, err)
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	kernel, err := filepath.Abs("../../../kernel/host/engine.py")
+	require.NoError(t, err)
+	runner := programs.NewSubprocessRunnerWithBindings(kernel, nil, server.URL+"/internal/program-runtime/bindings/execute", "")
+	defer runner.Close()
+	runner.SetLibraryProvider(func() []programs.LibrarySpec {
+		return []programs.LibrarySpec{{Name: contract.Name, Scenario: contract.Scenario, Contract: true, Current: true, Source: contract.Source, Declaration: contract.Declaration, Digest: contract.Digest}}
+	})
+	programService := programs.NewService(programs.Options{
+		Store: db, Runner: runner,
+		ValidateSession: func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+	})
+	bridge := &Bridge{Store: store, Contracts: contracts.NewIndex(), Library: repo, Sessions: manager, Programs: programService}
+	mux.Handle("/internal/program-runtime/tasks/", provenance.Middleware(verify)(bridge))
+
+	var completed *programsv1.Program
+	submit := provenance.Middleware(verify)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		completed, err = programService.Submit(r.Context(), session.ID, source, programsv1.Provenance_PROVENANCE_AGENT, false)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	request := httptest.NewRequest(http.MethodPost, "/submit", nil)
+	request.Header.Set(cliutil.HeaderAgentIdentityToken, "owner-token")
+	response := httptest.NewRecorder()
+	submit.ServeHTTP(response, request)
+	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
+	require.NotNil(t, completed)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, completed.Status, completed.FailureDetail)
+	require.Equal(t, "run-owner", completed.GetCallerRunId())
+	require.True(t, completed.GetCallerIdentityVerified())
+
+	var output map[string]string
+	require.NoError(t, json.Unmarshal([]byte(completed.GetStdout()), &output))
+	require.NotEmpty(t, output["attempt_id"])
+	require.NotEmpty(t, output["task_id"])
+	record, err := store.Get(ctx, output["attempt_id"])
+	require.NoError(t, err, "the actual kernel checkpoint must persist through the bridge")
+	require.Equal(t, completed.GetId(), record.ProgramID)
+
+	body, err := json.Marshal(map[string]any{
+		"session_id": session.ID,
+		"program_id": completed.GetId(),
+		"operation":  contract.ID,
+		"digest":     contract.Digest,
+	})
+	require.NoError(t, err)
+	otherRun := httptest.NewRequest(http.MethodPost, "/internal/program-runtime/tasks/resolve", bytes.NewReader(body))
+	otherRun.Header.Set("Content-Type", "application/json")
+	otherRun.Header.Set(cliutil.HeaderAgentIdentityToken, "other-token")
+	denied := httptest.NewRecorder()
+	mux.ServeHTTP(denied, otherRun)
+	require.Equal(t, http.StatusForbidden, denied.Code, denied.Body.String())
+	require.Contains(t, denied.Body.String(), "program does not belong to session")
+}
 
 func archivedFixture(t *testing.T, repo *library.Repository, id, source string, declaration []byte) contracts.Contract {
 	t.Helper()

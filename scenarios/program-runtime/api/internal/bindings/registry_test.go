@@ -19,7 +19,9 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protodesc"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
@@ -255,6 +257,51 @@ func TestProjectsManifestBoundMethods(t *testing.T) {
 	if !found {
 		t.Fatal("program-runtime manifest did not produce a typed callable")
 	}
+}
+
+func TestAIGatewayExecuteBindingSerializesExactCallerVRAM(t *testing.T) {
+	const requiredBytes = int64(6 * 1024 * 1024 * 1024)
+	var received *routingv1.ExecuteRouteRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		defer req.Body.Close()
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Errorf("read binding request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var decoded routingv1.ExecuteRouteRequest
+		if err := protojson.Unmarshal(body, &decoded); err != nil {
+			t.Errorf("decode binding request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		received = &decoded
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	registry, err := Load(repoRoot(t))
+	require.NoError(t, err)
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) {
+		return server.URL, nil
+	})
+	_, err = registry.Execute(context.Background(), "ai-gateway/routing/execute", map[string]any{
+		"role":                "classify.fast",
+		"input-text":          "select the best flow",
+		"profile":             "PROFILE_LOCAL_ONLY",
+		"privacy-class":       "PRIVACY_CLASS_INTERNAL",
+		"timeout-ms":          "15000",
+		"max-cost-usd":        "0",
+		"max-output-tokens":   "16",
+		"required-vram-bytes": "6442450944",
+		"metadata":            map[string]any{"required_vram_bytes": "1000000"},
+	}, nil, true, InvocationMetadata{ProgramID: "typed-vram-binding-test"}, server.Client())
+	require.NoError(t, err)
+	require.NotNil(t, received)
+	require.Equal(t, requiredBytes, received.GetRequest().GetRequiredVramBytes(), "Program Runtime must serialize the exact typed value to the owner RPC")
+	require.Equal(t, "1000000", received.GetRequest().GetMetadata()["required_vram_bytes"], "the compatibility metadata value must survive the boundary")
 }
 
 func TestProjectManifestBindsControlPlaneMethods(t *testing.T) {
@@ -605,4 +652,11 @@ func TestLearningContractDigestTracksGovernanceNotReachability(t *testing.T) {
 	require.Equal(t, original, registry.ContractDigest(binding.Id))
 	binding.Effect = "write"
 	require.NotEqual(t, original, registry.ContractDigest(binding.Id))
+}
+
+func TestRepeatedBindingArgumentExplainsArrayRequirement(t *testing.T) {
+	r := fixtureRegistry(t, `{"name":"web-console","groups":[{"name":"session","commands":[{"name":"native-usage","flags":[{"name":"threads","bind":{"field":"thread_ids"}}],"binding":{"kind":"connect-rpc","service":"SessionsService","method":"ReadNativeUsage"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	err := r.ValidateArguments("web-console/session/native-usage", map[string]any{"threads": "thread-1"})
+	require.ErrorContains(t, err, `argument "threads" expects an array`)
+	require.NoError(t, r.ValidateArguments("web-console/session/native-usage", map[string]any{"threads": []any{"thread-1"}}))
 }

@@ -6,9 +6,11 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/provenance"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"google.golang.org/protobuf/encoding/protojson"
 	_ "modernc.org/sqlite"
+	internalprograms "program-runtime/internal/programs"
 	"program-runtime/internal/tasks"
 	"strings"
 	"testing"
@@ -58,6 +60,60 @@ func TestDiscoveryEvalEndpointIsDeclared(t *testing.T) {
 		}
 	}
 	t.Fatal("programs_discovery_eval is not declared; the CLI binding would bypass endpoint parity")
+}
+
+func TestSubmitProgramUsesVerifiedCallerAttribution(t *testing.T) {
+	h := &handler{service: internalprograms.NewService(internalprograms.Options{})}
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "verified-run", ProfileKey: "codex"})
+	response, err := h.SubmitProgram(ctx, connect.NewRequest(&programsv1.SubmitProgramRequest{
+		SessionId: "session", Source: "x = 1", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Async: true,
+		Caller: &programsv1.Caller{RunId: "spoofed-run", AgentProfile: "spoofed-profile", SkillId: "skill", Harness: "cli"},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "verified-run", response.Msg.Program.CallerRunId)
+	require.Equal(t, "codex", response.Msg.Program.CallerAgentProfile)
+	require.Equal(t, "skill", response.Msg.Program.CallerSkillId)
+	require.Equal(t, "cli", response.Msg.Program.CallerHarness)
+	require.True(t, response.Msg.Program.CallerIdentityVerified)
+}
+
+func TestProgramReadRoutesEnforceVerifiedOwner(t *testing.T) {
+	service := internalprograms.NewService(internalprograms.Options{})
+	h := &handler{service: service}
+	owner := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "owner-run", ProfileKey: "codex"})
+	other := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "other-run", ProfileKey: "codex"})
+	p, _, err := service.SubmitDeclared(owner, "session", "x = 1", programsv1.Provenance_PROVENANCE_AGENT, false, false, internalprograms.Identity{}, internalprograms.Caller{RunID: "spoofed-run"}, true)
+	require.NoError(t, err)
+	require.True(t, p.CallerIdentityVerified)
+
+	get := &programsv1.GetProgramRequest{Id: p.Id}
+	_, err = h.GetProgram(context.Background(), connect.NewRequest(get))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	_, err = h.GetProgram(other, connect.NewRequest(get))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	got, err := h.GetProgram(owner, connect.NewRequest(get))
+	require.NoError(t, err)
+	require.Equal(t, p.Id, got.Msg.Program.Id)
+
+	wait := &programsv1.WaitForProgramRequest{Id: p.Id, TimeoutMillis: 1}
+	_, err = h.WaitForProgram(context.Background(), connect.NewRequest(wait))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	_, err = h.WaitForProgram(other, connect.NewRequest(wait))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	waited, err := h.WaitForProgram(owner, connect.NewRequest(wait))
+	require.NoError(t, err)
+	require.Equal(t, p.Id, waited.Msg.Program.Id)
+
+	list := &programsv1.ListProgramsRequest{SessionId: "session"}
+	for _, ctx := range []context.Context{context.Background(), other} {
+		listed, err := h.ListPrograms(ctx, connect.NewRequest(list))
+		require.NoError(t, err)
+		require.Empty(t, listed.Msg.Programs)
+	}
+	listed, err := h.ListPrograms(owner, connect.NewRequest(list))
+	require.NoError(t, err)
+	require.Len(t, listed.Msg.Programs, 1)
+	require.Equal(t, p.Id, listed.Msg.Programs[0].Id)
 }
 
 // TestWaitEndpointIsDeclared pins the block-once primitive to the declared
