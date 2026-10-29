@@ -233,8 +233,8 @@ func TestObserveResumableInterruptionNotifiesItsOwnCategory(t *testing.T) {
 	if notice.Urgency != "high" {
 		t.Fatalf("a stalled agent must be high urgency, got %q", notice.Urgency)
 	}
-	if !strings.Contains(notice.Body, "selected model is at capacity") {
-		t.Fatalf("body should carry the interruption reason, got %q", notice.Body)
+	if notice.Title != "Agent interrupted: model is at capacity" {
+		t.Fatalf("title should state why the agent stopped, got %q", notice.Title)
 	}
 	if !strings.HasPrefix(notice.DedupeKey, "sess-1:interrupted:") {
 		t.Fatalf("dedupe key should be the interrupted shape, got %q", notice.DedupeKey)
@@ -320,5 +320,29 @@ func TestForgetCancelsPendingNotice(t *testing.T) {
 	}
 	if len(n.pending) != 0 {
 		t.Fatalf("forget must drop the pending entry, have %d", len(n.pending))
+	}
+}
+
+func TestDeliverLeadsTheBodyWithTheSessionName(t *testing.T) {
+	n, _, _ := newTestNotifier()
+	var got eventbus.DomainEvent
+	n.publish = func(_ context.Context, event eventbus.DomainEvent) error { got = event; return nil }
+	n.notice = func(_ context.Context, _ string) (string, error) { return "", nil }
+	n.label = func(_ context.Context, id string) string {
+		if id != "sess-1" {
+			t.Fatalf("label resolved for wrong session %q", id)
+		}
+		return "Fix login flow · Codex"
+	}
+	notice, ok := decideNotice("sess-1", session.ActivityWorking, session.Activity{State: session.ActivityIdle})
+	if !ok {
+		t.Fatal("expected a turn-finished notice")
+	}
+	n.deliver(context.Background(), notice)
+	if got.Payload["title"] != "Agent turn finished" {
+		t.Fatalf("unexpected title %v", got.Payload["title"])
+	}
+	if got.Payload["body"] != "Fix login flow · Codex\nWaiting for your next instruction." {
+		t.Fatalf("body must name the session first, got %q", got.Payload["body"])
 	}
 }

@@ -24,8 +24,8 @@ vi.mock("../../api/notifications", async (importOriginal) => {
 const catalog = {
   sources: [
     {
-      source_scenario: "git-control-tower",
-      display_name: "Git Control Tower",
+      source_scenario: "web-console",
+      display_name: "Web Console",
       icon: "",
       deep_link_base: "",
       declared: true,
@@ -74,7 +74,16 @@ describe("NotificationsSection", () => {
       "settings.notificationsSection.loading",
     );
     resolve(catalog);
-    await screen.findByTestId("notification-enable-git-control-tower-review");
+    await screen.findByTestId("notification-enable-web-console-review");
+  });
+
+  it("requests only Web Console's own categories, not every scenario's", async () => {
+    notificationMocks.fetchNotificationCatalog.mockResolvedValue(catalog);
+
+    renderWithProviders(<NotificationsSection open />);
+
+    await screen.findByTestId("notification-enable-web-console-review");
+    expect(notificationMocks.fetchNotificationCatalog).toHaveBeenCalledWith("web-console");
   });
 
   it("renders each source group and its categories", async () => {
@@ -82,13 +91,13 @@ describe("NotificationsSection", () => {
 
     renderWithProviders(<NotificationsSection open />);
 
-    expect(await screen.findByText("Git Control Tower")).toBeInTheDocument();
+    expect(await screen.findByText("Web Console")).toBeInTheDocument();
     expect(screen.getByText("Review requests")).toBeInTheDocument();
     expect(
-      screen.getByTestId("notification-enable-git-control-tower-review"),
+      screen.getByTestId("notification-enable-web-console-review"),
     ).toBeInTheDocument();
     expect(
-      screen.getByTestId("notification-urgency-git-control-tower-review"),
+      screen.getByTestId("notification-urgency-web-console-review"),
     ).toBeInTheDocument();
   });
 
@@ -98,7 +107,7 @@ describe("NotificationsSection", () => {
     renderWithProviders(<NotificationsSection open />);
 
     const toggle = await screen.findByTestId(
-      "notification-enable-git-control-tower-review",
+      "notification-enable-web-console-review",
     );
     fireEvent.click(toggle);
 
@@ -107,7 +116,7 @@ describe("NotificationsSection", () => {
     });
     const sent = notificationMocks.updateNotificationPreference.mock
       .calls[0]![0] as NotificationPreference;
-    expect(sent.source_scenario).toBe("git-control-tower");
+    expect(sent.source_scenario).toBe("web-console");
     expect(sent.category).toBe("review");
     // Default was enabled:true, so the toggle drives it false.
     expect(sent.enabled).toBe(false);
@@ -119,7 +128,7 @@ describe("NotificationsSection", () => {
     renderWithProviders(<NotificationsSection open />);
 
     const select = await screen.findByTestId(
-      "notification-urgency-git-control-tower-review",
+      "notification-urgency-web-console-review",
     );
     fireEvent.change(select, { target: { value: "critical" } });
 

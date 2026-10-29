@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   origin TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  -- App delivery (docs/concepts/NOTIFICATIONS.md §"App delivery"): empty
+  -- app_scenario is Chimesail; otherwise the scenario whose own installed app
+  -- holds this subscription. device_group joins the subscriptions that live on
+  -- one physical device (empty means the subscription is its own group).
+  app_scenario TEXT NOT NULL DEFAULT '',
+  device_group TEXT NOT NULL DEFAULT '',
+  user_agent TEXT NOT NULL DEFAULT '',
+  permission TEXT NOT NULL DEFAULT '',
+  confirmed_at TEXT NOT NULL DEFAULT '',
   UNIQUE(recipient_id, endpoint)
 );
 CREATE TABLE IF NOT EXISTS quiet_windows (

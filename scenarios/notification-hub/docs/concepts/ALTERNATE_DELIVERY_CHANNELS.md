@@ -1,10 +1,11 @@
 # Alternate Delivery Channels (Design — not yet implemented)
 
-> **Status:** Design only. Nothing in this document is built yet. It is the
-> specification for a future increment and exists so the decision and its
-> rationale are recorded. Do not treat any route or type named here as present
-> in the running scenario. See [`NOTIFICATIONS.md`](NOTIFICATIONS.md) for the
-> contract that *is* implemented.
+> **Status:** Superseded for web push. The scenario-receiver design below was
+> not built. Scenario-identity delivery shipped instead as **app delivery**: the
+> hub keeps the subscription and the send, and the scenario's installed app only
+> holds a hub-owned subscription. See [`NOTIFICATIONS.md`](NOTIFICATIONS.md)
+> §"App delivery". This document remains for the reasoning and for future
+> non-web channels.
 
 ## Problem
 

@@ -19,6 +19,7 @@ package modules
 import (
 	"notification-hub/internal/module"
 
+	appDeliveryH "notification-hub/handlers/appdelivery"
 	capsH "notification-hub/handlers/capabilities"
 	conversationH "notification-hub/handlers/conversations"
 	deliveryH "notification-hub/handlers/delivery"
@@ -40,6 +41,7 @@ import (
 	recipientSchema "notification-hub/internal/recipients"
 	routingSchema "notification-hub/internal/routing"
 
+	appdeliveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/appdelivery"
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	deliveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/delivery"
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/identity"
@@ -56,6 +58,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, appDeliveryH.Endpoints...)
 	out = append(out, conversationH.Endpoints...)
 	out = append(out, deliveryH.Endpoints...)
 	out = append(out, identityH.Endpoints...)
@@ -88,6 +91,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "appdelivery", File: appdeliveryv1.File_notification_hub_v1_appdelivery_appdelivery_proto},
 		{Module: "conversations", File: conversationv1.File_notification_hub_v1_conversations_conversations_proto},
 		{Module: "delivery", File: deliveryv1.File_notification_hub_v1_delivery_delivery_proto},
 		{Module: "identity", File: identityv1.File_notification_hub_v1_identity_identity_proto},

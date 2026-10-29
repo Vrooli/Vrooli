@@ -31,7 +31,8 @@
     "2.6.3",
     "2.7.5",
     "2.7.4",
-    "2.7.3"
+    "2.7.3",
+    "2.7.6"
   ],
   "latest": "2.7.7",
   "libraryId": "react-component-library:SidebarShell"

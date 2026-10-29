@@ -109,9 +109,9 @@ func (s *wsStream) Write(p []byte) (int, error) {
 }
 func (s *wsStream) Close() error { return s.conn.Close() }
 
-// DialVoiceDaemon never launches an agent. Its socket must come from the
+// DialSessionDaemon never launches an agent. Its socket must come from the
 // caller's verified per-session home, never from a browser-supplied path.
-func DialVoiceDaemon(ctx context.Context, socketPath string) (*Client, error) {
+func DialSessionDaemon(ctx context.Context, socketPath string) (*Client, error) {
 	var directory *os.File
 	address := socketPath
 	if runtime.GOOS == "linux" && len(address) > 100 {

@@ -22,6 +22,10 @@ type Manifest struct {
 	Icon         string             `json:"icon"`
 	DeepLinkBase string             `json:"deepLinkBase"`
 	Categories   []ManifestCategory `json:"categories"`
+	// AppDelivery opts the scenario's own installed app into showing its
+	// notifications instead of Chimesail. The scenario web server
+	// (@vrooli/api-base/server) reads it; the hub decides per device.
+	AppDelivery bool `json:"appDelivery"`
 }
 
 // ManifestCategory is one declared notification class.

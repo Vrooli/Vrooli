@@ -20,7 +20,7 @@ func TestVoiceDaemonLive(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 	defer cancel()
-	c, err := DialVoiceDaemon(ctx, socket)
+	c, err := DialSessionDaemon(ctx, socket)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestVoiceBrowserPlaybackPromptLive(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	client, err := DialVoiceDaemon(ctx, socket)
+	client, err := DialSessionDaemon(ctx, socket)
 	if err != nil {
 		t.Fatal(err)
 	}

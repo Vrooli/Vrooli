@@ -131,12 +131,12 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
   }),
 }));
 
-vi.mock("../stores/useWorkspaceStore", () => ({
-  useWorkspaceStore: (selector?: (state: Record<string, unknown>) => unknown) => {
-    return selector ? selector(mockStoreState) : mockStoreState;
-  },
-  useEffectiveFontSize: () => 14,
-}));
+vi.mock("../stores/useWorkspaceStore", () => {
+  const useWorkspaceStore = (selector?: (state: Record<string, unknown>) => unknown) =>
+    selector ? selector(mockStoreState) : mockStoreState;
+  useWorkspaceStore.getState = () => mockStoreState;
+  return { useWorkspaceStore, useEffectiveFontSize: () => 14 };
+});
 
 vi.mock("../stores/useConversationStore", () => {
   const store = {

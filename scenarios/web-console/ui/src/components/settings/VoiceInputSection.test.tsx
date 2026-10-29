@@ -167,4 +167,20 @@ describe("VoiceInputSection", () => {
     fireEvent.click(screen.getByTitle(/removeProfileTitle/));
     await waitFor(() => expect(audioMocks.updateSpeakerVerificationConfig).toHaveBeenCalled());
   });
+
+  it("shows failed voice and speaker checks and clears them after a successful refresh", async () => {
+    useWorkspaceStore.setState({ voiceEnabled: true });
+    audioMocks.fetchCapabilities.mockRejectedValueOnce(new Error("voice check unavailable"));
+    audioMocks.getSpeakerVerificationStatus.mockRejectedValueOnce(new Error("speaker check unavailable"));
+    renderWithProviders(<VoiceInputSection />);
+
+    expect(await screen.findByText("voice check unavailable")).toBeInTheDocument();
+    expect(await screen.findByText("speaker check unavailable")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("voice-caps-refresh"));
+    fireEvent.click(screen.getByTestId("speaker-refresh"));
+    await waitFor(() => {
+      expect(screen.queryByText("voice check unavailable")).not.toBeInTheDocument();
+      expect(screen.queryByText("speaker check unavailable")).not.toBeInTheDocument();
+    });
+  });
 });

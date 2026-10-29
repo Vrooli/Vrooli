@@ -408,7 +408,8 @@ describe("rendered page behavior", () => {
     screen.getByText("No subscriptions yet");
 
     const layout = renderPage(<Layout />);
-    fireEvent.click(screen.getByText("Analytics"));
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    fireEvent.click(screen.getByRole("link", { name: "Analytics" }));
     layout.unmount();
 
     vi.mocked(api.fetchHealth).mockResolvedValue({

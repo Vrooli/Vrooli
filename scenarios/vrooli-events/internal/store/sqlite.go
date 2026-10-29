@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -230,6 +231,20 @@ func isUniqueConstraintError(err error) bool {
 func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error) {
 	var clauses []string
 	var args []any
+	if f.BeforeEventID != "" {
+		if !f.NewestFirst || f.Since > 0 {
+			return nil, fmt.Errorf("before_event_id requires newest-first order and cannot be combined with since")
+		}
+		var beforeID int64
+		if err := s.db.QueryRowContext(ctx, "SELECT id FROM events WHERE event_id = ?", f.BeforeEventID).Scan(&beforeID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, fmt.Errorf("%w: %s", ErrEventCursorNotFound, f.BeforeEventID)
+			}
+			return nil, fmt.Errorf("resolve event cursor: %w", err)
+		}
+		clauses = append(clauses, "id < ?")
+		args = append(args, beforeID)
+	}
 
 	hasGlob := false
 	if f.EventType != "" {
@@ -288,7 +303,11 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 	if len(clauses) > 0 {
 		query += " WHERE " + strings.Join(clauses, " AND ")
 	}
-	query += " ORDER BY id ASC LIMIT ?"
+	if f.NewestFirst {
+		query += " ORDER BY id DESC LIMIT ?"
+	} else {
+		query += " ORDER BY id ASC LIMIT ?"
+	}
 	args = append(args, sqlLimit)
 
 	events, err := s.scanEvents(ctx, query, args...)

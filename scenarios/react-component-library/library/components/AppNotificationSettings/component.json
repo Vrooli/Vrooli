@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "patterns.app-notification-settings",
+  "category": "uncategorized",
+  "deprecatedVersions": [
+    "0.1.0"
+  ],
+  "description": "A scenario's own notification settings: show its notifications in its installed app instead of Chimesail on this device, plus on/off and minimum urgency for each of its notification types.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "App notification settings",
+  "draft": "",
+  "entry": "AppNotificationSettings.tsx",
+  "evictedVersions": [
+    "0.1.0",
+    "1.0.0"
+  ],
+  "kind": "control",
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:AppNotificationSettings",
+  "retiredMajorAliases": [
+    "0"
+  ],
+  "slot": "ui-pattern",
+  "tags": [
+    "notifications",
+    "settings"
+  ]
+}

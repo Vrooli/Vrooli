@@ -237,6 +237,18 @@
       "testId": "quiet-hours-timezone-review-keep-editing",
       "selector": "[data-testid=\"quiet-hours-timezone-review-keep-editing\"]"
     },
+    "deviceApps.root": {
+      "testId": "device-apps-root",
+      "selector": "[data-testid=\"device-apps-root\"]"
+    },
+    "deviceApps.removeButton": {
+      "testId": "device-apps-remove",
+      "selector": "[data-testid=\"device-apps-remove\"]"
+    },
+    "deviceApps.message": {
+      "testId": "device-apps-message",
+      "selector": "[data-testid=\"device-apps-message\"]"
+    },
     "escalationOrder.root": {
       "testId": "escalation-order-root",
       "selector": "[data-testid=\"escalation-order-root\"]"
@@ -720,7 +732,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "3ec3c9838278fa31a4c7b468f3121b5d00a1d188e8aa63447c8569d44a97a293",
-    "ui/src/consts/selectors.ts": "382c318db8c397f0fb29ec40c7a3ef5d6e42863203eabaa14a7a61c0ca48ccbc",
+    "ui/src/consts/selectors.ts": "f79e0c683532cc1a049fc0b1ba919e1e16a6e7f52c98729d3f74ba717a0837e3",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

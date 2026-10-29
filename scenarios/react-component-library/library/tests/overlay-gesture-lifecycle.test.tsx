@@ -1,4 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../ui/src/test-utils";
 import { ViewportEnvironmentProvider, type ViewportEnvironmentSnapshot } from "@vrooli/react-component-library/useViewportEnvironment/1";
@@ -13,6 +14,29 @@ function Surface({ onClose, revision = 0, open = true }: { onClose: () => void; 
     </section>
   </div>;
 }
+
+function NestedSurfaces({ onChildClose }: { onChildClose: () => void }) {
+  const [parentOpen, setParentOpen] = useState(true);
+  const [childOpen, setChildOpen] = useState(false);
+  // Deliberately pass inline controlled callbacks. Opening the child rerenders
+  // this parent, matching the callback-identity change that used to reorder
+  // the lower layer above the visually top drawer.
+  const parent = useOverlaySurface({ open: parentOpen, onOpenChange: (next) => { setParentOpen(next); }, kind: "drawer", dismiss: { swipe: "bottom" } });
+  const child = useOverlaySurface({ open: childOpen, onOpenChange: (next) => { setChildOpen(next); if (!next) onChildClose(); }, kind: "drawer", dismiss: { swipe: "bottom" } });
+  return <>
+    {parent.present ? <div {...parent.rootProps} data-testid="nested-parent-root">
+      <section {...parent.surfaceProps} data-testid="nested-parent-surface">
+        <button type="button" data-testid="nested-open-child" onClick={() => { setChildOpen(true); }}>Open child</button>
+      </section>
+    </div> : null}
+    {child.present ? <div {...child.rootProps} data-testid="nested-child-root">
+      <section {...child.surfaceProps} data-testid="nested-child-surface">
+        <button type="button" {...child.grabberProps} data-testid="nested-child-grabber">Dismiss</button>
+      </section>
+    </div> : null}
+  </>;
+}
+
 let eventTime = 0;
 function pointer(target: EventTarget, type: string, y: number, id = 1) {
   const event = new Event(type, { bubbles: true, cancelable: true });
@@ -138,5 +162,27 @@ describe("overlay gesture lifecycle", () => {
     pointer(window, "pointerup", 0, 2);
     fireEvent.click(grabber, { detail: 1 });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the nested drawer on top through a parent callback change", () => {
+    const onChildClose = vi.fn();
+    renderWithProviders(<NestedSurfaces onChildClose={onChildClose} />, { withoutRouter: true });
+    fireEvent.click(screen.getByTestId("nested-open-child"));
+    expect(screen.getByTestId("nested-parent-surface")).toHaveAttribute("data-state", "open");
+    expect(screen.getByTestId("nested-child-surface")).toHaveAttribute("data-state", "open");
+
+    const grabber = screen.getByTestId("nested-child-grabber");
+    pointer(grabber, "pointerdown", 0, 11);
+    pointer(window, "pointermove", 25, 11);
+    pointer(window, "pointerup", 25, 11);
+    expect(onChildClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId("nested-child-surface")).toHaveAttribute("data-state", "open");
+
+    pointer(grabber, "pointerdown", 0, 12);
+    pointer(window, "pointermove", 130, 12);
+    pointer(window, "pointerup", 130, 12);
+    expect(onChildClose).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("nested-child-surface")).toHaveAttribute("data-state", "closed");
+    expect(screen.getByTestId("nested-parent-surface")).toHaveAttribute("data-state", "open");
   });
 });

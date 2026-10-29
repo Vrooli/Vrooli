@@ -640,3 +640,21 @@ func defaultIfEmpty(s, d string) string {
 // the file is regenerated; FormatTime accepts strings, not time.Time, so
 // nothing imports it directly today.
 var _ = time.RFC3339
+
+func (h *handlers) nativeUsage(ctx cliapp.RunContext) error {
+	req := &sessionsv1.ReadNativeUsageRequest{SessionId: ctx.Positional("session-id"), ThreadIds: strings.Split(ctx.Flag("threads"), ","), Start: ctx.Flag("start"), End: ctx.Flag("end")}
+	resp, err := h.client.ReadNativeUsage(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("session native-usage", err, nil)
+	}
+	return json.NewEncoder(ctx.Stdout()).Encode(resp.Msg)
+}
+
+func (h *handlers) nativeThreadState(ctx cliapp.RunContext) error {
+	req := &sessionsv1.ReadNativeThreadStateRequest{SessionId: ctx.Positional("session-id"), ThreadIds: strings.Split(ctx.Flag("threads"), ",")}
+	resp, err := h.client.ReadNativeThreadState(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("session native-thread-state", err, nil)
+	}
+	return json.NewEncoder(ctx.Stdout()).Encode(resp.Msg)
+}

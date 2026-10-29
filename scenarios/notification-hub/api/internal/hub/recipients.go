@@ -38,10 +38,15 @@ type EscalationChain struct {
 type channelTarget struct {
 	Channel, Address, MachineID string
 	ApprovedLabels              []string
+	// App is set when the target is a scenario's own installed app (app
+	// delivery); Fallback holds the Chimesail targets on the same device that
+	// it replaced, used if the app does not accept the notification.
+	App      string
+	Fallback []channelTarget
 }
 
 func (s *Service) channelTargets(ctx context.Context, recipient string) ([]channelTarget, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT a.channel, CASE WHEN a.channel='web_push' THEN p.endpoint ELSE a.address END, d.machine_id, a.approved_labels FROM channel_addresses a JOIN devices d ON d.id=a.device_id JOIN recipients r ON r.id=d.recipient_id LEFT JOIN push_subscriptions p ON p.device_id=d.id AND p.recipient_id=r.id AND a.channel='web_push' WHERE r.subject=? AND (a.channel<>'web_push' OR p.id IS NOT NULL) ORDER BY a.created_at, p.updated_at DESC, p.id`, recipient)
+	rows, err := s.db.QueryContext(ctx, `SELECT a.channel, CASE WHEN a.channel='web_push' THEN p.endpoint ELSE a.address END, d.machine_id, a.approved_labels FROM channel_addresses a JOIN devices d ON d.id=a.device_id JOIN recipients r ON r.id=d.recipient_id LEFT JOIN push_subscriptions p ON p.device_id=d.id AND p.recipient_id=r.id AND p.app_scenario='' AND a.channel='web_push' WHERE r.subject=? AND (a.channel<>'web_push' OR p.id IS NOT NULL) ORDER BY a.created_at, p.updated_at DESC, p.id`, recipient)
 	if err != nil {
 		return nil, err
 	}

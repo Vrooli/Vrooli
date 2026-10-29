@@ -192,6 +192,13 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+### 2026-10-28 — Draft overlay story accessibility tree
+
+- Rung: W3, scoped story-fixture composition under the existing overlay contract.
+- Evidence: report `ctr_b53cd975e900d894_42d12562bcde0b34992ed8ec` had passing visible-content assertions, but loading/error AX snapshots contained only three generic nodes. Its retained DOM showed the dialog and status/alert descendants under `#root[inert][aria-hidden=true]`. The fixture rendered overlay content under the application root instead of LayerManager's portal container. RCL draft `useOverlaySurface@1.4.9-draft.1` now portals the fixture to `#rcl-layer-root`; role-based dialog/status/alert story assertions pass. Follow-up report `ctr_215c52866574fd46_42d12562bcde0b34992ed8ec` captures the dialog plus status (loading) and alert (error) in the browser accessibility tree; all four stories and the review sheet pass.
+- Limit: This is a synthetic draft story and browser AX evidence. The released 1.4.8 asset remains latest; consumer adoption and actual screen-reader announcement remain unverified.
+- Measured: 2026-10-28.
+
 - Rung: W1 — obligations registry (regression since the 2026-09-04 record below)
 - Evidence: `business-health validate scenario react-component-library` reports FAILED with 40 `business_status_unearned` errors ("declared complete but no requirements-sync snapshot exists to earn it"). The snapshot path `scenarios/react-component-library/coverage/requirements-sync/latest.json` does not exist, and **0 of 127 scenarios** in the repo have ever produced one. The check is `scenarios/business-health/api/internal/checks/evidence.go:89`, fed by `internal/matrix/matrix.go` (modified 2026-09-02 20:56); the installed `business-health` binary was rebuilt 2026-09-04 18:27, i.e. after the prior W3 record was measured on 2026-09-04 — which is why that record shows W1 passing. The check fires only on `complete`: react-component-library declares 76 complete (40 flagged), web-console 8 complete (8 flagged), while command-center, prompt-manager and business-health flag 0.
 - Blocker: Awaiting an operator decision. The gate's own remedy is "revert the status to what evidence supports, then earn the change through a comprehensive suite run" — either downgrade the 40 statuses or produce the snapshot via a comprehensive `vrooli scenario test react-component-library` run. Gesture defect repair (W3) is held behind this rung.
@@ -217,6 +224,8 @@ a migration handoff with a planned retirement path back into
 - Evidence: `useOverlaySurface` registered the current `close` callback as a layer-effect dependency. An inline controlled callback changed that identity when a parent drawer rendered to mount a child, so the lower parent was removed and pushed above the child. The child's swipe followed the pointer, then failed its top-layer commit check and reset. Release 1.3.10 keeps registration stable and forwards dismissal through a current-callback ref; Web Console rebuilt and reported healthy with the upgraded presentation releases.
 - Blocker: Manual confirmation of the original two-drawer swipe sequence remains with the operator; broad automated suites were intentionally not run for this iteration.
 - Measured: 2026-08-29.
+
+2026-10-28 verification follow-up: added a synthetic nested-parent/child swipe control to `library/tests/overlay-gesture-lifecycle.test.tsx`. The short 25px drag leaves both layers open; the 130px commit closes the child and leaves the parent open despite inline controlled callbacks. Focused library-mode Vitest passes 9/9 (2.02s). A live Web Console attempt was not accepted as manual confirmation: the initially observed archive count was transient, and a settled read showed 20 archived sessions. No archive names or messages were retained; the isolated browser profile was removed. Physical/live nested-drawer confirmation remains pending.
 
 - Rung: W3 / R0 (overlay contract and styling portability execution)
 - Evidence: W0 remains aligned with goals `design-language-foundation` and `react-component-library-adoption-integrity`; `business-health validate scenario react-component-library` and `vrooli scenario requirements validate react-component-library` both pass. Baseline run `20260827-043742-0085352a` is terminal and records the pre-existing red implementation baseline that this plan must compare against while it builds the missing portability and overlay behavior.

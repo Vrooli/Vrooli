@@ -82,8 +82,11 @@ func PrepareSessionHome(sessionHome, sharedHome string) string {
 	// share and often large (plugins, caches, logs, and shell snapshots), so
 	// point those directories at the operator's shared Codex home. The
 	// fallback creates a local directory only when no shared home is usable.
+	// packages holds the versioned app-server daemon install (~430 MB per
+	// release) and .tmp its plugin staging; unlinked, every session home
+	// downloaded its own copy.
 	ensureDir(filepath.Join(sessionHome, "sessions"))
-	for _, dir := range []string{"log", "logs", "outputs", "tmp", "cache", "plugins", "shell_snapshots"} {
+	for _, dir := range []string{"log", "logs", "outputs", "tmp", ".tmp", "cache", "plugins", "shell_snapshots", "packages"} {
 		sharedDir := filepath.Join(sharedHome, dir)
 		ensureDir(sharedDir)
 		ensureSymlink(filepath.Join(sessionHome, dir), sharedDir)

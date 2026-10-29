@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 //                       routing / playback diagnostics)
 //   ai.ts            -> RESTReasonBrowserSurface (typed 402 browser contract)
 //   conversation.ts  -> RESTReasonBrowserSurface (legacy browser controls)
+//   approvals.ts     -> RESTReasonBrowserSurface (same-origin approval facade)
 //   notifications.ts -> RESTReasonBrowserSurface (same-origin facade to
 //                       notification-hub's REST notification-preferences API)
 //   monetization.ts  -> RESTReasonThirdPartyShape (commercial/session JSON)
@@ -36,6 +37,7 @@ const ALLOWLIST = new Set([
   "ai.ts",
   "conversation.ts",
   "notifications.ts",
+  "approvals.ts",
   "monetization.ts",
 ]);
 

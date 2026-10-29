@@ -7,6 +7,14 @@ drop into its own settings page.
 
 Line numbers are as of this change and will drift.
 
+> **Update, 2026-10-28:** the extraction shipped in a different shape than §3
+> proposed. The reusable panel is `AppNotificationSettings`
+> (`@vrooli/react-component-library/AppNotificationSettings/1`), and it reaches
+> the hub through the scenario web server's `/vrooli-notify/` routes
+> (`@vrooli/api-base/server`), which pin `source_scenario` server-side. That
+> removes the need for a per-scenario Go facade. Contract:
+> [`../concepts/NOTIFICATIONS.md`](../concepts/NOTIFICATIONS.md) §"App delivery".
+
 ## 1. Current state
 
 ### Data plane (Notification Hub)

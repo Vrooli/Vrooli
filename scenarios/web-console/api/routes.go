@@ -103,6 +103,8 @@ func (s *Server) setupRoutes() {
 	}}.Handler()).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/internal/desktop-journey/terminal", s.desktopTerminalFixture).Methods(http.MethodGet)
 	sessionAdapter := &sessionsH.Adapter{
+		NativeUsage:         s.readSessionNativeUsage,
+		NativeThreadState:   s.readSessionNativeThreadState,
 		Manager:             s.sessions,
 		ManagedCodex:        s.managedCodex,
 		Store:               s.sessionStore,

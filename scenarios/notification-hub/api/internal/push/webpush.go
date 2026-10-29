@@ -175,6 +175,12 @@ func (s *Sender) Send(ctx context.Context, subscription Subscription, title, bod
 }
 
 func (s *Sender) SendMessage(ctx context.Context, subscription Subscription, message Message) (string, error) {
+	return s.SendPayload(ctx, subscription, []byte(structuredPayload(message)))
+}
+
+// SendPayload encrypts and delivers an already-encoded payload, such as a
+// Declarative Web Push envelope, to one subscription.
+func (s *Sender) SendPayload(ctx context.Context, subscription Subscription, payload []byte) (string, error) {
 	if s == nil || s.PrivateKey == nil || len(s.PublicKey) == 0 {
 		return "", errors.New("web push sender is not configured")
 	}
@@ -196,7 +202,7 @@ func (s *Sender) SendMessage(ctx context.Context, subscription Subscription, mes
 	if err != nil {
 		return "", fmt.Errorf("decode subscription auth secret: %w", err)
 	}
-	encrypted, err := encrypt([]byte(structuredPayload(message)), clientKey, auth)
+	encrypted, err := encrypt(payload, clientKey, auth)
 	if err != nil {
 		return "", err
 	}
@@ -234,6 +240,22 @@ func (s *Sender) SendMessage(ctx context.Context, subscription Subscription, mes
 		provider = subscription.Endpoint
 	}
 	return provider, nil
+}
+
+// DeclarativePayload builds a Declarative Web Push message (WebKit,
+// iOS 18.4+): the browser shows it and opens navigate on tap without running
+// a service worker. Browsers without native support deliver the same JSON to
+// the worker's push event, which the shared app worker reads.
+func DeclarativePayload(message Message, navigate string) []byte {
+	notification := map[string]any{"title": message.Title, "navigate": navigate}
+	if message.Body != "" {
+		notification["body"] = message.Body
+	}
+	if message.ID != "" {
+		notification["tag"] = message.ID
+	}
+	encoded, _ := json.Marshal(map[string]any{"web_push": 8030, "notification": notification})
+	return encoded
 }
 
 func structuredPayload(message Message) string {

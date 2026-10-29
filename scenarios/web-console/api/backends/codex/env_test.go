@@ -32,6 +32,22 @@ func TestPrepareSessionHomeCreatesLayoutAndSharedLinks(t *testing.T) {
 	}
 }
 
+// The app-server daemon install is ~430 MB per release. A session home must
+// reuse the shared install rather than download its own copy, while its rollout
+// tree stays private to the session.
+func TestPrepareSessionHomeSharesDaemonInstallButNotRollouts(t *testing.T) {
+	shared := t.TempDir()
+	session := PrepareSessionHome(filepath.Join(t.TempDir(), "session"), shared)
+	for _, dir := range []string{"packages", ".tmp", "plugins", "cache"} {
+		if target, err := os.Readlink(filepath.Join(session, dir)); err != nil || target != filepath.Join(shared, dir) {
+			t.Fatalf("%s link = %q, %v; want shared %s", dir, target, err, filepath.Join(shared, dir))
+		}
+	}
+	if info, err := os.Lstat(filepath.Join(session, "sessions")); err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		t.Fatalf("rollout tree must be a private directory: %v", err)
+	}
+}
+
 func TestSessionHomeAndSessionsDir(t *testing.T) {
 	root := t.TempDir()
 	home := SessionHome(root, "session-1")

@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import type { ApprovalDecision } from "../../../api/approvals";
-import { parseApprovalsDeepLink } from "../../../stores/useApprovalsStore";
+import { parseApprovalsDeepLink, useApprovalsStore } from "../../../stores/useApprovalsStore";
 import {
   approveOptionKey,
   isActionable,
@@ -19,7 +19,7 @@ import { renderWithProviders } from "../../../test-utils";
 import { setLocale } from "../../../i18n";
 import ApprovalsDrawer from "../ApprovalsDrawer";
 import { useApprovals } from "../../../hooks/useApprovals";
-import { answerApproval } from "../../../api/approvals";
+import { answerApproval, getApproval, ApprovalAlreadyResolvedError, ApprovalsUnauthorizedError, ApprovalsUnavailableError } from "../../../api/approvals";
 
 vi.mock("../../../hooks/useApprovals", () => ({ useApprovals: vi.fn() }));
 vi.mock("../../../api/approvals", async (importOriginal) => {
@@ -27,6 +27,10 @@ vi.mock("../../../api/approvals", async (importOriginal) => {
   return { ...actual, answerApproval: vi.fn(), getApproval: vi.fn() };
 });
 vi.mock("../../../hooks/useMediaQuery", () => ({ useMediaQuery: () => false }));
+afterEach(() => {
+  vi.clearAllMocks();
+  useApprovalsStore.setState({ pendingDeepLinkId: null, shouldOpenDrawer: false });
+});
 
 function decision(over: Partial<ApprovalDecision>): ApprovalDecision {
   return {
@@ -147,6 +151,57 @@ describe("ApprovalContextPanel", () => {
 });
 
 describe("ApprovalsDrawer context interactions", () => {
+  it("loads a deep-linked resolved decision outside the pending list", async () => {
+    await setLocale("en");
+    const resolved = decision({ id: "history", question: "Previously decided?", state: "answered", answer: "yes", answerLabel: "Yes" });
+    vi.mocked(useApprovals).mockReturnValue({ data: [], isLoading: false, error: null, refetch: vi.fn() } as never);
+    vi.mocked(getApproval).mockResolvedValue(resolved);
+    useApprovalsStore.getState().requestOpen("history");
+    renderWithProviders(createElement(ApprovalsDrawer, { open: true, onClose: vi.fn() }));
+    expect(await screen.findByText("Previously decided?")).toBeInTheDocument();
+    expect(screen.getByTestId("approvals-resolved-note")).toBeInTheDocument();
+    expect(screen.queryByTestId("approvals-answer-recommended")).not.toBeInTheDocument();
+    expect(getApproval).toHaveBeenCalledWith("history");
+  });
+
+  it("offers a retry when the approvals service is unavailable", async () => {
+    await setLocale("en");
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+    vi.mocked(useApprovals).mockReturnValue({ data: [], isLoading: false, error: new ApprovalsUnavailableError(), refetch } as never);
+    renderWithProviders(createElement(ApprovalsDrawer, { open: true, onClose: vi.fn() }));
+    const unavailable = screen.getByTestId("approvals-unavailable");
+    await user.click(within(unavailable).getByRole("button"));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides stale answer controls when the session expires", async () => {
+    await setLocale("en");
+    const user = userEvent.setup();
+    vi.mocked(useApprovals).mockReturnValue({ data: [decision({})], isLoading: false, error: null, refetch: vi.fn() } as never);
+    vi.mocked(answerApproval).mockRejectedValue(new ApprovalsUnauthorizedError());
+    renderWithProviders(createElement(ApprovalsDrawer, { open: true, onClose: vi.fn() }));
+    await user.click(await screen.findByTestId("approvals-answer-recommended"));
+    expect(await screen.findByTestId("approvals-session-expired")).toBeInTheDocument();
+    expect(screen.queryByTestId("approvals-answer-recommended")).not.toBeInTheDocument();
+  });
+
+  it.each(["answered", "resolved elsewhere"])("does not leave a stale actionable detail after %s", async (outcome) => {
+    await setLocale("en");
+    const user = userEvent.setup();
+    const refetch = vi.fn().mockResolvedValue({});
+    vi.mocked(useApprovals).mockReturnValue({ data: [decision({ question: "Approve the release?" })], isLoading: false, error: null, refetch } as never);
+    vi.mocked(answerApproval).mockReset();
+    if (outcome === "answered") vi.mocked(answerApproval).mockResolvedValue(undefined);
+    else vi.mocked(answerApproval).mockRejectedValue(new ApprovalAlreadyResolvedError());
+    renderWithProviders(createElement(ApprovalsDrawer, { open: true, onClose: vi.fn() }));
+
+    await user.click(await screen.findByTestId("approvals-answer-recommended"));
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
+    expect(screen.queryByTestId("approvals-answer-recommended")).not.toBeInTheDocument();
+    if (outcome === "resolved elsewhere") expect(screen.getByTestId("approvals-already-resolved")).toBeInTheDocument();
+  });
+
   it("keeps the selected decision and answer note while both disclosures toggle", async () => {
     await setLocale("en");
     const user = userEvent.setup();
@@ -188,6 +243,50 @@ describe("ApprovalsDrawer context interactions", () => {
     await user.click(within(detail).getByTestId("approvals-answer-recommended"));
     await waitFor(() => expect(answerApproval).toHaveBeenCalledTimes(1));
     expect(answerApproval).toHaveBeenCalledWith("ask-context", "yes", "inspect the rebuilt artifact");
+  });
+});
+
+describe("ApprovalsDrawer irreversible confirmation", () => {
+  it("keeps the confirmation named and modal, and only submits after confirm", async () => {
+    await setLocale("en");
+    const user = userEvent.setup();
+    vi.mocked(answerApproval).mockClear();
+    const irreversibleDecision = decision({
+      id: "irreversible-approval",
+      question: "Delete the deployment record?",
+      reversible: false,
+    });
+    vi.mocked(useApprovals).mockReturnValue({
+      data: [irreversibleDecision],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue({}),
+    } as never);
+    vi.mocked(answerApproval).mockResolvedValue(undefined);
+    renderWithProviders(createElement(ApprovalsDrawer, { open: true, onClose: vi.fn() }));
+
+    const detail = await screen.findByTestId("approvals-detail");
+    const answerButton = within(detail).getByTestId("approvals-answer-recommended");
+    await user.click(answerButton);
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    const labelledBy = dialog.getAttribute("aria-labelledby");
+    const describedBy = dialog.getAttribute("aria-describedby");
+    expect(document.getElementById(labelledBy as string)?.textContent).toBe("Confirm your decision");
+    expect(document.getElementById(describedBy as string)?.textContent).toContain("This can't be undone.");
+    expect(document.getElementById(describedBy as string)?.textContent).toContain("Yes for: Delete the deployment record?");
+    expect(answerApproval).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByTestId("approvals-confirm-cancel"));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(answerApproval).not.toHaveBeenCalled();
+
+    await user.click(answerButton);
+    const reopenedDialog = await screen.findByRole("alertdialog");
+    await user.click(within(reopenedDialog).getByTestId("approvals-confirm-confirm"));
+    await waitFor(() => expect(answerApproval).toHaveBeenCalledTimes(1));
+    expect(answerApproval).toHaveBeenCalledWith("irreversible-approval", "yes", "");
   });
 });
 

@@ -173,8 +173,9 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
       setNote("");
       // Optimistic: hide this row from the actionable list immediately.
       setAnsweredIds((prev) => new Set(prev).add(decision.id));
-      // Clear the selection on mobile (back to the list); keep it on desktop.
-      if (isMobile) setSelectedId(null);
+      // A stale pending detail must not remain actionable while refetch runs.
+      // Desktop selects the next available decision; mobile returns to the list.
+      setSelectedId(null);
       await Promise.all([
         refetch(),
         queryClient.invalidateQueries({ queryKey: ["approvals-badge"] }),
@@ -192,7 +193,7 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
         setAlreadyResolved(true);
         setConfirming(null);
         setAnsweredIds((prev) => new Set(prev).add(decision.id));
-        if (isMobile) setSelectedId(null);
+        setSelectedId(null);
         await Promise.all([
           refetch(),
           queryClient.invalidateQueries({ queryKey: ["approvals-badge"] }),
@@ -204,7 +205,7 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
       inFlightRef.current = false;
       setAnswering(false);
     }
-  }, [note, isMobile, refetch, queryClient]);
+  }, [note, refetch, queryClient]);
 
   // An answer on an irreversible decision always confirms first; a reversible
   // one answers directly (the swipe / button is the confirmation). Guarded so a
@@ -267,6 +268,7 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
         title={t(strings.approvals.title)}
         closeLabel={t(strings.approvals.close)}
         testId="approvals-drawer"
+        avoidKeyboard
         headerExtra={headerExtra}
       >
         <div className="flex h-full min-h-0 flex-col md:flex-row">
@@ -309,6 +311,7 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
                 })
               : t(strings.approvals.confirmIrreversible, {
                   option: optionLabel(confirming.decision, confirming.optionKey),
+                  question: confirming.decision.question,
                 })
           }
           destructive={!confirming.decision.reversible}
@@ -437,6 +440,7 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
   }
 
   function renderDetailBody() {
+    if (sessionExpired || listSessionExpired) return null;
     if (!selected) {
       return (
         <div className="hidden h-full items-center justify-center p-8 text-sm text-wc-text-muted md:flex" data-testid="approvals-detail-empty">

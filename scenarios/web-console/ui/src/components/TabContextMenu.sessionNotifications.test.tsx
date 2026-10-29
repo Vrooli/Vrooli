@@ -26,7 +26,7 @@ const noop = () => {};
 // the time the operator right-clicks a tab.
 function renderMenu(catalog: NotificationCatalog) {
   const queryClient = createTestQueryClient();
-  queryClient.setQueryData(["notification-catalog"], catalog);
+  queryClient.setQueryData(["notification-catalog", "web-console"], catalog);
   mocks.fetchNotificationCatalog.mockResolvedValue(catalog);
   return renderWithProviders(
     <TabContextMenu

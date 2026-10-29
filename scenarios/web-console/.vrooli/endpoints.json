@@ -1208,6 +1208,22 @@
       }
     },
     {
+      "id": "sessions_native_usage",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/ReadNativeUsage",
+      "method": "POST",
+      "summary": "Read bounded native session usage",
+      "description": "Reads selected native threads for an existing session within a bounded time window.",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_native_thread_state",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/ReadNativeThreadState",
+      "method": "POST",
+      "summary": "Read native thread and goal state",
+      "description": "Observes selected threads through an existing session owner without changing them.",
+      "category": "sessions"
+    },
+    {
       "id": "sessions_reopen",
       "path": "/vrooli.web_console.v1.sessions.SessionsService/Reopen",
       "method": "POST",

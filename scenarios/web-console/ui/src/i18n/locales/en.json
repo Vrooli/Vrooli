@@ -152,7 +152,7 @@
     "openContext": "Open in {{source}}",
     "confirmTitle": "Confirm your decision",
     "confirmBody": "{{option}} — {{question}}",
-    "confirmIrreversible": "This can't be undone. {{option}}?",
+    "confirmIrreversible": "This can't be undone. {{option}} for: {{question}}?",
     "confirm": "Confirm",
     "cancel": "Cancel",
     "answering": "Submitting…",
@@ -1874,7 +1874,7 @@
     "notificationsSection": {
       "eyebrow": "Preferences",
       "title": "Notifications",
-      "description": "Choose which of your apps can notify you, and how urgent a notification must be before it reaches you.",
+      "description": "Choose which Web Console events notify you, such as an agent finishing its turn, needing your input, or getting interrupted.",
       "minUrgencyLabel": "Minimum urgency",
       "urgency": {
         "low": "Low",
@@ -1893,11 +1893,43 @@
       },
       "empty": {
         "title": "No notifications to manage yet",
-        "body": "When your Vrooli apps start sending you notifications, you'll be able to fine-tune them here.",
+        "body": "Once Web Console sends its first notification, you can fine-tune it here.",
         "refresh": "Refresh",
         "setup": "Set up notification delivery in Notification Hub"
       },
-      "openHub": "Open Notification Hub"
+      "openHub": "Open Notification Hub",
+      "appNotifications": {
+        "title": "Notifications in this app",
+        "loading": "Checking notifications…",
+        "loadError": "Notification settings could not be loaded.",
+        "retry": "Try again",
+        "installFirst": "To get notifications in this app, add Web Console to your Home Screen and open it from there.",
+        "unsupported": "This browser can't show notifications for this app. Notifications still arrive in Chimesail.",
+        "ineligible": "Notifications in this app aren't available yet. {reason} Notifications still arrive in Chimesail.",
+        "offDescription": "{app} notifications arrive in Chimesail on this device. Get them here instead, with this app's name and icon.",
+        "turnOn": "Get notifications in this app",
+        "turningOn": "Turning on…",
+        "chooseTitle": "Which device is this?",
+        "chooseDescription": "{app} notifications will appear here instead of in Chimesail on this device. Other devices keep Chimesail.",
+        "bestMatch": "Best match",
+        "alsoHere": "Also here: {apps}",
+        "standaloneLabel": "A device without Chimesail",
+        "standaloneDescription": "Only this app will show {app} notifications here.",
+        "confirm": "Use this app here",
+        "cancel": "Cancel",
+        "onDescription": "{app} notifications appear in this app on this {device} instead of in Chimesail.",
+        "onStandaloneDescription": "{app} notifications appear in this app on this device.",
+        "turnOff": "Use Chimesail instead",
+        "turningOff": "Switching…",
+        "saveError": "That change was not saved. Try again.",
+        "statusOn": "On",
+        "statusOff": "Off",
+        "statusPaused": "Paused",
+        "statusUnavailable": "Unavailable",
+        "mutedDescription": "Notifications for {app} are turned off in this device's settings, so they arrive in Chimesail for now. Turn them on in Settings → Notifications → {app}; this updates when you come back.",
+        "pausedDescription": "{reason} {app} notifications arrive in Chimesail until then.",
+        "lastSeen": "Last seen {date}"
+      }
     }
   },
   "snippets": {

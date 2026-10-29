@@ -146,6 +146,30 @@
       "publishedAt": "2026-08-31T05:02:33Z"
     },
     {
+      "libraryId": "react-component-library:AppNotificationSettings",
+      "version": "1.0.0",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-10-29T00:14:56Z"
+    },
+    {
+      "libraryId": "react-component-library:AppNotificationSettings",
+      "version": "1.0.1",
+      "draftVersion": "1.0.1-draft.1",
+      "publishedAt": "2026-10-29T00:26:00Z"
+    },
+    {
+      "libraryId": "react-component-library:AppNotificationSettings",
+      "version": "1.0.2",
+      "draftVersion": "1.0.2-draft.1",
+      "publishedAt": "2026-10-29T00:35:52Z"
+    },
+    {
+      "libraryId": "react-component-library:AppNotificationSettings",
+      "version": "1.0.3",
+      "draftVersion": "1.0.3-draft.1",
+      "publishedAt": "2026-10-29T01:22:16Z"
+    },
+    {
       "libraryId": "react-component-library:AppShell",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -8880,6 +8904,12 @@
       "version": "1.1.3",
       "draftVersion": "1.1.3-draft.1",
       "publishedAt": "2026-10-19T18:28:21Z"
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "version": "1.1.4",
+      "draftVersion": "1.1.4-draft.1",
+      "publishedAt": "2026-10-28T20:08:12Z"
     },
     {
       "libraryId": "react-component-library:useVoiceInput",

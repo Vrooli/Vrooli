@@ -336,3 +336,36 @@ does not restore workspace files. Legacy terminal sessions remain
 transcript-only and use the terminal fallback. If a restart cannot re-establish
 the app-server owner, the session becomes `recovery_only` instead of attaching
 to an unverified rollout or second writer.
+
+### Native interactive usage
+
+`SessionsService.ReadNativeUsage` (also `web-console session native-usage`) reads a bounded selection of Codex native
+threads from one existing Web Console session. Send `session_id`, a unique
+`thread_ids` array (1–16 UUIDs), and RFC 3339 `start` and `end` timestamps;
+the window is start-inclusive, end-exclusive, and at most 31 days. For
+example:
+
+```json
+{"session_id":"1e5904ed-8378-458a-86d7-8dbb039cff19","thread_ids":["01a17b9f-ed59-7a71-964c-4d6214cce350"],"start":"2026-10-27T04:30:00Z","end":"2026-10-27T12:32:00Z"}
+```
+
+The caller selects every thread, including coordinator and follow-ups; the
+read does not infer commission membership or discover omitted children. The
+session owner resolves the IDs in its own native state. A missing thread,
+unreadable rollout, absent response usage, or malformed usage produces partial
+coverage. A null `usage` means unknown; an observed zero has a usage object.
+Each thread also reports its latest persisted `observed_model`,
+`observed_provider`, and `observed_effort` where the native database exposes
+them. Empty values mean unknown. These are thread settings at read time, not
+per-response model attribution, a history of model changes, or billing data.
+`model_contexts` separately counts model-bearing native context records inside
+the requested interval, grouped by model and effort. These records can reveal
+observed changes but are not response counts or a complete billing attribution;
+missing contexts remain unknown.
+Response IDs are deduplicated within each thread, and conflicting duplicates
+fail that thread's read. Totals split cache-read from uncached input; cache
+creation, incomplete/in-flight calls, pricing, quota and billing are not
+measured. This is separate from Agent Manager's managed-run efficiency cohort.
+Each selected rollout is limited to 256 MiB, so a larger source is unknown; 16 selected threads permit up to 4 GiB of input in a single request. Response and duplicate counters cover successfully read records; incomplete counts cover observed incomplete records, not omitted threads or requests.
+
+`SessionsService.ReadNativeThreadState` (CLI `web-console session native-thread-state`) observes up to 16 explicitly selected threads through an existing session's native owner. It returns the native thread status, active flags, and, when available, native goal status and counters. `goal_available=false` means the goal read failed; `goal_available=true` with `has_goal=false` means the owner reported no goal. An unavailable thread is not inferred to be idle or complete. The call does not control threads, enforce deadlines, verify cleanup, or establish billing, and it returns no goal text or transcript. The same verified-session or `web-console:read` authorization applies as for native usage.

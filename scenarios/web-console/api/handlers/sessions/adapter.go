@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/identity"
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
@@ -75,6 +76,8 @@ type CodexCheckpoints interface {
 // Adapter is the production Service implementation. It is constructed in
 // api/main.go with typed deps — no *Server import — and passed to Module.
 type Adapter struct {
+	NativeUsage         func(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error)
+	NativeThreadState   func(context.Context, *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error)
 	createMu            sync.Mutex
 	creating            map[string]bool
 	Manager             SessionManager
@@ -1819,4 +1822,18 @@ func (a *Adapter) SupportsStableCreateIdentity() bool {
 		CreateWithIdentity(context.Context, string, uint16, uint16, backend.ID, *policy.Policy, string, bool, sessionstore.Metadata) (*session.Session, error)
 	})
 	return ok && a.Store != nil
+}
+
+func (a *Adapter) ReadNativeUsage(ctx context.Context, req *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error) {
+	if a.NativeUsage == nil {
+		return nil, ErrUnavailable
+	}
+	return a.NativeUsage(ctx, req)
+}
+
+func (a *Adapter) ReadNativeThreadState(ctx context.Context, req *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error) {
+	if a.NativeThreadState == nil {
+		return nil, ErrUnavailable
+	}
+	return a.NativeThreadState(ctx, req)
 }

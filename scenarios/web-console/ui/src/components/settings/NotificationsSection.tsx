@@ -8,6 +8,7 @@ import {
   fetchScenarioLink,
   updateNotificationPreference,
   NotificationsUnavailableError,
+  WEB_CONSOLE_SOURCE,
   type NotificationCategory,
   type NotificationPreference,
   type NotificationSource,
@@ -15,10 +16,11 @@ import {
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { Avatar } from "@vrooli/react-component-library/Avatar/1";
 import { SettingsToggle } from "./primitives";
+import { AppNotificationSettings, type AppNotificationStrings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 
 const URGENCY_LADDER = ["low", "normal", "high", "critical"] as const;
 
-const CATALOG_QUERY_KEY = ["notification-catalog"] as const;
+const CATALOG_QUERY_KEY = ["notification-catalog", WEB_CONSOLE_SOURCE] as const;
 const HUB_LINK_QUERY_KEY = ["scenario-link", "notification-hub"] as const;
 
 /**
@@ -163,7 +165,7 @@ export default function NotificationsSection({ open }: { open: boolean }) {
 
   const catalog = useQuery({
     queryKey: CATALOG_QUERY_KEY,
-    queryFn: fetchNotificationCatalog,
+    queryFn: () => fetchNotificationCatalog(WEB_CONSOLE_SOURCE),
     enabled: open,
     retry: (failureCount, error) =>
       !(error instanceof NotificationsUnavailableError) && failureCount < 2,
@@ -206,6 +208,8 @@ export default function NotificationsSection({ open }: { open: boolean }) {
         title={t(strings.settings.notificationsSection.title)}
         description={t(strings.settings.notificationsSection.description)}
       />
+
+      <AppNotificationsGroup />
 
       {unavailable ? (
         <NotificationsMessage
@@ -285,11 +289,12 @@ export default function NotificationsSection({ open }: { open: boolean }) {
                   hint={category.description || undefined}
                   control="compact"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-end gap-3">
+                    <label className="flex flex-col gap-1 text-[11px] font-medium text-wc-text-secondary">
+                      {t(strings.settings.notificationsSection.minUrgencyLabel)}
                     <select
                       data-testid={`notification-urgency-${source.source_scenario}-${category.category}`}
-                      aria-label={t(strings.settings.notificationsSection.minUrgencyLabel)}
-                      className="h-8 rounded-md border border-wc-default bg-transparent px-2 text-sm"
+                      className="h-8 rounded-md border border-wc-default bg-transparent px-2 text-sm text-wc-text-primary"
                       disabled={!pref.enabled || mutation.isPending}
                       value={pref.min_urgency || "normal"}
                       onChange={(e) => {
@@ -302,6 +307,7 @@ export default function NotificationsSection({ open }: { open: boolean }) {
                         </option>
                       ))}
                     </select>
+                    </label>
                     <SettingsToggle
                       testId={`notification-enable-${source.source_scenario}-${category.category}`}
                       ariaLabel={category.display_name}
@@ -335,5 +341,29 @@ export default function NotificationsSection({ open }: { open: boolean }) {
         </SettingsList.Group>
       ) : null}
     </SettingsList>
+  );
+}
+
+const APP_NOTIFICATION_STRING_KEYS = [
+  "title", "loading", "loadError", "retry", "installFirst", "unsupported", "ineligible", "offDescription",
+  "turnOn", "turningOn", "chooseTitle", "chooseDescription", "bestMatch", "alsoHere", "standaloneLabel",
+  "standaloneDescription", "confirm", "cancel", "onDescription", "onStandaloneDescription", "turnOff",
+  "turningOff", "saveError", "statusOn", "statusOff", "statusPaused", "statusUnavailable",
+  "mutedDescription", "pausedDescription", "lastSeen",
+] as const satisfies readonly (keyof AppNotificationStrings & keyof typeof strings.settings.notificationsSection.appNotifications)[];
+
+/** Web Console's own app can show its notifications instead of Chimesail; categories stay in the list above. */
+function AppNotificationsGroup() {
+  const { t } = useTranslation();
+  const translated = useMemo(
+    () => Object.fromEntries(APP_NOTIFICATION_STRING_KEYS.map((key) => [key, t(strings.settings.notificationsSection.appNotifications[key])])) as Partial<AppNotificationStrings>,
+    [t],
+  );
+  return (
+    <SettingsList.Group>
+      <div className="px-3 py-3">
+        <AppNotificationSettings showCategories={false} strings={translated} />
+      </div>
+    </SettingsList.Group>
   );
 }

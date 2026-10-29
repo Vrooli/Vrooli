@@ -90,6 +90,11 @@ const literalSelectors = {
     timezoneReviewStage: "quiet-hours-timezone-review-stage",
     timezoneReviewKeepEditing: "quiet-hours-timezone-review-keep-editing",
   },
+  deviceApps: {
+    root: "device-apps-root",
+    removeButton: "device-apps-remove",
+    message: "device-apps-message",
+  },
   escalationOrder: {
     root: "escalation-order-root",
     openButton: "escalation-order-open",

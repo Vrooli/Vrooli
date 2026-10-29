@@ -45,6 +45,9 @@ type Clock interface{ Now() time.Time }
 
 type PushSubscription struct {
 	ID, Endpoint, P256DH, Auth, Origin string
+	// UserAgent labels the device in settings and in the app-delivery device
+	// picker. It is taken from the registering request, never trusted for routing.
+	UserAgent string
 }
 
 // PushMessage is the payload a browser receives. Tag collapses repeats of
@@ -54,6 +57,10 @@ type PushSubscription struct {
 // fall back to its own default rather than notification-hub's own icon).
 type PushMessage struct {
 	Title, Body, Tag, URL, Icon string
+	// Navigate is set only for a scenario's own app (app delivery): the
+	// absolute in-app URL a tap opens. Senders then use the Declarative Web
+	// Push envelope, which iOS shows and opens without running a worker.
+	Navigate string
 }
 
 // PushSender is intentionally narrow. Production wires the RFC 8291 sender;
@@ -132,6 +139,10 @@ type Service struct {
 	iconURL      func(ctx context.Context, sourceScenario string) string
 	iconBaseMu   sync.Mutex
 	iconBaseByID map[string]string
+	// appEligibility checks a scenario's permanent public address for app
+	// delivery (app_delivery.go). Nil keeps every device on Chimesail.
+	appEligibility      AppEligibility
+	appEligibilityCache *appEligibilityCache
 }
 
 // BrandResolver is the optional capability the preferences seam exposes to
@@ -323,6 +334,11 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 		`ALTER TABLE notifications ADD COLUMN category TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE notifications ADD COLUMN context_url TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE notifications ADD COLUMN scope_key TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE push_subscriptions ADD COLUMN app_scenario TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE push_subscriptions ADD COLUMN device_group TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE push_subscriptions ADD COLUMN user_agent TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE push_subscriptions ADD COLUMN permission TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE push_subscriptions ADD COLUMN confirmed_at TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			s.log.Printf("ensure notification column: %v", err)
@@ -871,6 +887,10 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		}
 		return s.appendEvent(ctx, n.ID, "unroutable", reason, now)
 	}
+	targets, err = s.applyAppDelivery(ctx, n, targets)
+	if err != nil {
+		return err
+	}
 	_ = s.appendEvent(ctx, n.ID, "routed", "channel targets selected from recipient registry", s.clock.Now().UTC().Format(time.RFC3339Nano))
 	s.mu.RLock()
 	sender := s.push
@@ -880,7 +900,8 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	s.mu.RUnlock()
 	var lastErr error
 	delivered := 0
-	for _, target := range targets {
+	for i := 0; i < len(targets); i++ {
+		target := targets[i]
 		deliveredForTarget := false
 		approved := approvedLabel(target.ApprovedLabels, n.SensitivityLabel)
 		contentMode := "body"
@@ -890,6 +911,9 @@ func (s *Service) Process(ctx context.Context, id string) error {
 			body = "Notification available in notification-hub"
 		}
 		_, _ = s.db.ExecContext(ctx, `INSERT INTO routing_decisions (id, notification_id, channel, machine_id, approved, content_mode, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, target.Channel, target.MachineID, boolInt(approved), contentMode, func() string {
+			if target.App != "" {
+				return "delivered to the " + target.App + " app paired on this device instead of Chimesail"
+			}
 			if approved {
 				return "channel approved for sensitivity label"
 			}
@@ -930,6 +954,12 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		}
 		if deliveredForTarget {
 			continue
+		}
+		// A scenario app that is gone or kept failing hands its device back to
+		// Chimesail in the same pass, so the notification is never lost.
+		if target.App != "" && len(target.Fallback) > 0 {
+			_ = s.appendEvent(ctx, n.ID, "routed", "the "+target.App+" app did not accept the notification; delivering to Chimesail on that device", s.clock.Now().UTC().Format(time.RFC3339Nano))
+			targets = append(targets, target.Fallback...)
 		}
 	}
 	if delivered > 0 {
@@ -991,6 +1021,12 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 			url = n.ContextURL
 		}
 		msg := PushMessage{Title: pushTitle(s.resolveDisplayName(ctx, n.SourceScenario), n.Title), Body: body, Tag: n.ID, URL: url}
+		if target.App != "" {
+			// The OS already shows the app's own name and icon.
+			msg.Navigate = appNavigateURL(sub.Origin, n.ContextURL)
+			msg.URL = msg.Navigate
+			return push.Send(ctx, sub, msg)
+		}
 		if s.iconURL != nil {
 			msg.Icon = s.resolveIconURL(ctx, n.SourceScenario)
 		}
@@ -1201,7 +1237,7 @@ func boolInt(value bool) int {
 }
 
 func (s *Service) liveSubscriptions(ctx context.Context, recipient string) ([]PushSubscription, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, endpoint, p256dh, auth, origin FROM push_subscriptions WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?) ORDER BY updated_at DESC`, recipient)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, endpoint, p256dh, auth, origin FROM push_subscriptions WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?) AND app_scenario = '' ORDER BY updated_at DESC`, recipient)
 	if err != nil {
 		return nil, err
 	}
@@ -1233,7 +1269,9 @@ func (s *Service) RegisterPushSubscription(ctx context.Context, recipient string
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO push_subscriptions (id, recipient_id, device_id, endpoint, p256dh, auth, origin, created_at, updated_at) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(recipient_id, endpoint) DO UPDATE SET device_id=excluded.device_id, p256dh=excluded.p256dh, auth=excluded.auth, origin=excluded.origin, updated_at=excluded.updated_at`, uuid.NewString(), recipient, device.ID, p.Endpoint, p.P256DH, p.Auth, p.Origin, now, now)
+	// The upsert keeps device_group: a re-registration (pushsubscriptionchange,
+	// a page reload) must not unpair the device from its scenario apps.
+	_, err = s.db.ExecContext(ctx, `INSERT INTO push_subscriptions (id, recipient_id, device_id, endpoint, p256dh, auth, origin, user_agent, created_at, updated_at) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(recipient_id, endpoint) DO UPDATE SET device_id=excluded.device_id, p256dh=excluded.p256dh, auth=excluded.auth, origin=excluded.origin, user_agent=CASE WHEN excluded.user_agent<>'' THEN excluded.user_agent ELSE push_subscriptions.user_agent END, updated_at=excluded.updated_at`, uuid.NewString(), recipient, device.ID, p.Endpoint, p.P256DH, p.Auth, p.Origin, strings.TrimSpace(p.UserAgent), now, now)
 	return err
 }
 

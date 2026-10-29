@@ -84,8 +84,15 @@ Returns stored events matching the given filters.
 | correlation_id | string | Filter by correlation ID |
 | since | string | ISO-8601 timestamp lower bound |
 | until | string | ISO-8601 timestamp upper bound |
+| order | string | `asc` (default) or `desc` by durable store order |
+| before_event_id | string | Exclusive descending keyset cursor; requires `order=desc` and cannot be combined with `since` |
 | limit | int | Max results (default: 100, max: 1000) |
 | offset | int | Pagination offset |
+
+`before_event_id` addresses a retained event by its public event ID; the store
+resolves it to the durable row key and returns older rows. A missing or pruned
+cursor returns `400 INVALID_PARAM`. Existing queries remain ascending unless
+`order=desc` is explicitly requested.
 
 **Response**: `200 OK` with `{"events": [...], "total": N}`
 

@@ -39,6 +39,7 @@ import (
 	"github.com/vrooli/api-core/trustposture"
 	_ "modernc.org/sqlite"
 
+	appDeliveryH "notification-hub/handlers/appdelivery"
 	capsH "notification-hub/handlers/capabilities"
 	conversationH "notification-hub/handlers/conversations"
 	deliveryH "notification-hub/handlers/delivery"
@@ -92,7 +93,12 @@ func (s preferenceSeam) UrgencyAtLeast(have, min string) bool {
 type pushAdapter struct{ sender *push.Sender }
 
 func (a pushAdapter) Send(ctx context.Context, subscription hub.PushSubscription, message hub.PushMessage) (string, error) {
-	return a.sender.SendMessage(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth, Origin: subscription.Origin}, push.Message{Title: message.Title, Body: message.Body, ID: message.Tag, URL: message.URL, Icon: message.Icon})
+	sub := push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth, Origin: subscription.Origin}
+	msg := push.Message{Title: message.Title, Body: message.Body, ID: message.Tag, URL: message.URL, Icon: message.Icon}
+	if message.Navigate != "" {
+		return a.sender.SendPayload(ctx, sub, push.DeclarativePayload(msg, message.Navigate))
+	}
+	return a.sender.SendMessage(ctx, sub, msg)
 }
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -171,6 +177,9 @@ func main() {
 	service.SetRecipientResolver(integrations.OperatorStateRecipient())
 	service.SetOwnerFallback(hub.OperatorSubject)
 	configureWebPush(service, fileRoots)
+	service.SetAppEligibility(hub.TunnelAppEligibility(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "tunnel-manager")
+	}))
 	posture := "personal"
 	if state, postureErr := trustposture.LoadWorkingTree(); postureErr != nil {
 		slog.Warn("trust posture unavailable; using fail-safe personal posture", "error", postureErr)
@@ -254,6 +263,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		notificationH.ModuleWithVerifier(service, ownerVerifier),
 		recipientsH.ModuleWithVerifier(service, ownerVerifier),
+		appDeliveryH.ModuleWithVerifier(service, ownerVerifier),
 		preferencesH.ModuleWithRecipientResolver(preferenceStore, service.ResolveRecipient, ownerVerifier),
 		routingH.ModuleWithVerifier(service, ownerVerifier),
 		deliveryH.ModuleWithVerifier(service, ownerVerifier),

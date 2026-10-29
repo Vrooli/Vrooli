@@ -43,7 +43,7 @@ func (h *handler) RegisterPushSubscription(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	p := hub.PushSubscription{Endpoint: req.Msg.GetEndpoint(), P256DH: req.Msg.GetP256Dh(), Auth: req.Msg.GetAuth(), Origin: req.Msg.GetOrigin()}
+	p := hub.PushSubscription{Endpoint: req.Msg.GetEndpoint(), P256DH: req.Msg.GetP256Dh(), Auth: req.Msg.GetAuth(), Origin: req.Msg.GetOrigin(), UserAgent: req.Header().Get("User-Agent")}
 	if err := h.service.RegisterPushSubscription(ctx, s, p); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

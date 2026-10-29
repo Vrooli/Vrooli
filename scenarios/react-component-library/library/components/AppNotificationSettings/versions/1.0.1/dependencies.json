@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:AppNotificationSettings",
+  "version": "1.0.1",
+  "resolvedAt": "2026-10-29T00:26:00Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Button",
+      "major": 2,
+      "observed": "2.2.12",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:RadioGroup",
+      "major": 1,
+      "observed": "1.2.2",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Select",
+      "major": 1,
+      "observed": "1.3.16",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "major": 1,
+      "observed": "1.0.13",
+      "rank": 4
+    }
+  ]
+}

@@ -23,6 +23,7 @@
     "1.4.1",
     "1.4.4"
   ],
+  "description": "Reusable use overlay surface component implementation for the React component library.",
   "designStyles": [
     {
       "affinity": "native",
@@ -30,7 +31,8 @@
       "styleId": "vrooli-default"
     }
   ],
-  "draft": "",
+  "displayName": "use Overlay Surface",
+  "draft": "1.4.9-draft.1",
   "evictedVersions": [
     "1.4.1",
     "1.4.0",
@@ -38,8 +40,10 @@
     "1.4.4",
     "1.4.6",
     "1.4.5",
+    "1.4.7",
     "1.4.2"
   ],
   "latest": "1.4.8",
-  "libraryId": "react-component-library:useOverlaySurface"
+  "libraryId": "react-component-library:useOverlaySurface",
+  "tags": []
 }

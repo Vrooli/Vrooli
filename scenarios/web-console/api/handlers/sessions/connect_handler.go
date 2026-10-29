@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	"google.golang.org/protobuf/proto"
 
 	"connectrpc.com/connect"
@@ -27,8 +29,9 @@ import (
 // BEFORE the session's PTY environment is built. The handler only forwards the
 // operator's candidate credentials down via CreateInput.HumanOwnerCredentials.
 type Deps struct {
-	Service Service
-	Logger  *log.Logger
+	Service          Service
+	Logger           *log.Logger
+	VerifyOwnSession func(context.Context) (string, error)
 }
 
 type connectHandler struct {
@@ -40,6 +43,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.VerifyOwnSession == nil {
+		d.VerifyOwnSession = provenance.VerifyOwnWebConsoleSession
 	}
 	return &connectHandler{deps: d}
 }
@@ -580,4 +586,56 @@ func policyViewToProto(v PolicyView) *sessionsv1.PolicyView {
 		TtlSeconds: v.TTLSeconds,
 		HasExpiry:  v.HasExpiry,
 	}
+}
+
+func (h *connectHandler) ReadNativeUsage(ctx context.Context, req *connect.Request[sessionsv1.ReadNativeUsageRequest]) (*connect.Response[sessionsv1.ReadNativeUsageResponse], error) {
+	if err := h.authorizeNativeRead(ctx, req.Msg.GetSessionId()); err != nil {
+		return nil, err
+	}
+	reader, ok := h.deps.Service.(interface {
+		ReadNativeUsage(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := reader.ReadNativeUsage(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *connectHandler) authorizeNativeRead(ctx context.Context, requestedSession string) error {
+	if _, ok := identity.PrincipalFromContext(ctx); !ok {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("verified identity required"))
+	}
+	if _, err := authn.RequireCapability(ctx, "web-console:read"); err != nil {
+		principal, _ := identity.PrincipalFromContext(ctx)
+		p := provenance.FromContext(ctx)
+		sessionID, verifyErr := "", error(nil)
+		if principal.Kind == identity.ActorAgent && p.IsVerifiedAgent() && h.deps.VerifyOwnSession != nil {
+			sessionID, verifyErr = h.deps.VerifyOwnSession(ctx)
+		}
+		if verifyErr != nil || sessionID == "" || sessionID != requestedSession {
+			return connect.NewError(connect.CodePermissionDenied, errors.New("read capability or verified own session required"))
+		}
+	}
+	return nil
+}
+
+func (h *connectHandler) ReadNativeThreadState(ctx context.Context, req *connect.Request[sessionsv1.ReadNativeThreadStateRequest]) (*connect.Response[sessionsv1.ReadNativeThreadStateResponse], error) {
+	if err := h.authorizeNativeRead(ctx, req.Msg.GetSessionId()); err != nil {
+		return nil, err
+	}
+	reader, ok := h.deps.Service.(interface {
+		ReadNativeThreadState(context.Context, *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := reader.ReadNativeThreadState(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
 }

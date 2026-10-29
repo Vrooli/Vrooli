@@ -6,6 +6,7 @@
     "1.0.1",
     "1.0.2"
   ],
+  "description": "A singleton browser viewport environment with coalesced visual-viewport measurements, focus-qualified keyboard geometry, SSR fallbacks, and an explicit host override.",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,13 +14,17 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "useViewportEnvironment",
   "draft": "",
   "entry": "useViewportEnvironment.tsx",
   "evictedVersions": [
     "1.1.1",
     "1.1.0",
+    "1.1.3",
+    "1.1.2",
     "1.0.4"
   ],
-  "latest": "1.1.3",
-  "libraryId": "react-component-library:useViewportEnvironment"
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:useViewportEnvironment",
+  "tags": []
 }

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -110,6 +111,31 @@ func TestQueryFilters(t *testing.T) {
 	events, _ = s.Query(ctx, QueryFilters{Limit: 1})
 	if len(events) != 1 {
 		t.Fatalf("limit filter: expected 1, got %d", len(events))
+	}
+}
+
+func TestQueryNewestFirstUsesExclusiveEventCursor(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	for _, id := range []string{"evt-a", "evt-b", "evt-c"} {
+		if _, err := s.Insert(ctx, makeEvent(id, "test.attempt.v1", "source-a")); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	newest, err := s.Query(ctx, QueryFilters{EventType: "test.attempt.v1", Source: "source-a", NewestFirst: true, Limit: 2})
+	if err != nil || len(newest) != 2 || newest[0].EventID != "evt-c" || newest[1].EventID != "evt-b" {
+		t.Fatalf("newest page = %#v, %v", newest, err)
+	}
+	older, err := s.Query(ctx, QueryFilters{EventType: "test.attempt.v1", Source: "source-a", NewestFirst: true, BeforeEventID: "evt-b", Limit: 2})
+	if err != nil || len(older) != 1 || older[0].EventID != "evt-a" {
+		t.Fatalf("cursor page = %#v, %v", older, err)
+	}
+	if _, err := s.Query(ctx, QueryFilters{NewestFirst: true, BeforeEventID: "missing"}); !errors.Is(err, ErrEventCursorNotFound) {
+		t.Fatalf("unknown cursor error = %v", err)
+	}
+	if _, err := s.Query(ctx, QueryFilters{BeforeEventID: "evt-b"}); err == nil {
+		t.Fatal("cursor without newest-first order was accepted")
 	}
 }
 

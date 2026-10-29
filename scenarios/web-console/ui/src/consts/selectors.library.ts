@@ -75,5 +75,12 @@ export const librarySelectors = {
   "overlays.popover": {
     "root": "overlays.popover",
   },
+  "patterns.app-notification-settings": {
+    "appNotifications": "app-notifications",
+    "appNotifyConfirm": "app-notify-confirm",
+    "appNotifyStatus": "app-notify-status",
+    "appNotifyTurnOff": "app-notify-turn-off",
+    "appNotifyTurnOn": "app-notify-turn-on",
+  },
 } as const;
 // vrooli:library-selectors end

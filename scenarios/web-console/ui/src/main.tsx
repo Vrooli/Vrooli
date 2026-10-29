@@ -9,6 +9,7 @@ import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { registerVoiceTransport } from "./audio-integration";
 import "./i18n";
 import "./design-tokens.css";
@@ -28,12 +29,20 @@ if (window.top !== window.self) {
 // Keep controller navigation available both standalone and when embedded in a
 // host frame. The bridge is process-wide and is disposed with the page.
 const spatialNav = initSpatialNav();
-if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    spatialNav.dispose();
+  });
+}
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
 // navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
+
+// Re-confirm this installed app with Notification Hub and open the screen a
+// notification tap asked for (no-op until app notifications are turned on).
+initAppNotifications();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Missing #root element in index.html");

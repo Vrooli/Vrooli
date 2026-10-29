@@ -1,4 +1,5 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useImageInspection } from "../useImageInspection";
 

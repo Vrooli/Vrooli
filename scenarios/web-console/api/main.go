@@ -354,6 +354,7 @@ func NewServer(db *database.RoutedDB) *Server {
 	if err := srv.reconcileOrphanedControlReceipts(context.Background()); err != nil {
 		log.Printf("conversation control recovery: %v", err)
 	}
+	srv.sessionNotifier.label = srv.sessionNoticeLabel
 	srv.managedCodex = newManagedCodexRegistry(sessionStore)
 	srv.managedCodex.setRegistrar(srv.registerManagedCodexOwner)
 	srv.managedCodex.setEventSink(srv.captureManagedCodexEvent)

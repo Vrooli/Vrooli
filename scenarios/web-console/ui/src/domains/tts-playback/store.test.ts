@@ -27,4 +27,20 @@ describe("tts playback intent store", () => {
     });
     vi.unstubAllGlobals();
   });
+
+  it("keeps playback controls usable when browser storage access is denied", async () => {
+    vi.resetModules();
+    const storage = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new DOMException("Storage denied", "SecurityError");
+    });
+    try {
+      const { useTtsPlaybackIntentStore: isolatedStore } = await import("./store");
+      isolatedStore.getState().setPlaybackIntent("paused");
+      isolatedStore.getState().setSelectedTarget({ sessionId: "s", eventId: "e" });
+      expect(isolatedStore.getState()).toMatchObject({ playbackIntent: "paused", selectedTarget: { sessionId: "s", eventId: "e" } });
+    } finally {
+      storage.mockRestore();
+      vi.resetModules();
+    }
+  });
 });

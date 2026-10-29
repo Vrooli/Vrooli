@@ -82,6 +82,7 @@ func (s *Server) registerOwnerCleanupRoutes() {
 	s.router.HandleFunc("/api/v1/cleanup/apply", h.apply).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/cleanup/orphans", h.orphans).Methods(http.MethodGet)
 	h.startAutomaticRetention(context.Background())
+	h.startSessionHomeRetention(context.Background())
 }
 
 func webConsoleRecoveryLockPath() string {

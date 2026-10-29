@@ -113,12 +113,15 @@
         "rung": "owned",
         "kind": "dir",
         "class": "state",
-        "regenerable": true,
+        "regenerable": false,
         "subpath": "sessions",
-        "rationale": "Per-session agent rollout transcripts are owner-budgeted review evidence and are disposable after the 30-day review window. Runtime directories under this tree are links to the shared agent home after launch-time provisioning.",
+        "rationale": "Per-session agent homes hold the only durable copy of codex/grok transcripts (rollout JSONL, codex history and thread sqlite); agent-manager evicts its imported corpus and relies on these files staying re-importable. The owner session-home retention loop removes only regenerable runtime state (per-home app-server installs, plugin/cache/tmp trees, codex trace-log sqlite, grok downloads) from sessions that are not open and idle past 7 days, removes empty scaffold homes no session row claims, and never deletes a transcript.",
         "budget": {
-          "max_age": "30d",
-          "rationale": "Retain session transcripts for 30 days for user recovery; owner cleanup protects active sessions."
+          "max_bytes": "60GiB",
+          "rationale": "Bounds transcripts plus runtime state of open sessions; the owner receipt reports over-budget cycles with the protected reasons instead of deleting transcripts."
+        },
+        "reclaim": {
+          "pruner": "custom"
         }
       },
       "agent-runtime": {

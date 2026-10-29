@@ -1,12 +1,12 @@
 # Scenario-Owned Delivery (Research)
 
-> **Status:** Research, 2026-10-28. Nothing in this document is built. It
-> extends the design in
-> [`../concepts/ALTERNATE_DELIVERY_CHANNELS.md`](../concepts/ALTERNATE_DELIVERY_CHANNELS.md)
-> and keeps the rule in
-> [`../concepts/NOTIFICATIONS.md`](../concepts/NOTIFICATIONS.md) §"Centralized
-> Delivery (and Why)". Web facts marked **[unverified]** need a device spike
-> before anyone builds on them.
+> **Status:** T2 (scenario-identity web push) is **built**, 2026-10-28. The
+> contract now lives in
+> [`../concepts/NOTIFICATIONS.md`](../concepts/NOTIFICATIONS.md) §"App delivery";
+> this document keeps the research, the platform facts, and the device test
+> results (§7). The build follows §1's table with one change: `face` is stored
+> as `push_subscriptions.app_scenario` (empty for Chimesail) and the physical
+> device as `device_group`. T3 (native push) is still research.
 
 ## Question
 
@@ -367,6 +367,39 @@ operator's iPhone, and that a tap opens that app at the intended route.
 If step 4 shows the scenario's identity, T2 is real, and the next work is the
 hub schema (`face`, `install_group`) together with the pairing picker. If it
 fails, iOS T2 is dead, and the only route to scenario identity on iOS is T3.
+
+### Results (2026-10-28, operator's iPhone, iOS PWA)
+
+Setup: `web-console` (installed as "Aquila") at
+`https://web-console.itsagitime.com`; worker `/public/push-spike/sw.js` with
+the **narrow scope** `/public/push-spike/` (the app's own `sw.js` keeps `/`);
+subscribed with the hub's VAPID public key; sent by `cmd/push-spike` with the
+hub's private key, not registered with the hub. Push service:
+`web.push.apple.com`. Classic payload only (declarative not tried).
+
+| Check | Result |
+|---|---|
+| Subscribe from installed PWA | **Pass** — after one fix: `navigator.serviceWorker.ready` never resolves when the worker scope excludes the page, so wait on the registration's own worker |
+| Hub VAPID key reused by a second origin | **Pass** — Apple accepted the hub-signed push |
+| Banner identity | **Pass** — "Test 1: Agent turn finished **from Aquila**", Aquila icon; no Chimesail |
+| Narrow-scope worker beside the app's own worker | **Pass** on iOS |
+| Delivery with the app closed | **Pass** — Test 2 arrived with Web Console swiped away |
+| Tap target | **Pass** — tapping Test 2 opened the installed PWA (not Safari, not Chimesail) |
+| System settings entry | **Pass** — iOS Settings → Notifications lists Aquila separately from Chimesail, so the OS gives each app its own allow/mute |
+
+Round 2 (iPhone UA `iPhone OS 18_7 … Version/26.5`, i.e. iOS 26; the worker
+POSTs `shown`/`clicked` to `/api/v1/push-spike/event`, and the app POSTs
+`opened` with its `href` on load):
+
+| Check | Result |
+|---|---|
+| Deep link, classic payload, app closed | **Pass** — app logged `opened` at exactly `/?push-spike=3`; `clients.openWindow(url)` was honored from a cold start (Chimesail's pending-nav stash covers the *backgrounded* case, not retested) |
+| Declarative payload (`web_push: 8030`, absolute `navigate`) | **Pass** — shown and opened at exactly `/?push-spike=4` with no worker involvement |
+| Worker beacon from a push or click (U4) | **Not observed** — no `shown`/`clicked` reached the origin, while the page's own beacon did (with the Access cookie). Either the updated worker had not installed, or a background worker fetch does not pass Cloudflare Access. Unresolved; the design must not depend on worker receipts |
+
+Conclusion: **iOS T2 is real.** Not yet tested: Android Chrome, tap while
+backgrounded, and subscription survival across a tunnel origin change. The next work is the hub schema
+(`face`, `install_group`) and the pairing picker (§1, §1a).
 
 ## Sources (web)
 

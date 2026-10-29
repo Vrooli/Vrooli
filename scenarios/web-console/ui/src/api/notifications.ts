@@ -89,12 +89,32 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
   return res;
 }
 
-export async function fetchNotificationCatalog(): Promise<NotificationCatalog> {
-  const res = await authedFetch("/api/v1/notifications/catalog", { method: "GET" });
+/** This scenario's own source slug — the source web-console sessions notify under. */
+export const WEB_CONSOLE_SOURCE = "web-console";
+
+/**
+ * Fetch the notification catalog scoped to ONE producing scenario. A scenario's
+ * settings page manages only the categories it declared in its own
+ * `.vrooli/notifications.json`; the cross-scenario view belongs to Notification
+ * Hub's own Settings page.
+ *
+ * The hub filters server-side via `?source_scenario=`. The response is filtered
+ * again here so an older hub that ignores the parameter can never leak other
+ * scenarios' categories into this page.
+ */
+export async function fetchNotificationCatalog(
+  sourceScenario: string = WEB_CONSOLE_SOURCE,
+): Promise<NotificationCatalog> {
+  const res = await authedFetch(
+    `/api/v1/notifications/catalog?source_scenario=${encodeURIComponent(sourceScenario)}`,
+    { method: "GET" },
+  );
   const body = (await res.json()) as Partial<NotificationCatalog>;
+  const sources = Array.isArray(body.sources) ? body.sources : [];
+  const preferences = Array.isArray(body.preferences) ? body.preferences : [];
   return {
-    sources: Array.isArray(body.sources) ? body.sources : [],
-    preferences: Array.isArray(body.preferences) ? body.preferences : [],
+    sources: sources.filter((s) => s.source_scenario === sourceScenario),
+    preferences: preferences.filter((p) => p.source_scenario === sourceScenario),
   };
 }
 
@@ -123,9 +143,6 @@ export async function updateNotificationPreference(
     body: JSON.stringify(pref),
   });
 }
-
-/** This scenario's own source slug — the source web-console sessions notify under. */
-export const WEB_CONSOLE_SOURCE = "web-console";
 
 /**
  * Write a per-session notification override. A session-scoped preference (one

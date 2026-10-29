@@ -101,7 +101,7 @@ func (s *Server) resolveAgentVoice(ctx context.Context, id string) (agentVoiceCa
 	if info, err := os.Stat(socket); err != nil || info.Mode()&os.ModeSocket == 0 {
 		return cap, nil, nil
 	}
-	client, err := codex.DialVoiceDaemon(ctx, socket)
+	client, err := codex.DialSessionDaemon(ctx, socket)
 	if err != nil {
 		cap.Reason = "Codex voice connection is unavailable; use Dictation."
 		return cap, nil, nil

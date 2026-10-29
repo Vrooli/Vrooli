@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-console.native-thread-state",
+  "version": "1",
+  "purpose": "Observe native thread and goal state for an explicit bounded cohort without changing the threads.",
+  "inputs": {
+    "session_id": {"type": "string", "required": true, "description": "Authorized Web Console session ID."},
+    "threads": {"type": "array", "required": true, "description": "One to sixteen unique native thread IDs."}
+  },
+  "assumptions": ["Web Console enforces session read authority", "A missing or unavailable goal is not an inferred completion"],
+  "invariants": ["One bounded read-only owner call", "No transcript text is returned", "An ok envelope means observation succeeded, not that any goal succeeded", "Thread state is an observation, not a deadline enforcement mechanism"],
+  "bindings": [{"id": "web-console/session/native-thread-state", "effect": "read"}],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "failed"]},
+    "signals": {"threads": "Per-thread live owner and goal observations"},
+    "errors": {"classes": ["invalid_input", "binding_error"]},
+    "phase": {"enum": ["validate", "report"]}
+  },
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16, "output_bytes": 65536},
+  "rung": "S3",
+  "owner_skill": "research-coordination",
+  "verbs": ["gather"],
+  "fixtures": [{"id": "missing-session", "inputs": {"threads": ["fixture"]}, "expect": {"admission_error": "invalid_argument"}, "requires": ["web-console"]}]
+}

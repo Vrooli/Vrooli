@@ -13,6 +13,8 @@ Use this document to answer:
 - How is a notification attributed and branded to its source scenario?
 - How does a recipient mute, throttle, or re-route a category?
 - Why is there exactly one delivery engine, and not one per scenario?
+- How does a scenario's own installed app show its notifications instead of
+  Chimesail, without a second delivery engine?
 
 This is the FYI-notification counterpart to the operator-decision contract
 in [`INTEGRATIONS.md`](INTEGRATIONS.md) (`*.decision_requested.v1` →
@@ -147,6 +149,7 @@ block to its own `.vrooli/service.json`. The hub ingests it at reconcile.
 | `categories[].description` | One-line explanation shown to the recipient |
 | `categories[].defaultEnabled` | Whether the category delivers before any recipient choice |
 | `categories[].defaultMinUrgency` | Lowest urgency that delivers by default |
+| `appDelivery` | `true` lets the scenario's own installed app show its notifications instead of Chimesail (§"App delivery"); read by the scenario web server |
 
 The block is **entirely optional**. Its only job is to make the catalog and
 branding *curated* instead of *derived*; nothing about delivery depends on it.
@@ -232,23 +235,94 @@ discouraged:
 
 The division of labor is therefore stable: **producers own facts and
 configuration; the hub owns copy, branding resolution, the preference gate,
-and the single act of delivery.**
+and the single act of delivery.** App delivery (below) keeps this rule: a
+scenario's app holds a *subscription the hub owns*, and the hub still makes the
+one decision about where each notification goes.
+
+## App delivery
+
+A scenario's own installed app can show that scenario's notifications on a
+device **instead of** Chimesail: the scenario's name and icon on the banner, a
+tap that opens the exact screen, and its own switch in the phone's settings.
+Verified on iOS 26 (results in
+[`../research/scenario-owned-delivery.md`](../research/scenario-owned-delivery.md) §7).
+
+### Rule
+
+Preferences, quiet hours, digests and dedupe run first, unchanged. Then, for
+each **device** (a `device_group`: the Chimesail subscription and the scenario
+apps the operator confirmed are on one phone or computer), the hub picks
+exactly one app:
+
+1. The source scenario's app is paired on this device, **and**
+2. it is healthy: notification permission is `granted` and the app checked in
+   within the last 30 days (`AppConfirmationWindow`), **and**
+3. the scenario still has a permanent address: a CORE route in tunnel-manager
+   whose URL is the app's origin,
+
+then the notification goes to that app, as a Declarative Web Push message
+(`web_push: 8030`) whose `navigate` is the in-app context URL. Otherwise it
+goes to Chimesail on that device. If the push service retires the app's
+endpoint or it keeps failing, the hub removes it and delivers to that device's
+Chimesail in the same pass. A device never gets both.
+
+**Accepted limitation (verified on iOS 26, 2026-10-28):** turning an app's
+notifications off in the phone's settings is invisible to the hub until that
+app is opened again. Apple's push service still accepts the send, the phone
+shows nothing, and Chimesail is not used, so notifications sent in between are
+lost. The same applies to a Chimesail install that was removed from the Home
+Screen: its old subscription keeps accepting sends. Opening the app (which runs
+`initAppNotifications()`) reports the current permission; old Chimesail
+subscriptions can only be removed from the hub's data.
+
+Web Push carries no device identity and iOS home-screen apps share no storage,
+so the hub cannot recognize a device by itself. The operator confirms the
+device once per app per device; the hub preselects the likeliest one (same
+push service and platform, most recently used). A device without Chimesail can
+be paired as standalone.
+
+### What a scenario does
+
+| Step | Where |
+|---|---|
+| `"appDelivery": true` | the scenario's `.vrooli/notifications.json` |
+| `<AppNotificationSettings />` in its settings | `@vrooli/react-component-library/AppNotificationSettings/1` |
+| `initAppNotifications()` once at start-up | same import; it re-confirms the app hourly and opens the screen a tap asked for |
+
+The scenario's web server (`@vrooli/api-base/server`, used by the scenario
+template) reads the manifest flag and serves everything else under
+`/vrooli-notify/`: the shared push worker (scope `/vrooli-notify/`, so the
+scenario's own `sw.js` is untouched) and a route to the hub that names the
+scenario from server configuration and forwards only the operator's sign-in
+headers. See `packages/api-base/docs/guides/app-notifications.md`.
+
+### Hub surface
+
+`AppDeliveryService` (`packages/proto/schemas/notification-hub/v1/appdelivery`):
+`GetAppState`, `EnableApp`, `ConfirmApp`, `DisableApp` for the calling
+scenario (named by the `x-vrooli-app-scenario` header the scenario web server
+sets), and `ListDeviceApps` / `RemoveDeviceApp` for Notification Hub's own
+Settings → Reach page, which lists each device and the app that shows
+notifications there. `EnableApp` refuses an origin that is not the scenario's
+permanent public address, so one scenario's page cannot register as another
+scenario's app.
 
 ## Maturity Path For A Scenario
 
 | Tier | Status | What the scenario does |
 |---|---|---|
 | T0: publish | Available | Publish `*.notification.v1` facts (above) and declare categories in `.vrooli/notifications.json` |
-| T1: own settings section | Web Console only; extraction planned | Show only its own categories in its settings page, filtered with `?source_scenario=<name>` |
-| T2: own identity on web push | Research | Its installed PWA receives its notifications (own icon, name, tap target), still routed by the hub |
+| T1: own settings section | Available | `<AppNotificationSettings />` shows only its own categories (the scenario web server pins `source_scenario`) |
+| T2: own identity on web push | Available | Set `"appDelivery": true`; its installed app receives its notifications on paired devices (§"App delivery") |
 | T3: native push | Research; iOS blocked | Native app from `scenario-to-*` receives push via APNs, FCM, or a desktop channel |
 
 T0 is all a scenario needs today. Research and plans for the later tiers:
 [`../research/scenario-notification-settings.md`](../research/scenario-notification-settings.md)
 (T1) and [`../research/scenario-owned-delivery.md`](../research/scenario-owned-delivery.md)
-(T2 and T3). Until the hub ships per-device routing, a scenario must **not**
-register its own push subscription with the hub: it would be delivered in
-addition to Chimesail, not instead of it.
+(T2 and T3). A scenario must never register its own app through
+`RecipientsService/RegisterPushSubscription`: that path is Chimesail's, and the
+subscription would receive every notification in addition to Chimesail. App
+subscriptions go only through `AppDeliveryService`.
 
 ## Cross-References
 

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
 
@@ -184,5 +186,104 @@ func TestConnectHandlerValidationAndClassification(t *testing.T) {
 	}
 	for _, origin := range []sessionsv1.SessionOrigin{sessionsv1.SessionOrigin_SESSION_ORIGIN_UI, sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, sessionsv1.SessionOrigin_SESSION_ORIGIN_REMOTE, sessionsv1.SessionOrigin_SESSION_ORIGIN_UNSPECIFIED} {
 		_ = originToString(origin)
+	}
+}
+
+func TestReadNativeUsageRequiresVerifiedReadCapability(t *testing.T) {
+	calls := 0
+	h := NewConnectHandler(Deps{Service: &Adapter{NativeUsage: func(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error) {
+		calls++
+		return &sessionsv1.ReadNativeUsageResponse{Status: "ok"}, nil
+	}}})
+	cases := []struct {
+		name      string
+		principal *identity.Principal
+		code      connect.Code
+	}{
+		{"anonymous", nil, connect.CodeUnauthenticated},
+		{"unverified", &identity.Principal{Scopes: []string{"web-console:read"}}, connect.CodeUnauthenticated},
+		{"wrong scope", &identity.Principal{Verified: true, Kind: identity.ActorAgent, Subject: "test", Scopes: []string{"agent-manager:read"}}, connect.CodePermissionDenied},
+		{"scoped read", &identity.Principal{Verified: true, Kind: identity.ActorAgent, Subject: "test", Scopes: []string{"web-console:read"}}, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tc.principal != nil {
+				ctx = identity.WithPrincipal(ctx, *tc.principal)
+			}
+			_, err := h.ReadNativeUsage(ctx, connect.NewRequest(&sessionsv1.ReadNativeUsageRequest{}))
+			if (err == nil && tc.code != 0) || (err != nil && connect.CodeOf(err) != tc.code) {
+				t.Fatalf("code %v, error %v", connect.CodeOf(err), err)
+			}
+		})
+	}
+	if calls != 1 {
+		t.Fatalf("owner invoked %d times", calls)
+	}
+}
+
+func TestReadNativeUsageVerifiedOwnSession(t *testing.T) {
+	calls := 0
+	var bound string
+	h := NewConnectHandler(Deps{VerifyOwnSession: func(context.Context) (string, error) { return bound, nil }, Service: &Adapter{NativeUsage: func(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error) {
+		calls++
+		return &sessionsv1.ReadNativeUsageResponse{}, nil
+	}}})
+	for _, tc := range []struct {
+		name, bound string
+		verified    bool
+		want        bool
+	}{{"own", "session-a", true, true}, {"other", "session-b", true, false}, {"missing", "", true, false}, {"unverified", "session-a", false, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := identity.WithPrincipal(context.Background(), identity.Principal{Verified: true, Kind: identity.ActorAgent, Subject: "agent"})
+			status := provenance.VerificationInvalid
+			if tc.verified {
+				status = provenance.VerificationVerified
+			}
+			bound = tc.bound
+			ctx = provenance.NewContext(ctx, provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: status, RunID: "run-a", SessionID: "session-a"})
+			_, err := h.ReadNativeUsage(ctx, connect.NewRequest(&sessionsv1.ReadNativeUsageRequest{SessionId: "session-a"}))
+			if tc.want && err != nil {
+				t.Fatal(err)
+			}
+			if !tc.want && connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("error %v", err)
+			}
+		})
+	}
+	if calls != 1 {
+		t.Fatalf("owner invoked %d times", calls)
+	}
+}
+
+func TestReadNativeThreadStateUsesSameSessionAuthorization(t *testing.T) {
+	calls := 0
+	h := NewConnectHandler(Deps{VerifyOwnSession: func(context.Context) (string, error) { return "own", nil }, Service: &Adapter{NativeThreadState: func(context.Context, *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error) {
+		calls++
+		return &sessionsv1.ReadNativeThreadStateResponse{}, nil
+	}}})
+	verified := identity.WithPrincipal(context.Background(), identity.Principal{Verified: true, Kind: identity.ActorAgent, Subject: "agent"})
+	verified = provenance.NewContext(verified, provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run", SessionID: "own"})
+	for _, tc := range []struct {
+		ctx     context.Context
+		session string
+		want    connect.Code
+	}{
+		{context.Background(), "own", connect.CodeUnauthenticated},
+		{verified, "other", connect.CodePermissionDenied},
+		{verified, "own", 0},
+	} {
+		_, err := h.ReadNativeThreadState(tc.ctx, connect.NewRequest(&sessionsv1.ReadNativeThreadStateRequest{SessionId: tc.session}))
+		if (err == nil && tc.want != 0) || (err != nil && connect.CodeOf(err) != tc.want) {
+			t.Fatalf("session=%s error=%v", tc.session, err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("owner calls=%d", calls)
+	}
+	withoutVerifier := NewConnectHandler(Deps{Service: &Adapter{}})
+	_, err := withoutVerifier.ReadNativeThreadState(verified, connect.NewRequest(&sessionsv1.ReadNativeThreadStateRequest{SessionId: "own"}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("missing verifier must fail closed: %v", err)
 	}
 }

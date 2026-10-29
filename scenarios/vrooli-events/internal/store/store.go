@@ -12,6 +12,10 @@ import (
 // that already exists in the store.
 var ErrDuplicateEvent = errors.New("duplicate event_id")
 
+// ErrEventCursorNotFound indicates that a keyset query referenced an event
+// that is no longer present (for example, because retention pruned it).
+var ErrEventCursorNotFound = errors.New("event cursor not found")
+
 // Event is the internal representation of an event in the store.
 type Event struct {
 	ID             int64
@@ -36,6 +40,8 @@ type QueryFilters struct {
 	Target        string // exact match
 	CorrelationID string // exact match
 	Since         int64  // return events with ID > Since
+	BeforeEventID string // with NewestFirst, return events older than this event
+	NewestFirst   bool   // order by durable store ID descending; default is ascending
 	Limit         int    // max results (default 100)
 	WorkKind      string // exact generic work-reference kind
 	WorkID        string // exact generic work-reference ID

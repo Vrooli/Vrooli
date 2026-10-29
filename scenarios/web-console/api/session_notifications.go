@@ -117,6 +117,9 @@ type sessionNotifier struct {
 	notice func(ctx context.Context, scenario string) (string, error)
 	// now stamps the event occurrence time. Swapped in tests.
 	now func() time.Time
+	// label names the session for a human (its tab name and agent), or "".
+	// Resolved at delivery so a rename before the dwell elapses is used.
+	label func(ctx context.Context, sessionID string) string
 	// schedule arms fn to run after d and returns a handle that can cancel it.
 	// Defaults to time.AfterFunc; swapped in tests for deterministic firing.
 	schedule func(d time.Duration, fn func()) timerHandle
@@ -221,8 +224,8 @@ func decideNotice(sessionID string, prev session.ActivityState, a session.Activi
 				SessionID: sessionID,
 				Category:  categoryAgentInterrupted,
 				Urgency:   "high",
-				Title:     "Agent interrupted — needs recovery",
-				Body:      interruptedBody(a),
+				Title:     interruptedTitle(a),
+				Body:      "Open the session to resume or retry.",
 				DedupeKey: sessionID + ":interrupted:" + backend.PromptHash(a.Prompt),
 			}, true
 		}
@@ -234,7 +237,7 @@ func decideNotice(sessionID string, prev session.ActivityState, a session.Activi
 			SessionID: sessionID,
 			Category:  categoryInputNeeded,
 			Urgency:   "high",
-			Title:     "Session needs your input",
+			Title:     "Agent needs your input",
 			Body:      inputNeededBody(a),
 			DedupeKey: dedupe,
 		}, true
@@ -248,8 +251,8 @@ func decideNotice(sessionID string, prev session.ActivityState, a session.Activi
 			SessionID: sessionID,
 			Category:  categoryTurnCompleted,
 			Urgency:   "normal",
-			Title:     "Session finished its turn",
-			Body:      "The agent is idle and waiting for your next instruction.",
+			Title:     "Agent turn finished",
+			Body:      "Waiting for your next instruction.",
 			DedupeKey: sessionID + ":turn_completed:" + a.Since.UTC().Format(time.RFC3339Nano),
 		}, true
 	default:
@@ -301,22 +304,66 @@ func inputNeededBody(a session.Activity) string {
 	return "An agent session is waiting for your response."
 }
 
-// interruptedBody names the retryable condition that stopped the agent and
-// points the operator at the recovery controls. It prefers the detector's
-// interruption message (for example "selected model is at capacity").
-func interruptedBody(a session.Activity) string {
+// interruptedTitle states why the agent stopped, so the notification is
+// actionable without opening it: "Agent interrupted: model at capacity".
+func interruptedTitle(a session.Activity) string {
 	reason := ""
 	if a.Prompt != nil {
 		reason = strings.TrimSpace(a.Prompt.Text)
 	}
+	reason = strings.TrimSuffix(strings.TrimPrefix(reason, "selected "), ".")
 	if reason == "" {
-		return "The agent was stopped by a temporary provider condition. Open the session to continue or resume the goal."
+		return "Agent interrupted"
 	}
-	const max = 180
+	const max = 80
 	if len(reason) > max {
 		reason = reason[:max] + "…"
 	}
-	return "The agent was interrupted: " + reason + ". Open the session to continue or resume the goal."
+	return "Agent interrupted: " + reason
+}
+
+// noticeBody leads with which session it is about: titles say what happened,
+// and the first body line says where, since several sessions run at once.
+func noticeBody(label, body string) string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return body
+	}
+	if body == "" {
+		return label
+	}
+	return label + "\n" + body
+}
+
+// sessionNoticeLabel is the operator's name for a session: its tab name, then
+// its owner-supplied label, with the agent harness when known.
+func (s *Server) sessionNoticeLabel(ctx context.Context, sessionID string) string {
+	var name string
+	if s.db != nil {
+		_ = s.db.QueryRowContext(ctx, `SELECT COALESCE(
+			(SELECT NULLIF(TRIM(name), '') FROM workspace_panes WHERE session_id = ?),
+			(SELECT NULLIF(TRIM(display_label), '') FROM sessions WHERE id = ?), '')`, sessionID, sessionID).Scan(&name)
+	}
+	agent := agentDisplayName(s.agentTypes.lookup(sessionID))
+	if agent == "" {
+		agent = s.agentTypes.lookup(sessionID)
+	}
+	switch {
+	case name != "" && agent != "":
+		return name + " · " + agent
+	case name != "":
+		return name
+	case agent != "":
+		return agent + " session " + shortSessionID(sessionID)
+	}
+	return "Session " + shortSessionID(sessionID)
+}
+
+func shortSessionID(id string) string {
+	if len(id) > 8 {
+		return id[:8]
+	}
+	return id
 }
 
 // deliver resolves the session deep link and publishes the notification event.
@@ -328,7 +375,7 @@ func (n *sessionNotifier) deliver(ctx context.Context, notice sessionNotice) {
 	}
 	payload := map[string]any{
 		"title":       notice.Title,
-		"body":        notice.Body,
+		"body":        noticeBody(n.sessionLabel(ctx, notice.SessionID), notice.Body),
 		"category":    notice.Category,
 		"urgency":     notice.Urgency,
 		"sensitivity": "private",
@@ -351,6 +398,13 @@ func (n *sessionNotifier) deliver(ctx context.Context, notice sessionNotice) {
 	if err := n.publish(ctx, event); err != nil {
 		log.Printf("session-notification: publish %s for %s failed: %v", notice.Category, notice.SessionID, err)
 	}
+}
+
+func (n *sessionNotifier) sessionLabel(ctx context.Context, sessionID string) string {
+	if n.label == nil {
+		return ""
+	}
+	return n.label(ctx, sessionID)
 }
 
 func (n *sessionNotifier) stamp() time.Time {

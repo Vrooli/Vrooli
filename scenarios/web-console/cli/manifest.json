@@ -1180,6 +1180,57 @@
           }
         },
         {
+          "name": "native-thread-state",
+          "description": "Read bounded native thread and goal state without changing it",
+          "positionals": [{"name": "session-id", "required": true, "bind": {"field": "session_id"}}],
+          "flags": [{"name": "threads", "required": true, "description": "Comma-separated thread IDs (maximum 16); Program Runtime passes a list", "bind": {"field": "thread_ids"}}],
+          "binding": {"kind": "connect-rpc", "service": "SessionsService", "method": "ReadNativeThreadState"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "native-usage",
+          "description": "Read bounded native usage for selected session threads",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Existing session ID",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "threads",
+              "description": "Comma-separated thread IDs (maximum 16); Program Runtime passes a list of IDs",
+              "bind": {
+                "field": "thread_ids"
+              }
+            },
+            {
+              "name": "start",
+              "description": "Inclusive RFC3339 time"
+            },
+            {
+              "name": "end",
+              "description": "Exclusive RFC3339 time"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "ReadNativeUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "get",
           "description": "Show one session",
           "positionals": [

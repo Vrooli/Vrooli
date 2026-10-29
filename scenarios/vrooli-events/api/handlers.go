@@ -207,6 +207,15 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 		WorkID:        get("work_id"),
 		Visibility:    get("visibility"),
 	}
+	order := get("order")
+	if order != "" && order != "asc" && order != "desc" {
+		return filters, &paramError{Param: "order", Message: "order must be asc or desc"}
+	}
+	filters.NewestFirst = order == "desc"
+	filters.BeforeEventID = get("before_event_id")
+	if filters.BeforeEventID != "" && !filters.NewestFirst {
+		return filters, &paramError{Param: "before_event_id", Message: "before_event_id requires order=desc"}
+	}
 	// agent_run_id is the canonical receipt correlation query. The storage
 	// index intentionally reuses the correlation column for this one universal
 	// high-cardinality key; richer correlation coordinates are filtered from the
@@ -221,6 +230,9 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 			return filters, &paramError{Param: "since", Message: "since must be an integer"}
 		}
 		filters.Since = n
+	}
+	if filters.BeforeEventID != "" && filters.Since > 0 {
+		return filters, &paramError{Param: "before_event_id", Message: "before_event_id cannot be combined with since"}
 	}
 	if v := get("limit"); v != "" {
 		n, err := strconv.Atoi(v)
@@ -405,6 +417,10 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	events, err := queryStoreEvents(r.Context(), s.store, filters)
 	if err != nil {
+		if errors.Is(err, store.ErrEventCursorNotFound) {
+			writeError(w, http.StatusBadRequest, ErrCodeInvalidParam, "before_event_id does not identify a retained event")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, ErrCodeStoreRead, "failed to query events")
 		log.Printf("query error: %v", err)
 		return

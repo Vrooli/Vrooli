@@ -10,6 +10,8 @@ import (
 // method paths reference generated *Procedure constants so adding or
 // renaming an RPC in sessions.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "sessions_native_usage", Path: sessionsconnect.SessionsServiceReadNativeUsageProcedure, Method: "POST", Summary: "Read bounded native session usage", Description: "Reads selected native threads for an existing session within a bounded time window.", Category: "sessions"},
+	{ID: "sessions_native_thread_state", Path: sessionsconnect.SessionsServiceReadNativeThreadStateProcedure, Method: "POST", Summary: "Read native thread and goal state", Description: "Observes selected threads through an existing session owner without changing them.", Category: "sessions"},
 	{ID: "sessions_reopen", Path: sessionsconnect.SessionsServiceReopenProcedure, Method: "POST", Summary: "Reopen a retained conversation", Description: "Restores a retained conversation using the existing session lifecycle policy.", Category: "sessions"},
 	{
 		ID:          "sessions_create",

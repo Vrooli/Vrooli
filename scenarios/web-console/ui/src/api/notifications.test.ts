@@ -35,8 +35,8 @@ describe("api/notifications", () => {
           JSON.stringify({
             sources: [
               {
-                source_scenario: "git-control-tower",
-                display_name: "Git Control Tower",
+                source_scenario: "web-console",
+                display_name: "Web Console",
                 icon: "",
                 deep_link_base: "",
                 declared: true,
@@ -45,8 +45,8 @@ describe("api/notifications", () => {
             ],
             preferences: [
               {
-                source_scenario: "git-control-tower",
-                category: "review",
+                source_scenario: "web-console",
+                category: "session.input_needed",
                 enabled: true,
                 min_urgency: "normal",
                 channel_override: "",
@@ -64,11 +64,46 @@ describe("api/notifications", () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toMatch(/\/api\/v1\/notifications\/catalog$/);
+      expect(url).toMatch(/\/api\/v1\/notifications\/catalog\?source_scenario=web-console$/);
       expect(init).toMatchObject({ method: "GET", cache: "no-store" });
       const headers = new Headers(init.headers);
       expect(headers.get("X-Vrooli-Device-Id")).toBe("device-123");
       expect(headers.get("Authorization")).toBe("Bearer test-token");
+    });
+
+    it("scopes the request to the given source and drops other scenarios a hub may still return", async () => {
+      const source = (slug: string) => ({
+        source_scenario: slug,
+        display_name: slug,
+        icon: "",
+        deep_link_base: "",
+        declared: true,
+        categories: [],
+      });
+      const pref = (slug: string) => ({
+        source_scenario: slug,
+        category: "",
+        enabled: true,
+        min_urgency: "normal",
+        channel_override: "",
+      });
+      // An older hub ignores ?source_scenario= and returns every source.
+      fetchSpy.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sources: [source("git-control-tower"), source("my-app"), source("web-console")],
+            preferences: [pref("git-control-tower"), pref("my-app")],
+          }),
+          { status: 200 },
+        ),
+      );
+
+      const catalog = await fetchNotificationCatalog("my-app");
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toMatch(/\/api\/v1\/notifications\/catalog\?source_scenario=my-app$/);
+      expect(catalog.sources.map((s) => s.source_scenario)).toEqual(["my-app"]);
+      expect(catalog.preferences.map((p) => p.source_scenario)).toEqual(["my-app"]);
     });
 
     it("defaults missing or non-array sources/preferences to empty arrays", async () => {
