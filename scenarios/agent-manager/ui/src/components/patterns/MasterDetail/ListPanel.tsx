@@ -1,7 +1,8 @@
 import * as React from "react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { DataState } from "../../feedback/DataState";
 
 interface ListPanelProps {
   /** Panel title */
@@ -14,7 +15,11 @@ interface ListPanelProps {
   headerActions?: React.ReactNode;
   /** Whether content is loading */
   loading?: boolean;
-  /** Custom empty state component */
+  /** Load failure; shown instead of the empty state, or above stale rows. */
+  error?: unknown;
+  /** Retry the failed load. */
+  onRetry?: () => void;
+  /** Rendered only after a successful load that returned nothing. */
   empty?: React.ReactNode;
   /** List item children */
   children: React.ReactNode;
@@ -31,7 +36,9 @@ export function ListPanel({
   count,
   toolbar,
   headerActions,
-  loading,
+  loading = false,
+  error,
+  onRetry,
   empty,
   children,
   collapsed = false,
@@ -75,7 +82,7 @@ export function ListPanel({
             )}
             {!collapsed && (
               <span className="font-semibold text-sm">
-                {title} ({count})
+                {title}{error && count === 0 ? "" : ` (${count})`}
               </span>
             )}
           </div>
@@ -87,20 +94,16 @@ export function ListPanel({
       {/* Content */}
       {!collapsed && (
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="mt-3 text-sm">Loading...</p>
-            </div>
-          ) : !hasItems || count === 0 ? (
-            empty || (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <p className="text-sm">No items found</p>
-              </div>
-            )
-          ) : (
+          <DataState
+            loading={loading}
+            error={error}
+            isEmpty={!hasItems || count === 0}
+            subject={title}
+            onRetry={onRetry}
+            empty={empty ?? <p className="py-12 text-center text-sm text-muted-foreground">No items found</p>}
+          >
             <div>{children}</div>
-          )}
+          </DataState>
         </div>
       )}
     </div>

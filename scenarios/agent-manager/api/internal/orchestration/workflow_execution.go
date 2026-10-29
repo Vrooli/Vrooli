@@ -232,10 +232,10 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	state := workflowruntime.ChildState{RunID: run.ID, ConversationID: run.ConversationID, Result: run.Result}
 	if run.Summary != nil {
 		state.Turns = run.Summary.TurnsUsed
-		state.Tokens = int(run.Summary.TokensUsed - int64(run.Summary.ContextTokens))
-		if state.Tokens < 0 {
-			state.Tokens = 0
-		}
+		// The summary total is written from the run's usage account at every
+		// terminal transition (runsignal.AccountUsage); it is not reduced by the
+		// last context size, which is not a share of the total.
+		state.Tokens = int(run.Summary.TokensUsed)
 		state.CostUSD = run.Summary.CostEstimate // historical compatibility field
 		if run.Billing.EffectiveBasis() == domain.ChargeBasisMetered {
 			state.ChargeMicroUSD = int64(run.Summary.CostEstimate*1_000_000 + 0.5)

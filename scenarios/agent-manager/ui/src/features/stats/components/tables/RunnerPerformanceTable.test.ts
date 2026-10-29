@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
@@ -85,5 +86,20 @@ test("RunnerPerformanceTable renders empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(RunnerPerformanceTable));
-  assert.ok(screen.getByText("Runner performance: runner stats unavailable"));
+  assert.ok(getErrorNotice("Runner performance", "runner stats unavailable"));
+});
+
+test("RunnerPerformanceTable headers sit over their own columns and announce the sort", async () => {
+  const user = userEvent.setup();
+  vi.mocked(useRunnerPerformance).mockReturnValue(queryResult({ data: makeRunnerBreakdownResponse() }));
+  renderWithProviders(createElement(RunnerPerformanceTable));
+  const headers = screen.getAllByRole("columnheader");
+  assert.deepEqual(headers.map((header) => header.textContent?.trim()), ["Runner", "Runs", "Success", "Cost", "Tokens", "Avg Time"]);
+  const [codexRow] = screen.getAllByRole("row").slice(1);
+  const cells = within(codexRow as HTMLElement).getAllByRole("cell");
+  assert.equal(cells[3]?.textContent, "$8.25", "the Cost header is over the cost cell");
+  assert.equal(headers[1]?.getAttribute("aria-sort"), "descending");
+  await user.click(within(headers[0] as HTMLElement).getByRole("button", { name: "Runner" }));
+  assert.equal(headers[0]?.getAttribute("aria-sort"), "descending");
+  assert.equal(headers[1]?.getAttribute("aria-sort"), "none");
 });

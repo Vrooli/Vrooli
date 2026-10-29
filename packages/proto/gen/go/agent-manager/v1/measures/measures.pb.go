@@ -5831,18 +5831,97 @@ func (x *FindingRecurrenceRateResponse) GetDefinitionId() string {
 	return ""
 }
 
+// Every cohort request selects its runs the same way. Set at most one of:
+//
+//	cohort  - a named durable cohort; its stored filter is the population and
+//	          window narrows it only when given;
+//	run_ids - explicit run ids (at most 100);
+//	filter  - an ad hoc durable predicate over window (default this_week).
+//
+// With none of them set, the population is every run in window.
+type CohortSelector struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
+	Filter        *InvocationFilter      `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"`
+	Cohort        string                 `protobuf:"bytes,4,opt,name=cohort,proto3" json:"cohort,omitempty"`
+	RunIds        []string               `protobuf:"bytes,5,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CohortSelector) Reset() {
+	*x = CohortSelector{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortSelector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortSelector) ProtoMessage() {}
+
+func (x *CohortSelector) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortSelector.ProtoReflect.Descriptor instead.
+func (*CohortSelector) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *CohortSelector) GetWindow() *v1.TimeWindow {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *CohortSelector) GetFilter() *InvocationFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+func (x *CohortSelector) GetCohort() string {
+	if x != nil {
+		return x.Cohort
+	}
+	return ""
+}
+
+func (x *CohortSelector) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
+// SelectCohortRequest carries the CohortSelector fields inline.
 type SelectCohortRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
 	Filter        *InvocationFilter      `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"`
 	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cohort        string                 `protobuf:"bytes,4,opt,name=cohort,proto3" json:"cohort,omitempty"`
+	RunIds        []string               `protobuf:"bytes,5,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SelectCohortRequest) Reset() {
 	*x = SelectCohortRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5854,7 +5933,7 @@ func (x *SelectCohortRequest) String() string {
 func (*SelectCohortRequest) ProtoMessage() {}
 
 func (x *SelectCohortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5867,7 +5946,7 @@ func (x *SelectCohortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectCohortRequest.ProtoReflect.Descriptor instead.
 func (*SelectCohortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{70}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SelectCohortRequest) GetWindow() *v1.TimeWindow {
@@ -5891,6 +5970,20 @@ func (x *SelectCohortRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *SelectCohortRequest) GetCohort() string {
+	if x != nil {
+		return x.Cohort
+	}
+	return ""
+}
+
+func (x *SelectCohortRequest) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
 type CohortRun struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	RunId               string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
@@ -5912,7 +6005,7 @@ type CohortRun struct {
 
 func (x *CohortRun) Reset() {
 	*x = CohortRun{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5924,7 +6017,7 @@ func (x *CohortRun) String() string {
 func (*CohortRun) ProtoMessage() {}
 
 func (x *CohortRun) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5937,7 +6030,7 @@ func (x *CohortRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CohortRun.ProtoReflect.Descriptor instead.
 func (*CohortRun) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{71}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *CohortRun) GetRunId() string {
@@ -6047,7 +6140,7 @@ type SelectCohortResponse struct {
 
 func (x *SelectCohortResponse) Reset() {
 	*x = SelectCohortResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6059,7 +6152,7 @@ func (x *SelectCohortResponse) String() string {
 func (*SelectCohortResponse) ProtoMessage() {}
 
 func (x *SelectCohortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6072,7 +6165,7 @@ func (x *SelectCohortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectCohortResponse.ProtoReflect.Descriptor instead.
 func (*SelectCohortResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{72}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *SelectCohortResponse) GetRunIds() []string {
@@ -6133,13 +6226,15 @@ type EpisodeCohortRequest struct {
 	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
 	Filter        *InvocationFilter      `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"`
 	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cohort        string                 `protobuf:"bytes,4,opt,name=cohort,proto3" json:"cohort,omitempty"`
+	RunIds        []string               `protobuf:"bytes,5,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EpisodeCohortRequest) Reset() {
 	*x = EpisodeCohortRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6151,7 +6246,7 @@ func (x *EpisodeCohortRequest) String() string {
 func (*EpisodeCohortRequest) ProtoMessage() {}
 
 func (x *EpisodeCohortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6164,7 +6259,7 @@ func (x *EpisodeCohortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortRequest.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{73}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *EpisodeCohortRequest) GetWindow() *v1.TimeWindow {
@@ -6188,6 +6283,20 @@ func (x *EpisodeCohortRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *EpisodeCohortRequest) GetCohort() string {
+	if x != nil {
+		return x.Cohort
+	}
+	return ""
+}
+
+func (x *EpisodeCohortRequest) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
 type EpisodeCohortSignal struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Fingerprint          string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
@@ -6202,7 +6311,7 @@ type EpisodeCohortSignal struct {
 
 func (x *EpisodeCohortSignal) Reset() {
 	*x = EpisodeCohortSignal{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6214,7 +6323,7 @@ func (x *EpisodeCohortSignal) String() string {
 func (*EpisodeCohortSignal) ProtoMessage() {}
 
 func (x *EpisodeCohortSignal) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6227,7 +6336,7 @@ func (x *EpisodeCohortSignal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortSignal.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortSignal) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{74}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *EpisodeCohortSignal) GetFingerprint() string {
@@ -6288,7 +6397,7 @@ type EpisodeCohortResponse struct {
 
 func (x *EpisodeCohortResponse) Reset() {
 	*x = EpisodeCohortResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[75]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6300,7 +6409,7 @@ func (x *EpisodeCohortResponse) String() string {
 func (*EpisodeCohortResponse) ProtoMessage() {}
 
 func (x *EpisodeCohortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[75]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6313,7 +6422,7 @@ func (x *EpisodeCohortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortResponse.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{75}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *EpisodeCohortResponse) GetAvailabilityState() string {
@@ -6360,6 +6469,4242 @@ func (x *EpisodeCohortResponse) GetProvenance() *MeasureProvenance {
 }
 
 func (x *EpisodeCohortResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+// CohortReportRequest carries the CohortSelector fields inline. limit bounds
+// the runs a named cohort or filter selects (default 100, at most 100).
+type CohortReportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
+	Filter        *InvocationFilter      `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cohort        string                 `protobuf:"bytes,4,opt,name=cohort,proto3" json:"cohort,omitempty"`
+	RunIds        []string               `protobuf:"bytes,5,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CohortReportRequest) Reset() {
+	*x = CohortReportRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortReportRequest) ProtoMessage() {}
+
+func (x *CohortReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortReportRequest.ProtoReflect.Descriptor instead.
+func (*CohortReportRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *CohortReportRequest) GetWindow() *v1.TimeWindow {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *CohortReportRequest) GetFilter() *InvocationFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+func (x *CohortReportRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *CohortReportRequest) GetCohort() string {
+	if x != nil {
+		return x.Cohort
+	}
+	return ""
+}
+
+func (x *CohortReportRequest) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
+type CohortReportSignal struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Kind                 string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Count                int64                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	Impact               int64                  `protobuf:"varint,3,opt,name=impact,proto3" json:"impact,omitempty"`
+	Confidence           string                 `protobuf:"bytes,4,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	RepresentativeRunIds []string               `protobuf:"bytes,5,rep,name=representative_run_ids,json=representativeRunIds,proto3" json:"representative_run_ids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CohortReportSignal) Reset() {
+	*x = CohortReportSignal{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortReportSignal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortReportSignal) ProtoMessage() {}
+
+func (x *CohortReportSignal) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortReportSignal.ProtoReflect.Descriptor instead.
+func (*CohortReportSignal) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *CohortReportSignal) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CohortReportSignal) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *CohortReportSignal) GetImpact() int64 {
+	if x != nil {
+		return x.Impact
+	}
+	return 0
+}
+
+func (x *CohortReportSignal) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *CohortReportSignal) GetRepresentativeRunIds() []string {
+	if x != nil {
+		return x.RepresentativeRunIds
+	}
+	return nil
+}
+
+type CohortTimeAccounting struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ModelGeneratingMs    int64                  `protobuf:"varint,1,opt,name=model_generating_ms,json=modelGeneratingMs,proto3" json:"model_generating_ms,omitempty"`
+	ToolExecutingMs      int64                  `protobuf:"varint,2,opt,name=tool_executing_ms,json=toolExecutingMs,proto3" json:"tool_executing_ms,omitempty"`
+	IdleWaitingMs        int64                  `protobuf:"varint,3,opt,name=idle_waiting_ms,json=idleWaitingMs,proto3" json:"idle_waiting_ms,omitempty"`
+	AwaitingHumanMs      int64                  `protobuf:"varint,4,opt,name=awaiting_human_ms,json=awaitingHumanMs,proto3" json:"awaiting_human_ms,omitempty"`
+	UnattributableMs     int64                  `protobuf:"varint,5,opt,name=unattributable_ms,json=unattributableMs,proto3" json:"unattributable_ms,omitempty"`
+	ModelTokens          int64                  `protobuf:"varint,6,opt,name=model_tokens,json=modelTokens,proto3" json:"model_tokens,omitempty"`
+	ToolTokens           int64                  `protobuf:"varint,7,opt,name=tool_tokens,json=toolTokens,proto3" json:"tool_tokens,omitempty"`
+	IdleTokens           int64                  `protobuf:"varint,8,opt,name=idle_tokens,json=idleTokens,proto3" json:"idle_tokens,omitempty"`
+	HumanTokens          int64                  `protobuf:"varint,9,opt,name=human_tokens,json=humanTokens,proto3" json:"human_tokens,omitempty"`
+	UnattributableTokens int64                  `protobuf:"varint,10,opt,name=unattributable_tokens,json=unattributableTokens,proto3" json:"unattributable_tokens,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CohortTimeAccounting) Reset() {
+	*x = CohortTimeAccounting{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortTimeAccounting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortTimeAccounting) ProtoMessage() {}
+
+func (x *CohortTimeAccounting) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortTimeAccounting.ProtoReflect.Descriptor instead.
+func (*CohortTimeAccounting) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *CohortTimeAccounting) GetModelGeneratingMs() int64 {
+	if x != nil {
+		return x.ModelGeneratingMs
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetToolExecutingMs() int64 {
+	if x != nil {
+		return x.ToolExecutingMs
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetIdleWaitingMs() int64 {
+	if x != nil {
+		return x.IdleWaitingMs
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetAwaitingHumanMs() int64 {
+	if x != nil {
+		return x.AwaitingHumanMs
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetUnattributableMs() int64 {
+	if x != nil {
+		return x.UnattributableMs
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetModelTokens() int64 {
+	if x != nil {
+		return x.ModelTokens
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetToolTokens() int64 {
+	if x != nil {
+		return x.ToolTokens
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetIdleTokens() int64 {
+	if x != nil {
+		return x.IdleTokens
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetHumanTokens() int64 {
+	if x != nil {
+		return x.HumanTokens
+	}
+	return 0
+}
+
+func (x *CohortTimeAccounting) GetUnattributableTokens() int64 {
+	if x != nil {
+		return x.UnattributableTokens
+	}
+	return 0
+}
+
+type CohortInvocationValidity struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TotalCalls        int64                  `protobuf:"varint,1,opt,name=total_calls,json=totalCalls,proto3" json:"total_calls,omitempty"`
+	ClassifiedBase    int64                  `protobuf:"varint,2,opt,name=classified_base,json=classifiedBase,proto3" json:"classified_base,omitempty"`
+	UnclassifiedCount int64                  `protobuf:"varint,3,opt,name=unclassified_count,json=unclassifiedCount,proto3" json:"unclassified_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CohortInvocationValidity) Reset() {
+	*x = CohortInvocationValidity{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortInvocationValidity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortInvocationValidity) ProtoMessage() {}
+
+func (x *CohortInvocationValidity) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortInvocationValidity.ProtoReflect.Descriptor instead.
+func (*CohortInvocationValidity) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *CohortInvocationValidity) GetTotalCalls() int64 {
+	if x != nil {
+		return x.TotalCalls
+	}
+	return 0
+}
+
+func (x *CohortInvocationValidity) GetClassifiedBase() int64 {
+	if x != nil {
+		return x.ClassifiedBase
+	}
+	return 0
+}
+
+func (x *CohortInvocationValidity) GetUnclassifiedCount() int64 {
+	if x != nil {
+		return x.UnclassifiedCount
+	}
+	return 0
+}
+
+// CohortGoalProgression folds goal markers across the cohort's runs.
+type CohortGoalProgression struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	AvailabilityState       string                 `protobuf:"bytes,1,opt,name=availability_state,json=availabilityState,proto3" json:"availability_state,omitempty"`
+	AvailabilityReason      string                 `protobuf:"bytes,2,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`
+	GoalRuns                int64                  `protobuf:"varint,3,opt,name=goal_runs,json=goalRuns,proto3" json:"goal_runs,omitempty"`
+	MetRuns                 int64                  `protobuf:"varint,4,opt,name=met_runs,json=metRuns,proto3" json:"met_runs,omitempty"`
+	AverageTimeToFirstMetMs float64                `protobuf:"fixed64,5,opt,name=average_time_to_first_met_ms,json=averageTimeToFirstMetMs,proto3" json:"average_time_to_first_met_ms,omitempty"`
+	AverageTokensToFirstMet float64                `protobuf:"fixed64,6,opt,name=average_tokens_to_first_met,json=averageTokensToFirstMet,proto3" json:"average_tokens_to_first_met,omitempty"`
+	InterventionsBeforeMet  int64                  `protobuf:"varint,7,opt,name=interventions_before_met,json=interventionsBeforeMet,proto3" json:"interventions_before_met,omitempty"`
+	HandoffsBeforeMet       int64                  `protobuf:"varint,8,opt,name=handoffs_before_met,json=handoffsBeforeMet,proto3" json:"handoffs_before_met,omitempty"`
+	Regressions             int64                  `protobuf:"varint,9,opt,name=regressions,proto3" json:"regressions,omitempty"`
+	Restatements            int64                  `protobuf:"varint,10,opt,name=restatements,proto3" json:"restatements,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *CohortGoalProgression) Reset() {
+	*x = CohortGoalProgression{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortGoalProgression) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortGoalProgression) ProtoMessage() {}
+
+func (x *CohortGoalProgression) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortGoalProgression.ProtoReflect.Descriptor instead.
+func (*CohortGoalProgression) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *CohortGoalProgression) GetAvailabilityState() string {
+	if x != nil {
+		return x.AvailabilityState
+	}
+	return ""
+}
+
+func (x *CohortGoalProgression) GetAvailabilityReason() string {
+	if x != nil {
+		return x.AvailabilityReason
+	}
+	return ""
+}
+
+func (x *CohortGoalProgression) GetGoalRuns() int64 {
+	if x != nil {
+		return x.GoalRuns
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetMetRuns() int64 {
+	if x != nil {
+		return x.MetRuns
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetAverageTimeToFirstMetMs() float64 {
+	if x != nil {
+		return x.AverageTimeToFirstMetMs
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetAverageTokensToFirstMet() float64 {
+	if x != nil {
+		return x.AverageTokensToFirstMet
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetInterventionsBeforeMet() int64 {
+	if x != nil {
+		return x.InterventionsBeforeMet
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetHandoffsBeforeMet() int64 {
+	if x != nil {
+		return x.HandoffsBeforeMet
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetRegressions() int64 {
+	if x != nil {
+		return x.Regressions
+	}
+	return 0
+}
+
+func (x *CohortGoalProgression) GetRestatements() int64 {
+	if x != nil {
+		return x.Restatements
+	}
+	return 0
+}
+
+type CohortReportResponse struct {
+	state              protoimpl.MessageState    `protogen:"open.v1"`
+	ClassifierVersion  string                    `protobuf:"bytes,1,opt,name=classifier_version,json=classifierVersion,proto3" json:"classifier_version,omitempty"`
+	RunIds             []string                  `protobuf:"bytes,2,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
+	Truncated          bool                      `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	AvailabilityState  string                    `protobuf:"bytes,4,opt,name=availability_state,json=availabilityState,proto3" json:"availability_state,omitempty"`
+	AvailabilityReason string                    `protobuf:"bytes,5,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`
+	Signals            []*CohortReportSignal     `protobuf:"bytes,6,rep,name=signals,proto3" json:"signals,omitempty"`
+	TimeAccounting     *CohortTimeAccounting     `protobuf:"bytes,7,opt,name=time_accounting,json=timeAccounting,proto3" json:"time_accounting,omitempty"`
+	InvocationValidity *CohortInvocationValidity `protobuf:"bytes,8,opt,name=invocation_validity,json=invocationValidity,proto3" json:"invocation_validity,omitempty"`
+	Goal               *CohortGoalProgression    `protobuf:"bytes,9,opt,name=goal,proto3" json:"goal,omitempty"`
+	Validity           *MeasureValidity          `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance         *MeasureProvenance        `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId       string                    `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CohortReportResponse) Reset() {
+	*x = CohortReportResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CohortReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CohortReportResponse) ProtoMessage() {}
+
+func (x *CohortReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CohortReportResponse.ProtoReflect.Descriptor instead.
+func (*CohortReportResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *CohortReportResponse) GetClassifierVersion() string {
+	if x != nil {
+		return x.ClassifierVersion
+	}
+	return ""
+}
+
+func (x *CohortReportResponse) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *CohortReportResponse) GetAvailabilityState() string {
+	if x != nil {
+		return x.AvailabilityState
+	}
+	return ""
+}
+
+func (x *CohortReportResponse) GetAvailabilityReason() string {
+	if x != nil {
+		return x.AvailabilityReason
+	}
+	return ""
+}
+
+func (x *CohortReportResponse) GetSignals() []*CohortReportSignal {
+	if x != nil {
+		return x.Signals
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetTimeAccounting() *CohortTimeAccounting {
+	if x != nil {
+		return x.TimeAccounting
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetInvocationValidity() *CohortInvocationValidity {
+	if x != nil {
+		return x.InvocationValidity
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetGoal() *CohortGoalProgression {
+	if x != nil {
+		return x.Goal
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *CohortReportResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+type CompareEpisodeCohortsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Left  *CohortSelector        `protobuf:"bytes,1,opt,name=left,proto3" json:"left,omitempty"`
+	Right *CohortSelector        `protobuf:"bytes,2,opt,name=right,proto3" json:"right,omitempty"`
+	// change_binding labels the change between the populations (a plan slug,
+	// commit range or release); it is echoed, never interpreted.
+	ChangeBinding string `protobuf:"bytes,3,opt,name=change_binding,json=changeBinding,proto3" json:"change_binding,omitempty"`
+	Limit         int32  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompareEpisodeCohortsRequest) Reset() {
+	*x = CompareEpisodeCohortsRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompareEpisodeCohortsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompareEpisodeCohortsRequest) ProtoMessage() {}
+
+func (x *CompareEpisodeCohortsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompareEpisodeCohortsRequest.ProtoReflect.Descriptor instead.
+func (*CompareEpisodeCohortsRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *CompareEpisodeCohortsRequest) GetLeft() *CohortSelector {
+	if x != nil {
+		return x.Left
+	}
+	return nil
+}
+
+func (x *CompareEpisodeCohortsRequest) GetRight() *CohortSelector {
+	if x != nil {
+		return x.Right
+	}
+	return nil
+}
+
+func (x *CompareEpisodeCohortsRequest) GetChangeBinding() string {
+	if x != nil {
+		return x.ChangeBinding
+	}
+	return ""
+}
+
+func (x *CompareEpisodeCohortsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type EpisodeComparisonSignal struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Fingerprint       string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	LeftOccurrences   int64                  `protobuf:"varint,2,opt,name=left_occurrences,json=leftOccurrences,proto3" json:"left_occurrences,omitempty"`
+	RightOccurrences  int64                  `protobuf:"varint,3,opt,name=right_occurrences,json=rightOccurrences,proto3" json:"right_occurrences,omitempty"`
+	LeftDistinctRuns  int64                  `protobuf:"varint,4,opt,name=left_distinct_runs,json=leftDistinctRuns,proto3" json:"left_distinct_runs,omitempty"`
+	RightDistinctRuns int64                  `protobuf:"varint,5,opt,name=right_distinct_runs,json=rightDistinctRuns,proto3" json:"right_distinct_runs,omitempty"`
+	LeftCostMs        int64                  `protobuf:"varint,6,opt,name=left_cost_ms,json=leftCostMs,proto3" json:"left_cost_ms,omitempty"`
+	RightCostMs       int64                  `protobuf:"varint,7,opt,name=right_cost_ms,json=rightCostMs,proto3" json:"right_cost_ms,omitempty"`
+	OccurrenceDelta   int64                  `protobuf:"varint,8,opt,name=occurrence_delta,json=occurrenceDelta,proto3" json:"occurrence_delta,omitempty"`
+	CostDeltaMs       int64                  `protobuf:"varint,9,opt,name=cost_delta_ms,json=costDeltaMs,proto3" json:"cost_delta_ms,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *EpisodeComparisonSignal) Reset() {
+	*x = EpisodeComparisonSignal{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EpisodeComparisonSignal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EpisodeComparisonSignal) ProtoMessage() {}
+
+func (x *EpisodeComparisonSignal) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EpisodeComparisonSignal.ProtoReflect.Descriptor instead.
+func (*EpisodeComparisonSignal) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *EpisodeComparisonSignal) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *EpisodeComparisonSignal) GetLeftOccurrences() int64 {
+	if x != nil {
+		return x.LeftOccurrences
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetRightOccurrences() int64 {
+	if x != nil {
+		return x.RightOccurrences
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetLeftDistinctRuns() int64 {
+	if x != nil {
+		return x.LeftDistinctRuns
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetRightDistinctRuns() int64 {
+	if x != nil {
+		return x.RightDistinctRuns
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetLeftCostMs() int64 {
+	if x != nil {
+		return x.LeftCostMs
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetRightCostMs() int64 {
+	if x != nil {
+		return x.RightCostMs
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetOccurrenceDelta() int64 {
+	if x != nil {
+		return x.OccurrenceDelta
+	}
+	return 0
+}
+
+func (x *EpisodeComparisonSignal) GetCostDeltaMs() int64 {
+	if x != nil {
+		return x.CostDeltaMs
+	}
+	return 0
+}
+
+type CompareEpisodeCohortsResponse struct {
+	state              protoimpl.MessageState     `protogen:"open.v1"`
+	ClassifierVersion  string                     `protobuf:"bytes,1,opt,name=classifier_version,json=classifierVersion,proto3" json:"classifier_version,omitempty"`
+	ChangeBinding      string                     `protobuf:"bytes,2,opt,name=change_binding,json=changeBinding,proto3" json:"change_binding,omitempty"`
+	LeftPopulation     int64                      `protobuf:"varint,3,opt,name=left_population,json=leftPopulation,proto3" json:"left_population,omitempty"`
+	RightPopulation    int64                      `protobuf:"varint,4,opt,name=right_population,json=rightPopulation,proto3" json:"right_population,omitempty"`
+	AvailabilityState  string                     `protobuf:"bytes,5,opt,name=availability_state,json=availabilityState,proto3" json:"availability_state,omitempty"`
+	AvailabilityReason string                     `protobuf:"bytes,6,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`
+	Signals            []*EpisodeComparisonSignal `protobuf:"bytes,7,rep,name=signals,proto3" json:"signals,omitempty"`
+	Validity           *MeasureValidity           `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance         *MeasureProvenance         `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId       string                     `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CompareEpisodeCohortsResponse) Reset() {
+	*x = CompareEpisodeCohortsResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompareEpisodeCohortsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompareEpisodeCohortsResponse) ProtoMessage() {}
+
+func (x *CompareEpisodeCohortsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompareEpisodeCohortsResponse.ProtoReflect.Descriptor instead.
+func (*CompareEpisodeCohortsResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *CompareEpisodeCohortsResponse) GetClassifierVersion() string {
+	if x != nil {
+		return x.ClassifierVersion
+	}
+	return ""
+}
+
+func (x *CompareEpisodeCohortsResponse) GetChangeBinding() string {
+	if x != nil {
+		return x.ChangeBinding
+	}
+	return ""
+}
+
+func (x *CompareEpisodeCohortsResponse) GetLeftPopulation() int64 {
+	if x != nil {
+		return x.LeftPopulation
+	}
+	return 0
+}
+
+func (x *CompareEpisodeCohortsResponse) GetRightPopulation() int64 {
+	if x != nil {
+		return x.RightPopulation
+	}
+	return 0
+}
+
+func (x *CompareEpisodeCohortsResponse) GetAvailabilityState() string {
+	if x != nil {
+		return x.AvailabilityState
+	}
+	return ""
+}
+
+func (x *CompareEpisodeCohortsResponse) GetAvailabilityReason() string {
+	if x != nil {
+		return x.AvailabilityReason
+	}
+	return ""
+}
+
+func (x *CompareEpisodeCohortsResponse) GetSignals() []*EpisodeComparisonSignal {
+	if x != nil {
+		return x.Signals
+	}
+	return nil
+}
+
+func (x *CompareEpisodeCohortsResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *CompareEpisodeCohortsResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *CompareEpisodeCohortsResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+// UsageForecastRequest selects provider windows. An empty provider reads all.
+type UsageForecastRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageForecastRequest) Reset() {
+	*x = UsageForecastRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageForecastRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageForecastRequest) ProtoMessage() {}
+
+func (x *UsageForecastRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageForecastRequest.ProtoReflect.Descriptor instead.
+func (*UsageForecastRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *UsageForecastRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+// UsageBurnRate is the observed burn over one trailing horizon ending at the
+// response's generated_at (now), not at the newest reading.
+type UsageBurnRate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "1h", "6h" or "24h".
+	Horizon        string  `protobuf:"bytes,1,opt,name=horizon,proto3" json:"horizon,omitempty"`
+	Available      bool    `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	PercentPerHour float64 `protobuf:"fixed64,3,opt,name=percent_per_hour,json=percentPerHour,proto3" json:"percent_per_hour,omitempty"`
+	// Hours actually covered: shorter than the horizon when the window is younger.
+	SpanHours float64 `protobuf:"fixed64,4,opt,name=span_hours,json=spanHours,proto3" json:"span_hours,omitempty"`
+	// True when no reading lies inside the horizon (the newest reading is older
+	// than it): there is no current rate, so available is false.
+	Stale         bool `protobuf:"varint,5,opt,name=stale,proto3" json:"stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageBurnRate) Reset() {
+	*x = UsageBurnRate{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBurnRate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBurnRate) ProtoMessage() {}
+
+func (x *UsageBurnRate) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBurnRate.ProtoReflect.Descriptor instead.
+func (*UsageBurnRate) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *UsageBurnRate) GetHorizon() string {
+	if x != nil {
+		return x.Horizon
+	}
+	return ""
+}
+
+func (x *UsageBurnRate) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *UsageBurnRate) GetPercentPerHour() float64 {
+	if x != nil {
+		return x.PercentPerHour
+	}
+	return 0
+}
+
+func (x *UsageBurnRate) GetSpanHours() float64 {
+	if x != nil {
+		return x.SpanHours
+	}
+	return 0
+}
+
+func (x *UsageBurnRate) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+// UsagePercentPoint is one step of the monotone used-percent series.
+type UsagePercentPoint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	At            string                 `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
+	UsedPercent   float64                `protobuf:"fixed64,2,opt,name=used_percent,json=usedPercent,proto3" json:"used_percent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsagePercentPoint) Reset() {
+	*x = UsagePercentPoint{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsagePercentPoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsagePercentPoint) ProtoMessage() {}
+
+func (x *UsagePercentPoint) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsagePercentPoint.ProtoReflect.Descriptor instead.
+func (*UsagePercentPoint) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *UsagePercentPoint) GetAt() string {
+	if x != nil {
+		return x.At
+	}
+	return ""
+}
+
+func (x *UsagePercentPoint) GetUsedPercent() float64 {
+	if x != nil {
+		return x.UsedPercent
+	}
+	return 0
+}
+
+// UsageWindowForecast is one provider subscription window. Timestamps are
+// RFC 3339 UTC; an empty timestamp means unknown, never "now".
+type UsageWindowForecast struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Pool          string                 `protobuf:"bytes,2,opt,name=pool,proto3" json:"pool,omitempty"`
+	Window        string                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	WindowMinutes int64                  `protobuf:"varint,4,opt,name=window_minutes,json=windowMinutes,proto3" json:"window_minutes,omitempty"`
+	// on_track | at_risk | will_exhaust | unknown
+	Status       string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	StatusReason string `protobuf:"bytes,6,opt,name=status_reason,json=statusReason,proto3" json:"status_reason,omitempty"`
+	// False for windows that report a standing only (no percentage).
+	HasPercent  bool    `protobuf:"varint,7,opt,name=has_percent,json=hasPercent,proto3" json:"has_percent,omitempty"`
+	UsedPercent float64 `protobuf:"fixed64,8,opt,name=used_percent,json=usedPercent,proto3" json:"used_percent,omitempty"`
+	Standing    string  `protobuf:"bytes,9,opt,name=standing,proto3" json:"standing,omitempty"`
+	WindowStart string  `protobuf:"bytes,10,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	ResetsAt    string  `protobuf:"bytes,11,opt,name=resets_at,json=resetsAt,proto3" json:"resets_at,omitempty"`
+	// Newest reading in the window ("last reading"). Burn horizons and the
+	// projected run-out are anchored at generated_at (now), not at this time.
+	ObservedAt  string           `protobuf:"bytes,12,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	SampleCount int64            `protobuf:"varint,13,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	Burn        []*UsageBurnRate `protobuf:"bytes,14,rep,name=burn,proto3" json:"burn,omitempty"`
+	// Central burn: the mean projected burn from now to the reset. It is the
+	// burn since the window start, shaped by the scope's hour-of-week burn
+	// profile and scaled by calibration_factor.
+	CentralPercentPerHour float64 `protobuf:"fixed64,15,opt,name=central_percent_per_hour,json=centralPercentPerHour,proto3" json:"central_percent_per_hour,omitempty"`
+	ProjectedExhaustionAt string  `protobuf:"bytes,16,opt,name=projected_exhaustion_at,json=projectedExhaustionAt,proto3" json:"projected_exhaustion_at,omitempty"`
+	ExhaustionBandStart   string  `protobuf:"bytes,17,opt,name=exhaustion_band_start,json=exhaustionBandStart,proto3" json:"exhaustion_band_start,omitempty"`
+	// Empty when the slow edge of the band never reaches 100%.
+	ExhaustionBandEnd string `protobuf:"bytes,18,opt,name=exhaustion_band_end,json=exhaustionBandEnd,proto3" json:"exhaustion_band_end,omitempty"`
+	// The burn that would last exactly until the reset: remaining / time to reset.
+	LastingPercentPerHour float64 `protobuf:"fixed64,19,opt,name=lasting_percent_per_hour,json=lastingPercentPerHour,proto3" json:"lasting_percent_per_hour,omitempty"`
+	// True when this window began before the previous window's scheduled reset.
+	EarlyReset           bool                 `protobuf:"varint,20,opt,name=early_reset,json=earlyReset,proto3" json:"early_reset,omitempty"`
+	PreviousResetsAt     string               `protobuf:"bytes,21,opt,name=previous_resets_at,json=previousResetsAt,proto3" json:"previous_resets_at,omitempty"`
+	PreviousFinalPercent float64              `protobuf:"fixed64,22,opt,name=previous_final_percent,json=previousFinalPercent,proto3" json:"previous_final_percent,omitempty"`
+	PreviousEndedAt      string               `protobuf:"bytes,23,opt,name=previous_ended_at,json=previousEndedAt,proto3" json:"previous_ended_at,omitempty"`
+	Series               []*UsagePercentPoint `protobuf:"bytes,24,rep,name=series,proto3" json:"series,omitempty"`
+	// Used percent of the newest reading; below used_percent when that reader
+	// lags (concurrent Claude Code sessions cache different percents).
+	LastReadingPercent float64 `protobuf:"fixed64,26,opt,name=last_reading_percent,json=lastReadingPercent,proto3" json:"last_reading_percent,omitempty"`
+	// Median ratio of realized to projected remaining burn on the scope's
+	// newest completed windows at the same point of their life; 1 when fewer
+	// than three windows calibrate it (calibration_windows).
+	CalibrationFactor  float64 `protobuf:"fixed64,27,opt,name=calibration_factor,json=calibrationFactor,proto3" json:"calibration_factor,omitempty"`
+	CalibrationWindows int64   `protobuf:"varint,28,opt,name=calibration_windows,json=calibrationWindows,proto3" json:"calibration_windows,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *UsageWindowForecast) Reset() {
+	*x = UsageWindowForecast{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageWindowForecast) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageWindowForecast) ProtoMessage() {}
+
+func (x *UsageWindowForecast) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageWindowForecast.ProtoReflect.Descriptor instead.
+func (*UsageWindowForecast) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *UsageWindowForecast) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetPool() string {
+	if x != nil {
+		return x.Pool
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetWindow() string {
+	if x != nil {
+		return x.Window
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetWindowMinutes() int64 {
+	if x != nil {
+		return x.WindowMinutes
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetStatusReason() string {
+	if x != nil {
+		return x.StatusReason
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetHasPercent() bool {
+	if x != nil {
+		return x.HasPercent
+	}
+	return false
+}
+
+func (x *UsageWindowForecast) GetUsedPercent() float64 {
+	if x != nil {
+		return x.UsedPercent
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetStanding() string {
+	if x != nil {
+		return x.Standing
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetWindowStart() string {
+	if x != nil {
+		return x.WindowStart
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetResetsAt() string {
+	if x != nil {
+		return x.ResetsAt
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetSampleCount() int64 {
+	if x != nil {
+		return x.SampleCount
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetBurn() []*UsageBurnRate {
+	if x != nil {
+		return x.Burn
+	}
+	return nil
+}
+
+func (x *UsageWindowForecast) GetCentralPercentPerHour() float64 {
+	if x != nil {
+		return x.CentralPercentPerHour
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetProjectedExhaustionAt() string {
+	if x != nil {
+		return x.ProjectedExhaustionAt
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetExhaustionBandStart() string {
+	if x != nil {
+		return x.ExhaustionBandStart
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetExhaustionBandEnd() string {
+	if x != nil {
+		return x.ExhaustionBandEnd
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetLastingPercentPerHour() float64 {
+	if x != nil {
+		return x.LastingPercentPerHour
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetEarlyReset() bool {
+	if x != nil {
+		return x.EarlyReset
+	}
+	return false
+}
+
+func (x *UsageWindowForecast) GetPreviousResetsAt() string {
+	if x != nil {
+		return x.PreviousResetsAt
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetPreviousFinalPercent() float64 {
+	if x != nil {
+		return x.PreviousFinalPercent
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetPreviousEndedAt() string {
+	if x != nil {
+		return x.PreviousEndedAt
+	}
+	return ""
+}
+
+func (x *UsageWindowForecast) GetSeries() []*UsagePercentPoint {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
+func (x *UsageWindowForecast) GetLastReadingPercent() float64 {
+	if x != nil {
+		return x.LastReadingPercent
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetCalibrationFactor() float64 {
+	if x != nil {
+		return x.CalibrationFactor
+	}
+	return 0
+}
+
+func (x *UsageWindowForecast) GetCalibrationWindows() int64 {
+	if x != nil {
+		return x.CalibrationWindows
+	}
+	return 0
+}
+
+type UsageForecastResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Windows       []*UsageWindowForecast `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	GeneratedAt   string                 `protobuf:"bytes,2,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	Provenance    *MeasureProvenance     `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId  string                 `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageForecastResponse) Reset() {
+	*x = UsageForecastResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageForecastResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageForecastResponse) ProtoMessage() {}
+
+func (x *UsageForecastResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageForecastResponse.ProtoReflect.Descriptor instead.
+func (*UsageForecastResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *UsageForecastResponse) GetWindows() []*UsageWindowForecast {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+func (x *UsageForecastResponse) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *UsageForecastResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *UsageForecastResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+type UsageForecastBacktestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageForecastBacktestRequest) Reset() {
+	*x = UsageForecastBacktestRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageForecastBacktestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageForecastBacktestRequest) ProtoMessage() {}
+
+func (x *UsageForecastBacktestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageForecastBacktestRequest.ProtoReflect.Descriptor instead.
+func (*UsageForecastBacktestRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *UsageForecastBacktestRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+// UsageBacktestCheckpoint compares one projection, made at a fraction of the
+// window's actual life, with the window's outcome.
+type UsageBacktestCheckpoint struct {
+	state                         protoimpl.MessageState `protogen:"open.v1"`
+	ElapsedFraction               float64                `protobuf:"fixed64,1,opt,name=elapsed_fraction,json=elapsedFraction,proto3" json:"elapsed_fraction,omitempty"`
+	AsOf                          string                 `protobuf:"bytes,2,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
+	UsedPercentAt                 float64                `protobuf:"fixed64,3,opt,name=used_percent_at,json=usedPercentAt,proto3" json:"used_percent_at,omitempty"`
+	PredictedFinalPercent         float64                `protobuf:"fixed64,4,opt,name=predicted_final_percent,json=predictedFinalPercent,proto3" json:"predicted_final_percent,omitempty"`
+	BaselinePredictedFinalPercent float64                `protobuf:"fixed64,5,opt,name=baseline_predicted_final_percent,json=baselinePredictedFinalPercent,proto3" json:"baseline_predicted_final_percent,omitempty"`
+	AbsErrorPoints                float64                `protobuf:"fixed64,6,opt,name=abs_error_points,json=absErrorPoints,proto3" json:"abs_error_points,omitempty"`
+	BaselineAbsErrorPoints        float64                `protobuf:"fixed64,7,opt,name=baseline_abs_error_points,json=baselineAbsErrorPoints,proto3" json:"baseline_abs_error_points,omitempty"`
+	// Empty when the projection does not reach 100% before the window ended.
+	PredictedExhaustionAt         string `protobuf:"bytes,8,opt,name=predicted_exhaustion_at,json=predictedExhaustionAt,proto3" json:"predicted_exhaustion_at,omitempty"`
+	BaselinePredictedExhaustionAt string `protobuf:"bytes,9,opt,name=baseline_predicted_exhaustion_at,json=baselinePredictedExhaustionAt,proto3" json:"baseline_predicted_exhaustion_at,omitempty"`
+	// Set only when the projection and the actual window both exhausted.
+	AbsErrorHours         *float64 `protobuf:"fixed64,10,opt,name=abs_error_hours,json=absErrorHours,proto3,oneof" json:"abs_error_hours,omitempty"`
+	BaselineAbsErrorHours *float64 `protobuf:"fixed64,11,opt,name=baseline_abs_error_hours,json=baselineAbsErrorHours,proto3,oneof" json:"baseline_abs_error_hours,omitempty"`
+	// Whether "exhausts before the window ended" matched what happened.
+	OutcomeCorrect         bool `protobuf:"varint,12,opt,name=outcome_correct,json=outcomeCorrect,proto3" json:"outcome_correct,omitempty"`
+	BaselineOutcomeCorrect bool `protobuf:"varint,13,opt,name=baseline_outcome_correct,json=baselineOutcomeCorrect,proto3" json:"baseline_outcome_correct,omitempty"`
+	// The calibration the projection used (see UsageWindowForecast).
+	CalibrationFactor  float64 `protobuf:"fixed64,14,opt,name=calibration_factor,json=calibrationFactor,proto3" json:"calibration_factor,omitempty"`
+	CalibrationWindows int64   `protobuf:"varint,15,opt,name=calibration_windows,json=calibrationWindows,proto3" json:"calibration_windows,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *UsageBacktestCheckpoint) Reset() {
+	*x = UsageBacktestCheckpoint{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBacktestCheckpoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBacktestCheckpoint) ProtoMessage() {}
+
+func (x *UsageBacktestCheckpoint) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBacktestCheckpoint.ProtoReflect.Descriptor instead.
+func (*UsageBacktestCheckpoint) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *UsageBacktestCheckpoint) GetElapsedFraction() float64 {
+	if x != nil {
+		return x.ElapsedFraction
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetAsOf() string {
+	if x != nil {
+		return x.AsOf
+	}
+	return ""
+}
+
+func (x *UsageBacktestCheckpoint) GetUsedPercentAt() float64 {
+	if x != nil {
+		return x.UsedPercentAt
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetPredictedFinalPercent() float64 {
+	if x != nil {
+		return x.PredictedFinalPercent
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetBaselinePredictedFinalPercent() float64 {
+	if x != nil {
+		return x.BaselinePredictedFinalPercent
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetAbsErrorPoints() float64 {
+	if x != nil {
+		return x.AbsErrorPoints
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetBaselineAbsErrorPoints() float64 {
+	if x != nil {
+		return x.BaselineAbsErrorPoints
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetPredictedExhaustionAt() string {
+	if x != nil {
+		return x.PredictedExhaustionAt
+	}
+	return ""
+}
+
+func (x *UsageBacktestCheckpoint) GetBaselinePredictedExhaustionAt() string {
+	if x != nil {
+		return x.BaselinePredictedExhaustionAt
+	}
+	return ""
+}
+
+func (x *UsageBacktestCheckpoint) GetAbsErrorHours() float64 {
+	if x != nil && x.AbsErrorHours != nil {
+		return *x.AbsErrorHours
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetBaselineAbsErrorHours() float64 {
+	if x != nil && x.BaselineAbsErrorHours != nil {
+		return *x.BaselineAbsErrorHours
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetOutcomeCorrect() bool {
+	if x != nil {
+		return x.OutcomeCorrect
+	}
+	return false
+}
+
+func (x *UsageBacktestCheckpoint) GetBaselineOutcomeCorrect() bool {
+	if x != nil {
+		return x.BaselineOutcomeCorrect
+	}
+	return false
+}
+
+func (x *UsageBacktestCheckpoint) GetCalibrationFactor() float64 {
+	if x != nil {
+		return x.CalibrationFactor
+	}
+	return 0
+}
+
+func (x *UsageBacktestCheckpoint) GetCalibrationWindows() int64 {
+	if x != nil {
+		return x.CalibrationWindows
+	}
+	return 0
+}
+
+type UsageBacktestWindow struct {
+	state              protoimpl.MessageState     `protogen:"open.v1"`
+	Provider           string                     `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Pool               string                     `protobuf:"bytes,2,opt,name=pool,proto3" json:"pool,omitempty"`
+	Window             string                     `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	WindowStart        string                     `protobuf:"bytes,4,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	EndedAt            string                     `protobuf:"bytes,5,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	ResetsAt           string                     `protobuf:"bytes,6,opt,name=resets_at,json=resetsAt,proto3" json:"resets_at,omitempty"`
+	EarlyReset         bool                       `protobuf:"varint,7,opt,name=early_reset,json=earlyReset,proto3" json:"early_reset,omitempty"`
+	FinalPercent       float64                    `protobuf:"fixed64,8,opt,name=final_percent,json=finalPercent,proto3" json:"final_percent,omitempty"`
+	ActualExhaustionAt string                     `protobuf:"bytes,9,opt,name=actual_exhaustion_at,json=actualExhaustionAt,proto3" json:"actual_exhaustion_at,omitempty"`
+	Checkpoints        []*UsageBacktestCheckpoint `protobuf:"bytes,10,rep,name=checkpoints,proto3" json:"checkpoints,omitempty"`
+	// False when the window did not exhaust and its newest reading is more than
+	// 6 hours before the window ended: the final percent is then a lower bound
+	// and the window is not scored.
+	OutcomeObserved bool `protobuf:"varint,11,opt,name=outcome_observed,json=outcomeObserved,proto3" json:"outcome_observed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UsageBacktestWindow) Reset() {
+	*x = UsageBacktestWindow{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBacktestWindow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBacktestWindow) ProtoMessage() {}
+
+func (x *UsageBacktestWindow) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBacktestWindow.ProtoReflect.Descriptor instead.
+func (*UsageBacktestWindow) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *UsageBacktestWindow) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetPool() string {
+	if x != nil {
+		return x.Pool
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetWindow() string {
+	if x != nil {
+		return x.Window
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetWindowStart() string {
+	if x != nil {
+		return x.WindowStart
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetEndedAt() string {
+	if x != nil {
+		return x.EndedAt
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetResetsAt() string {
+	if x != nil {
+		return x.ResetsAt
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetEarlyReset() bool {
+	if x != nil {
+		return x.EarlyReset
+	}
+	return false
+}
+
+func (x *UsageBacktestWindow) GetFinalPercent() float64 {
+	if x != nil {
+		return x.FinalPercent
+	}
+	return 0
+}
+
+func (x *UsageBacktestWindow) GetActualExhaustionAt() string {
+	if x != nil {
+		return x.ActualExhaustionAt
+	}
+	return ""
+}
+
+func (x *UsageBacktestWindow) GetCheckpoints() []*UsageBacktestCheckpoint {
+	if x != nil {
+		return x.Checkpoints
+	}
+	return nil
+}
+
+func (x *UsageBacktestWindow) GetOutcomeObserved() bool {
+	if x != nil {
+		return x.OutcomeObserved
+	}
+	return false
+}
+
+type UsageBacktestSummary struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "last_5_windows_per_scope" (SPEC A4: the newest five scored windows of
+	// each provider/scope) or "all_windows" (the whole history).
+	Population                   string  `protobuf:"bytes,11,opt,name=population,proto3" json:"population,omitempty"`
+	ElapsedFraction              float64 `protobuf:"fixed64,1,opt,name=elapsed_fraction,json=elapsedFraction,proto3" json:"elapsed_fraction,omitempty"`
+	Windows                      int64   `protobuf:"varint,2,opt,name=windows,proto3" json:"windows,omitempty"`
+	MedianAbsErrorPoints         float64 `protobuf:"fixed64,3,opt,name=median_abs_error_points,json=medianAbsErrorPoints,proto3" json:"median_abs_error_points,omitempty"`
+	BaselineMedianAbsErrorPoints float64 `protobuf:"fixed64,4,opt,name=baseline_median_abs_error_points,json=baselineMedianAbsErrorPoints,proto3" json:"baseline_median_abs_error_points,omitempty"`
+	HourErrorWindows             int64   `protobuf:"varint,5,opt,name=hour_error_windows,json=hourErrorWindows,proto3" json:"hour_error_windows,omitempty"`
+	MedianAbsErrorHours          float64 `protobuf:"fixed64,6,opt,name=median_abs_error_hours,json=medianAbsErrorHours,proto3" json:"median_abs_error_hours,omitempty"`
+	BaselineMedianAbsErrorHours  float64 `protobuf:"fixed64,7,opt,name=baseline_median_abs_error_hours,json=baselineMedianAbsErrorHours,proto3" json:"baseline_median_abs_error_hours,omitempty"`
+	OutcomeAccuracy              float64 `protobuf:"fixed64,8,opt,name=outcome_accuracy,json=outcomeAccuracy,proto3" json:"outcome_accuracy,omitempty"`
+	BaselineOutcomeAccuracy      float64 `protobuf:"fixed64,9,opt,name=baseline_outcome_accuracy,json=baselineOutcomeAccuracy,proto3" json:"baseline_outcome_accuracy,omitempty"`
+	BeatsBaseline                bool    `protobuf:"varint,10,opt,name=beats_baseline,json=beatsBaseline,proto3" json:"beats_baseline,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *UsageBacktestSummary) Reset() {
+	*x = UsageBacktestSummary{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBacktestSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBacktestSummary) ProtoMessage() {}
+
+func (x *UsageBacktestSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBacktestSummary.ProtoReflect.Descriptor instead.
+func (*UsageBacktestSummary) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *UsageBacktestSummary) GetPopulation() string {
+	if x != nil {
+		return x.Population
+	}
+	return ""
+}
+
+func (x *UsageBacktestSummary) GetElapsedFraction() float64 {
+	if x != nil {
+		return x.ElapsedFraction
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetWindows() int64 {
+	if x != nil {
+		return x.Windows
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetMedianAbsErrorPoints() float64 {
+	if x != nil {
+		return x.MedianAbsErrorPoints
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetBaselineMedianAbsErrorPoints() float64 {
+	if x != nil {
+		return x.BaselineMedianAbsErrorPoints
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetHourErrorWindows() int64 {
+	if x != nil {
+		return x.HourErrorWindows
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetMedianAbsErrorHours() float64 {
+	if x != nil {
+		return x.MedianAbsErrorHours
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetBaselineMedianAbsErrorHours() float64 {
+	if x != nil {
+		return x.BaselineMedianAbsErrorHours
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetOutcomeAccuracy() float64 {
+	if x != nil {
+		return x.OutcomeAccuracy
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetBaselineOutcomeAccuracy() float64 {
+	if x != nil {
+		return x.BaselineOutcomeAccuracy
+	}
+	return 0
+}
+
+func (x *UsageBacktestSummary) GetBeatsBaseline() bool {
+	if x != nil {
+		return x.BeatsBaseline
+	}
+	return false
+}
+
+type UsageForecastBacktestResponse struct {
+	state      protoimpl.MessageState  `protogen:"open.v1"`
+	Windows    []*UsageBacktestWindow  `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	Summaries  []*UsageBacktestSummary `protobuf:"bytes,2,rep,name=summaries,proto3" json:"summaries,omitempty"`
+	Limitation string                  `protobuf:"bytes,3,opt,name=limitation,proto3" json:"limitation,omitempty"`
+	// Completed windows not scored because their outcome was not observed.
+	UnobservedWindows int64              `protobuf:"varint,4,opt,name=unobserved_windows,json=unobservedWindows,proto3" json:"unobserved_windows,omitempty"`
+	Validity          *MeasureValidity   `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance        *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId      string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UsageForecastBacktestResponse) Reset() {
+	*x = UsageForecastBacktestResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageForecastBacktestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageForecastBacktestResponse) ProtoMessage() {}
+
+func (x *UsageForecastBacktestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageForecastBacktestResponse.ProtoReflect.Descriptor instead.
+func (*UsageForecastBacktestResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *UsageForecastBacktestResponse) GetWindows() []*UsageBacktestWindow {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+func (x *UsageForecastBacktestResponse) GetSummaries() []*UsageBacktestSummary {
+	if x != nil {
+		return x.Summaries
+	}
+	return nil
+}
+
+func (x *UsageForecastBacktestResponse) GetLimitation() string {
+	if x != nil {
+		return x.Limitation
+	}
+	return ""
+}
+
+func (x *UsageForecastBacktestResponse) GetUnobservedWindows() int64 {
+	if x != nil {
+		return x.UnobservedWindows
+	}
+	return 0
+}
+
+func (x *UsageForecastBacktestResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *UsageForecastBacktestResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *UsageForecastBacktestResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+// UsageBurnersRequest selects the windows and the grouping of an attribution.
+type UsageBurnersRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty reads every provider.
+	Provider string `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	// session | run | profile | workload | model | runner | modality | tool_kind.
+	// Empty means session.
+	GroupBy string `protobuf:"bytes,2,opt,name=group_by,json=groupBy,proto3" json:"group_by,omitempty"`
+	// RFC 3339. Attributes only the increase observed after it; empty means
+	// each current window's start.
+	Since string `protobuf:"bytes,3,opt,name=since,proto3" json:"since,omitempty"`
+	// Restricts the rows to one run (the run usage panel). Window totals,
+	// calibration and the remainder stay those of the whole window.
+	RunId string `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Rows per window; the rest fold into other_points. Default 20.
+	Limit         int32 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageBurnersRequest) Reset() {
+	*x = UsageBurnersRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBurnersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBurnersRequest) ProtoMessage() {}
+
+func (x *UsageBurnersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBurnersRequest.ProtoReflect.Descriptor instead.
+func (*UsageBurnersRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *UsageBurnersRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UsageBurnersRequest) GetGroupBy() string {
+	if x != nil {
+		return x.GroupBy
+	}
+	return ""
+}
+
+func (x *UsageBurnersRequest) GetSince() string {
+	if x != nil {
+		return x.Since
+	}
+	return ""
+}
+
+func (x *UsageBurnersRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *UsageBurnersRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// UsageTokens are provider token counters from the one accounting function.
+// input excludes cached input; the four components are disjoint.
+type UsageTokens struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Input         int64                  `protobuf:"varint,1,opt,name=input,proto3" json:"input,omitempty"`
+	CachedInput   int64                  `protobuf:"varint,2,opt,name=cached_input,json=cachedInput,proto3" json:"cached_input,omitempty"`
+	CacheCreation int64                  `protobuf:"varint,3,opt,name=cache_creation,json=cacheCreation,proto3" json:"cache_creation,omitempty"`
+	Output        int64                  `protobuf:"varint,4,opt,name=output,proto3" json:"output,omitempty"`
+	Total         int64                  `protobuf:"varint,5,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageTokens) Reset() {
+	*x = UsageTokens{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageTokens) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageTokens) ProtoMessage() {}
+
+func (x *UsageTokens) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageTokens.ProtoReflect.Descriptor instead.
+func (*UsageTokens) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *UsageTokens) GetInput() int64 {
+	if x != nil {
+		return x.Input
+	}
+	return 0
+}
+
+func (x *UsageTokens) GetCachedInput() int64 {
+	if x != nil {
+		return x.CachedInput
+	}
+	return 0
+}
+
+func (x *UsageTokens) GetCacheCreation() int64 {
+	if x != nil {
+		return x.CacheCreation
+	}
+	return 0
+}
+
+func (x *UsageTokens) GetOutput() int64 {
+	if x != nil {
+		return x.Output
+	}
+	return 0
+}
+
+func (x *UsageTokens) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type UsageToolKindCount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// shell | file_read | file_edit | search | agent | wait | web_search |
+	// web_fetch | image_generation | mcp:<server>.<tool> | scenario:<name> | other
+	Kind          string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Calls         int64  `protobuf:"varint,2,opt,name=calls,proto3" json:"calls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageToolKindCount) Reset() {
+	*x = UsageToolKindCount{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageToolKindCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageToolKindCount) ProtoMessage() {}
+
+func (x *UsageToolKindCount) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageToolKindCount.ProtoReflect.Descriptor instead.
+func (*UsageToolKindCount) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *UsageToolKindCount) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *UsageToolKindCount) GetCalls() int64 {
+	if x != nil {
+		return x.Calls
+	}
+	return 0
+}
+
+// UsageModality counts non-text work (SPEC AM-3). Image input tokens are
+// inside the input counters; estimated_image_input_tokens explains part of
+// them and is never an extra charge.
+type UsageModality struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	ImagesIn                  int64                  `protobuf:"varint,1,opt,name=images_in,json=imagesIn,proto3" json:"images_in,omitempty"`
+	ImagesInUser              int64                  `protobuf:"varint,2,opt,name=images_in_user,json=imagesInUser,proto3" json:"images_in_user,omitempty"`
+	ImagesInHighDetail        int64                  `protobuf:"varint,3,opt,name=images_in_high_detail,json=imagesInHighDetail,proto3" json:"images_in_high_detail,omitempty"`
+	ImageBytesIn              int64                  `protobuf:"varint,4,opt,name=image_bytes_in,json=imageBytesIn,proto3" json:"image_bytes_in,omitempty"`
+	EstimatedImageInputTokens int64                  `protobuf:"varint,5,opt,name=estimated_image_input_tokens,json=estimatedImageInputTokens,proto3" json:"estimated_image_input_tokens,omitempty"`
+	ImagesOut                 int64                  `protobuf:"varint,6,opt,name=images_out,json=imagesOut,proto3" json:"images_out,omitempty"`
+	WebSearches               int64                  `protobuf:"varint,7,opt,name=web_searches,json=webSearches,proto3" json:"web_searches,omitempty"`
+	WebFetches                int64                  `protobuf:"varint,8,opt,name=web_fetches,json=webFetches,proto3" json:"web_fetches,omitempty"`
+	AudioIn                   int64                  `protobuf:"varint,9,opt,name=audio_in,json=audioIn,proto3" json:"audio_in,omitempty"`
+	ToolCalls                 int64                  `protobuf:"varint,10,opt,name=tool_calls,json=toolCalls,proto3" json:"tool_calls,omitempty"`
+	ToolKinds                 []*UsageToolKindCount  `protobuf:"bytes,11,rep,name=tool_kinds,json=toolKinds,proto3" json:"tool_kinds,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *UsageModality) Reset() {
+	*x = UsageModality{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageModality) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageModality) ProtoMessage() {}
+
+func (x *UsageModality) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageModality.ProtoReflect.Descriptor instead.
+func (*UsageModality) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *UsageModality) GetImagesIn() int64 {
+	if x != nil {
+		return x.ImagesIn
+	}
+	return 0
+}
+
+func (x *UsageModality) GetImagesInUser() int64 {
+	if x != nil {
+		return x.ImagesInUser
+	}
+	return 0
+}
+
+func (x *UsageModality) GetImagesInHighDetail() int64 {
+	if x != nil {
+		return x.ImagesInHighDetail
+	}
+	return 0
+}
+
+func (x *UsageModality) GetImageBytesIn() int64 {
+	if x != nil {
+		return x.ImageBytesIn
+	}
+	return 0
+}
+
+func (x *UsageModality) GetEstimatedImageInputTokens() int64 {
+	if x != nil {
+		return x.EstimatedImageInputTokens
+	}
+	return 0
+}
+
+func (x *UsageModality) GetImagesOut() int64 {
+	if x != nil {
+		return x.ImagesOut
+	}
+	return 0
+}
+
+func (x *UsageModality) GetWebSearches() int64 {
+	if x != nil {
+		return x.WebSearches
+	}
+	return 0
+}
+
+func (x *UsageModality) GetWebFetches() int64 {
+	if x != nil {
+		return x.WebFetches
+	}
+	return 0
+}
+
+func (x *UsageModality) GetAudioIn() int64 {
+	if x != nil {
+		return x.AudioIn
+	}
+	return 0
+}
+
+func (x *UsageModality) GetToolCalls() int64 {
+	if x != nil {
+		return x.ToolCalls
+	}
+	return 0
+}
+
+func (x *UsageModality) GetToolKinds() []*UsageToolKindCount {
+	if x != nil {
+		return x.ToolKinds
+	}
+	return nil
+}
+
+// UsageBurner is one consumer of a window's quota. points is an estimate in
+// percentage points of the window; present it as approximate.
+type UsageBurner struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The group value: session id, run id, profile id, workload key, model,
+	// runner, modality or tool kind.
+	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// Human label: run label, profile name, workload key, or the key.
+	Label  string  `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Points float64 `protobuf:"fixed64,3,opt,name=points,proto3" json:"points,omitempty"`
+	// points / observed_increase_points of the window.
+	Share  float64      `protobuf:"fixed64,4,opt,name=share,proto3" json:"share,omitempty"`
+	Tokens *UsageTokens `protobuf:"bytes,5,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	// Cached-input-equivalent tokens under the window's calibration.
+	WeightedTokens float64 `protobuf:"fixed64,6,opt,name=weighted_tokens,json=weightedTokens,proto3" json:"weighted_tokens,omitempty"`
+	Sessions       int64   `protobuf:"varint,7,opt,name=sessions,proto3" json:"sessions,omitempty"`
+	Runs           int64   `protobuf:"varint,8,opt,name=runs,proto3" json:"runs,omitempty"`
+	Turns          int64   `protobuf:"varint,9,opt,name=turns,proto3" json:"turns,omitempty"`
+	// Up to 10 run ids behind the row, largest first, for drill-in.
+	RunIds []string `protobuf:"bytes,10,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
+	// Set when every turn in the row shares the value; empty when mixed.
+	Runner    string         `protobuf:"bytes,11,opt,name=runner,proto3" json:"runner,omitempty"`
+	Model     string         `protobuf:"bytes,12,opt,name=model,proto3" json:"model,omitempty"`
+	ProfileId string         `protobuf:"bytes,13,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Workload  string         `protobuf:"bytes,14,opt,name=workload,proto3" json:"workload,omitempty"`
+	FirstAt   string         `protobuf:"bytes,15,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
+	LastAt    string         `protobuf:"bytes,16,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
+	Modality  *UsageModality `protobuf:"bytes,17,opt,name=modality,proto3" json:"modality,omitempty"`
+	// indexed (operator sessions read by the Transcript Indexer) |
+	// agent_manager (runs Agent Manager launched) | mixed
+	Source        string `protobuf:"bytes,18,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageBurner) Reset() {
+	*x = UsageBurner{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBurner) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBurner) ProtoMessage() {}
+
+func (x *UsageBurner) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBurner.ProtoReflect.Descriptor instead.
+func (*UsageBurner) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *UsageBurner) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetPoints() float64 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *UsageBurner) GetShare() float64 {
+	if x != nil {
+		return x.Share
+	}
+	return 0
+}
+
+func (x *UsageBurner) GetTokens() *UsageTokens {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
+func (x *UsageBurner) GetWeightedTokens() float64 {
+	if x != nil {
+		return x.WeightedTokens
+	}
+	return 0
+}
+
+func (x *UsageBurner) GetSessions() int64 {
+	if x != nil {
+		return x.Sessions
+	}
+	return 0
+}
+
+func (x *UsageBurner) GetRuns() int64 {
+	if x != nil {
+		return x.Runs
+	}
+	return 0
+}
+
+func (x *UsageBurner) GetTurns() int64 {
+	if x != nil {
+		return x.Turns
+	}
+	return 0
+}
+
+func (x *UsageBurner) GetRunIds() []string {
+	if x != nil {
+		return x.RunIds
+	}
+	return nil
+}
+
+func (x *UsageBurner) GetRunner() string {
+	if x != nil {
+		return x.Runner
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetWorkload() string {
+	if x != nil {
+		return x.Workload
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetFirstAt() string {
+	if x != nil {
+		return x.FirstAt
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetLastAt() string {
+	if x != nil {
+		return x.LastAt
+	}
+	return ""
+}
+
+func (x *UsageBurner) GetModality() *UsageModality {
+	if x != nil {
+		return x.Modality
+	}
+	return nil
+}
+
+func (x *UsageBurner) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+// UsageModelWeight converts one model's tokens to cached-input-equivalent
+// tokens: weighted = cached_input + input_weight*input +
+// cache_creation_weight*cache_creation + output_weight*output, and
+// points = weighted / cached_input_tokens_per_point. The ratios between
+// categories and models are the prior; the window's calibration sets the
+// scale.
+type UsageModelWeight struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Runner                    string                 `protobuf:"bytes,1,opt,name=runner,proto3" json:"runner,omitempty"`
+	Model                     string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
+	CachedInputTokensPerPoint float64                `protobuf:"fixed64,3,opt,name=cached_input_tokens_per_point,json=cachedInputTokensPerPoint,proto3" json:"cached_input_tokens_per_point,omitempty"`
+	InputWeight               float64                `protobuf:"fixed64,4,opt,name=input_weight,json=inputWeight,proto3" json:"input_weight,omitempty"`
+	CacheCreationWeight       float64                `protobuf:"fixed64,5,opt,name=cache_creation_weight,json=cacheCreationWeight,proto3" json:"cache_creation_weight,omitempty"`
+	OutputWeight              float64                `protobuf:"fixed64,6,opt,name=output_weight,json=outputWeight,proto3" json:"output_weight,omitempty"`
+	// price_book (the model's API price) | tier_prior (an unpriced
+	// subscription model's tier: E-2 fit for Codex, list-price ratios for
+	// Claude) | fallback (unknown model)
+	Source string `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
+	// Blocks the model has usage in.
+	Slices        int64 `protobuf:"varint,8,opt,name=slices,proto3" json:"slices,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageModelWeight) Reset() {
+	*x = UsageModelWeight{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageModelWeight) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageModelWeight) ProtoMessage() {}
+
+func (x *UsageModelWeight) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageModelWeight.ProtoReflect.Descriptor instead.
+func (*UsageModelWeight) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *UsageModelWeight) GetRunner() string {
+	if x != nil {
+		return x.Runner
+	}
+	return ""
+}
+
+func (x *UsageModelWeight) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *UsageModelWeight) GetCachedInputTokensPerPoint() float64 {
+	if x != nil {
+		return x.CachedInputTokensPerPoint
+	}
+	return 0
+}
+
+func (x *UsageModelWeight) GetInputWeight() float64 {
+	if x != nil {
+		return x.InputWeight
+	}
+	return 0
+}
+
+func (x *UsageModelWeight) GetCacheCreationWeight() float64 {
+	if x != nil {
+		return x.CacheCreationWeight
+	}
+	return 0
+}
+
+func (x *UsageModelWeight) GetOutputWeight() float64 {
+	if x != nil {
+		return x.OutputWeight
+	}
+	return 0
+}
+
+func (x *UsageModelWeight) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *UsageModelWeight) GetSlices() int64 {
+	if x != nil {
+		return x.Slices
+	}
+	return 0
+}
+
+// UsageCalibration records how tokens were converted to quota points for one
+// window. It is recalibrated per window against the observed increase.
+type UsageCalibration struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// fitted: the scale is a low quantile of the blocks' increase over usage
+	// cost, and what usage does not explain is unattributed; scaled: too few
+	// blocks, usage explains every block it ran in; none: no usage.
+	Method  string              `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	Weights []*UsageModelWeight `protobuf:"bytes,2,rep,name=weights,proto3" json:"weights,omitempty"`
+	// Uncentered fit quality over the blocks (0..1); 0 when not fitted.
+	RSquared float64 `protobuf:"fixed64,3,opt,name=r_squared,json=rSquared,proto3" json:"r_squared,omitempty"`
+	// Blocks: consecutive one-point steps merged to at least 3 points.
+	Slices int64 `protobuf:"varint,4,opt,name=slices,proto3" json:"slices,omitempty"`
+	// Unattributed points per hour of the attributed period.
+	OffDiskPointsPerHour float64 `protobuf:"fixed64,5,opt,name=off_disk_points_per_hour,json=offDiskPointsPerHour,proto3" json:"off_disk_points_per_hour,omitempty"`
+	Note                 string  `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *UsageCalibration) Reset() {
+	*x = UsageCalibration{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCalibration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCalibration) ProtoMessage() {}
+
+func (x *UsageCalibration) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCalibration.ProtoReflect.Descriptor instead.
+func (*UsageCalibration) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{102}
+}
+
+func (x *UsageCalibration) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *UsageCalibration) GetWeights() []*UsageModelWeight {
+	if x != nil {
+		return x.Weights
+	}
+	return nil
+}
+
+func (x *UsageCalibration) GetRSquared() float64 {
+	if x != nil {
+		return x.RSquared
+	}
+	return 0
+}
+
+func (x *UsageCalibration) GetSlices() int64 {
+	if x != nil {
+		return x.Slices
+	}
+	return 0
+}
+
+func (x *UsageCalibration) GetOffDiskPointsPerHour() float64 {
+	if x != nil {
+		return x.OffDiskPointsPerHour
+	}
+	return 0
+}
+
+func (x *UsageCalibration) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// UsageMeteredLine is work the provider meters outside the token counters.
+// It is never folded into token points.
+type UsageMeteredLine struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// codex_credits | web_search | image_generation | scenario:<name>
+	Kind  string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Count int64  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	// known | estimated | unknown
+	State string `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	// The charge when known (for example a credits balance change); empty when unknown.
+	Amount        string `protobuf:"bytes,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	Note          string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageMeteredLine) Reset() {
+	*x = UsageMeteredLine{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageMeteredLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageMeteredLine) ProtoMessage() {}
+
+func (x *UsageMeteredLine) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageMeteredLine.ProtoReflect.Descriptor instead.
+func (*UsageMeteredLine) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{103}
+}
+
+func (x *UsageMeteredLine) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *UsageMeteredLine) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *UsageMeteredLine) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *UsageMeteredLine) GetAmount() string {
+	if x != nil {
+		return x.Amount
+	}
+	return ""
+}
+
+func (x *UsageMeteredLine) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// UsageWindowAttribution splits one provider window's observed increase.
+// Invariant: sum(burners.points) + other_points + unattributed_points ==
+// observed_increase_points.
+type UsageWindowAttribution struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Pool          string                 `protobuf:"bytes,2,opt,name=pool,proto3" json:"pool,omitempty"`
+	Window        string                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	WindowMinutes int64                  `protobuf:"varint,4,opt,name=window_minutes,json=windowMinutes,proto3" json:"window_minutes,omitempty"`
+	WindowStart   string                 `protobuf:"bytes,5,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	ResetsAt      string                 `protobuf:"bytes,6,opt,name=resets_at,json=resetsAt,proto3" json:"resets_at,omitempty"`
+	// The attributed period: [period_start, period_end], period_end being the
+	// newest reading.
+	PeriodStart            string  `protobuf:"bytes,7,opt,name=period_start,json=periodStart,proto3" json:"period_start,omitempty"`
+	PeriodEnd              string  `protobuf:"bytes,8,opt,name=period_end,json=periodEnd,proto3" json:"period_end,omitempty"`
+	UsedPercent            float64 `protobuf:"fixed64,9,opt,name=used_percent,json=usedPercent,proto3" json:"used_percent,omitempty"`
+	ObservedIncreasePoints float64 `protobuf:"fixed64,10,opt,name=observed_increase_points,json=observedIncreasePoints,proto3" json:"observed_increase_points,omitempty"`
+	AttributedPoints       float64 `protobuf:"fixed64,11,opt,name=attributed_points,json=attributedPoints,proto3" json:"attributed_points,omitempty"`
+	// Off-disk or unexplained consumption: other machines, provider web apps,
+	// uncaptured transcripts and fit residue.
+	UnattributedPoints float64           `protobuf:"fixed64,12,opt,name=unattributed_points,json=unattributedPoints,proto3" json:"unattributed_points,omitempty"`
+	GroupBy            string            `protobuf:"bytes,13,opt,name=group_by,json=groupBy,proto3" json:"group_by,omitempty"`
+	Burners            []*UsageBurner    `protobuf:"bytes,14,rep,name=burners,proto3" json:"burners,omitempty"`
+	OtherBurners       int64             `protobuf:"varint,15,opt,name=other_burners,json=otherBurners,proto3" json:"other_burners,omitempty"`
+	OtherPoints        float64           `protobuf:"fixed64,16,opt,name=other_points,json=otherPoints,proto3" json:"other_points,omitempty"`
+	Calibration        *UsageCalibration `protobuf:"bytes,17,opt,name=calibration,proto3" json:"calibration,omitempty"`
+	// Tokens used after the newest reading; no reading reflects them yet.
+	PendingTokens *UsageTokens        `protobuf:"bytes,18,opt,name=pending_tokens,json=pendingTokens,proto3" json:"pending_tokens,omitempty"`
+	MeteredLines  []*UsageMeteredLine `protobuf:"bytes,19,rep,name=metered_lines,json=meteredLines,proto3" json:"metered_lines,omitempty"`
+	// Runner whose transcripts explain this provider (codex, claude-code).
+	Runner        string `protobuf:"bytes,20,opt,name=runner,proto3" json:"runner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageWindowAttribution) Reset() {
+	*x = UsageWindowAttribution{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[104]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageWindowAttribution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageWindowAttribution) ProtoMessage() {}
+
+func (x *UsageWindowAttribution) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[104]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageWindowAttribution.ProtoReflect.Descriptor instead.
+func (*UsageWindowAttribution) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{104}
+}
+
+func (x *UsageWindowAttribution) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetPool() string {
+	if x != nil {
+		return x.Pool
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetWindow() string {
+	if x != nil {
+		return x.Window
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetWindowMinutes() int64 {
+	if x != nil {
+		return x.WindowMinutes
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetWindowStart() string {
+	if x != nil {
+		return x.WindowStart
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetResetsAt() string {
+	if x != nil {
+		return x.ResetsAt
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetPeriodStart() string {
+	if x != nil {
+		return x.PeriodStart
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetPeriodEnd() string {
+	if x != nil {
+		return x.PeriodEnd
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetUsedPercent() float64 {
+	if x != nil {
+		return x.UsedPercent
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetObservedIncreasePoints() float64 {
+	if x != nil {
+		return x.ObservedIncreasePoints
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetAttributedPoints() float64 {
+	if x != nil {
+		return x.AttributedPoints
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetUnattributedPoints() float64 {
+	if x != nil {
+		return x.UnattributedPoints
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetGroupBy() string {
+	if x != nil {
+		return x.GroupBy
+	}
+	return ""
+}
+
+func (x *UsageWindowAttribution) GetBurners() []*UsageBurner {
+	if x != nil {
+		return x.Burners
+	}
+	return nil
+}
+
+func (x *UsageWindowAttribution) GetOtherBurners() int64 {
+	if x != nil {
+		return x.OtherBurners
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetOtherPoints() float64 {
+	if x != nil {
+		return x.OtherPoints
+	}
+	return 0
+}
+
+func (x *UsageWindowAttribution) GetCalibration() *UsageCalibration {
+	if x != nil {
+		return x.Calibration
+	}
+	return nil
+}
+
+func (x *UsageWindowAttribution) GetPendingTokens() *UsageTokens {
+	if x != nil {
+		return x.PendingTokens
+	}
+	return nil
+}
+
+func (x *UsageWindowAttribution) GetMeteredLines() []*UsageMeteredLine {
+	if x != nil {
+		return x.MeteredLines
+	}
+	return nil
+}
+
+func (x *UsageWindowAttribution) GetRunner() string {
+	if x != nil {
+		return x.Runner
+	}
+	return ""
+}
+
+type UsageBurnersResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Windows       []*UsageWindowAttribution `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	GeneratedAt   string                    `protobuf:"bytes,2,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	Validity      *MeasureValidity          `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance    *MeasureProvenance        `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId  string                    `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageBurnersResponse) Reset() {
+	*x = UsageBurnersResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageBurnersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageBurnersResponse) ProtoMessage() {}
+
+func (x *UsageBurnersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageBurnersResponse.ProtoReflect.Descriptor instead.
+func (*UsageBurnersResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *UsageBurnersResponse) GetWindows() []*UsageWindowAttribution {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+func (x *UsageBurnersResponse) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *UsageBurnersResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *UsageBurnersResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *UsageBurnersResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+type UsageRecommendationsRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Provider string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	// Keeps only recommendations whose evidence names this run.
+	RunId string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Default 20.
+	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageRecommendationsRequest) Reset() {
+	*x = UsageRecommendationsRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageRecommendationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageRecommendationsRequest) ProtoMessage() {}
+
+func (x *UsageRecommendationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageRecommendationsRequest.ProtoReflect.Descriptor instead.
+func (*UsageRecommendationsRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *UsageRecommendationsRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UsageRecommendationsRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *UsageRecommendationsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type UsageEvidenceRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// run | session | file | episode | image | profile | workload
+	Kind          string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageEvidenceRef) Reset() {
+	*x = UsageEvidenceRef{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageEvidenceRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageEvidenceRef) ProtoMessage() {}
+
+func (x *UsageEvidenceRef) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageEvidenceRef.ProtoReflect.Descriptor instead.
+func (*UsageEvidenceRef) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{107}
+}
+
+func (x *UsageEvidenceRef) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *UsageEvidenceRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UsageEvidenceRef) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+type UsageEvidenceMetric struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value float64                `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	// points | tokens | turns | calls | runs | ratio | hours | images
+	Unit          string `protobuf:"bytes,3,opt,name=unit,proto3" json:"unit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageEvidenceMetric) Reset() {
+	*x = UsageEvidenceMetric{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageEvidenceMetric) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageEvidenceMetric) ProtoMessage() {}
+
+func (x *UsageEvidenceMetric) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageEvidenceMetric.ProtoReflect.Descriptor instead.
+func (*UsageEvidenceMetric) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{108}
+}
+
+func (x *UsageEvidenceMetric) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UsageEvidenceMetric) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *UsageEvidenceMetric) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+// UsageRecommendation is one deterministic rule finding.
+type UsageRecommendation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Rank  int32                  `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
+	// R-model | R-context | R-fanout | R-friction | R-idle | R-image
+	Rule string `protobuf:"bytes,2,opt,name=rule,proto3" json:"rule,omitempty"`
+	// model | context | fanout | friction | idle | image
+	Lever string `protobuf:"bytes,3,opt,name=lever,proto3" json:"lever,omitempty"`
+	// session | run | profile | workload | image
+	TargetKind  string `protobuf:"bytes,4,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId    string `protobuf:"bytes,5,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	TargetLabel string `protobuf:"bytes,6,opt,name=target_label,json=targetLabel,proto3" json:"target_label,omitempty"`
+	Provider    string `protobuf:"bytes,7,opt,name=provider,proto3" json:"provider,omitempty"`
+	Pool        string `protobuf:"bytes,8,opt,name=pool,proto3" json:"pool,omitempty"`
+	Window      string `protobuf:"bytes,9,opt,name=window,proto3" json:"window,omitempty"`
+	// Estimated quota saved per week, in points of the named window.
+	EstWeeklyQuotaPointsSaved float64 `protobuf:"fixed64,10,opt,name=est_weekly_quota_points_saved,json=estWeeklyQuotaPointsSaved,proto3" json:"est_weekly_quota_points_saved,omitempty"`
+	// high | medium | low
+	Confidence string `protobuf:"bytes,11,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	Action     string `protobuf:"bytes,12,opt,name=action,proto3" json:"action,omitempty"`
+	Rationale  string `protobuf:"bytes,13,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	// The target's attributed points in the current window.
+	ConsumerPoints float64                `protobuf:"fixed64,14,opt,name=consumer_points,json=consumerPoints,proto3" json:"consumer_points,omitempty"`
+	EvidenceRefs   []*UsageEvidenceRef    `protobuf:"bytes,15,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
+	Metrics        []*UsageEvidenceMetric `protobuf:"bytes,16,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UsageRecommendation) Reset() {
+	*x = UsageRecommendation{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageRecommendation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageRecommendation) ProtoMessage() {}
+
+func (x *UsageRecommendation) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageRecommendation.ProtoReflect.Descriptor instead.
+func (*UsageRecommendation) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{109}
+}
+
+func (x *UsageRecommendation) GetRank() int32 {
+	if x != nil {
+		return x.Rank
+	}
+	return 0
+}
+
+func (x *UsageRecommendation) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetLever() string {
+	if x != nil {
+		return x.Lever
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetTargetLabel() string {
+	if x != nil {
+		return x.TargetLabel
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetPool() string {
+	if x != nil {
+		return x.Pool
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetWindow() string {
+	if x != nil {
+		return x.Window
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetEstWeeklyQuotaPointsSaved() float64 {
+	if x != nil {
+		return x.EstWeeklyQuotaPointsSaved
+	}
+	return 0
+}
+
+func (x *UsageRecommendation) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetRationale() string {
+	if x != nil {
+		return x.Rationale
+	}
+	return ""
+}
+
+func (x *UsageRecommendation) GetConsumerPoints() float64 {
+	if x != nil {
+		return x.ConsumerPoints
+	}
+	return 0
+}
+
+func (x *UsageRecommendation) GetEvidenceRefs() []*UsageEvidenceRef {
+	if x != nil {
+		return x.EvidenceRefs
+	}
+	return nil
+}
+
+func (x *UsageRecommendation) GetMetrics() []*UsageEvidenceMetric {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+// UsageRuleStatus reports whether a rule family fired and, when it did not,
+// why, from the data.
+type UsageRuleStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rule          string                 `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
+	Fired         bool                   `protobuf:"varint,2,opt,name=fired,proto3" json:"fired,omitempty"`
+	Rows          int64                  `protobuf:"varint,3,opt,name=rows,proto3" json:"rows,omitempty"`
+	Candidates    int64                  `protobuf:"varint,4,opt,name=candidates,proto3" json:"candidates,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageRuleStatus) Reset() {
+	*x = UsageRuleStatus{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageRuleStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageRuleStatus) ProtoMessage() {}
+
+func (x *UsageRuleStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageRuleStatus.ProtoReflect.Descriptor instead.
+func (*UsageRuleStatus) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{110}
+}
+
+func (x *UsageRuleStatus) GetRule() string {
+	if x != nil {
+		return x.Rule
+	}
+	return ""
+}
+
+func (x *UsageRuleStatus) GetFired() bool {
+	if x != nil {
+		return x.Fired
+	}
+	return false
+}
+
+func (x *UsageRuleStatus) GetRows() int64 {
+	if x != nil {
+		return x.Rows
+	}
+	return 0
+}
+
+func (x *UsageRuleStatus) GetCandidates() int64 {
+	if x != nil {
+		return x.Candidates
+	}
+	return 0
+}
+
+func (x *UsageRuleStatus) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type UsageRecommendationsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ranked by est_weekly_quota_points_saved, largest first.
+	Recommendations []*UsageRecommendation `protobuf:"bytes,1,rep,name=recommendations,proto3" json:"recommendations,omitempty"`
+	Rules           []*UsageRuleStatus     `protobuf:"bytes,2,rep,name=rules,proto3" json:"rules,omitempty"`
+	GeneratedAt     string                 `protobuf:"bytes,3,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	// The session key with the most attributed points across current windows.
+	DominantConsumer      string             `protobuf:"bytes,4,opt,name=dominant_consumer,json=dominantConsumer,proto3" json:"dominant_consumer,omitempty"`
+	DominantConsumerLabel string             `protobuf:"bytes,5,opt,name=dominant_consumer_label,json=dominantConsumerLabel,proto3" json:"dominant_consumer_label,omitempty"`
+	Validity              *MeasureValidity   `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance            *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId          string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UsageRecommendationsResponse) Reset() {
+	*x = UsageRecommendationsResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[111]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageRecommendationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageRecommendationsResponse) ProtoMessage() {}
+
+func (x *UsageRecommendationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[111]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageRecommendationsResponse.ProtoReflect.Descriptor instead.
+func (*UsageRecommendationsResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{111}
+}
+
+func (x *UsageRecommendationsResponse) GetRecommendations() []*UsageRecommendation {
+	if x != nil {
+		return x.Recommendations
+	}
+	return nil
+}
+
+func (x *UsageRecommendationsResponse) GetRules() []*UsageRuleStatus {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+func (x *UsageRecommendationsResponse) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *UsageRecommendationsResponse) GetDominantConsumer() string {
+	if x != nil {
+		return x.DominantConsumer
+	}
+	return ""
+}
+
+func (x *UsageRecommendationsResponse) GetDominantConsumerLabel() string {
+	if x != nil {
+		return x.DominantConsumerLabel
+	}
+	return ""
+}
+
+func (x *UsageRecommendationsResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *UsageRecommendationsResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *UsageRecommendationsResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+type UsageCoverageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// RFC 3339; empty means 7 days ago.
+	Since         string `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageCoverageRequest) Reset() {
+	*x = UsageCoverageRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[112]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCoverageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCoverageRequest) ProtoMessage() {}
+
+func (x *UsageCoverageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[112]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCoverageRequest.ProtoReflect.Descriptor instead.
+func (*UsageCoverageRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{112}
+}
+
+func (x *UsageCoverageRequest) GetSince() string {
+	if x != nil {
+		return x.Since
+	}
+	return ""
+}
+
+type UsageCoverageIssue struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageCoverageIssue) Reset() {
+	*x = UsageCoverageIssue{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[113]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCoverageIssue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCoverageIssue) ProtoMessage() {}
+
+func (x *UsageCoverageIssue) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[113]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCoverageIssue.ProtoReflect.Descriptor instead.
+func (*UsageCoverageIssue) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{113}
+}
+
+func (x *UsageCoverageIssue) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *UsageCoverageIssue) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// UsageCoverageRoot counts one transcript root kind. Captured files are
+// indexed or owned by the Agent Manager run that reads them.
+type UsageCoverageRoot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// web-console-codex-home | codex-home | claude-home | agent-manager-run-home | configured | total
+	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// codex | claude-code | mixed
+	Harness       string `protobuf:"bytes,2,opt,name=harness,proto3" json:"harness,omitempty"`
+	Files         int64  `protobuf:"varint,3,opt,name=files,proto3" json:"files,omitempty"`
+	Indexed       int64  `protobuf:"varint,4,opt,name=indexed,proto3" json:"indexed,omitempty"`
+	WithUsage     int64  `protobuf:"varint,5,opt,name=with_usage,json=withUsage,proto3" json:"with_usage,omitempty"`
+	Owned         int64  `protobuf:"varint,6,opt,name=owned,proto3" json:"owned,omitempty"`
+	Excluded      int64  `protobuf:"varint,7,opt,name=excluded,proto3" json:"excluded,omitempty"`
+	Pending       int64  `protobuf:"varint,8,opt,name=pending,proto3" json:"pending,omitempty"`
+	Unreadable    int64  `protobuf:"varint,9,opt,name=unreadable,proto3" json:"unreadable,omitempty"`
+	Bytes         int64  `protobuf:"varint,10,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	CapturedBytes int64  `protobuf:"varint,11,opt,name=captured_bytes,json=capturedBytes,proto3" json:"captured_bytes,omitempty"`
+	// captured_bytes / bytes; 1 when there are no bytes.
+	CapturedShare float64 `protobuf:"fixed64,12,opt,name=captured_share,json=capturedShare,proto3" json:"captured_share,omitempty"`
+	// Provider turns and usage reports read from captured files.
+	Turns        int64 `protobuf:"varint,13,opt,name=turns,proto3" json:"turns,omitempty"`
+	UsageReports int64 `protobuf:"varint,14,opt,name=usage_reports,json=usageReports,proto3" json:"usage_reports,omitempty"`
+	// At most 50 per root.
+	Issues        []*UsageCoverageIssue `protobuf:"bytes,15,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageCoverageRoot) Reset() {
+	*x = UsageCoverageRoot{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[114]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCoverageRoot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCoverageRoot) ProtoMessage() {}
+
+func (x *UsageCoverageRoot) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[114]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCoverageRoot.ProtoReflect.Descriptor instead.
+func (*UsageCoverageRoot) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{114}
+}
+
+func (x *UsageCoverageRoot) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *UsageCoverageRoot) GetHarness() string {
+	if x != nil {
+		return x.Harness
+	}
+	return ""
+}
+
+func (x *UsageCoverageRoot) GetFiles() int64 {
+	if x != nil {
+		return x.Files
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetIndexed() int64 {
+	if x != nil {
+		return x.Indexed
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetWithUsage() int64 {
+	if x != nil {
+		return x.WithUsage
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetOwned() int64 {
+	if x != nil {
+		return x.Owned
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetExcluded() int64 {
+	if x != nil {
+		return x.Excluded
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetPending() int64 {
+	if x != nil {
+		return x.Pending
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetUnreadable() int64 {
+	if x != nil {
+		return x.Unreadable
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetCapturedBytes() int64 {
+	if x != nil {
+		return x.CapturedBytes
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetCapturedShare() float64 {
+	if x != nil {
+		return x.CapturedShare
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetTurns() int64 {
+	if x != nil {
+		return x.Turns
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetUsageReports() int64 {
+	if x != nil {
+		return x.UsageReports
+	}
+	return 0
+}
+
+func (x *UsageCoverageRoot) GetIssues() []*UsageCoverageIssue {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+type UsageCoverageResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Since  string                 `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	Roots  []*UsageCoverageRoot   `protobuf:"bytes,2,rep,name=roots,proto3" json:"roots,omitempty"`
+	Totals *UsageCoverageRoot     `protobuf:"bytes,3,opt,name=totals,proto3" json:"totals,omitempty"`
+	// How to check this report against an independent scan of the disk.
+	Method        string             `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`
+	GeneratedAt   string             `protobuf:"bytes,5,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	Provenance    *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId  string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageCoverageResponse) Reset() {
+	*x = UsageCoverageResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[115]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCoverageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCoverageResponse) ProtoMessage() {}
+
+func (x *UsageCoverageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[115]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCoverageResponse.ProtoReflect.Descriptor instead.
+func (*UsageCoverageResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{115}
+}
+
+func (x *UsageCoverageResponse) GetSince() string {
+	if x != nil {
+		return x.Since
+	}
+	return ""
+}
+
+func (x *UsageCoverageResponse) GetRoots() []*UsageCoverageRoot {
+	if x != nil {
+		return x.Roots
+	}
+	return nil
+}
+
+func (x *UsageCoverageResponse) GetTotals() *UsageCoverageRoot {
+	if x != nil {
+		return x.Totals
+	}
+	return nil
+}
+
+func (x *UsageCoverageResponse) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *UsageCoverageResponse) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *UsageCoverageResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *UsageCoverageResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+type UsageCompareRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Left  *CohortSelector        `protobuf:"bytes,1,opt,name=left,proto3" json:"left,omitempty"`
+	Right *CohortSelector        `protobuf:"bytes,2,opt,name=right,proto3" json:"right,omitempty"`
+	// Labels the change between the populations; echoed, never interpreted.
+	ChangeBinding string `protobuf:"bytes,3,opt,name=change_binding,json=changeBinding,proto3" json:"change_binding,omitempty"`
+	// Provider whose calibration prices the tokens; empty uses each run's own.
+	Provider      string `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageCompareRequest) Reset() {
+	*x = UsageCompareRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[116]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCompareRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCompareRequest) ProtoMessage() {}
+
+func (x *UsageCompareRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[116]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCompareRequest.ProtoReflect.Descriptor instead.
+func (*UsageCompareRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{116}
+}
+
+func (x *UsageCompareRequest) GetLeft() *CohortSelector {
+	if x != nil {
+		return x.Left
+	}
+	return nil
+}
+
+func (x *UsageCompareRequest) GetRight() *CohortSelector {
+	if x != nil {
+		return x.Right
+	}
+	return nil
+}
+
+func (x *UsageCompareRequest) GetChangeBinding() string {
+	if x != nil {
+		return x.ChangeBinding
+	}
+	return ""
+}
+
+func (x *UsageCompareRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+// UsageCompareSide is one cohort's quota per successful workload unit.
+type UsageCompareSide struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Runs           int64                  `protobuf:"varint,1,opt,name=runs,proto3" json:"runs,omitempty"`
+	SuccessfulRuns int64                  `protobuf:"varint,2,opt,name=successful_runs,json=successfulRuns,proto3" json:"successful_runs,omitempty"`
+	// Runs with usage priced by a calibrated window.
+	PricedRuns     int64        `protobuf:"varint,3,opt,name=priced_runs,json=pricedRuns,proto3" json:"priced_runs,omitempty"`
+	Tokens         *UsageTokens `protobuf:"bytes,4,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	WeightedTokens float64      `protobuf:"fixed64,5,opt,name=weighted_tokens,json=weightedTokens,proto3" json:"weighted_tokens,omitempty"`
+	// Estimated quota points (approximate).
+	Points           float64 `protobuf:"fixed64,6,opt,name=points,proto3" json:"points,omitempty"`
+	PointsPerSuccess float64 `protobuf:"fixed64,7,opt,name=points_per_success,json=pointsPerSuccess,proto3" json:"points_per_success,omitempty"`
+	TokensPerSuccess float64 `protobuf:"fixed64,8,opt,name=tokens_per_success,json=tokensPerSuccess,proto3" json:"tokens_per_success,omitempty"`
+	SuccessRate      float64 `protobuf:"fixed64,9,opt,name=success_rate,json=successRate,proto3" json:"success_rate,omitempty"`
+	WindowStart      string  `protobuf:"bytes,10,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	WindowEnd        string  `protobuf:"bytes,11,opt,name=window_end,json=windowEnd,proto3" json:"window_end,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UsageCompareSide) Reset() {
+	*x = UsageCompareSide{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[117]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCompareSide) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCompareSide) ProtoMessage() {}
+
+func (x *UsageCompareSide) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[117]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCompareSide.ProtoReflect.Descriptor instead.
+func (*UsageCompareSide) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{117}
+}
+
+func (x *UsageCompareSide) GetRuns() int64 {
+	if x != nil {
+		return x.Runs
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetSuccessfulRuns() int64 {
+	if x != nil {
+		return x.SuccessfulRuns
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetPricedRuns() int64 {
+	if x != nil {
+		return x.PricedRuns
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetTokens() *UsageTokens {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
+func (x *UsageCompareSide) GetWeightedTokens() float64 {
+	if x != nil {
+		return x.WeightedTokens
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetPoints() float64 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetPointsPerSuccess() float64 {
+	if x != nil {
+		return x.PointsPerSuccess
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetTokensPerSuccess() float64 {
+	if x != nil {
+		return x.TokensPerSuccess
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetSuccessRate() float64 {
+	if x != nil {
+		return x.SuccessRate
+	}
+	return 0
+}
+
+func (x *UsageCompareSide) GetWindowStart() string {
+	if x != nil {
+		return x.WindowStart
+	}
+	return ""
+}
+
+func (x *UsageCompareSide) GetWindowEnd() string {
+	if x != nil {
+		return x.WindowEnd
+	}
+	return ""
+}
+
+type UsageCompareResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Left          *UsageCompareSide      `protobuf:"bytes,1,opt,name=left,proto3" json:"left,omitempty"`
+	Right         *UsageCompareSide      `protobuf:"bytes,2,opt,name=right,proto3" json:"right,omitempty"`
+	ChangeBinding string                 `protobuf:"bytes,3,opt,name=change_binding,json=changeBinding,proto3" json:"change_binding,omitempty"`
+	// right.points_per_success / left.points_per_success - 1; negative is better.
+	PointsPerSuccessChange float64 `protobuf:"fixed64,4,opt,name=points_per_success_change,json=pointsPerSuccessChange,proto3" json:"points_per_success_change,omitempty"`
+	// improved | regressed | unchanged | insufficient
+	Verdict       string             `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Caveats       []string           `protobuf:"bytes,6,rep,name=caveats,proto3" json:"caveats,omitempty"`
+	Validity      *MeasureValidity   `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance    *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId  string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageCompareResponse) Reset() {
+	*x = UsageCompareResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[118]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageCompareResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageCompareResponse) ProtoMessage() {}
+
+func (x *UsageCompareResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[118]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageCompareResponse.ProtoReflect.Descriptor instead.
+func (*UsageCompareResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{118}
+}
+
+func (x *UsageCompareResponse) GetLeft() *UsageCompareSide {
+	if x != nil {
+		return x.Left
+	}
+	return nil
+}
+
+func (x *UsageCompareResponse) GetRight() *UsageCompareSide {
+	if x != nil {
+		return x.Right
+	}
+	return nil
+}
+
+func (x *UsageCompareResponse) GetChangeBinding() string {
+	if x != nil {
+		return x.ChangeBinding
+	}
+	return ""
+}
+
+func (x *UsageCompareResponse) GetPointsPerSuccessChange() float64 {
+	if x != nil {
+		return x.PointsPerSuccessChange
+	}
+	return 0
+}
+
+func (x *UsageCompareResponse) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *UsageCompareResponse) GetCaveats() []string {
+	if x != nil {
+		return x.Caveats
+	}
+	return nil
+}
+
+func (x *UsageCompareResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *UsageCompareResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *UsageCompareResponse) GetDefinitionId() string {
 	if x != nil {
 		return x.DefinitionId
 	}
@@ -6941,11 +11286,18 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
-	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xa8\x01\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xbe\x01\n" +
+	"\x0eCohortSelector\x126\n" +
+	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
+	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\x12\x16\n" +
+	"\x06cohort\x18\x04 \x01(\tR\x06cohort\x12\x17\n" +
+	"\arun_ids\x18\x05 \x03(\tR\x06runIds\"\xd9\x01\n" +
 	"\x13SelectCohortRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
 	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x86\x04\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cohort\x18\x04 \x01(\tR\x06cohort\x12\x17\n" +
+	"\arun_ids\x18\x05 \x03(\tR\x06runIds\"\x86\x04\n" +
 	"\tCohortRun\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1d\n" +
 	"\n" +
@@ -6977,11 +11329,13 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
-	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xa9\x01\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xda\x01\n" +
 	"\x14EpisodeCohortRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
 	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\xfa\x01\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cohort\x18\x04 \x01(\tR\x06cohort\x12\x17\n" +
+	"\arun_ids\x18\x05 \x03(\tR\x06runIds\"\xfa\x01\n" +
 	"\x13EpisodeCohortSignal\x12 \n" +
 	"\vfingerprint\x18\x01 \x01(\tR\vfingerprint\x12 \n" +
 	"\voccurrences\x18\x02 \x01(\x03R\voccurrences\x12#\n" +
@@ -7000,7 +11354,434 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
-	"\rdefinition_id\x18f \x01(\tR\fdefinitionId2\x98\x1c\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xd9\x01\n" +
+	"\x13CohortReportRequest\x126\n" +
+	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
+	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cohort\x18\x04 \x01(\tR\x06cohort\x12\x17\n" +
+	"\arun_ids\x18\x05 \x03(\tR\x06runIds\"\xac\x01\n" +
+	"\x12CohortReportSignal\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\x12\x16\n" +
+	"\x06impact\x18\x03 \x01(\x03R\x06impact\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x04 \x01(\tR\n" +
+	"confidence\x124\n" +
+	"\x16representative_run_ids\x18\x05 \x03(\tR\x14representativeRunIds\"\xb0\x03\n" +
+	"\x14CohortTimeAccounting\x12.\n" +
+	"\x13model_generating_ms\x18\x01 \x01(\x03R\x11modelGeneratingMs\x12*\n" +
+	"\x11tool_executing_ms\x18\x02 \x01(\x03R\x0ftoolExecutingMs\x12&\n" +
+	"\x0fidle_waiting_ms\x18\x03 \x01(\x03R\ridleWaitingMs\x12*\n" +
+	"\x11awaiting_human_ms\x18\x04 \x01(\x03R\x0fawaitingHumanMs\x12+\n" +
+	"\x11unattributable_ms\x18\x05 \x01(\x03R\x10unattributableMs\x12!\n" +
+	"\fmodel_tokens\x18\x06 \x01(\x03R\vmodelTokens\x12\x1f\n" +
+	"\vtool_tokens\x18\a \x01(\x03R\n" +
+	"toolTokens\x12\x1f\n" +
+	"\vidle_tokens\x18\b \x01(\x03R\n" +
+	"idleTokens\x12!\n" +
+	"\fhuman_tokens\x18\t \x01(\x03R\vhumanTokens\x123\n" +
+	"\x15unattributable_tokens\x18\n" +
+	" \x01(\x03R\x14unattributableTokens\"\x93\x01\n" +
+	"\x18CohortInvocationValidity\x12\x1f\n" +
+	"\vtotal_calls\x18\x01 \x01(\x03R\n" +
+	"totalCalls\x12'\n" +
+	"\x0fclassified_base\x18\x02 \x01(\x03R\x0eclassifiedBase\x12-\n" +
+	"\x12unclassified_count\x18\x03 \x01(\x03R\x11unclassifiedCount\"\xdc\x03\n" +
+	"\x15CohortGoalProgression\x12-\n" +
+	"\x12availability_state\x18\x01 \x01(\tR\x11availabilityState\x12/\n" +
+	"\x13availability_reason\x18\x02 \x01(\tR\x12availabilityReason\x12\x1b\n" +
+	"\tgoal_runs\x18\x03 \x01(\x03R\bgoalRuns\x12\x19\n" +
+	"\bmet_runs\x18\x04 \x01(\x03R\ametRuns\x12=\n" +
+	"\x1caverage_time_to_first_met_ms\x18\x05 \x01(\x01R\x17averageTimeToFirstMetMs\x12<\n" +
+	"\x1baverage_tokens_to_first_met\x18\x06 \x01(\x01R\x17averageTokensToFirstMet\x128\n" +
+	"\x18interventions_before_met\x18\a \x01(\x03R\x16interventionsBeforeMet\x12.\n" +
+	"\x13handoffs_before_met\x18\b \x01(\x03R\x11handoffsBeforeMet\x12 \n" +
+	"\vregressions\x18\t \x01(\x03R\vregressions\x12\"\n" +
+	"\frestatements\x18\n" +
+	" \x01(\x03R\frestatements\"\xe6\x05\n" +
+	"\x14CohortReportResponse\x12-\n" +
+	"\x12classifier_version\x18\x01 \x01(\tR\x11classifierVersion\x12\x17\n" +
+	"\arun_ids\x18\x02 \x03(\tR\x06runIds\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x12-\n" +
+	"\x12availability_state\x18\x04 \x01(\tR\x11availabilityState\x12/\n" +
+	"\x13availability_reason\x18\x05 \x01(\tR\x12availabilityReason\x12G\n" +
+	"\asignals\x18\x06 \x03(\v2-.agent_manager.v1.measures.CohortReportSignalR\asignals\x12X\n" +
+	"\x0ftime_accounting\x18\a \x01(\v2/.agent_manager.v1.measures.CohortTimeAccountingR\x0etimeAccounting\x12d\n" +
+	"\x13invocation_validity\x18\b \x01(\v23.agent_manager.v1.measures.CohortInvocationValidityR\x12invocationValidity\x12D\n" +
+	"\x04goal\x18\t \x01(\v20.agent_manager.v1.measures.CohortGoalProgressionR\x04goal\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xdb\x01\n" +
+	"\x1cCompareEpisodeCohortsRequest\x12=\n" +
+	"\x04left\x18\x01 \x01(\v2).agent_manager.v1.measures.CohortSelectorR\x04left\x12?\n" +
+	"\x05right\x18\x02 \x01(\v2).agent_manager.v1.measures.CohortSelectorR\x05right\x12%\n" +
+	"\x0echange_binding\x18\x03 \x01(\tR\rchangeBinding\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x86\x03\n" +
+	"\x17EpisodeComparisonSignal\x12 \n" +
+	"\vfingerprint\x18\x01 \x01(\tR\vfingerprint\x12)\n" +
+	"\x10left_occurrences\x18\x02 \x01(\x03R\x0fleftOccurrences\x12+\n" +
+	"\x11right_occurrences\x18\x03 \x01(\x03R\x10rightOccurrences\x12,\n" +
+	"\x12left_distinct_runs\x18\x04 \x01(\x03R\x10leftDistinctRuns\x12.\n" +
+	"\x13right_distinct_runs\x18\x05 \x01(\x03R\x11rightDistinctRuns\x12 \n" +
+	"\fleft_cost_ms\x18\x06 \x01(\x03R\n" +
+	"leftCostMs\x12\"\n" +
+	"\rright_cost_ms\x18\a \x01(\x03R\vrightCostMs\x12)\n" +
+	"\x10occurrence_delta\x18\b \x01(\x03R\x0foccurrenceDelta\x12\"\n" +
+	"\rcost_delta_ms\x18\t \x01(\x03R\vcostDeltaMs\"\xb2\x04\n" +
+	"\x1dCompareEpisodeCohortsResponse\x12-\n" +
+	"\x12classifier_version\x18\x01 \x01(\tR\x11classifierVersion\x12%\n" +
+	"\x0echange_binding\x18\x02 \x01(\tR\rchangeBinding\x12'\n" +
+	"\x0fleft_population\x18\x03 \x01(\x03R\x0eleftPopulation\x12)\n" +
+	"\x10right_population\x18\x04 \x01(\x03R\x0frightPopulation\x12-\n" +
+	"\x12availability_state\x18\x05 \x01(\tR\x11availabilityState\x12/\n" +
+	"\x13availability_reason\x18\x06 \x01(\tR\x12availabilityReason\x12L\n" +
+	"\asignals\x18\a \x03(\v22.agent_manager.v1.measures.EpisodeComparisonSignalR\asignals\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"2\n" +
+	"\x14UsageForecastRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\"\xa6\x01\n" +
+	"\rUsageBurnRate\x12\x18\n" +
+	"\ahorizon\x18\x01 \x01(\tR\ahorizon\x12\x1c\n" +
+	"\tavailable\x18\x02 \x01(\bR\tavailable\x12(\n" +
+	"\x10percent_per_hour\x18\x03 \x01(\x01R\x0epercentPerHour\x12\x1d\n" +
+	"\n" +
+	"span_hours\x18\x04 \x01(\x01R\tspanHours\x12\x14\n" +
+	"\x05stale\x18\x05 \x01(\bR\x05stale\"F\n" +
+	"\x11UsagePercentPoint\x12\x0e\n" +
+	"\x02at\x18\x01 \x01(\tR\x02at\x12!\n" +
+	"\fused_percent\x18\x02 \x01(\x01R\vusedPercent\"\x9d\t\n" +
+	"\x13UsageWindowForecast\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04pool\x18\x02 \x01(\tR\x04pool\x12\x16\n" +
+	"\x06window\x18\x03 \x01(\tR\x06window\x12%\n" +
+	"\x0ewindow_minutes\x18\x04 \x01(\x03R\rwindowMinutes\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12#\n" +
+	"\rstatus_reason\x18\x06 \x01(\tR\fstatusReason\x12\x1f\n" +
+	"\vhas_percent\x18\a \x01(\bR\n" +
+	"hasPercent\x12!\n" +
+	"\fused_percent\x18\b \x01(\x01R\vusedPercent\x12\x1a\n" +
+	"\bstanding\x18\t \x01(\tR\bstanding\x12!\n" +
+	"\fwindow_start\x18\n" +
+	" \x01(\tR\vwindowStart\x12\x1b\n" +
+	"\tresets_at\x18\v \x01(\tR\bresetsAt\x12\x1f\n" +
+	"\vobserved_at\x18\f \x01(\tR\n" +
+	"observedAt\x12!\n" +
+	"\fsample_count\x18\r \x01(\x03R\vsampleCount\x12<\n" +
+	"\x04burn\x18\x0e \x03(\v2(.agent_manager.v1.measures.UsageBurnRateR\x04burn\x127\n" +
+	"\x18central_percent_per_hour\x18\x0f \x01(\x01R\x15centralPercentPerHour\x126\n" +
+	"\x17projected_exhaustion_at\x18\x10 \x01(\tR\x15projectedExhaustionAt\x122\n" +
+	"\x15exhaustion_band_start\x18\x11 \x01(\tR\x13exhaustionBandStart\x12.\n" +
+	"\x13exhaustion_band_end\x18\x12 \x01(\tR\x11exhaustionBandEnd\x127\n" +
+	"\x18lasting_percent_per_hour\x18\x13 \x01(\x01R\x15lastingPercentPerHour\x12\x1f\n" +
+	"\vearly_reset\x18\x14 \x01(\bR\n" +
+	"earlyReset\x12,\n" +
+	"\x12previous_resets_at\x18\x15 \x01(\tR\x10previousResetsAt\x124\n" +
+	"\x16previous_final_percent\x18\x16 \x01(\x01R\x14previousFinalPercent\x12*\n" +
+	"\x11previous_ended_at\x18\x17 \x01(\tR\x0fpreviousEndedAt\x12D\n" +
+	"\x06series\x18\x18 \x03(\v2,.agent_manager.v1.measures.UsagePercentPointR\x06series\x120\n" +
+	"\x14last_reading_percent\x18\x1a \x01(\x01R\x12lastReadingPercent\x12-\n" +
+	"\x12calibration_factor\x18\x1b \x01(\x01R\x11calibrationFactor\x12/\n" +
+	"\x13calibration_windows\x18\x1c \x01(\x03R\x12calibrationWindowsJ\x04\b\x19\x10\x1aR\x1bvolatility_percent_per_hour\"\xf7\x01\n" +
+	"\x15UsageForecastResponse\x12H\n" +
+	"\awindows\x18\x01 \x03(\v2..agent_manager.v1.measures.UsageWindowForecastR\awindows\x12!\n" +
+	"\fgenerated_at\x18\x02 \x01(\tR\vgeneratedAt\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\":\n" +
+	"\x1cUsageForecastBacktestRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\"\xc7\x06\n" +
+	"\x17UsageBacktestCheckpoint\x12)\n" +
+	"\x10elapsed_fraction\x18\x01 \x01(\x01R\x0felapsedFraction\x12\x13\n" +
+	"\x05as_of\x18\x02 \x01(\tR\x04asOf\x12&\n" +
+	"\x0fused_percent_at\x18\x03 \x01(\x01R\rusedPercentAt\x126\n" +
+	"\x17predicted_final_percent\x18\x04 \x01(\x01R\x15predictedFinalPercent\x12G\n" +
+	" baseline_predicted_final_percent\x18\x05 \x01(\x01R\x1dbaselinePredictedFinalPercent\x12(\n" +
+	"\x10abs_error_points\x18\x06 \x01(\x01R\x0eabsErrorPoints\x129\n" +
+	"\x19baseline_abs_error_points\x18\a \x01(\x01R\x16baselineAbsErrorPoints\x126\n" +
+	"\x17predicted_exhaustion_at\x18\b \x01(\tR\x15predictedExhaustionAt\x12G\n" +
+	" baseline_predicted_exhaustion_at\x18\t \x01(\tR\x1dbaselinePredictedExhaustionAt\x12+\n" +
+	"\x0fabs_error_hours\x18\n" +
+	" \x01(\x01H\x00R\rabsErrorHours\x88\x01\x01\x12<\n" +
+	"\x18baseline_abs_error_hours\x18\v \x01(\x01H\x01R\x15baselineAbsErrorHours\x88\x01\x01\x12'\n" +
+	"\x0foutcome_correct\x18\f \x01(\bR\x0eoutcomeCorrect\x128\n" +
+	"\x18baseline_outcome_correct\x18\r \x01(\bR\x16baselineOutcomeCorrect\x12-\n" +
+	"\x12calibration_factor\x18\x0e \x01(\x01R\x11calibrationFactor\x12/\n" +
+	"\x13calibration_windows\x18\x0f \x01(\x03R\x12calibrationWindowsB\x12\n" +
+	"\x10_abs_error_hoursB\x1b\n" +
+	"\x19_baseline_abs_error_hours\"\xb1\x03\n" +
+	"\x13UsageBacktestWindow\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04pool\x18\x02 \x01(\tR\x04pool\x12\x16\n" +
+	"\x06window\x18\x03 \x01(\tR\x06window\x12!\n" +
+	"\fwindow_start\x18\x04 \x01(\tR\vwindowStart\x12\x19\n" +
+	"\bended_at\x18\x05 \x01(\tR\aendedAt\x12\x1b\n" +
+	"\tresets_at\x18\x06 \x01(\tR\bresetsAt\x12\x1f\n" +
+	"\vearly_reset\x18\a \x01(\bR\n" +
+	"earlyReset\x12#\n" +
+	"\rfinal_percent\x18\b \x01(\x01R\ffinalPercent\x120\n" +
+	"\x14actual_exhaustion_at\x18\t \x01(\tR\x12actualExhaustionAt\x12T\n" +
+	"\vcheckpoints\x18\n" +
+	" \x03(\v22.agent_manager.v1.measures.UsageBacktestCheckpointR\vcheckpoints\x12)\n" +
+	"\x10outcome_observed\x18\v \x01(\bR\x0foutcomeObserved\"\xb1\x04\n" +
+	"\x14UsageBacktestSummary\x12\x1e\n" +
+	"\n" +
+	"population\x18\v \x01(\tR\n" +
+	"population\x12)\n" +
+	"\x10elapsed_fraction\x18\x01 \x01(\x01R\x0felapsedFraction\x12\x18\n" +
+	"\awindows\x18\x02 \x01(\x03R\awindows\x125\n" +
+	"\x17median_abs_error_points\x18\x03 \x01(\x01R\x14medianAbsErrorPoints\x12F\n" +
+	" baseline_median_abs_error_points\x18\x04 \x01(\x01R\x1cbaselineMedianAbsErrorPoints\x12,\n" +
+	"\x12hour_error_windows\x18\x05 \x01(\x03R\x10hourErrorWindows\x123\n" +
+	"\x16median_abs_error_hours\x18\x06 \x01(\x01R\x13medianAbsErrorHours\x12D\n" +
+	"\x1fbaseline_median_abs_error_hours\x18\a \x01(\x01R\x1bbaselineMedianAbsErrorHours\x12)\n" +
+	"\x10outcome_accuracy\x18\b \x01(\x01R\x0foutcomeAccuracy\x12:\n" +
+	"\x19baseline_outcome_accuracy\x18\t \x01(\x01R\x17baselineOutcomeAccuracy\x12%\n" +
+	"\x0ebeats_baseline\x18\n" +
+	" \x01(\bR\rbeatsBaseline\"\xc2\x03\n" +
+	"\x1dUsageForecastBacktestResponse\x12H\n" +
+	"\awindows\x18\x01 \x03(\v2..agent_manager.v1.measures.UsageBacktestWindowR\awindows\x12M\n" +
+	"\tsummaries\x18\x02 \x03(\v2/.agent_manager.v1.measures.UsageBacktestSummaryR\tsummaries\x12\x1e\n" +
+	"\n" +
+	"limitation\x18\x03 \x01(\tR\n" +
+	"limitation\x12-\n" +
+	"\x12unobserved_windows\x18\x04 \x01(\x03R\x11unobservedWindows\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\x8f\x01\n" +
+	"\x13UsageBurnersRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x19\n" +
+	"\bgroup_by\x18\x02 \x01(\tR\agroupBy\x12\x14\n" +
+	"\x05since\x18\x03 \x01(\tR\x05since\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x14\n" +
+	"\x05limit\x18\x05 \x01(\x05R\x05limit\"\x9b\x01\n" +
+	"\vUsageTokens\x12\x14\n" +
+	"\x05input\x18\x01 \x01(\x03R\x05input\x12!\n" +
+	"\fcached_input\x18\x02 \x01(\x03R\vcachedInput\x12%\n" +
+	"\x0ecache_creation\x18\x03 \x01(\x03R\rcacheCreation\x12\x16\n" +
+	"\x06output\x18\x04 \x01(\x03R\x06output\x12\x14\n" +
+	"\x05total\x18\x05 \x01(\x03R\x05total\">\n" +
+	"\x12UsageToolKindCount\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05calls\x18\x02 \x01(\x03R\x05calls\"\xd7\x03\n" +
+	"\rUsageModality\x12\x1b\n" +
+	"\timages_in\x18\x01 \x01(\x03R\bimagesIn\x12$\n" +
+	"\x0eimages_in_user\x18\x02 \x01(\x03R\fimagesInUser\x121\n" +
+	"\x15images_in_high_detail\x18\x03 \x01(\x03R\x12imagesInHighDetail\x12$\n" +
+	"\x0eimage_bytes_in\x18\x04 \x01(\x03R\fimageBytesIn\x12?\n" +
+	"\x1cestimated_image_input_tokens\x18\x05 \x01(\x03R\x19estimatedImageInputTokens\x12\x1d\n" +
+	"\n" +
+	"images_out\x18\x06 \x01(\x03R\timagesOut\x12!\n" +
+	"\fweb_searches\x18\a \x01(\x03R\vwebSearches\x12\x1f\n" +
+	"\vweb_fetches\x18\b \x01(\x03R\n" +
+	"webFetches\x12\x19\n" +
+	"\baudio_in\x18\t \x01(\x03R\aaudioIn\x12\x1d\n" +
+	"\n" +
+	"tool_calls\x18\n" +
+	" \x01(\x03R\ttoolCalls\x12L\n" +
+	"\n" +
+	"tool_kinds\x18\v \x03(\v2-.agent_manager.v1.measures.UsageToolKindCountR\ttoolKinds\"\xa6\x04\n" +
+	"\vUsageBurner\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n" +
+	"\x06points\x18\x03 \x01(\x01R\x06points\x12\x14\n" +
+	"\x05share\x18\x04 \x01(\x01R\x05share\x12>\n" +
+	"\x06tokens\x18\x05 \x01(\v2&.agent_manager.v1.measures.UsageTokensR\x06tokens\x12'\n" +
+	"\x0fweighted_tokens\x18\x06 \x01(\x01R\x0eweightedTokens\x12\x1a\n" +
+	"\bsessions\x18\a \x01(\x03R\bsessions\x12\x12\n" +
+	"\x04runs\x18\b \x01(\x03R\x04runs\x12\x14\n" +
+	"\x05turns\x18\t \x01(\x03R\x05turns\x12\x17\n" +
+	"\arun_ids\x18\n" +
+	" \x03(\tR\x06runIds\x12\x16\n" +
+	"\x06runner\x18\v \x01(\tR\x06runner\x12\x14\n" +
+	"\x05model\x18\f \x01(\tR\x05model\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\r \x01(\tR\tprofileId\x12\x1a\n" +
+	"\bworkload\x18\x0e \x01(\tR\bworkload\x12\x19\n" +
+	"\bfirst_at\x18\x0f \x01(\tR\afirstAt\x12\x17\n" +
+	"\alast_at\x18\x10 \x01(\tR\x06lastAt\x12D\n" +
+	"\bmodality\x18\x11 \x01(\v2(.agent_manager.v1.measures.UsageModalityR\bmodality\x12\x16\n" +
+	"\x06source\x18\x12 \x01(\tR\x06source\"\xae\x02\n" +
+	"\x10UsageModelWeight\x12\x16\n" +
+	"\x06runner\x18\x01 \x01(\tR\x06runner\x12\x14\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12@\n" +
+	"\x1dcached_input_tokens_per_point\x18\x03 \x01(\x01R\x19cachedInputTokensPerPoint\x12!\n" +
+	"\finput_weight\x18\x04 \x01(\x01R\vinputWeight\x122\n" +
+	"\x15cache_creation_weight\x18\x05 \x01(\x01R\x13cacheCreationWeight\x12#\n" +
+	"\routput_weight\x18\x06 \x01(\x01R\foutputWeight\x12\x16\n" +
+	"\x06source\x18\a \x01(\tR\x06source\x12\x16\n" +
+	"\x06slices\x18\b \x01(\x03R\x06slices\"\xf2\x01\n" +
+	"\x10UsageCalibration\x12\x16\n" +
+	"\x06method\x18\x01 \x01(\tR\x06method\x12E\n" +
+	"\aweights\x18\x02 \x03(\v2+.agent_manager.v1.measures.UsageModelWeightR\aweights\x12\x1b\n" +
+	"\tr_squared\x18\x03 \x01(\x01R\brSquared\x12\x16\n" +
+	"\x06slices\x18\x04 \x01(\x03R\x06slices\x126\n" +
+	"\x18off_disk_points_per_hour\x18\x05 \x01(\x01R\x14offDiskPointsPerHour\x12\x12\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"~\n" +
+	"\x10UsageMeteredLine\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\tR\x06amount\x12\x12\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\"\xf1\x06\n" +
+	"\x16UsageWindowAttribution\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04pool\x18\x02 \x01(\tR\x04pool\x12\x16\n" +
+	"\x06window\x18\x03 \x01(\tR\x06window\x12%\n" +
+	"\x0ewindow_minutes\x18\x04 \x01(\x03R\rwindowMinutes\x12!\n" +
+	"\fwindow_start\x18\x05 \x01(\tR\vwindowStart\x12\x1b\n" +
+	"\tresets_at\x18\x06 \x01(\tR\bresetsAt\x12!\n" +
+	"\fperiod_start\x18\a \x01(\tR\vperiodStart\x12\x1d\n" +
+	"\n" +
+	"period_end\x18\b \x01(\tR\tperiodEnd\x12!\n" +
+	"\fused_percent\x18\t \x01(\x01R\vusedPercent\x128\n" +
+	"\x18observed_increase_points\x18\n" +
+	" \x01(\x01R\x16observedIncreasePoints\x12+\n" +
+	"\x11attributed_points\x18\v \x01(\x01R\x10attributedPoints\x12/\n" +
+	"\x13unattributed_points\x18\f \x01(\x01R\x12unattributedPoints\x12\x19\n" +
+	"\bgroup_by\x18\r \x01(\tR\agroupBy\x12@\n" +
+	"\aburners\x18\x0e \x03(\v2&.agent_manager.v1.measures.UsageBurnerR\aburners\x12#\n" +
+	"\rother_burners\x18\x0f \x01(\x03R\fotherBurners\x12!\n" +
+	"\fother_points\x18\x10 \x01(\x01R\votherPoints\x12M\n" +
+	"\vcalibration\x18\x11 \x01(\v2+.agent_manager.v1.measures.UsageCalibrationR\vcalibration\x12M\n" +
+	"\x0epending_tokens\x18\x12 \x01(\v2&.agent_manager.v1.measures.UsageTokensR\rpendingTokens\x12P\n" +
+	"\rmetered_lines\x18\x13 \x03(\v2+.agent_manager.v1.measures.UsageMeteredLineR\fmeteredLines\x12\x16\n" +
+	"\x06runner\x18\x14 \x01(\tR\x06runner\"\xc1\x02\n" +
+	"\x14UsageBurnersResponse\x12K\n" +
+	"\awindows\x18\x01 \x03(\v21.agent_manager.v1.measures.UsageWindowAttributionR\awindows\x12!\n" +
+	"\fgenerated_at\x18\x02 \x01(\tR\vgeneratedAt\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"f\n" +
+	"\x1bUsageRecommendationsRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"L\n" +
+	"\x10UsageEvidenceRef\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x03 \x01(\tR\x05label\"S\n" +
+	"\x13UsageEvidenceMetric\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\x12\x12\n" +
+	"\x04unit\x18\x03 \x01(\tR\x04unit\"\xd9\x04\n" +
+	"\x13UsageRecommendation\x12\x12\n" +
+	"\x04rank\x18\x01 \x01(\x05R\x04rank\x12\x12\n" +
+	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x14\n" +
+	"\x05lever\x18\x03 \x01(\tR\x05lever\x12\x1f\n" +
+	"\vtarget_kind\x18\x04 \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
+	"\ttarget_id\x18\x05 \x01(\tR\btargetId\x12!\n" +
+	"\ftarget_label\x18\x06 \x01(\tR\vtargetLabel\x12\x1a\n" +
+	"\bprovider\x18\a \x01(\tR\bprovider\x12\x12\n" +
+	"\x04pool\x18\b \x01(\tR\x04pool\x12\x16\n" +
+	"\x06window\x18\t \x01(\tR\x06window\x12@\n" +
+	"\x1dest_weekly_quota_points_saved\x18\n" +
+	" \x01(\x01R\x19estWeeklyQuotaPointsSaved\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\v \x01(\tR\n" +
+	"confidence\x12\x16\n" +
+	"\x06action\x18\f \x01(\tR\x06action\x12\x1c\n" +
+	"\trationale\x18\r \x01(\tR\trationale\x12'\n" +
+	"\x0fconsumer_points\x18\x0e \x01(\x01R\x0econsumerPoints\x12P\n" +
+	"\revidence_refs\x18\x0f \x03(\v2+.agent_manager.v1.measures.UsageEvidenceRefR\fevidenceRefs\x12H\n" +
+	"\ametrics\x18\x10 \x03(\v2..agent_manager.v1.measures.UsageEvidenceMetricR\ametrics\"\x87\x01\n" +
+	"\x0fUsageRuleStatus\x12\x12\n" +
+	"\x04rule\x18\x01 \x01(\tR\x04rule\x12\x14\n" +
+	"\x05fired\x18\x02 \x01(\bR\x05fired\x12\x12\n" +
+	"\x04rows\x18\x03 \x01(\x03R\x04rows\x12\x1e\n" +
+	"\n" +
+	"candidates\x18\x04 \x01(\x03R\n" +
+	"candidates\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xfd\x03\n" +
+	"\x1cUsageRecommendationsResponse\x12X\n" +
+	"\x0frecommendations\x18\x01 \x03(\v2..agent_manager.v1.measures.UsageRecommendationR\x0frecommendations\x12@\n" +
+	"\x05rules\x18\x02 \x03(\v2*.agent_manager.v1.measures.UsageRuleStatusR\x05rules\x12!\n" +
+	"\fgenerated_at\x18\x03 \x01(\tR\vgeneratedAt\x12+\n" +
+	"\x11dominant_consumer\x18\x04 \x01(\tR\x10dominantConsumer\x126\n" +
+	"\x17dominant_consumer_label\x18\x05 \x01(\tR\x15dominantConsumerLabel\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\",\n" +
+	"\x14UsageCoverageRequest\x12\x14\n" +
+	"\x05since\x18\x01 \x01(\tR\x05since\"@\n" +
+	"\x12UsageCoverageIssue\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xe2\x03\n" +
+	"\x11UsageCoverageRoot\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
+	"\aharness\x18\x02 \x01(\tR\aharness\x12\x14\n" +
+	"\x05files\x18\x03 \x01(\x03R\x05files\x12\x18\n" +
+	"\aindexed\x18\x04 \x01(\x03R\aindexed\x12\x1d\n" +
+	"\n" +
+	"with_usage\x18\x05 \x01(\x03R\twithUsage\x12\x14\n" +
+	"\x05owned\x18\x06 \x01(\x03R\x05owned\x12\x1a\n" +
+	"\bexcluded\x18\a \x01(\x03R\bexcluded\x12\x18\n" +
+	"\apending\x18\b \x01(\x03R\apending\x12\x1e\n" +
+	"\n" +
+	"unreadable\x18\t \x01(\x03R\n" +
+	"unreadable\x12\x14\n" +
+	"\x05bytes\x18\n" +
+	" \x01(\x03R\x05bytes\x12%\n" +
+	"\x0ecaptured_bytes\x18\v \x01(\x03R\rcapturedBytes\x12%\n" +
+	"\x0ecaptured_share\x18\f \x01(\x01R\rcapturedShare\x12\x14\n" +
+	"\x05turns\x18\r \x01(\x03R\x05turns\x12#\n" +
+	"\rusage_reports\x18\x0e \x01(\x03R\fusageReports\x12E\n" +
+	"\x06issues\x18\x0f \x03(\v2-.agent_manager.v1.measures.UsageCoverageIssueR\x06issues\"\xe5\x02\n" +
+	"\x15UsageCoverageResponse\x12\x14\n" +
+	"\x05since\x18\x01 \x01(\tR\x05since\x12B\n" +
+	"\x05roots\x18\x02 \x03(\v2,.agent_manager.v1.measures.UsageCoverageRootR\x05roots\x12D\n" +
+	"\x06totals\x18\x03 \x01(\v2,.agent_manager.v1.measures.UsageCoverageRootR\x06totals\x12\x16\n" +
+	"\x06method\x18\x04 \x01(\tR\x06method\x12!\n" +
+	"\fgenerated_at\x18\x05 \x01(\tR\vgeneratedAt\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xd8\x01\n" +
+	"\x13UsageCompareRequest\x12=\n" +
+	"\x04left\x18\x01 \x01(\v2).agent_manager.v1.measures.CohortSelectorR\x04left\x12?\n" +
+	"\x05right\x18\x02 \x01(\v2).agent_manager.v1.measures.CohortSelectorR\x05right\x12%\n" +
+	"\x0echange_binding\x18\x03 \x01(\tR\rchangeBinding\x12\x1a\n" +
+	"\bprovider\x18\x04 \x01(\tR\bprovider\"\xb2\x03\n" +
+	"\x10UsageCompareSide\x12\x12\n" +
+	"\x04runs\x18\x01 \x01(\x03R\x04runs\x12'\n" +
+	"\x0fsuccessful_runs\x18\x02 \x01(\x03R\x0esuccessfulRuns\x12\x1f\n" +
+	"\vpriced_runs\x18\x03 \x01(\x03R\n" +
+	"pricedRuns\x12>\n" +
+	"\x06tokens\x18\x04 \x01(\v2&.agent_manager.v1.measures.UsageTokensR\x06tokens\x12'\n" +
+	"\x0fweighted_tokens\x18\x05 \x01(\x01R\x0eweightedTokens\x12\x16\n" +
+	"\x06points\x18\x06 \x01(\x01R\x06points\x12,\n" +
+	"\x12points_per_success\x18\a \x01(\x01R\x10pointsPerSuccess\x12,\n" +
+	"\x12tokens_per_success\x18\b \x01(\x01R\x10tokensPerSuccess\x12!\n" +
+	"\fsuccess_rate\x18\t \x01(\x01R\vsuccessRate\x12!\n" +
+	"\fwindow_start\x18\n" +
+	" \x01(\tR\vwindowStart\x12\x1d\n" +
+	"\n" +
+	"window_end\x18\v \x01(\tR\twindowEnd\"\xeb\x03\n" +
+	"\x14UsageCompareResponse\x12?\n" +
+	"\x04left\x18\x01 \x01(\v2+.agent_manager.v1.measures.UsageCompareSideR\x04left\x12A\n" +
+	"\x05right\x18\x02 \x01(\v2+.agent_manager.v1.measures.UsageCompareSideR\x05right\x12%\n" +
+	"\x0echange_binding\x18\x03 \x01(\tR\rchangeBinding\x129\n" +
+	"\x19points_per_success_change\x18\x04 \x01(\x01R\x16pointsPerSuccessChange\x12\x18\n" +
+	"\averdict\x18\x05 \x01(\tR\averdict\x12\x18\n" +
+	"\acaveats\x18\x06 \x03(\tR\acaveats\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId2\xf7#\n" +
 	"\x0fMeasuresService\x12~\n" +
 	"\x11ExternalToolShare\x123.agent_manager.v1.measures.ExternalToolShareRequest\x1a4.agent_manager.v1.measures.ExternalToolShareResponse\x12f\n" +
 	"\tRetryRate\x12+.agent_manager.v1.measures.RetryRateRequest\x1a,.agent_manager.v1.measures.RetryRateResponse\x12{\n" +
@@ -7030,7 +11811,15 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x12CapabilityEfficacy\x124.agent_manager.v1.measures.CapabilityEfficacyRequest\x1a5.agent_manager.v1.measures.CapabilityEfficacyResponse\x12\x96\x01\n" +
 	"\x19ConversationSearchQuality\x12;.agent_manager.v1.measures.ConversationSearchQualityRequest\x1a<.agent_manager.v1.measures.ConversationSearchQualityResponse\x12\x8a\x01\n" +
 	"\x15AllMeasureDefinitions\x127.agent_manager.v1.measures.AllMeasureDefinitionsRequest\x1a8.agent_manager.v1.measures.AllMeasureDefinitionsResponse\x12o\n" +
-	"\fSelectCohort\x12..agent_manager.v1.measures.SelectCohortRequest\x1a/.agent_manager.v1.measures.SelectCohortResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures;measures_v1b\x06proto3"
+	"\fSelectCohort\x12..agent_manager.v1.measures.SelectCohortRequest\x1a/.agent_manager.v1.measures.SelectCohortResponse\x12o\n" +
+	"\fCohortReport\x12..agent_manager.v1.measures.CohortReportRequest\x1a/.agent_manager.v1.measures.CohortReportResponse\x12\x8a\x01\n" +
+	"\x15CompareEpisodeCohorts\x127.agent_manager.v1.measures.CompareEpisodeCohortsRequest\x1a8.agent_manager.v1.measures.CompareEpisodeCohortsResponse\x12r\n" +
+	"\rUsageForecast\x12/.agent_manager.v1.measures.UsageForecastRequest\x1a0.agent_manager.v1.measures.UsageForecastResponse\x12\x8a\x01\n" +
+	"\x15UsageForecastBacktest\x127.agent_manager.v1.measures.UsageForecastBacktestRequest\x1a8.agent_manager.v1.measures.UsageForecastBacktestResponse\x12o\n" +
+	"\fUsageBurners\x12..agent_manager.v1.measures.UsageBurnersRequest\x1a/.agent_manager.v1.measures.UsageBurnersResponse\x12\x87\x01\n" +
+	"\x14UsageRecommendations\x126.agent_manager.v1.measures.UsageRecommendationsRequest\x1a7.agent_manager.v1.measures.UsageRecommendationsResponse\x12r\n" +
+	"\rUsageCoverage\x12/.agent_manager.v1.measures.UsageCoverageRequest\x1a0.agent_manager.v1.measures.UsageCoverageResponse\x12o\n" +
+	"\fUsageCompare\x12..agent_manager.v1.measures.UsageCompareRequest\x1a/.agent_manager.v1.measures.UsageCompareResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures;measures_v1b\x06proto3"
 
 var (
 	file_agent_manager_v1_measures_measures_proto_rawDescOnce sync.Once
@@ -7044,7 +11833,7 @@ func file_agent_manager_v1_measures_measures_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_measures_measures_proto_rawDescData
 }
 
-var file_agent_manager_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 76)
+var file_agent_manager_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 119)
 var file_agent_manager_v1_measures_measures_proto_goTypes = []any{
 	(*InvocationFilter)(nil),                  // 0: agent_manager.v1.measures.InvocationFilter
 	(*MeasureValidity)(nil),                   // 1: agent_manager.v1.measures.MeasureValidity
@@ -7116,208 +11905,319 @@ var file_agent_manager_v1_measures_measures_proto_goTypes = []any{
 	(*FileRereadRateResponse)(nil),            // 67: agent_manager.v1.measures.FileRereadRateResponse
 	(*FindingRecurrenceRateRequest)(nil),      // 68: agent_manager.v1.measures.FindingRecurrenceRateRequest
 	(*FindingRecurrenceRateResponse)(nil),     // 69: agent_manager.v1.measures.FindingRecurrenceRateResponse
-	(*SelectCohortRequest)(nil),               // 70: agent_manager.v1.measures.SelectCohortRequest
-	(*CohortRun)(nil),                         // 71: agent_manager.v1.measures.CohortRun
-	(*SelectCohortResponse)(nil),              // 72: agent_manager.v1.measures.SelectCohortResponse
-	(*EpisodeCohortRequest)(nil),              // 73: agent_manager.v1.measures.EpisodeCohortRequest
-	(*EpisodeCohortSignal)(nil),               // 74: agent_manager.v1.measures.EpisodeCohortSignal
-	(*EpisodeCohortResponse)(nil),             // 75: agent_manager.v1.measures.EpisodeCohortResponse
-	(*v1.TimeWindow)(nil),                     // 76: vrooli.measures.v1.TimeWindow
+	(*CohortSelector)(nil),                    // 70: agent_manager.v1.measures.CohortSelector
+	(*SelectCohortRequest)(nil),               // 71: agent_manager.v1.measures.SelectCohortRequest
+	(*CohortRun)(nil),                         // 72: agent_manager.v1.measures.CohortRun
+	(*SelectCohortResponse)(nil),              // 73: agent_manager.v1.measures.SelectCohortResponse
+	(*EpisodeCohortRequest)(nil),              // 74: agent_manager.v1.measures.EpisodeCohortRequest
+	(*EpisodeCohortSignal)(nil),               // 75: agent_manager.v1.measures.EpisodeCohortSignal
+	(*EpisodeCohortResponse)(nil),             // 76: agent_manager.v1.measures.EpisodeCohortResponse
+	(*CohortReportRequest)(nil),               // 77: agent_manager.v1.measures.CohortReportRequest
+	(*CohortReportSignal)(nil),                // 78: agent_manager.v1.measures.CohortReportSignal
+	(*CohortTimeAccounting)(nil),              // 79: agent_manager.v1.measures.CohortTimeAccounting
+	(*CohortInvocationValidity)(nil),          // 80: agent_manager.v1.measures.CohortInvocationValidity
+	(*CohortGoalProgression)(nil),             // 81: agent_manager.v1.measures.CohortGoalProgression
+	(*CohortReportResponse)(nil),              // 82: agent_manager.v1.measures.CohortReportResponse
+	(*CompareEpisodeCohortsRequest)(nil),      // 83: agent_manager.v1.measures.CompareEpisodeCohortsRequest
+	(*EpisodeComparisonSignal)(nil),           // 84: agent_manager.v1.measures.EpisodeComparisonSignal
+	(*CompareEpisodeCohortsResponse)(nil),     // 85: agent_manager.v1.measures.CompareEpisodeCohortsResponse
+	(*UsageForecastRequest)(nil),              // 86: agent_manager.v1.measures.UsageForecastRequest
+	(*UsageBurnRate)(nil),                     // 87: agent_manager.v1.measures.UsageBurnRate
+	(*UsagePercentPoint)(nil),                 // 88: agent_manager.v1.measures.UsagePercentPoint
+	(*UsageWindowForecast)(nil),               // 89: agent_manager.v1.measures.UsageWindowForecast
+	(*UsageForecastResponse)(nil),             // 90: agent_manager.v1.measures.UsageForecastResponse
+	(*UsageForecastBacktestRequest)(nil),      // 91: agent_manager.v1.measures.UsageForecastBacktestRequest
+	(*UsageBacktestCheckpoint)(nil),           // 92: agent_manager.v1.measures.UsageBacktestCheckpoint
+	(*UsageBacktestWindow)(nil),               // 93: agent_manager.v1.measures.UsageBacktestWindow
+	(*UsageBacktestSummary)(nil),              // 94: agent_manager.v1.measures.UsageBacktestSummary
+	(*UsageForecastBacktestResponse)(nil),     // 95: agent_manager.v1.measures.UsageForecastBacktestResponse
+	(*UsageBurnersRequest)(nil),               // 96: agent_manager.v1.measures.UsageBurnersRequest
+	(*UsageTokens)(nil),                       // 97: agent_manager.v1.measures.UsageTokens
+	(*UsageToolKindCount)(nil),                // 98: agent_manager.v1.measures.UsageToolKindCount
+	(*UsageModality)(nil),                     // 99: agent_manager.v1.measures.UsageModality
+	(*UsageBurner)(nil),                       // 100: agent_manager.v1.measures.UsageBurner
+	(*UsageModelWeight)(nil),                  // 101: agent_manager.v1.measures.UsageModelWeight
+	(*UsageCalibration)(nil),                  // 102: agent_manager.v1.measures.UsageCalibration
+	(*UsageMeteredLine)(nil),                  // 103: agent_manager.v1.measures.UsageMeteredLine
+	(*UsageWindowAttribution)(nil),            // 104: agent_manager.v1.measures.UsageWindowAttribution
+	(*UsageBurnersResponse)(nil),              // 105: agent_manager.v1.measures.UsageBurnersResponse
+	(*UsageRecommendationsRequest)(nil),       // 106: agent_manager.v1.measures.UsageRecommendationsRequest
+	(*UsageEvidenceRef)(nil),                  // 107: agent_manager.v1.measures.UsageEvidenceRef
+	(*UsageEvidenceMetric)(nil),               // 108: agent_manager.v1.measures.UsageEvidenceMetric
+	(*UsageRecommendation)(nil),               // 109: agent_manager.v1.measures.UsageRecommendation
+	(*UsageRuleStatus)(nil),                   // 110: agent_manager.v1.measures.UsageRuleStatus
+	(*UsageRecommendationsResponse)(nil),      // 111: agent_manager.v1.measures.UsageRecommendationsResponse
+	(*UsageCoverageRequest)(nil),              // 112: agent_manager.v1.measures.UsageCoverageRequest
+	(*UsageCoverageIssue)(nil),                // 113: agent_manager.v1.measures.UsageCoverageIssue
+	(*UsageCoverageRoot)(nil),                 // 114: agent_manager.v1.measures.UsageCoverageRoot
+	(*UsageCoverageResponse)(nil),             // 115: agent_manager.v1.measures.UsageCoverageResponse
+	(*UsageCompareRequest)(nil),               // 116: agent_manager.v1.measures.UsageCompareRequest
+	(*UsageCompareSide)(nil),                  // 117: agent_manager.v1.measures.UsageCompareSide
+	(*UsageCompareResponse)(nil),              // 118: agent_manager.v1.measures.UsageCompareResponse
+	(*v1.TimeWindow)(nil),                     // 119: vrooli.measures.v1.TimeWindow
 }
 var file_agent_manager_v1_measures_measures_proto_depIdxs = []int32{
-	76,  // 0: agent_manager.v1.measures.InvocationFilter.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 0: agent_manager.v1.measures.InvocationFilter.window:type_name -> vrooli.measures.v1.TimeWindow
 	2,   // 1: agent_manager.v1.measures.MeasureProvenance.applied_filters:type_name -> agent_manager.v1.measures.MeasureFilter
 	4,   // 2: agent_manager.v1.measures.AllMeasureDefinitionsResponse.definitions:type_name -> agent_manager.v1.measures.MeasureDefinition
-	76,  // 3: agent_manager.v1.measures.ConversationSearchQualityRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 3: agent_manager.v1.measures.ConversationSearchQualityRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	1,   // 4: agent_manager.v1.measures.ConversationSearchQualityResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 5: agent_manager.v1.measures.ConversationSearchQualityResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 6: agent_manager.v1.measures.ExternalToolShareRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 6: agent_manager.v1.measures.ExternalToolShareRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 7: agent_manager.v1.measures.ExternalToolShareRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 8: agent_manager.v1.measures.ExternalToolShareResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 9: agent_manager.v1.measures.ExternalToolShareResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 10: agent_manager.v1.measures.RetryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 10: agent_manager.v1.measures.RetryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 11: agent_manager.v1.measures.RetryRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 12: agent_manager.v1.measures.RetryRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 13: agent_manager.v1.measures.RetryRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 14: agent_manager.v1.measures.HelpRecoveryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 14: agent_manager.v1.measures.HelpRecoveryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 15: agent_manager.v1.measures.HelpRecoveryRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 16: agent_manager.v1.measures.HelpRecoveryRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 17: agent_manager.v1.measures.HelpRecoveryRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 18: agent_manager.v1.measures.RepeatedWorkRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 18: agent_manager.v1.measures.RepeatedWorkRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 19: agent_manager.v1.measures.RepeatedWorkRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 20: agent_manager.v1.measures.RepeatedWorkRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 21: agent_manager.v1.measures.RepeatedWorkRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 22: agent_manager.v1.measures.ToolFailureRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 22: agent_manager.v1.measures.ToolFailureRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 23: agent_manager.v1.measures.ToolFailureRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 24: agent_manager.v1.measures.ToolFailureRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 25: agent_manager.v1.measures.ToolFailureRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 26: agent_manager.v1.measures.RunSuccessRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 26: agent_manager.v1.measures.RunSuccessRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 27: agent_manager.v1.measures.RunSuccessRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 28: agent_manager.v1.measures.RunSuccessRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 29: agent_manager.v1.measures.RunSuccessRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 30: agent_manager.v1.measures.RunCycleTimeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 30: agent_manager.v1.measures.RunCycleTimeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 31: agent_manager.v1.measures.RunCycleTimeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 32: agent_manager.v1.measures.RunCycleTimeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 33: agent_manager.v1.measures.RunCycleTimeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 34: agent_manager.v1.measures.RunDurationStatisticsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 34: agent_manager.v1.measures.RunDurationStatisticsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 35: agent_manager.v1.measures.RunDurationStatisticsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 36: agent_manager.v1.measures.RunDurationStatisticsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 37: agent_manager.v1.measures.RunDurationStatisticsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 38: agent_manager.v1.measures.RunCostRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 38: agent_manager.v1.measures.RunCostRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 39: agent_manager.v1.measures.RunCostRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 40: agent_manager.v1.measures.RunCostResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	26,  // 41: agent_manager.v1.measures.RunCostResponse.charge_by_basis:type_name -> agent_manager.v1.measures.ChargeByBasis
 	27,  // 42: agent_manager.v1.measures.RunCostResponse.token_buckets:type_name -> agent_manager.v1.measures.RunTokenBucket
 	3,   // 43: agent_manager.v1.measures.RunCostResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 44: agent_manager.v1.measures.RunVolumeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 44: agent_manager.v1.measures.RunVolumeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 45: agent_manager.v1.measures.RunVolumeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 46: agent_manager.v1.measures.RunVolumeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 47: agent_manager.v1.measures.RunVolumeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 48: agent_manager.v1.measures.RunStatusDistributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 48: agent_manager.v1.measures.RunStatusDistributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 49: agent_manager.v1.measures.RunStatusDistributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	32,  // 50: agent_manager.v1.measures.RunStatusDistributionResponse.rows:type_name -> agent_manager.v1.measures.RunStatusCount
 	1,   // 51: agent_manager.v1.measures.RunStatusDistributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 52: agent_manager.v1.measures.RunStatusDistributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 53: agent_manager.v1.measures.RunnerBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 53: agent_manager.v1.measures.RunnerBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 54: agent_manager.v1.measures.RunnerBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	34,  // 55: agent_manager.v1.measures.RunnerBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 56: agent_manager.v1.measures.RunnerBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 57: agent_manager.v1.measures.RunnerBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 58: agent_manager.v1.measures.ModelBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 58: agent_manager.v1.measures.ModelBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 59: agent_manager.v1.measures.ModelBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	34,  // 60: agent_manager.v1.measures.ModelBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 61: agent_manager.v1.measures.ModelBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 62: agent_manager.v1.measures.ModelBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 63: agent_manager.v1.measures.ProfileBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 63: agent_manager.v1.measures.ProfileBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 64: agent_manager.v1.measures.ProfileBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	34,  // 65: agent_manager.v1.measures.ProfileBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 66: agent_manager.v1.measures.ProfileBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 67: agent_manager.v1.measures.ProfileBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 68: agent_manager.v1.measures.WorkloadBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 68: agent_manager.v1.measures.WorkloadBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 69: agent_manager.v1.measures.WorkloadBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	34,  // 70: agent_manager.v1.measures.WorkloadBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 71: agent_manager.v1.measures.WorkloadBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 72: agent_manager.v1.measures.WorkloadBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 73: agent_manager.v1.measures.WorkloadEfficiencyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 73: agent_manager.v1.measures.WorkloadEfficiencyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 74: agent_manager.v1.measures.WorkloadEfficiencyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 75: agent_manager.v1.measures.WorkloadEfficiencyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 76: agent_manager.v1.measures.WorkloadEfficiencyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 77: agent_manager.v1.measures.TerminalRunTrendRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 77: agent_manager.v1.measures.TerminalRunTrendRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 78: agent_manager.v1.measures.TerminalRunTrendRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	46,  // 79: agent_manager.v1.measures.TerminalRunTrendResponse.rows:type_name -> agent_manager.v1.measures.TerminalRunTrendRow
 	1,   // 80: agent_manager.v1.measures.TerminalRunTrendResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 81: agent_manager.v1.measures.TerminalRunTrendResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 82: agent_manager.v1.measures.ToolUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 82: agent_manager.v1.measures.ToolUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 83: agent_manager.v1.measures.ToolUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	49,  // 84: agent_manager.v1.measures.ToolUsageResponse.rows:type_name -> agent_manager.v1.measures.ToolUsageRow
 	1,   // 85: agent_manager.v1.measures.ToolUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 86: agent_manager.v1.measures.ToolUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 87: agent_manager.v1.measures.ToolCommandBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 87: agent_manager.v1.measures.ToolCommandBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 88: agent_manager.v1.measures.ToolCommandBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	52,  // 89: agent_manager.v1.measures.ToolCommandBreakdownResponse.rows:type_name -> agent_manager.v1.measures.ToolCommandBreakdownRow
 	1,   // 90: agent_manager.v1.measures.ToolCommandBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 91: agent_manager.v1.measures.ToolCommandBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 92: agent_manager.v1.measures.TokenAttributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 92: agent_manager.v1.measures.TokenAttributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 93: agent_manager.v1.measures.TokenAttributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	55,  // 94: agent_manager.v1.measures.TokenAttributionResponse.rows:type_name -> agent_manager.v1.measures.TokenAttributionRow
 	1,   // 95: agent_manager.v1.measures.TokenAttributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 96: agent_manager.v1.measures.TokenAttributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 97: agent_manager.v1.measures.CapabilityUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 97: agent_manager.v1.measures.CapabilityUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 98: agent_manager.v1.measures.CapabilityUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	58,  // 99: agent_manager.v1.measures.CapabilityUsageResponse.rows:type_name -> agent_manager.v1.measures.CapabilityUsageRow
 	1,   // 100: agent_manager.v1.measures.CapabilityUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 101: agent_manager.v1.measures.CapabilityUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 102: agent_manager.v1.measures.CapabilityEfficacyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 102: agent_manager.v1.measures.CapabilityEfficacyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 103: agent_manager.v1.measures.CapabilityEfficacyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	61,  // 104: agent_manager.v1.measures.CapabilityEfficacyResponse.rows:type_name -> agent_manager.v1.measures.CapabilityEfficacyRow
 	1,   // 105: agent_manager.v1.measures.CapabilityEfficacyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 106: agent_manager.v1.measures.CapabilityEfficacyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 107: agent_manager.v1.measures.ErrorPatternsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 107: agent_manager.v1.measures.ErrorPatternsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 108: agent_manager.v1.measures.ErrorPatternsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	64,  // 109: agent_manager.v1.measures.ErrorPatternsResponse.rows:type_name -> agent_manager.v1.measures.ErrorPatternRow
 	1,   // 110: agent_manager.v1.measures.ErrorPatternsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 111: agent_manager.v1.measures.ErrorPatternsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 112: agent_manager.v1.measures.FileRereadRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 112: agent_manager.v1.measures.FileRereadRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 113: agent_manager.v1.measures.FileRereadRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 114: agent_manager.v1.measures.FileRereadRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 115: agent_manager.v1.measures.FileRereadRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 116: agent_manager.v1.measures.FindingRecurrenceRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	119, // 116: agent_manager.v1.measures.FindingRecurrenceRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 117: agent_manager.v1.measures.FindingRecurrenceRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 118: agent_manager.v1.measures.FindingRecurrenceRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 119: agent_manager.v1.measures.FindingRecurrenceRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 120: agent_manager.v1.measures.SelectCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 121: agent_manager.v1.measures.SelectCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 122: agent_manager.v1.measures.SelectCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	71,  // 123: agent_manager.v1.measures.SelectCohortResponse.rows:type_name -> agent_manager.v1.measures.CohortRun
-	3,   // 124: agent_manager.v1.measures.SelectCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	76,  // 125: agent_manager.v1.measures.EpisodeCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 126: agent_manager.v1.measures.EpisodeCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	74,  // 127: agent_manager.v1.measures.EpisodeCohortResponse.signals:type_name -> agent_manager.v1.measures.EpisodeCohortSignal
-	1,   // 128: agent_manager.v1.measures.EpisodeCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 129: agent_manager.v1.measures.EpisodeCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	9,   // 130: agent_manager.v1.measures.MeasuresService.ExternalToolShare:input_type -> agent_manager.v1.measures.ExternalToolShareRequest
-	11,  // 131: agent_manager.v1.measures.MeasuresService.RetryRate:input_type -> agent_manager.v1.measures.RetryRateRequest
-	13,  // 132: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:input_type -> agent_manager.v1.measures.HelpRecoveryRateRequest
-	15,  // 133: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:input_type -> agent_manager.v1.measures.RepeatedWorkRateRequest
-	17,  // 134: agent_manager.v1.measures.MeasuresService.ToolFailureRate:input_type -> agent_manager.v1.measures.ToolFailureRateRequest
-	19,  // 135: agent_manager.v1.measures.MeasuresService.RunSuccessRate:input_type -> agent_manager.v1.measures.RunSuccessRateRequest
-	21,  // 136: agent_manager.v1.measures.MeasuresService.RunCycleTime:input_type -> agent_manager.v1.measures.RunCycleTimeRequest
-	23,  // 137: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:input_type -> agent_manager.v1.measures.RunDurationStatisticsRequest
-	25,  // 138: agent_manager.v1.measures.MeasuresService.RunCost:input_type -> agent_manager.v1.measures.RunCostRequest
-	29,  // 139: agent_manager.v1.measures.MeasuresService.RunVolume:input_type -> agent_manager.v1.measures.RunVolumeRequest
-	31,  // 140: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:input_type -> agent_manager.v1.measures.RunStatusDistributionRequest
-	35,  // 141: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:input_type -> agent_manager.v1.measures.RunnerBreakdownRequest
-	37,  // 142: agent_manager.v1.measures.MeasuresService.ModelBreakdown:input_type -> agent_manager.v1.measures.ModelBreakdownRequest
-	39,  // 143: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:input_type -> agent_manager.v1.measures.ProfileBreakdownRequest
-	41,  // 144: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:input_type -> agent_manager.v1.measures.WorkloadBreakdownRequest
-	43,  // 145: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:input_type -> agent_manager.v1.measures.WorkloadEfficiencyRequest
-	45,  // 146: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:input_type -> agent_manager.v1.measures.TerminalRunTrendRequest
-	48,  // 147: agent_manager.v1.measures.MeasuresService.ToolUsage:input_type -> agent_manager.v1.measures.ToolUsageRequest
-	51,  // 148: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:input_type -> agent_manager.v1.measures.ToolCommandBreakdownRequest
-	54,  // 149: agent_manager.v1.measures.MeasuresService.TokenAttribution:input_type -> agent_manager.v1.measures.TokenAttributionRequest
-	63,  // 150: agent_manager.v1.measures.MeasuresService.ErrorPatterns:input_type -> agent_manager.v1.measures.ErrorPatternsRequest
-	66,  // 151: agent_manager.v1.measures.MeasuresService.FileRereadRate:input_type -> agent_manager.v1.measures.FileRereadRateRequest
-	68,  // 152: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:input_type -> agent_manager.v1.measures.FindingRecurrenceRateRequest
-	73,  // 153: agent_manager.v1.measures.MeasuresService.EpisodeCohort:input_type -> agent_manager.v1.measures.EpisodeCohortRequest
-	57,  // 154: agent_manager.v1.measures.MeasuresService.CapabilityUsage:input_type -> agent_manager.v1.measures.CapabilityUsageRequest
-	60,  // 155: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:input_type -> agent_manager.v1.measures.CapabilityEfficacyRequest
-	7,   // 156: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:input_type -> agent_manager.v1.measures.ConversationSearchQualityRequest
-	5,   // 157: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:input_type -> agent_manager.v1.measures.AllMeasureDefinitionsRequest
-	70,  // 158: agent_manager.v1.measures.MeasuresService.SelectCohort:input_type -> agent_manager.v1.measures.SelectCohortRequest
-	10,  // 159: agent_manager.v1.measures.MeasuresService.ExternalToolShare:output_type -> agent_manager.v1.measures.ExternalToolShareResponse
-	12,  // 160: agent_manager.v1.measures.MeasuresService.RetryRate:output_type -> agent_manager.v1.measures.RetryRateResponse
-	14,  // 161: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:output_type -> agent_manager.v1.measures.HelpRecoveryRateResponse
-	16,  // 162: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:output_type -> agent_manager.v1.measures.RepeatedWorkRateResponse
-	18,  // 163: agent_manager.v1.measures.MeasuresService.ToolFailureRate:output_type -> agent_manager.v1.measures.ToolFailureRateResponse
-	20,  // 164: agent_manager.v1.measures.MeasuresService.RunSuccessRate:output_type -> agent_manager.v1.measures.RunSuccessRateResponse
-	22,  // 165: agent_manager.v1.measures.MeasuresService.RunCycleTime:output_type -> agent_manager.v1.measures.RunCycleTimeResponse
-	24,  // 166: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:output_type -> agent_manager.v1.measures.RunDurationStatisticsResponse
-	28,  // 167: agent_manager.v1.measures.MeasuresService.RunCost:output_type -> agent_manager.v1.measures.RunCostResponse
-	30,  // 168: agent_manager.v1.measures.MeasuresService.RunVolume:output_type -> agent_manager.v1.measures.RunVolumeResponse
-	33,  // 169: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:output_type -> agent_manager.v1.measures.RunStatusDistributionResponse
-	36,  // 170: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:output_type -> agent_manager.v1.measures.RunnerBreakdownResponse
-	38,  // 171: agent_manager.v1.measures.MeasuresService.ModelBreakdown:output_type -> agent_manager.v1.measures.ModelBreakdownResponse
-	40,  // 172: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:output_type -> agent_manager.v1.measures.ProfileBreakdownResponse
-	42,  // 173: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:output_type -> agent_manager.v1.measures.WorkloadBreakdownResponse
-	44,  // 174: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:output_type -> agent_manager.v1.measures.WorkloadEfficiencyResponse
-	47,  // 175: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:output_type -> agent_manager.v1.measures.TerminalRunTrendResponse
-	50,  // 176: agent_manager.v1.measures.MeasuresService.ToolUsage:output_type -> agent_manager.v1.measures.ToolUsageResponse
-	53,  // 177: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:output_type -> agent_manager.v1.measures.ToolCommandBreakdownResponse
-	56,  // 178: agent_manager.v1.measures.MeasuresService.TokenAttribution:output_type -> agent_manager.v1.measures.TokenAttributionResponse
-	65,  // 179: agent_manager.v1.measures.MeasuresService.ErrorPatterns:output_type -> agent_manager.v1.measures.ErrorPatternsResponse
-	67,  // 180: agent_manager.v1.measures.MeasuresService.FileRereadRate:output_type -> agent_manager.v1.measures.FileRereadRateResponse
-	69,  // 181: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:output_type -> agent_manager.v1.measures.FindingRecurrenceRateResponse
-	75,  // 182: agent_manager.v1.measures.MeasuresService.EpisodeCohort:output_type -> agent_manager.v1.measures.EpisodeCohortResponse
-	59,  // 183: agent_manager.v1.measures.MeasuresService.CapabilityUsage:output_type -> agent_manager.v1.measures.CapabilityUsageResponse
-	62,  // 184: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:output_type -> agent_manager.v1.measures.CapabilityEfficacyResponse
-	8,   // 185: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:output_type -> agent_manager.v1.measures.ConversationSearchQualityResponse
-	6,   // 186: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:output_type -> agent_manager.v1.measures.AllMeasureDefinitionsResponse
-	72,  // 187: agent_manager.v1.measures.MeasuresService.SelectCohort:output_type -> agent_manager.v1.measures.SelectCohortResponse
-	159, // [159:188] is the sub-list for method output_type
-	130, // [130:159] is the sub-list for method input_type
-	130, // [130:130] is the sub-list for extension type_name
-	130, // [130:130] is the sub-list for extension extendee
-	0,   // [0:130] is the sub-list for field type_name
+	119, // 120: agent_manager.v1.measures.CohortSelector.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 121: agent_manager.v1.measures.CohortSelector.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	119, // 122: agent_manager.v1.measures.SelectCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 123: agent_manager.v1.measures.SelectCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 124: agent_manager.v1.measures.SelectCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	72,  // 125: agent_manager.v1.measures.SelectCohortResponse.rows:type_name -> agent_manager.v1.measures.CohortRun
+	3,   // 126: agent_manager.v1.measures.SelectCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	119, // 127: agent_manager.v1.measures.EpisodeCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 128: agent_manager.v1.measures.EpisodeCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	75,  // 129: agent_manager.v1.measures.EpisodeCohortResponse.signals:type_name -> agent_manager.v1.measures.EpisodeCohortSignal
+	1,   // 130: agent_manager.v1.measures.EpisodeCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 131: agent_manager.v1.measures.EpisodeCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	119, // 132: agent_manager.v1.measures.CohortReportRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 133: agent_manager.v1.measures.CohortReportRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	78,  // 134: agent_manager.v1.measures.CohortReportResponse.signals:type_name -> agent_manager.v1.measures.CohortReportSignal
+	79,  // 135: agent_manager.v1.measures.CohortReportResponse.time_accounting:type_name -> agent_manager.v1.measures.CohortTimeAccounting
+	80,  // 136: agent_manager.v1.measures.CohortReportResponse.invocation_validity:type_name -> agent_manager.v1.measures.CohortInvocationValidity
+	81,  // 137: agent_manager.v1.measures.CohortReportResponse.goal:type_name -> agent_manager.v1.measures.CohortGoalProgression
+	1,   // 138: agent_manager.v1.measures.CohortReportResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 139: agent_manager.v1.measures.CohortReportResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	70,  // 140: agent_manager.v1.measures.CompareEpisodeCohortsRequest.left:type_name -> agent_manager.v1.measures.CohortSelector
+	70,  // 141: agent_manager.v1.measures.CompareEpisodeCohortsRequest.right:type_name -> agent_manager.v1.measures.CohortSelector
+	84,  // 142: agent_manager.v1.measures.CompareEpisodeCohortsResponse.signals:type_name -> agent_manager.v1.measures.EpisodeComparisonSignal
+	1,   // 143: agent_manager.v1.measures.CompareEpisodeCohortsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 144: agent_manager.v1.measures.CompareEpisodeCohortsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	87,  // 145: agent_manager.v1.measures.UsageWindowForecast.burn:type_name -> agent_manager.v1.measures.UsageBurnRate
+	88,  // 146: agent_manager.v1.measures.UsageWindowForecast.series:type_name -> agent_manager.v1.measures.UsagePercentPoint
+	89,  // 147: agent_manager.v1.measures.UsageForecastResponse.windows:type_name -> agent_manager.v1.measures.UsageWindowForecast
+	3,   // 148: agent_manager.v1.measures.UsageForecastResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	92,  // 149: agent_manager.v1.measures.UsageBacktestWindow.checkpoints:type_name -> agent_manager.v1.measures.UsageBacktestCheckpoint
+	93,  // 150: agent_manager.v1.measures.UsageForecastBacktestResponse.windows:type_name -> agent_manager.v1.measures.UsageBacktestWindow
+	94,  // 151: agent_manager.v1.measures.UsageForecastBacktestResponse.summaries:type_name -> agent_manager.v1.measures.UsageBacktestSummary
+	1,   // 152: agent_manager.v1.measures.UsageForecastBacktestResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 153: agent_manager.v1.measures.UsageForecastBacktestResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	98,  // 154: agent_manager.v1.measures.UsageModality.tool_kinds:type_name -> agent_manager.v1.measures.UsageToolKindCount
+	97,  // 155: agent_manager.v1.measures.UsageBurner.tokens:type_name -> agent_manager.v1.measures.UsageTokens
+	99,  // 156: agent_manager.v1.measures.UsageBurner.modality:type_name -> agent_manager.v1.measures.UsageModality
+	101, // 157: agent_manager.v1.measures.UsageCalibration.weights:type_name -> agent_manager.v1.measures.UsageModelWeight
+	100, // 158: agent_manager.v1.measures.UsageWindowAttribution.burners:type_name -> agent_manager.v1.measures.UsageBurner
+	102, // 159: agent_manager.v1.measures.UsageWindowAttribution.calibration:type_name -> agent_manager.v1.measures.UsageCalibration
+	97,  // 160: agent_manager.v1.measures.UsageWindowAttribution.pending_tokens:type_name -> agent_manager.v1.measures.UsageTokens
+	103, // 161: agent_manager.v1.measures.UsageWindowAttribution.metered_lines:type_name -> agent_manager.v1.measures.UsageMeteredLine
+	104, // 162: agent_manager.v1.measures.UsageBurnersResponse.windows:type_name -> agent_manager.v1.measures.UsageWindowAttribution
+	1,   // 163: agent_manager.v1.measures.UsageBurnersResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 164: agent_manager.v1.measures.UsageBurnersResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	107, // 165: agent_manager.v1.measures.UsageRecommendation.evidence_refs:type_name -> agent_manager.v1.measures.UsageEvidenceRef
+	108, // 166: agent_manager.v1.measures.UsageRecommendation.metrics:type_name -> agent_manager.v1.measures.UsageEvidenceMetric
+	109, // 167: agent_manager.v1.measures.UsageRecommendationsResponse.recommendations:type_name -> agent_manager.v1.measures.UsageRecommendation
+	110, // 168: agent_manager.v1.measures.UsageRecommendationsResponse.rules:type_name -> agent_manager.v1.measures.UsageRuleStatus
+	1,   // 169: agent_manager.v1.measures.UsageRecommendationsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 170: agent_manager.v1.measures.UsageRecommendationsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	113, // 171: agent_manager.v1.measures.UsageCoverageRoot.issues:type_name -> agent_manager.v1.measures.UsageCoverageIssue
+	114, // 172: agent_manager.v1.measures.UsageCoverageResponse.roots:type_name -> agent_manager.v1.measures.UsageCoverageRoot
+	114, // 173: agent_manager.v1.measures.UsageCoverageResponse.totals:type_name -> agent_manager.v1.measures.UsageCoverageRoot
+	3,   // 174: agent_manager.v1.measures.UsageCoverageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	70,  // 175: agent_manager.v1.measures.UsageCompareRequest.left:type_name -> agent_manager.v1.measures.CohortSelector
+	70,  // 176: agent_manager.v1.measures.UsageCompareRequest.right:type_name -> agent_manager.v1.measures.CohortSelector
+	97,  // 177: agent_manager.v1.measures.UsageCompareSide.tokens:type_name -> agent_manager.v1.measures.UsageTokens
+	117, // 178: agent_manager.v1.measures.UsageCompareResponse.left:type_name -> agent_manager.v1.measures.UsageCompareSide
+	117, // 179: agent_manager.v1.measures.UsageCompareResponse.right:type_name -> agent_manager.v1.measures.UsageCompareSide
+	1,   // 180: agent_manager.v1.measures.UsageCompareResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 181: agent_manager.v1.measures.UsageCompareResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	9,   // 182: agent_manager.v1.measures.MeasuresService.ExternalToolShare:input_type -> agent_manager.v1.measures.ExternalToolShareRequest
+	11,  // 183: agent_manager.v1.measures.MeasuresService.RetryRate:input_type -> agent_manager.v1.measures.RetryRateRequest
+	13,  // 184: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:input_type -> agent_manager.v1.measures.HelpRecoveryRateRequest
+	15,  // 185: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:input_type -> agent_manager.v1.measures.RepeatedWorkRateRequest
+	17,  // 186: agent_manager.v1.measures.MeasuresService.ToolFailureRate:input_type -> agent_manager.v1.measures.ToolFailureRateRequest
+	19,  // 187: agent_manager.v1.measures.MeasuresService.RunSuccessRate:input_type -> agent_manager.v1.measures.RunSuccessRateRequest
+	21,  // 188: agent_manager.v1.measures.MeasuresService.RunCycleTime:input_type -> agent_manager.v1.measures.RunCycleTimeRequest
+	23,  // 189: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:input_type -> agent_manager.v1.measures.RunDurationStatisticsRequest
+	25,  // 190: agent_manager.v1.measures.MeasuresService.RunCost:input_type -> agent_manager.v1.measures.RunCostRequest
+	29,  // 191: agent_manager.v1.measures.MeasuresService.RunVolume:input_type -> agent_manager.v1.measures.RunVolumeRequest
+	31,  // 192: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:input_type -> agent_manager.v1.measures.RunStatusDistributionRequest
+	35,  // 193: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:input_type -> agent_manager.v1.measures.RunnerBreakdownRequest
+	37,  // 194: agent_manager.v1.measures.MeasuresService.ModelBreakdown:input_type -> agent_manager.v1.measures.ModelBreakdownRequest
+	39,  // 195: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:input_type -> agent_manager.v1.measures.ProfileBreakdownRequest
+	41,  // 196: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:input_type -> agent_manager.v1.measures.WorkloadBreakdownRequest
+	43,  // 197: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:input_type -> agent_manager.v1.measures.WorkloadEfficiencyRequest
+	45,  // 198: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:input_type -> agent_manager.v1.measures.TerminalRunTrendRequest
+	48,  // 199: agent_manager.v1.measures.MeasuresService.ToolUsage:input_type -> agent_manager.v1.measures.ToolUsageRequest
+	51,  // 200: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:input_type -> agent_manager.v1.measures.ToolCommandBreakdownRequest
+	54,  // 201: agent_manager.v1.measures.MeasuresService.TokenAttribution:input_type -> agent_manager.v1.measures.TokenAttributionRequest
+	63,  // 202: agent_manager.v1.measures.MeasuresService.ErrorPatterns:input_type -> agent_manager.v1.measures.ErrorPatternsRequest
+	66,  // 203: agent_manager.v1.measures.MeasuresService.FileRereadRate:input_type -> agent_manager.v1.measures.FileRereadRateRequest
+	68,  // 204: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:input_type -> agent_manager.v1.measures.FindingRecurrenceRateRequest
+	74,  // 205: agent_manager.v1.measures.MeasuresService.EpisodeCohort:input_type -> agent_manager.v1.measures.EpisodeCohortRequest
+	57,  // 206: agent_manager.v1.measures.MeasuresService.CapabilityUsage:input_type -> agent_manager.v1.measures.CapabilityUsageRequest
+	60,  // 207: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:input_type -> agent_manager.v1.measures.CapabilityEfficacyRequest
+	7,   // 208: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:input_type -> agent_manager.v1.measures.ConversationSearchQualityRequest
+	5,   // 209: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:input_type -> agent_manager.v1.measures.AllMeasureDefinitionsRequest
+	71,  // 210: agent_manager.v1.measures.MeasuresService.SelectCohort:input_type -> agent_manager.v1.measures.SelectCohortRequest
+	77,  // 211: agent_manager.v1.measures.MeasuresService.CohortReport:input_type -> agent_manager.v1.measures.CohortReportRequest
+	83,  // 212: agent_manager.v1.measures.MeasuresService.CompareEpisodeCohorts:input_type -> agent_manager.v1.measures.CompareEpisodeCohortsRequest
+	86,  // 213: agent_manager.v1.measures.MeasuresService.UsageForecast:input_type -> agent_manager.v1.measures.UsageForecastRequest
+	91,  // 214: agent_manager.v1.measures.MeasuresService.UsageForecastBacktest:input_type -> agent_manager.v1.measures.UsageForecastBacktestRequest
+	96,  // 215: agent_manager.v1.measures.MeasuresService.UsageBurners:input_type -> agent_manager.v1.measures.UsageBurnersRequest
+	106, // 216: agent_manager.v1.measures.MeasuresService.UsageRecommendations:input_type -> agent_manager.v1.measures.UsageRecommendationsRequest
+	112, // 217: agent_manager.v1.measures.MeasuresService.UsageCoverage:input_type -> agent_manager.v1.measures.UsageCoverageRequest
+	116, // 218: agent_manager.v1.measures.MeasuresService.UsageCompare:input_type -> agent_manager.v1.measures.UsageCompareRequest
+	10,  // 219: agent_manager.v1.measures.MeasuresService.ExternalToolShare:output_type -> agent_manager.v1.measures.ExternalToolShareResponse
+	12,  // 220: agent_manager.v1.measures.MeasuresService.RetryRate:output_type -> agent_manager.v1.measures.RetryRateResponse
+	14,  // 221: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:output_type -> agent_manager.v1.measures.HelpRecoveryRateResponse
+	16,  // 222: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:output_type -> agent_manager.v1.measures.RepeatedWorkRateResponse
+	18,  // 223: agent_manager.v1.measures.MeasuresService.ToolFailureRate:output_type -> agent_manager.v1.measures.ToolFailureRateResponse
+	20,  // 224: agent_manager.v1.measures.MeasuresService.RunSuccessRate:output_type -> agent_manager.v1.measures.RunSuccessRateResponse
+	22,  // 225: agent_manager.v1.measures.MeasuresService.RunCycleTime:output_type -> agent_manager.v1.measures.RunCycleTimeResponse
+	24,  // 226: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:output_type -> agent_manager.v1.measures.RunDurationStatisticsResponse
+	28,  // 227: agent_manager.v1.measures.MeasuresService.RunCost:output_type -> agent_manager.v1.measures.RunCostResponse
+	30,  // 228: agent_manager.v1.measures.MeasuresService.RunVolume:output_type -> agent_manager.v1.measures.RunVolumeResponse
+	33,  // 229: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:output_type -> agent_manager.v1.measures.RunStatusDistributionResponse
+	36,  // 230: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:output_type -> agent_manager.v1.measures.RunnerBreakdownResponse
+	38,  // 231: agent_manager.v1.measures.MeasuresService.ModelBreakdown:output_type -> agent_manager.v1.measures.ModelBreakdownResponse
+	40,  // 232: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:output_type -> agent_manager.v1.measures.ProfileBreakdownResponse
+	42,  // 233: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:output_type -> agent_manager.v1.measures.WorkloadBreakdownResponse
+	44,  // 234: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:output_type -> agent_manager.v1.measures.WorkloadEfficiencyResponse
+	47,  // 235: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:output_type -> agent_manager.v1.measures.TerminalRunTrendResponse
+	50,  // 236: agent_manager.v1.measures.MeasuresService.ToolUsage:output_type -> agent_manager.v1.measures.ToolUsageResponse
+	53,  // 237: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:output_type -> agent_manager.v1.measures.ToolCommandBreakdownResponse
+	56,  // 238: agent_manager.v1.measures.MeasuresService.TokenAttribution:output_type -> agent_manager.v1.measures.TokenAttributionResponse
+	65,  // 239: agent_manager.v1.measures.MeasuresService.ErrorPatterns:output_type -> agent_manager.v1.measures.ErrorPatternsResponse
+	67,  // 240: agent_manager.v1.measures.MeasuresService.FileRereadRate:output_type -> agent_manager.v1.measures.FileRereadRateResponse
+	69,  // 241: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:output_type -> agent_manager.v1.measures.FindingRecurrenceRateResponse
+	76,  // 242: agent_manager.v1.measures.MeasuresService.EpisodeCohort:output_type -> agent_manager.v1.measures.EpisodeCohortResponse
+	59,  // 243: agent_manager.v1.measures.MeasuresService.CapabilityUsage:output_type -> agent_manager.v1.measures.CapabilityUsageResponse
+	62,  // 244: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:output_type -> agent_manager.v1.measures.CapabilityEfficacyResponse
+	8,   // 245: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:output_type -> agent_manager.v1.measures.ConversationSearchQualityResponse
+	6,   // 246: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:output_type -> agent_manager.v1.measures.AllMeasureDefinitionsResponse
+	73,  // 247: agent_manager.v1.measures.MeasuresService.SelectCohort:output_type -> agent_manager.v1.measures.SelectCohortResponse
+	82,  // 248: agent_manager.v1.measures.MeasuresService.CohortReport:output_type -> agent_manager.v1.measures.CohortReportResponse
+	85,  // 249: agent_manager.v1.measures.MeasuresService.CompareEpisodeCohorts:output_type -> agent_manager.v1.measures.CompareEpisodeCohortsResponse
+	90,  // 250: agent_manager.v1.measures.MeasuresService.UsageForecast:output_type -> agent_manager.v1.measures.UsageForecastResponse
+	95,  // 251: agent_manager.v1.measures.MeasuresService.UsageForecastBacktest:output_type -> agent_manager.v1.measures.UsageForecastBacktestResponse
+	105, // 252: agent_manager.v1.measures.MeasuresService.UsageBurners:output_type -> agent_manager.v1.measures.UsageBurnersResponse
+	111, // 253: agent_manager.v1.measures.MeasuresService.UsageRecommendations:output_type -> agent_manager.v1.measures.UsageRecommendationsResponse
+	115, // 254: agent_manager.v1.measures.MeasuresService.UsageCoverage:output_type -> agent_manager.v1.measures.UsageCoverageResponse
+	118, // 255: agent_manager.v1.measures.MeasuresService.UsageCompare:output_type -> agent_manager.v1.measures.UsageCompareResponse
+	219, // [219:256] is the sub-list for method output_type
+	182, // [182:219] is the sub-list for method input_type
+	182, // [182:182] is the sub-list for extension type_name
+	182, // [182:182] is the sub-list for extension extendee
+	0,   // [0:182] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_measures_measures_proto_init() }
@@ -7325,14 +12225,15 @@ func file_agent_manager_v1_measures_measures_proto_init() {
 	if File_agent_manager_v1_measures_measures_proto != nil {
 		return
 	}
-	file_agent_manager_v1_measures_measures_proto_msgTypes[71].OneofWrappers = []any{}
+	file_agent_manager_v1_measures_measures_proto_msgTypes[72].OneofWrappers = []any{}
+	file_agent_manager_v1_measures_measures_proto_msgTypes[92].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_measures_measures_proto_rawDesc), len(file_agent_manager_v1_measures_measures_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   76,
+			NumMessages:   119,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

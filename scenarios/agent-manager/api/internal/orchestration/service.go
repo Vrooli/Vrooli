@@ -253,6 +253,9 @@ type Orchestrator struct {
 	// conversationSearchRevive clears an external publication tombstone when
 	// an operator explicitly imports or republishes the same provenance.
 	conversationSearchRevive func(context.Context, string, string) error
+	// transcriptIndex is the Transcript Indexer that captures external
+	// transcripts; nil until wiring installs it (SetTranscriptIndex).
+	transcriptIndex *TranscriptIndex
 }
 
 // CredentialUseReleaser revokes capabilities bound to a terminal agent run.
@@ -761,6 +764,7 @@ func WithWebConsoleUIBase(base string) Option {
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 	if r != nil {
+		r.hooks = o
 		r.structuredResults = o.structuredResults
 		r.sessionBindingProofReader = o.sessionBindingProofReader
 		if o.approvalPublisher != nil {

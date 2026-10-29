@@ -1,17 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, test, vi } from "vitest";
-import { fetchHealth, validatePath } from "./api.js";
+import { validatePath } from "./api.js";
 
 afterEach(() => vi.unstubAllGlobals());
-
-test("transport health check requests the canonical endpoint without cached operator state", async () => {
-  const fetch = vi.fn(async () => new Response(JSON.stringify({ status: "ready", service: "agent-manager", timestamp: "now" }), { status: 200 }));
-  vi.stubGlobal("fetch", fetch);
-
-  assert.deepEqual(await fetchHealth(), { status: "ready", service: "agent-manager", timestamp: "now" });
-  assert.equal(fetch.mock.calls[0]?.[0], "http://localhost:3000/api/v1/health");
-  assert.equal(fetch.mock.calls[0]?.[1]?.cache, "no-store");
-});
 
 test("transport path validation encodes optional project roots and preserves endpoint failures", async () => {
   const fetch = vi.fn()

@@ -788,9 +788,14 @@ help-recovery, repeated work, file rereads, per-tool outcomes, run success,
 cycle time, cost, and volume questions across the run corpus.
 
 **Ownership and freshness:** `runreport.DeriveInvocationFacts` remains the
-single classifier fold. `orchestration` starts a fire-and-forget projection
-when a run reaches a terminal state; projection failures are logged and never
-alter the run transition. Facts, watermark, terminal run summary, and reread
+single classifier fold. Every terminal-state writer (run lifecycle, executor,
+Reconciler recovery writes, recovered terminal receipts) records a durable
+"needs projection" mark in `invocation_read_model_pending`; the reconcile
+sweep `ProjectPendingInvocationReadModels` also enqueues ended runs whose
+watermark is missing or from an older classifier, then projects due marks
+idempotently. A failed projection keeps its mark with backoff and never alters
+the run. Token quantities come from the one usage account
+(`runsignal.AccountUsage`). Facts, watermark, terminal run summary, and reread
 signals advance in the same transaction, so no analytical surface can observe
 a partially advanced run. A refresh reports `skipped`, `refreshed`,
 or `unreplayable`; an unreplayable run has no retained source events and keeps

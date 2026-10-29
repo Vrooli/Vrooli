@@ -91,6 +91,48 @@ Because a fact row is a segment, `p50`, `p95`, and `max` footprint columns
 describe segment shares rather than whole calls whenever the grouped commands
 appear in compound lines. `SUM` columns are unaffected — they conserve.
 
+## Run totals: one usage account
+
+Every token total for a run — the read-model run fact, the run report, time
+accounting buckets, episode tokens, the token cap recount, workflow metering,
+`RunAccounting`/`usage run`, the terminal run summary and effort usage — reads
+one function, `runsignal.AccountUsage(events)`. It returns a per-event
+contribution whose sum is the run total, so a subset sum (a time slice, an
+episode window) can never count a provider report twice.
+
+| Usage shape | Rule |
+| --- | --- |
+| Codex (rollout `token_count`, exec `turn.completed`) | Each report carries the session's raw cumulative counter (`cumulative`, `sessionId`) and the provider's explicit amount for that report (`last_token_usage`, the difference from the same parser's previous counter, the whole counter when the parser saw the session start, otherwise zero). A session's usage is its last counter minus the counter before the run's first report. Each distinct counter value is credited once. |
+| Claude (per assistant message) | Claude repeats a message's usage on every streamed content block, with partial output on early blocks. Each `messageId` counts once, at its largest report. Sub-agent usage from the stream keeps `parentToolUseId`. |
+| Print-mode closing receipt (Claude `result`) | The receipt is the invocation total and replaces that invocation's per-message usage; the messages keep their amounts for attribution only. |
+
+The result is invariant under re-tails, restarts and recovery replays. A parser
+that starts mid-transcript (an interactive tail, a recovery drain, a
+continuation) names the resumed session (`TranscriptSessionSetter`) and claims
+no amount for a counter it cannot difference, so it can only under-, never
+over-, count. Usage events written before `invocation-fact.v20` carry no
+counters; the account cannot correct those inflated rows, and their run totals
+stay as captured until the transcript is re-indexed.
+
+Closing receipts (`reconciliationAuthority`) still mark an invocation as
+settled for workflow metering. A Codex receipt repeats the turn's summed amount
+and latest counter, so it stands alone after transcript recovery and adds
+nothing beside the turn's own reports.
+
+Projection is driven by a durable needs-projection mark that every terminal
+writer sets, plus the reconcile sweep, which also re-projects ended runs whose
+watermark was written by another fact or episode classifier. Bumping
+`InvocationFactVersion` or `EpisodeClassifierVersion` therefore re-projects
+history after a restart; `agent-manager usage
+reindex` (refresh by default) does the same on demand.
+
+The retained-fixture regressions are
+`internal/adapters/runner/codecs/usage_accounting_test.go`,
+`internal/orchestration/interactive/usage_accounting_test.go` and
+`internal/orchestration/usage_accounting_test.go`. The opt-in, read-only
+`TestLiveUsageComparison` (`internal/orchestration`) compares named live runs
+against their rollouts.
+
 ## Whole-stream projection
 
 Projection reads a run's entire retained event stream, paging by sequence.
@@ -158,7 +200,7 @@ agent-manager measures token-attribution --by capability --view footprint --json
 `incurred`. Every response includes estimated share and keeps the
 `unattributed` row visible when a run residual exists.
 
-The Stats page exposes the same selectors and columns. Footprint additionally
+Usage › Details (`/usage?tab=details`) exposes the same selectors and columns. Footprint additionally
 shows p50, p95, and maximum footprint. Residency is labelled as the compaction
 attenuation approximation, and an empty retained corpus is shown as an empty
 state rather than a zero-cost claim.
@@ -185,5 +227,5 @@ The CLI prints the distribution beneath the aggregate:
 agent-manager measures run-cost --window last_7d
 ```
 
-The Stats page renders it as a `CostDistributionCard` with token/cost
+Usage › Details (`/usage?tab=details`) renders it as a `CostDistributionCard` with token/cost
 percentile tables and a token-volume histogram.

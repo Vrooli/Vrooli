@@ -85,10 +85,18 @@ func eventually(t *testing.T, what string, condition func() bool) {
 	}
 }
 
+// Token caps run on every live sink path: the fresh headless executor, the
+// interactive tail and recovery (D-1), not only continuations.
 func TestTokenCapNudgesOnceAt85PercentThenStopsWithTokenCapReason(t *testing.T) {
+	for _, path := range []string{"headless executor", "interactive tail", "recovery"} {
+		t.Run(path, func(t *testing.T) { testTokenCapNudgeThenStop(t, path) })
+	}
+}
+
+func testTokenCapNudgeThenStop(t *testing.T, path string) {
 	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
 	o := tokenCapOrchestrator(repos, events, TokenCapEnforce)
-	sink := o.runEventSink(run.ID)
+	sink := runEventSinkPaths(t, o)[path](run)
 	ctx := context.Background()
 
 	if err := sink.Emit(usageEvent(run.ID, "gpt-6-luna", 860, 1)); err != nil {

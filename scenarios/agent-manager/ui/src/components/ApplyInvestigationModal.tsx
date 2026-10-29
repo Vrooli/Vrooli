@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, Info, Loader2, Paperclip, Search } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "./ui/checkbox";
 import {
   Dialog,
@@ -161,7 +161,7 @@ export function ApplyInvestigationModal({
               {investigationRun && onViewRun && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => onViewRun(investigationRun.id)}
                   className="gap-1.5"
@@ -263,7 +263,7 @@ export function ApplyInvestigationModal({
               {attachments.length > 0 && (
                 <AttachmentPreview attachments={attachments} onRemove={removeAttachment} isUploading={isUploading} />
               )}
-              <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => imageInputRef.current?.click()}>
                 <Paperclip className="h-4 w-4 mr-2" />
                 Attach Image
               </Button>
@@ -287,7 +287,7 @@ export function ApplyInvestigationModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button

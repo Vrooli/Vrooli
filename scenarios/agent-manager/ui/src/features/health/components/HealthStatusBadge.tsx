@@ -1,4 +1,4 @@
-import { Badge } from "../../../components/ui/badge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import type { HealthStatus } from "../api/types";
 
 interface HealthStatusBadgeProps {
@@ -8,11 +8,11 @@ interface HealthStatusBadgeProps {
 export function HealthStatusBadge({ status }: HealthStatusBadgeProps) {
   switch (status) {
     case "ok":
-      return <Badge variant="success">OK</Badge>;
+      return <StatusBadge tone="success">OK</StatusBadge>;
     case "failed":
-      return <Badge variant="destructive">Failed</Badge>;
+      return <StatusBadge tone="danger">Failed</StatusBadge>;
     case "unknown":
     default:
-      return <Badge variant="secondary">Unknown</Badge>;
+      return <StatusBadge tone="neutral">Unknown</StatusBadge>;
   }
 }

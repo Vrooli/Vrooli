@@ -27,9 +27,10 @@
     "19-run-artifacts/module.json",
     "20-cli-interface/module.json",
     "21-multi-phase-runs/module.json",
-    "22-cost-tracking/module.json",
     "23-durable-run-analytics/module.json",
-    "24-attributable-conversation-recall/module.json"
+    "24-attributable-conversation-recall/module.json",
+    "25-finite-investigations/module.json",
+    "26-usage-intelligence/module.json"
   ],
   "modules": [
     {
@@ -159,12 +160,6 @@
       "title": "Multi-phase Runs"
     },
     {
-      "id": "MOD-P2-022",
-      "path": "22-cost-tracking",
-      "priority": "P2",
-      "title": "Cost Tracking"
-    },
-    {
       "id": "MOD-P0-012",
       "path": "23-durable-run-analytics",
       "priority": "P0",
@@ -175,6 +170,18 @@
       "path": "24-attributable-conversation-recall",
       "priority": "P0",
       "title": "Attributable Conversation Recall"
+    },
+    {
+      "id": "MOD-P0-014",
+      "path": "25-finite-investigations",
+      "priority": "P0",
+      "title": "Finite Investigations"
+    },
+    {
+      "id": "MOD-P0-015",
+      "path": "26-usage-intelligence",
+      "priority": "P0",
+      "title": "Usage Intelligence"
     }
   ]
 }

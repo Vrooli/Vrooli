@@ -5,7 +5,7 @@ import type {
   PermissionPolicyPlanSchema,
 } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import { Badge } from "../../ui/badge";
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent } from "../../ui/card";
 import { Checkbox } from "../../ui/checkbox";
 import type { usePermissionPolicy } from "../../../hooks/useApi";
@@ -97,10 +97,10 @@ export function PermissionPolicyTab({ policy }: { policy: PermissionPolicyHook }
           <h3 className="font-semibold">Operator actions</h3>
           <p className="text-xs text-muted-foreground">Validate and reload Git-managed declared state. Plan and doctor only query resource-owned adapters. Reconcile writes native files through those adapters only.</p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={busy !== null} onClick={() => void run("validate", async () => { const result = await policy.validate(); setNotice(result.valid ? `Catalog valid: ${result.candidateDigest}` : result.diagnostic?.message || "Catalog is invalid"); })}>{busy === "validate" ? "Validating…" : "Validate"}</Button>
-            <Button variant="outline" disabled={busy !== null} onClick={() => void run("reload", async () => { const result = await policy.reload(); setNotice(result.activated ? "Catalog activated" : result.diagnostic?.message || "Catalog was not activated"); })}>{busy === "reload" ? "Reloading…" : "Reload"}</Button>
-            <Button variant="outline" disabled={busy !== null} onClick={() => void run("plan", async () => { const result = await policy.plan(); setPlan(result.plan ?? null); setNotice("Projection plan refreshed"); })}>{busy === "plan" ? "Planning…" : "Plan"}</Button>
-            <Button variant="outline" disabled={busy !== null} onClick={() => void run("doctor", async () => { const result = await policy.doctor(); setDoctor(result); setPlan(result.plan ?? null); setNotice(result.summary); })}>{busy === "doctor" ? "Checking…" : "Doctor"}</Button>
+            <Button variant="secondary" disabled={busy !== null} onClick={() => void run("validate", async () => { const result = await policy.validate(); setNotice(result.valid ? `Catalog valid: ${result.candidateDigest}` : result.diagnostic?.message || "Catalog is invalid"); })}>{busy === "validate" ? "Validating…" : "Validate"}</Button>
+            <Button variant="secondary" disabled={busy !== null} onClick={() => void run("reload", async () => { const result = await policy.reload(); setNotice(result.activated ? "Catalog activated" : result.diagnostic?.message || "Catalog was not activated"); })}>{busy === "reload" ? "Reloading…" : "Reload"}</Button>
+            <Button variant="secondary" disabled={busy !== null} onClick={() => void run("plan", async () => { const result = await policy.plan(); setPlan(result.plan ?? null); setNotice("Projection plan refreshed"); })}>{busy === "plan" ? "Planning…" : "Plan"}</Button>
+            <Button variant="secondary" disabled={busy !== null} onClick={() => void run("doctor", async () => { const result = await policy.doctor(); setDoctor(result); setPlan(result.plan ?? null); setNotice(result.summary); })}>{busy === "doctor" ? "Checking…" : "Doctor"}</Button>
           </div>
           <label className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
             <Checkbox checked={authorized} onCheckedChange={setAuthorized} />

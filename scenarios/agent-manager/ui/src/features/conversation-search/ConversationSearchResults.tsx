@@ -14,7 +14,7 @@ import {
   ConversationSearchMode,
   ConversationSearchSort,
 } from "@vrooli/proto-types/agent-manager/v1/domain/conversation_search_pb";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "../../components/ui/checkbox";
 import { cn } from "../../lib/utils";
 import {
@@ -198,19 +198,19 @@ export function ConversationSearchResults({ query, filters, onFiltersChange, onO
         <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
           <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" />Partial search coverage</div>
           <p className="mt-1">Lexical matches remain available. {stale ? "The index may not include the newest messages. " : ""}{[...new Set(degradations.map((item) => degradationSummary(item.reason)))].join(" ")}</p>
-          {degradations.some((item) => item.retryable) ? <Button type="button" variant="link" size="sm" className="mt-1 h-auto p-0 text-xs" onClick={search.retry}><RotateCw className="mr-1 h-3 w-3" />Retry search</Button> : null}
+          {degradations.some((item) => item.retryable) ? <Button type="button" variant="ghost" size="sm" className="mt-1 h-auto p-0 text-xs" onClick={search.retry}><RotateCw className="mr-1 h-3 w-3" />Retry search</Button> : null}
         </div>
       ) : null}
       {coverage ? <p className="text-xs text-muted-foreground">Coverage: {Math.round(coverage.lexicalRatio * 100)}% lexical · {Math.round(coverage.semanticRatio * 100)}% semantic · {coverage.pendingDocuments.toString()} pending</p> : null}
       {search.loading ? <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Searching all retained conversations…</div> : null}
-      {search.error ? <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm"><p className="font-medium">{search.error.kind === "invalid" ? "Search query is invalid" : search.error.kind === "permission" ? "Conversation search is restricted" : search.error.kind === "admission" ? "Search is temporarily busy" : "Conversation search failed"}</p><p className="mt-1 text-muted-foreground">{search.error.message}</p><Button type="button" variant="outline" size="sm" className="mt-2" onClick={search.retry}>Try again</Button></div> : null}
+      {search.error ? <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm"><p className="font-medium">{search.error.kind === "invalid" ? "Search query is invalid" : search.error.kind === "permission" ? "Conversation search is restricted" : search.error.kind === "admission" ? "Search is temporarily busy" : "Conversation search failed"}</p><p className="mt-1 text-muted-foreground">{search.error.message}</p><Button type="button" variant="secondary" size="sm" className="mt-2" onClick={search.retry}>Try again</Button></div> : null}
       {!search.loading && !search.error && search.hits.length === 0 ? <div className="py-10 text-center"><p className="font-medium">No conversation matches</p><p className="mt-1 text-sm text-muted-foreground">Try broader wording, text mode, or fewer filters.</p></div> : null}
       {allWeak ? <div role="status" className="rounded-md border border-border bg-muted/40 p-2 text-xs">Only weak matches were found. Review the match explanation or refine the query.</div> : null}
       {groups.map(([runId, hits]) => {
         const run = hits[0]?.run;
         return <section key={runId} aria-labelledby={`conversation-run-${runId}`} className="overflow-hidden rounded-lg border border-border bg-card"><header className="border-b border-border bg-muted/30 px-3 py-2"><h3 id={`conversation-run-${runId}`} className="truncate text-sm font-semibold">{run?.label || `Run ${runId.slice(0, 8)}`}</h3><p className="truncate text-xs text-muted-foreground">{run?.status || "unknown status"} · {run?.runner || "unknown runner"} · {run?.model || "unknown model"}</p></header><div className="divide-y divide-border/70">{hits.map((hit) => <article key={hit.stableHitId} className="p-3"><button type="button" className="block w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { search.recordSelection(hit, search.hits.findIndex((candidate) => candidate.stableHitId === hit.stableHitId) + 1); onOpenHit(hit); }}><div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span className="font-semibold">{hit.role || "event"}</span><span className="text-muted-foreground">{hit.occurredAt ? new Date(timestampMs(hit.occurredAt)).toLocaleString() : "time unavailable"}</span>{hit.weak ? <span className="rounded border border-border px-1.5">Weak match</span> : null}</div><p className="mt-2 text-sm leading-relaxed"><SafeHighlight hit={hit} /></p><p className="mt-2 text-xs text-muted-foreground">{hit.rankEvidence.map((evidence) => evidence.explanation).filter(Boolean).join(" · ") || "Matched indexed conversation content"}</p><p className="mt-1 text-xs text-muted-foreground">Source: {hit.provenance?.harness || "unknown harness"}{hit.provenance?.sourceSessionId ? ` · session ${hit.provenance.sourceSessionId}` : ""}</p><span className="mt-2 inline-block text-xs font-medium text-primary">Open matched event →</span></button><ContextPanel hit={hit} /></article>)}</div></section>;
       })}
-      {search.hasMore ? <Button type="button" variant="outline" className="w-full" disabled={search.loadingMore} onClick={search.loadMore}>{search.loadingMore ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading more</> : "Load more results"}</Button> : null}
+      {search.hasMore ? <Button type="button" variant="secondary" className="w-full" disabled={search.loadingMore} onClick={search.loadMore}>{search.loadingMore ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading more</> : "Load more results"}</Button> : null}
     </div>
   );
 }

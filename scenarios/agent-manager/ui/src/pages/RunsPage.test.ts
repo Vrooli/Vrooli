@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import { RunsPage } from "./RunsPage.js";
 import { renderWithProviders } from "../test-utils/index.js";
 import { ApprovalState, ExecutionMode, RunStatus } from "../types.js";
 import { makeRun } from "../test-utils/fixtures/runs.js";
+import { answerConfirmDialog, getErrorNotice, waitForConfirmDialogClosed } from "../test-utils/feedback.js";
+
+/** The open confirmation dialog, found by attribute (role queries are slow with library stylesheets). */
+async function openConfirmDialog(): Promise<HTMLElement> {
+  return vi.waitFor(() => {
+    const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
+    if (!dialog) throw new Error("No confirmation dialog is open");
+    return dialog;
+  });
+}
 
 const state = vi.hoisted(() => ({
   useRunsPageState: vi.fn(),
@@ -56,7 +67,26 @@ test("RunsPage exposes its empty, API-error, refresh, and no-selection states", 
   const refresh = vi.fn();
   const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
   renderWithProviders(createElement(RunsPage, {
-    runs: [], tasks: [], profiles: [], loading: false, error: "Runs API unavailable", onRefresh: refresh,
+    runs: [], tasks: [], profiles: [], loading: false, error: "Request failed: 503", onRefresh: refresh,
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
+    runEventStore: runEventStore as never, wsSubscribe: noop, wsUnsubscribe: noop,
+  }));
+  getErrorNotice("unreachable", "Request failed: 503");
+  assert.equal(screen.queryByText("No Runs Yet"), null, "an unreachable API is not an empty history");
+  assert.equal(screen.queryByText(/All Runs \(0\)/), null, "no count is claimed for a failed load");
+  assert.ok(screen.getByText("Select a run to view details"));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  assert.equal(refresh.mock.calls.length, 2);
+});
+
+test("RunsPage shows its empty history only after a successful load", () => {
+  setupControllerState();
+  const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
+  renderWithProviders(createElement(RunsPage, {
+    runs: [], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -64,10 +94,7 @@ test("RunsPage exposes its empty, API-error, refresh, and no-selection states", 
   }));
   assert.ok(screen.getByText("No Runs Yet"));
   assert.ok(screen.getByText("Start a run from the Tasks tab"));
-  assert.ok(screen.getByText("Runs API unavailable"));
-  assert.ok(screen.getByText("Select a run to view details"));
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-  assert.equal(refresh.mock.calls.length, 1);
+  assert.ok(screen.getByText(/All Runs \(0\)/));
 });
 
 test("RunsPage wires a selected review run into its detail surface", () => {
@@ -117,7 +144,6 @@ test("RunsPage performs list lifecycle actions and preserves the deliberate dele
     getTaskTitle: () => "Lifecycle task", loadRunDetails: noop,
   });
   const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
-  vi.stubGlobal("confirm", vi.fn(() => true));
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stopped, onDeleteRun: deleted, onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
@@ -126,13 +152,16 @@ test("RunsPage performs list lifecycle actions and preserves the deliberate dele
     runEventStore: runEventStore as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
 
-  fireEvent.click(screen.getByRole("button", { name: "Stop run Lifecycle task" }));
+  const user = userEvent.setup();
+  assert.equal(screen.queryByRole("button", { name: /Delete run/ }), null, "rows carry no destructive delete button");
+  assert.ok(screen.getByLabelText("Resume run Lifecycle task from failure"));
+  await user.click(screen.getByLabelText("Stop run Lifecycle task"));
+  assert.equal(stopped.mock.calls.length, 0, "stop waits for confirmation");
+  assert.ok((await openConfirmDialog()).textContent?.includes("Stop run?"));
+  await answerConfirmDialog(user, "confirm");
   await vi.waitFor(() => assert.equal(stopped.mock.calls[0]?.[0], run.id));
-  assert.equal(refresh.mock.calls.length, 1);
-  fireEvent.click(screen.getByRole("button", { name: "Delete run Lifecycle task" }));
-  assert.ok(screen.getByRole("heading", { name: "Delete Run" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  await vi.waitFor(() => assert.equal(deleted.mock.calls[0]?.[0], run.id));
+  await vi.waitFor(() => assert.equal(refresh.mock.calls.length, 1));
+  assert.equal(deleted.mock.calls.length, 0);
   assert.equal(toggleSelectionMode.mock.calls.length, 0);
 });
 
@@ -200,7 +229,7 @@ test("RunsPage resumes a failed run with explicit operator guidance and updates 
     onResumeFromFailedRun: resume, onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
-  fireEvent.click(screen.getByRole("button", { name: "Resume run Failed task from failure" }));
+  fireEvent.click(screen.getByLabelText("Resume run Failed task from failure"));
   assert.ok(screen.getByRole("heading", { name: "Resume from Failure" }));
   fireEvent.change(screen.getByLabelText("Additional Guidance (optional)"), { target: { value: "  use the existing migration  " } });
   fireEvent.click(screen.getByRole("button", { name: "Resume Run" }));
@@ -251,16 +280,17 @@ test("RunsPage presents distinct status indicators, including rejected approval"
 test("RunsPage retains the delete dialog and reports an API failure", async () => {
   setupControllerState();
   const run = makeRun({ id: "undeletable", taskId: "task-1", actions: { ...makeRun().actions, canDelete: true } });
-  state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Undeletable task", loadRunDetails: noop });
+  state.useSelectedRunController.mockReturnValue({ selectedRun: run, setSelectedRun: noop, selectedRunId: run.id, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Undeletable task", loadRunDetails: noop });
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(async () => { throw new Error("run history is retained"); }), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
-  }), { initialEntries: ["/runs"] });
-  fireEvent.click(screen.getByRole("button", { name: "Delete run Undeletable task" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-  await vi.waitFor(() => assert.ok(screen.getByText("run history is retained")));
-  assert.ok(screen.getByRole("heading", { name: "Delete Run" }));
+  }), { initialEntries: ["/runs/undeletable"] });
+  const user = userEvent.setup();
+  await user.click(screen.getByText("Delete from detail"));
+  const dialog = await answerConfirmDialog(user, "confirm");
+  await vi.waitFor(() => assert.ok(dialog.textContent?.includes("run history is retained")));
+  assert.ok(document.querySelector('[role="alertdialog"]'), "a failed delete keeps the confirmation open");
 });
 
 test("RunsPage propagates detail actions and refreshes its event snapshot after transcript mutations", async () => {
@@ -283,7 +313,6 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
     selectedRun: run, setSelectedRun, selectedRunId: run.id, diff: null, events: [], eventsLoading: false, diffLoading: false,
     resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Detail task", loadRunDetails,
   });
-  vi.stubGlobal("confirm", vi.fn(() => true));
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stop, onDeleteRun: vi.fn(), onRetryRun: retry, onGetRun: vi.fn(), onGetEvents: getEvents, onGetDiff: vi.fn(), onGetTask: vi.fn(),
@@ -315,11 +344,14 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
   await vi.waitFor(() => assert.equal(eventsGapFilled.mock.calls.length, 2));
   assert.deepEqual(eventsGapFilled.mock.calls, [[run.id, []], [run.id, []]]);
 
-  fireEvent.click(screen.getByRole("button", { name: "Stop from detail" }));
+  const user = userEvent.setup();
+  await user.click(screen.getByText("Stop from detail"));
+  await answerConfirmDialog(user, "confirm");
   await vi.waitFor(() => assert.deepEqual(stop.mock.calls, [[run.id]]));
-  assert.equal(refresh.mock.calls.length, 2);
-  fireEvent.click(screen.getByRole("button", { name: "Delete from detail" }));
-  assert.ok(screen.getByRole("heading", { name: "Delete Run" }));
+  await vi.waitFor(() => assert.equal(refresh.mock.calls.length, 2));
+  await waitForConfirmDialogClosed();
+  await user.click(screen.getByText("Delete from detail"));
+  assert.ok((await openConfirmDialog()).textContent?.includes("Delete run?"));
 });
 
 test("RunsPage filters status and forwards row selection using the visible run order", () => {
@@ -371,7 +403,7 @@ test("RunsPage keeps the destructive confirmation open and reports a delete fail
   setupControllerState();
   const run = makeRun({ id: "undeletable-run", taskId: "task-1", actions: { ...makeRun().actions, canDelete: true } });
   state.useSelectedRunController.mockReturnValue({
-    selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false,
+    selectedRun: run, setSelectedRun: noop, selectedRunId: run.id, diff: null, events: [], eventsLoading: false, diffLoading: false,
     resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Protected evidence", loadRunDetails: noop,
   });
   const remove = vi.fn(async () => { throw new Error("retention policy prevented deletion"); });
@@ -382,13 +414,15 @@ test("RunsPage keeps the destructive confirmation open and reports a delete fail
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
-  }), { initialEntries: ["/runs"] });
+  }), { initialEntries: ["/runs/undeletable-run"] });
 
-  fireEvent.click(screen.getByRole("button", { name: "Delete run Protected evidence" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  const user = userEvent.setup();
+  await user.click(screen.getByText("Delete from detail"));
+  assert.equal(remove.mock.calls.length, 0);
+  const dialog = await answerConfirmDialog(user, "confirm");
   await vi.waitFor(() => assert.deepEqual(remove.mock.calls, [[run.id]]));
-  assert.ok(screen.getByRole("heading", { name: "Delete Run" }));
-  await vi.waitFor(() => assert.ok(screen.getByText("retention policy prevented deletion")));
+  await vi.waitFor(() => assert.ok(dialog.textContent?.includes("retention policy prevented deletion")));
+  assert.ok(document.querySelector('[role="alertdialog"]'));
 });
 
 test("RunsPage retains apply and resume workflows when their creation requests fail", async () => {
@@ -416,7 +450,7 @@ test("RunsPage retains apply and resume workflows when their creation requests f
   await vi.waitFor(() => assert.ok(screen.getByText("apply runner unavailable")));
 
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  fireEvent.click(screen.getByRole("button", { name: "Resume run Recoverable task from failure" }));
+  fireEvent.click(screen.getByLabelText("Resume run Recoverable task from failure"));
   fireEvent.click(screen.getByRole("button", { name: "Resume Run" }));
   await vi.waitFor(() => assert.deepEqual(resume.mock.calls, [[failed.id, undefined, undefined]]));
   await vi.waitFor(() => assert.ok(screen.getByText("resume runner unavailable")));
@@ -477,8 +511,6 @@ test("RunsPage makes stop cancellation and stop failures non-destructive", async
   });
   const stop = vi.fn(async () => { throw new Error("runner no longer accepts stop requests"); });
   const refresh = vi.fn();
-  const consoleError = vi.spyOn(console, "error").mockImplementation(noop);
-  vi.stubGlobal("confirm", vi.fn(() => false));
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stop, onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
@@ -488,14 +520,16 @@ test("RunsPage makes stop cancellation and stop failures non-destructive", async
     wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
 
-  fireEvent.click(screen.getByRole("button", { name: "Stop run Stoppable task" }));
+  const user = userEvent.setup();
+  await user.click(screen.getByLabelText("Stop run Stoppable task"));
+  await answerConfirmDialog(user, "cancel");
+  await waitForConfirmDialogClosed();
   assert.equal(stop.mock.calls.length, 0);
-  vi.stubGlobal("confirm", vi.fn(() => true));
-  fireEvent.click(screen.getByRole("button", { name: "Stop run Stoppable task" }));
+  await user.click(screen.getByLabelText("Stop run Stoppable task"));
+  const dialog = await answerConfirmDialog(user, "confirm");
   await vi.waitFor(() => assert.deepEqual(stop.mock.calls, [[run.id]]));
+  await vi.waitFor(() => assert.ok(dialog.textContent?.includes("runner no longer accepts stop requests")));
   assert.equal(refresh.mock.calls.length, 0);
-  assert.match(consoleError.mock.calls[0]?.[0] ?? "", /Failed to stop run/);
-  consoleError.mockRestore();
 });
 
 test("RunsPage keeps typed investigation context bounded and clears transient modal state on close", async () => {
@@ -535,6 +569,7 @@ test("RunsPage communicates pending, starting, and cancelled statuses plus profi
     makeRun({ id: "pending-status", status: RunStatus.PENDING, agentProfileId: "known", executionMode: ExecutionMode.INTERACTIVE }),
     makeRun({ id: "starting-status", status: RunStatus.STARTING, agentProfileId: "missing" }),
     makeRun({ id: "cancelled-status", status: RunStatus.CANCELLED }),
+    makeRun({ id: "attached-status", status: RunStatus.COMPLETE, harnessKind: "codex", label: "codex session codex-abc12345ff", labelSource: "harness", harnessSessionId: "codex-abc12345ff" }),
   ];
   state.useSelectedRunController.mockReturnValue({
     selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false,
@@ -552,7 +587,11 @@ test("RunsPage communicates pending, starting, and cancelled statuses plus profi
   for (const title of ["Pending", "Starting", "Cancelled"]) assert.ok(screen.getByTitle(title));
   assert.ok(screen.getByTestId("interactive-badge"));
   assert.ok(screen.getByText(/Reliable profile/));
-  assert.ok(screen.getAllByText(/Unknown Profile/).length >= 1);
+  assert.ok(screen.getByText(/Profile unavailable/), "an unresolved profile id says so");
+  assert.ok(screen.getByText(/No profile/), "a run without a profile says so");
+  assert.ok(screen.getByText(/Codex · attached/), "an attached session names its harness");
+  assert.ok(screen.getByText("Codex session"));
+  assert.equal(screen.queryByText(/Unknown Profile/), null);
 });
 
 

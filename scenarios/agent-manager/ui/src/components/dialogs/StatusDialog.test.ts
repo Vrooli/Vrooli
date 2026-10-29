@@ -18,7 +18,7 @@ test("StatusDialog renders healthy dependency and metric details and delegates c
     open: true,
     onOpenChange,
     wsStatus: "connected",
-    healthError: "intermittent probe failure",
+    healthError: null,
     health: {
       status: HealthStatus.HEALTHY,
       service: "agent-manager",
@@ -27,7 +27,7 @@ test("StatusDialog renders healthy dependency and metric details and delegates c
       timestamp: "2026-07-29T00:00:00Z",
       dependencies: { postgres: objectValue({ status: stringValue("ready"), latency_ms: intValue(4n), storage: stringValue("sqlite") }) },
       metrics: { active_runs: intValue(2n) },
-    } as any,
+    } as never,
   }));
 
   assert.ok(screen.getByText("Healthy"));
@@ -35,7 +35,7 @@ test("StatusDialog renders healthy dependency and metric details and delegates c
   assert.ok(screen.getByText("postgres"));
   assert.ok(screen.getByText("4ms"));
   assert.ok(screen.getByText("active_runs"));
-  assert.ok(screen.getByText("intermittent probe failure"));
+  assert.equal(screen.queryByText(/Agent Manager is (degraded|unreachable)/), null);
   await user.keyboard("{Escape}");
   assert.deepEqual(onOpenChange.mock.calls, [[false]]);
 });
@@ -60,7 +60,7 @@ test("StatusDialog labels connecting and offline websocket states and renders op
       status: HealthStatus.DEGRADED, service: "agent-manager", readiness: false, version: "", timestamp: "",
       dependencies: { vault: objectValue({ status: stringValue("slow"), storage: stringValue("disk"), error: stringValue("locked") }) },
       metrics: {},
-    } as any,
+    } as never,
   }));
   assert.ok(screen.getByText("Degraded"));
   assert.ok(screen.getByText("Connecting"));
@@ -70,4 +70,20 @@ test("StatusDialog labels connecting and offline websocket states and renders op
 
   rerender(createElement(StatusDialog, { open: true, onOpenChange: vi.fn(), wsStatus: "disconnected", health: undefined, healthError: undefined }));
   assert.ok(screen.getByText("Offline"));
+});
+
+test("StatusDialog tells a degraded API (answers, with its reason) from an unreachable one", () => {
+  const { rerender } = renderWithProviders(createElement(StatusDialog, {
+    open: true, onOpenChange: vi.fn(), wsStatus: "connected", healthError: null,
+    healthReason: "startup degraded: in_flight_runs: context deadline exceeded",
+    health: { status: HealthStatus.DEGRADED, service: "agent-manager", readiness: false, version: "", timestamp: "", dependencies: {}, metrics: {} } as never,
+  }));
+  assert.ok(screen.getByText("Degraded"));
+  assert.ok(screen.getByText("Agent Manager is degraded"));
+  assert.ok(screen.getByText("startup degraded: in_flight_runs: context deadline exceeded"));
+  assert.equal(screen.queryByText(/unreachable/i), null);
+
+  rerender(createElement(StatusDialog, { open: true, onOpenChange: vi.fn(), wsStatus: "error", health: null, healthError: "Failed to fetch" }));
+  assert.ok(screen.getByText("Unreachable"));
+  assert.ok(screen.getByText("Agent Manager is unreachable"));
 });

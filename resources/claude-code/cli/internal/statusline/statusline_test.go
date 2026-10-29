@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,8 +44,19 @@ func (f fixture) top(t *testing.T) map[string]json.RawMessage {
 	return top
 }
 
+// Reset times far in the future, so the readings stay current whenever the
+// tests run.
+const (
+	fiveHourReset = 4102444800 // 2100-01-01T00:00:00Z
+	sevenDayReset = 4102876800 // 2100-01-06T00:00:00Z
+)
+
+func statusInputAt(five float64, fiveReset int64, seven float64, sevenReset int64) string {
+	return fmt.Sprintf(`{"session_id":"s-1","model":{"id":"claude-opus","display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":%s,"resets_at":%d},"seven_day":{"used_percentage":%s,"resets_at":%d}}}`, jsonNum(five), fiveReset, jsonNum(seven), sevenReset)
+}
+
 func statusInput(five, seven float64) string {
-	return `{"session_id":"s-1","model":{"id":"claude-opus","display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":` + jsonNum(five) + `,"resets_at":1738425600},"seven_day":{"used_percentage":` + jsonNum(seven) + `,"resets_at":1738857600}}}`
+	return statusInputAt(five, fiveHourReset, seven, sevenDayReset)
 }
 
 func jsonNum(v float64) string { b, _ := json.Marshal(v); return string(b) }
@@ -158,8 +170,68 @@ func TestFeedRecordsChangedReadingsWithHeartbeatAndPrintsStatus(t *testing.T) {
 		t.Fatalf("samples = %d, want 3: %+v", len(samples), samples)
 	}
 	got := samples[1]
-	if got.SessionID != "s-1" || got.Model != "claude-opus" || *got.FiveHour.UsedPercentage != 24 || got.FiveHour.ResetsAt != 1738425600 || *got.SevenDay.UsedPercentage != 41.2 {
+	if got.SessionID != "s-1" || got.Model != "claude-opus" || *got.FiveHour.UsedPercentage != 24 || got.FiveHour.ResetsAt != fiveHourReset || *got.SevenDay.UsedPercentage != 41.2 {
 		t.Fatalf("sample = %+v", got)
+	}
+}
+
+// A Claude Code session idle since an older window keeps rendering that
+// window's cached rate_limits (live 2026-10-29: five_hour resets_at Oct 22
+// observed Oct 29). An expired window is not recorded; the other is.
+// Sessions take turns rendering; each session's unchanged reading must not be
+// re-recorded just because another session rendered in between.
+func TestFeedDedupesPerSessionWhenSessionsAlternate(t *testing.T) {
+	f := newFixture(t, "")
+	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
+	feed := Feed{SamplesPath: f.samples, StatePath: f.settings.StatePath, Now: func() time.Time { return now }}
+	run := func(session string, five float64) {
+		input := strings.Replace(statusInput(five, 41.2), `"s-1"`, fmt.Sprintf("%q", session), 1)
+		if err := feed.Run(strings.NewReader(input), &bytes.Buffer{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 4; i++ {
+		run("a", 10)
+		now = now.Add(time.Second)
+		run("b", 12)
+		now = now.Add(time.Second)
+	}
+	if samples := readSamples(t, f.samples); len(samples) != 2 {
+		t.Fatalf("samples = %d, want 2 (one per session reading): %+v", len(samples), samples)
+	}
+	run("a", 11) // a changed: recorded
+	if samples := readSamples(t, f.samples); len(samples) != 3 {
+		t.Fatalf("samples = %d, want 3", len(samples))
+	}
+}
+
+func TestFeedDropsWindowsWhoseResetHasPassed(t *testing.T) {
+	f := newFixture(t, "")
+	now := time.Date(2026, 10, 29, 6, 41, 9, 0, time.UTC)
+	feed := Feed{SamplesPath: f.samples, StatePath: f.settings.StatePath, Now: func() time.Time { return now }}
+	for _, input := range []string{
+		statusInputAt(57, 1792692600, 18, 1793199600), // both expired: nothing recorded
+		statusInputAt(57, 1792692600, 23, 1793804400), // five_hour expired, seven_day current
+		statusInputAt(63, 1793268600, 23, 1793804400), // both current
+		statusInputAt(63, now.Unix(), 23, 1793804400), // reset at this instant is expired
+	} {
+		if err := feed.Run(strings.NewReader(input), &bytes.Buffer{}); err != nil {
+			t.Fatal(err)
+		}
+		now = now.Add(time.Second)
+	}
+	samples := readSamples(t, f.samples)
+	if len(samples) != 3 {
+		t.Fatalf("samples = %d, want 3: %+v", len(samples), samples)
+	}
+	if samples[0].FiveHour != nil || samples[0].SevenDay == nil || *samples[0].SevenDay.UsedPercentage != 23 {
+		t.Fatalf("expired five_hour must be omitted: %+v", samples[0])
+	}
+	if samples[1].FiveHour == nil || *samples[1].FiveHour.UsedPercentage != 63 || samples[1].FiveHour.ResetsAt != 1793268600 {
+		t.Fatalf("current five_hour must be recorded: %+v", samples[1])
+	}
+	if samples[2].FiveHour != nil {
+		t.Fatalf("a reset at the observation instant has passed: %+v", samples[2])
 	}
 }
 

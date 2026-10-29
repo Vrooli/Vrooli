@@ -40,6 +40,31 @@ service MeasuresService {
   // SelectCohort is the non-aggregate companion to the measures: it exposes
   // the run ids behind the exact same durable filter used by an aggregate.
   rpc SelectCohort(SelectCohortRequest) returns (SelectCohortResponse);
+  // CohortReport folds the run reports of one selected cohort: ranked
+  // friction signals, time accounting, evidence validity and goal progression.
+  rpc CohortReport(CohortReportRequest) returns (CohortReportResponse);
+  // CompareEpisodeCohorts compares friction-episode fingerprints between two
+  // selected cohorts, for example before and after a change.
+  rpc CompareEpisodeCohorts(CompareEpisodeCohortsRequest) returns (CompareEpisodeCohortsResponse);
+  // UsageForecast projects, from the provider's own quota readings, whether
+  // each subscription window runs out before its reset.
+  rpc UsageForecast(UsageForecastRequest) returns (UsageForecastResponse);
+  // UsageForecastBacktest replays the forecast over completed windows and
+  // compares it with what happened and with a naive linear baseline.
+  rpc UsageForecastBacktest(UsageForecastBacktestRequest) returns (UsageForecastBacktestResponse);
+  // UsageBurners attributes each window's observed quota increase to its
+  // consumers (session, run, profile, workload, model, runner, modality or
+  // tool kind) with an explicit unattributed remainder.
+  rpc UsageBurners(UsageBurnersRequest) returns (UsageBurnersResponse);
+  // UsageRecommendations ranks deterministic rule findings by the weekly
+  // quota they would save.
+  rpc UsageRecommendations(UsageRecommendationsRequest) returns (UsageRecommendationsResponse);
+  // UsageCoverage compares the transcripts on disk with what the Transcript
+  // Indexer captured, per root, naming every uncaptured file.
+  rpc UsageCoverage(UsageCoverageRequest) returns (UsageCoverageResponse);
+  // UsageCompare compares quota per successful workload unit between two
+  // selected cohorts (for example before and after a change).
+  rpc UsageCompare(UsageCompareRequest) returns (UsageCompareResponse);
 }
 
 // InvocationFilter is shared by all friction measures. Empty dimensions mean
@@ -651,10 +676,26 @@ message FindingRecurrenceRateResponse {
   string definition_id = 102;
 }
 
+// Every cohort request selects its runs the same way. Set at most one of:
+//   cohort  - a named durable cohort; its stored filter is the population and
+//             window narrows it only when given;
+//   run_ids - explicit run ids (at most 100);
+//   filter  - an ad hoc durable predicate over window (default this_week).
+// With none of them set, the population is every run in window.
+message CohortSelector {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  string cohort = 4;
+  repeated string run_ids = 5;
+}
+
+// SelectCohortRequest carries the CohortSelector fields inline.
 message SelectCohortRequest {
   vrooli.measures.v1.TimeWindow window = 1;
   InvocationFilter filter = 2;
   int32 limit = 3;
+  string cohort = 4;
+  repeated string run_ids = 5;
 }
 message CohortRun {
   string run_id = 1;
@@ -688,6 +729,8 @@ message EpisodeCohortRequest {
   vrooli.measures.v1.TimeWindow window = 1;
   InvocationFilter filter = 2;
   int32 limit = 3;
+  string cohort = 4;
+  repeated string run_ids = 5;
 }
 message EpisodeCohortSignal {
   string fingerprint = 1;
@@ -702,6 +745,583 @@ message EpisodeCohortResponse {
   string availability_reason = 2;
   repeated EpisodeCohortSignal signals = 3;
   string executed_query = 4 [deprecated = true];
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// CohortReportRequest carries the CohortSelector fields inline. limit bounds
+// the runs a named cohort or filter selects (default 100, at most 100).
+message CohortReportRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  int32 limit = 3;
+  string cohort = 4;
+  repeated string run_ids = 5;
+}
+message CohortReportSignal {
+  string kind = 1;
+  int64 count = 2;
+  int64 impact = 3;
+  string confidence = 4;
+  repeated string representative_run_ids = 5;
+}
+message CohortTimeAccounting {
+  int64 model_generating_ms = 1;
+  int64 tool_executing_ms = 2;
+  int64 idle_waiting_ms = 3;
+  int64 awaiting_human_ms = 4;
+  int64 unattributable_ms = 5;
+  int64 model_tokens = 6;
+  int64 tool_tokens = 7;
+  int64 idle_tokens = 8;
+  int64 human_tokens = 9;
+  int64 unattributable_tokens = 10;
+}
+message CohortInvocationValidity {
+  int64 total_calls = 1;
+  int64 classified_base = 2;
+  int64 unclassified_count = 3;
+}
+// CohortGoalProgression folds goal markers across the cohort's runs.
+message CohortGoalProgression {
+  string availability_state = 1;
+  string availability_reason = 2;
+  int64 goal_runs = 3;
+  int64 met_runs = 4;
+  double average_time_to_first_met_ms = 5;
+  double average_tokens_to_first_met = 6;
+  int64 interventions_before_met = 7;
+  int64 handoffs_before_met = 8;
+  int64 regressions = 9;
+  int64 restatements = 10;
+}
+message CohortReportResponse {
+  string classifier_version = 1;
+  repeated string run_ids = 2;
+  bool truncated = 3;
+  string availability_state = 4;
+  string availability_reason = 5;
+  repeated CohortReportSignal signals = 6;
+  CohortTimeAccounting time_accounting = 7;
+  CohortInvocationValidity invocation_validity = 8;
+  CohortGoalProgression goal = 9;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message CompareEpisodeCohortsRequest {
+  CohortSelector left = 1;
+  CohortSelector right = 2;
+  // change_binding labels the change between the populations (a plan slug,
+  // commit range or release); it is echoed, never interpreted.
+  string change_binding = 3;
+  int32 limit = 4;
+}
+message EpisodeComparisonSignal {
+  string fingerprint = 1;
+  int64 left_occurrences = 2;
+  int64 right_occurrences = 3;
+  int64 left_distinct_runs = 4;
+  int64 right_distinct_runs = 5;
+  int64 left_cost_ms = 6;
+  int64 right_cost_ms = 7;
+  int64 occurrence_delta = 8;
+  int64 cost_delta_ms = 9;
+}
+message CompareEpisodeCohortsResponse {
+  string classifier_version = 1;
+  string change_binding = 2;
+  int64 left_population = 3;
+  int64 right_population = 4;
+  string availability_state = 5;
+  string availability_reason = 6;
+  repeated EpisodeComparisonSignal signals = 7;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// UsageForecastRequest selects provider windows. An empty provider reads all.
+message UsageForecastRequest {
+  string provider = 1;
+}
+
+// UsageBurnRate is the observed burn over one trailing horizon ending at the
+// response's generated_at (now), not at the newest reading.
+message UsageBurnRate {
+  // "1h", "6h" or "24h".
+  string horizon = 1;
+  bool available = 2;
+  double percent_per_hour = 3;
+  // Hours actually covered: shorter than the horizon when the window is younger.
+  double span_hours = 4;
+  // True when no reading lies inside the horizon (the newest reading is older
+  // than it): there is no current rate, so available is false.
+  bool stale = 5;
+}
+
+// UsagePercentPoint is one step of the monotone used-percent series.
+message UsagePercentPoint {
+  string at = 1;
+  double used_percent = 2;
+}
+
+// UsageWindowForecast is one provider subscription window. Timestamps are
+// RFC 3339 UTC; an empty timestamp means unknown, never "now".
+message UsageWindowForecast {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  int64 window_minutes = 4;
+  // on_track | at_risk | will_exhaust | unknown
+  string status = 5;
+  string status_reason = 6;
+  // False for windows that report a standing only (no percentage).
+  bool has_percent = 7;
+  double used_percent = 8;
+  string standing = 9;
+  string window_start = 10;
+  string resets_at = 11;
+  // Newest reading in the window ("last reading"). Burn horizons and the
+  // projected run-out are anchored at generated_at (now), not at this time.
+  string observed_at = 12;
+  int64 sample_count = 13;
+  repeated UsageBurnRate burn = 14;
+  // Central burn: the mean projected burn from now to the reset. It is the
+  // burn since the window start, shaped by the scope's hour-of-week burn
+  // profile and scaled by calibration_factor.
+  double central_percent_per_hour = 15;
+  string projected_exhaustion_at = 16;
+  string exhaustion_band_start = 17;
+  // Empty when the slow edge of the band never reaches 100%.
+  string exhaustion_band_end = 18;
+  // The burn that would last exactly until the reset: remaining / time to reset.
+  double lasting_percent_per_hour = 19;
+  // True when this window began before the previous window's scheduled reset.
+  bool early_reset = 20;
+  string previous_resets_at = 21;
+  double previous_final_percent = 22;
+  string previous_ended_at = 23;
+  repeated UsagePercentPoint series = 24;
+  reserved 25;
+  reserved "volatility_percent_per_hour";
+  // Used percent of the newest reading; below used_percent when that reader
+  // lags (concurrent Claude Code sessions cache different percents).
+  double last_reading_percent = 26;
+  // Median ratio of realized to projected remaining burn on the scope's
+  // newest completed windows at the same point of their life; 1 when fewer
+  // than three windows calibrate it (calibration_windows).
+  double calibration_factor = 27;
+  int64 calibration_windows = 28;
+}
+
+message UsageForecastResponse {
+  repeated UsageWindowForecast windows = 1;
+  string generated_at = 2;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message UsageForecastBacktestRequest {
+  string provider = 1;
+}
+
+// UsageBacktestCheckpoint compares one projection, made at a fraction of the
+// window's actual life, with the window's outcome.
+message UsageBacktestCheckpoint {
+  double elapsed_fraction = 1;
+  string as_of = 2;
+  double used_percent_at = 3;
+  double predicted_final_percent = 4;
+  double baseline_predicted_final_percent = 5;
+  double abs_error_points = 6;
+  double baseline_abs_error_points = 7;
+  // Empty when the projection does not reach 100% before the window ended.
+  string predicted_exhaustion_at = 8;
+  string baseline_predicted_exhaustion_at = 9;
+  // Set only when the projection and the actual window both exhausted.
+  optional double abs_error_hours = 10;
+  optional double baseline_abs_error_hours = 11;
+  // Whether "exhausts before the window ended" matched what happened.
+  bool outcome_correct = 12;
+  bool baseline_outcome_correct = 13;
+  // The calibration the projection used (see UsageWindowForecast).
+  double calibration_factor = 14;
+  int64 calibration_windows = 15;
+}
+
+message UsageBacktestWindow {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  string window_start = 4;
+  string ended_at = 5;
+  string resets_at = 6;
+  bool early_reset = 7;
+  double final_percent = 8;
+  string actual_exhaustion_at = 9;
+  repeated UsageBacktestCheckpoint checkpoints = 10;
+  // False when the window did not exhaust and its newest reading is more than
+  // 6 hours before the window ended: the final percent is then a lower bound
+  // and the window is not scored.
+  bool outcome_observed = 11;
+}
+
+message UsageBacktestSummary {
+  // "last_5_windows_per_scope" (SPEC A4: the newest five scored windows of
+  // each provider/scope) or "all_windows" (the whole history).
+  string population = 11;
+  double elapsed_fraction = 1;
+  int64 windows = 2;
+  double median_abs_error_points = 3;
+  double baseline_median_abs_error_points = 4;
+  int64 hour_error_windows = 5;
+  double median_abs_error_hours = 6;
+  double baseline_median_abs_error_hours = 7;
+  double outcome_accuracy = 8;
+  double baseline_outcome_accuracy = 9;
+  bool beats_baseline = 10;
+}
+
+message UsageForecastBacktestResponse {
+  repeated UsageBacktestWindow windows = 1;
+  repeated UsageBacktestSummary summaries = 2;
+  string limitation = 3;
+  // Completed windows not scored because their outcome was not observed.
+  int64 unobserved_windows = 4;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// UsageBurnersRequest selects the windows and the grouping of an attribution.
+message UsageBurnersRequest {
+  // Empty reads every provider.
+  string provider = 1;
+  // session | run | profile | workload | model | runner | modality | tool_kind.
+  // Empty means session.
+  string group_by = 2;
+  // RFC 3339. Attributes only the increase observed after it; empty means
+  // each current window's start.
+  string since = 3;
+  // Restricts the rows to one run (the run usage panel). Window totals,
+  // calibration and the remainder stay those of the whole window.
+  string run_id = 4;
+  // Rows per window; the rest fold into other_points. Default 20.
+  int32 limit = 5;
+}
+
+// UsageTokens are provider token counters from the one accounting function.
+// input excludes cached input; the four components are disjoint.
+message UsageTokens {
+  int64 input = 1;
+  int64 cached_input = 2;
+  int64 cache_creation = 3;
+  int64 output = 4;
+  int64 total = 5;
+}
+
+message UsageToolKindCount {
+  // shell | file_read | file_edit | search | agent | wait | web_search |
+  // web_fetch | image_generation | mcp:<server>.<tool> | scenario:<name> | other
+  string kind = 1;
+  int64 calls = 2;
+}
+
+// UsageModality counts non-text work (SPEC AM-3). Image input tokens are
+// inside the input counters; estimated_image_input_tokens explains part of
+// them and is never an extra charge.
+message UsageModality {
+  int64 images_in = 1;
+  int64 images_in_user = 2;
+  int64 images_in_high_detail = 3;
+  int64 image_bytes_in = 4;
+  int64 estimated_image_input_tokens = 5;
+  int64 images_out = 6;
+  int64 web_searches = 7;
+  int64 web_fetches = 8;
+  int64 audio_in = 9;
+  int64 tool_calls = 10;
+  repeated UsageToolKindCount tool_kinds = 11;
+}
+
+// UsageBurner is one consumer of a window's quota. points is an estimate in
+// percentage points of the window; present it as approximate.
+message UsageBurner {
+  // The group value: session id, run id, profile id, workload key, model,
+  // runner, modality or tool kind.
+  string key = 1;
+  // Human label: run label, profile name, workload key, or the key.
+  string label = 2;
+  double points = 3;
+  // points / observed_increase_points of the window.
+  double share = 4;
+  UsageTokens tokens = 5;
+  // Cached-input-equivalent tokens under the window's calibration.
+  double weighted_tokens = 6;
+  int64 sessions = 7;
+  int64 runs = 8;
+  int64 turns = 9;
+  // Up to 10 run ids behind the row, largest first, for drill-in.
+  repeated string run_ids = 10;
+  // Set when every turn in the row shares the value; empty when mixed.
+  string runner = 11;
+  string model = 12;
+  string profile_id = 13;
+  string workload = 14;
+  string first_at = 15;
+  string last_at = 16;
+  UsageModality modality = 17;
+  // indexed (operator sessions read by the Transcript Indexer) |
+  // agent_manager (runs Agent Manager launched) | mixed
+  string source = 18;
+}
+
+// UsageModelWeight converts one model's tokens to cached-input-equivalent
+// tokens: weighted = cached_input + input_weight*input +
+// cache_creation_weight*cache_creation + output_weight*output, and
+// points = weighted / cached_input_tokens_per_point. The ratios between
+// categories and models are the prior; the window's calibration sets the
+// scale.
+message UsageModelWeight {
+  string runner = 1;
+  string model = 2;
+  double cached_input_tokens_per_point = 3;
+  double input_weight = 4;
+  double cache_creation_weight = 5;
+  double output_weight = 6;
+  // price_book (the model's API price) | tier_prior (an unpriced
+  // subscription model's tier: E-2 fit for Codex, list-price ratios for
+  // Claude) | fallback (unknown model)
+  string source = 7;
+  // Blocks the model has usage in.
+  int64 slices = 8;
+}
+
+// UsageCalibration records how tokens were converted to quota points for one
+// window. It is recalibrated per window against the observed increase.
+message UsageCalibration {
+  // fitted: the scale is a low quantile of the blocks' increase over usage
+  // cost, and what usage does not explain is unattributed; scaled: too few
+  // blocks, usage explains every block it ran in; none: no usage.
+  string method = 1;
+  repeated UsageModelWeight weights = 2;
+  // Uncentered fit quality over the blocks (0..1); 0 when not fitted.
+  double r_squared = 3;
+  // Blocks: consecutive one-point steps merged to at least 3 points.
+  int64 slices = 4;
+  // Unattributed points per hour of the attributed period.
+  double off_disk_points_per_hour = 5;
+  string note = 6;
+}
+
+// UsageMeteredLine is work the provider meters outside the token counters.
+// It is never folded into token points.
+message UsageMeteredLine {
+  // codex_credits | web_search | image_generation | scenario:<name>
+  string kind = 1;
+  int64 count = 2;
+  // known | estimated | unknown
+  string state = 3;
+  // The charge when known (for example a credits balance change); empty when unknown.
+  string amount = 4;
+  string note = 5;
+}
+
+// UsageWindowAttribution splits one provider window's observed increase.
+// Invariant: sum(burners.points) + other_points + unattributed_points ==
+// observed_increase_points.
+message UsageWindowAttribution {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  int64 window_minutes = 4;
+  string window_start = 5;
+  string resets_at = 6;
+  // The attributed period: [period_start, period_end], period_end being the
+  // newest reading.
+  string period_start = 7;
+  string period_end = 8;
+  double used_percent = 9;
+  double observed_increase_points = 10;
+  double attributed_points = 11;
+  // Off-disk or unexplained consumption: other machines, provider web apps,
+  // uncaptured transcripts and fit residue.
+  double unattributed_points = 12;
+  string group_by = 13;
+  repeated UsageBurner burners = 14;
+  int64 other_burners = 15;
+  double other_points = 16;
+  UsageCalibration calibration = 17;
+  // Tokens used after the newest reading; no reading reflects them yet.
+  UsageTokens pending_tokens = 18;
+  repeated UsageMeteredLine metered_lines = 19;
+  // Runner whose transcripts explain this provider (codex, claude-code).
+  string runner = 20;
+}
+
+message UsageBurnersResponse {
+  repeated UsageWindowAttribution windows = 1;
+  string generated_at = 2;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message UsageRecommendationsRequest {
+  string provider = 1;
+  // Keeps only recommendations whose evidence names this run.
+  string run_id = 2;
+  // Default 20.
+  int32 limit = 3;
+}
+
+message UsageEvidenceRef {
+  // run | session | file | episode | image | profile | workload
+  string kind = 1;
+  string id = 2;
+  string label = 3;
+}
+
+message UsageEvidenceMetric {
+  string name = 1;
+  double value = 2;
+  // points | tokens | turns | calls | runs | ratio | hours | images
+  string unit = 3;
+}
+
+// UsageRecommendation is one deterministic rule finding.
+message UsageRecommendation {
+  int32 rank = 1;
+  // R-model | R-context | R-fanout | R-friction | R-idle | R-image
+  string rule = 2;
+  // model | context | fanout | friction | idle | image
+  string lever = 3;
+  // session | run | profile | workload | image
+  string target_kind = 4;
+  string target_id = 5;
+  string target_label = 6;
+  string provider = 7;
+  string pool = 8;
+  string window = 9;
+  // Estimated quota saved per week, in points of the named window.
+  double est_weekly_quota_points_saved = 10;
+  // high | medium | low
+  string confidence = 11;
+  string action = 12;
+  string rationale = 13;
+  // The target's attributed points in the current window.
+  double consumer_points = 14;
+  repeated UsageEvidenceRef evidence_refs = 15;
+  repeated UsageEvidenceMetric metrics = 16;
+}
+
+// UsageRuleStatus reports whether a rule family fired and, when it did not,
+// why, from the data.
+message UsageRuleStatus {
+  string rule = 1;
+  bool fired = 2;
+  int64 rows = 3;
+  int64 candidates = 4;
+  string reason = 5;
+}
+
+message UsageRecommendationsResponse {
+  // Ranked by est_weekly_quota_points_saved, largest first.
+  repeated UsageRecommendation recommendations = 1;
+  repeated UsageRuleStatus rules = 2;
+  string generated_at = 3;
+  // The session key with the most attributed points across current windows.
+  string dominant_consumer = 4;
+  string dominant_consumer_label = 5;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message UsageCoverageRequest {
+  // RFC 3339; empty means 7 days ago.
+  string since = 1;
+}
+
+message UsageCoverageIssue {
+  string path = 1;
+  string reason = 2;
+}
+
+// UsageCoverageRoot counts one transcript root kind. Captured files are
+// indexed or owned by the Agent Manager run that reads them.
+message UsageCoverageRoot {
+  // web-console-codex-home | codex-home | claude-home | agent-manager-run-home | configured | total
+  string kind = 1;
+  // codex | claude-code | mixed
+  string harness = 2;
+  int64 files = 3;
+  int64 indexed = 4;
+  int64 with_usage = 5;
+  int64 owned = 6;
+  int64 excluded = 7;
+  int64 pending = 8;
+  int64 unreadable = 9;
+  int64 bytes = 10;
+  int64 captured_bytes = 11;
+  // captured_bytes / bytes; 1 when there are no bytes.
+  double captured_share = 12;
+  // Provider turns and usage reports read from captured files.
+  int64 turns = 13;
+  int64 usage_reports = 14;
+  // At most 50 per root.
+  repeated UsageCoverageIssue issues = 15;
+}
+
+message UsageCoverageResponse {
+  string since = 1;
+  repeated UsageCoverageRoot roots = 2;
+  UsageCoverageRoot totals = 3;
+  // How to check this report against an independent scan of the disk.
+  string method = 4;
+  string generated_at = 5;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message UsageCompareRequest {
+  CohortSelector left = 1;
+  CohortSelector right = 2;
+  // Labels the change between the populations; echoed, never interpreted.
+  string change_binding = 3;
+  // Provider whose calibration prices the tokens; empty uses each run's own.
+  string provider = 4;
+}
+
+// UsageCompareSide is one cohort's quota per successful workload unit.
+message UsageCompareSide {
+  int64 runs = 1;
+  int64 successful_runs = 2;
+  // Runs with usage priced by a calibrated window.
+  int64 priced_runs = 3;
+  UsageTokens tokens = 4;
+  double weighted_tokens = 5;
+  // Estimated quota points (approximate).
+  double points = 6;
+  double points_per_success = 7;
+  double tokens_per_success = 8;
+  double success_rate = 9;
+  string window_start = 10;
+  string window_end = 11;
+}
+
+message UsageCompareResponse {
+  UsageCompareSide left = 1;
+  UsageCompareSide right = 2;
+  string change_binding = 3;
+  // right.points_per_success / left.points_per_success - 1; negative is better.
+  double points_per_success_change = 4;
+  // improved | regressed | unchanged | insufficient
+  string verdict = 5;
+  repeated string caveats = 6;
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;

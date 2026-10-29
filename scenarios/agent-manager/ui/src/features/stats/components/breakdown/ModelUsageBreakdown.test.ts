@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement, type ReactNode } from "react";
@@ -145,7 +146,7 @@ test("ModelUsageBreakdown renders empty and error states", () => {
 
   renderWithProviders(createElement(ModelUsageBreakdown));
 
-  assert.ok(screen.getByText("Model usage: model stats unavailable"));
+  assert.ok(getErrorNotice("Model usage", "model stats unavailable"));
 });
 
 test("ModelUsageBreakdown keeps the selected-model state honest while its run detail is loading, unavailable, or empty", async () => {
@@ -167,7 +168,7 @@ test("ModelUsageBreakdown keeps the selected-model state honest while its run de
   }) as ModelRunsQuery);
   const failed = renderWithProviders(createElement(ModelUsageBreakdown));
   await user.click(screen.getByRole("button", { name: "claude-3-opus" }));
-  assert.ok(screen.getByText("Failed to load runs: selected model unavailable"));
+  assert.ok(getErrorNotice("Runs", "selected model unavailable"));
   failed.unmount();
 
   vi.mocked(useModelUsageRuns).mockReturnValue(queryResult<ModelUsageRunsResponse>({

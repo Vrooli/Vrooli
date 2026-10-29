@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/runnerhealth"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/supervision"
+	"agent-manager/internal/usageforecast"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/vrooli/api-core/database"
@@ -58,6 +59,7 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(modelhealth.Schema),
 		database.SchemaProviderFunc(runnerhealth.Schema),
 		database.SchemaProviderFunc(stats.Schema),
+		database.SchemaProviderFunc(usageforecast.Schema),
 		database.SchemaProviderFunc(supervision.Schema),
 		database.SchemaProviderFunc(maintenance.Schema),
 	}

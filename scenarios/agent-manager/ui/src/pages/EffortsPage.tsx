@@ -9,7 +9,7 @@ import {
   type EffortUsage,
 } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
 import { useEffortBoard } from "../features/efforts/api";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 const freshnessNames: Record<number, string> = {
   [EffortFreshness.FRESH]: "fresh",
@@ -145,9 +145,9 @@ export function EffortsPage() {
   const selected = selectedRef ? board?.rows.find(row => row.enrollment?.effortRef === selectedRef) : board?.rows[0];
   const discovery = board?.discovery;
   return <section className="h-full overflow-auto p-4 sm:p-6" aria-labelledby="effort-board-title"><div className="mx-auto max-w-7xl space-y-4">
-    <header className="flex flex-wrap items-start justify-between gap-3"><div><h1 id="effort-board-title" className="text-xl font-semibold">Effort supervision</h1><p className="mt-1 text-sm text-muted-foreground">Delivery evidence and resource use across work shapes.</p></div><Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>Refresh observation</Button></header>
+    <header className="flex flex-wrap items-start justify-between gap-3"><div><h1 id="effort-board-title" className="text-xl font-semibold">Effort supervision</h1><p className="mt-1 text-sm text-muted-foreground">Delivery evidence and resource use across work shapes.</p></div><Button variant="secondary" onClick={() => void result.refetch()} disabled={result.isFetching}>Refresh observation</Button></header>
     <p className="rounded border border-border bg-muted/30 p-3 text-xs">Read-only owner projection. Activity is not acceptance; missing cost is not zero. Refresh does not scan or start supervision.</p>
-    {selectedRef ? <div className="flex flex-wrap items-center gap-3 text-sm"><p className="break-all">Exact effort: {selectedRef}</p><Button variant="outline" onClick={() => setSearchParams(params => { params.delete("effortRef"); return params; })}>Show all efforts</Button></div> : null}
+    {selectedRef ? <div className="flex flex-wrap items-center gap-3 text-sm"><p className="break-all">Exact effort: {selectedRef}</p><Button variant="secondary" onClick={() => setSearchParams(params => { params.delete("effortRef"); return params; })}>Show all efforts</Button></div> : null}
     {result.error ? <div role="alert" className="rounded border border-destructive/40 p-3 text-sm">Owner observation unavailable: {result.error.message}. {board ? "Retained results may be stale." : "Effort count and state are unknown."}</div> : null}
     {result.isPending ? <p role="status">Loading effort observation…</p> : null}
     {board ? <>
@@ -166,7 +166,7 @@ export function EffortsPage() {
         </button>)}</nav>
         {selected ? <EffortDetail row={selected} /> : null}
       </div>}
-      {!selectedRef ? <nav aria-label="Effort pages" className="flex items-center gap-3"><Button variant="outline" disabled={pages.length <= 1 || result.isFetching} onClick={() => setPages(old => old.slice(0, -1))}>Previous</Button><span className="text-sm">Page {pages.length}</span><Button variant="outline" disabled={!board.nextPageToken || result.isFetching} onClick={() => setPages(old => [...old, board.nextPageToken])}>Next</Button></nav> : null}
+      {!selectedRef ? <nav aria-label="Effort pages" className="flex items-center gap-3"><Button variant="secondary" disabled={pages.length <= 1 || result.isFetching} onClick={() => setPages(old => old.slice(0, -1))}>Previous</Button><span className="text-sm">Page {pages.length}</span><Button variant="secondary" disabled={!board.nextPageToken || result.isFetching} onClick={() => setPages(old => [...old, board.nextPageToken])}>Next</Button></nav> : null}
     </> : null}
   </div></section>;
 }

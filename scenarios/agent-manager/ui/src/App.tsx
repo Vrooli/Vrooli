@@ -1,18 +1,19 @@
 import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { Activity, BarChart3, Binoculars, ClipboardList, GitBranch, HeartPulse, Play, Search, Settings2, Upload } from "lucide-react";
+import { Play, Settings2 } from "lucide-react";
 import { AppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
-import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useRunStatusCounts } from "./hooks/useApi";
+import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useDashboardRunCounts } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { useRunEventStore } from "./hooks/useRunEventStore";
-import { HealthStatus, type Run, type RunEvent } from "./types";
+import type { Run, RunEvent } from "./types";
 import { QueryProvider } from "./providers/QueryProvider";
-import type { NavSection } from "./components/layout/SideNav";
-import { Button } from "./components/ui/button";
+import { NAV_DESTINATIONS, sectionForPath } from "./components/layout/navigation";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Badge } from "./components/ui/badge";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { jsonValueToPlain } from "./lib/utils";
 import { onProfilerRender } from "./lib/profiler";
+import { healthView } from "./lib/healthState";
 
 const DashboardPage = lazy(async () => ({ default: (await import("./pages/DashboardPage")).DashboardPage }));
 const ProfilesPage = lazy(async () => ({ default: (await import("./pages/ProfilesPage")).ProfilesPage }));
@@ -21,29 +22,13 @@ const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage"))
 const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/WorkflowsPage")).WorkflowsPage }));
 const WatchesPage = lazy(async () => ({ default: (await import("./pages/WatchesPage")).WatchesPage }));
 const EffortsPage = lazy(async () => ({ default: (await import("./pages/EffortsPage")).EffortsPage }));
-const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
+const UsagePage = lazy(async () => ({ default: (await import("./features/usage")).UsagePage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const FindingsPage = lazy(async () => ({ default: (await import("./pages/FindingsPage")).FindingsPage }));
 const InvestigationsPage = lazy(async () => ({ default: (await import("./pages/InvestigationsPage")).InvestigationsPage }));
-const ImportPage = lazy(async () => ({ default: (await import("./pages/ImportPage")).ImportPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
-
-const shellNavigation: Array<{ id: NavSection; label: string; href: string; icon: ReactNode }> = [
-  { id: "dashboard", label: "Dashboard", href: "/", icon: <Activity aria-hidden="true" /> },
-  { id: "tasks", label: "Tasks", href: "/tasks", icon: <ClipboardList aria-hidden="true" /> },
-  { id: "runs", label: "Runs", href: "/runs", icon: <Play aria-hidden="true" /> },
-  { id: "workflows", label: "Flows", href: "/workflows", icon: <GitBranch aria-hidden="true" /> },
-  { id: "watches", label: "Watches", href: "/watches", icon: <Binoculars aria-hidden="true" /> },
-  { id: "efforts", label: "Efforts", href: "/efforts", icon: <Binoculars aria-hidden="true" /> },
-  { id: "investigations", label: "Investigations", href: "/investigations", icon: <Search aria-hidden="true" /> },
-  { id: "findings", label: "Findings", href: "/findings", icon: <ClipboardList aria-hidden="true" /> },
-  { id: "stats", label: "Stats", href: "/stats", icon: <BarChart3 aria-hidden="true" /> },
-  { id: "profiles", label: "Profiles", href: "/profiles", icon: <Settings2 aria-hidden="true" /> },
-  { id: "health", label: "Health", href: "/observability", icon: <HeartPulse aria-hidden="true" /> },
-  { id: "import", label: "Import", href: "/import", icon: <Upload aria-hidden="true" /> },
-];
 
 // AI_CHECK: AGENT_MANAGER_RENDER_PERF=2 | LAST: 2026-05-04
 function ProfiledPage({ id, children }: { id: string; children: ReactNode }) {
@@ -63,16 +48,20 @@ export function App() {
 
   const path = location.pathname;
   const isDashboardRoute = path === "/";
-  const needsProfileData = path.startsWith("/profiles") || quickRunOpen;
+  // Runs show their profile's name, so the (small) profile list loads there too.
+  const needsProfileData = path.startsWith("/profiles") || path.startsWith("/runs") || quickRunOpen;
+  // Master-detail pages own their panes edge to edge; the shell adds no gutter.
+  const mainMode = ["/runs", "/tasks", "/profiles"].some((prefix) => path.startsWith(prefix)) ? "fill" : "scroll";
   const needsRunnerData = path.startsWith("/profiles") || settingsOpen || quickRunOpen;
   const needsTaskData = path.startsWith("/tasks") || path.startsWith("/runs");
   const runsLimit = isDashboardRoute ? 40 : undefined;
 
   const health = useHealth();
+  const healthState = healthView(health.data, health.error, health.reason);
   const profiles = useProfiles({ enabled: needsProfileData });
   const tasks = useTasks({ enabled: needsTaskData });
   const runs = useRuns({ limit: runsLimit });
-  const runStatusCounts = useRunStatusCounts({ enabled: isDashboardRoute });
+  const dashboardCounts = useDashboardRunCounts({ enabled: isDashboardRoute });
 	const modelPolicy = useRolePolicyCatalog({ enabled: needsRunnerData });
   const runEventStore = useRunEventStore();
   const reconciliationInFlightRef = useRef<Set<string>>(new Set());
@@ -89,29 +78,12 @@ export function App() {
     });
   }, [runs.data, runEventStore.state.runsById]);
 
-  // Derive active section from current path
-  const getActiveSection = useCallback((): NavSection => {
-    const path = location.pathname;
-    if (path.startsWith("/profiles")) return "profiles";
-    if (path.startsWith("/tasks")) return "tasks";
-    if (path.startsWith("/runs")) return "runs";
-    if (path.startsWith("/workflows")) return "workflows";
-    if (path.startsWith("/watches")) return "watches";
-    if (path.startsWith("/efforts")) return "efforts";
-    if (path.startsWith("/stats")) return "stats";
-    if (path.startsWith("/observability")) return "health";
-    if (path.startsWith("/investigations")) return "investigations";
-    if (path.startsWith("/findings")) return "findings";
-    if (path.startsWith("/import")) return "import";
-    return "dashboard";
-  }, [location.pathname]);
-
-  const activeSection = getActiveSection();
-
-  const shellItems: AppShellNavItem[] = shellNavigation.map((item) => ({
-    ...item,
-    current: item.id === activeSection,
-    testId: `agent-manager-nav-${item.id}`,
+  const activeSection = sectionForPath(location.pathname);
+  const shellItems: AppShellNavItem[] = NAV_DESTINATIONS.map(({ id, label, shortLabel, href, icon, phoneTab }) => ({
+    id, label, shortLabel, href, icon,
+    mobile: phoneTab,
+    current: id === activeSection,
+    testId: `agent-manager-nav-${id}`,
   }));
 
   const handleWebSocketMessage = useCallback(
@@ -134,7 +106,7 @@ export function App() {
               });
           }
           if (isDashboardRoute) {
-            runStatusCounts.refetch();
+            dashboardCounts.refetch();
           }
           if (
             needsTaskData &&
@@ -160,7 +132,7 @@ export function App() {
           break;
       }
     },
-    [isDashboardRoute, needsTaskData, runEventStore.actions, runStatusCounts, runs, tasks]
+    [isDashboardRoute, needsTaskData, runEventStore.actions, dashboardCounts, runs, tasks]
   );
 
   const ws = useWebSocket({
@@ -200,24 +172,7 @@ export function App() {
     }
   }, [runEventStore.reconciliationIntents, runEventStore.actions, getRunEvents]);
 
-  const handleSectionChange = useCallback(
-    (section: NavSection) => {
-      if (section === "dashboard") {
-        navigate("/");
-        return;
-      }
-      // The api-base UI server reserves `/health` for its own status JSON
-      // (see packages/api-base/src/server/health.ts), so the user-facing
-      // health page lives at `/observability`. The "health" NavSection
-      // label stays — the route name is the only thing that differs.
-      if (section === "health") {
-        navigate("/observability");
-        return;
-      }
-      navigate(`/${section}`);
-    },
-    [navigate]
-  );
+  const handleNavigate = useCallback((item: AppShellNavItem) => navigate(item.href), [navigate]);
 
   const handlePurgeComplete = useCallback(() => {
     profiles.refetch();
@@ -226,9 +181,9 @@ export function App() {
     }
     runs.refetch();
     if (isDashboardRoute) {
-      runStatusCounts.refetch();
+      dashboardCounts.refetch();
     }
-  }, [isDashboardRoute, needsTaskData, profiles, runStatusCounts, tasks, runs]);
+  }, [isDashboardRoute, needsTaskData, profiles, dashboardCounts, tasks, runs]);
 
   const pageFallback = (
     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -243,17 +198,17 @@ export function App() {
         brandMark={<img src="/public/logo.svg" alt="" aria-hidden="true" className="h-5 w-5" />}
         items={shellItems}
         density="sidebar"
-        mobileNav="tabs"
-        mainMode="scroll"
-        onNavigate={(item) => handleSectionChange(item.id as NavSection)}
+        mobileNav="menu-tabs"
+        mainMode={mainMode}
+        onNavigate={handleNavigate}
         renderLink={(item, props) => <a {...props} href={item.href} />}
         header={
-          <div className="flex min-h-12 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 py-2 sm:px-6">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="truncate text-sm font-semibold sm:text-base">Mizar</span>
+          <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-sm font-semibold md:hidden">Mizar</span>
               <Badge
-                variant={!health.data || health.data.status !== HealthStatus.HEALTHY || ws.status === "error" || ws.status === "disconnected" ? "destructive" : ws.status === "connecting" ? "secondary" : "success"}
-                className="cursor-pointer gap-1 text-xs"
+                variant={healthState.kind === "unreachable" || ws.status === "error" || ws.status === "disconnected" ? "destructive" : healthState.kind === "degraded" ? "warning" : healthState.kind === "checking" || ws.status === "connecting" ? "secondary" : "success"}
+                className="min-h-8 cursor-pointer gap-1 whitespace-nowrap text-xs"
                 onClick={() => setStatusOpen(true)}
                 role="button"
                 tabIndex={0}
@@ -265,19 +220,19 @@ export function App() {
                   }
                 }}
               >
-                {health.data?.status === HealthStatus.HEALTHY ? "Healthy" : "Degraded"} · {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : ws.status === "error" ? "Error" : "Offline"}
+                {healthState.label} · {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : ws.status === "error" ? "Error" : "Offline"}
               </Badge>
             </div>
-            <Button type="button" size="sm" onClick={() => setQuickRunOpen(true)}>
+            <Button type="button" size="sm" className="min-h-10 shrink-0" aria-label="Quick Run" onClick={() => setQuickRunOpen(true)}>
               <Play aria-hidden="true" className="h-4 w-4" />
               <span className="hidden sm:inline">Quick Run</span>
             </Button>
           </div>
         }
         utility={
-          <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => setSettingsOpen(true)}>
+          <Button type="button" variant="ghost" size="sm" className="min-h-10 shrink-0 md:w-full md:justify-start" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
             <Settings2 aria-hidden="true" className="h-4 w-4" />
-            Settings
+            <span className="hidden md:inline">Settings</span>
           </Button>
         }
         testId="agent-manager-shell"
@@ -290,6 +245,7 @@ export function App() {
               onOpenChange={setStatusOpen}
               health={health.data}
               healthError={health.error}
+              healthReason={health.reason}
               wsStatus={ws.status}
             />
           </Suspense>
@@ -326,7 +282,7 @@ export function App() {
                   if (needsTaskData) {
                     tasks.refetch();
                   }
-                  runStatusCounts.refetch();
+                  dashboardCounts.refetch();
                   navigate(`/runs/${run.id}`);
                 }}
               />
@@ -347,13 +303,16 @@ export function App() {
                       <DashboardPage
                         health={health.data}
                         runs={mergedRuns}
-                        statusCounts={runStatusCounts.data}
+                        runsLoading={runs.loading}
+                        runsError={runs.error}
+                        healthError={health.error}
+                        healthReason={health.reason}
+                        counts={dashboardCounts.data}
                         onRefresh={() => {
                           health.refetch();
                           runs.refetch();
-                          runStatusCounts.refetch();
+                          dashboardCounts.refetch();
                         }}
-                        onGetTask={tasks.getTask}
                         onNavigateToRun={(runId, tab) => navigate(`/runs/${runId}${tab ? `?tab=${tab}` : ""}`)}
                       />
                     </ProfiledPage>
@@ -473,17 +432,20 @@ export function App() {
               }
             />
             <Route
-              path="/stats"
+              path="/usage"
               element={
                 <Suspense fallback={pageFallback}>
-                  <ErrorBoundary section="Stats">
-                    <ProfiledPage id="StatsPage">
-                      <StatsPage />
+                  <ErrorBoundary section="Usage">
+                    <ProfiledPage id="UsagePage">
+                      <UsagePage />
                     </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }
             />
+            {/* Stats and Import folded into Usage (SPEC D8); old links land on the matching tab. */}
+            <Route path="/stats" element={<Navigate to="/usage?tab=details" replace />} />
+            <Route path="/import" element={<Navigate to="/usage?tab=coverage" replace />} />
             <Route
               path="/observability"
               element={
@@ -498,7 +460,6 @@ export function App() {
             />
             <Route path="/findings" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Findings"><ProfiledPage id="FindingsPage"><FindingsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
             <Route path="/investigations" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Investigations"><ProfiledPage id="InvestigationsPage"><InvestigationsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
-            <Route path="/import" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Import"><ProfiledPage id="ImportPage"><ImportPage /></ProfiledPage></ErrorBoundary></Suspense>} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

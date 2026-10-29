@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,15 +98,28 @@ func seedStandaloneRun(t *testing.T, fx standaloneRunFixture, events event.Store
 	return o, run.ID
 }
 
-func liveUsage(input, output, cached int) *domain.RunEvent {
-	return &domain.RunEvent{EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{PayloadKind: domain.PayloadKindUsage, InputTokens: input, OutputTokens: output, CacheReadTokens: cached, TurnIndex: 1, RunnerType: "codex"}}
+// liveCodexUsage is what the live tail persisted before the stream stopped:
+// the real parser's usage reports for every transcript line but the last.
+func liveCodexUsage(t *testing.T, transcript string) []*domain.RunEvent {
+	t.Helper()
+	lines := strings.Split(strings.TrimSpace(transcript), "\n")
+	parser := codecs.NewCodexForTest().NewTranscriptParser()
+	var out []*domain.RunEvent
+	for _, line := range lines[:len(lines)-1] {
+		for _, event := range parser.ParseTranscriptLine(uuid.Nil, line).Events {
+			if _, ok := event.Data.(*domain.UsageEventData); ok {
+				out = append(out, event)
+			}
+		}
+	}
+	return out
 }
 
 // The shape of the stuck goal-session workflow child 800ae00c: the live stream
 // kept two readings but never the abort's receipt. The sweep reads it back.
 func TestStandaloneSweepSettlesInterruptedCodexRunFromItsRollout(t *testing.T) {
 	events := mocks.NewFakeEventStore()
-	o, runID := seedStandaloneRun(t, standaloneRunFixture{kind: domain.RunnerTypeCodex, sessionID: "codex-session", transcript: standaloneCodexAborted, basis: domain.ChargeBasisSubscription, retained: []*domain.RunEvent{liveUsage(4331, 205, 10880), liveUsage(8906, 415, 21760)}}, events)
+	o, runID := seedStandaloneRun(t, standaloneRunFixture{kind: domain.RunnerTypeCodex, sessionID: "codex-session", transcript: standaloneCodexAborted, basis: domain.ChargeBasisSubscription, retained: liveCodexUsage(t, standaloneCodexAborted)}, events)
 	before, err := o.RunAccounting(t.Context(), runID)
 	if err != nil || !before.Terminal || before.TokensKnown {
 		t.Fatalf("fixture accounting = %+v %v, want terminal and unknown", before, err)
@@ -244,7 +258,7 @@ func TestWorkflowRecoverySettlesInteractiveChildFromItsTranscript(t *testing.T) 
 
 func TestStandaloneSweepLeavesRequestInFlightUnknownAndRetriesLater(t *testing.T) {
 	events := mocks.NewFakeEventStore()
-	o, runID := seedStandaloneRun(t, standaloneRunFixture{kind: domain.RunnerTypeCodex, sessionID: "codex-session", transcript: standaloneCodexRequestInFlight, basis: domain.ChargeBasisSubscription, retained: []*domain.RunEvent{liveUsage(4331, 205, 10880)}}, events)
+	o, runID := seedStandaloneRun(t, standaloneRunFixture{kind: domain.RunnerTypeCodex, sessionID: "codex-session", transcript: standaloneCodexRequestInFlight, basis: domain.ChargeBasisSubscription, retained: liveCodexUsage(t, standaloneCodexRequestInFlight)}, events)
 	count, _ := events.Count(t.Context(), runID)
 	if err := o.RecoverStandaloneTerminalAccounting(t.Context()); err != nil {
 		t.Fatal(err)

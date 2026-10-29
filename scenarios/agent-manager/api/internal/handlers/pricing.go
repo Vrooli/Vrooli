@@ -201,13 +201,11 @@ type CreateAliasRequest struct {
 
 // SettingsResponse is the HTTP response for pricing settings.
 type SettingsResponse struct {
-	HistoricalAverageDays   int `json:"historicalAverageDays"`
 	ProviderCacheTTLSeconds int `json:"providerCacheTtlSeconds"`
 }
 
 // UpdateSettingsRequest is the HTTP request for updating settings.
 type UpdateSettingsRequest struct {
-	HistoricalAverageDays   *int `json:"historicalAverageDays,omitempty"`
 	ProviderCacheTTLSeconds *int `json:"providerCacheTtlSeconds,omitempty"`
 }
 
@@ -488,7 +486,6 @@ func (h *PricingHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 	ttlSeconds := int(settings.ProviderCacheTTL.Seconds())
 	writeJSON(w, http.StatusOK, SettingsResponse{
-		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: ttlSeconds,
 	})
 }
@@ -515,13 +512,6 @@ func (h *PricingHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Apply updates
-	if req.HistoricalAverageDays != nil {
-		if *req.HistoricalAverageDays < 1 || *req.HistoricalAverageDays > 365 {
-			writeSimpleError(w, r, "historicalAverageDays", "must be between 1 and 365")
-			return
-		}
-		settings.HistoricalAverageDays = *req.HistoricalAverageDays
-	}
 	if req.ProviderCacheTTLSeconds != nil {
 		if *req.ProviderCacheTTLSeconds < 60 || *req.ProviderCacheTTLSeconds > 86400 {
 			writeSimpleError(w, r, "providerCacheTtlSeconds", "must be between 60 and 86400")
@@ -537,7 +527,6 @@ func (h *PricingHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) 
 
 	ttlSeconds := int(settings.ProviderCacheTTL.Seconds())
 	writeJSON(w, http.StatusOK, SettingsResponse{
-		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: ttlSeconds,
 	})
 }

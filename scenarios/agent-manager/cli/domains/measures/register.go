@@ -263,15 +263,11 @@ func Register() cliapp.SubcommandGroup {
 				r.GetSelectedQueryRate()*100, r.GetP50LatencyMs(), r.GetP95LatencyMs(), r.GetDegradationRate()*100,
 				r.GetCurrentIndexLagMs(), r.GetPendingDocuments(), r.GetOrphanDocuments())
 		}),
-		windowMeasure("select-cohort", "Select the durable run cohort behind a measure", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.SelectCohortResponse, error) {
-			response, err := c.SelectCohort(ctx, connect.NewRequest(&measurepb.SelectCohortRequest{Window: window}))
-			if err != nil {
-				return nil, err
-			}
-			return response.Msg, nil
-		}, func(r *measurepb.SelectCohortResponse) string {
-			return fmt.Sprintf("Selected run cohort: %s", strings.Join(r.GetRunIds(), ", "))
-		}),
+		cohortDefinitionCommand(),
+		selectCohortCommand(),
+		episodeCohortCommand(),
+		cohortReportCommand(),
+		episodeCompareCommand(),
 		genericMeasure("workload-efficiency", "Show consumption per successful workload completion", "throughput.workload_efficiency", []cliapp.Flag{
 			{Name: "window", Description: "Analytical time window", Values: windowValues},
 			{Name: "workload-key", Description: "Declared workload key"},

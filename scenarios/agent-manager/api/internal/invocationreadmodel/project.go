@@ -79,7 +79,7 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 	}
 	argTokens, resultTokens, tokenBases, residencyTurns, residencySegments := tokenFactors(events)
 	preambleInjectedTokens, preambleFixedTokens, _ := derivePreamble(run, events)
-	incurredByCall, _, _ := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
+	incurredByCall, _, _ := attributeIncurred(events, runsignal.AccountUsage(events), preambleInjectedTokens, preambleFixedTokens)
 	facts := make([]Fact, 0)
 	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capability, command) {
 		// Token quantities are per call, but a compound command emits one fact
@@ -177,63 +177,45 @@ type incurredAttribution struct {
 	Input, Output, CacheRead, CacheCreation int64
 }
 
-// attributeIncurred assigns each eligible per-turn usage event to the latest
-// tool call before it. Terminal provider usage is a reconciliation authority,
-// not a second attribution source. The returned residual is usage that had no
-// preceding tool call and therefore belongs in the run's unattributed bucket.
-func attributeIncurred(events []*domain.RunEvent, preambleInjected, preambleFixed int64) (map[string]incurredAttribution, int64, bool) {
-	type usageIdentity struct {
-		input, output, cacheRead, cacheCreation, turn, turnIndex int
-	}
-	var hasAuthority bool
-	for _, event := range events {
-		if usage, ok := eventDataUsage(event); ok && usage.ReconciliationAuthority {
-			hasAuthority = true
-		}
-	}
-	seen := map[usageIdentity]struct{}{}
+// attributeIncurred assigns each turn-local usage amount to the latest tool
+// call before it. Amounts come from the run's usage account, so a closing
+// receipt or a replayed report is never a second attribution source. The
+// returned residual is usage that had no preceding tool call and therefore
+// belongs in the run's unattributed bucket.
+func attributeIncurred(events []*domain.RunEvent, usage runsignal.UsageAccount, preambleInjected, preambleFixed int64) (map[string]incurredAttribution, int64, bool) {
 	byCall := map[string]incurredAttribution{}
 	var unattributed int64
 	var eligible bool
 	remainingPreamble := preambleInjected + preambleFixed
 	latestCall := ""
-	for _, event := range events {
+	for index, event := range events {
 		if event == nil {
 			continue
 		}
-		if call, ok := event.Data.(*domain.ToolCallEventData); ok {
+		if _, ok := event.Data.(*domain.ToolCallEventData); ok {
 			latestCall = event.ID.String()
-			_ = call
 			continue
 		}
-		usage, ok := eventDataUsage(event)
-		if !ok || (hasAuthority && usage.ReconciliationAuthority) {
+		contribution := usage.PerTurn[index]
+		if _, ok := event.Data.(*domain.UsageEventData); !ok || contribution.Total() == 0 {
 			continue
 		}
-		identity := usageIdentity{input: usage.InputTokens, output: usage.OutputTokens, cacheRead: usage.CacheReadTokens, cacheCreation: usage.CacheCreationTokens, turn: usage.Turns, turnIndex: usage.TurnIndex}
-		if _, duplicate := seen[identity]; duplicate {
-			continue
-		}
-		seen[identity] = struct{}{}
 		eligible = true
-		input := int64(usage.InputTokens)
+		input := int64(contribution.InputTokens)
 		if remainingPreamble > 0 && input > 0 {
-			deducted := input
-			if deducted > remainingPreamble {
-				deducted = remainingPreamble
-			}
+			deducted := min(input, remainingPreamble)
 			input -= deducted
 			remainingPreamble -= deducted
 		}
 		if latestCall == "" {
-			unattributed += input + int64(usage.OutputTokens) + int64(usage.CacheReadTokens) + int64(usage.CacheCreationTokens)
+			unattributed += input + int64(contribution.OutputTokens) + int64(contribution.CacheReadTokens) + int64(contribution.CacheCreationTokens)
 			continue
 		}
 		value := byCall[latestCall]
 		value.Input += input
-		value.Output += int64(usage.OutputTokens)
-		value.CacheRead += int64(usage.CacheReadTokens)
-		value.CacheCreation += int64(usage.CacheCreationTokens)
+		value.Output += int64(contribution.OutputTokens)
+		value.CacheRead += int64(contribution.CacheReadTokens)
+		value.CacheCreation += int64(contribution.CacheCreationTokens)
 		byCall[latestCall] = value
 	}
 	return byCall, unattributed, eligible
@@ -451,12 +433,11 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	charged := false
 	var readCalls, rereads int64
 	fileReads := map[string]int{}
-	// Share the report's canonical authority/replay selection with time
-	// accounting so token aggregates and state buckets use the same facts.
-	usageSelection := runsignal.SelectCanonicalUsage(events)
+	// The run's one usage account: token aggregates, incurred attribution and
+	// time-accounting buckets all read the same per-event contributions.
+	usage := runsignal.AccountUsage(events)
 	providerTurns := map[int]int{}
-	invocations := usageSelection.Invocations
-	incurredByCall, noPrecedingToolCallTokens, hasEligibleUsage := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
+	incurredByCall, noPrecedingToolCallTokens, hasEligibleUsage := attributeIncurred(events, usage, preambleInjectedTokens, preambleFixedTokens)
 	var incurredTokens int64
 	costSource := "unknown"
 	chargeReason := ""
@@ -503,19 +484,15 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		if event == nil {
 			continue
 		}
-		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			if index >= len(usageSelection.Selected) || !usageSelection.Selected[index] {
-				continue
+		if report, ok := event.Data.(*domain.UsageEventData); ok {
+			// A repeated report cannot raise the maximum, so provider turns
+			// read every report; quantities and charges read contributions.
+			if report.Turns > providerTurns[usage.Invocations[index]] {
+				providerTurns[usage.Invocations[index]] = report.Turns
 			}
-			if usage.Turns > providerTurns[invocations[index]] {
-				providerTurns[invocations[index]] = usage.Turns
+			if usage.Tokens(index) > 0 {
+				addCharge(report.Charge)
 			}
-			tokens += int64(usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens)
-			inputTokens += int64(usage.InputTokens)
-			outputTokens += int64(usage.OutputTokens)
-			cacheReadTokens += int64(usage.CacheReadTokens)
-			cacheCreationTokens += int64(usage.CacheCreationTokens)
-			addCharge(usage.Charge)
 		}
 		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
 			addCharge(charge)
@@ -531,6 +508,9 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			}
 		}
 	}
+	tokens = usage.TotalTokens()
+	inputTokens, outputTokens = int64(usage.Total.InputTokens), int64(usage.Total.OutputTokens)
+	cacheReadTokens, cacheCreationTokens = int64(usage.Total.CacheReadTokens), int64(usage.Total.CacheCreationTokens)
 	for _, count := range providerTurns {
 		turns += int64(count)
 	}

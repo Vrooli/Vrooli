@@ -36,6 +36,7 @@ import (
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/supervision"
+	"agent-manager/internal/usageforecast"
 	"agent-manager/internal/wiring"
 
 	gorillaHandlers "github.com/gorilla/handlers"
@@ -90,7 +91,6 @@ type Server struct {
 	fileRoots                *filerouting.RoutedRoots
 	router                   *mux.Router
 	orchestrator             *orchestration.Orchestrator
-	statsService             orchestration.StatsService
 	statsRepo                repository.StatsRepository
 	pricingService           pricing.Service
 	pricingRepository        pricing.Repository
@@ -98,8 +98,10 @@ type Server struct {
 	reconciler               *orchestration.Reconciler
 	awaitRegistry            *orchestration.AwaitRegistry
 	workflowNudger           *orchestration.WorkflowNudger
-	transcriptImporter       *orchestration.TranscriptImportScheduler
+	transcriptImporter       *orchestration.TranscriptIndex
 	frictionPublisher        *orchestration.FrictionPublishScheduler
+	claudeQuotaFeed          *pricing.ClaudeStatuslineReader
+	usageAlerts              *usageforecast.Alerter
 	modelHealthProbe         *healthstore.Probe
 	modelPolicyDrift         *modelpolicydrift.Scheduler
 	rolePolicyState          *rolepolicy.State
@@ -264,15 +266,14 @@ func NewServer() (*Server, error) {
 		_, err := db.ExecContext(ctx, `DELETE FROM conversation_search_external_tombstones WHERE source_harness = ? AND source_session_id = ?`, harness, sessionID)
 		return err
 	})
-	// Storage maintenance reclaims dead FTS index space under pressure through
-	// the search domain's own optimize, so the eviction budget is spent on live
-	// recall rather than FTS5 tombstones left by deleted documents.
-	deps.Reconciler.SetSearchOptimize(conversationRepository.OptimizeIndex)
+	// After the Transcript Indexer evicts recall it reclaims the dead FTS index
+	// space through the search domain's own optimize.
+	deps.TranscriptImporter.SetAfterEviction(conversationRepository.OptimizeIndex)
 	srv := &Server{
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
-		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
-		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher,
+		statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
@@ -376,7 +377,14 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		// own retry owners. Their findings must not globally disable legitimate
 		// work; active ownership recovery is required and remains readiness-gated.
 		nonCritical := name == "workflow_accounting" || name == "stats_rebuild" || name == "scenario_declarations"
-		steps = append(steps, maintenance.RecoveryStep{Name: name, NonCritical: nonCritical, Timeout: 30 * time.Second, Run: func(ctx context.Context) error {
+		// Required steps retry: on a busy host the first attempt can lose a
+		// SQLite contention race with start-up indexing and would otherwise
+		// keep readiness closed until the next restart.
+		attempts := 3
+		if nonCritical {
+			attempts = 1
+		}
+		steps = append(steps, maintenance.RecoveryStep{Name: name, NonCritical: nonCritical, Timeout: 30 * time.Second, Attempts: attempts, RetryDelay: 15 * time.Second, Run: func(ctx context.Context) error {
 			err := run(ctx)
 			if err != nil {
 				obs.Logger().Warn("startup recovery failed", "phase", name, obs.KeyError, err.Error())
@@ -464,6 +472,9 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		if s.frictionPublisher != nil {
 			s.frictionPublisher.Start(ctx)
 		}
+		s.claudeQuotaFeed.Start(ctx)
+		s.usageAlerts.Start(ctx)
+		startQuotaCompaction(ctx, s.pricingRepository)
 		if s.orchestrator != nil {
 			wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot, s.recovery.ReconcileDeclarationStep)
 		}
@@ -478,7 +489,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 func (s *Server) setupRoutes() {
 	wiring.SetupRoutes(s.router, wiring.RouteDependencies{
 		Recovery:           s.recovery,
-		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
+		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsRepository: s.statsRepo,
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
 		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,

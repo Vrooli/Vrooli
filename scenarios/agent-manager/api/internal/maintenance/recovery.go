@@ -19,6 +19,36 @@ type RecoveryStep struct {
 	// NonCritical is limited to rebuildable historical projections. Required
 	// ownership recovery remains readiness-blocking by default.
 	NonCritical bool
+	// Attempts bounds how often a failing step runs (default 1). Each attempt
+	// gets a fresh Timeout, so a step that lost a transient contention race at
+	// boot does not leave readiness closed until the next restart.
+	Attempts   int
+	RetryDelay time.Duration
+}
+
+func (step RecoveryStep) run(ctx context.Context) error {
+	attempts := max(step.Attempts, 1)
+	var err error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		stepCtx, stepCancel := ctx, context.CancelFunc(func() {})
+		if step.Timeout > 0 {
+			stepCtx, stepCancel = context.WithTimeout(ctx, step.Timeout)
+		}
+		err = step.Run(stepCtx)
+		if err == nil {
+			err = stepCtx.Err()
+		}
+		stepCancel()
+		if err == nil || attempt == attempts || ctx.Err() != nil {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(step.RetryDelay):
+		}
+	}
+	return err
 }
 
 type RecoveryState struct {
@@ -90,16 +120,7 @@ func (r *Recovery) Start(parent context.Context, steps []RecoveryStep) {
 				r.mu.Lock()
 				r.state.Phase = step.Name
 				r.mu.Unlock()
-				stepCtx := ctx
-				stepCancel := func() {}
-				if step.Timeout > 0 {
-					stepCtx, stepCancel = context.WithTimeout(ctx, step.Timeout)
-				}
-				err := step.Run(stepCtx)
-				if err == nil {
-					err = stepCtx.Err()
-				}
-				stepCancel()
+				err := step.run(ctx)
 				r.mu.Lock()
 				if err != nil {
 					r.steps[i].failure = err.Error()

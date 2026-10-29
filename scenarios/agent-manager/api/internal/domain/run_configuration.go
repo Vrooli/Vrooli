@@ -410,10 +410,11 @@ type ErrorEventData struct {
 // RATE LIMIT EVENT
 // =============================================================================
 
-// RateLimitEventData contains data for rate limit events.
+// RateLimitEventData is one provider quota observation (EventTypeQuota). A
+// percentage-of-window sample sets UsedPercent; a standing without a
+// percentage (Claude quotaLimits, a rate-limit error) sets Status or nothing.
 type RateLimitEventData struct {
-	PayloadKind string     `json:"payloadKind,omitempty"`
-	LimitType   string     `json:"limitType"`             // Type of limit: "5_hour", "daily", "weekly", "token"
+	LimitType   string     `json:"limitType"`             // Window label: "10080m", "five_hour", "5_hour", "daily", "weekly", "token"
 	ResetTime   *time.Time `json:"resetTime,omitempty"`   // When the limit resets
 	RetryAfter  int        `json:"retryAfter,omitempty"`  // Seconds until retry is safe
 	CurrentUsed int        `json:"currentUsed,omitempty"` // Current usage count
@@ -427,24 +428,27 @@ type RateLimitEventData struct {
 	UsedPercent   *float64 `json:"usedPercent,omitempty"`
 	WindowMinutes int64    `json:"windowMinutes,omitempty"`
 	Provenance    string   `json:"provenance,omitempty"`
+	// Status and OverageStatus are the provider's standing, verbatim
+	// (Claude quotaLimits: "allowed", "allowed_warning", "rejected").
+	Status        string `json:"status,omitempty"`
+	OverageStatus string `json:"overageStatus,omitempty"`
 }
 
-func (d *RateLimitEventData) EventType() RunEventType { return EventTypeError }
+func (d *RateLimitEventData) EventType() RunEventType { return EventTypeQuota }
 func (d *RateLimitEventData) isEventPayload()         {}
 
-// NewRateLimitEvent creates a new rate limit event.
+// NewRateLimitEvent creates a provider quota observation event.
 func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *time.Time, retryAfter int) *RunEvent {
 	return &RunEvent{
 		ID:        uuid.New(),
 		RunID:     runID,
-		EventType: EventTypeError,
+		EventType: EventTypeQuota,
 		Timestamp: time.Now(),
 		Data: &RateLimitEventData{
-			PayloadKind: PayloadKindQuota,
-			LimitType:   limitType,
-			ResetTime:   resetTime,
-			RetryAfter:  retryAfter,
-			Message:     message,
+			LimitType:  limitType,
+			ResetTime:  resetTime,
+			RetryAfter: retryAfter,
+			Message:    message,
 		},
 	}
 }
@@ -455,7 +459,6 @@ func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *ti
 
 // PayloadKind identifies the independent facts carried by metric events.
 const (
-	PayloadKindQuota  = "quota"
 	PayloadKindUsage  = "usage"
 	PayloadKindCharge = "charge"
 )
@@ -477,20 +480,30 @@ type UsageEventData struct {
 	CacheReadTokens     int    `json:"cacheReadTokens,omitempty"`
 	Turns               int    `json:"turns,omitempty"`
 	TurnIndex           int    `json:"turnIndex,omitempty"`
-	// ReconciliationAuthority marks the terminal provider usage snapshot as
-	// authoritative for run-total reconciliation. Per-turn usage remains
-	// available for attribution but is not added again when this is present.
+	// ReconciliationAuthority marks the provider's closing report for an
+	// invocation (the turn is settled). For usage without Cumulative counters
+	// (a Claude print-mode result), its amounts replace the invocation's
+	// interim per-message usage. For cumulative usage it changes no quantity.
 	ReconciliationAuthority bool `json:"reconciliationAuthority,omitempty"`
-	// ReconciliationComplete is an internal qualification of the token amounts
-	// in an authoritative receipt. Nil preserves legacy behavior for other
-	// providers; false means the receipt's cumulative baseline was unavailable.
-	// Public event conversion deliberately does not expose this field.
-	ReconciliationComplete *bool `json:"reconciliationComplete,omitempty"`
-	// CodexUsageSnapshot retains the provider's raw cumulative counters so a
-	// later continuation of the same native session can difference its next
-	// snapshot. It is internal event-store evidence and is not projected to API
-	// events. Legacy receipts without it cannot seed a baseline.
-	CodexUsageSnapshot *CodexUsageSnapshot `json:"codexUsageSnapshot,omitempty"`
+	// SessionID names the provider session (Codex thread) whose counter
+	// Cumulative reports. Cumulative counters of different sessions are
+	// independent series.
+	SessionID string `json:"sessionId,omitempty"`
+	// Cumulative is the provider's raw session-cumulative counter after this
+	// report (Codex total_token_usage or exec turn.completed.usage, stored as
+	// disjoint components). When it is present, the token fields above carry
+	// only the provider's explicit amount for this report, or zero when the
+	// codec could not observe that amount. Run usage is derived from the
+	// counters (runsignal.AccountUsage), so a re-tail or replay that repeats a
+	// report cannot add it twice.
+	Cumulative *UsageCounters `json:"cumulative,omitempty"`
+	// MessageID is the provider message the usage belongs to (Claude
+	// message.id). Claude repeats one message's usage on every streamed
+	// content block; accounting counts each message once.
+	MessageID string `json:"messageId,omitempty"`
+	// ParentToolUseID links sub-agent (sidechain) usage to the parent tool
+	// call that spawned it, so that sub-agent consumption stays attributable.
+	ParentToolUseID string `json:"parentToolUseId,omitempty"`
 	// ReconciliationSource says how an authoritative receipt reached the event
 	// store when the live stream did not carry it: ReconciliationSourceTranscriptRecovery
 	// (the harness's own receipt read back from its retained transcript) or
@@ -506,14 +519,23 @@ type UsageEventData struct {
 	Charge                *ChargeEventData `json:"charge,omitempty"`
 }
 
-// CodexUsageSnapshot is the raw cumulative provider counter captured on a
-// terminal receipt. These values must never be reconstructed from metered
-// deltas or public run totals.
-type CodexUsageSnapshot struct {
-	SessionID         string `json:"sessionId"`
-	InputTokens       int    `json:"inputTokens"`
-	CachedInputTokens int    `json:"cachedInputTokens"`
-	OutputTokens      int    `json:"outputTokens"`
+// UsageCounters is one disjoint token quantity: uncached input, output, cache
+// reads and cache writes.
+type UsageCounters struct {
+	InputTokens         int `json:"inputTokens"`
+	OutputTokens        int `json:"outputTokens"`
+	CacheReadTokens     int `json:"cacheReadTokens,omitempty"`
+	CacheCreationTokens int `json:"cacheCreationTokens,omitempty"`
+}
+
+// Total is the sum of the disjoint components.
+func (c UsageCounters) Total() int64 {
+	return int64(c.InputTokens) + int64(c.OutputTokens) + int64(c.CacheReadTokens) + int64(c.CacheCreationTokens)
+}
+
+// Counters returns the event's own token fields as one quantity.
+func (d *UsageEventData) Counters() UsageCounters {
+	return UsageCounters{InputTokens: d.InputTokens, OutputTokens: d.OutputTokens, CacheReadTokens: d.CacheReadTokens, CacheCreationTokens: d.CacheCreationTokens}
 }
 
 func (d *UsageEventData) EventType() RunEventType { return EventTypeMetric }

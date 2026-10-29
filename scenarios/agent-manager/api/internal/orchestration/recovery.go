@@ -205,6 +205,7 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 		if err := r.runs.Update(ctx, run); err != nil {
 			return nil, err
 		}
+		r.markProjectionPending(run)
 		if r.broadcaster != nil {
 			r.broadcaster.BroadcastRunStatus(run)
 		}
@@ -228,6 +229,7 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 		if err := r.runs.Update(ctx, run); err != nil {
 			return nil, err
 		}
+		r.markProjectionPending(run)
 		if r.broadcaster != nil {
 			r.broadcaster.BroadcastRunStatus(run)
 		}
@@ -255,10 +257,20 @@ func (r *Reconciler) recordRecoveredInterruption(ctx context.Context, run *domai
 	if err := r.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
+	r.markProjectionPending(run)
 	if r.broadcaster != nil {
 		r.broadcaster.BroadcastRunStatus(run)
 	}
 	return &RecoverResult{Run: run, Recovered: true, Message: message}, nil
+}
+
+// markProjectionPending records the durable needs-projection mark for a run
+// the Reconciler wrote to a terminal (or review) state directly, so these
+// writes reach the read model like lifecycle transitions do.
+func (r *Reconciler) markProjectionPending(run *domain.Run) {
+	if r.hooks != nil {
+		r.hooks.projectTerminalInvocationReadModel(run)
+	}
 }
 
 func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) (*runner.TranscriptTerminal, error) {
@@ -280,6 +292,11 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 	}
 	if setter, ok := transcriptParser.(runner.TranscriptBillingSetter); ok {
 		setter.SetTranscriptBilling(run.Billing)
+	}
+	// The drain resumes at the persisted cursor, past the session's first
+	// line; its usage reports must still name the session they count.
+	if setter, ok := transcriptParser.(runner.TranscriptSessionSetter); ok {
+		setter.SetTranscriptSession(run.SessionID, run.TranscriptCursor == 0)
 	}
 	_, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
 		RunID:      run.ID,
@@ -396,8 +413,11 @@ func (r *Reconciler) recoveryParser(ctx context.Context, run *domain.Run) (runne
 	return parser, "", state, fmt.Errorf("transcript missing for run %s", run.ID)
 }
 
+// recoveryEventSink builds a reattached run's sink through the one
+// constructor with the orchestrator's hook set (wired by SetReconciler), so a
+// recovered tail records quota and enforces token caps like a live one.
 func (r *Reconciler) recoveryEventSink(runID uuid.UUID) runner.EventSink {
-	return newRunEventSink(r.events, r.broadcaster, runID, nil)
+	return newRunEventSink(r.hooks, r.events, r.broadcaster, runID)
 }
 
 func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) error {

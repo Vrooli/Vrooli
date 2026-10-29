@@ -4,6 +4,7 @@
 // renders InsufficientDataCard rather than fabricated percentages.
 
 import { Link } from "react-router-dom";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import { InsufficientDataCard } from "../../../../components/stats/InsufficientDataCard";
 import type { FallbackInsights, FallbackPair } from "../../api/operationalTypes";
 import { useFallbackInsights } from "../../hooks/useOperationalStats";
@@ -21,7 +22,7 @@ export function FallbackInsightsCard() {
   if (error) {
     return (
       <Section title="Fallback insights">
-        <p className="text-sm text-destructive">Failed to load fallback insights: {error.message}</p>
+        <ErrorNotice compact error={error} subject="Fallback insights" />
       </Section>
     );
   }

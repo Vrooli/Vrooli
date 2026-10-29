@@ -368,9 +368,6 @@ type ContinueRequest struct {
 
 	// SessionID is the runner-specific session identifier to resume.
 	SessionID string
-	// CodexUsageBaseline is internal accounting state recovered from this run's
-	// retained terminal event. It is accepted only when its session matches.
-	CodexUsageBaseline *CodexUsageBaseline
 
 	// Prompt is the follow-up message to send to the agent.
 	Prompt string
@@ -404,14 +401,6 @@ type ContinueRequest struct {
 	// Execute call ran in, when the run was sandboxed. Required for
 	// protected-mode routing on the continuation; nil otherwise.
 	SandboxID *uuid.UUID
-}
-
-// CodexUsageBaseline supplies the last raw provider cumulative snapshot to a
-// fresh continuation parser. A nil Snapshot means history was unavailable or
-// legacy; the continuation may proceed, but its cumulative usage is unqualified.
-type CodexUsageBaseline struct {
-	SessionID string
-	Snapshot  *domain.CodexUsageSnapshot
 }
 
 // GetConfig returns the resolved configuration for the continuation,
@@ -496,6 +485,10 @@ type ExecutionMetrics struct {
 	// distinguish real work from a silent no-op in PostClassify.
 	SuccessfulToolResults int
 	CostEstimateUSD       float64
+	// UsageBaseline is the provider session counter before the invocation's
+	// first cumulative report; codecs that report cumulative counters derive
+	// the token fields from it rather than summing reports.
+	UsageBaseline *domain.UsageCounters
 }
 
 // TotalTokens returns total tokens used, including cache tokens.
@@ -603,11 +596,14 @@ type TranscriptBillingSetter interface {
 	SetTranscriptBilling(domain.BillingSnapshot)
 }
 
-// ContinuationUsageBaselineSetter seeds a fresh parser/state with the raw
-// cumulative counters from the same native session. It must not infer a
-// baseline from already-differenced usage events.
-type ContinuationUsageBaselineSetter interface {
-	SetContinuationUsageBaseline(CodexUsageBaseline)
+// TranscriptSessionSetter names the provider session a parser or stream
+// state reads and whether it reads that session from its start. A parser that
+// starts at a cursor (an interactive tail, a recovery drain, a continuation)
+// never sees the session's first line, yet its usage reports must name the
+// session whose cumulative counters they carry, and must not count a counter
+// that covers earlier turns as new usage.
+type TranscriptSessionSetter interface {
+	SetTranscriptSession(sessionID string, fromStart bool)
 }
 
 // TranscriptInterruptedTurnFinalizer closes the final turn of a transcript whose

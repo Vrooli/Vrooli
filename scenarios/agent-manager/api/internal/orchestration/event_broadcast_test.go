@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
 )
@@ -132,24 +133,21 @@ func TestNewRunEventSinkSharesPersistenceBroadcastAndObserverRouting(t *testing.
 				broadcaster = recording
 			}
 
-			observations := 0
-			observerSawPersistedEvent := false
-			sink := newRunEventSink(store, broadcaster, runID, func(*domain.RunEvent) {
-				observations++
-				persisted, err := fakeStore.Get(t.Context(), runID, event.GetOptions{AfterSequence: -1})
-				if err == nil && len(persisted) == observations {
-					observerSawPersistedEvent = true
-				}
-			})
-			first := domain.NewLogEvent(runID, "info", "first")
+			quota := &persistedFirstQuotaStore{events: fakeStore, runID: runID}
+			hooks := &Orchestrator{quotaObservations: quota}
+			sink := newRunEventSink(hooks, store, broadcaster, runID)
+			first := domain.NewRateLimitEvent(runID, "300m", "first", nil, 0)
+			first.Data.(*domain.RateLimitEventData).Provider, first.Data.(*domain.RateLimitEventData).Pool = "openai", "primary"
 			if err := sink.Emit(first); err != nil {
 				t.Fatalf("emit first event: %v", err)
 			}
-			replay := domain.NewLogEvent(runID, "info", "replayed")
+			replay := domain.NewRateLimitEvent(runID, "300m", "replayed", nil, 0)
+			replay.Data.(*domain.RateLimitEventData).Provider, replay.Data.(*domain.RateLimitEventData).Pool = "openai", "primary"
 			replay.PersistenceReplay = true
 			if err := sink.Emit(replay); err != nil {
 				t.Fatalf("emit replay event: %v", err)
 			}
+			observations, observerSawPersistedEvent := quota.calls, quota.sawPersisted
 
 			stored := 0
 			if fakeStore != nil {
@@ -175,4 +173,23 @@ func TestNewRunEventSinkSharesPersistenceBroadcastAndObserverRouting(t *testing.
 			}
 		})
 	}
+}
+
+// persistedFirstQuotaStore records hook calls and whether the event that
+// triggered each was already durable.
+type persistedFirstQuotaStore struct {
+	recordingQuotaObservationStore
+	events       *mocks.FakeEventStore
+	runID        uuid.UUID
+	calls        int
+	sawPersisted bool
+}
+
+func (s *persistedFirstQuotaStore) RecordQuotaObservation(ctx context.Context, observation *pricing.QuotaObservation) error {
+	s.calls++
+	if s.events != nil {
+		persisted, err := s.events.Get(ctx, s.runID, event.GetOptions{AfterSequence: -1})
+		s.sawPersisted = err == nil && len(persisted) == s.calls
+	}
+	return s.recordingQuotaObservationStore.RecordQuotaObservation(ctx, observation)
 }

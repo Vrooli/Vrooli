@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -8,7 +9,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import { useViewportSize } from "../hooks/useViewportSize";
 import { formatStandardDateTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
+import { useConfirmAction } from "../components/feedback/useConfirmAction";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
 import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 
@@ -216,17 +218,20 @@ export function ProfilesPage({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this profile?")) return;
-    try {
+  const profileActions = useConfirmAction("profile-action");
+  const handleDelete = (id: string) => profileActions.confirm({
+    title: "Delete profile?",
+    description: "Tasks and runs keep their history, but new runs can no longer use this profile.",
+    confirmLabel: "Delete profile",
+    busyLabel: "Deleting…",
+    subject: profiles.find((profile) => profile.id === id)?.name,
+    action: async () => {
       await onDeleteProfile(id);
       if (selectedProfileId === id) {
         setSelectedProfileId(null);
       }
-    } catch (err) {
-      console.error("Failed to delete profile:", err);
-    }
-  };
+    },
+  });
 
   const filteredAndSortedProfiles = useMemo(() => {
     let result = [...profiles];
@@ -301,9 +306,11 @@ export function ProfilesPage({
       title="Agent Profiles"
       count={filteredAndSortedProfiles.length}
       loading={loading}
+      error={error}
+      onRetry={onRefresh}
       headerActions={
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh}>
+          <Button variant="secondary" size="sm" onClick={onRefresh}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
@@ -324,27 +331,14 @@ export function ProfilesPage({
         />
       }
       empty={
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Bot className="h-12 w-12 mb-3 opacity-50" />
-          <p className="font-medium">
-            {profiles.length === 0 ? "No Agent Profiles" : "No Matching Profiles"}
-          </p>
-          <p className="text-sm text-center mt-1">
-            {profiles.length === 0
-              ? "Create your first profile to get started"
-              : "Try adjusting your filters"}
-          </p>
-          {profiles.length === 0 && (
-            <Button
-              onClick={() => setShowForm(true)}
-              className="gap-2 mt-4"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              Create Profile
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          density="compact"
+          icon={<Bot aria-hidden="true" />}
+          title={profiles.length === 0 ? "No Agent Profiles" : "No Matching Profiles"}
+          description={profiles.length === 0 ? "Create your first profile to get started" : "Try adjusting your filters"}
+          actionLabel={profiles.length === 0 ? "Create Profile" : undefined}
+          onAction={() => setShowForm(true)}
+        />
       }
     >
       <BoundedList
@@ -376,21 +370,11 @@ export function ProfilesPage({
     </DetailPanel>
   );
 
-  // Build header content with error banner
-  const headerContent = error ? (
-    <Card className="border-destructive/50 bg-destructive/10">
-      <CardContent className="flex items-center gap-3 py-4">
-        <AlertCircle className="h-4 w-4 text-destructive" />
-        <p className="text-sm text-destructive">{error}</p>
-      </CardContent>
-    </Card>
-  ) : null;
 
   return (
     <>
       <MasterDetailLayout
         storageKey="profiles"
-        headerContent={headerContent}
         listPanel={listPanel}
         detailPanel={detailPanel}
         selectedId={selectedProfileId}
@@ -573,7 +557,7 @@ export function ProfilesPage({
               </label>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetForm}>
+              <Button type="button" variant="secondary" onClick={resetForm}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
@@ -587,6 +571,7 @@ export function ProfilesPage({
           </form>
         </DialogContent>
       </Dialog>
+      {profileActions.dialog}
     </>
   );
 }

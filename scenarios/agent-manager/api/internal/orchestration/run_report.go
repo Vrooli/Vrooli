@@ -116,12 +116,6 @@ func (s orchestratorReportSource) Events(ctx context.Context, id uuid.UUID) ([]*
 	return s.o.allRunEvents(ctx, id, event.GetOptions{AfterSequence: -1})
 }
 
-func (s orchestratorReportSource) CanonicalUsageProjection(run *domain.Run, events []*domain.RunEvent) (int64, bool) {
-	fact := invocationreadmodel.ProjectRun(run, events, s.o.now())
-	selection := runsignal.SelectCanonicalUsage(events)
-	return fact.TotalTokens, selection.AllInvocationsAuthoritative
-}
-
 func (s orchestratorReportSource) Diff(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
 	return s.o.GetRunDiff(ctx, id)
 }

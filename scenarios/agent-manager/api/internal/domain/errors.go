@@ -425,6 +425,7 @@ func (*IdempotencyReplayConflictError) Retryable() bool          { return false 
 func (e *IdempotencyReplayConflictError) UserMessage() string {
 	return "This idempotency key already identifies an accepted run with different request terms. Reconcile the existing run before retrying."
 }
+
 func (*IdempotencyReplayConflictError) Details() map[string]interface{} {
 	return map[string]interface{}{"operation": "run_create_replay", "accepted_run_exists": true}
 }

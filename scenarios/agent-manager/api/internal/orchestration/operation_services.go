@@ -22,7 +22,7 @@ import (
 )
 
 // RunService owns run creation, lifecycle, recovery, and user-visible run
-// state. Its 27 methods stay below the per-domain contract limit.
+// state. Its 28 methods stay below the per-domain contract limit.
 type RunService interface {
 	CreateRun(context.Context, CreateRunRequest) (*domain.Run, error)
 	AttachRun(context.Context, AttachRunRequest) (*AttachRunResult, error)
@@ -34,6 +34,7 @@ type RunService interface {
 	GetRunByImportProvenance(context.Context, string, string) (*domain.Run, error)
 	GetRunByTag(context.Context, string) (*domain.Run, error)
 	ListRuns(context.Context, RunListOptions) ([]*domain.Run, error)
+	CountRuns(context.Context, RunListOptions) (int, error)
 	DeleteRun(context.Context, uuid.UUID) error
 	StopRun(context.Context, uuid.UUID) error
 	StopRunByTag(context.Context, string) error
@@ -166,16 +167,10 @@ type InvocationFactService interface {
 	InvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, error)
 	Episodes(context.Context, uuid.UUID) ([]runsignal.FrictionEpisode, error)
 	SelfReportSpans(context.Context, uuid.UUID) ([]runsignal.SelfReportSpan, error)
-	EpisodeCohort(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
-	CompareEpisodeCohorts(context.Context, invocationreadmodel.Filter, invocationreadmodel.Filter, int) (runreport.CohortComparison, error)
 	EpisodeTrend(context.Context, invocationreadmodel.Filter, time.Duration, int) ([]runreport.EpisodeTrendBucket, error)
 	PublishRecurringFriction(context.Context, invocationreadmodel.Filter, int) (RecurringFrictionSummary, error)
 	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
-	RefreshInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
 	ReplayInvocationCorpus(context.Context, ReplayFilter, bool) (*ReplaySummary, error)
-	AggregateInvocationFacts(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.AggregateRow, error)
-	SelectInvocationCohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error)
-	InvocationMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error)
 	DefineCohort(context.Context, string, string, string) (invocationreadmodel.CohortDefinition, error)
 	ListCohorts(context.Context) ([]invocationreadmodel.CohortDefinition, error)
 	ShowCohort(context.Context, string, int) (invocationreadmodel.CohortDefinition, invocationreadmodel.Cohort, error)

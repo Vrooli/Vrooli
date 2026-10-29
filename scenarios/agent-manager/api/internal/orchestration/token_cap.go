@@ -47,7 +47,7 @@ const tokenCapCheckTimeout = 30 * time.Second
 // TokenCapPolicy is the internal weighted-token cap configuration. Weighted
 // tokens are non-cache tokens (input, output and cache writes; cache reads
 // excluded) times the weight of the first tier name the model contains, the
-// same weighting `agent-manager run tokens` reports. Unknown enforcement retains the legacy weight 1; cost comparisons remain unknown.
+// same weighting `agent-manager usage run` reports. Unknown enforcement retains the legacy weight 1; cost comparisons remain unknown.
 type TokenCapPolicy struct {
 	Mode TokenCapMode
 	// Caps maps an agent profile key to its weighted-token cap per run. A
@@ -161,6 +161,12 @@ func (o *Orchestrator) observeTokenCapUsage(runID uuid.UUID, evt *domain.RunEven
 	state := value.(*tokenCapRun)
 	state.mu.Lock()
 	state.estimate += float64(usage.InputTokens+usage.OutputTokens+usage.CacheCreationTokens) * weight
+	if usage.Cumulative != nil {
+		// A report whose amount is unknown still bounds the run by its
+		// session counter, so a resumed session cannot slip past the cap
+		// unrecounted.
+		state.estimate = max(state.estimate, float64(usage.Cumulative.Total()-int64(usage.Cumulative.CacheReadTokens))*weight)
+	}
 	check := !state.checking && !state.reached && (!state.resolved || state.crossesThreshold(enforcer.policy.NudgeFraction))
 	if check {
 		state.checking = true
@@ -271,7 +277,7 @@ func (o *Orchestrator) tokenCapFor(ctx context.Context, run *domain.Run, policy 
 }
 
 // weightedRunTokens recounts a run's weighted non-cache tokens with the same
-// projection as RunAccounting, so the cap and `run tokens` never disagree.
+// projection as RunAccounting, so the cap and `usage run` never disagree.
 func (o *Orchestrator) weightedRunTokens(ctx context.Context, run *domain.Run, policy TokenCapPolicy) (*float64, error) {
 	events, err := o.meteredRunEvents(ctx, run.ID)
 	if err != nil {
@@ -374,6 +380,15 @@ func (o *Orchestrator) WeightedRunTokens(ctx context.Context, runID uuid.UUID) (
 	}
 	weight, known := agentcatalog.TokenWeight(accounting.Model, o.capPolicy().Weights)
 	return float64(accounting.NonCacheTokens) * weight, accounting.TokensKnown && known, nil
+}
+
+// RunTokens reads a run's token total from its usage account.
+func (o *Orchestrator) RunTokens(ctx context.Context, runID uuid.UUID) (int64, bool, error) {
+	accounting, err := o.RunAccounting(ctx, runID)
+	if err != nil {
+		return 0, false, err
+	}
+	return accounting.Tokens, accounting.TokensKnown, nil
 }
 
 // TokenCapUsage reads an active run's weighted usage recounted from persisted

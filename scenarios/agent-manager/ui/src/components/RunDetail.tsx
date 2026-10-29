@@ -1,39 +1,29 @@
 import type React from "react";
+import { statusTone } from "../lib/display";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { durationMs as protoDurationMs, timestampMs } from "@bufbuild/protobuf/wkt";
+import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
-  Activity,
-  AlertCircle,
   Check,
   ChevronDown,
   ChevronRight,
   Copy,
-  DollarSign,
   Eye,
   FileCode,
-  File,
-  FolderOpen,
-  Info,
-  Link2,
   MoreVertical,
-  PauseCircle,
   PlayCircle,
   RotateCcw,
   Search,
   Square,
-  StickyNote,
-  Tag,
   Trash2,
   Wrench,
   ExternalLink,
   X,
 } from "lucide-react";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { formatUsdFixed } from "../lib/currency";
-import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { cn, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useDocumentEscape } from "../hooks/useDocumentEscape";
@@ -41,41 +31,34 @@ import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
 import type {
-  ContextAttachmentData,
   Run,
   RunDiff,
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, ExecutionMode, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
-import { MarkdownRenderer } from "./markdown";
 import { ModelCostComparison } from "./ModelCostComparison";
 import { RunTimeline } from "./RunTimeline";
 import { FallbackTimeline } from "./runs/FallbackTimeline";
-import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
+import { RunUsagePanel } from "../features/usage/RunUsagePanel";
+import { RUN_TABS, type RunTabId } from "./runTabs";
 
 import {
   CostBreakdown,
-  executionModeLabel,
   formatCurrency,
   getCostTotals,
-  isInteractiveRun,
   MobileHeaderActions,
   RunDetailsContent,
   RunModelBadge,
   STATUS_DOT_COLORS,
-  runModeLabel,
-  runPhaseLabel,
   runStatusLabel,
   StatusDotWithLegend,
   TaskSummary,
-  taskStatusLabel,
 } from "./RunDetailParts";
 
-type TabId = "task" | "timeline" | "diff" | "cost" | "report";
+type TabId = RunTabId;
 
 interface RunDetailProps {
   run: Run;
@@ -325,20 +308,9 @@ export function RunDetail({
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
             <span className="font-semibold text-sm">Details</span>
-            <Badge
-              variant={
-                runStatusLabel(run.status, run.approvalState) as
-                  | "pending"
-                  | "starting"
-                  | "running"
-                  | "needs_review"
-                  | "complete"
-                  | "failed"
-                  | "cancelled"
-              }
-            >
+            <StatusBadge tone={statusTone(runStatusLabel(run.status, run.approvalState))}>
               {runStatusLabel(run.status, run.approvalState).replace("_", " ")}
-            </Badge>
+            </StatusBadge>
             <RunModelBadge
               requested={run.requestedModel ?? ""}
               actual={run.actualModel ?? ""}
@@ -348,7 +320,7 @@ export function RunDetail({
             />
             <button
               type="button"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex min-h-11 items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground transition-colors sm:min-h-8"
               onClick={(e) => {
                 e.stopPropagation();
                 void copyRunId(run.id);
@@ -552,62 +524,23 @@ export function RunDetail({
       {/* Tabs Section - fills remaining space */}
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="h-full rounded-lg border border-border bg-card/50 flex flex-col overflow-hidden">
-          <div className="flex border-b border-border overflow-x-auto overflow-y-hidden shrink-0">
-            <button
-              className={cn(
-                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                activeTab === "task"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("task")}
-            >
-              <span className="hidden sm:inline mr-2"><File className="h-4 w-4 inline" /></span>
-              Task
-            </button>
-            <button
-              className={cn(
-                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                activeTab === "timeline"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("timeline")}
-            >
-              <span className="hidden sm:inline mr-2"><Activity className="h-4 w-4 inline" /></span>
-              Timeline ({events.length})
-            </button>
-            <button
-              className={cn(
-                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                activeTab === "diff"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("diff")}
-            >
-              <span className="hidden sm:inline mr-2"><FileCode className="h-4 w-4 inline" /></span>
-              Diff
-            </button>
-            <button
-              className={cn(
-                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                activeTab === "cost"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("cost")}
-            >
-              <span className="hidden sm:inline mr-2"><DollarSign className="h-4 w-4 inline" /></span>
-              Cost
-            </button>
-            <button
-              className={cn("px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap", activeTab === "report" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}
-              onClick={() => setActiveTab("report")}
-            >
-              <span className="hidden sm:inline mr-2"><Info className="h-4 w-4 inline" /></span>
-              Report
-            </button>
+          <div role="tablist" aria-label="Run sections" className="flex border-b border-border overflow-x-auto overflow-y-hidden shrink-0">
+            {RUN_TABS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                className={cn(
+                  "min-h-11 sm:min-h-0 px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                  activeTab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setActiveTab(id)}
+              >
+                <span className="hidden sm:inline mr-2"><Icon className="h-4 w-4 inline" /></span>
+                {id === "timeline" ? `${label} (${events.length})` : label}
+              </button>
+            ))}
           </div>
 
           {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
@@ -679,7 +612,7 @@ export function RunDetail({
                     </div>
                     <div className="flex gap-2">
                       {run.sandboxId && sandboxUrl && (
-                        <Button variant="outline" size="sm" className="gap-2" onClick={openSandboxReview}>
+                        <Button variant="secondary" size="sm" className="gap-2" onClick={openSandboxReview}>
                           <ExternalLink className="h-3.5 w-3.5" />
                           Open in Workspace Sandbox
                         </Button>
@@ -713,7 +646,7 @@ export function RunDetail({
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       {run.sandboxId && sandboxUrl && (
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={openSandboxReview}>
+                        <Button variant="secondary" size="sm" className="gap-1.5" onClick={openSandboxReview}>
                           <ExternalLink className="h-3.5 w-3.5" />
                           Open in Sandbox
                         </Button>
@@ -724,7 +657,7 @@ export function RunDetail({
                           are handled only in the inbox. */}
                       {actions?.canApprove && onPartialApprove && diff && (diff.files?.length ?? 0) > 1 && (
                         <Button
-                          variant={partialActive ? "secondary" : "outline"}
+                          variant={partialActive ? "secondary" : "secondary"}
                           size="sm"
                           className="gap-1.5"
                           onClick={() => {
@@ -766,7 +699,7 @@ export function RunDetail({
                           />
                         </div>
                         <Button
-                          variant="success"
+                          variant="primary"
                           size="sm"
                           onClick={handlePartialConfirm}
                           disabled={partialSubmitting || selectedFiles.size === 0}
@@ -789,15 +722,9 @@ export function RunDetail({
                 )}
               </div>
             )
-          ) : eventsLoading ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Loading cost...
-            </div>
-          ) : costTotals.events === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No cost data available
-            </div>
           ) : (
+            <RunUsagePanel runId={run.id} costLoading={eventsLoading} hasCost={costTotals.events > 0}>
+            {costTotals.events > 0 ? (
             <div className="space-y-3 sm:space-y-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
                 <div className="rounded border border-border px-3 py-2">
@@ -823,6 +750,8 @@ export function RunDetail({
                 actualModel={costTotals.models[0] || run.resolvedConfig?.model || ""}
               />
             </div>
+          ) : null}
+            </RunUsagePanel>
           )}
         </div>
         </div>
@@ -849,7 +778,7 @@ export function RunDetail({
                 <span className="text-xs text-muted-foreground">Run ID:</span>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex min-h-11 items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground transition-colors sm:min-h-8"
                   onClick={() => {
                     void copyRunId(run.id);
                   }}

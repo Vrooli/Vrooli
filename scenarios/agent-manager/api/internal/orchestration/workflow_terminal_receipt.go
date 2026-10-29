@@ -146,7 +146,12 @@ func (o *Orchestrator) recoverTerminalAccounting(parent context.Context, id uuid
 	}
 	audit := domain.NewLogEvent(id, "info", fmt.Sprintf("recovered terminal accounting (%s): session %s transcript sha256:%s; run outcome and finalization unchanged", receiptSource(receipt), run.SessionID, digest))
 	audit.ID = uuid.NewSHA1(id, []byte("terminal-receipt-audit-v1:"+digest))
-	return o.events.Append(ctx, id, append(receipt, audit)...)
+	if err := o.events.Append(ctx, id, append(receipt, audit)...); err != nil {
+		return err
+	}
+	// The receipt changes the run's usage account after its terminal write.
+	o.projectTerminalInvocationReadModel(current)
+	return nil
 }
 
 // latestUsageRecovered reports whether the newest usage fact was itself

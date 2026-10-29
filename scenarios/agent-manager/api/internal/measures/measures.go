@@ -13,7 +13,9 @@ import (
 	"agent-manager/internal/availability"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/pricing"
+	"agent-manager/internal/transcriptindex"
+	"agent-manager/internal/usageattribution"
 
 	"connectrpc.com/connect"
 	measurelib "github.com/vrooli/measures-go"
@@ -160,6 +162,14 @@ func definitionFor(name string) Definition {
 		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: "successful, fallback, and abandoned calls", Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
 		"select_cohort":                      {ID: "select_cohort", Counts: "terminal runs matching the selected filter", Numerator: "matching runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
 		"episode_cohort":                     {ID: "episode_cohort", Counts: "persisted friction episodes", Numerator: "episodes grouped by fingerprint", Denominator: "none", SourceTable: "invocation_read_model_episodes"},
+		"cohort_report":                      {ID: "cohort_report", Counts: "run reports of the selected cohort", Numerator: "friction signals, time accounting and goal progression", Denominator: "selected runs", SourceTable: "invocation_read_model_runs", Limitation: "at most 100 runs; each run report is built from its durable projection"},
+		"episode_comparison":                 {ID: "episode_comparison", Counts: "persisted friction episodes in two selected cohorts", Numerator: "episode occurrences and cost per fingerprint", Denominator: "runs in each cohort", SourceTable: "invocation_read_model_episodes", Limitation: "unreliable unless both cohorts hold at least five runs"},
+		UsageForecast:                        {ID: UsageForecast, Counts: "provider quota readings in the current windows", Numerator: "used percent, trailing burn and projected exhaustion per window", Denominator: "none", SourceTable: "quota_observations", Limitation: "readings come only from captured sessions; a window with no reading for 6 hours is unknown"},
+		UsageBurners:                         {ID: UsageBurners, Counts: "transcript usage reports (operator sessions and Agent Manager runs) in each current window", Numerator: "each consumer's share of the window's observed used-percent increase", Denominator: "the window's observed increase", SourceTable: "transcript_usage, quota_observations", Limitation: "points are estimates from a per-window calibration of API-price-weighted tokens; off-disk use is the unattributed remainder"},
+		UsageRecommendations:                 {ID: UsageRecommendations, Counts: "attributed usage, friction episodes and finished runs", Numerator: "estimated weekly quota points saved per finding", Denominator: "none", SourceTable: "transcript_usage, invocation_read_model_episodes, invocation_read_model_runs", Limitation: "deterministic rules; a consumer still running is projected at its rate to a week, a stopped one is not, and no estimate exceeds the consumer's projected weekly use"},
+		UsageCoverage:                        {ID: UsageCoverage, Counts: "transcript files on disk modified in the period", Numerator: "captured bytes and files", Denominator: "bytes and files on disk", SourceTable: "transcript_files", Limitation: "walks the configured roots at request time; a file still being written counts as partially indexed"},
+		UsageCompare:                         {ID: UsageCompare, Counts: "runs of two selected cohorts", Numerator: "attributed quota points", Denominator: "successful runs", SourceTable: "transcript_usage, quota_observations, runs", Limitation: "unreliable below five successful runs per side; cohorts are observational, not randomized"},
+		UsageForecastBacktest:                {ID: UsageForecastBacktest, Counts: "completed windows with an observed outcome", Numerator: "absolute error of the projected final percent at 25% and 50% of each window", Denominator: "scored windows", SourceTable: "quota_observations", Limitation: "windows whose newest reading is more than 6 hours before their end are not scored"},
 	}
 	return definitions[name]
 }
@@ -167,7 +177,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort"} {
+	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort", "cohort_report", "episode_comparison", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageCoverage, UsageCompare} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -379,17 +389,14 @@ func filterWithWindow(input *measurepb.InvocationFilter, window *sharedmeasurepb
 type Handler struct {
 	store               Store
 	now                 func() time.Time
-	episodeCohort       func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
+	cohorts             CohortSource
 	validityConfig      ValidityConfig
 	conversationSearch  *conversationsearch.Service
 	conversationIndexer *conversationsearch.Indexer
-}
-
-// SetEpisodeCohort connects the episode-specific durable projection without
-// widening the generic invocation metric store. The callback is supplied by
-// orchestration, which owns the episode repository seam.
-func (h *Handler) SetEpisodeCohort(fn func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)) {
-	h.episodeCohort = fn
+	quotaReadings       pricing.QuotaReadingSource
+	usageStore          usageattribution.Store
+	usagePricer         *usageattribution.PriceBook
+	coverage            transcriptindex.CoverageReader
 }
 
 func (h *Handler) SetConversationSearchQuality(service *conversationsearch.Service, indexer *conversationsearch.Indexer) {
@@ -673,84 +680,6 @@ func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[m
 	}
 	query := "SELECT receipt calls joined to fallback and abandoned episode projections"
 	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("friction.capability_efficacy").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_efficacy")}), nil
-}
-
-// SelectCohort preserves the aggregate-to-run drill-down without reopening
-// the prunable event stream. It intentionally shares filter parsing with every
-// measure, so the listed runs are the population the displayed value describes.
-func (h *Handler) SelectCohort(ctx context.Context, req *connect.Request[measurepb.SelectCohortRequest]) (*connect.Response[measurepb.SelectCohortResponse], error) {
-	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	limit := int(req.Msg.GetLimit())
-	if limit <= 0 {
-		limit = 25
-	}
-	cohortStore, ok := h.store.(interface {
-		Cohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error)
-	})
-	if !ok {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("measure store does not provide durable cohort selection"))
-	}
-	cohort, err := cohortStore.Cohort(ctx, filter, limit)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	rows := make([]*measurepb.CohortRun, 0, len(cohort.RunIDs))
-	if rowStore, ok := h.store.(interface {
-		CohortRows(context.Context, []string, string) ([]invocationreadmodel.CohortRun, error)
-	}); ok {
-		cohortRows, rowErr := rowStore.CohortRows(ctx, cohort.RunIDs, filter.ToolName)
-		if rowErr != nil {
-			return nil, connect.NewError(connect.CodeInternal, rowErr)
-		}
-		for _, row := range cohortRows {
-			protoRow := &measurepb.CohortRun{RunId: row.RunID, TaskTitle: row.TaskTitle, ProfileId: row.ProfileID, ProfileName: row.ProfileName, Status: row.Status, CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339), Model: row.Model, RunnerType: row.RunnerType, WorkloadKey: row.WorkloadKey, TotalTokens: row.TotalTokens}
-			if row.TotalChargeMicroUSD != nil {
-				protoRow.TotalChargeMicroUsd = row.TotalChargeMicroUSD
-			}
-			if row.ChargeBasis != nil {
-				protoRow.ChargeBasis = row.ChargeBasis
-			}
-			if row.ToolCallCount != nil {
-				protoRow.ToolCallCount = row.ToolCallCount
-			}
-			rows = append(rows, protoRow)
-		}
-	}
-	query := fmt.Sprintf("SELECT DISTINCT run_id FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q ORDER BY run_id LIMIT %d", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), limit)
-	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Rows: rows, Truncated: cohort.Truncated, Validity: h.validityForSample(int64(len(cohort.RunIDs))), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("select_cohort").SourceTable, int64(len(cohort.RunIDs)), query), DefinitionId: definitionID("select_cohort")}), nil
-}
-
-// EpisodeCohort exposes the ranked friction-episode investigation projection
-// through the typed measures surface. It shares SelectCohort's predicate and
-// bounded limit, then folds only persisted episode records.
-func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measurepb.EpisodeCohortRequest]) (*connect.Response[measurepb.EpisodeCohortResponse], error) {
-	if h.episodeCohort == nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("episode cohort source is not configured"))
-	}
-	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	limit := int(req.Msg.GetLimit())
-	if limit <= 0 {
-		limit = 25
-	}
-	cohort, err := h.episodeCohort(ctx, filter, limit)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	query := fmt.Sprintf("SELECT persisted friction episodes FROM selected durable run cohort LIMIT %d", limit)
-	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason}
-	for _, signal := range cohort.Signals {
-		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
-	}
-	response.Validity = h.validityForSample(int64(len(cohort.Signals)))
-	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor("episode_cohort").SourceTable, int64(len(cohort.Signals)), query)
-	response.DefinitionId = definitionID("episode_cohort")
-	return connect.NewResponse(response), nil
 }
 
 func (h *Handler) runStatusRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) ([]invocationreadmodel.RunStatusCount, string, invocationreadmodel.Filter, error) {
@@ -1371,6 +1300,9 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		query := fmt.Sprintf("SELECT error_code aggregate FROM invocation_read_model_errors WHERE occurred_at >= %q AND occurred_at < %q GROUP BY error_code LIMIT 20", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
 		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
 	}); err != nil {
+		return nil, err
+	}
+	if err := h.registerUsageMeasures(registry); err != nil {
 		return nil, err
 	}
 	return registry, nil

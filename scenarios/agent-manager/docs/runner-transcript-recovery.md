@@ -135,9 +135,9 @@ does not expose a host path to callers and defaults to Codex and Claude Code.
 
 ```bash
 agent-manager run import-session-corpus --per-month 1 --limit 24 --json
-agent-manager run replay-invocation-corpus --tag-prefix agent-manager-imported --limit 100 --json
+agent-manager usage reindex --tag-prefix agent-manager-imported --limit 100 --full --json
 agent-manager measures select-cohort --window this_week --json
-agent-manager run episode-cohort --tag-prefix agent-manager-imported --limit 100 --json
+agent-manager measures episode-cohort --filter-json '{"tag_prefix":"agent-manager-imported"}' --limit 100 --json
 ```
 
 Selection is reproducible: within each runner/month it takes pathname-sorted

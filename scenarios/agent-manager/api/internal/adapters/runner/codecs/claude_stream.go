@@ -2,13 +2,15 @@
 package codecs
 
 import (
+	"encoding/json"
+	"errors"
+	"strings"
+
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/fallback"
-	"encoding/json"
-	"errors"
+
 	"github.com/google/uuid"
-	"strings"
 )
 
 // ClaudeStreamEvent represents a single event from Claude Code's
@@ -28,7 +30,10 @@ type ClaudeStreamEvent struct {
 	// The stdout stream-json dialect uses snake_case session_id; the
 	// on-disk dialect uses sessionId. Capturing both lets the transcript
 	// parser recover the session id from an interactive run (design §3).
-	SessionIDAlt string              `json:"sessionId,omitempty"`
+	SessionIDAlt string `json:"sessionId,omitempty"`
+	// QuotaLimits is the on-disk transcript's provider quota standing, written
+	// on a rate-limited (429) synthetic assistant line.
+	QuotaLimits  *ClaudeQuotaLimits  `json:"quotaLimits,omitempty"`
 	IsError      bool                `json:"is_error,omitempty"`
 	DurationMs   int                 `json:"duration_ms,omitempty"`
 	DurationAPI  int                 `json:"duration_api_ms,omitempty"`
@@ -55,6 +60,8 @@ type ClaudeMessage struct {
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
 	Usage   *ClaudeUsage    `json:"usage,omitempty"`
+	// Model is the provider's model for an assistant message.
+	Model string `json:"model,omitempty"`
 	// StopReason is present on assistant messages in the on-disk
 	// interactive transcript ("end_turn" marks a cleanly finished turn,
 	// "tool_use" marks mid-work). The on-disk dialect has no `result`
@@ -162,6 +169,15 @@ type ClaudeToolUse struct {
 
 // ClaudeError accepts both the {code,message} object form and the bare
 // string form used by system/api_retry.
+// ClaudeQuotaLimits is the provider's quota standing for one rate-limit
+// window. It carries no percentage: only a status, the window and its reset.
+type ClaudeQuotaLimits struct {
+	Status        string `json:"status"`
+	RateLimitType string `json:"rateLimitType"`
+	ResetsAt      int64  `json:"resetsAt"`
+	OverageStatus string `json:"overageStatus"`
+}
+
 type ClaudeError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`

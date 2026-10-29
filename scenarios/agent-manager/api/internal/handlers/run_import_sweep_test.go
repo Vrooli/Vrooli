@@ -9,21 +9,22 @@ import (
 	"testing"
 
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/transcriptindex"
 )
 
 type transcriptImporterFake struct {
-	summary orchestration.TranscriptImportSummary
+	summary transcriptindex.Summary
 	err     error
 	calls   int
 }
 
-func (f *transcriptImporterFake) RunOnce(context.Context) (orchestration.TranscriptImportSummary, error) {
+func (f *transcriptImporterFake) RunOnce(context.Context) (transcriptindex.Summary, error) {
 	f.calls++
 	return f.summary, f.err
 }
 
 func TestImportTranscriptSweepReturnsTheSweepSummary(t *testing.T) {
-	fake := &transcriptImporterFake{summary: orchestration.TranscriptImportSummary{Scanned: 7, Imported: 2, Existing: 5}}
+	fake := &transcriptImporterFake{summary: transcriptindex.Summary{Discovered: 7, Adopted: 2, Read: 5}}
 	h := New(orchestration.EmptyHandlerServices(), WithTranscriptImporter(fake))
 
 	rr := httptest.NewRecorder()
@@ -32,11 +33,11 @@ func TestImportTranscriptSweepReturnsTheSweepSummary(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 	}
-	var got orchestration.TranscriptImportSummary
+	var got transcriptindex.Summary
 	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Scanned != 7 || got.Imported != 2 || got.Existing != 5 || len(got.Failures) != 0 {
+	if got.Discovered != 7 || got.Adopted != 2 || got.Read != 5 || len(got.Failures) != 0 {
 		t.Fatalf("summary = %#v", got)
 	}
 	if fake.calls != 1 {
@@ -61,7 +62,7 @@ func TestImportTranscriptSweepReportsUnavailableRatherThanEmptySuccess(t *testin
 // A typed-nil scheduler stored in the interface is not nil, so the option has
 // to reject it or the endpoint answers with an empty sweep instead.
 func TestWithTranscriptImporterRejectsTypedNilScheduler(t *testing.T) {
-	var scheduler *orchestration.TranscriptImportScheduler
+	var scheduler *orchestration.TranscriptIndex
 	h := New(orchestration.EmptyHandlerServices(), WithTranscriptImporter(scheduler))
 
 	rr := httptest.NewRecorder()

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { beforeEach, test, vi } from "vitest";
@@ -73,7 +74,7 @@ test("KPISummary renders loading and error states through metric cards", async (
 
   renderWithProviders(createElement(KPISummary));
 
-  await waitFor(() => assert.ok(screen.getByText("Success rate: stats unavailable")));
+  await waitFor(() => assert.ok(getErrorNotice("Success rate", "stats unavailable")));
 });
 
 test("KPISummary labels every charge basis without inventing prices", async () => {

@@ -5,8 +5,8 @@ package orchestration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/event"
@@ -70,80 +70,6 @@ func (o *Orchestrator) allRunEvents(ctx context.Context, runID uuid.UUID, opts e
 	}
 }
 
-func (o *Orchestrator) EpisodeCohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (runreport.EpisodeCohort, error) {
-	if o.invocationReadModel == nil {
-		return runreport.EpisodeCohort{}, fmt.Errorf("invocation read model is not configured")
-	}
-	selected := map[string][]runsignal.FrictionEpisode{}
-	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		episodes, err := projection.Episodes(ctx, filter, invocationEvidenceLimit)
-		if err != nil {
-			return runreport.EpisodeCohort{}, err
-		}
-		for _, episode := range episodes {
-			if limit > 0 && len(selected) >= limit {
-				if _, exists := selected[episode.RunID]; !exists {
-					continue
-				}
-			}
-			selected[episode.RunID] = append(selected[episode.RunID], episode.FrictionEpisode)
-		}
-	} else {
-		cohort, err := o.invocationReadModel.Cohort(ctx, filter, limit)
-		if err != nil {
-			return runreport.EpisodeCohort{}, err
-		}
-		for _, rawID := range cohort.RunIDs {
-			id, err := uuid.Parse(rawID)
-			if err != nil {
-				return runreport.EpisodeCohort{}, err
-			}
-			episodes, err := o.Episodes(ctx, id)
-			if err != nil {
-				return runreport.EpisodeCohort{}, err
-			}
-			selected[rawID] = episodes
-		}
-	}
-	return runreport.BuildEpisodeCohort(selected), nil
-}
-
-func (o *Orchestrator) CompareEpisodeCohorts(ctx context.Context, left, right invocationreadmodel.Filter, limit int) (runreport.CohortComparison, error) {
-	projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore)
-	if !ok {
-		return runreport.CohortComparison{}, fmt.Errorf("episode comparison requires a projection store")
-	}
-	leftCohort, err := o.invocationReadModel.Cohort(ctx, left, invocationEvidenceLimit)
-	if err != nil {
-		return runreport.CohortComparison{}, err
-	}
-	rightCohort, err := o.invocationReadModel.Cohort(ctx, right, invocationEvidenceLimit)
-	if err != nil {
-		return runreport.CohortComparison{}, err
-	}
-	leftEpisodes, err := projection.Episodes(ctx, left, invocationEvidenceLimit)
-	if err != nil {
-		return runreport.CohortComparison{}, err
-	}
-	rightEpisodes, err := projection.Episodes(ctx, right, invocationEvidenceLimit)
-	if err != nil {
-		return runreport.CohortComparison{}, err
-	}
-	leftFacts := make([]runsignal.FrictionEpisode, 0, len(leftEpisodes))
-	for _, episode := range leftEpisodes {
-		fact := episode.FrictionEpisode
-		fact.RunID = episode.RunID
-		leftFacts = append(leftFacts, fact)
-	}
-	rightFacts := make([]runsignal.FrictionEpisode, 0, len(rightEpisodes))
-	for _, episode := range rightEpisodes {
-		fact := episode.FrictionEpisode
-		fact.RunID = episode.RunID
-		rightFacts = append(rightFacts, fact)
-	}
-	return runreport.BuildCohortComparison(leftFacts, rightFacts, leftCohort.MatchedRuns, rightCohort.MatchedRuns, limit), nil
-}
-
 func (o *Orchestrator) EpisodeTrend(ctx context.Context, filter invocationreadmodel.Filter, bucket time.Duration, limit int) ([]runreport.EpisodeTrendBucket, error) {
 	projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore)
 	if !ok {
@@ -177,6 +103,8 @@ type ReplayResult struct {
 // ReplayFilter bounds bulk maintenance. It intentionally shares the existing
 // run-list predicates until the corpus-query filter is introduced in phase 5.
 type ReplayFilter struct {
+	// RunID selects one run; the other fields are then ignored.
+	RunID     *uuid.UUID
 	From      *time.Time
 	To        *time.Time
 	ProfileID *uuid.UUID
@@ -204,27 +132,6 @@ type ReplayFailure struct {
 }
 
 const replayFailureLimit = 20
-
-func (o *Orchestrator) AggregateInvocationFacts(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.AggregateRow, error) {
-	if o.invocationReadModel == nil {
-		return nil, fmt.Errorf("invocation read model is not configured")
-	}
-	return o.invocationReadModel.Aggregate(ctx, filter, dimension, limit)
-}
-
-func (o *Orchestrator) SelectInvocationCohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (invocationreadmodel.Cohort, error) {
-	if o.invocationReadModel == nil {
-		return invocationreadmodel.Cohort{}, fmt.Errorf("invocation read model is not configured")
-	}
-	return o.invocationReadModel.Cohort(ctx, filter, limit)
-}
-
-func (o *Orchestrator) InvocationMetrics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.Metrics, error) {
-	if o.invocationReadModel == nil {
-		return invocationreadmodel.Metrics{}, fmt.Errorf("invocation read model is not configured")
-	}
-	return o.invocationReadModel.Metrics(ctx, filter)
-}
 
 func (o *Orchestrator) cohortDefinitions() (invocationreadmodel.CohortDefinitionStore, error) {
 	store, ok := o.invocationReadModel.(invocationreadmodel.CohortDefinitionStore)
@@ -324,16 +231,17 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("load retained run events: %w", err)
 	}
-	if len(events) == 0 {
-		if run != nil && run.ExecutionMode.Normalized() == domain.ExecutionModeImported && strings.TrimSpace(run.TranscriptPath) != "" {
-			if err := o.rehydrateImportedTranscript(ctx, run, false); err == nil {
-				events, err = o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1})
-				if err != nil {
-					return nil, fmt.Errorf("load rehydrated run events: %w", err)
-				}
+	if len(events) == 0 && run != nil && run.ExecutionMode.Normalized() == domain.ExecutionModeImported && o.transcriptIndex != nil {
+		// An explicit replay is a recall request: rebuild the evicted events
+		// from the source file the indexer read.
+		if err := o.transcriptIndex.RebuildRecall(ctx, runID.String()); err == nil {
+			events, err = o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1})
+			if err != nil {
+				return nil, fmt.Errorf("load rebuilt run events: %w", err)
 			}
 		}
 	}
+	events = o.summaryUsageEvents(ctx, run, events)
 	if len(events) == 0 {
 		// A projection watermark requires a retained source event timestamp. A
 		// transcript can legitimately carry only session metadata, so represent
@@ -431,8 +339,15 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 	if limit <= 0 {
 		limit = 1000
 	}
-	runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: limit + 1}, AgentProfileID: filter.ProfileID, Status: filter.Status, TagPrefix: filter.TagPrefix, EndedFrom: filter.From, EndedTo: filter.To})
-	if err != nil {
+	var runs []*domain.Run
+	var err error
+	if filter.RunID != nil {
+		run, getErr := o.runs.Get(ctx, *filter.RunID)
+		if getErr != nil {
+			return nil, getErr
+		}
+		runs, filter.From, filter.To = []*domain.Run{run}, nil, nil
+	} else if runs, err = o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: limit + 1}, AgentProfileID: filter.ProfileID, Status: filter.Status, TagPrefix: filter.TagPrefix, EndedFrom: filter.From, EndedTo: filter.To}); err != nil {
 		return nil, err
 	}
 	summary := &ReplaySummary{}
@@ -490,6 +405,7 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 	if err != nil {
 		return fmt.Errorf("load run events: %w", err)
 	}
+	events = o.summaryUsageEvents(ctx, run, events)
 	projectedAt := o.now()
 	capabilityResolver := o.capabilityResolver(run)
 	facts, watermark := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, capabilityResolver, o.commandResolver(run))
@@ -540,14 +456,78 @@ func (o *Orchestrator) commandResolver(run *domain.Run) runsignal.CommandResolve
 	}
 }
 
+// projectTerminalInvocationReadModel durably marks a run as needing
+// projection. Every terminal-state writer calls it (run lifecycle, executor,
+// Reconciler recovery, terminal-accounting receipts); the reconcile sweep
+// ProjectPendingInvocationReadModels projects marked runs idempotently, so a
+// projection that fails or is never attempted is retried, not lost.
 func (o *Orchestrator) projectTerminalInvocationReadModel(run *domain.Run) {
-	if run == nil || !run.Status.IsTerminal() || o.invocationReadModel == nil {
+	if run == nil {
 		return
 	}
-	runCopy := *run
-	go func(id uuid.UUID) {
-		if err := o.projectInvocationReadModel(context.Background(), &runCopy); err != nil {
-			obs.Component("invocation-read-model").Warn("durable invocation projection failed", obs.KeyRunID, id.String(), obs.KeyError, err.Error())
+	queue, ok := o.invocationReadModel.(invocationreadmodel.ProjectionQueue)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), projectionMarkTimeout)
+	defer cancel()
+	if err := queue.MarkProjectionPending(ctx, run.ID.String(), o.now()); err != nil {
+		obs.Component("invocation-read-model").Warn("needs-projection mark failed; the stale sweep will enqueue the run", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+}
+
+const (
+	projectionMarkTimeout   = 5 * time.Second
+	projectionSweepBudget   = 10 * time.Second
+	projectionSweepBatch    = 200
+	projectionRetryInterval = 15 * time.Minute
+)
+
+// ProjectPendingInvocationReadModels is the reconcile sweep for durable
+// projection marks. It first enqueues ended runs whose watermark is missing or
+// from an older classifier (so a classifier change re-projects history after a
+// restart), then projects due marks within a time budget. A mark is cleared
+// only for the generation it projected; a failure defers it with backoff.
+func (o *Orchestrator) ProjectPendingInvocationReadModels(ctx context.Context) error {
+	queue, ok := o.invocationReadModel.(invocationreadmodel.ProjectionQueue)
+	if !ok || o.events == nil || o.runs == nil {
+		return nil
+	}
+	now := o.now()
+	if _, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, runsignal.EpisodeClassifierVersion, now, projectionSweepBatch); err != nil {
+		return fmt.Errorf("enqueue stale projections: %w", err)
+	}
+	due, err := queue.DueProjections(ctx, now, projectionSweepBatch)
+	if err != nil {
+		return fmt.Errorf("list due projections: %w", err)
+	}
+	deadline := time.Now().Add(projectionSweepBudget)
+	var errs []error
+	for _, pending := range due {
+		if ctx.Err() != nil || time.Now().After(deadline) {
+			break
 		}
-	}(run.ID)
+		id, parseErr := uuid.Parse(pending.RunID)
+		var run *domain.Run
+		if parseErr == nil {
+			run, err = o.runs.Get(ctx, id)
+		}
+		var notFound *domain.NotFoundError
+		if parseErr != nil || errors.As(err, &notFound) || (err == nil && run == nil) {
+			// A deleted run has nothing to project.
+			errs = append(errs, queue.CompleteProjection(ctx, pending.RunID, pending.Generation))
+			continue
+		}
+		if err == nil {
+			err = o.projectInvocationReadModel(ctx, run)
+		}
+		if err != nil {
+			backoff := projectionRetryInterval * time.Duration(1<<min(pending.Attempts, 6))
+			errs = append(errs, queue.DeferProjection(ctx, pending.RunID, now.Add(backoff)))
+			obs.Component("invocation-read-model").Warn("durable invocation projection failed; deferred", obs.KeyRunID, pending.RunID, obs.KeyError, err.Error())
+			continue
+		}
+		errs = append(errs, queue.CompleteProjection(ctx, pending.RunID, pending.Generation))
+	}
+	return errors.Join(errs...)
 }

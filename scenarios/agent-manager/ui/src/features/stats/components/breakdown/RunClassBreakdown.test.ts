@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
@@ -42,5 +43,5 @@ test("RunClassBreakdown exposes loading and API error states", async () => {
   renderWithProviders(createElement(RunClassBreakdown));
   assert.ok(screen.getByText("Loading run classes…"));
   resolve?.({ ok: false, status: 503 });
-  await waitFor(() => assert.ok(screen.getByText("Run classes: Run-class API error 503")));
+  await waitFor(() => assert.ok(getErrorNotice("Run classes", "Run-class API error 503")));
 });

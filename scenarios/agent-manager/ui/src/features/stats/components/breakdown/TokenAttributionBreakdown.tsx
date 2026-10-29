@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import {
   type TokenAttributionGroupBy,
   type TokenAttributionView,
@@ -55,7 +56,7 @@ export function TokenAttributionBreakdown() {
       </div>
 
       {query.isLoading ? <div className="mt-4 h-32 animate-pulse rounded bg-muted/20" aria-label="Loading token attribution" /> : null}
-      {query.error ? <div className="mt-4 rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">Token attribution: {query.error.message}</div> : null}
+      {query.error ? <div className="mt-4"><ErrorNotice compact error={query.error} subject="Token attribution" onRetry={() => void query.refetch()} /></div> : null}
       {!query.isLoading && !query.error && rows.length === 0 ? <div className="mt-4 flex h-32 items-center justify-center rounded border border-dashed border-border text-sm text-muted-foreground">No token attribution data available for the selected window.</div> : null}
       {!query.isLoading && !query.error && rows.length > 0 ? (
         <div className="mt-4 overflow-x-auto">

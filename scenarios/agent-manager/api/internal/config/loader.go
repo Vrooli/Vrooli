@@ -214,15 +214,12 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_MIN_BYTES"); v > 0 {
 		l.Storage.ImportedToolCompactionMinBytes = v
 	}
-	// Imported-corpus eviction budget. Presence-checked (not >0) so an operator
-	// can set 0 to disable eviction, e.g. while capturing a specific transcript.
+	// Transcript recall budget. Presence-checked (not >0) so an operator can
+	// set 0 to keep usage summaries only.
 	if raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_MAX_BYTES")); raw != "" {
 		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v >= 0 {
 			l.Storage.ImportedCorpusMaxBytes = v
 		}
-	}
-	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_EVICTION_BATCH"); v > 0 {
-		l.Storage.ImportedCorpusEvictionBatch = v
 	}
 
 	// Transcript-import levers. The interval keeps its historical env name; the

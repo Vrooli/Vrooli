@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 func TestQuotaObservationFreshnessPreservesMissingAndUnknown(t *testing.T) {
@@ -75,5 +77,56 @@ func TestMemoryQuotaObservationRepositoryRetainsImmutableObservation(t *testing.
 	rows, err = repo.ListQuotaObservations(context.Background(), "openai", "codex", "5h", 10)
 	if err != nil || len(rows) != 1 || rows[0].Used == nil || *rows[0].Used != 12 {
 		t.Fatalf("list returned mutable repository state: rows=%+v err=%v", rows, err)
+	}
+}
+
+func quotaEvent(runID uuid.UUID, at time.Time, data domain.RateLimitEventData) *domain.RunEvent {
+	event := domain.NewRateLimitEvent(runID, data.LimitType, data.Message, data.ResetTime, 0)
+	event.Timestamp, event.Data = at, &data
+	return event
+}
+
+func TestObservationFromEventIdentifiesTheProviderReadingNotTheCarrier(t *testing.T) {
+	at := time.Date(2026, 10, 29, 4, 30, 0, 0, time.UTC)
+	percent := 33.0
+	frame := domain.RateLimitEventData{LimitType: "10080m", Provider: "openai", Pool: "primary", UsedPercent: &percent, WindowMinutes: 10080, Provenance: "codex:event_msg.token_count.rate_limits"}
+	live, err := ObservationFromEvent(quotaEvent(uuid.New(), at, frame), at.Add(time.Hour))
+	if err != nil || live == nil {
+		t.Fatal(err)
+	}
+	imported, err := ObservationFromEvent(quotaEvent(uuid.New(), at, frame), at.Add(7*time.Hour))
+	if err != nil || imported == nil {
+		t.Fatal(err)
+	}
+	if live.ID != imported.ID || live.SourceRunID == imported.SourceRunID {
+		t.Fatalf("one rollout frame through two runs must share identity: %s vs %s", live.ID, imported.ID)
+	}
+	if live.Freshness != ObservationFresh || imported.Freshness != ObservationStale || live.Window != "10080m" || live.Standing != QuotaStandingAvailable {
+		t.Fatalf("live=%+v imported=%+v", live, imported)
+	}
+	later, _ := ObservationFromEvent(quotaEvent(uuid.New(), at.Add(time.Second), frame), at)
+	if later.ID == live.ID {
+		t.Fatal("a later frame must be a new observation")
+	}
+	if none, err := ObservationFromEvent(quotaEvent(uuid.New(), at, domain.RateLimitEventData{LimitType: "5_hour"}), at); none != nil || err != nil {
+		t.Fatalf("an unattributed rate-limit event is not an observation: %+v %v", none, err)
+	}
+	if none, _ := ObservationFromEvent(domain.NewErrorEvent(uuid.New(), "x", "y", false), at); none != nil {
+		t.Fatal("an error event is not a quota observation")
+	}
+}
+
+func TestObservationStandingPrefersProviderStatus(t *testing.T) {
+	at := time.Now().UTC()
+	full := 100.0
+	for status, want := range map[string]QuotaStanding{"rejected": QuotaStandingExhausted, "allowed_warning": QuotaStandingLimited, "allowed": QuotaStandingAvailable, "": QuotaStandingExhausted} {
+		o, err := ObservationFromEvent(quotaEvent(uuid.New(), at, domain.RateLimitEventData{LimitType: "five_hour", Provider: "anthropic", Pool: "five_hour", WindowMinutes: 300, Status: status}), at)
+		if err != nil || o.Standing != want {
+			t.Fatalf("status %q standing = %+v, want %s (%v)", status, o, want, err)
+		}
+	}
+	o, _ := ObservationFromEvent(quotaEvent(uuid.New(), at, domain.RateLimitEventData{LimitType: "10080m", Provider: "openai", Pool: "primary", UsedPercent: &full, WindowMinutes: 10080}), at)
+	if o.Standing != QuotaStandingExhausted {
+		t.Fatalf("100%% standing = %s", o.Standing)
 	}
 }

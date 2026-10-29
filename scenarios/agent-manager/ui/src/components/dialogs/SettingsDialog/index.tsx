@@ -1,7 +1,7 @@
 // Settings dialog with Model Registry, Model Pricing, Maintenance, and Investigation tabs
 
 import { useCallback, useRef, useState } from "react";
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogContent,
@@ -179,7 +179,7 @@ export function SettingsDialog({
             {activeTab === "orchestration" && orchestrationDirty && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => orchestrationRef.current?.reset()}
                   disabled={orchestrationRef.current?.saving}
                 >
@@ -196,7 +196,7 @@ export function SettingsDialog({
             {activeTab === "investigation" && investigationDirty && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => investigationRef.current?.reset()}
                   disabled={investigationRef.current?.saving}
                 >
@@ -210,7 +210,7 @@ export function SettingsDialog({
                 </Button>
               </>
             )}
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>

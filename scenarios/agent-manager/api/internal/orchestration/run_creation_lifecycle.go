@@ -52,8 +52,8 @@ func (o *Orchestrator) GetRunByImportProvenance(ctx context.Context, sourceHarne
 	return o.runs.GetByImportProvenance(ctx, sourceHarness, sourceSessionID)
 }
 
-func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error) {
-	runs, err := o.runs.List(ctx, repository.RunListFilter{
+func (opts RunListOptions) repositoryFilter() repository.RunListFilter {
+	return repository.RunListFilter{
 		ListFilter: repository.ListFilter{
 			Limit:  opts.Limit,
 			Offset: opts.Offset,
@@ -66,11 +66,20 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 		InvestigatesRunID:         opts.InvestigatesRunID,
 		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
 		ParentRunID:               opts.ParentRunID,
-	})
+	}
+}
+
+func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error) {
+	runs, err := o.runs.List(ctx, opts.repositoryFilter())
 	if err != nil {
 		return nil, err
 	}
 	return o.attachRunActionsList(ctx, runs), nil
+}
+
+// CountRuns returns how many runs match opts, ignoring Limit and Offset.
+func (o *Orchestrator) CountRuns(ctx context.Context, opts RunListOptions) (int, error) {
+	return o.runs.Count(ctx, opts.repositoryFilter())
 }
 
 // ListParkedRuns returns all parked runs with their await-handle populated. The

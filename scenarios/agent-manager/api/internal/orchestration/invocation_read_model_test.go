@@ -48,10 +48,6 @@ func (s *recordingInvocationReadModel) Watermark(_ context.Context, _ string) (*
 	return s.watermark, nil
 }
 
-func (s *recordingInvocationReadModel) Aggregate(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.AggregateRow, error) {
-	return nil, nil
-}
-
 func (s *recordingInvocationReadModel) Cohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error) {
 	return invocationreadmodel.Cohort{}, nil
 }
@@ -106,50 +102,93 @@ func TestFindingRecurrenceRateUsesDurableMeasureAndPreservesUnavailable(t *testi
 	}
 }
 
-func TestProjectTerminalInvocationReadModel_WritesFactsAndWatermarkIdempotently(t *testing.T) {
+// A terminal writer leaves a durable mark; the reconcile sweep projects it
+// once, and a second sweep finds nothing left to do.
+func TestTerminalProjectionIsDurableMarkProjectedBySweep(t *testing.T) {
 	repos, events, cleanup := testutil.SetupTestRepos(t)
 	defer cleanup()
-	store := &recordingInvocationReadModel{calls: make(chan struct{}, 2)}
-	o := New(nil, nil, repos.Runs, WithEvents(events), WithInvocationReadModel(store), WithClock(func() time.Time { return time.Date(2026, 7, 29, 18, 30, 0, 0, time.UTC) }))
-	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}}
+	ctx := context.Background()
+	o := New(nil, nil, repos.Runs, WithEvents(events), WithInvocationReadModel(repos.InvocationReadModel), WithClock(func() time.Time { return time.Date(2026, 7, 29, 18, 30, 0, 0, time.UTC) }))
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
 	call := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": "vrooli help"})
 	call.Timestamp = time.Date(2026, 7, 29, 18, 29, 0, 0, time.UTC)
-	if err := events.Append(context.Background(), run.ID, call); err != nil {
+	if err := events.Append(ctx, run.ID, call); err != nil {
 		t.Fatal(err)
 	}
 	o.projectTerminalInvocationReadModel(run)
 	o.projectTerminalInvocationReadModel(run)
-	for range 2 {
-		select {
-		case <-store.calls:
-		case <-time.After(time.Second):
-			t.Fatal("projection did not complete")
-		}
+	if watermark, err := repos.InvocationReadModel.Watermark(ctx, run.ID.String()); err != nil || watermark != nil {
+		t.Fatalf("marking projected synchronously: %+v %v", watermark, err)
 	}
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if len(store.facts) != 1 || store.facts[0].CallEventID != call.ID.String() {
-		t.Fatalf("facts=%+v", store.facts)
+	if err := o.ProjectPendingInvocationReadModels(ctx); err != nil {
+		t.Fatal(err)
 	}
-	if store.watermark == nil || store.watermark.LastEventID != call.ID.String() || store.watermark.ClassifierVersion != runsignal.InvocationFactVersion {
-		t.Fatalf("watermark=%+v", store.watermark)
+	watermark, err := repos.InvocationReadModel.Watermark(ctx, run.ID.String())
+	if err != nil || watermark == nil || watermark.LastEventID != call.ID.String() || watermark.ClassifierVersion != runsignal.InvocationFactVersion {
+		t.Fatalf("watermark=%+v err=%v", watermark, err)
+	}
+	queue := repos.InvocationReadModel.(invocationreadmodel.ProjectionQueue)
+	if due, err := queue.DueProjections(ctx, time.Now().Add(time.Hour), 10); err != nil || len(due) != 0 {
+		t.Fatalf("projected mark not cleared: %+v %v", due, err)
+	}
+	if err := o.ProjectPendingInvocationReadModels(ctx); err != nil {
+		t.Fatalf("idempotent sweep: %v", err)
+	}
+	if due, err := queue.DueProjections(ctx, time.Now().Add(time.Hour), 10); err != nil || len(due) != 0 {
+		t.Fatalf("a current watermark was re-enqueued: %+v %v", due, err)
+	}
+
+	// An episode classifier change (F-W5-4) re-projects ended history like a
+	// fact classifier change does.
+	ended := time.Date(2026, 7, 29, 18, 29, 30, 0, time.UTC)
+	run.EndedAt, run.Status = &ended, domain.RunStatusComplete
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, runsignal.EpisodeClassifierVersion, time.Now(), 10); err != nil || added != 0 {
+		t.Fatalf("a current watermark was enqueued: %d %v", added, err)
+	}
+	stale := *watermark
+	stale.EpisodeClassifierVersion = "friction-episode.v9"
+	if err := repos.InvocationReadModel.Replace(ctx, nil, stale); err != nil {
+		t.Fatal(err)
+	}
+	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, runsignal.EpisodeClassifierVersion, time.Now(), 10); err != nil || added != 1 {
+		t.Fatalf("stale episode classifier enqueued %d runs (%v), want 1", added, err)
 	}
 }
 
-func TestProjectTerminalInvocationReadModel_FailureDoesNotMutateTerminalRun(t *testing.T) {
+type failingReadModel struct {
+	invocationreadmodel.Store
+	invocationreadmodel.ProjectionQueue
+}
+
+func (failingReadModel) Replace(context.Context, []invocationreadmodel.Fact, invocationreadmodel.Watermark) error {
+	return errors.New("projection unavailable")
+}
+
+// A failed projection keeps its mark with backoff and never touches the run.
+func TestProjectionSweepDefersFailureWithoutMutatingTerminalRun(t *testing.T) {
 	repos, events, cleanup := testutil.SetupTestRepos(t)
 	defer cleanup()
-	store := &recordingInvocationReadModel{err: errors.New("projection unavailable"), calls: make(chan struct{}, 1)}
-	o := New(nil, nil, repos.Runs, WithEvents(events), WithInvocationReadModel(store))
-	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	ctx := context.Background()
+	queue := repos.InvocationReadModel.(invocationreadmodel.ProjectionQueue)
+	o := New(nil, nil, repos.Runs, WithEvents(events), WithInvocationReadModel(failingReadModel{Store: repos.InvocationReadModel, ProjectionQueue: queue}))
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
 	o.projectTerminalInvocationReadModel(run)
-	select {
-	case <-store.calls:
-	case <-time.After(time.Second):
-		t.Fatal("projection did not attempt write")
+	if err := o.ProjectPendingInvocationReadModels(ctx); err != nil {
+		t.Fatal(err)
 	}
-	if run.Status != domain.RunStatusComplete || run.Phase != domain.RunPhaseCompleted {
-		t.Fatalf("projection changed terminal run: %+v", run)
+	if due, err := queue.DueProjections(ctx, time.Now(), 10); err != nil || len(due) != 0 {
+		t.Fatalf("failed projection retried immediately: %+v %v", due, err)
+	}
+	due, err := queue.DueProjections(ctx, time.Now().Add(24*time.Hour), 10)
+	if err != nil || len(due) != 1 || due[0].RunID != run.ID.String() || due[0].Attempts != 1 {
+		t.Fatalf("failed projection lost its durable mark: %+v %v", due, err)
+	}
+	stored, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || stored.Status != run.Status {
+		t.Fatalf("projection changed the run: %+v %v", stored, err)
 	}
 }
 
@@ -200,6 +239,18 @@ func TestReplayInvocationFacts_RebuildsRetainedAndPreservesPruned(t *testing.T) 
 	facts, err := repos.InvocationReadModel.Facts(ctx, pruned.ID.String())
 	if err != nil || len(facts) != 1 || facts[0].Version != "legacy.v1" {
 		t.Fatalf("pruned facts=%+v err=%v", facts, err)
+	}
+
+	// `usage reindex <run-id>` selects one run of the corpus: a refresh of an
+	// unchanged run skips it, a full reindex rebuilds it, and no other run is
+	// touched (D-11).
+	refreshed, err := o.ReplayInvocationCorpus(ctx, ReplayFilter{RunID: &retained.ID}, true)
+	if err != nil || refreshed.Skipped != 1 || refreshed.Replayed+refreshed.Refreshed+refreshed.Unreplayable != 0 {
+		t.Fatalf("refresh of one unchanged run=%+v err=%v", refreshed, err)
+	}
+	full, err := o.ReplayInvocationCorpus(ctx, ReplayFilter{RunID: &retained.ID}, false)
+	if err != nil || full.Replayed != 1 || full.Skipped+full.Unreplayable != 0 {
+		t.Fatalf("full reindex of one run=%+v err=%v", full, err)
 	}
 }
 

@@ -449,7 +449,7 @@ func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAft
 		Sessions:    o.interactiveSessions,
 		Runs:        o.runs,
 		Broadcaster: o.broadcaster,
-		NewSink:     o.interactiveEventSink,
+		NewSink:     o.runEventSink,
 		Result:      o.persistedResultBuilder,
 	})
 

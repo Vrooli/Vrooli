@@ -158,16 +158,6 @@ type Reconciler struct {
 	eventRetention    event.RetentionStore
 	artifactRetention artifact.RetentionCollector
 
-	// liveBytesFn measures the database's live byte size and searchDeleteRun
-	// drops a run's derived search documents. Together they let the storage
-	// maintenance pass evict the oldest imported runs when the recall corpus
-	// exceeds its budget. Both nil → imported-corpus eviction is a no-op.
-	liveBytesFn     func(context.Context) (int64, error)
-	searchDeleteRun func(context.Context, string) error
-	// searchOptimize merges the conversation-search FTS index to reclaim the
-	// tombstone space deletes leave behind. Nil → the reclaim step no-ops.
-	searchOptimize func(context.Context) error
-
 	// State
 	mu           sync.Mutex
 	running      bool
@@ -196,6 +186,9 @@ type Reconciler struct {
 
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
+	// hooks owns the post-persist hook set recovery sinks apply; SetReconciler
+	// wires the orchestrator.
+	hooks *Orchestrator
 
 	// Shares the continuation owner lock after SetReconciler. Recovery must not
 	// read a half-admitted interactive invocation.
@@ -381,28 +374,6 @@ func WithReconcilerEventRetention(store event.RetentionStore) ReconcilerOption {
 
 func WithReconcilerArtifactRetention(collector artifact.RetentionCollector) ReconcilerOption {
 	return func(r *Reconciler) { r.artifactRetention = collector }
-}
-
-// WithReconcilerLiveBytes wires the database live-byte measure used to decide
-// when the imported recall corpus must be evicted back under budget.
-func WithReconcilerLiveBytes(fn func(context.Context) (int64, error)) ReconcilerOption {
-	return func(r *Reconciler) { r.liveBytesFn = fn }
-}
-
-// WithReconcilerSearchDeleteRun wires the per-run search-document deletion used
-// when evicting imported runs, so an evicted run leaves no orphan FTS rows.
-func WithReconcilerSearchDeleteRun(fn func(context.Context, string) error) ReconcilerOption {
-	return func(r *Reconciler) { r.searchDeleteRun = fn }
-}
-
-// SetSearchOptimize installs the conversation-search FTS reclaim hook. It is a
-// post-construction setter because the search repository is wired in the
-// composition root after the reconciler is built, mirroring the orchestrator's
-// SetConversationSearchNotifier.
-func (r *Reconciler) SetSearchOptimize(fn func(context.Context) error) {
-	if r != nil {
-		r.searchOptimize = fn
-	}
 }
 
 func (r *Reconciler) resolveRunStateRoot(ctx context.Context) (string, error) {
@@ -626,6 +597,13 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 			stats.Errors = append(stats.Errors, "terminal accounting recovery: "+err.Error())
 		}
 	}
+	if r.hooks != nil {
+		// Durable needs-projection marks from every terminal writer, plus ended
+		// runs with a missing or stale watermark, are projected here.
+		if err := r.hooks.ProjectPendingInvocationReadModels(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "invocation projection sweep: "+err.Error())
+		}
+	}
 	if r.workflowLiveness != nil {
 		if err := r.workflowLiveness.ReconcileUnarmedWorkflowWaits(ctx, r.levers.Workflow.UnarmedWaitWarningThreshold, r.levers.Workflow.UnarmedWaitFailureThreshold); err != nil {
 			stats.Errors = append(stats.Errors, "workflow waiting liveness: "+err.Error())
@@ -695,10 +673,17 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 				continue
 			}
 			if !r.attachedRunProcessAlive(full) {
+				// The harness process exited. Attach records identity and
+				// authority only and cannot observe an exit status, so a
+				// normal exit is the run completing, not failing (D-7).
 				stats.StaleRuns++
-				r.markRunFailed(ctx, full, "attached harness process is no longer present")
-				r.appendAttachedLifecycleEvent(ctx, full.ID, "liveness_failed", "process no longer present")
+				r.completeAttachedRun(ctx, full)
 			}
+			continue
+		}
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+			// An indexed external transcript is running while its file grows;
+			// the Transcript Indexer, not process liveness, completes it.
 			continue
 		}
 		if !policy.ExpectsHeartbeat || policy.StaleAction == domain.StaleRunActionNone {
@@ -762,17 +747,6 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 		stats.Errors = append(stats.Errors, "artifact retention: "+err.Error())
 	} else {
 		stats.ArtifactsPruned = deleted
-	}
-	// Bound the imported recall corpus (retention-exempt events) to its byte
-	// budget before returning freed pages below, so a runaway import backfill
-	// self-heals instead of only alarming.
-	// Reclaim dead search-index space BEFORE eviction, so eviction measures the
-	// post-reclaim size and sheds live recall only when genuinely over budget.
-	if err := r.reclaimSearchIndex(ctx); err != nil {
-		stats.Errors = append(stats.Errors, "search index reclaim: "+err.Error())
-	}
-	if _, err := r.evictImportedCorpus(ctx); err != nil {
-		stats.Errors = append(stats.Errors, "imported corpus eviction: "+err.Error())
 	}
 	r.recordImportedEventCompaction(ctx, &stats)
 

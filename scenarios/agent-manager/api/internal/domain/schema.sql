@@ -312,6 +312,18 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_watermarks (
     projection_complete INTEGER NOT NULL DEFAULT 0,
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- Durable "needs projection" marks. Every terminal-state writer marks its run;
+-- the reconcile sweep also enqueues ended runs whose watermark is missing or
+-- from an older classifier, then projects due rows idempotently. A mark is
+-- cleared only for the generation that was projected, so a terminal write
+-- during a projection is never lost; a failure defers the row with backoff.
+CREATE TABLE IF NOT EXISTS invocation_read_model_pending (
+    run_id TEXT PRIMARY KEY,
+    generation INTEGER NOT NULL DEFAULT 1,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_unix INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_pending_due ON invocation_read_model_pending(next_attempt_unix);
 CREATE TABLE IF NOT EXISTS investigation_receipt_evidence (
     run_id TEXT NOT NULL,
     event_id TEXT NOT NULL,
@@ -367,3 +379,95 @@ CREATE TABLE IF NOT EXISTS pending_authorization_requests (
     expires_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS pending_authorization_subject ON pending_authorization_requests(subject, state);
+-- Transcript Indexer (USAGE-INTELLIGENCE T-1). One row per transcript file on
+-- disk, keyed by file identity (device:inode) so Codex fork rollouts and
+-- Claude sub-agent sidechains never collide with their parent session. The
+-- indexer tails each file from `offset`; `owner = 'run'` rows are files an
+-- Agent Manager run reads itself, registered here and never read for usage.
+CREATE TABLE IF NOT EXISTS transcript_files (
+    file_key TEXT PRIMARY KEY,
+    path TEXT NOT NULL,
+    root_kind TEXT NOT NULL,
+    root_path TEXT NOT NULL,
+    harness TEXT NOT NULL,
+    session_id TEXT NOT NULL DEFAULT '',
+    header_session_id TEXT NOT NULL DEFAULT '',
+    parent_session_id TEXT NOT NULL DEFAULT '',
+    parent_file_key TEXT NOT NULL DEFAULT '',
+    sidechain INTEGER NOT NULL DEFAULT 0,
+    web_console_session_id TEXT NOT NULL DEFAULT '',
+    run_id TEXT NOT NULL DEFAULT '',
+    owner TEXT NOT NULL DEFAULT 'indexer',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error TEXT NOT NULL DEFAULT '',
+    read_offset INTEGER NOT NULL DEFAULT 0,
+    size INTEGER NOT NULL DEFAULT 0,
+    mtime_unix_nano INTEGER NOT NULL DEFAULT 0,
+    head_hash TEXT NOT NULL DEFAULT '',
+    turns INTEGER NOT NULL DEFAULT 0,
+    usage_reports INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 0,
+    recall_bytes INTEGER NOT NULL DEFAULT 0,
+    recall_evicted INTEGER NOT NULL DEFAULT 0,
+    -- non-text work read after the newest usage report (F-W2-2)
+    pending_facts_json TEXT NOT NULL DEFAULT '',
+    first_seen_at TEXT NOT NULL,
+    indexed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_transcript_files_path ON transcript_files(path);
+CREATE INDEX IF NOT EXISTS idx_transcript_files_run ON transcript_files(run_id);
+CREATE INDEX IF NOT EXISTS idx_transcript_files_web_console ON transcript_files(web_console_session_id);
+CREATE INDEX IF NOT EXISTS idx_transcript_files_session ON transcript_files(session_id);
+-- Durable per-report usage summaries (SPEC D2). Written as a file is read and
+-- never evicted with run events. Counters keep the provider's raw cumulative
+-- value (Codex) and the report's own amount, so runsignal.AccountUsage derives
+-- the same totals from these rows as from retained usage events. The
+-- non-text columns count work the request consumed since the previous report
+-- (SPEC AM-3): images in, images generated, web search/fetch, audio, tool kinds.
+CREATE TABLE IF NOT EXISTS transcript_usage (
+    file_key TEXT NOT NULL,
+    line_offset INTEGER NOT NULL,
+    ordinal INTEGER NOT NULL,
+    run_id TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    session_id TEXT NOT NULL DEFAULT '',
+    message_id TEXT NOT NULL DEFAULT '',
+    parent_tool_use_id TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    turn_index INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+    has_cumulative INTEGER NOT NULL DEFAULT 0,
+    cum_input_tokens INTEGER NOT NULL DEFAULT 0,
+    cum_output_tokens INTEGER NOT NULL DEFAULT 0,
+    cum_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cum_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+    reconciliation_authority INTEGER NOT NULL DEFAULT 0,
+    images_in INTEGER NOT NULL DEFAULT 0,
+    images_in_user INTEGER NOT NULL DEFAULT 0,
+    images_in_high_detail INTEGER NOT NULL DEFAULT 0,
+    image_bytes_in INTEGER NOT NULL DEFAULT 0,
+    images_out INTEGER NOT NULL DEFAULT 0,
+    web_searches INTEGER NOT NULL DEFAULT 0,
+    web_fetches INTEGER NOT NULL DEFAULT 0,
+    audio_in INTEGER NOT NULL DEFAULT 0,
+    tool_calls INTEGER NOT NULL DEFAULT 0,
+    tool_kinds_json TEXT NOT NULL DEFAULT '{}',
+    credits_balance TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (file_key, line_offset, ordinal)
+);
+CREATE INDEX IF NOT EXISTS idx_transcript_usage_run ON transcript_usage(run_id);
+CREATE INDEX IF NOT EXISTS idx_transcript_usage_observed ON transcript_usage(observed_at);
+
+-- One row per completed one-time repair of transcript_usage (for example the
+-- 2026-10-29 rewrite of legacy observed_at/model from the transcripts), so a
+-- repair never runs twice.
+CREATE TABLE IF NOT EXISTS transcript_usage_repairs (
+    name TEXT PRIMARY KEY,
+    completed_at TEXT NOT NULL,
+    files INTEGER NOT NULL DEFAULT 0,
+    rows_repaired INTEGER NOT NULL DEFAULT 0,
+    failures INTEGER NOT NULL DEFAULT 0
+);

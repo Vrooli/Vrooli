@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
 )
@@ -58,6 +59,50 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		}
 	}
 
+	events, err := parseClaudeDecodedEvent(state, runID, &streamEvent)
+	if quota := claudeQuotaLimitsEvent(runID, streamEvent.QuotaLimits); quota != nil {
+		events = append(events, quota)
+	}
+	return events, err
+}
+
+// claudeProvider and the claude-code provenance labels identify Claude quota
+// observations; pools are the provider's rate-limit window names.
+const (
+	claudeProvider                = "anthropic"
+	claudeQuotaLimitsProvenance   = "claude-code:transcript.quotaLimits"
+	claudeRateLimitTextProvenance = "claude-code:result.rate_limit_text"
+)
+
+// claudeQuotaLimitsEvent turns a transcript quotaLimits block into a quota
+// observation: the provider's standing for one window, without a percentage.
+func claudeQuotaLimitsEvent(runID uuid.UUID, limits *ClaudeQuotaLimits) *domain.RunEvent {
+	if limits == nil {
+		return nil
+	}
+	pool := strings.TrimSpace(limits.RateLimitType)
+	if pool == "" || len(pool) > 64 {
+		return nil
+	}
+	var reset *time.Time
+	if limits.ResetsAt > 0 {
+		value := time.Unix(limits.ResetsAt, 0).UTC()
+		reset = &value
+	}
+	event := domain.NewRateLimitEvent(runID, pool, "Claude provider quota standing: "+strings.TrimSpace(limits.Status), reset, 0)
+	data := event.Data.(*domain.RateLimitEventData)
+	data.Provider = claudeProvider
+	data.Pool = pool
+	data.Status = strings.TrimSpace(limits.Status)
+	data.OverageStatus = strings.TrimSpace(limits.OverageStatus)
+	data.Provenance = claudeQuotaLimitsProvenance
+	data.WindowMinutes = pricing.ClaudeWindowMinutes(pool)
+	return event
+}
+
+// parseClaudeDecodedEvent maps one decoded stream/transcript line to events.
+func parseClaudeDecodedEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) ([]*domain.RunEvent, error) {
+	streamEvent := *ev
 	switch streamEvent.Type {
 	case "message":
 		return parseMessageEvent(state, runID, &streamEvent), nil
@@ -377,7 +422,7 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 			state.lastCompaction = nil
 		}
 		state.lastTurnInput = int64(usageInputTokens(ev.Message.Usage))
-		events = append(events, newClaudeUsageEvent(runID, ev.Message.Usage, state.turn, state.model))
+		events = append(events, newClaudeUsageEvent(runID, ev, state.turn, state.model))
 	}
 	if len(events) > 0 {
 		return events
@@ -385,7 +430,17 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 	return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Assistant turn started")}
 }
 
-func newClaudeUsageEvent(runID uuid.UUID, usage *ClaudeUsage, turnIndex int, model string) *domain.RunEvent {
+// newClaudeUsageEvent records one provider message's usage. Claude repeats a
+// message's usage on every streamed content block, so the message id lets the
+// run's usage account count it once; a sub-agent's usage keeps the parent
+// tool call that spawned it.
+func newClaudeUsageEvent(runID uuid.UUID, ev *ClaudeStreamEvent, turnIndex int, model string) *domain.RunEvent {
+	usage := ev.Message.Usage
+	// The message's own model is the truth: a sub-agent or fallback can use
+	// another model than the run's configured one.
+	if reported := strings.TrimSpace(ev.Message.Model); reported != "" && reported != "<synthetic>" {
+		model = reported
+	}
 	return &domain.RunEvent{
 		ID:        uuid.New(),
 		RunID:     runID,
@@ -400,6 +455,8 @@ func newClaudeUsageEvent(runID uuid.UUID, usage *ClaudeUsage, turnIndex int, mod
 			TurnIndex:           turnIndex,
 			RunnerType:          string(domain.RunnerTypeClaudeCode),
 			Model:               model,
+			MessageID:           ev.Message.ID,
+			ParentToolUseID:     ev.ParentToolUseID,
 		},
 	}
 }
@@ -525,9 +582,11 @@ func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent, model str
 	// positives. See https://code.claude.com/docs/en/errors.
 	if event.IsError {
 		if rl := detectClaudeRateLimit(resultStr); rl.Detected {
-			return []*domain.RunEvent{domain.NewRateLimitEvent(
-				runID, rl.LimitType, rl.Message, rl.ResetTime, rl.RetryAfter,
-			)}, nil
+			event := domain.NewRateLimitEvent(runID, rl.LimitType, rl.Message, rl.ResetTime, rl.RetryAfter)
+			data := event.Data.(*domain.RateLimitEventData)
+			data.Provider, data.Pool, data.Provenance = claudeProvider, rl.LimitType, claudeRateLimitTextProvenance
+			data.WindowMinutes = pricing.ClaudeWindowMinutes(rl.LimitType)
+			return []*domain.RunEvent{event}, nil
 		}
 		msg := formatErrorMessage(event.Subtype, event.NumTurns, event.DurationMs, resultStr)
 		errEvent := domain.NewErrorEvent(runID, "execution_error", msg, false)
@@ -659,7 +718,7 @@ func detectClaudeRateLimit(resultStr string) rateLimitInfo {
 	}
 
 	info.Detected = true
-	info.LimitType = "5_hour" // most common
+	info.LimitType = "five_hour" // most common; Claude's own window name
 
 	// Reset timestamp from "limit reached|1755806400" form.
 	parts := strings.Split(resultStr, "|")
@@ -678,7 +737,7 @@ func detectClaudeRateLimit(resultStr string) rateLimitInfo {
 	case strings.Contains(lowerMsg, "daily"):
 		info.LimitType = "daily"
 	case strings.Contains(lowerMsg, "weekly"):
-		info.LimitType = "weekly"
+		info.LimitType = "seven_day"
 	case strings.Contains(lowerMsg, "token"):
 		info.LimitType = "token"
 	}

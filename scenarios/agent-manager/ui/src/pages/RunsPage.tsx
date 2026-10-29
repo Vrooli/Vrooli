@@ -1,10 +1,10 @@
 import type React from "react";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Activity,
-  AlertCircle,
   Ban,
   Check,
   CheckSquare,
@@ -14,20 +14,12 @@ import {
   RefreshCw,
   Search,
   Square,
-  Trash2,
   X,
   XCircle,
 } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Card, CardContent } from "../components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../components/ui/dialog";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { useConfirmAction } from "../components/feedback/useConfirmAction";
+import { runHeading, runOrigin } from "../lib/runPresentation";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 import type {
   AgentProfile,
@@ -44,6 +36,7 @@ import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { ResumeFromFailureModal } from "../components/ResumeFromFailureModal";
 import { RunDetail } from "../components/RunDetail";
+import { isRunTab, type RunTabId } from "../components/runTabs";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { useRunsPageState } from "../hooks/useRunsPageState";
 import { useSelectedRunController } from "../hooks/useSelectedRunController";
@@ -108,7 +101,6 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "oldest", label: "Oldest First" },
 ];
 
-const VALID_TABS = new Set(["task", "timeline", "diff", "cost"]);
 
 interface RunListRowProps {
   run: Run;
@@ -117,12 +109,11 @@ interface RunListRowProps {
   highlighted: boolean;
   selectionMode: boolean;
   taskTitle: string;
-  profileName: string;
+  profileName?: string;
   onSelect: (run: Run) => void;
   onCheckboxChange: (runId: string, index: number, shiftKey: boolean) => void;
-  onStop: (runId: string) => void;
+  onStop: (run: Run) => void;
   onResume: (run: Run) => void;
-  onDelete: (run: Run) => void;
 }
 
 const RunListRow = memo(function RunListRow({
@@ -137,10 +128,9 @@ const RunListRow = memo(function RunListRow({
   onCheckboxChange,
   onStop,
   onResume,
-  onDelete,
 }: RunListRowProps) {
-	const runTitle = run.label || taskTitle;
-	return (
+  const { title: runTitle, reference } = runHeading(run, taskTitle);
+  return (
     <ListItem
       selected={selected}
       highlighted={highlighted}
@@ -174,7 +164,7 @@ const RunListRow = memo(function RunListRow({
               aria-label={`Stop run ${runTitle}`}
               onClick={(e) => {
                 e.stopPropagation();
-                onStop(run.id);
+                onStop(run);
               }}
             >
               <Square className="h-3.5 w-3.5" />
@@ -195,20 +185,6 @@ const RunListRow = memo(function RunListRow({
               <PlayCircle className="h-3.5 w-3.5" />
             </Button>
           )}
-          {run.actions?.canDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-              aria-label={`Delete run ${runTitle}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(run);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
         </div>
       }
     >
@@ -224,7 +200,8 @@ const RunListRow = memo(function RunListRow({
         )}
       </ListItemTitle>
       <ListItemSubtitle>
-        {profileName} | {formatStandardRelativeTime(run.createdAt)}
+        {runOrigin(run, profileName)} · {formatStandardRelativeTime(run.createdAt)}
+        <span className="ms-2 font-mono text-[11px] opacity-70">{reference}</span>
       </ListItemSubtitle>
     </ListItem>
   );
@@ -259,9 +236,6 @@ export function RunsPage({
   const navigate = useNavigate();
   const { isDesktop } = useViewportSize();
   const isDeselectingRef = useRef(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteConfirmRun, setDeleteConfirmRun] = useState<Run | null>(null);
   const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
   const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
   const [conversationFilters, setConversationFilters] = useState<ConversationSearchFiltersState>(DEFAULT_CONVERSATION_FILTERS);
@@ -304,8 +278,7 @@ export function RunsPage({
     [profiles]
   );
   const getProfileName = useCallback(
-    (profileId?: string) =>
-      profileId ? profileNameById.get(profileId) || "Unknown Profile" : "Unknown Profile",
+    (profileId?: string) => (profileId ? profileNameById.get(profileId) : undefined),
     [profileNameById]
   );
 
@@ -373,40 +346,38 @@ export function RunsPage({
     }
   }, [runId]);
 
-  const handleStop = useCallback(async (runId: string) => {
-    if (!confirm("Are you sure you want to stop this run?")) return;
-    try {
-      await onStopRun(runId);
-      onRefresh();
-    } catch (err) {
-      console.error("Failed to stop run:", err);
-    }
-  }, [onRefresh, onStopRun]);
+  const runActions = useConfirmAction("run-action");
+  const confirmRunAction = runActions.confirm;
+  const handleStopRequest = useCallback((run: Run) => {
+    confirmRunAction({
+      title: "Stop run?",
+      description: "The agent is interrupted now. Work it already wrote stays in its sandbox for review.",
+      confirmLabel: "Stop run",
+      busyLabel: "Stopping…",
+      subject: runHeading(run).title,
+      action: async () => {
+        await onStopRun(run.id);
+        onRefresh();
+      },
+    });
+  }, [confirmRunAction, onRefresh, onStopRun]);
 
   const handleDeleteRequest = useCallback((run: Run) => {
-    setDeleteError(null);
-    setDeleteConfirmRun(run);
-  }, []);
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteConfirmRun) return;
-    const run = deleteConfirmRun;
-    setDeleteLoading(true);
-    setDeleteError(null);
-    try {
-      await onDeleteRun(run.id);
-      setDeleteConfirmRun(null);
-      if (selectedRun?.id === run.id) {
-        setSelectedRun(null);
-        navigate("/runs");
-      }
-    } catch (err) {
-      console.error("Failed to delete run:", err);
-      setDeleteError((err as Error).message || "Failed to delete run");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+    confirmRunAction({
+      title: "Delete run?",
+      description: "This removes the run's history and events. It cannot be undone.",
+      confirmLabel: "Delete run",
+      busyLabel: "Deleting…",
+      subject: runHeading(run).title,
+      action: async () => {
+        await onDeleteRun(run.id);
+        if (selectedRunId === run.id) {
+          setSelectedRun(null);
+          navigate("/runs");
+        }
+      },
+    });
+  }, [confirmRunAction, navigate, onDeleteRun, selectedRunId, setSelectedRun]);
 
   const handlePartialApprove = async (id: string, fileIds: string[], actor?: string, commitMsg?: string) => {
     const result = await onPartialApproveRun(id, fileIds, actor, commitMsg);
@@ -532,9 +503,9 @@ export function RunsPage({
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter((r) => {
-        const taskTitle = getTaskTitle(r.taskId).toLowerCase();
-        const profileName = getProfileName(r.agentProfileId).toLowerCase();
-		return (r.label || taskTitle).toLowerCase().includes(query) || taskTitle.includes(query) || profileName.includes(query) || r.id.toLowerCase().includes(query);
+        const taskTitle = getTaskTitle(r.taskId);
+        return [r.label, taskTitle, runHeading(r, taskTitle).title, runOrigin(r, getProfileName(r.agentProfileId)), r.id]
+          .some((value) => value.toLowerCase().includes(query));
       });
     }
 
@@ -588,19 +559,17 @@ export function RunsPage({
         profileName={getProfileName(run.agentProfileId)}
         onSelect={handleSelectRun}
         onCheckboxChange={handleRunRowCheckboxChange}
-        onStop={handleStop}
+        onStop={handleStopRequest}
         onResume={handleResumeRequest}
-        onDelete={handleDeleteRequest}
       />
     ),
     [
       getProfileName,
       getTaskTitle,
-      handleDeleteRequest,
       handleResumeRequest,
       handleRunRowCheckboxChange,
       handleSelectRun,
-      handleStop,
+      handleStopRequest,
       selectedRun?.id,
       selectedRunIds,
       selectionMode,
@@ -660,11 +629,13 @@ export function RunsPage({
       title="All Runs"
       count={filteredAndSortedRuns.length}
       loading={loading}
+      error={error}
+      onRetry={onRefresh}
       headerActions={
         <div className="flex gap-2">
           {selectedRunIds.size > 0 && (
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={() => setInvestigateModalOpen(true)}
               className="gap-1"
@@ -675,7 +646,7 @@ export function RunsPage({
           )}
           {filteredAndSortedRuns.length > 0 && (
             <Button
-              variant={selectionMode ? "default" : "outline"}
+              variant={selectionMode ? "primary" : "secondary"}
               size="sm"
               onClick={toggleSelectionMode}
               aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
@@ -688,7 +659,7 @@ export function RunsPage({
               )}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={onRefresh} aria-label="Refresh" className="w-9 px-0">
+          <Button variant="secondary" size="sm" onClick={onRefresh} aria-label="Refresh" className="w-9 px-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -708,17 +679,12 @@ export function RunsPage({
         </div>
       }
       empty={
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Activity className="h-12 w-12 mb-3 opacity-50" />
-          <p className="font-medium">
-            {runs.length === 0 ? "No Runs Yet" : "No Matching Runs"}
-          </p>
-          <p className="text-sm text-center mt-1">
-            {runs.length === 0
-              ? "Start a run from the Tasks tab"
-              : "Try adjusting your filters"}
-          </p>
-        </div>
+        <EmptyState
+          density="compact"
+          icon={<Activity aria-hidden="true" />}
+          title={runs.length === 0 ? "No Runs Yet" : "No Matching Runs"}
+          description={runs.length === 0 ? "Start a run from the Tasks tab" : "Try adjusting your filters"}
+        />
       }
     >
       <BoundedList
@@ -758,10 +724,10 @@ export function RunsPage({
 
   // Determine initial tab: query param > status-based default > "timeline"
   const tabParam = searchParams.get("tab");
-  const initialTab = useMemo(() => {
-    if (tabParam && VALID_TABS.has(tabParam)) return tabParam as "task" | "timeline" | "diff" | "cost";
-    if (selectedRun?.status === RunStatus.NEEDS_REVIEW) return "diff" as const;
-    return "timeline" as const;
+  const initialTab = useMemo<RunTabId>(() => {
+    if (isRunTab(tabParam)) return tabParam;
+    if (selectedRun?.status === RunStatus.NEEDS_REVIEW) return "diff";
+    return "timeline";
   }, [tabParam, selectedRun?.status]);
 
   const detailPanel = (
@@ -788,13 +754,13 @@ export function RunsPage({
             diffLoading={diffLoading}
             task={getTaskById(selectedRun.taskId)}
             taskTitle={getTaskTitle(selectedRun.taskId)}
-            profileName={getProfileName(selectedRun.agentProfileId)}
+            profileName={runOrigin(selectedRun, getProfileName(selectedRun.agentProfileId))}
             onPartialApprove={(fileIds, actor, commitMsg) => handlePartialApprove(selectedRun.id, fileIds, actor, commitMsg)}
             onRetry={handleRetry}
             onResumeFromFailure={handleResumeRequest}
             onInvestigate={handleInvestigateFromDetail}
             onApplyInvestigation={handleApplyInvestigationFromDetail}
-            onStop={async (r) => handleStop(r.id)}
+            onStop={(r) => { handleStopRequest(r); return Promise.resolve(); }}
             onDelete={handleDeleteRequest}
             onContinue={async (message, attachmentIds) => {
               const updatedRun = await onContinueRun(selectedRun.id, message, attachmentIds);
@@ -811,7 +777,7 @@ export function RunsPage({
               });
               runEventStore.actions.eventsGapFilled(selectedRun.id, newEvents);
             }}
-            deleteLoading={deleteLoading}
+            deleteLoading={runActions.pending?.confirmLabel === "Delete run"}
             onMobileHeaderLeft={setMobileHeaderLeft}
             onMobileHeaderRight={setMobileHeaderRight}
           />
@@ -819,20 +785,11 @@ export function RunsPage({
       </DetailPanel>
   );
 
-  const headerContent = error ? (
-    <Card className="border-destructive/50 bg-destructive/10">
-      <CardContent className="flex items-center gap-3 py-4">
-        <AlertCircle className="h-4 w-4 text-destructive" />
-        <p className="text-sm text-destructive">{error}</p>
-      </CardContent>
-    </Card>
-  ) : null;
 
   return (
     <>
       <MasterDetailLayout
         storageKey="runs"
-        headerContent={headerContent}
         listPanel={listPanel}
         detailPanel={detailPanel}
         selectedId={selectedRun?.id ?? null}
@@ -841,7 +798,7 @@ export function RunsPage({
           setSelectedRun(null);
           navigate("/runs");
         }}
-        detailTitle={selectedRun ? getTaskTitle(selectedRun.taskId) : "Run Details"}
+        detailTitle={selectedRun ? runHeading(selectedRun, getTaskTitle(selectedRun.taskId)).title : "Run Details"}
         detailHeaderLeft={selectedRun ? mobileHeaderLeft : undefined}
         detailHeaderRight={selectedRun ? mobileHeaderRight : undefined}
       />
@@ -922,49 +879,7 @@ export function RunsPage({
         error={resumeError}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={!!deleteConfirmRun}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteConfirmRun(null);
-            setDeleteError(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Run</DialogTitle>
-            <DialogDescription>
-              Delete this run? This removes its history and events. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          {deleteError && (
-            <div className="mx-4 sm:mx-6 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {deleteError}
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteConfirmRun(null);
-                setDeleteError(null);
-              }}
-              disabled={deleteLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteLoading}
-            >
-              {deleteLoading ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {runActions.dialog}
     </>
   );
 }

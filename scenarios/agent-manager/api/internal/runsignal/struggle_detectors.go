@@ -128,31 +128,44 @@ func detectGuidanceRepair(ctx EpisodeDetectorContext) []FrictionEpisode {
 	return out
 }
 
+// detectHandoffContinuation finds work after the agent declared its answer
+// terminal without new input: the tool calls after a terminal assistant
+// message and before the next user message. Work the operator asked for
+// after the answer is a conversation, not a continuation, and each episode
+// counts only its own calls (F-W5-4).
 func detectHandoffContinuation(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
-	for _, event := range ctx.Events {
+	for i, event := range ctx.Events {
 		message, ok := event.Data.(*domain.MessageEventData)
 		if !ok || !message.Terminal || !strings.EqualFold(message.Role, "assistant") {
 			continue
 		}
-		var first, last *InvocationFact
-		for i := range ctx.Facts {
-			factEvent := ctx.EventsByID[ctx.Facts[i].CallEventID]
-			if factEvent != nil && factEvent.Timestamp.After(event.Timestamp) {
-				if first == nil {
-					copy := ctx.Facts[i]
-					first = &copy
-				}
-				copy := ctx.Facts[i]
-				last = &copy
+		var until *domain.RunEvent
+		for _, later := range ctx.Events[i+1:] {
+			if next, ok := later.Data.(*domain.MessageEventData); ok && strings.EqualFold(next.Role, "user") {
+				until = later
+				break
 			}
 		}
-		if first == nil || last == nil {
+		var first, last *InvocationFact
+		turns := 0
+		for j := range ctx.Facts {
+			factEvent := ctx.EventsByID[ctx.Facts[j].CallEventID]
+			if factEvent == nil || !factEvent.Timestamp.After(event.Timestamp) || (until != nil && !factEvent.Timestamp.Before(until.Timestamp)) {
+				continue
+			}
+			if first == nil {
+				first = &ctx.Facts[j]
+			}
+			last = &ctx.Facts[j]
+			turns++
+		}
+		if first == nil {
 			continue
 		}
 		e := newEpisode("handoff-continuation", *first, *last, ctx.EventsByID, ctx.Events)
 		e.EvidenceEventIDs = []string{event.ID.String(), first.CallEventID, last.CallEventID}
-		e.Turns = len(ctx.Facts)
+		e.Turns = turns
 		out = append(out, e)
 	}
 	return out

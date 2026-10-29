@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "c90112c4784f94eceb4ca7ecac23eeef84cb82b1e0b0de40521d1f04dad071e2",
+  "manifest_hash": "325709fd711a21f842b9d6dffdea05a652986bd39df9c96b0044f2db44ee88d9",
   "commands": [
     {
       "path": "conversation context",
@@ -257,10 +257,37 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "measures cohort",
+      "group": "measures",
+      "command": "cohort",
+      "binding": "."
+    },
+    {
+      "path": "measures cohort-report",
+      "group": "measures",
+      "command": "cohort-report",
+      "binding": "MeasuresService.CohortReport",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "measures conversation-search-quality",
       "group": "measures",
       "command": "conversation-search-quality",
       "binding": "MeasuresService.ConversationSearchQuality",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures episode-cohort",
+      "group": "measures",
+      "command": "episode-cohort",
+      "binding": "MeasuresService.EpisodeCohort",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures episode-compare",
+      "group": "measures",
+      "command": "episode-compare",
+      "binding": "MeasuresService.CompareEpisodeCohorts",
       "observed_primitive": "proto_list"
     },
     {
@@ -615,24 +642,6 @@
       "binding": "."
     },
     {
-      "path": "run cohort",
-      "group": "run",
-      "command": "cohort",
-      "binding": "."
-    },
-    {
-      "path": "run cohort-compare",
-      "group": "run",
-      "command": "cohort-compare",
-      "binding": "."
-    },
-    {
-      "path": "run cohort-report",
-      "group": "run",
-      "command": "cohort-report",
-      "binding": "EpisodesService.GetSelfReportSpans"
-    },
-    {
       "path": "run continue",
       "group": "run",
       "command": "continue",
@@ -667,18 +676,6 @@
       "group": "run",
       "command": "diff",
       "binding": "."
-    },
-    {
-      "path": "run efficiency",
-      "group": "run",
-      "command": "efficiency",
-      "binding": "."
-    },
-    {
-      "path": "run episode-cohort",
-      "group": "run",
-      "command": "episode-cohort",
-      "binding": "MeasuresService.EpisodeCohort"
     },
     {
       "path": "run episode-trend",
@@ -718,12 +715,6 @@
       "binding": "."
     },
     {
-      "path": "run goal-cohort",
-      "group": "run",
-      "command": "goal-cohort",
-      "binding": "."
-    },
-    {
       "path": "run identity",
       "group": "run",
       "command": "identity",
@@ -751,30 +742,6 @@
       "path": "run investigate",
       "group": "run",
       "command": "investigate",
-      "binding": "."
-    },
-    {
-      "path": "run invocation-aggregate",
-      "group": "run",
-      "command": "invocation-aggregate",
-      "binding": "."
-    },
-    {
-      "path": "run invocation-cohort",
-      "group": "run",
-      "command": "invocation-cohort",
-      "binding": "."
-    },
-    {
-      "path": "run invocation-facts",
-      "group": "run",
-      "command": "invocation-facts",
-      "binding": "EpisodesService.GetCrossScenarioLedger"
-    },
-    {
-      "path": "run invocation-metrics",
-      "group": "run",
-      "command": "invocation-metrics",
       "binding": "."
     },
     {
@@ -844,27 +811,9 @@
       "binding": "."
     },
     {
-      "path": "run refresh-invocation-facts",
-      "group": "run",
-      "command": "refresh-invocation-facts",
-      "binding": "."
-    },
-    {
       "path": "run reject",
       "group": "run",
       "command": "reject",
-      "binding": "."
-    },
-    {
-      "path": "run replay-invocation-corpus",
-      "group": "run",
-      "command": "replay-invocation-corpus",
-      "binding": "."
-    },
-    {
-      "path": "run replay-invocation-facts",
-      "group": "run",
-      "command": "replay-invocation-facts",
       "binding": "."
     },
     {
@@ -907,12 +856,6 @@
       "path": "run stop-by-tag",
       "group": "run",
       "command": "stop-by-tag",
-      "binding": "."
-    },
-    {
-      "path": "run tokens",
-      "group": "run",
-      "command": "tokens",
       "binding": "."
     },
     {
@@ -1069,6 +1012,53 @@
       "path": "task update",
       "group": "task",
       "command": "update",
+      "binding": "."
+    },
+    {
+      "path": "usage burners",
+      "group": "usage",
+      "command": "burners",
+      "binding": "MeasuresService.UsageBurners",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage compare",
+      "group": "usage",
+      "command": "compare",
+      "binding": "MeasuresService.UsageCompare",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage coverage",
+      "group": "usage",
+      "command": "coverage",
+      "binding": "MeasuresService.UsageCoverage",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage forecast",
+      "group": "usage",
+      "command": "forecast",
+      "binding": "MeasuresService.UsageForecast",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage recommendations",
+      "group": "usage",
+      "command": "recommendations",
+      "binding": "MeasuresService.UsageRecommendations",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage reindex",
+      "group": "usage",
+      "command": "reindex",
+      "binding": "."
+    },
+    {
+      "path": "usage run",
+      "group": "usage",
+      "command": "run",
       "binding": "."
     },
     {

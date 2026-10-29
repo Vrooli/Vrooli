@@ -27,20 +27,10 @@ func (a *App) cmdRun(args []string) error {
 		return a.runDetach(args[1:])
 	case "recent":
 		return a.runRecent(args[1:])
-	case "cohort-report":
-		return a.runCohortReport(args[1:])
-	case "goal-cohort":
-		return a.runGoalCohort(args[1:])
-	case "cohort-compare":
-		return a.runCohortCompare(args[1:])
-	case "invocation-facts":
-		return a.runInvocationFacts(args[1:])
 	case "episodes":
 		return a.runEpisodes(args[1:])
 	case "messages-friction":
 		return a.runMessageFriction(args[1:])
-	case "episode-cohort":
-		return a.runEpisodeCohort(args[1:])
 	case "episode-trend":
 		return a.runEpisodeTrend(args[1:])
 	case "publish-recurring-friction":
@@ -59,22 +49,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runBackfillSubjects(args[1:])
 	case "mine-self-report-vocabulary":
 		return a.runMineSelfReportVocabulary(args[1:])
-	case "replay-invocation-facts":
-		return a.runReplayInvocationFacts(args[1:])
-	case "refresh-invocation-facts":
-		return a.runRefreshInvocationFacts(args[1:])
-	case "replay-invocation-corpus":
-		return a.runReplayInvocationCorpus(args[1:])
-	case "invocation-aggregate":
-		return a.runAggregateInvocationFacts(args[1:])
-	case "invocation-cohort":
-		return a.runSelectInvocationCohort(args[1:])
-	case "invocation-metrics":
-		return a.runInvocationMetrics(args[1:])
 	case "stats":
 		return a.runStats(args[1:])
-	case "efficiency":
-		return a.runEfficiency(args[1:])
 	case "result":
 		return a.runResult(args[1:])
 	case "tools":
@@ -101,8 +77,6 @@ func (a *App) cmdRun(args []string) error {
 		return a.runContinue(args[1:])
 	case "park":
 		return a.runPark(args[1:])
-	case "tokens":
-		return a.runTokens(args[1:])
 	case "wake":
 		return a.runWake(args[1:])
 	case "await-result":

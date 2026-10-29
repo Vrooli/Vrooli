@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
 import { FindingsPage } from "./FindingsPage.js";
 import { renderWithProviders } from "../test-utils/index.js";
+import { getErrorNotice } from "../test-utils/feedback.js";
 
 const { useRecurringFindings } = vi.hoisted(() => ({ useRecurringFindings: vi.fn() }));
 
@@ -15,18 +16,20 @@ test("FindingsPage renders empty, loading, and failed finding states", () => {
   const refetch = vi.fn();
   useRecurringFindings.mockReturnValue({ data: [], loading: false, error: "", refetch });
   const { rerender } = renderWithProviders(createElement(FindingsPage));
-  assert.ok(screen.getByText("No persisted investigation findings yet."));
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  assert.ok(screen.getByText("No findings yet"));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh findings" }));
   assert.equal(refetch.mock.calls.length, 1);
 
-  useRecurringFindings.mockReturnValue({ data: undefined, loading: true, error: "", refetch });
+  useRecurringFindings.mockReturnValue({ data: null, loading: true, error: null, refetch });
   rerender(createElement(FindingsPage));
-  assert.equal(screen.queryByText("No persisted investigation findings yet."), null);
-  assert.equal((screen.getByRole("button", { name: "Refresh" }) as HTMLButtonElement).disabled, true);
+  assert.equal(screen.queryByText("No findings yet"), null, "loading is not an empty result");
+  assert.ok(screen.getByText(/Loading findings/));
 
-  useRecurringFindings.mockReturnValue({ data: [], loading: false, error: "Unable to load findings", refetch });
+  useRecurringFindings.mockReturnValue({ data: null, loading: false, error: "Request failed: 503", refetch });
   rerender(createElement(FindingsPage));
-  assert.equal(screen.getByRole("alert").textContent, "Unable to load findings");
+  const notice = getErrorNotice("findings", "Request failed: 503");
+  assert.match(notice.textContent ?? "", /Agent Manager is unreachable/);
+  assert.equal(screen.queryByText("No findings yet"), null, "an unreachable API is not an empty result");
 });
 
 test("FindingsPage renders durable finding evidence and a run drill-down", () => {

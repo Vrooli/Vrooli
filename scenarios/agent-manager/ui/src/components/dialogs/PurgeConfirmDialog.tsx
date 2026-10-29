@@ -1,7 +1,7 @@
 // Purge confirmation dialog with DELETE confirmation
 
 import { useState } from "react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogBody,
@@ -101,11 +101,11 @@ export function PurgeConfirmDialog({
           )}
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            variant="destructive"
+            variant="danger"
             onClick={handleConfirm}
             disabled={loading || confirmText.trim() !== "DELETE"}
           >

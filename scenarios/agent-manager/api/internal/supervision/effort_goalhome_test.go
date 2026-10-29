@@ -30,6 +30,11 @@ func (f fakeSpend) WeightedRunTokens(_ context.Context, id uuid.UUID) (float64, 
 	return value, ok, nil
 }
 
+func (f fakeSpend) RunTokens(_ context.Context, id uuid.UUID) (int64, bool, error) {
+	value, ok := f.weighted[id]
+	return int64(value), ok, nil
+}
+
 func (f fakeSpend) TokenCapUsage(_ context.Context, id uuid.UUID) (*float64, int64, string) {
 	if value, ok := f.weighted[id]; ok {
 		return &value, f.limit, "report"

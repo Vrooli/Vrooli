@@ -23,6 +23,6 @@ echo '3. Repetition'; agent-manager run episodes "$episode_run_id" --json | requ
 echo '4. Self-reported friction'; agent-manager run messages-friction "$self_report_run_id" --json | require '[.spans[] | select(.text != "" and .rule_id != "")] | length > 0'
 echo '5. Owned versus external tooling'; printf '%s' "$report" | require '.project_owned_tool_calls != null and .external_tool_calls > 0'
 echo '6. Per-run cross-scenario evidence'; require_verified_receipt "$search_hub_run_id" search-hub; require_verified_receipt "$test_genie_run_id" test-genie; require_verified_receipt "$prompt_manager_run_id" prompt-manager
-echo '7. Cohort recurrence'; agent-manager run episode-cohort --json | require '[.signals[] | select((.occurrences | tonumber) > 0 and (.distinct_runs | tonumber) > 0 and ((.summed_cost_ms // "0") | tonumber) > 0)] | length > 0'
+echo '7. Cohort recurrence'; agent-manager measures episode-cohort --json | require '[.signals[] | select((.occurrences | tonumber) > 0 and (.distinct_runs | tonumber) > 0 and ((.summed_cost_ms // "0") | tonumber) > 0)] | length > 0'
 echo '8. Applied-fix recurrence'; agent-manager findings list --json | require '[.findings[] | select(.investigationRunId == "'"$finding_run_id"'" and .beforeValue != null and .afterValue != null and (.effectiveness == "effective" or .effectiveness == "ineffective" or .effectiveness == "not_yet_measurable"))] | length > 0'; agent-manager measures finding-recurrence-rate --json | require '.validity.state == "available"'
 echo 'Acceptance walkthrough passed.'

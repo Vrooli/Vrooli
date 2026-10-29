@@ -107,7 +107,12 @@ func TestCodexRecoversInterruptedTurnUsageFromRollout(t *testing.T) {
 					t.Fatalf("event run = %s, want %s", event.RunID, runID)
 				}
 			}
-			if usage == nil || charges != 1 {
+			// F-W1-2: one charge, attached to an authoritative receipt or its
+			// own event for a lower bound, never both.
+			if usage != nil && usage.Charge != nil {
+				charges++
+			}
+			if usage == nil || charges != 1 || (tc.authority && usage.Charge == nil) {
 				t.Fatalf("usage=%+v charges=%d", usage, charges)
 			}
 			// Only this invocation's turn counts; turn 1 belonged to an earlier one.

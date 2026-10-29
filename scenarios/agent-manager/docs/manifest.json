@@ -26,7 +26,8 @@
       "title": "Concepts",
       "documents": [
         {"path": "concepts/ARCHITECTURE.md", "docType": "architecture", "title": "Architecture", "description": "Domain map, role policy, permission policy, immutable snapshots, and conformance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
-        {"path": "concepts/DATA.md", "docType": "data-map", "title": "Data Map", "description": "Durable consumption, charge, yield, billing, and workload vocabulary", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+        {"path": "concepts/DATA.md", "docType": "data-map", "title": "Data Map", "description": "Durable consumption, charge, yield, billing, and workload vocabulary", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "concepts/USAGE-INTELLIGENCE.md", "docType": "usage-intelligence", "title": "Usage Intelligence", "description": "Subscription window forecast, attribution, coverage, recommendations, and the capture/accounting design behind them", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"}
       ]
     },
     {
@@ -37,7 +38,10 @@
         {"path": "reference/classifier-accuracy.md", "docType": "classifier-accuracy", "title": "Classifier Accuracy", "description": "Shared corpus scorer and Test Genie classifier-accuracy publication", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
         {"path": "reference/operational-stats.md", "docType": "operational-stats", "title": "Operational Stats", "description": "API and CLI operational stats reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
         {"path": "reference/scenario-declarations.md", "docType": "scenario-declarations", "title": "Scenario Declarations", "description": "Profile and workflow declaration format, canonical tool restrictions, and reconciliation", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
-        {"path": "reference/PROTO-CONTRACT-EXCEPTIONS.md", "docType": "proto-contract-exceptions", "title": "Proto Contract Exceptions", "description": "Documented generated-contract exceptions", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"}
+        {"path": "reference/PROTO-CONTRACT-EXCEPTIONS.md", "docType": "proto-contract-exceptions", "title": "Proto Contract Exceptions", "description": "Documented generated-contract exceptions", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "reference/effort-supervision.md", "docType": "effort-supervision", "title": "Effort Supervision", "description": "Effort supervision reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "reference/token-attribution.md", "docType": "token-attribution", "title": "Token Attribution", "description": "Token attribution reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "reference/component-library-gaps.md", "docType": "component-library-gaps", "title": "Component Library Gaps", "description": "Shared component library gaps that block Agent Manager UI migration", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"}
       ]
     },
     {
@@ -106,6 +110,21 @@
           ],
           "completion": "optional"
         }
+      ]
+    },
+    {
+      "id": "efforts",
+      "title": "Efforts",
+      "documents": [
+        {"path": "efforts/usage-intelligence/README.md", "docType": "effort-readme", "title": "Usage Intelligence Effort", "description": "Entry point for the Usage Intelligence effort workspace", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/SPEC.md", "docType": "effort-spec", "title": "Usage Intelligence Spec", "description": "Target specification and acceptance criteria", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/GOAL.md", "docType": "effort-goal", "title": "Usage Intelligence Goal", "description": "Goal messages for the effort", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/WORKSTREAMS.md", "docType": "effort-workstreams", "title": "Usage Intelligence Workstreams", "description": "Workstream ledger, accepted work and findings", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/WORKER.md", "docType": "effort-worker", "title": "Usage Intelligence Worker Card", "description": "Hard rules and return format for effort workers", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/EVIDENCE.md", "docType": "effort-evidence", "title": "Usage Intelligence Evidence", "description": "Baseline and acceptance evidence", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/DEBT.md", "docType": "effort-debt", "title": "Usage Intelligence Debt Ledger", "description": "Debt and consolidation ledger", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/FEEDBACK.md", "docType": "effort-feedback", "title": "Usage Intelligence Feedback", "description": "Operator feedback ledger", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "efforts/usage-intelligence/R1-non-text-usage.md", "docType": "effort-r1-non-text-usage", "title": "Non-text Usage by Runner", "description": "Research note on non-text usage by runner", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"}
       ]
     }
   ]

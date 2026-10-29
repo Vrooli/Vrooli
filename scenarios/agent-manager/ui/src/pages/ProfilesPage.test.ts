@@ -4,6 +4,17 @@ import { createElement } from "react";
 import { test, vi } from "vitest";
 import { ProfilesPage } from "./ProfilesPage.js";
 import { renderWithProviders } from "../test-utils/index.js";
+import userEvent from "@testing-library/user-event";
+import { answerConfirmDialog, getErrorNotice } from "../test-utils/feedback.js";
+
+/** The open confirmation dialog, found by attribute (role queries are slow with library stylesheets). */
+async function openConfirmDialog(): Promise<HTMLElement> {
+  return vi.waitFor(() => {
+    const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
+    if (!dialog) throw new Error("No confirmation dialog is open");
+    return dialog;
+  });
+}
 
 function renderProfiles(overrides: Partial<Parameters<typeof ProfilesPage>[0]> = {}, initialEntries?: string[]) {
   const onRefresh = vi.fn();
@@ -15,11 +26,20 @@ function renderProfiles(overrides: Partial<Parameters<typeof ProfilesPage>[0]> =
   return onRefresh;
 }
 
-test("ProfilesPage exposes empty, error, refresh, and create-profile entry states", () => {
-  const refresh = renderProfiles({ error: "Profiles API unavailable" });
+test("ProfilesPage shows a load failure instead of an empty list, with retry", () => {
+  const refresh = renderProfiles({ error: "Request failed: 503" });
+  const notice = getErrorNotice("unreachable", "Request failed: 503");
+  assert.equal(screen.queryByText("No Agent Profiles"), null, "a failed load is not an empty catalog");
+  assert.equal(screen.queryByText(/Agent Profiles \(0\)/), null, "no count is claimed for a failed load");
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  assert.equal(refresh.mock.calls.length, 1);
+  assert.ok(notice);
+});
+
+test("ProfilesPage exposes empty, refresh, and create-profile entry states", () => {
+  const refresh = renderProfiles();
   assert.ok(screen.getByText(/Agent Profiles \(0\)/));
   assert.ok(screen.getByText("No Agent Profiles"));
-  assert.ok(screen.getByText("Profiles API unavailable"));
   fireEvent.click(screen.getAllByRole("button")[1]!);
   assert.equal(refresh.mock.calls.length, 1);
   fireEvent.click(screen.getByRole("button", { name: /create profile/i }));
@@ -32,17 +52,32 @@ test("ProfilesPage preserves an actionable failed delete, then clears the select
   const remove = vi.fn()
     .mockRejectedValueOnce(new Error("profile is referenced by an active run"))
     .mockResolvedValueOnce(undefined);
-  vi.stubGlobal("confirm", vi.fn(() => true));
   renderProfiles({ profiles: [profile], onDeleteProfile: remove }, ["/profiles?profileId=delete-profile"]);
+  const user = userEvent.setup();
 
   await waitFor(() => assert.ok(screen.getByRole("button", { name: "Delete" })));
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await user.click(screen.getByRole("button", { name: "Delete" }));
+  assert.equal(remove.mock.calls.length, 0, "delete waits for confirmation");
+  const dialog = await answerConfirmDialog(user, "confirm");
   await waitFor(() => assert.equal(remove.mock.calls.length, 1));
+  await waitFor(() => assert.ok(dialog.textContent?.includes("profile is referenced by an active run")));
   assert.ok(screen.getAllByText("Delete target").length > 0);
 
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await answerConfirmDialog(user, "confirm");
   await waitFor(() => assert.equal(remove.mock.calls.length, 2));
-  assert.ok(screen.getAllByText("Delete target").length > 0);
+  assert.deepEqual(remove.mock.calls[1], ["delete-profile"]);
+});
+
+test("ProfilesPage does not delete a profile when the confirmation is declined", async () => {
+  const profile = { id: "keep-profile", name: "Keep me", roleRef: "code.default", maxTurns: 10 } as never;
+  const remove = vi.fn();
+  renderProfiles({ profiles: [profile], onDeleteProfile: remove }, ["/profiles?profileId=keep-profile"]);
+  const user = userEvent.setup();
+  await waitFor(() => assert.ok(screen.getByRole("button", { name: "Delete" })));
+  await user.click(screen.getByRole("button", { name: "Delete" }));
+  assert.ok((await openConfirmDialog()).textContent?.includes("Keep me"), "the dialog names the profile");
+  await answerConfirmDialog(user, "cancel");
+  assert.equal(remove.mock.calls.length, 0);
 });
 
 test("ProfilesPage normalizes and submits a reusable profile configuration", async () => {
@@ -67,14 +102,15 @@ test("ProfilesPage normalizes and submits a reusable profile configuration", asy
 test("ProfilesPage edits and deletes a selected profile through its detail controls", async () => {
   const profile = { id: "profile-1", name: "Operator", description: "original", roleRef: "code.default", profileKey: "operator", maxTurns: 10, createdAt: undefined, updatedAt: undefined } as never;
   const update = vi.fn().mockResolvedValue(profile); const remove = vi.fn().mockResolvedValue(undefined);
-  vi.stubGlobal("confirm", vi.fn(() => true));
   renderProfiles({ profiles: [profile], onUpdateProfile: update, onDeleteProfile: remove });
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   fireEvent.change(screen.getByLabelText("Name *"), { target: { value: "Updated operator" } });
   fireEvent.click(screen.getByRole("button", { name: "Update Profile" }));
   await waitFor(() => assert.equal(update.mock.calls[0]?.[0], "profile-1"));
   assert.equal(update.mock.calls[0]?.[1].name, "Updated operator");
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Delete" }));
+  await answerConfirmDialog(user, "confirm");
   await waitFor(() => assert.deepEqual(remove.mock.calls, [["profile-1"]]));
 });
 

@@ -3,7 +3,9 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -31,6 +33,7 @@ var (
 	_ pricing.Repository                 = (*pricingRepository)(nil)
 	_ pricing.SubscriptionRepository     = (*pricingRepository)(nil)
 	_ pricing.QuotaObservationRepository = (*pricingRepository)(nil)
+	_ pricing.QuotaReadingSource         = (*pricingRepository)(nil)
 )
 
 func (r *pricingRepository) CreateSubscriptionPeriod(ctx context.Context, period *domain.SubscriptionPeriod) error {
@@ -92,7 +95,9 @@ func (r *pricingRepository) DeleteSubscriptionPeriod(ctx context.Context, id str
 
 // RecordQuotaObservation persists provider-reported quota evidence as an
 // immutable row. It intentionally has no relationship to run token totals or
-// pricing calculations: those facts cannot establish provider quota use.
+// pricing calculations: those facts cannot establish provider quota use. A
+// reading that repeats the scope's preceding row within
+// pricing.QuotaHeartbeat is not stored: it changes no window state.
 func (r *pricingRepository) RecordQuotaObservation(ctx context.Context, observation *pricing.QuotaObservation) error {
 	if observation != nil && observation.Freshness == "" {
 		observation.Freshness = pricing.ObservationUnknown
@@ -105,14 +110,109 @@ func (r *pricingRepository) RecordQuotaObservation(ctx context.Context, observat
 		reset = SQLiteTime(observation.ResetAt.UTC())
 	}
 	if observation.ID == "" {
-		observation.ID = pricing.QuotaObservationID(observation.SourceRunID, observation)
-		if observation.ID == "" {
-			observation.ID = uuid.NewString()
-		}
+		observation.ID = pricing.QuotaObservationID(observation)
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO quota_observations (id,provider,pool,window,observed_at,standing,used,quota_limit,remaining,used_percent,window_minutes,reset_at,source_run_id,freshness,provenance,uncertainty,evidence_ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`,
-		observation.ID, observation.Provider, observation.Pool, observation.Window, SQLiteTime(observation.ObservedAt.UTC()), observation.Standing, observation.Used, observation.Limit, observation.Remaining, observation.UsedPercent, observation.WindowMinutes, reset, observation.SourceRunID, observation.Freshness, observation.Provenance, observation.Uncertainty, observation.EvidenceRef)
+	observedAt := SQLiteTime(observation.ObservedAt.UTC())
+	repeat, err := r.repeatsPrecedingReading(ctx, observation, observedAt)
+	if err != nil || repeat {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, insertQuotaObservationSQL,
+		observation.ID, observation.Provider, observation.Pool, observation.Window, observedAt, observation.Standing, observation.Used, observation.Limit, observation.Remaining, observation.UsedPercent, observation.WindowMinutes, reset, observation.SourceRunID, observation.Freshness, observation.Provenance, observation.Uncertainty, observation.EvidenceRef)
 	return err
+}
+
+// repeatsPrecedingReading reports whether the scope's row just before
+// observedAt carries the same reading and lies within the heartbeat. The
+// preceding row, not the newest, is compared because back-fill and
+// concurrent sessions record readings out of time order.
+func (r *pricingRepository) repeatsPrecedingReading(ctx context.Context, o *pricing.QuotaObservation, observedAt SQLiteTime) (bool, error) {
+	var previous quotaReadingRow
+	err := r.db.QueryRowContext(ctx, `SELECT id, observed_at, reset_at, used_percent, standing FROM quota_observations
+		WHERE provider = ? AND pool = ? AND window = ? AND observed_at <= ? ORDER BY observed_at DESC LIMIT 1`,
+		o.Provider, o.Pool, o.Window, observedAt).Scan(&previous.id, &previous.observedAt, &previous.resetAt, &previous.usedPercent, &previous.standing)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	current := quotaReadingRow{observedAt: o.ObservedAt.UTC().Format(time.RFC3339Nano), standing: string(o.Standing)}
+	if o.ResetAt != nil {
+		current.resetAt = sql.NullString{String: o.ResetAt.UTC().Format(time.RFC3339Nano), Valid: true}
+	}
+	if o.UsedPercent != nil {
+		current.usedPercent = sql.NullFloat64{Float64: *o.UsedPercent, Valid: true}
+	}
+	return current.reading() == previous.reading() && current.at().Sub(previous.at()) < pricing.QuotaHeartbeat, nil
+}
+
+const insertQuotaObservationSQL = `INSERT INTO quota_observations (id,provider,pool,window,observed_at,standing,used,quota_limit,remaining,used_percent,window_minutes,reset_at,source_run_id,freshness,provenance,uncertainty,evidence_ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`
+
+// legacyQuotaEventPredicate matches provider quota frames stored as error
+// events before EventTypeQuota existed: payloads tagged payloadKind=quota and
+// the older untagged shape (a nonempty limitType and no generic error field).
+const legacyQuotaEventPredicate = `event_type = 'error' AND CASE WHEN json_valid(data) THEN
+	json_extract(data,'$.payloadKind') = 'quota' OR (json_type(data,'$.payloadKind') IS NULL
+		AND trim(coalesce(json_extract(data,'$.limitType'),'')) <> ''
+		AND json_type(data,'$.code') IS NULL AND json_type(data,'$.retryable') IS NULL
+		AND json_type(data,'$.recovery') IS NULL AND json_type(data,'$.stackTrace') IS NULL
+		AND json_type(data,'$.details') IS NULL)
+	ELSE 0 END`
+
+// migrateQuotaEvents moves legacy quota frames out of the error type and
+// back-fills quota_observations from them, in one transaction. It is
+// idempotent: migrated rows no longer match, and observation ids are stable.
+// New quota events record their observation through the run-event sink hooks.
+func (db *DB) migrateQuotaEvents(ctx context.Context) error {
+	return db.WithTransaction(ctx, func(tx *Tx) error {
+		rows, err := tx.QueryContext(ctx, `SELECT id, run_id, timestamp, data FROM run_events WHERE `+legacyQuotaEventPredicate)
+		if err != nil {
+			return &domain.DatabaseError{Operation: "quota_event_migration_query", EntityType: "RunEvent", Cause: err}
+		}
+		now := time.Now().UTC()
+		var observations []*pricing.QuotaObservation
+		for rows.Next() {
+			var id, runID, data string
+			var at SQLiteTime
+			if err := rows.Scan(&id, &runID, &at, &data); err != nil {
+				rows.Close()
+				return &domain.DatabaseError{Operation: "quota_event_migration_scan", EntityType: "RunEvent", Cause: err}
+			}
+			eventID, idErr := uuid.Parse(id)
+			runUUID, runErr := uuid.Parse(runID)
+			payload := &domain.RateLimitEventData{}
+			if idErr != nil || runErr != nil || json.Unmarshal([]byte(data), payload) != nil {
+				continue
+			}
+			observation, err := pricing.ObservationFromEvent(&domain.RunEvent{ID: eventID, RunID: runUUID, EventType: domain.EventTypeQuota, Timestamp: at.Time(), Data: payload}, now)
+			if err == nil && observation != nil {
+				observations = append(observations, observation)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return &domain.DatabaseError{Operation: "quota_event_migration_iterate", EntityType: "RunEvent", Cause: err}
+		}
+		rows.Close()
+		for _, o := range observations {
+			var reset any
+			if o.ResetAt != nil {
+				reset = SQLiteTime(o.ResetAt.UTC())
+			}
+			if _, err := tx.ExecContext(ctx, insertQuotaObservationSQL, o.ID, o.Provider, o.Pool, o.Window, SQLiteTime(o.ObservedAt.UTC()), o.Standing, o.Used, o.Limit, o.Remaining, o.UsedPercent, o.WindowMinutes, reset, o.SourceRunID, o.Freshness, o.Provenance, o.Uncertainty, o.EvidenceRef); err != nil {
+				return &domain.DatabaseError{Operation: "quota_observation_backfill", EntityType: "QuotaObservation", Cause: err}
+			}
+		}
+		result, err := tx.ExecContext(ctx, `UPDATE run_events SET event_type = 'quota' WHERE `+legacyQuotaEventPredicate)
+		if err != nil {
+			return &domain.DatabaseError{Operation: "quota_event_migration_update", EntityType: "RunEvent", Cause: err}
+		}
+		if moved, _ := result.RowsAffected(); moved > 0 && db.log != nil {
+			db.log.WithField("events", moved).WithField("observations", len(observations)).Info("Moved provider quota frames out of error events")
+		}
+		return nil
+	})
 }
 
 func (r *pricingRepository) ListQuotaObservations(ctx context.Context, provider, pool, window string, limit int) ([]pricing.QuotaObservation, error) {
@@ -175,6 +275,60 @@ func (r *pricingRepository) ListQuotaObservations(ctx context.Context, provider,
 		result = append(result, o)
 	}
 	return result, rows.Err()
+}
+
+// QuotaReadingSpans groups identical readings so the forecaster reads one row
+// per distinct (scope, reset minute, percent, standing) instead of every frame.
+// The grouping key is quotaReadingRow.reading, which the writer and the
+// compaction preserve.
+func (r *pricingRepository) QuotaReadingSpans(ctx context.Context, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
+	var lower any = "" // a zero since reads the whole history
+	if !since.IsZero() {
+		lower = SQLiteTime(since.UTC())
+	}
+	// A reading without a reset time is grouped per hour of observation: its
+	// percent repeats across windows, which only the forecaster can tell apart.
+	rows, err := r.db.QueryxContext(ctx, `SELECT provider, pool, window, MAX(window_minutes), substr(reset_at,1,16) AS reset_minute, used_percent, standing, MIN(observed_at), MAX(observed_at), COUNT(*)
+		FROM quota_observations WHERE observed_at >= ? AND (?='' OR provider=?)
+		GROUP BY provider, pool, window, reset_minute, CASE WHEN reset_at IS NULL THEN substr(observed_at,1,13) END, used_percent, standing
+		ORDER BY MIN(observed_at)`, lower, provider, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	spans := []pricing.QuotaReadingSpan{}
+	for rows.Next() {
+		var span pricing.QuotaReadingSpan
+		var windowMinutes sql.NullInt64
+		var resetMinute, firstAt, lastAt sql.NullString
+		var usedPercent sql.NullFloat64
+		var standing string
+		if err := rows.Scan(&span.Provider, &span.Pool, &span.Window, &windowMinutes, &resetMinute, &usedPercent, &standing, &firstAt, &lastAt, &span.Samples); err != nil {
+			return nil, err
+		}
+		span.Standing = pricing.QuotaStanding(standing)
+		if windowMinutes.Valid {
+			v := windowMinutes.Int64
+			span.WindowMinutes = &v
+		}
+		if resetMinute.Valid {
+			if reset, err := time.Parse("2006-01-02T15:04", resetMinute.String); err == nil {
+				span.ResetAt = &reset
+			}
+		}
+		if usedPercent.Valid {
+			v := usedPercent.Float64
+			span.UsedPercent = &v
+		}
+		if span.FirstAt, err = time.Parse(time.RFC3339Nano, firstAt.String); err != nil {
+			return nil, fmt.Errorf("quota reading first time %q: %w", firstAt.String, err)
+		}
+		if span.LastAt, err = time.Parse(time.RFC3339Nano, lastAt.String); err != nil {
+			return nil, fmt.Errorf("quota reading last time %q: %w", lastAt.String, err)
+		}
+		spans = append(spans, span)
+	}
+	return spans, rows.Err()
 }
 
 // --- Row Types ---
@@ -749,83 +903,12 @@ func (r *pricingRepository) CleanupExpiredOverrides(ctx context.Context) (int, e
 
 // --- Historical Pricing Methods ---
 
-func (r *pricingRepository) GetHistoricalAverages(ctx context.Context, canonicalModel string, since time.Time) (*pricing.HistoricalPricing, error) {
-	// Query run_events for metric events and calculate averages
-	// This needs to join with runs to get the model, then aggregate cost/token data
-	query := `
-		SELECT
-			? as canonical_model,
-			AVG(CASE WHEN CAST(json_extract(e.data, '$.inputTokens') AS INTEGER) > 0
-				THEN CAST(json_extract(e.data, '$.inputCostUsd') AS REAL) / CAST(json_extract(e.data, '$.inputTokens') AS INTEGER)
-				ELSE NULL END) as input_token_avg_price,
-			AVG(CASE WHEN CAST(json_extract(e.data, '$.outputTokens') AS INTEGER) > 0
-				THEN CAST(json_extract(e.data, '$.outputCostUsd') AS REAL) / CAST(json_extract(e.data, '$.outputTokens') AS INTEGER)
-				ELSE NULL END) as output_token_avg_price,
-			AVG(CASE WHEN CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER) > 0
-				THEN CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL) / CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER)
-				ELSE NULL END) as cache_read_avg_price,
-			AVG(CASE WHEN CAST(json_extract(e.data, '$.cacheCreationTokens') AS INTEGER) > 0
-				THEN CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL) / CAST(json_extract(e.data, '$.cacheCreationTokens') AS INTEGER)
-				ELSE NULL END) as cache_creation_avg_price,
-			COUNT(*) as sample_count
-		FROM run_events e
-		JOIN runs r ON e.run_id = r.id
-		WHERE e.event_type = 'metric'
-			AND (json_extract(r.resolved_config, '$.model') = ? OR json_extract(e.data, '$.pricingModel') = ?)
-			AND r.created_at >= ?
-			AND (json_extract(e.data, '$.costSource') = 'runner_reported' OR json_extract(e.data, '$.costSource') = 'provider_usage_api')`
-	// SQLite needs the model param three times and since once more
-	args := []interface{}{canonicalModel, canonicalModel, canonicalModel, SQLiteTime(since)}
-
-	var result struct {
-		CanonicalModel        string          `db:"canonical_model"`
-		InputTokenAvgPrice    sql.NullFloat64 `db:"input_token_avg_price"`
-		OutputTokenAvgPrice   sql.NullFloat64 `db:"output_token_avg_price"`
-		CacheReadAvgPrice     sql.NullFloat64 `db:"cache_read_avg_price"`
-		CacheCreationAvgPrice sql.NullFloat64 `db:"cache_creation_avg_price"`
-		SampleCount           int             `db:"sample_count"`
-	}
-
-	if err := r.db.GetContext(ctx, &result, query, args...); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, wrapDBError("get_historical_averages", "HistoricalPricing", canonicalModel, err)
-	}
-
-	if result.SampleCount == 0 {
-		return nil, nil
-	}
-
-	h := &pricing.HistoricalPricing{
-		CanonicalModel: canonicalModel,
-		SampleCount:    result.SampleCount,
-		Since:          since,
-	}
-
-	if result.InputTokenAvgPrice.Valid {
-		h.InputTokenAvgPrice = &result.InputTokenAvgPrice.Float64
-	}
-	if result.OutputTokenAvgPrice.Valid {
-		h.OutputTokenAvgPrice = &result.OutputTokenAvgPrice.Float64
-	}
-	if result.CacheReadAvgPrice.Valid {
-		h.CacheReadAvgPrice = &result.CacheReadAvgPrice.Float64
-	}
-	if result.CacheCreationAvgPrice.Valid {
-		h.CacheCreationAvgPrice = &result.CacheCreationAvgPrice.Float64
-	}
-
-	return h, nil
-}
-
 // --- Settings Methods ---
 
 func (r *pricingRepository) GetSettings(ctx context.Context) (*pricing.PricingSettings, error) {
-	query := `SELECT historical_average_days, provider_cache_ttl_seconds FROM pricing_settings WHERE id = 1`
+	query := `SELECT provider_cache_ttl_seconds FROM pricing_settings WHERE id = 1`
 
 	var row struct {
-		HistoricalAverageDays   int `db:"historical_average_days"`
 		ProviderCacheTTLSeconds int `db:"provider_cache_ttl_seconds"`
 	}
 
@@ -838,24 +921,20 @@ func (r *pricingRepository) GetSettings(ctx context.Context) (*pricing.PricingSe
 	}
 
 	return &pricing.PricingSettings{
-		HistoricalAverageDays: row.HistoricalAverageDays,
-		ProviderCacheTTL:      time.Duration(row.ProviderCacheTTLSeconds) * time.Second,
+		ProviderCacheTTL: time.Duration(row.ProviderCacheTTLSeconds) * time.Second,
 	}, nil
 }
 
 func (r *pricingRepository) UpdateSettings(ctx context.Context, settings *pricing.PricingSettings) error {
 	query := `UPDATE pricing_settings SET
-		historical_average_days = :historical_average_days,
 		provider_cache_ttl_seconds = :provider_cache_ttl_seconds,
 		updated_at = :updated_at
 		WHERE id = 1`
 
 	row := struct {
-		HistoricalAverageDays   int        `db:"historical_average_days"`
 		ProviderCacheTTLSeconds int        `db:"provider_cache_ttl_seconds"`
 		UpdatedAt               SQLiteTime `db:"updated_at"`
 	}{
-		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: int(settings.ProviderCacheTTL.Seconds()),
 		UpdatedAt:               SQLiteTime(time.Now()),
 	}
@@ -868,8 +947,8 @@ func (r *pricingRepository) UpdateSettings(ctx context.Context, settings *pricin
 	affected, _ := result.RowsAffected()
 	if affected == 0 {
 		// Insert if no row exists
-		insertQuery := `INSERT INTO pricing_settings (id, historical_average_days, provider_cache_ttl_seconds, updated_at)
-			VALUES (1, :historical_average_days, :provider_cache_ttl_seconds, :updated_at)`
+		insertQuery := `INSERT INTO pricing_settings (id, provider_cache_ttl_seconds, updated_at)
+			VALUES (1, :provider_cache_ttl_seconds, :updated_at)`
 		if _, err = r.db.NamedExecContext(ctx, insertQuery, row); err != nil {
 			return wrapDBError("insert_settings", "PricingSettings", "", err)
 		}

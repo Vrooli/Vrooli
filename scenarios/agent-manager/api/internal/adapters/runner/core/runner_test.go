@@ -1235,6 +1235,7 @@ func (c *ownerExitCodec) BinaryPath() string { return "sh" }
 func (c *ownerExitCodec) BuildArgs(codecs.State, runner.ExecuteRequest) []string {
 	return []string{"-c", c.script}
 }
+
 func (c *ownerExitCodec) NewTranscriptParser() runner.TranscriptParser {
 	return ownerExitParser{}
 }
@@ -1300,29 +1301,33 @@ func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
 				switch data := event.Data.(type) {
 				case *domain.UsageEventData:
 					usageCount++
-					if data.Model != "saved-model" || !data.ReconciliationAuthority || data.InputTokens != 9 || data.OutputTokens != 3 || data.CacheReadTokens != 2 || data.Turns != 1 {
+					// A fresh execution owns the thread counter from zero; a
+					// continuation's counter covers earlier turns, so no amount.
+					counter, amount := domain.UsageCounters{InputTokens: 9, OutputTokens: 3, CacheReadTokens: 2}, domain.UsageCounters{}
+					if !continuation {
+						amount = counter
+					}
+					if data.Model != "saved-model" || !data.ReconciliationAuthority || data.Cumulative == nil || *data.Cumulative != counter || data.Counters() != amount || data.Turns != 1 {
 						t.Fatalf("lost terminal usage attribution: %+v", data)
 					}
-					if data.Charge == nil || data.Charge.Basis != domain.ChargeBasisSubscription || data.Charge.AmountMicroUSD == nil || *data.Charge.AmountMicroUSD != 0 {
+					// The receipt carries the authoritative zero charge once.
+					if data.Charge == nil || data.Charge.Model != "saved-model" || data.Charge.Basis != domain.ChargeBasisSubscription || data.Charge.AmountMicroUSD == nil || *data.Charge.AmountMicroUSD != 0 {
 						t.Fatalf("lost terminal billing attribution: %+v", data.Charge)
 					}
 				case *domain.ChargeEventData:
 					chargeCount++
-					if data.Model != "saved-model" || data.Basis != domain.ChargeBasisSubscription || data.AmountMicroUSD == nil || *data.AmountMicroUSD != 0 {
-						t.Fatalf("lost authoritative zero charge: %+v", data)
-					}
 				}
 			}
-			if usageCount != 1 || chargeCount != 1 {
+			if usageCount != 1 || chargeCount != 0 {
 				t.Fatalf("usage=%d charge=%d", usageCount, chargeCount)
 			}
 		})
 	}
 }
 
-func TestDurableCodexContinueSeedsParserFromRequestBaseline(t *testing.T) {
+func TestDurableCodexContinueNamesSessionAndNeverCountsPriorCumulative(t *testing.T) {
+	// A continuation's first counter covers earlier turns: no amount, never usage.
 	stdout := strings.Join([]string{
-		`{"type":"session_meta","payload":{"id":"same-session"}}`,
 		`{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}}`,
 		`{"type":"event_msg","payload":{"type":"task_complete"}}`,
 	}, "\n") + "\n"
@@ -1334,29 +1339,28 @@ func TestDurableCodexContinueSeedsParserFromRequestBaseline(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer file.Close()
-	baseline := &runner.CodexUsageBaseline{SessionID: "same-session", Snapshot: &domain.CodexUsageSnapshot{
-		SessionID: "same-session", InputTokens: 100, CachedInputTokens: 20, OutputTokens: 30,
-	}}
 	result, err := r.Continue(t.Context(), runner.ContinueRequest{
 		RunID: uuid.New(), SessionID: "same-session", Prompt: "continue", EventSink: sink,
-		ResolvedConfig:     domain.DefaultRunConfig(),
-		Transcript:         &runner.TranscriptConfig{TranscriptPath: file.Name(), StdoutFile: file},
-		CodexUsageBaseline: baseline,
+		ResolvedConfig: domain.DefaultRunConfig(),
+		Transcript:     &runner.TranscriptConfig{TranscriptPath: file.Name(), StdoutFile: file},
 	})
 	if err != nil || result == nil || !result.Success {
 		t.Fatalf("result=%+v err=%v", result, err)
 	}
+	want, reports := domain.UsageCounters{InputTokens: 105, CacheReadTokens: 50, OutputTokens: 35}, 0
 	for _, event := range sink.snapshot() {
 		usage, ok := event.Data.(*domain.UsageEventData)
-		if !ok || !usage.ReconciliationAuthority {
+		if !ok {
 			continue
 		}
-		if usage.InputTokens != 25 || usage.CacheReadTokens != 30 || usage.OutputTokens != 5 || usage.ReconciliationComplete == nil || !*usage.ReconciliationComplete {
-			t.Fatalf("continuation parser did not receive request baseline: %+v", usage)
+		reports++
+		if usage.SessionID != "same-session" || usage.Cumulative == nil || *usage.Cumulative != want || usage.Counters().Total() != 0 {
+			t.Fatalf("continuation usage = %+v cumulative=%+v; want the named session's counter with no amount", usage, usage.Cumulative)
 		}
-		return
 	}
-	t.Fatal("authoritative Codex receipt missing from continuation")
+	if reports == 0 {
+		t.Fatal("continuation emitted no usage report")
+	}
 }
 
 // recoveringCodexCodec exposes the concrete Codex codec, including its

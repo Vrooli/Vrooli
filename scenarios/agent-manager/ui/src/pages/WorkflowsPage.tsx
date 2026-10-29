@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { GitBranch, RefreshCw, ShieldCheck } from "lucide-react";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { ArrowLeft, GitBranch, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import type { WorkflowExecution } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
 import { WorkflowExecutionStatus } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
 import { useWorkflowExecutions, type WorkflowTraceView } from "../hooks/useApi";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "../components/ui/input";
+import { DataState } from "../components/feedback/DataState";
+import { ErrorNotice } from "../components/feedback/ErrorNotice";
+import { useViewportSize } from "../hooks/useViewportSize";
 
 const statusNames: Record<number, string> = {
   [WorkflowExecutionStatus.PENDING]: "pending",
@@ -37,6 +42,13 @@ export function WorkflowsPage() {
   const [busy, setBusy] = useState(false);
   const [signalName, setSignalName] = useState("");
   const [signalPayload, setSignalPayload] = useState("{}");
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const { isDesktop } = useViewportSize();
+  // Desktop shows list and detail side by side and opens the newest execution;
+  // a phone shows one at a time, so detail opens only on an explicit tap.
+  const [phoneDetailOpen, setPhoneDetailOpen] = useState(false);
+  const showList = isDesktop || !phoneDetailOpen;
+  const showDetail = isDesktop || phoneDetailOpen;
 
   const selected = useMemo(
     () => workflows.data?.find((execution) => execution.id === selectedId) ?? workflows.data?.[0],
@@ -87,17 +99,17 @@ export function WorkflowsPage() {
   };
 
   return (
-    <section className="h-full overflow-auto p-4 sm:p-6" aria-labelledby="workflow-console-title">
+    <section className="h-full overflow-auto" aria-labelledby="workflow-console-title">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <h1 id="workflow-console-title" className="flex items-center gap-2 text-xl font-semibold">
               <GitBranch className="h-5 w-5 text-primary" /> Workflow executions
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Pinned revisions, independent attempts, durable waits, child lineage, and budget usage.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void workflows.refetch()} disabled={workflows.loading}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          <Button variant="secondary" size="sm" onClick={() => void workflows.refetch()} disabled={workflows.loading} aria-label="Refresh">
+            <RefreshCw className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Refresh</span>
           </Button>
         </header>
 
@@ -105,49 +117,61 @@ export function WorkflowsPage() {
           <ShieldCheck className="h-4 w-4 shrink-0 text-success" /> Routine inspection is metadata-only. Inputs, prompts, journal payloads, and results are redacted.
         </div>
 
-        {workflows.error ? <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{workflows.error}</div> : null}
-        {workflows.loading && !workflows.data?.length ? <div className="rounded-md border border-border p-8 text-center text-sm text-muted-foreground">Loading workflow history…</div> : null}
-        {!workflows.loading && !workflows.data?.length ? <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No workflow executions yet. Start one through the generated API or CLI.</div> : null}
-
-        {workflows.data?.length ? (
+        <DataState
+          subject="Workflow history"
+          loading={workflows.loading}
+          error={workflows.error}
+          isEmpty={!workflows.data?.length}
+          onRetry={workflows.refetch}
+          empty={<EmptyState icon={<GitBranch aria-hidden="true" />} title="No workflow executions yet" description="Start one through the generated API or CLI." />}
+        >
           <div className="grid min-h-[32rem] gap-4 lg:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.7fr)]">
-            <div className="overflow-hidden rounded-md border border-border bg-card" aria-label="Workflow execution history">
-              {workflows.data.map((execution) => (
-                <Button
+            {showList ? (
+            <div className="min-w-0 overflow-hidden rounded-md border border-border bg-card" aria-label="Workflow execution history">
+              {workflows.data?.map((execution) => (
+                <button
                   key={execution.id}
                   type="button"
-                  onClick={() => setSelectedId(execution.id)}
+                  onClick={() => {
+                    setSelectedId(execution.id);
+                    setPhoneDetailOpen(true);
+                  }}
                   aria-pressed={selected?.id === execution.id}
-                  variant="ghost"
-                  className={`h-auto block w-full rounded-none border-b border-border px-3 py-3 text-left whitespace-normal last:border-b-0 ${selected?.id === execution.id ? "bg-accent" : "hover:bg-muted/50"}`}
+                  className={`block w-full min-w-0 border-b border-border px-3 py-3 text-left text-sm transition-colors last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDesktop && selected?.id === execution.id ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium">{execution.workflowKey}</span>
-                    <Badge variant="outline">{statusName(execution.status)}</Badge>
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="min-w-0 truncate font-medium">{execution.workflowKey}</span>
+                    <Badge variant="outline" className="shrink-0 whitespace-nowrap">{statusName(execution.status)}</Badge>
                   </div>
-                  <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                    <span>{shortId(execution.id)}</span><span>node {execution.currentNodeId || "—"}</span><span>v{execution.version.toString()}</span><span>depth {execution.depth}</span>
+                  <div className="mt-1 flex flex-wrap gap-x-3 text-xs opacity-80">
+                    <span className="font-mono">{shortId(execution.id)}</span><span>node {execution.currentNodeId || "—"}</span><span>v{execution.version.toString()}</span><span>depth {execution.depth}</span>
                   </div>
-                </Button>
+                </button>
               ))}
             </div>
+            ) : null}
 
-            {selected ? (
-              <article className="space-y-4 rounded-md border border-border bg-card p-4" aria-label={`Workflow ${selected.workflowKey} details`}>
+            {showDetail && selected ? (
+              <article className="min-w-0 space-y-4 rounded-md border border-border bg-card p-4" aria-label={`Workflow ${selected.workflowKey} details`}>
+                {!isDesktop ? (
+                  <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setPhoneDetailOpen(false)}>
+                    <ArrowLeft className="mr-1 h-4 w-4" /> All executions
+                  </Button>
+                ) : null}
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="font-semibold">{selected.workflowKey}</h2>
                     <p className="break-all font-mono text-xs text-muted-foreground">{selected.id}</p>
                     <p className="mt-1 text-xs text-muted-foreground">digest {selected.definitionDigest} · parent {shortId(selected.parentExecutionId)} · parent attempt {shortId(selected.parentAttemptId)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => void runControl("resume")} disabled={busy}>Resume</Button>
-                    <Button size="sm" variant="outline" onClick={() => void runControl("retry")} disabled={busy}>Retry</Button>
-                    <Button size="sm" variant="destructive" onClick={() => void runControl("cancel")} disabled={busy}>Cancel</Button>
+                    <Button size="sm" variant="secondary" onClick={() => void runControl("resume")} disabled={busy}>Resume</Button>
+                    <Button size="sm" variant="secondary" onClick={() => void runControl("retry")} disabled={busy}>Retry</Button>
+                    <Button size="sm" variant="danger" onClick={() => setConfirmCancel(true)} disabled={busy}>Cancel</Button>
                   </div>
                 </div>
 
-                {detailError ? <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{detailError}</div> : null}
+                {detailError ? <ErrorNotice compact error={detailError} subject="Workflow" /> : null}
 
                 <dl className="grid gap-2 text-sm sm:grid-cols-3">
                   <div className="rounded bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">Turns / tokens</dt><dd>{selected.budgetUsage?.turns ?? 0} / {selected.budgetUsage?.tokens ?? 0}</dd></div>
@@ -177,8 +201,23 @@ export function WorkflowsPage() {
               </article>
             ) : null}
           </div>
-        ) : null}
+        </DataState>
       </div>
+      <AlertDialog
+        open={confirmCancel}
+        destructive
+        title="Cancel workflow?"
+        description="Running nodes stop and the execution ends as cancelled. Completed attempts and the journal are kept."
+        confirmLabel="Cancel workflow"
+        cancelLabel="Keep running"
+        busyLabel="Cancelling…"
+        onConfirm={async () => {
+          setConfirmCancel(false);
+          await runControl("cancel");
+        }}
+        onCancel={() => setConfirmCancel(false)}
+        testIdPrefix="workflow-cancel"
+      />
     </section>
   );
 }

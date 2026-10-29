@@ -4,7 +4,6 @@ package database
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,21 +32,10 @@ func TestSQLiteStoreReadsLegacyTypedPayloadRow(t *testing.T) {
 	}
 
 	// This JSON was written by the removed union payload. Existing SQLite rows
-	// remain in place and must decode into the current typed event schema.
+	// stay as written and must decode into the current typed event schema.
 	if _, err := db.ExecContext(ctx, `INSERT INTO run_events (id, run_id, sequence, event_type, data) VALUES (?, ?, 0, ?, ?)`, uuid.New().String(), run.ID.String(), domain.EventTypeToolResult, `{"toolName":"Read","toolOutput":"file contents","toolError":"permission denied"}`); err != nil {
 		t.Fatalf("seed legacy event row: %v", err)
 	}
-	if err := db.migrateRunEventPayloads(ctx); err != nil {
-		t.Fatalf("migrate legacy event row: %v", err)
-	}
-	var persisted string
-	if err := db.GetContext(ctx, &persisted, `SELECT data FROM run_events WHERE run_id = ?`, run.ID.String()); err != nil {
-		t.Fatalf("read migrated event JSON: %v", err)
-	}
-	if strings.Contains(persisted, "toolOutput") || strings.Contains(persisted, "toolError") {
-		t.Fatalf("legacy event fields remain after migration: %s", persisted)
-	}
-
 	events, err := store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 10})
 	if err != nil {
 		t.Fatalf("read legacy event row: %v", err)
@@ -121,14 +109,14 @@ func TestSQLiteStoreMalformedPayloadFailsFilteredAndUnfilteredGet(t *testing.T) 
 		t.Fatal(err)
 	}
 	id := uuid.New()
-	raw := `{"payloadKind":null,"limitType":"weekly"}`
-	if _, err := db.ExecContext(ctx, `INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, id, run.ID, 0, "error", time.Now().UTC().Format(time.RFC3339Nano), raw); err != nil {
+	raw := `{"limitType":"weekly","usedPercent":"bad"}`
+	if _, err := db.ExecContext(ctx, `INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, id, run.ID, 0, "quota", time.Now().UTC().Format(time.RFC3339Nano), raw); err != nil {
 		t.Fatal(err)
 	}
 	for _, read := range []func() ([]*domain.RunEvent, error){func() ([]*domain.RunEvent, error) {
 		return store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 100})
 	}, func() ([]*domain.RunEvent, error) {
-		return store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeError}, Limit: 100})
+		return store.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeQuota}, Limit: 100})
 	}} {
 		got, err := read()
 		var databaseError *domain.DatabaseError

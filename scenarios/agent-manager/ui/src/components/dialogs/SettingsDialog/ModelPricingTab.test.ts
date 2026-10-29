@@ -15,11 +15,11 @@ vi.mock("../../../hooks/usePricing.js", () => ({
   useModelOverrides: hooks.overrides, useSetOverride: hooks.setOverride, useDeleteOverride: hooks.deleteOverride,
 }));
 
-const model = { model: "gpt-5", canonicalName: "gpt-5", inputPricePer1M: 2, outputPricePer1M: 8, cacheReadPricePer1M: 0.5, inputSource: "provider_api", outputSource: "manual_override", cacheReadSource: "historical_average", fetchedAt: "2026-07-29T00:00:00Z" };
+const model = { model: "gpt-5", canonicalName: "gpt-5", inputPricePer1M: 2, outputPricePer1M: 8, cacheReadPricePer1M: 0.5, inputSource: "provider_api", outputSource: "manual_override", cacheReadSource: "unknown", fetchedAt: "2026-07-29T00:00:00Z" };
 function setup(overrides: Record<string, unknown> = {}) {
   const refetch = vi.fn(); const refetchSettings = vi.fn(); const refetchCache = vi.fn();
   hooks.model.mockReturnValue({ data: [model], loading: false, error: null, refetch });
-  hooks.settings.mockReturnValue({ data: { historicalAverageDays: 7, providerCacheTtlSeconds: 3600 }, loading: false, refetch: refetchSettings });
+  hooks.settings.mockReturnValue({ data: { providerCacheTtlSeconds: 3600 }, loading: false, refetch: refetchSettings });
   hooks.update.mockReturnValue({ updateSettings: vi.fn(async () => undefined) });
   hooks.cache.mockReturnValue({ data: { totalModels: 1, expiredCount: 1, providers: [{ provider: "openai", modelCount: 1, lastFetchedAt: "2026-07-29T00:00:00Z", isStale: true }] }, loading: false, refetch: refetchCache });
   hooks.refresh.mockReturnValue({ refreshAll: vi.fn(async () => undefined) });
@@ -47,8 +47,9 @@ test("ModelPricingTab filters, sorts, refreshes, and persists pricing settings",
   await user.click(screen.getByRole("button", { name: "Input" }));
   await user.click(screen.getByTitle("Refresh pricing"));
   await user.click(screen.getByRole("button", { name: "Refresh All Pricing" }));
-  await user.clear(screen.getByLabelText("Historical Average Period (days)"));
-  await user.type(screen.getByLabelText("Historical Average Period (days)"), "14");
+  assert.equal(screen.queryByLabelText("Historical Average Period (days)"), null);
+  await user.clear(screen.getByLabelText("Provider Cache TTL (seconds)"));
+  await user.type(screen.getByLabelText("Provider Cache TTL (seconds)"), "7200");
   await user.click(screen.getByRole("button", { name: "Save Settings" }));
   assert.ok(calls.refetch.mock.calls.length >= 2);
   assert.equal(calls.refetchCache.mock.calls.length, 1);
@@ -116,8 +117,8 @@ test("ModelPricingTab edits, saves, and clears a component-level manual override
 
 test("ModelPricingTab supports canonical-name search, source toggling, empty data, and every sortable price column", async () => {
   const user = userEvent.setup();
-  const alpha = { ...model, model: "alpha-display", canonicalName: "canonical-alpha", inputPricePer1M: 4, outputPricePer1M: 1, cacheReadPricePer1M: 3, cacheReadSource: "provider_api", fetchedAt: "2026-07-28T00:00:00Z" };
-  const zulu = { ...model, model: "zulu-display", canonicalName: "canonical-zulu", inputPricePer1M: 1, outputPricePer1M: 4, cacheReadPricePer1M: 0.5, fetchedAt: "2026-07-30T00:00:00Z", inputSource: "historical_average", outputSource: "historical_average", cacheReadSource: "historical_average" };
+  const alpha = { ...model, model: "alpha-display", canonicalName: "canonical-alpha", inputPricePer1M: 4, outputPricePer1M: 1, cacheReadPricePer1M: 3, outputSource: "provider_api", cacheReadSource: "provider_api", fetchedAt: "2026-07-28T00:00:00Z" };
+  const zulu = { ...model, model: "zulu-display", canonicalName: "canonical-zulu", inputPricePer1M: 1, outputPricePer1M: 4, cacheReadPricePer1M: 0.5, fetchedAt: "2026-07-30T00:00:00Z", inputSource: "manual_override", outputSource: "manual_override", cacheReadSource: "manual_override" };
   setup();
   hooks.model.mockReturnValue({ data: [alpha, zulu], loading: false, error: null, refetch: vi.fn() });
   renderWithProviders(createElement(ModelPricingTab));
@@ -127,10 +128,10 @@ test("ModelPricingTab supports canonical-name search, source toggling, empty dat
   assert.ok(screen.getByText("alpha-display"));
   assert.equal(screen.queryByText("zulu-display"), null);
   await user.clear(search);
-  await user.click(screen.getAllByText("Historical")[0]!);
+  await user.click(screen.getAllByText("Manual")[0]!);
   assert.ok(screen.getByText("zulu-display"));
   assert.equal(screen.queryByText("alpha-display"), null);
-  await user.click(screen.getAllByText("Historical")[0]!);
+  await user.click(screen.getAllByText("Manual")[0]!);
   assert.ok(screen.getByText("alpha-display"));
 
   for (const column of ["Output", "Cache Read", "Fetched", "Model"]) {

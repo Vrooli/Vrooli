@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { create } from "@bufbuild/protobuf";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
   AlertCircle,
-  Bot,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -17,44 +18,50 @@ import {
   Zap,
   XCircle,
 } from "lucide-react";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { ScrollArea } from "../components/ui/scroll-area";
+import { DataState } from "../components/feedback/DataState";
+import { ErrorNotice } from "../components/feedback/ErrorNotice";
 import { probeRunner } from "../hooks/useApi";
-import type { RunStatusCounts } from "../hooks/useApi";
+import type { DashboardRunCounts } from "../hooks/useApi";
 import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
-import { formatHyphenatedLabel } from "../lib/display";
+import { formatHyphenatedLabel, statusTone } from "../lib/display";
 import { jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
-import type { ProbeResult, Run, RunnerType, Task, HealthResponse, JsonValue } from "../types";
+import type { ProbeResult, Run, RunnerType, HealthResponse, JsonValue } from "../types";
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 import { reviewFileCount } from "../lib/reviewFileCount";
+import { runHeading } from "../lib/runPresentation";
+import { DashboardUsageStrip } from "../features/usage/DashboardUsageStrip";
+import { healthView } from "../lib/healthState";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
+  healthError?: string | null;
+  /** Why a reachable API reports itself degraded. */
+  healthReason?: string;
   runs: Run[];
-  statusCounts?: RunStatusCounts | null;
+  runsLoading?: boolean;
+  runsError?: string | null;
+  /** API-counted live and windowed totals; absent while loading or unavailable. */
+  counts?: DashboardRunCounts | null;
   onRefresh: () => void;
-  onGetTask?: (taskId: string) => Promise<Task>;
   onNavigateToRun?: (runId: string, tab?: string) => void;
 }
 
 export function DashboardPage({
   health,
+  healthError,
+  healthReason,
   runs,
-  statusCounts,
+  runsLoading = false,
+  runsError,
+  counts,
   onRefresh,
-  onGetTask,
   onNavigateToRun,
 }: DashboardPageProps) {
-  const [taskTitles, setTaskTitles] = useState<Record<string, string>>({});
-  const loadedTaskIdsRef = useRef<Set<string>>(new Set());
-  const activeRuns = runs.filter(
-    (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
-  );
   const pendingReview = runs.filter((r) => r.status === RunStatus.NEEDS_REVIEW);
   const recentRuns = [...runs]
     .filter((r) => r.status !== RunStatus.NEEDS_REVIEW)
@@ -64,54 +71,14 @@ export function DashboardPage({
       return bTime - aTime;
     })
     .slice(0, 5);
-  const activeCount = (statusCounts?.running ?? 0) + activeRuns.filter((run) => run.status === RunStatus.STARTING).length;
-  const reviewCount = statusCounts?.needsReview ?? pendingReview.length;
-  const totalRuns = statusCounts?.total ?? runs.length;
-
-  useEffect(() => {
-    if (!onGetTask) {
-      return;
-    }
-
-    const taskIds = [...new Set([...pendingReview, ...recentRuns].map((run) => run.taskId))]
-      .filter((taskId) => taskId !== "" && !loadedTaskIdsRef.current.has(taskId));
-    if (taskIds.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-    const timerId = window.setTimeout(() => {
-      void Promise.allSettled(
-        taskIds.map(async (taskId) => {
-          const task = await onGetTask(taskId);
-          return { taskId, title: task.title || "Unknown Task" };
-        })
-      ).then((results) => {
-        if (cancelled) {
-          return;
-        }
-        setTaskTitles((previous) => {
-          const next = { ...previous };
-          for (const [index, result] of results.entries()) {
-            const taskId = taskIds[index];
-            if (!taskId) {
-              continue;
-            }
-            loadedTaskIdsRef.current.add(taskId);
-            next[taskId] = result.status === "fulfilled" ? result.value.title : "Unknown Task";
-          }
-          return next;
-        });
-      });
-    }, 0);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timerId);
-    };
-  }, [onGetTask, pendingReview, recentRuns]);
+  // Counts come from the API (true totals, not the loaded page); an unavailable
+  // count renders as unknown rather than as a misleading page length.
+  const activeCount = counts?.active;
+  const reviewCount = counts?.review;
+  const totalRuns = counts?.windowTotal;
 
   const healthPanel = useCollapsiblePanel({ storageKey: "dashboard.health" });
+  const healthState = healthView(health, healthError, healthReason);
 
   // Compute health summary
   const dependencies = health?.dependencies ?? {};
@@ -126,6 +93,8 @@ export function DashboardPage({
         runnerType: runnerTypeFromSlug(runnerKey),
       };
     });
+  // A degraded start-up answer carries no dependency map; rows are shown only when reported.
+  const hasDependencies = Object.keys(dependencies).length > 0;
   const allHealthy =
     health !== null &&
     sandboxDep?.status === "healthy" &&
@@ -135,7 +104,7 @@ export function DashboardPage({
     runnerDeps.filter((r) => r.status?.status !== "healthy").length;
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 lg:px-10 space-y-3 sm:space-y-4">
+    <div className="h-full overflow-y-auto overflow-x-hidden space-y-3 sm:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Dashboard</h2>
@@ -144,23 +113,25 @@ export function DashboardPage({
         </Button>
       </div>
 
+      <DashboardUsageStrip />
+
       {/* Compact Stats */}
       <div className="grid grid-cols-3 gap-2">
         <CompactStatCard
           title="Active"
-          value={activeCount}
+          value={activeCount ?? "—"}
           icon={<Activity className="h-4 w-4" />}
-          variant={activeCount > 0 ? "primary" : "muted"}
+          variant={(activeCount ?? 0) > 0 ? "primary" : "muted"}
         />
         <CompactStatCard
           title="Review"
-          value={reviewCount}
+          value={reviewCount ?? "—"}
           icon={<Clock className="h-4 w-4" />}
-          variant={reviewCount > 0 ? "warning" : "muted"}
+          variant={(reviewCount ?? 0) > 0 ? "warning" : "muted"}
         />
         <CompactStatCard
-          title="Runs"
-          value={totalRuns}
+          title="Runs · 7d"
+          value={totalRuns ?? "—"}
           icon={<Server className="h-4 w-4" />}
           variant="muted"
         />
@@ -192,12 +163,12 @@ export function DashboardPage({
                     onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id, "diff")}
                   >
                     <div className="min-w-0 flex-1 mr-3">
-                      <p className="font-medium text-sm truncate">{taskTitles[run.taskId] || "Loading task..."}</p>
+                      <p className="font-medium text-sm truncate">{runHeading(run).title}</p>
                       <p className="text-xs text-muted-foreground">
                         {fileCount.available ? `${fileCount.count} files changed` : "File count unavailable"} | {formatStandardRelativeTime(run.endedAt)}
                       </p>
                     </div>
-                    <Badge variant="needs_review" className="flex-shrink-0">Needs Review</Badge>
+                    <StatusBadge tone="warning" className="flex-shrink-0">Needs Review</StatusBadge>
                   </div>
                 );
               })}
@@ -228,7 +199,7 @@ export function DashboardPage({
           </CardHeader>
 
           {/* Collapsed summary */}
-          {healthPanel.isCollapsed && health && (
+          {healthPanel.isCollapsed && health && hasDependencies && (
             <div className="px-4 pb-3">
               {allHealthy ? (
                 <div className="flex items-center gap-2 text-sm text-success">
@@ -250,7 +221,7 @@ export function DashboardPage({
               healthPanel.isCollapsed ? "max-h-0" : "max-h-[500px]"
             }`}
           >
-            <CardContent className="p-0">
+            {health && hasDependencies && <CardContent className="p-0">
               <HealthItem
                 name="Workspace Sandbox"
                 available={sandboxDep?.status === "healthy"}
@@ -265,13 +236,24 @@ export function DashboardPage({
                   runnerType={runner.runnerType}
                 />
               ))}
-            </CardContent>
+            </CardContent>}
           </div>
 
-          {!health && (
-            <div className="flex items-center gap-2 px-4 pb-3 text-muted-foreground">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">Loading health status...</span>
+          {healthState.kind !== "healthy" && (
+            <div className="px-4 pb-3">
+              {healthState.kind === "unreachable" && healthError ? (
+                <ErrorNotice compact error={healthError} subject="Health" onRetry={onRefresh} />
+              ) : healthState.kind === "degraded" ? (
+                <p role="status" data-testid="health-degraded" className="flex min-w-0 items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-sm">
+                  <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <span className="min-w-0 flex-1 break-words">
+                    <span className="font-medium">Agent Manager is degraded.</span>{" "}
+                    <span className="text-muted-foreground">{healthState.reason}</span>
+                  </span>
+                </p>
+              ) : (
+                <p role="status" className="text-sm text-muted-foreground">Loading health status…</p>
+              )}
             </div>
           )}
         </Card>
@@ -286,26 +268,21 @@ export function DashboardPage({
             <CardDescription>Latest run executions</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[200px]">
-              {recentRuns.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <Bot className="h-10 w-10 mb-2 opacity-50" />
-                  <p className="text-sm">No runs yet</p>
-                  <p className="text-xs">Create a task and start a run to see activity</p>
-                </div>
-              ) : (
-                <div>
-                  {recentRuns.map((run) => (
-                    <RunActivityItem
-                      key={run.id}
-                      run={run}
-                      taskTitle={taskTitles[run.taskId]}
-                      onClick={() => onNavigateToRun?.(run.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+            <div className="max-h-[260px] overflow-y-auto">
+              <DataState
+                compact
+                subject="Recent runs"
+                loading={runsLoading}
+                error={runsError}
+                isEmpty={recentRuns.length === 0}
+                onRetry={onRefresh}
+                empty={<EmptyState density="compact" title="No runs yet" description="Start one with Quick Run or from a task." />}
+              >
+                {recentRuns.map((run) => (
+                  <RunActivityItem key={run.id} run={run} onClick={() => onNavigateToRun?.(run.id)} />
+                ))}
+              </DataState>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -320,7 +297,7 @@ function CompactStatCard({
   variant,
 }: {
   title: string;
-  value: number;
+  value: number | string;
   icon: React.ReactNode;
   variant: "primary" | "warning" | "muted";
 }) {
@@ -486,7 +463,7 @@ function HealthItem({
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
           {runnerType && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={handleProbe}
               disabled={probing}
@@ -501,9 +478,9 @@ function HealthItem({
               Probe
             </Button>
           )}
-          <Badge variant={available ? "success" : "destructive"}>
+          <StatusBadge tone={available ? "success" : "danger"}>
             {available ? "Available" : "Unavailable"}
-          </Badge>
+          </StatusBadge>
         </div>
       </div>
       {probeResult && (
@@ -556,15 +533,8 @@ function HealthItem({
   );
 }
 
-function RunActivityItem({
-  run,
-  taskTitle,
-  onClick,
-}: {
-  run: Run;
-  taskTitle?: string;
-  onClick?: () => void;
-}) {
+function RunActivityItem({ run, onClick }: { run: Run; onClick?: () => void }) {
+  const { title, reference } = runHeading(run);
   return (
     <div
       className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -576,27 +546,16 @@ function RunActivityItem({
       <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
         <RunStatusIcon status={run.status} />
         <div className="min-w-0">
-          <p className="font-medium text-sm truncate">{taskTitle || "Loading task..."}</p>
+          <p className="font-medium text-sm truncate" title={title}>{title}</p>
           <p className="text-xs text-muted-foreground">
             {formatStandardRelativeTime(run.createdAt)}
+            <span className="ms-2 font-mono text-[11px] opacity-70">{reference}</span>
           </p>
         </div>
       </div>
-      <Badge
-        className="flex-shrink-0"
-        variant={
-          runStatusLabel(run.status) as
-            | "pending"
-            | "starting"
-            | "running"
-            | "needs_review"
-            | "complete"
-            | "failed"
-            | "cancelled"
-        }
-      >
+      <StatusBadge className="flex-shrink-0" tone={statusTone(runStatusLabel(run.status))}>
         {runStatusLabel(run.status).replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-      </Badge>
+      </StatusBadge>
     </div>
   );
 }

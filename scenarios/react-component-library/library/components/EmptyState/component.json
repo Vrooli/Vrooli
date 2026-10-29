@@ -16,6 +16,15 @@
     "1.7.8",
     "1.7.9"
   ],
+  "description": "The contextual no-results composition explaining why nothing is shown, distinguishing an empty collection from a filtered-out one, and offering the most relevant next action.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "EmptyState",
   "draft": "",
   "evictedVersions": [
     "1.7.6",
@@ -31,6 +40,7 @@
     "1.7.8",
     "1.7.9"
   ],
-  "latest": "1.7.14",
-  "libraryId": "react-component-library:EmptyState"
+  "latest": "1.8.0",
+  "libraryId": "react-component-library:EmptyState",
+  "tags": []
 }

@@ -504,12 +504,8 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	startTime := time.Now()
 	state := r.codec.NewState()
-	if setter, ok := state.(runner.ContinuationUsageBaselineSetter); ok {
-		baseline := runner.CodexUsageBaseline{SessionID: req.SessionID}
-		if req.CodexUsageBaseline != nil && req.CodexUsageBaseline.SessionID == req.SessionID {
-			baseline = *req.CodexUsageBaseline
-		}
-		setter.SetContinuationUsageBaseline(baseline)
+	if setter, ok := state.(runner.TranscriptSessionSetter); ok {
+		setter.SetTranscriptSession(req.SessionID, false)
 	}
 	r.applyStateBilling(state, req.GetConfig())
 	tag := r.codec.ContinueTag(req)
@@ -990,19 +986,18 @@ func (r *Runner) continueWithDurableTranscript(
 		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
 	}
 	result, err := r.runDurable(ctx, durableInputs{
-		runID:         req.RunID,
-		config:        req.GetConfig(),
-		sandboxID:     req.SandboxID,
-		sink:          req.EventSink,
-		transcript:    req.Transcript,
-		state:         state,
-		usageBaseline: req.CodexUsageBaseline,
-		startTime:     startTime,
-		launcher:      launcher,
-		request:       launchReq,
-		startMessage:  r.codec.Labels().ContinueStartMessage,
-		isContinue:    true,
-		sessionID:     req.SessionID,
+		runID:        req.RunID,
+		config:       req.GetConfig(),
+		sandboxID:    req.SandboxID,
+		sink:         req.EventSink,
+		transcript:   req.Transcript,
+		state:        state,
+		startTime:    startTime,
+		launcher:     launcher,
+		request:      launchReq,
+		startMessage: r.codec.Labels().ContinueStartMessage,
+		isContinue:   true,
+		sessionID:    req.SessionID,
 	})
 	if result != nil && result.SessionID == "" {
 		result.SessionID = req.SessionID
@@ -1011,18 +1006,17 @@ func (r *Runner) continueWithDurableTranscript(
 }
 
 type durableInputs struct {
-	runID         uuid.UUID
-	config        *domain.RunConfig
-	sandboxID     *uuid.UUID
-	sink          runner.EventSink
-	transcript    *runner.TranscriptConfig
-	state         codecs.State
-	usageBaseline *runner.CodexUsageBaseline
-	startTime     time.Time
-	launcher      runner.Launcher
-	request       runner.LaunchRequest
-	startMessage  string
-	isContinue    bool
+	runID        uuid.UUID
+	config       *domain.RunConfig
+	sandboxID    *uuid.UUID
+	sink         runner.EventSink
+	transcript   *runner.TranscriptConfig
+	state        codecs.State
+	startTime    time.Time
+	launcher     runner.Launcher
+	request      runner.LaunchRequest
+	startMessage string
+	isContinue   bool
 	// sessionID is the continued session, used when the stream does not
 	// restate it.
 	sessionID string
@@ -1248,12 +1242,10 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	liveDone := make(chan struct{})
 	liveCursor := transcriptStart
 	transcriptParser := r.codec.NewTranscriptParser()
-	if setter, ok := transcriptParser.(runner.ContinuationUsageBaselineSetter); ok && in.isContinue {
-		baseline := runner.CodexUsageBaseline{SessionID: in.sessionID}
-		if in.usageBaseline != nil && in.usageBaseline.SessionID == in.sessionID {
-			baseline = *in.usageBaseline
-		}
-		setter.SetContinuationUsageBaseline(baseline)
+	if setter, ok := transcriptParser.(runner.TranscriptSessionSetter); ok {
+		// A fresh execution's transcript starts with its session; a
+		// continuation's resumes a session that already has usage.
+		setter.SetTranscriptSession(in.sessionID, !in.isContinue)
 	}
 	if in.config != nil {
 		if setter, ok := transcriptParser.(runner.TranscriptModelSetter); ok {

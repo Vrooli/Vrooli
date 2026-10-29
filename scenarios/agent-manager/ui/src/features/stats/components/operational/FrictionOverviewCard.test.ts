@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback.js";
 import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, test, vi } from "vitest";
@@ -43,5 +44,5 @@ test("friction overview exposes query failures", async () => {
   mocks.rereads.mockResolvedValue({ ...valid, rate: 0, filesReadMoreThanOnce: 0, readCalls: 0 });
   mocks.findings.mockResolvedValue({ ...valid, rate: 0, recurringFindings: 0, totalFindings: 0, recurringFingerprints: 0 });
   renderWithProviders(createElement(FrictionOverviewCard));
-  await waitFor(() => assert.equal(screen.getByRole("alert").textContent, "Failed to load friction metrics: friction unavailable"));
+  await waitFor(() => getErrorNotice("Friction metrics", "friction unavailable"));
 });

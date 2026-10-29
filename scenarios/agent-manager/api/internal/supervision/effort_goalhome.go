@@ -43,6 +43,9 @@ type EffortSpendReader interface {
 	// WeightedRunTokens returns a run's weighted tokens; known is false when
 	// its usage is not authoritatively metered.
 	WeightedRunTokens(ctx context.Context, runID uuid.UUID) (weighted float64, known bool, err error)
+	// RunTokens returns a run's token total from the owner's one usage
+	// account; known is false when its usage is not authoritatively metered.
+	RunTokens(ctx context.Context, runID uuid.UUID) (tokens int64, known bool, err error)
 	// TokenCapUsage returns an active run's weighted usage (nil when unknown),
 	// its cap (0 for none) and the cap mode (off, report or enforce).
 	TokenCapUsage(ctx context.Context, runID uuid.UUID) (weighted *float64, limit int64, mode string)

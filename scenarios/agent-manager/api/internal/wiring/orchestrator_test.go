@@ -69,7 +69,7 @@ func TestNewOrchestratorBuildsCompleteGraphWithoutStartingWorkers(t *testing.T) 
 	if deps.Orchestrator == nil || deps.Reconciler == nil || deps.AwaitRegistry == nil || deps.WorkflowNudger == nil {
 		t.Fatalf("runtime graph missing lifecycle dependencies: %+v", deps)
 	}
-	if deps.StatsService == nil || deps.StatsRepository == nil || deps.PricingService == nil || deps.ModelHealthProbe == nil || deps.HealthStore == nil || deps.EventRepository == nil {
+	if deps.StatsRepository == nil || deps.PricingService == nil || deps.ModelHealthProbe == nil || deps.HealthStore == nil || deps.EventRepository == nil {
 		t.Fatalf("runtime graph missing operational dependencies: %+v", deps)
 	}
 	if deps.RolePolicyState == nil || deps.PermissionPolicyState == nil || deps.PermissionPolicy == nil || deps.StatsEngine == nil {

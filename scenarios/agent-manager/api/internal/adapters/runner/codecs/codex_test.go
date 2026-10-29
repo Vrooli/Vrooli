@@ -11,6 +11,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 )
@@ -323,15 +324,17 @@ func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
 		},
 	}))
 	events := codexDecodeOne(t, c, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
-	if len(events) != 2 {
-		t.Fatalf("got %d events", len(events))
+	// F-W1-2: the receipt carries its charge once; no separate charge event
+	// repeats it.
+	if len(events) != 1 {
+		t.Fatalf("got %d events, want the usage receipt alone", len(events))
 	}
 	usage := events[0].Data.(*domain.UsageEventData)
 	if usage.InputTokens != 394 || usage.OutputTokens != 83 {
 		t.Errorf("tokens in/out=%d/%d", usage.InputTokens, usage.OutputTokens)
 	}
-	charge := events[1].Data.(*domain.ChargeEventData)
-	if charge.AmountMicroUSD == nil || *charge.AmountMicroUSD <= 0 {
+	charge := usage.Charge
+	if charge == nil || charge.AmountMicroUSD == nil || *charge.AmountMicroUSD <= 0 {
 		t.Errorf("expected non-zero charge, got %#v", charge.AmountMicroUSD)
 	}
 	if usage.Model != "gpt-5.1-codex-mini" {
@@ -504,8 +507,11 @@ func TestCodexTokenCountToleratesCurrentRateLimitShape(t *testing.T) {
 			windows = append(windows, data)
 		}
 	}
-	if usage == nil || usage.InputTokens != 213127-211712 || usage.CacheReadTokens != 211712 || usage.OutputTokens != 2186 {
-		t.Fatalf("usage=%+v, want the frame's cumulative usage", usage)
+	// A parser that starts mid-transcript sees a session counter covering
+	// earlier turns: it keeps the counter and claims no amount for it.
+	want := domain.UsageCounters{InputTokens: 213127 - 211712, CacheReadTokens: 211712, OutputTokens: 2186}
+	if usage == nil || usage.Cumulative == nil || *usage.Cumulative != want || usage.Counters().Total() != 0 {
+		t.Fatalf("usage=%+v, want the frame's counter with no amount", usage)
 	}
 	if len(windows) != 1 || windows[0].Pool != "primary" || windows[0].UsedPercent == nil || *windows[0].UsedPercent != 48 {
 		t.Fatalf("rate limit observations=%+v, want only the primary window", windows)
@@ -623,9 +629,20 @@ func TestCodex_UpdateMetrics(t *testing.T) {
 				"gpt-5.1-codex-mini": {CostSource: "metered", Provider: "test"},
 			},
 		}))
+		metrics := runner.ExecutionMetrics{}
 		events := codexDecodeOne(t, c2, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
+		for _, event := range events {
+			c2.UpdateMetrics(event, &metrics, &last)
+		}
+		cost := metrics.CostEstimateUSD
+		if want := float64(*events[0].Data.(*domain.UsageEventData).Charge.AmountMicroUSD) / 1_000_000; cost != want {
+			t.Errorf("cost=%v, want the receipt's charge %v counted once", cost, want)
+		}
+		// A closing receipt that repeats the counter adds neither usage nor charge.
 		c2.UpdateMetrics(events[0], &metrics, &last)
-		c2.UpdateMetrics(events[1], &metrics, &last)
+		if metrics.CostEstimateUSD != cost {
+			t.Errorf("repeated receipt recharged: %v → %v", cost, metrics.CostEstimateUSD)
+		}
 		if metrics.TokensInput != 394 {
 			t.Errorf("TokensInput=%d", metrics.TokensInput)
 		}
@@ -682,7 +699,8 @@ func TestCodex_ParseTranscriptLine_RolloutTokenCountProjectsUsage(t *testing.T) 
 		t.Fatalf("events=%d, want one usage event", len(result.Events))
 	}
 	usage, ok := result.Events[0].Data.(*domain.UsageEventData)
-	if !ok || usage.InputTokens != 120 || usage.OutputTokens != 30 || usage.CacheReadTokens != 80 {
+	// Codex input includes cached reads; the cached subset is counted once.
+	if !ok || usage.InputTokens != 40 || usage.OutputTokens != 30 || usage.CacheReadTokens != 80 || usage.Cumulative != nil {
 		t.Fatalf("usage=%+v, want transcript token counts", result.Events[0].Data)
 	}
 }
@@ -704,9 +722,9 @@ func TestCodex_ParseTranscriptLine_RolloutTokenCountUsesCumulativeTotal(t *testi
 func TestCodex_ParseTranscriptLine_RolloutTaskCompleteAuthorizesLatestUsage(t *testing.T) {
 	parser := NewCodexForTest().NewTranscriptParser()
 	runID := uuid.New()
-	usage := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30}}}}`)
-	if len(usage.Events) != 1 {
-		t.Fatalf("usage events=%d, want one", len(usage.Events))
+	usage := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30},"last_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30}}}}`)
+	if len(usage.Events) == 0 {
+		t.Fatal("usage report emitted no events")
 	}
 	if got := usage.Events[0].Data.(*domain.UsageEventData).ReconciliationAuthority; got {
 		t.Fatal("interim rollout usage was authoritative")
@@ -723,23 +741,35 @@ func TestCodex_ParseTranscriptLine_RolloutTaskCompleteAuthorizesLatestUsage(t *t
 	}
 }
 
-func TestCodexRetainedTerminalReceiptConservesCumulativeUsage(t *testing.T) {
+// The closing receipt carries the turn's amount and the session counter, so
+// it stands alone after transcript recovery and adds nothing next to the
+// turn's own reports.
+func TestCodexRetainedTerminalReceiptCarriesTurnAndCounter(t *testing.T) {
 	for _, ending := range []string{"turn_aborted", "task_complete"} {
 		t.Run(ending, func(t *testing.T) {
 			parser := NewCodexForTest().NewTranscriptParser()
 			parser.(runner.TranscriptBillingSetter).SetTranscriptBilling(domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription})
 			id := uuid.New()
-			parser.ParseTranscriptLine(id, `{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":15211,"cached_input_tokens":10880,"output_tokens":205}}}}`)
-			parser.ParseTranscriptLine(id, `{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":30666,"cached_input_tokens":21760,"output_tokens":415}}}}`)
+			var events []*domain.RunEvent
+			for _, line := range []string{
+				`{"type":"session_meta","payload":{"id":"codex-session"}}`,
+				`{"type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}`,
+				`{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":15211,"cached_input_tokens":10880,"output_tokens":205}}}}`,
+				`{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":30666,"cached_input_tokens":21760,"output_tokens":415}}}}`,
+			} {
+				events = append(events, parser.ParseTranscriptLine(id, line).Events...)
+			}
 			result := parser.ParseTranscriptLine(id, fmt.Sprintf(`{"type":"event_msg","payload":{"type":%q}}`, ending))
 			var receipt *domain.UsageEventData
+			var receiptEvent *domain.RunEvent
 			for _, event := range result.Events {
 				if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority {
-					receipt = usage
+					receipt, receiptEvent = usage, event
 				}
 			}
-			if receipt == nil || receipt.InputTokens != 8906 || receipt.CacheReadTokens != 21760 || receipt.OutputTokens != 415 || receipt.Turns != 1 {
-				t.Fatalf("terminal lost cumulative receipt: %+v", receipt)
+			turn := domain.UsageCounters{InputTokens: 8906, CacheReadTokens: 21760, OutputTokens: 415}
+			if receipt == nil || receipt.Cumulative == nil || *receipt.Cumulative != turn || receipt.Counters() != turn || receipt.SessionID != "codex-session" || receipt.Turns != 1 {
+				t.Fatalf("terminal receipt = %+v", receipt)
 			}
 			if result.Terminal == nil || result.Terminal.Success != (ending == "task_complete") {
 				t.Fatal("accounting changed terminal outcome")
@@ -747,156 +777,14 @@ func TestCodexRetainedTerminalReceiptConservesCumulativeUsage(t *testing.T) {
 			if receipt.Charge == nil || receipt.Charge.AmountMicroUSD == nil || *receipt.Charge.AmountMicroUSD != 0 || receipt.Charge.Basis != domain.ChargeBasisSubscription {
 				t.Fatalf("immutable billing lost: %+v", receipt.Charge)
 			}
+			if got := runsignal.AccountUsage(append(events, result.Events...)).TotalTokens(); got != turn.Total() {
+				t.Fatalf("reports plus receipt = %d, want %d", got, turn.Total())
+			}
+			if got := runsignal.AccountUsage([]*domain.RunEvent{receiptEvent}).TotalTokens(); got != turn.Total() {
+				t.Fatalf("recovered receipt alone = %d, want %d", got, turn.Total())
+			}
 		})
 	}
-}
-
-func TestCodexContinuationUsesSameSessionCumulativeBaseline(t *testing.T) {
-	const session = "codex-session-a"
-	parse := func(parser runner.TranscriptParser, runID uuid.UUID, typ, payload string) runner.TranscriptParseResult {
-		return parser.ParseTranscriptLine(runID, fmt.Sprintf(`{"type":%q,"payload":%s}`, typ, payload))
-	}
-
-	runID := uuid.New()
-	first := NewCodexForTest().NewTranscriptParser()
-	parse(first, runID, "session_meta", `{"id":"`+session+`"}`)
-	parse(first, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":30}}}`)
-	firstReceipt := requireTerminalUsage(t, parse(first, runID, "event_msg", `{"type":"task_complete"}`))
-	if firstReceipt.InputTokens != 80 || firstReceipt.CacheReadTokens != 20 || firstReceipt.OutputTokens != 30 || firstReceipt.ReconciliationComplete == nil || !*firstReceipt.ReconciliationComplete {
-		t.Fatalf("first session receipt=%+v", firstReceipt)
-	}
-	if firstReceipt.CodexUsageSnapshot == nil || firstReceipt.CodexUsageSnapshot.SessionID != session {
-		t.Fatalf("raw cumulative snapshot missing: %+v", firstReceipt.CodexUsageSnapshot)
-	}
-
-	continued := NewCodexForTest().NewTranscriptParser()
-	continued.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: firstReceipt.CodexUsageSnapshot})
-	parse(continued, runID, "session_meta", `{"id":"`+session+`"}`)
-	parse(continued, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`)
-	secondReceipt := requireTerminalUsage(t, parse(continued, runID, "event_msg", `{"type":"task_complete"}`))
-	if secondReceipt.InputTokens != 25 || secondReceipt.CacheReadTokens != 30 || secondReceipt.OutputTokens != 5 || secondReceipt.ReconciliationComplete == nil || !*secondReceipt.ReconciliationComplete {
-		t.Fatalf("continuation receipt did not use raw same-session baseline: %+v", secondReceipt)
-	}
-
-	// A replayed cumulative snapshot contributes no second increment.
-	replay := NewCodexForTest().NewTranscriptParser()
-	replay.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: firstReceipt.CodexUsageSnapshot})
-	parse(replay, runID, "session_meta", `{"id":"`+session+`"}`)
-	line := `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`
-	parse(replay, runID, "event_msg", line)
-	duplicate := parse(replay, runID, "event_msg", line)
-	if len(duplicate.Events) != 0 {
-		t.Fatalf("identical provider snapshot replayed as usage: %+v", duplicate.Events)
-	}
-	replayReceipt := requireTerminalUsage(t, parse(replay, runID, "event_msg", `{"type":"task_complete"}`))
-	if replayReceipt.InputTokens != secondReceipt.InputTokens || replayReceipt.CacheReadTokens != secondReceipt.CacheReadTokens || replayReceipt.OutputTokens != secondReceipt.OutputTokens {
-		t.Fatalf("replay changed terminal delta: got %+v want %+v", replayReceipt, secondReceipt)
-	}
-}
-
-func TestCodexContinuationBaselineUnknownResetAndSessionSwitch(t *testing.T) {
-	const session = "codex-session-a"
-	parse := func(parser runner.TranscriptParser, runID uuid.UUID, typ, payload string) runner.TranscriptParseResult {
-		return parser.ParseTranscriptLine(runID, fmt.Sprintf(`{"type":%q,"payload":%s}`, typ, payload))
-	}
-	runID := uuid.New()
-
-	unknown := NewCodexForTest().NewTranscriptParser()
-	unknown.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session})
-	parse(unknown, runID, "session_meta", `{"id":"`+session+`"}`)
-	parse(unknown, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`)
-	unknownReceipt := requireTerminalUsage(t, parse(unknown, runID, "event_msg", `{"type":"task_complete"}`))
-	if unknownReceipt.ReconciliationComplete == nil || *unknownReceipt.ReconciliationComplete {
-		t.Fatalf("missing baseline was qualified: %+v", unknownReceipt)
-	}
-	if unknownReceipt.CodexUsageSnapshot == nil || unknownReceipt.CodexUsageSnapshot.SessionID != session {
-		t.Fatalf("unseeded receipt did not preserve its current raw session snapshot: %+v", unknownReceipt.CodexUsageSnapshot)
-	}
-
-	unknownThenSwitched := NewCodexForTest().NewTranscriptParser()
-	unknownThenSwitched.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session})
-	parse(unknownThenSwitched, runID, "session_meta", `{"id":"`+session+`"}`)
-	parse(unknownThenSwitched, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}}`)
-	parse(unknownThenSwitched, runID, "session_meta", `{"id":"codex-session-b"}`)
-	parse(unknownThenSwitched, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}}`)
-	unknownSwitchReceipt := requireTerminalUsage(t, parse(unknownThenSwitched, runID, "event_msg", `{"type":"task_complete"}`))
-	if unknownSwitchReceipt.ReconciliationComplete == nil || *unknownSwitchReceipt.ReconciliationComplete {
-		t.Fatalf("session switch incorrectly qualified an earlier unknown counter interval: %+v", unknownSwitchReceipt)
-	}
-
-	reset := NewCodexForTest().NewTranscriptParser()
-	reset.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: &domain.CodexUsageSnapshot{SessionID: session, InputTokens: 1000, CachedInputTokens: 300, OutputTokens: 500}})
-	parse(reset, runID, "session_meta", `{"id":"`+session+`"}`)
-	parse(reset, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}}`)
-	resetReceipt := requireTerminalUsage(t, parse(reset, runID, "event_msg", `{"type":"task_complete"}`))
-	if resetReceipt.InputTokens != 8 || resetReceipt.CacheReadTokens != 4 || resetReceipt.OutputTokens != 3 || resetReceipt.ReconciliationComplete == nil || !*resetReceipt.ReconciliationComplete {
-		t.Fatalf("counter reset did not start a trusted new series: %+v", resetReceipt)
-	}
-
-	switched := NewCodexForTest().NewTranscriptParser()
-	switched.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{SessionID: session, Snapshot: &domain.CodexUsageSnapshot{SessionID: session, InputTokens: 1000, CachedInputTokens: 300, OutputTokens: 500}})
-	parse(switched, runID, "session_meta", `{"id":"codex-session-b"}`)
-	parse(switched, runID, "event_msg", `{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}}`)
-	switchReceipt := requireTerminalUsage(t, parse(switched, runID, "event_msg", `{"type":"task_complete"}`))
-	if switchReceipt.InputTokens != 8 || switchReceipt.CacheReadTokens != 4 || switchReceipt.OutputTokens != 3 || switchReceipt.ReconciliationComplete == nil || !*switchReceipt.ReconciliationComplete || switchReceipt.CodexUsageSnapshot.SessionID != "codex-session-b" {
-		t.Fatalf("new session reused prior session counters: %+v", switchReceipt)
-	}
-}
-
-func TestCodexStreamContinuationDifferencesTerminalSnapshotFromBaseline(t *testing.T) {
-	c := NewCodexForTest()
-	state := c.NewState()
-	state.(runner.ContinuationUsageBaselineSetter).SetContinuationUsageBaseline(runner.CodexUsageBaseline{
-		SessionID: "stream-session",
-		Snapshot:  &domain.CodexUsageSnapshot{SessionID: "stream-session", InputTokens: 100, CachedInputTokens: 20, OutputTokens: 30},
-	})
-	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"thread.started","thread_id":"stream-session"}`); err != nil {
-		t.Fatal(err)
-	}
-	events, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"turn.completed","usage":{"input_tokens":155,"cached_input_tokens":50,"output_tokens":35}}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, evt := range events {
-		usage, ok := evt.Data.(*domain.UsageEventData)
-		if !ok {
-			continue
-		}
-		if usage.InputTokens != 25 || usage.CacheReadTokens != 30 || usage.OutputTokens != 5 || !usage.ReconciliationAuthority || usage.ReconciliationComplete == nil || !*usage.ReconciliationComplete || usage.CodexUsageSnapshot == nil || usage.CodexUsageSnapshot.InputTokens != 155 {
-			t.Fatalf("stream continuation receipt=%+v", usage)
-		}
-		return
-	}
-	t.Fatalf("stream continuation usage receipt missing: %+v", events)
-}
-
-func TestCodexStreamSessionSwitchStartsIndependentCounterSeries(t *testing.T) {
-	c := NewCodexForTest()
-	state := c.NewState()
-	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"thread.started","thread_id":"old-session"}`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":300,"output_tokens":500}}`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"thread.started","thread_id":"new-session"}`); err != nil {
-		t.Fatal(err)
-	}
-	events, err := c.DecodeStreamLine(state, uuid.New(), `{"type":"turn.completed","usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3}}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, evt := range events {
-		usage, ok := evt.Data.(*domain.UsageEventData)
-		if !ok {
-			continue
-		}
-		if usage.InputTokens != 8 || usage.CacheReadTokens != 4 || usage.OutputTokens != 3 || usage.ReconciliationComplete == nil || !*usage.ReconciliationComplete || usage.CodexUsageSnapshot == nil || usage.CodexUsageSnapshot.SessionID != "new-session" {
-			t.Fatalf("new provider session reused old counters: %+v", usage)
-		}
-		return
-	}
-	t.Fatalf("session-switch usage receipt missing: %+v", events)
 }
 
 func TestCodex_ParseTranscriptLine_RolloutTurnsPreserveProviderTurnIDs(t *testing.T) {
@@ -1079,9 +967,10 @@ func TestCodex_FullStream(t *testing.T) {
 		}
 	}
 
-	if len(allEvents) != 8 {
-		t.Errorf("expected 8 events, got %d", len(allEvents))
+	if len(allEvents) != 7 {
+		t.Errorf("expected 7 events, got %d", len(allEvents))
 	}
+	// The turn's usage receipt carries its charge; no separate charge event.
 	expected := []domain.RunEventType{
 		domain.EventTypeLog,
 		domain.EventTypeLog,
@@ -1089,7 +978,6 @@ func TestCodex_FullStream(t *testing.T) {
 		domain.EventTypeToolCall,
 		domain.EventTypeMessage,
 		domain.EventTypeMessage,
-		domain.EventTypeMetric,
 		domain.EventTypeMetric,
 	}
 	for i, et := range expected {

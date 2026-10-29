@@ -20,7 +20,7 @@ vi.mock("./hooks/useApi.js", () => ({
   useProfiles: () => ({ data: state.api.profiles, refetch: state.api.refetch }),
   useTasks: () => ({ data: state.api.tasks, refetch: state.api.refetch, createTask: state.api.createTask, getTask: vi.fn() }),
   useRuns: () => ({ data: state.api.runs, refetch: state.api.refetch, createRun: state.api.createRun, getRun: state.api.getRun, getRunEvents: state.api.getRunEvents }),
-  useRunStatusCounts: () => ({ refetch: state.api.refetch }),
+  useDashboardRunCounts: () => ({ refetch: state.api.refetch }),
   useRolePolicyCatalog: () => ({ data: null }),
 }));
 vi.mock("./hooks/useWebSocket.js", () => ({ useWebSocket: (options: unknown) => { state.websocket(options); return { status: "connected", subscribe: vi.fn(), unsubscribe: vi.fn() }; } }));
@@ -33,7 +33,7 @@ vi.mock("./pages/WorkflowsPage.js", () => ({ WorkflowsPage: () => createElement(
 vi.mock("./pages/WatchesPage.js", () => ({ WatchesPage: () => createElement("div", null, "Watches page") }));
 vi.mock("./pages/EffortsPage.js", () => ({ EffortsPage: () => createElement("div", null, "Efforts page") }));
 vi.mock("./pages/FindingsPage.js", () => ({ FindingsPage: () => createElement("div", null, "Findings page") }));
-vi.mock("./features/stats/index.js", () => ({ StatsPage: () => createElement("div", null, "Stats page") }));
+vi.mock("./features/usage/index.js", () => ({ UsagePage: () => createElement("div", null, "Usage page") }));
 vi.mock("./features/health/index.js", () => ({ HealthPage: () => createElement("div", null, "Health page") }));
 vi.mock("./components/dialogs/StatusDialog.js", () => ({ StatusDialog: ({ onOpenChange }: any) => createElement("div", null, "Status dialog", createElement("button", { onClick: () => onOpenChange(false) }, "Close status")) }));
 vi.mock("./components/dialogs/SettingsDialog/index.js", () => ({ SettingsDialog: ({ onOpenChange, onPurgeComplete }: any) => createElement("div", null, "Settings dialog", createElement("button", { onClick: onPurgeComplete }, "Purge complete"), createElement("button", { onClick: () => onOpenChange(false) }, "Close settings")) }));
@@ -62,10 +62,32 @@ test("App routes each primary page and maps the health section to observability"
 test("App maps shell navigation sections, including efforts, to their lazy pages", async () => {
   const user = userEvent.setup();
   renderWithProviders(createElement(App), { initialEntries: ["/"] });
-  for (const [section, page] of [["profiles", "Profiles page"], ["tasks", "Tasks page"], ["runs", "Runs page"], ["workflows", "Workflows page"], ["watches", "Watches page"], ["efforts", "Efforts page"], ["stats", "Stats page"], ["dashboard", "Dashboard page"]] as const) {
+  for (const [section, page] of [["profiles", "Profiles page"], ["tasks", "Tasks page"], ["runs", "Runs page"], ["workflows", "Workflows page"], ["watches", "Watches page"], ["efforts", "Efforts page"], ["usage", "Usage page"], ["dashboard", "Dashboard page"]] as const) {
     await user.click(screen.getByTestId(`agent-manager-nav-${section}`));
     assert.ok(await screen.findByText(page));
     assert.equal(screen.getByTestId(`agent-manager-nav-${section}`).getAttribute("aria-current"), "page");
+  }
+});
+
+test("phone bottom navigation holds at most five destinations", async () => {
+  renderWithProviders(createElement(App), { initialEntries: ["/workflows"] });
+  assert.ok(await screen.findByText("Workflows page"));
+  const tabBar = screen.getByTestId("agent-manager-shell-tabs");
+  const tabs = [...tabBar.querySelectorAll("[data-testid$='-tab']")].map((tab) => tab.getAttribute("data-testid"));
+  assert.ok(tabs.length > 0 && tabs.length <= 5, `phone tabs: ${tabs.join(", ")}`);
+  // Destinations off the tab bar stay reachable: the desktop list (and the phone header menu built from it) keeps all of them.
+  for (const id of ["workflows", "watches", "efforts", "investigations", "health", "profiles"]) {
+    assert.ok(screen.getByTestId(`agent-manager-nav-${id}`));
+    assert.equal(tabs.includes(`agent-manager-nav-${id}-tab`), false);
+  }
+});
+
+test("old Stats and Import links land on the matching Usage tab with Usage marked current", async () => {
+  for (const path of ["/stats", "/import"]) {
+    const view = renderWithProviders(createElement(App), { initialEntries: [path] });
+    assert.ok(await screen.findByText("Usage page"));
+    assert.equal(screen.getByTestId("agent-manager-nav-usage").getAttribute("aria-current"), "page");
+    view.unmount();
   }
 });
 

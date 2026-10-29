@@ -1,6 +1,8 @@
 // Model Usage Breakdown - horizontal bar chart showing model usage
 
 import { useMemo, useState } from "react";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import { Link } from "react-router-dom";
 import {
   BarChart,
@@ -13,9 +15,8 @@ import {
   Cell,
 } from "recharts";
 import { ChevronLeft } from "lucide-react";
-import { Badge } from "../../../../components/ui/badge";
-import { Button } from "../../../../components/ui/button";
-import { formatStatusLabel, formatUnknownLabel, statusBadgeVariant } from "../../../../lib/display";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { formatStatusLabel, formatUnknownLabel, statusTone } from "../../../../lib/display";
 import { formatStandardRelativeTime } from "../../../../lib/dateTime";
 import { formatUsdFixed } from "../../../../lib/currency";
 import { useModelBreakdown, useModelUsageRuns } from "../../hooks/useModelBreakdown";
@@ -114,9 +115,7 @@ export function ModelUsageBreakdown() {
           {runsLoading ? (
             <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : runsError ? (
-            <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
-              Failed to load runs: {runsError.message}
-            </div>
+            <ErrorNotice compact error={runsError} subject="Runs" />
           ) : (modelRuns?.runs?.length ?? 0) === 0 ? (
             <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No runs found for this model in the selected window
@@ -137,7 +136,7 @@ export function ModelUsageBreakdown() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {run.status ? <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge> : <span className="text-xs text-muted-foreground">Status unavailable</span>}
+                    {run.status ? <StatusBadge tone={statusTone(run.status)}>{formatStatusLabel(run.status)}</StatusBadge> : <span className="text-xs text-muted-foreground">Status unavailable</span>}
                     <div className="text-right text-xs text-muted-foreground">
                       <div>{run.totalChargeMicroUsd !== undefined ? formatUsdFixed(run.totalChargeMicroUsd / 1_000_000, 2) : (run.chargeBasis ? run.chargeBasis : "Charge unavailable")}</div>
                       <div>{formatTokens(run.totalTokens)}</div>
@@ -272,7 +271,7 @@ export function ModelUsageBreakdown() {
               </ResponsiveContainer>
             </div>
           )}
-          {chartData.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Model run links">{chartData.map((item) => <Link key={item.name} to={runsLink({ ...filter, model: item.name })} className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">View {formatUnknownLabel(item.name)} runs</Link>)}</div>}
+          {chartData.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Model run links">{chartData.map((item) => <Link key={item.name} to={runsLink({ ...filter, model: item.name })} className="inline-flex min-h-11 items-center rounded border border-border px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8">View {formatUnknownLabel(item.name)} runs</Link>)}</div>}
         </>
       )}
     </div>

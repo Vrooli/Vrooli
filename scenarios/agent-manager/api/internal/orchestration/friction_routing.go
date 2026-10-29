@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"agent-manager/internal/findings"
 	"agent-manager/internal/invocationreadmodel"
@@ -95,7 +96,7 @@ func (o *Orchestrator) PublishRecurringFriction(ctx context.Context, filter invo
 			continue
 		}
 		investigationID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/recurring/"+fingerprint))
-		evidence := fmt.Sprintf("Fingerprint %s appeared %d times across %d distinct runs and cost %d ms.", fingerprint, group.count, len(group.runs), group.cost)
+		evidence := fmt.Sprintf("Fingerprint %s appeared %d times across %d distinct runs and cost %s.", fingerprint, group.count, len(group.runs), formatWallClock(group.cost))
 		finding := &findings.Finding{RunID: runID, InvestigationRunID: investigationID, Category: group.episode.CauseScope, Severity: "recurring", Recommendation: "Review the recurring deterministic friction fingerprint and its suspected owner.", ProposedWorkaround: "No workaround is approved by the recurring publisher; qualify a bounded mitigation before reuse.", AcceptanceImpact: "Unknown; the affected acceptance gate remains unverified until the owner reviews the finding.", OwnerHint: group.episode.SuspectedOwnerScenario, Evidence: evidence, TargetPath: group.episode.SuspectedOwnerCommand, Fingerprint: fingerprint}
 		if err := o.findings.Create(ctx, finding); err != nil {
 			return result, err
@@ -112,4 +113,14 @@ func (o *Orchestrator) PublishRecurringFriction(ctx context.Context, filter invo
 		result.Filed++
 	}
 	return result, nil
+}
+
+// formatWallClock renders milliseconds the way an operator reads them (1m30s),
+// rounded to the second once past a second.
+func formatWallClock(ms int64) string {
+	d := time.Duration(ms) * time.Millisecond
+	if d >= time.Second {
+		d = d.Round(time.Second)
+	}
+	return d.String()
 }

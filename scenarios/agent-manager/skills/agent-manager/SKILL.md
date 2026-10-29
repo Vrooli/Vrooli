@@ -17,7 +17,7 @@ metadata:
     capture: "every attempt"
   requires:
     scenarios: ["agent-manager", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager run invocation-facts", "agent-manager run episode-cohort", "agent-manager run cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager usage run", "agent-manager measures episode-cohort", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -50,7 +50,7 @@ for an exact selected effort) and the existing UI's Efforts view. Read
 `large-effort-supervision` for judgment and
 `path:scenarios/agent-manager/docs/reference/effort-supervision.md` for typed
 enrollment and withdrawal requests and the delivery orchestration commands
-(`run continue`, `run park`, `run wake --key`, `run tokens`, `effort epoch-check`).
+(`run continue`, `run park`, `run wake --key`, `usage run`, `effort epoch-check`).
 Automatic discovery permits observation only; completion is independent of
 accepted outcomes. Missing metrics remain unknown. Steer a delivery goal through
 its goal home files, not the board. Explicit local operators can use
@@ -174,10 +174,10 @@ Reading
 │   ├─ result missing or abstained    → run result <id>                                              [S1]
 │   └─ succeeded but slow or costly   → run episodes <id>; reviewing-agent-run-efficiency              [S1]
 ├─ One run, what did the agent say hurt?   run messages-friction <id>                                 [S1]
-├─ One run, which commands ran?            run invocation-facts <id>                                  [S1]
+├─ One run, which commands ran?            usage run <id> --facts                                     [S1]
 ├─ Many runs, what recurs?
-│   ├─ by tag         → run episode-cohort --tag-prefix <p> --limit 50                               [S1]
-│   ├─ by explicit ids → run cohort-report --run-ids a,b,c                                            [S1]
+│   ├─ by tag         → measures episode-cohort --filter-json '{"tag_prefix":"<p>"}' --limit 50                              [S1]
+│   ├─ by explicit ids → measures cohort-report --run-ids a,b,c                                            [S1]
 │   └─ for one owning scenario → run agent-manager.friction-digest (inputs: scenario, window_days)   [S3]
 │         status ok       → signals.top_fingerprints are the fingerprints to act on
 │         status partial  → act on what is present; errors[0].class names the gap

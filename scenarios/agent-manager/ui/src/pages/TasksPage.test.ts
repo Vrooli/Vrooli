@@ -6,9 +6,19 @@ import { TasksPage } from "./TasksPage";
 import { renderWithProviders } from "../test-utils";
 import { RunMode, TaskStatus } from "../types";
 import { makeTask } from "../test-utils/fixtures/tasks";
+import { answerConfirmDialog, waitForConfirmDialogClosed } from "../test-utils/feedback";
+
+/** The open confirmation dialog, found by attribute (role queries are slow with library stylesheets). */
+async function openConfirmDialog(): Promise<HTMLElement> {
+  return vi.waitFor(() => {
+    const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
+    if (!dialog) throw new Error("No confirmation dialog is open");
+    return dialog;
+  });
+}
 
 vi.mock("../components/TaskDetail", () => ({
-  TaskDetail: ({ task, onRun, onEdit, onCancel, onDelete }: any) => createElement("section", {},
+  TaskDetail: ({ task, onRun, onEdit, onCancel, onDelete }: Record<string, (...args: unknown[]) => void> & { task: { title: string } }) => createElement("section", {},
     createElement("h2", {}, task.title),
     createElement("button", { onClick: () => onRun(task) }, "Start selected task"),
     createElement("button", { onClick: () => onEdit(task) }, "Edit selected task"),
@@ -161,7 +171,7 @@ describe("TasksPage", () => {
   it("edits and confirms cancellation and deletion for the selected task", async () => {
     const task = makeTask({ id: "task-1", title: "Original task", description: "old", scopePath: "src" });
     const update = vi.fn().mockResolvedValue(task); const cancel = vi.fn().mockResolvedValue(undefined); const remove = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    const user = userEvent.setup();
     renderWithProviders(createElement(TasksPage, {
       tasks: [task], profiles: [], loading: false, error: null,
       onCreateTask: vi.fn(), onUpdateTask: update, onCancelTask: cancel, onDeleteTask: remove,
@@ -171,25 +181,33 @@ describe("TasksPage", () => {
     fireEvent.change(screen.getByLabelText("Title *"), { target: { value: "Edited task" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith("task-1", expect.objectContaining({ title: "Edited task" })));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel selected task" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete selected task" }));
+    await user.click(screen.getByText("Cancel selected task"));
+    expect(cancel).not.toHaveBeenCalled();
+    expect(await openConfirmDialog()).toHaveTextContent("Original task");
+    await answerConfirmDialog(user, "confirm");
     await waitFor(() => expect(cancel).toHaveBeenCalledWith("task-1"));
-    expect(remove).toHaveBeenCalledWith("task-1");
+    await waitForConfirmDialogClosed();
+    await user.click(screen.getByText("Delete selected task"));
+    await answerConfirmDialog(user, "confirm");
+    await waitFor(() => expect(remove).toHaveBeenCalledWith("task-1"));
   });
 
-  it("does not cancel or delete when the confirmation prompt is declined", () => {
+  it("does not cancel or delete when the confirmation prompt is declined", async () => {
     const task = makeTask({ id: "task-1", title: "Protected task" });
     const cancel = vi.fn();
     const remove = vi.fn();
-    vi.stubGlobal("confirm", vi.fn(() => false));
+    const user = userEvent.setup();
     renderWithProviders(createElement(TasksPage, {
       tasks: [task], profiles: [], loading: false, error: null,
       onCreateTask: vi.fn(), onUpdateTask: vi.fn(), onCancelTask: cancel, onDeleteTask: remove,
       onCreateRun: vi.fn(), onCreateProfile: vi.fn(), onRefresh: vi.fn(),
     }), { initialEntries: ["/tasks?taskId=task-1"] });
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel selected task" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete selected task" }));
+    await user.click(screen.getByText("Cancel selected task"));
+    await answerConfirmDialog(user, "cancel");
+    await waitForConfirmDialogClosed();
+    await user.click(screen.getByText("Delete selected task"));
+    await answerConfirmDialog(user, "cancel");
     expect(cancel).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });
@@ -355,7 +373,7 @@ describe("TasksPage", () => {
     const update = vi.fn(async () => { throw new Error("update unavailable"); });
     const cancel = vi.fn(async () => { throw new Error("cancel unavailable"); });
     const remove = vi.fn(async () => { throw new Error("delete unavailable"); });
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    const user = userEvent.setup();
     renderWithProviders(createElement(TasksPage, {
       tasks: [task], profiles: [], loading: false, error: null,
       onCreateTask: vi.fn(), onUpdateTask: update, onCancelTask: cancel, onDeleteTask: remove,
@@ -370,10 +388,18 @@ describe("TasksPage", () => {
     expect(screen.getByLabelText("Title *")).toHaveValue("Still editable");
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel selected task" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete selected task" }));
+    await user.click(screen.getByText("Cancel selected task"));
+    const cancelDialog = await answerConfirmDialog(user, "confirm");
     await waitFor(() => expect(cancel).toHaveBeenCalledWith("task-1"));
+    await waitFor(() => expect(cancelDialog).toHaveTextContent("cancel unavailable"));
+    await answerConfirmDialog(user, "cancel");
+    await waitForConfirmDialogClosed();
+    await user.click(screen.getByText("Delete selected task"));
+    const deleteDialog = await answerConfirmDialog(user, "confirm");
     await waitFor(() => expect(remove).toHaveBeenCalledWith("task-1"));
+    await waitFor(() => expect(deleteDialog).toHaveTextContent("delete unavailable"));
+    await answerConfirmDialog(user, "cancel");
+    await waitForConfirmDialogClosed();
     expect(screen.getByRole("heading", { name: "Mutable task" })).toBeInTheDocument();
   });
 

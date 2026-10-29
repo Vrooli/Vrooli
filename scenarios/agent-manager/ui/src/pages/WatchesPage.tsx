@@ -4,7 +4,7 @@ import type { CohortWatch } from "@vrooli/proto-types/agent-manager/v1/domain/wa
 import { WatchDisposition, WatchStatus } from "@vrooli/proto-types/agent-manager/v1/domain/watch_pb";
 import { useCohortWatches, type CohortWatchActionView, type CohortWatchInspection } from "../hooks/useApi";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 const watchStatuses: Record<number, string> = {
   [WatchStatus.ACTIVE]: "active",
@@ -79,7 +79,7 @@ export function WatchesPage() {
             <h1 id="watch-console-title" className="flex items-center gap-2 text-xl font-semibold"><Binoculars className="h-5 w-5 text-primary" /> Cohort watches</h1>
             <p className="mt-1 text-sm text-muted-foreground">Durable supervision decisions, bounded evidence, cursor health, and action delivery.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void watches.refetch()} disabled={watches.loading}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
+          <Button variant="secondary" size="sm" onClick={() => void watches.refetch()} disabled={watches.loading}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
         </header>
 
         <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">

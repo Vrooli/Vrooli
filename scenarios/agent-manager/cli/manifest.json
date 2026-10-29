@@ -3239,143 +3239,10 @@
           }
         },
         {
-          "name": "cohort-report",
-          "description": "Show a bounded ranked projection for an explicit comparable run cohort",
-          "flags": [
-            {
-              "name": "run-ids",
-              "required": true,
-              "description": "Comma-separated run UUIDs",
-              "bind": {
-                "field": "run_id"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EpisodesService",
-            "method": "GetSelfReportSpans"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "cohort-compare",
-          "description": "Compare episode fingerprints across two durable filter populations",
-          "flags": [
-            {
-              "name": "left-filter-json",
-              "required": true,
-              "description": "Left invocation filter JSON"
-            },
-            {
-              "name": "right-filter-json",
-              "required": true,
-              "description": "Right invocation filter JSON"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum fingerprint signals"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "cohort",
-          "description": "Define, list, inspect, and delete durable invocation cohorts",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
           "name": "cross-scenario",
           "description": "Report generic cross-scenario receipt and semantics evidence",
           "binding": {
             "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "goal-cohort",
-          "description": "Aggregate goal progression evidence across a durable cohort",
-          "flags": [
-            {
-              "name": "cohort",
-              "required": true,
-              "description": "Durable cohort name"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum runs to score"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "invocation-facts",
-          "description": "Drill into redacted normalized invocation evidence for one run",
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run UUID"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EpisodesService",
-            "method": "GetCrossScenarioLedger"
           },
           "governance": {
             "effect": "read",
@@ -3415,48 +3282,6 @@
           }
         },
         {
-          "name": "invocation-aggregate",
-          "description": "Aggregate durable invocation evidence by dimension",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "invocation-cohort",
-          "description": "Select a durable invocation cohort",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "invocation-metrics",
-          "description": "Calculate durable invocation metrics",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "messages-friction",
           "description": "Show deterministic self-reported friction spans",
           "positionals": [
@@ -3483,59 +3308,6 @@
           },
           "architecture": {
             "primitive": "operational"
-          }
-        },
-        {
-          "name": "episode-cohort",
-          "description": "Fold friction episodes across a predicate-selected run cohort",
-          "flags": [
-            {
-              "name": "tag-prefix",
-              "description": "Tag prefix filter"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum selected runs"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "EpisodeCohort"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "domain": "episode",
-            "intent": "Rank recurring friction episode fingerprints across the selected durable run cohort.",
-            "questions": [
-              "which friction episodes recur across agent runs",
-              "what recurring agent friction costs the most",
-              "show the episode recurrence rate"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              },
-              "limit": {
-                "default": "25"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "signals",
-              "unit": "episodes",
-              "summary_template": "recurring friction episodes ({window})"
-            }
           }
         },
         {
@@ -3764,102 +3536,6 @@
             "run_eligible": false,
             "permissions": [
               "filesystem:read"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "replay-invocation-facts",
-          "description": "Rebuild one run's durable invocation evidence from retained events.",
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run UUID"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "refresh-invocation-facts",
-          "description": "Refresh one run's durable invocation evidence only when events advanced.",
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run UUID"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "replay-invocation-corpus",
-          "description": "Rebuild or incrementally refresh a bounded filtered corpus of durable invocation evidence.",
-          "flags": [
-            {
-              "name": "from",
-              "description": "RFC3339 inclusive start"
-            },
-            {
-              "name": "to",
-              "description": "RFC3339 exclusive end"
-            },
-            {
-              "name": "status",
-              "description": "Run status"
-            },
-            {
-              "name": "profile-id",
-              "description": "Agent profile UUID"
-            },
-            {
-              "name": "tag-prefix",
-              "description": "Tag prefix"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum runs"
-            },
-            {
-              "name": "refresh",
-              "bool": true,
-              "description": "Refresh only runs with events newer than the watermark"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
             ]
           },
           "architecture": {
@@ -4245,20 +3921,6 @@
           }
         },
         {
-          "name": "tokens",
-          "description": "Show weighted non-cache token spend for a run and its children",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "quiesce",
           "description": "Drain scenario runs",
           "binding": {
@@ -4316,7 +3978,7 @@
         },
         {
           "name": "stats",
-          "description": "Filtered aggregate run statistics",
+          "description": "Run summary read from Measures (status, success, duration, cost, tokens, runner/profile/model/tool breakdowns)",
           "binding": {
             "kind": "local"
           },
@@ -4326,53 +3988,6 @@
             "permissions": [
               "network:internal"
             ]
-          }
-        },
-        {
-          "name": "efficiency",
-          "description": "Bounded invocation efficiency evidence",
-          "flags": [
-            {
-              "name": "preset",
-              "description": "Time window preset"
-            },
-            {
-              "name": "start",
-              "description": "RFC3339 lower time bound"
-            },
-            {
-              "name": "end",
-              "description": "RFC3339 upper time bound"
-            },
-            {
-              "name": "tag-prefix",
-              "description": "Run tag prefix"
-            },
-            {
-              "name": "group-by",
-              "description": "Breakdown dimension"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum rows per breakdown"
-            },
-            {
-              "name": "compare",
-              "description": "Optional comparison window: previous"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
           }
         },
         {
@@ -4419,7 +4034,7 @@
         },
         {
           "name": "import-sweep",
-          "description": "Run the scheduled transcript import sweep now",
+          "description": "Run one Transcript Indexer pass over every transcript root now",
           "binding": {
             "kind": "local"
           },
@@ -6103,6 +5718,23 @@
           }
         },
         {
+          "name": "cohort",
+          "description": "Define, list, show or delete durable named cohorts",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
           "name": "select-cohort",
           "description": "Select the durable runs behind a typed measure.",
           "binding": {
@@ -6249,6 +5881,379 @@
               "unit": "tokens",
               "summary_template": "{view} token attribution by {group_by} ({window})"
             }
+          }
+        },
+        {
+          "name": "episode-cohort",
+          "description": "Rank recurring friction episodes across a selected cohort",
+          "flags": [
+            {
+              "name": "cohort",
+              "description": "Named durable cohort"
+            },
+            {
+              "name": "run-ids",
+              "description": "Comma-separated run UUIDs"
+            },
+            {
+              "name": "filter-json",
+              "description": "InvocationFilter JSON"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum selected runs"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "EpisodeCohort"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "episode",
+            "intent": "Rank recurring friction episode fingerprints across the selected durable run cohort.",
+            "questions": [
+              "which friction episodes recur across agent runs",
+              "what recurring agent friction costs the most",
+              "show the episode recurrence rate"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              },
+              "limit": {
+                "default": "25"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "signals",
+              "unit": "episodes",
+              "summary_template": "recurring friction episodes ({window})"
+            }
+          }
+        },
+        {
+          "name": "cohort-report",
+          "description": "Fold run reports across a selected cohort: friction signals, time accounting, goal progression",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CohortReport"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "episode-compare",
+          "description": "Compare friction-episode fingerprints between two selected cohorts",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CompareEpisodeCohorts"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "usage",
+      "description": "Provider subscription usage from the provider's own quota readings",
+      "commands": [
+        {
+          "name": "forecast",
+          "description": "Will each subscription window run out before its reset?",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Provider filter (e.g. openai, anthropic)",
+              "bind": {
+                "field": "provider"
+              }
+            },
+            {
+              "name": "backtest",
+              "bool": true,
+              "description": "Score the forecast on completed windows (reads UsageForecastBacktest)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageForecast"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "burners",
+          "description": "What is using each subscription window?",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Provider filter (e.g. openai, anthropic)",
+              "bind": {
+                "field": "provider"
+              }
+            },
+            {
+              "name": "by",
+              "description": "Group by dimension (default session)",
+              "bind": {
+                "field": "group_by"
+              }
+            },
+            {
+              "name": "since",
+              "description": "RFC 3339: attribute only the increase after it",
+              "bind": {
+                "field": "since"
+              }
+            },
+            {
+              "name": "run",
+              "description": "Only rows for this run id (the run usage panel)",
+              "bind": {
+                "field": "run_id"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows (default 20)",
+              "bind": {
+                "field": "limit"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageBurners"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recommendations",
+          "description": "What should I change? Ranked rule findings with weekly savings",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Provider filter (e.g. openai, anthropic)",
+              "bind": {
+                "field": "provider"
+              }
+            },
+            {
+              "name": "run",
+              "description": "Only rows for this run id (the run usage panel)",
+              "bind": {
+                "field": "run_id"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows (default 20)",
+              "bind": {
+                "field": "limit"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageRecommendations"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Can I trust this? Transcript capture coverage against the disk",
+          "flags": [
+            {
+              "name": "since",
+              "description": "RFC 3339 (default 7 days ago)",
+              "bind": {
+                "field": "since"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageCoverage"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compare",
+          "description": "Did the change work? Quota per successful run between two cohorts",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageCompare"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Show a run's weighted non-cache token spend, optionally its children's, or its redacted invocation facts",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "children",
+              "bool": true,
+              "description": "Include the run's direct child runs"
+            },
+            {
+              "name": "weights",
+              "description": "Tier weights by model-name substring, e.g. sol=10,luna=1"
+            },
+            {
+              "name": "facts",
+              "bool": true,
+              "description": "Print the run's redacted normalized invocation facts"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reindex",
+          "description": "Rebuild durable invocation evidence from retained events for one run or a filtered corpus (refresh by default; --full rebuilds)",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": false,
+              "description": "Run UUID; omit to select a corpus by filter"
+            }
+          ],
+          "flags": [
+            {
+              "name": "from",
+              "description": "RFC3339 inclusive start (run end time)"
+            },
+            {
+              "name": "to",
+              "description": "RFC3339 exclusive end (run end time)"
+            },
+            {
+              "name": "status",
+              "description": "Run status"
+            },
+            {
+              "name": "profile-id",
+              "description": "Agent profile UUID"
+            },
+            {
+              "name": "tag-prefix",
+              "description": "Tag prefix"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs (default 1000)"
+            },
+            {
+              "name": "full",
+              "bool": true,
+              "description": "Rebuild every selected run, not only runs whose events advanced"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -6679,6 +6684,11 @@
       "service": "AgentManagerService",
       "method": "ValidateWorkflow",
       "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "UsageForecastBacktest",
+      "reason": "Read by `usage forecast --backtest`; the command binds UsageForecast and selects the backtest procedure with a local flag."
     }
   ],
   "measures": {

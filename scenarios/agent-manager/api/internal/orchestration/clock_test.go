@@ -32,11 +32,3 @@ func TestOrchestratorClockControlsDurableCreationTimestamps(t *testing.T) {
 		t.Fatalf("captured task timestamps = %+v, want %v", tasks.captured, now)
 	}
 }
-
-func TestFilterFromPresetAtUsesExplicitReferenceTime(t *testing.T) {
-	now := time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)
-	filter := FilterFromPresetAt(TimePreset24H, now)
-	if !filter.Window.End.Equal(now) || !filter.Window.Start.Equal(now.Add(-24*time.Hour)) {
-		t.Fatalf("window = %+v, want reference time %v", filter.Window, now)
-	}
-}

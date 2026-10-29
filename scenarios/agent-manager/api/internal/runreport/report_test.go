@@ -31,16 +31,6 @@ type durableReportSource struct {
 	accounting runsignal.TimeAccounting
 }
 
-type canonicalUsageReportSource struct {
-	reportSource
-	tokens               int64
-	usageFullyReconciled bool
-}
-
-func (s canonicalUsageReportSource) CanonicalUsageProjection(*domain.Run, []*domain.RunEvent) (int64, bool) {
-	return s.tokens, s.usageFullyReconciled
-}
-
 func (s durableReportSource) DurableInvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, bool, error) {
 	return s.facts, true, nil
 }
@@ -132,37 +122,30 @@ func TestBuildCountsRepeatedCommandSignaturesNotToolNames(t *testing.T) {
 	}
 }
 
-func TestBuildSeparatesTypedErrorBreakdownFromRawEventCounts(t *testing.T) {
+func TestBuildCountsQuotaObservationsApartFromErrors(t *testing.T) {
 	id := uuid.New()
-	percent := 2.0
-	events := []*domain.RunEvent{
-		domain.NewErrorEvent(id, "provider_failure", "request failed", false),
-		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeError, Data: &domain.RateLimitEventData{Provider: "openai", Pool: "primary", UsedPercent: &percent}},
-		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeError},
-	}
+	quota := domain.NewRateLimitEvent(id, "10080m", "Codex provider quota observation", nil, 0)
+	events := []*domain.RunEvent{domain.NewErrorEvent(id, "provider_failure", "request failed", false), quota}
 	report, err := Build(context.Background(), reportSource{run: &domain.Run{ID: id}, events: events}, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Events[string(domain.EventTypeError)] != 3 {
-		t.Fatalf("raw error event count = %d, want 3", report.Events[string(domain.EventTypeError)])
-	}
-	if report.ExecutionErrorEvents != 1 || report.RateLimitObservations != 1 || report.UnclassifiedErrorEvents != 1 {
-		t.Fatalf("typed error breakdown = execution:%d quota:%d unclassified:%d", report.ExecutionErrorEvents, report.RateLimitObservations, report.UnclassifiedErrorEvents)
+	if report.Events[string(domain.EventTypeError)] != 1 || report.Events[string(domain.EventTypeQuota)] != 1 {
+		t.Fatalf("event counts = %v, want one error and one quota", report.Events)
 	}
 	text := Text(report)
-	for _, want := range []string{"error=3", "typed_execution_errors=1", "rate_limit_observations=1", "unclassified=1"} {
+	for _, want := range []string{"error=1", "quota=1"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("report text missing %q: %s", want, text)
 		}
 	}
 }
 
-func TestTextDoesNotPresentUnmeasuredErrorBreakdownAsZero(t *testing.T) {
+func TestTextDoesNotPresentUnmeasuredEventCountsAsZero(t *testing.T) {
 	report := &RunReport{EventsAvailability: Availability{State: AvailabilityUnavailable, Reason: "event store unavailable"}}
 	text := Text(report)
-	if !strings.Contains(text, "Error event breakdown: unavailable (unavailable)") {
-		t.Fatalf("unavailable events were shown as a measured error breakdown:\n%s", text)
+	if !strings.Contains(text, "Events: unavailable (unavailable)") {
+		t.Fatalf("unavailable events were shown as measured counts:\n%s", text)
 	}
 }
 
@@ -171,7 +154,7 @@ func TestBuildPrefersDetailedCostEventsOverSummary(t *testing.T) {
 	run := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999, CostEstimate: 9.99}}
 	amount := int64(120000)
 	events := []*domain.RunEvent{{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 4, OutputTokens: 6, ReconciliationAuthority: true}}, {ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &amount}}}
-	report, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: run, events: events}, tokens: 10, usageFullyReconciled: true}, id)
+	report, err := Build(context.Background(), reportSource{run: run, events: events}, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,38 +163,32 @@ func TestBuildPrefersDetailedCostEventsOverSummary(t *testing.T) {
 	}
 }
 
-func TestBuildUsesCanonicalUsageAndKeepsKnownSummaryForUnfinalizedEvents(t *testing.T) {
+// The report reads the run's one usage account over the complete stream; the
+// summary (written from the same account at the terminal transition) is only
+// the fallback when the stream retains no usage or cannot be read.
+func TestBuildTokensComeFromTheUsageAccount(t *testing.T) {
 	id := uuid.New()
 	events := []*domain.RunEvent{
 		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 1}},
 		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 20, OutputTokens: 2, ReconciliationAuthority: true}},
 		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 20, OutputTokens: 2, ReconciliationAuthority: true}},
 	}
-	knownSummary := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999}}
-	report, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: knownSummary, events: events}, tokens: 42, usageFullyReconciled: true}, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if report.Tokens != 42 {
-		t.Fatalf("authoritative usage total=%d, want canonical 42", report.Tokens)
-	}
-
-	interimEvents := events[:1]
-	interim, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: knownSummary, events: interimEvents}, tokens: 11}, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if interim.Tokens != 999 {
-		t.Fatalf("interim usage replaced known whole-run total: tokens=%d", interim.Tokens)
-	}
-
-	partiallyReconciledEvents := append(append([]*domain.RunEvent{}, events[1:3]...), domain.NewStatusEvent(id, "complete", "running", "new invocation"), interimEvents[0])
-	partiallyReconciled, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: knownSummary, events: partiallyReconciledEvents}, tokens: 25}, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if partiallyReconciled.Tokens != 999 {
-		t.Fatalf("mixed reconciled and interim invocations replaced known whole-run total: tokens=%d", partiallyReconciled.Tokens)
+	staleSummary := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999}}
+	for name, tc := range map[string]struct {
+		events []*domain.RunEvent
+		want   int64
+	}{
+		"receipt replaces interim and replays count once": {events: events, want: 22},
+		"interim only":      {events: events[:1], want: 11},
+		"no usage retained": {events: []*domain.RunEvent{}, want: 999},
+	} {
+		report, err := Build(context.Background(), reportSource{run: staleSummary, events: tc.events}, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.Tokens != tc.want {
+			t.Fatalf("%s: tokens=%d, want %d", name, report.Tokens, tc.want)
+		}
 	}
 }
 

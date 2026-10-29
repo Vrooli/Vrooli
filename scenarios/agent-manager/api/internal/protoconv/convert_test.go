@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"math"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -60,25 +59,6 @@ func TestCumulativeTokenFieldsRoundTripBeyondInt32(t *testing.T) {
 	}
 	if jsonRoundTrip.GetTokensUsed() != tokens {
 		t.Fatalf("ProtoJSON round-trip tokens = %d, want %d", jsonRoundTrip.GetTokensUsed(), tokens)
-	}
-}
-
-func TestCodexUsageBaselineMetadataIsNotPublicRunEventData(t *testing.T) {
-	complete := false
-	event := &domain.RunEvent{
-		ID: uuid.New(), RunID: uuid.New(), EventType: domain.EventTypeMetric,
-		Data: &domain.UsageEventData{
-			PayloadKind: domain.PayloadKindUsage, InputTokens: 10, RunnerType: string(domain.RunnerTypeCodex),
-			ReconciliationAuthority: true, ReconciliationComplete: &complete,
-			CodexUsageSnapshot: &domain.CodexUsageSnapshot{SessionID: "internal-session", InputTokens: 20},
-		},
-	}
-	encoded, err := protojson.Marshal(RunEventToProto(event))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(encoded), "internal-session") || strings.Contains(string(encoded), "codexUsageSnapshot") || strings.Contains(string(encoded), "reconciliationComplete") {
-		t.Fatalf("internal continuation baseline leaked into public event: %s", encoded)
 	}
 }
 

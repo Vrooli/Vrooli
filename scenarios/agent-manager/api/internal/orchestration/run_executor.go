@@ -83,6 +83,8 @@ type RunExecutor struct {
 
 	// gate is the single Emit choke point for events flowing out of this run.
 	gate *emit.Gate
+	// hooks owns the post-persist hook set every run-event sink applies.
+	hooks *Orchestrator
 
 	// Per-run inputs
 	run          *domain.Run
@@ -708,13 +710,14 @@ func (e *RunExecutor) stopHeartbeat() {
 // EVENT SINK + FINALIZE
 // =============================================================================
 
-// createEventSink picks the underlying sink (broadcaster, store, or no-op)
-// and wraps it in the per-run emit.Gate.
+// createEventSink builds the run's sink through the one constructor, so the
+// orchestrator's post-persist hooks (quota, token caps, workflow nudges) run
+// on fresh headless executions, and wraps it in the per-run emit.Gate.
 func (e *RunExecutor) createEventSink() runner.EventSink {
 	if e.gate != nil {
 		return e.gate
 	}
-	e.gate = emit.NewGate(newRunEventSink(e.events, e.broadcaster, e.run.ID, nil))
+	e.gate = emit.NewGate(newRunEventSink(e.hooks, e.events, e.broadcaster, e.run.ID))
 	return e.gate
 }
 

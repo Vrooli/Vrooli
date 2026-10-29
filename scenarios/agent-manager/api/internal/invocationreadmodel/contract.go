@@ -15,7 +15,6 @@ type Store interface {
 	Replace(context.Context, []Fact, Watermark) error
 	Facts(context.Context, string) ([]Fact, error)
 	Watermark(context.Context, string) (*Watermark, error)
-	Aggregate(context.Context, Filter, string, int) ([]AggregateRow, error)
 	Cohort(context.Context, Filter, int) (Cohort, error)
 	Metrics(context.Context, Filter) (Metrics, error)
 	RunMetrics(context.Context, Filter) (RunMetrics, error)
@@ -81,6 +80,27 @@ type WorkloadStore interface {
 	BackfillWorkload(context.Context, string, string, string, string) error
 }
 
+// PendingProjection is one durable "needs projection" mark. Generation
+// changes on every re-mark, so completing an older generation keeps the mark.
+type PendingProjection struct {
+	RunID      string
+	Generation int64
+	Attempts   int
+}
+
+// ProjectionQueue holds the durable needs-projection marks. Every terminal
+// writer marks its run; the reconcile sweep enqueues ended runs whose
+// watermark is missing or stale, and projects due marks idempotently.
+type ProjectionQueue interface {
+	MarkProjectionPending(ctx context.Context, runID string, at time.Time) error
+	// EnqueueStaleProjections marks ended runs whose watermark is missing or
+	// was written by another fact or episode classifier version.
+	EnqueueStaleProjections(ctx context.Context, factVersion, episodeVersion string, at time.Time, limit int) (int, error)
+	DueProjections(ctx context.Context, at time.Time, limit int) ([]PendingProjection, error)
+	CompleteProjection(ctx context.Context, runID string, generation int64) error
+	DeferProjection(ctx context.Context, runID string, until time.Time) error
+}
+
 // ProjectionStore atomically advances both analytical projections for a run.
 // Consumers may fall back to Store during rollout, but the production adapter
 // implements this contract so a crash cannot leave terminal throughput facts
@@ -123,12 +143,6 @@ type Filter struct {
 	SelfReportCauseScope  string   `json:"selfReportCauseScope,omitempty"`
 	TargetScenario        string   `json:"targetScenario,omitempty"`
 	Operation             string   `json:"operation,omitempty"`
-}
-
-type AggregateRow struct {
-	Dimension string `json:"dimension"`
-	Value     string `json:"value"`
-	Count     int64  `json:"count"`
 }
 
 // CapabilityUsageRow is the receipt-backed efficacy population. A receipt is

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +12,9 @@ import (
 	"agent-manager/cli/internal/support"
 	"github.com/vrooli/cli-core/cliutil"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
+	sharedmeasurepb "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (a *App) runReport(args []string) error {
@@ -34,25 +36,20 @@ func (a *App) runReport(args []string) error {
 		return nil
 	}
 	var r struct {
-		RunID          string      `json:"run_id"`
-		Status         string      `json:"status"`
-		Error          string      `json:"error"`
-		Turns          int         `json:"turns"`
-		Tokens         json.Number `json:"tokens"`
-		Cost           float64     `json:"cost_usd"`
-		Project        int         `json:"project_owned_tool_calls"`
-		External       int         `json:"external_tool_calls"`
-		Fallbacks      int         `json:"fallback_count"`
-		Repeated       int         `json:"repeated_tool_calls"`
-		Rereads        int         `json:"files_read_more_than_once"`
-		ErrorBreakdown *struct {
-			ExecutionErrors       int `json:"execution_errors"`
-			RateLimitObservations int `json:"rate_limit_observations"`
-			Unclassified          int `json:"unclassified"`
-		} `json:"error_breakdown"`
-		Longest   int64  `json:"longest_event_gap_ms,string"`
-		Requested string `json:"requested_model"`
-		Actual    string `json:"actual_model"`
+		RunID     string      `json:"run_id"`
+		Status    string      `json:"status"`
+		Error     string      `json:"error"`
+		Turns     int         `json:"turns"`
+		Tokens    json.Number `json:"tokens"`
+		Cost      float64     `json:"cost_usd"`
+		Project   int         `json:"project_owned_tool_calls"`
+		External  int         `json:"external_tool_calls"`
+		Fallbacks int         `json:"fallback_count"`
+		Repeated  int         `json:"repeated_tool_calls"`
+		Rereads   int         `json:"files_read_more_than_once"`
+		Longest   int64       `json:"longest_event_gap_ms,string"`
+		Requested string      `json:"requested_model"`
+		Actual    string      `json:"actual_model"`
 		Result    struct {
 			Selection   string   `json:"selection_status"`
 			Rule        string   `json:"selection_rule"`
@@ -119,11 +116,6 @@ func (a *App) runReport(args []string) error {
 		fmt.Printf(" %s=%d", key, r.Events[key])
 	}
 	fmt.Println()
-	if r.ErrorBreakdown == nil {
-		fmt.Println("Error event breakdown: unavailable (typed breakdown not present)")
-	} else {
-		fmt.Printf("Error event breakdown: typed_execution_errors=%d rate_limit_observations=%d unclassified=%d\n", r.ErrorBreakdown.ExecutionErrors, r.ErrorBreakdown.RateLimitObservations, r.ErrorBreakdown.Unclassified)
-	}
 	fmt.Printf("Diff: files=%d bytes=%d (%s)\n", r.Diff.Files, r.Diff.Bytes, r.Diff.Available.State)
 	fmt.Printf("Receipts: %s (%d)\n", r.Receipts.State, r.ReceiptCount)
 	support.NextSteps(fmt.Sprintf("agent-manager run result %s", id), fmt.Sprintf("agent-manager run events %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id), fmt.Sprintf("agent-manager run diff %s", id), fmt.Sprintf("agent-manager run receipts %s", id))
@@ -197,105 +189,104 @@ func (a *App) runStats(args []string) error {
 	fs := flag.NewFlagSet("run stats", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	profile := fs.String("profile", "", "Profile UUID")
-	since := fs.String("since", "", "RFC3339 lower time bound")
+	since := fs.String("since", "", "RFC3339 lower time bound (default: 24h before --until)")
+	until := fs.String("until", "", "RFC3339 exclusive upper time bound (default: now)")
 	tagPrefix := fs.String("tag-prefix", "", "Run tag prefix")
+	runner := fs.String("runner", "", "Runner type")
+	model := fs.String("model", "", "Model")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	query := url.Values{}
-	if *profile != "" {
-		query.Set("profile_id", *profile)
+	window, err := runStatsWindow(*since, *until, time.Now().UTC())
+	if err != nil {
+		return err
 	}
-	if *since != "" {
-		query.Set("start", *since)
-	}
-	if *tagPrefix != "" {
-		query.Set("tag_prefix", *tagPrefix)
-	}
-	body, err := a.services.Runs.Stats(query)
+	filter := &measurepb.InvocationFilter{ProfileId: *profile, TagPrefix: *tagPrefix, RunnerType: *runner, Model: *model}
+	report, err := a.services.Runs.Stats(filter, window)
 	if err != nil {
 		return err
 	}
 	if *jsonOutput {
+		body, err := json.Marshal(report.Raw)
+		if err != nil {
+			return err
+		}
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	fmt.Println(string(body))
-	support.NextSteps("agent-manager run report <run-id>", "agent-manager findings list")
+	printRunStats(report, window.GetCustom().GetFrom().AsTime(), window.GetCustom().GetTo().AsTime())
+	support.NextSteps("agent-manager run stats --json", "agent-manager measures cohort-report --cohort <name>", "agent-manager run report <run-id>")
 	return nil
 }
 
-func (a *App) runEfficiency(args []string) error {
-	fs := flag.NewFlagSet("run efficiency", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	preset := fs.String("preset", "24h", "Time window preset: 6h, 12h, 24h, 7d, or 30d")
-	start := fs.String("start", "", "RFC3339 lower time bound")
-	end := fs.String("end", "", "RFC3339 upper time bound")
-	tagPrefix := fs.String("tag-prefix", "", "Run tag prefix")
-	groupBy := fs.String("group-by", "profile", "Breakdown: runner, model, profile, workload, or workload_kind")
-	limit := fs.Int("limit", 20, "Maximum rows per breakdown")
-	compare := fs.String("compare", "", "Optional comparison: previous")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
+// runStatsWindow resolves the CLI bounds to one explicit [from, to) range.
+func runStatsWindow(since, until string, now time.Time) (*sharedmeasurepb.TimeWindow, error) {
+	to := now
+	if until != "" {
+		parsed, err := time.Parse(time.RFC3339, until)
+		if err != nil {
+			return nil, fmt.Errorf("--until must be RFC3339: %w", err)
+		}
+		to = parsed
 	}
-	query := url.Values{"preset": {*preset}, "group_by": {*groupBy}, "limit": {strconv.Itoa(*limit)}}
-	if *compare != "" {
-		query.Set("compare", *compare)
+	from := to.Add(-24 * time.Hour)
+	if since != "" {
+		parsed, err := time.Parse(time.RFC3339, since)
+		if err != nil {
+			return nil, fmt.Errorf("--since must be RFC3339: %w", err)
+		}
+		from = parsed
 	}
-	if *start != "" {
-		query.Set("start", *start)
+	if !from.Before(to) {
+		return nil, fmt.Errorf("--since must be before --until")
 	}
-	if *end != "" {
-		query.Set("end", *end)
+	return &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Custom{Custom: &sharedmeasurepb.CustomRange{From: timestamppb.New(from), To: timestamppb.New(to)}}}, nil
+}
+
+func printRunStats(report *RunStatsReport, from, to time.Time) {
+	fmt.Printf("Run stats %s .. %s\n", from.Format(time.RFC3339), to.Format(time.RFC3339))
+	var total int64
+	statuses := make([]string, 0, len(report.Status.GetRows()))
+	for _, row := range report.Status.GetRows() {
+		total += row.GetCount()
+		statuses = append(statuses, fmt.Sprintf("%s=%d", row.GetStatus(), row.GetCount()))
 	}
-	if *tagPrefix != "" {
-		query.Set("tag_prefix", *tagPrefix)
+	fmt.Printf("Runs: total=%d %s\n", total, strings.Join(statuses, " "))
+	fmt.Printf("Success: rate=%.3f (%d/%d terminal)\n", report.Success.GetRate(), report.Success.GetSuccessfulRuns(), report.Success.GetTerminalRuns())
+	d := report.Duration
+	fmt.Printf("Duration: n=%d avg=%s p50=%s p95=%s p99=%s min=%s max=%s\n", d.GetCount(), formatMS(d.GetAverageDurationMs()), formatMS(d.GetP50DurationMs()), formatMS(d.GetP95DurationMs()), formatMS(d.GetP99DurationMs()), formatMS(float64(d.GetMinDurationMs())), formatMS(float64(d.GetMaxDurationMs())))
+	c := report.Cost
+	fmt.Printf("Cost: total=$%.4f avg=$%.4f runs=%d\n", c.GetTotalCostUsd(), c.GetAverageCostUsd(), c.GetTotalRuns())
+	fmt.Printf("Tokens: total=%d input=%d output=%d cache_read=%d cache_creation=%d unpriced=%d\n", c.GetTotalTokens(), c.GetInputTokens(), c.GetOutputTokens(), c.GetCacheReadTokens(), c.GetCacheCreationTokens(), c.GetUnpricedTokenCount())
+	printBreakdown("Runners", report.Runners.GetRows())
+	printBreakdown("Profiles", report.Profiles.GetRows())
+	printBreakdown("Models", report.Models.GetRows())
+	if rows := report.Tools.GetRows(); len(rows) > 0 {
+		fmt.Println("Tools:")
+		for _, row := range rows {
+			fmt.Printf("  %-28s calls=%d ok=%d failed=%d tokens=%d\n", row.GetToolName(), row.GetCallCount(), row.GetSuccessCount(), row.GetFailedCount(), row.GetTotalTokens())
+		}
 	}
-	body, err := a.services.Runs.Efficiency(query)
-	if err != nil {
-		return err
+	for _, validity := range []*measurepb.MeasureValidity{report.Status.GetValidity(), report.Success.GetValidity(), report.Duration.GetValidity(), report.Cost.GetValidity()} {
+		if validity != nil && validity.GetState() != "" && validity.GetState() != "meaningful" {
+			fmt.Printf("Validity: %s (%s)\n", validity.GetState(), validity.GetReason())
+			break
+		}
 	}
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
+}
+
+func printBreakdown(title string, rows []*measurepb.RunBreakdownRow) {
+	if len(rows) == 0 {
+		return
 	}
-	var report struct {
-		Status  string `json:"status"`
-		Metrics struct {
-			TotalRuns         int64   `json:"totalRuns"`
-			TotalTokens       int64   `json:"totalTokens"`
-			AverageDurationMS float64 `json:"averageDurationMs"`
-			SuccessRate       float64 `json:"successRate"`
-			FileRereadRate    float64 `json:"fileRereadRate"`
-		} `json:"metrics"`
-		Unknown   []string `json:"unknown"`
-		Freshness struct {
-			Available bool  `json:"available"`
-			AgeMS     int64 `json:"age_ms"`
-			Stale     bool  `json:"stale"`
-		} `json:"freshness"`
-		Dispositions []struct {
-			Disposition string `json:"disposition"`
-			Count       int64  `json:"count"`
-		} `json:"dispositions"`
+	fmt.Printf("%s:\n", title)
+	for _, row := range rows {
+		fmt.Printf("  %-28s runs=%d ok=%d failed=%d cost=$%.4f tokens=%d avg=%s\n", row.GetValue(), row.GetRunCount(), row.GetSuccessCount(), row.GetFailedCount(), row.GetTotalCostUsd(), row.GetTotalTokens(), formatMS(row.GetAverageDurationMs()))
 	}
-	if err := json.Unmarshal(body, &report); err != nil {
-		return fmt.Errorf("decode efficiency report: %w", err)
-	}
-	fmt.Printf("Efficiency: status=%s runs=%d tokens=%d avg_duration_ms=%.0f success_rate=%.3f file_reread_rate=%.3f\n", report.Status, report.Metrics.TotalRuns, report.Metrics.TotalTokens, report.Metrics.AverageDurationMS, report.Metrics.SuccessRate, report.Metrics.FileRereadRate)
-	for _, unknown := range report.Unknown {
-		fmt.Printf("Unknown: %s\n", unknown)
-	}
-	if report.Freshness.Available {
-		fmt.Printf("Projection freshness: age_ms=%d stale=%t\n", report.Freshness.AgeMS, report.Freshness.Stale)
-	} else {
-		fmt.Println("Projection freshness: unavailable")
-	}
-	for _, disposition := range report.Dispositions {
-		fmt.Printf("Disposition: %s=%d (terminal status only)\n", disposition.Disposition, disposition.Count)
-	}
-	support.NextSteps("agent-manager run efficiency --json", "agent-manager run stats --since <RFC3339>")
-	return nil
+}
+
+func formatMS(ms float64) string {
+	return (time.Duration(ms) * time.Millisecond).Round(time.Millisecond).String()
 }
 
 func (a *App) runResult(args []string) error {

@@ -6,6 +6,7 @@ import { afterEach, test, vi } from "vitest";
 import { WorkflowExecutionStatus } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
 import { WorkflowsPage } from "./WorkflowsPage.js";
 import { renderWithProviders } from "../test-utils/index.js";
+import { answerConfirmDialog, getErrorNotice } from "../test-utils/feedback.js";
 
 const state = vi.hoisted(() => ({ useWorkflowExecutions: vi.fn() }));
 vi.mock("../hooks/useApi.js", () => ({ useWorkflowExecutions: state.useWorkflowExecutions }));
@@ -56,10 +57,15 @@ test("WorkflowsPage keeps empty, loading, and trace failures legible", async () 
   const empty = renderWithProviders(createElement(WorkflowsPage));
   assert.ok(screen.getByText(/No workflow executions yet/));
   empty.unmount();
-  state.useWorkflowExecutions.mockReturnValue({ ...hook(), data: [], loading: true, error: "workflow API unavailable" });
-  renderWithProviders(createElement(WorkflowsPage));
+  state.useWorkflowExecutions.mockReturnValue({ ...hook(), data: [], loading: true });
+  const loading = renderWithProviders(createElement(WorkflowsPage));
   assert.ok(screen.getByText("Loading workflow history…"));
-  assert.ok(screen.getByRole("alert").textContent?.includes("workflow API unavailable"));
+  assert.equal(screen.queryByText(/No workflow executions yet/), null);
+  loading.unmount();
+  state.useWorkflowExecutions.mockReturnValue({ ...hook(), data: [], loading: false, error: "Request failed: 503" });
+  renderWithProviders(createElement(WorkflowsPage));
+  assert.match(getErrorNotice("workflow history", "Request failed: 503").textContent ?? "", /unreachable/);
+  assert.equal(screen.queryByText(/No workflow executions yet/), null, "an unreachable API is not an empty history");
 });
 
 test("WorkflowsPage selects independent executions, refreshes, and reports trace failures", async () => {
@@ -79,7 +85,7 @@ test("WorkflowsPage selects independent executions, refreshes, and reports trace
   fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
   assert.equal(workflows.refetch.mock.calls.length, 1);
   fireEvent.click(screen.getByRole("button", { name: /agent-manager\/repair/ }));
-  await waitFor(() => assert.ok(screen.getByRole("alert").textContent?.includes("trace service unavailable")));
+  await waitFor(() => getErrorNotice("Workflow", "trace service unavailable"));
   assert.ok(screen.getByText("succeeded"));
 });
 
@@ -92,11 +98,17 @@ test("WorkflowsPage makes malformed signals and failed controls actionable", asy
   fireEvent.change(screen.getByLabelText("Signal name"), { target: { value: "continue" } });
   fireEvent.change(screen.getByLabelText("JSON payload"), { target: { value: "not-json" } });
   fireEvent.click(screen.getByRole("button", { name: "Signal" }));
-  await waitFor(() => assert.ok(screen.getByRole("alert").textContent?.includes("Unexpected token")));
+  await waitFor(() => getErrorNotice("Workflow", "Unexpected token"));
   assert.equal(workflows.signal.mock.calls.length, 0);
 
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  await waitFor(() => assert.equal(screen.getByRole("alert").textContent, "Failed to cancel workflow"));
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  await answerConfirmDialog(user, "cancel");
+  assert.equal(workflows.control.mock.calls.length, 0, "declining the confirmation keeps the workflow running");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  await answerConfirmDialog(user, "confirm");
+  await waitFor(() => getErrorNotice("Failed to cancel workflow"));
+  assert.equal(workflows.control.mock.calls[0]?.[1], "cancel");
 });
 
 test("WorkflowsPage preserves safe defaults for incomplete workflow metadata and reports non-Error failures", async () => {
@@ -127,5 +139,5 @@ test("WorkflowsPage preserves safe defaults for incomplete workflow metadata and
   assert.ok(screen.getAllByText("0 / 0").length >= 2);
   assert.equal(screen.queryByRole("button", { name: "Signal" }), null);
   fireEvent.click(screen.getByRole("button", { name: "Resume" }));
-  await waitFor(() => assert.equal(screen.getByRole("alert").textContent, "Failed to resume workflow"));
+  await waitFor(() => getErrorNotice("Failed to resume workflow"));
 });

@@ -19,9 +19,6 @@ interface MasterDetailLayoutProps {
   /** Title for the detail modal on mobile */
   detailTitle: string;
 
-  /** Optional content to display at top (error banners, alerts, etc.) */
-  headerContent?: React.ReactNode;
-
   /** Storage key for localStorage persistence (e.g., "runs", "profiles") */
   storageKey: string;
   /** Default list panel width as percentage (default: 40) */
@@ -51,7 +48,6 @@ export function MasterDetailLayout({
   selectedId,
   onDeselect,
   detailTitle,
-  headerContent,
   storageKey,
   defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
   minListWidth = DEFAULT_MIN_LIST_WIDTH,
@@ -68,7 +64,6 @@ export function MasterDetailLayout({
         selectedId={selectedId}
         onDeselect={onDeselect}
         detailTitle={detailTitle}
-        headerContent={headerContent}
         storageKey={storageKey}
         defaultListWidthPercent={defaultListWidthPercent}
         minListWidth={minListWidth}
@@ -87,7 +82,6 @@ function MasterDetailLayoutImpl({
   selectedId,
   onDeselect,
   detailTitle,
-  headerContent,
   storageKey,
   defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
   minListWidth = DEFAULT_MIN_LIST_WIDTH,
@@ -129,12 +123,6 @@ function MasterDetailLayoutImpl({
   if (isDesktop) {
     return (
       <div className={cn("h-full flex flex-col overflow-hidden", className)}>
-        {/* Header content (error banners, etc.) - only when present */}
-        {headerContent && (
-          <div className="shrink-0 px-4 py-2 sm:px-6 lg:px-10">
-            {headerContent}
-          </div>
-        )}
 
         {/* Panel area - fills entire height */}
         <div
@@ -172,12 +160,6 @@ function MasterDetailLayoutImpl({
   // Mobile layout - list with modal for details
   return (
     <div className={cn("h-full flex flex-col overflow-hidden", className)}>
-      {/* Header content (error banners, etc.) - only when present */}
-      {headerContent && (
-        <div className="shrink-0 px-4 py-2">
-          {headerContent}
-        </div>
-      )}
 
       {/* List panel - fills entire height */}
       <div className="flex-1 min-h-0 overflow-hidden bg-card">

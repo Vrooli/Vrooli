@@ -8,7 +8,7 @@ import {
   Settings,
   Microscope,
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "./ui/checkbox";
 import {
   Dialog,
@@ -409,7 +409,7 @@ Examples:
                 )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => imageInputRef.current?.click()}
                 >
@@ -462,7 +462,7 @@ Examples:
 
         <DialogFooter>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >

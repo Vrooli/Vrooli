@@ -284,6 +284,7 @@ Note: Claude Code often uses one turn for tool use and another for tool results.
 ## Documentation
 
 - [PRD.md](./PRD.md) - Product requirements and operational targets
+- [docs/concepts/USAGE-INTELLIGENCE.md](./docs/concepts/USAGE-INTELLIGENCE.md) - Subscription forecast, usage attribution, capture coverage and recommendations (design)
 - [docs/interactive-runner-design.md](./docs/interactive-runner-design.md) - Interactive execution mode: seam, per-agent transcript contract, launch/recovery
 - [docs/runner-transcript-recovery.md](./docs/runner-transcript-recovery.md) - Durable transcript + restart recovery (codec-pipe and interactive)
 - [docs/RESEARCH.md](./docs/RESEARCH.md) - Research and architecture decisions

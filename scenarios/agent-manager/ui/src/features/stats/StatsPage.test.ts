@@ -36,12 +36,12 @@ test("stats page displays the read-model history banner when coverage metadata e
   volume.mockResolvedValue({ historyFloor: "2026-01-01T00:00:00Z", outsideHistoryRunCount: 4 });
   renderWithProviders(createElement(StatsPage));
   await waitFor(() => assert.equal(screen.getByTestId("stats-history-banner").textContent, "history"));
-  assert.ok(screen.getByText("Statistics & Analytics"));
+  assert.ok(screen.getByRole("heading", { name: "Run analytics" }));
 });
 
 test("stats page omits the history banner when the measure has no coverage floor", async () => {
   volume.mockResolvedValue({ historyFloor: "", outsideHistoryRunCount: 0 });
   renderWithProviders(createElement(StatsPage));
-  await waitFor(() => assert.ok(screen.getByText("Statistics & Analytics")));
+  await waitFor(() => assert.ok(screen.getByRole("heading", { name: "Run analytics" })));
   assert.equal(screen.queryByTestId("stats-history-banner"), null);
 });

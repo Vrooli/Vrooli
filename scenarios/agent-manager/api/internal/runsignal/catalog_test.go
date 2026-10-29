@@ -88,15 +88,15 @@ func TestResolveCatalogUsesManifestIndex(t *testing.T) {
 	catalogCache.Lock()
 	catalogCache.root, catalogCache.owners, catalogCache.snapshot = "", nil, ""
 	catalogCache.Unlock()
-	got := ResolveCatalog("agent-manager run cohort-report --run-ids x")
-	if got.State != "resolved" || got.Command != "agent-manager run cohort-report" || got.Snapshot == "" {
+	got := ResolveCatalog("agent-manager run report x")
+	if got.State != "resolved" || got.Command != "agent-manager run report" || got.Snapshot == "" {
 		t.Fatalf("resolution=%+v root=%s", got, projectRoot())
 	}
 }
 
 func TestResolveCatalogUnwrapsLiteralRunnerShellEnvelope(t *testing.T) {
-	got := ResolveCatalog("/bin/bash -lc 'agent-manager run cohort-report --run-ids x'")
-	if got.State != "resolved" || got.Command != "agent-manager run cohort-report" {
+	got := ResolveCatalog("/bin/bash -lc 'agent-manager run report x'")
+	if got.State != "resolved" || got.Command != "agent-manager run report" {
 		t.Fatalf("resolution=%+v", got)
 	}
 	if got := ResolveCatalog("/bin/bash -lc 'agent-manager run report x; rm x'"); got.State != "unknown" {

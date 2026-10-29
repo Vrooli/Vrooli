@@ -233,7 +233,7 @@ func (s *pricingService) GetModelPricing(ctx context.Context, model string, runn
 }
 
 // applyFallbacks applies the per-component fallback chain.
-// Order: Manual Override > Provider API > Historical Average
+// Order: Manual Override > Provider API.
 func (s *pricingService) applyFallbacks(ctx context.Context, base *ModelPricing, canonicalModel string) (*ModelPricing, error) {
 	if base == nil {
 		base = &ModelPricing{
@@ -255,22 +255,9 @@ func (s *pricingService) applyFallbacks(ctx context.Context, base *ModelPricing,
 		}
 	}
 
-	// Step 2: Apply historical averages for missing components
-	if s.hasNilComponents(result) {
-		settings, _ := s.getSettingsWithDefault(ctx)
-		since := time.Now().AddDate(0, 0, -settings.HistoricalAverageDays)
-
-		historical, err := s.repo.GetHistoricalAverages(ctx, canonicalModel, since)
-		if err == nil && historical != nil && historical.SampleCount > 0 {
-			s.applyHistorical(result, historical)
-		}
-	}
-
+	// A component neither the price book nor an override prices stays
+	// unpriced; request paths never scan run history for it.
 	return result, nil
-}
-
-func (s *pricingService) hasNilComponents(p *ModelPricing) bool {
-	return p.InputTokenPrice == nil || p.OutputTokenPrice == nil
 }
 
 func (s *pricingService) applyOverride(p *ModelPricing, o *ManualPriceOverride) {
@@ -294,29 +281,6 @@ func (s *pricingService) applyOverride(p *ModelPricing, o *ManualPriceOverride) 
 	case ComponentServerToolUse:
 		p.ServerToolUsePrice = &price
 		p.ServerToolUseSource = SourceManualOverride
-	}
-}
-
-func (s *pricingService) applyHistorical(p *ModelPricing, h *HistoricalPricing) {
-	if p.InputTokenPrice == nil && h.InputTokenAvgPrice != nil {
-		price := *h.InputTokenAvgPrice
-		p.InputTokenPrice = &price
-		p.InputTokenSource = SourceHistoricalAverage
-	}
-	if p.OutputTokenPrice == nil && h.OutputTokenAvgPrice != nil {
-		price := *h.OutputTokenAvgPrice
-		p.OutputTokenPrice = &price
-		p.OutputTokenSource = SourceHistoricalAverage
-	}
-	if p.CacheReadPrice == nil && h.CacheReadAvgPrice != nil {
-		price := *h.CacheReadAvgPrice
-		p.CacheReadPrice = &price
-		p.CacheReadSource = SourceHistoricalAverage
-	}
-	if p.CacheCreationPrice == nil && h.CacheCreationAvgPrice != nil {
-		price := *h.CacheCreationAvgPrice
-		p.CacheCreationPrice = &price
-		p.CacheCreationSource = SourceHistoricalAverage
 	}
 }
 

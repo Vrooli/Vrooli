@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"agent-manager/internal/adapters/runner"
@@ -785,8 +786,8 @@ func TestDetectClaudeRateLimit_UsageLimitReached(t *testing.T) {
 	if !rl.Detected {
 		t.Error("expected Detected")
 	}
-	if rl.LimitType != "5_hour" {
-		t.Errorf("limitType=%s want 5_hour", rl.LimitType)
+	if rl.LimitType != "five_hour" {
+		t.Errorf("limitType=%s want five_hour", rl.LimitType)
 	}
 }
 
@@ -1289,3 +1290,36 @@ func TestBuildErrorDetails_OmitsEmptyStringFields(t *testing.T) {
 // =============================================================================
 // Misc helpers
 // =============================================================================
+
+// A rate-limited on-disk transcript line (shape retained from a real 429
+// synthetic assistant line) carries quotaLimits: a standing without a
+// percentage, recorded as a quota event.
+func TestParseTranscriptLine_QuotaLimitsBecomeQuotaEvent(t *testing.T) {
+	line := `{"type":"assistant","timestamp":"2026-10-07T15:06:38.929Z","sessionId":"f012","message":{"model":"<synthetic>","role":"assistant","stop_reason":"stop_sequence","content":[{"type":"text","text":"You've hit your session limit · resets 2:50pm"}]},"quotaLimits":{"status":"rejected","resetsAt":1791399000,"unifiedRateLimitFallbackAvailable":false,"rateLimitType":"five_hour","overageStatus":"rejected","overageDisabledReason":"out_of_credits"},"error":"rate_limit","isApiErrorMessage":true,"apiErrorStatus":429}`
+	runID := uuid.New()
+	r := NewClaudeForTest().ParseTranscriptLine(runID, line)
+	var quota []*domain.RunEvent
+	for _, e := range r.Events {
+		if e.EventType == domain.EventTypeQuota {
+			quota = append(quota, e)
+		}
+	}
+	if len(quota) != 1 {
+		t.Fatalf("quota events = %d (%+v), want 1", len(quota), r.Events)
+	}
+	data := quota[0].Data.(*domain.RateLimitEventData)
+	reset := time.Unix(1791399000, 0).UTC()
+	if data.Provider != "anthropic" || data.Pool != "five_hour" || data.LimitType != "five_hour" || data.WindowMinutes != 300 || data.Status != "rejected" || data.OverageStatus != "rejected" || data.UsedPercent != nil || data.ResetTime == nil || !data.ResetTime.Equal(reset) || data.Provenance != "claude-code:transcript.quotaLimits" {
+		t.Fatalf("quota payload = %+v", data)
+	}
+	if want := time.Date(2026, 10, 7, 15, 6, 38, 929000000, time.UTC); !r.Timestamp.Equal(want) {
+		t.Fatalf("line timestamp = %v, want %v (the consumer stamps events with it)", r.Timestamp, want)
+	}
+	if lines := NewClaudeForTest().ParseTranscriptLine(runID, `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}`); len(lines.Events) > 0 {
+		for _, e := range lines.Events {
+			if e.EventType == domain.EventTypeQuota {
+				t.Fatal("a line without quotaLimits produced a quota event")
+			}
+		}
+	}
+}

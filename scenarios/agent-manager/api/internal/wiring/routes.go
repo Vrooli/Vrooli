@@ -38,6 +38,7 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/storagehealth"
 	"agent-manager/internal/supervision"
+	"agent-manager/internal/transcriptindex"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
@@ -64,7 +65,6 @@ type RouteDependencies struct {
 	CapabilityRegistry       *capabilities.Registry
 	DB                       *database.DB
 	Orchestrator             *orchestration.Orchestrator
-	StatsService             orchestration.StatsService
 	StatsRepository          repository.StatsRepository
 	PricingService           pricing.Service
 	PricingRepository        pricing.Repository
@@ -81,7 +81,7 @@ type RouteDependencies struct {
 	ExactVerifier            *supervision.ExactVerifier
 	InvocationReadModel      invocationreadmodel.Store
 	ModelPolicyDrift         *modelpolicydrift.Scheduler
-	TranscriptImporter       *orchestration.TranscriptImportScheduler
+	TranscriptImporter       *orchestration.TranscriptIndex
 	ConversationSearch       *conversationsearch.Service
 	ConversationIndexer      *conversationsearch.Indexer
 	ConversationSearchPolicy *conversationpolicy.Policy
@@ -295,10 +295,6 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	handler.RegisterRoutes(router)
 
 	routesLog := obs.Component("routes")
-	if deps.StatsService != nil {
-		handlers.NewStatsHandler(deps.StatsService).RegisterRoutes(router)
-		routesLog.Info("stats endpoints registered", "path", "/api/v1/stats/*")
-	}
 	if deps.StatsEngine != nil {
 		handlers.NewOperationalStatsHandler(deps.StatsEngine).RegisterRoutes(router)
 		routesLog.Info("operational stats endpoints registered", "path", "/api/v1/stats/operational, /api/v1/stats/fallback")
@@ -316,7 +312,6 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
 	}
 	handlers.NewCanaryHandler(deps.InvocationReadModel).RegisterRoutes(router)
-	handlers.NewEfficiencyHandler(deps.InvocationReadModel).RegisterRoutes(router)
 	if deps.EventRepository != nil {
 		handlers.NewEventsHandler(deps.EventRepository).RegisterRoutes(router)
 		routesLog.Info("events endpoint registered", "path", "/api/v1/events")
@@ -328,7 +323,19 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		if validityConfig, err := config.LoadMeasureValidityConfig(); err == nil {
 			measureHandler.SetValidityConfig(analyticsmeasures.ValidityConfig{MinSampleMeaningful: validityConfig.MinSampleMeaningful, MaxFingerprintBucketShare: validityConfig.MaxFingerprintBucketShare})
 		}
-		measureHandler.SetEpisodeCohort(deps.Orchestrator.EpisodeCohort)
+		if deps.Orchestrator != nil {
+			measureHandler.SetCohortSource(deps.Orchestrator)
+		}
+		if readings, ok := deps.PricingRepository.(pricing.QuotaReadingSource); ok {
+			measureHandler.SetUsageForecast(readings)
+		}
+		if deps.DB != nil {
+			var coverage transcriptindex.CoverageReader
+			if deps.TranscriptImporter != nil {
+				coverage = deps.TranscriptImporter
+			}
+			measureHandler.SetUsageAttribution(database.NewUsageAttributionRepository(deps.DB), deps.PricingService, coverage)
+		}
 		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
 			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())
 		} else {

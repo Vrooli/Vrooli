@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
 
@@ -254,7 +255,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations", "/api/v1/runs/episode-cohort/compare":
+	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations":
 		return true
 	case "/api/v1/runs/quiesce":
 		// The default drain only observes active runs and waits; it does not
@@ -350,8 +351,10 @@ var localLoopbackOnlyRoute = map[string]bool{
 
 // Reviewed POST read routes from the current owner contract. Connect RPCs and
 // standalone REST reads are listed by their exact route; unknown operations do
-// not inherit read admission merely from their method or name.
-var agentReadPOSTRoute = map[string]bool{
+// not inherit read admission merely from their method or name. Read-only
+// services are admitted whole from their generated descriptor (see
+// readOnlyServiceRoutes) instead of being listed here.
+var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
 	"/api/v1/permission-policy/doctor":                                       true,
 	"/api/v1/permission-policy/plan":                                         true,
 	"/api/v1/permission-policy/validate":                                     true,
@@ -408,4 +411,25 @@ var agentReadPOSTRoute = map[string]bool{
 	"/agent_manager.v1.EpisodesService/GetCrossScenarioLedger":               true,
 	"/agent_manager.v1.EpisodesService/GetEpisodes":                          true,
 	"/agent_manager.v1.EpisodesService/GetSelfReportSpans":                   true,
+})
+
+// readOnlyMeasureRoutes are the measure reads outside the generated service:
+// the measures-go registry executes the same compute functions over HTTP.
+var readOnlyMeasureRoutes = []string{"/measures/execute"}
+
+// withReadOnlyServiceRoutes admits every procedure of Agent Manager's
+// MeasuresService. The service is read-only by contract (measures.proto: "one
+// typed, read-only analytical question per RPC"), so its generated descriptor
+// is the declaration: a new measure is agent-readable without another list
+// edit, and a non-measure RPC can never ride this rule.
+func withReadOnlyServiceRoutes(routes map[string]bool) map[string]bool {
+	service := measurepb.File_agent_manager_v1_measures_measures_proto.Services().ByName("MeasuresService")
+	methods := service.Methods()
+	for i := 0; i < methods.Len(); i++ {
+		routes["/"+string(service.FullName())+"/"+string(methods.Get(i).Name())] = true
+	}
+	for _, route := range readOnlyMeasureRoutes {
+		routes[route] = true
+	}
+	return routes
 }

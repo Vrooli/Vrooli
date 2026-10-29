@@ -7,6 +7,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/runsignal"
 )
 
 type RunStatusTransitionInput struct {
@@ -95,6 +96,9 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	if input.Summary != nil {
 		run.Summary = input.Summary
 	}
+	if input.NewStatus.IsTerminal() {
+		o.accountSummaryTokens(ctx, run)
+	}
 	if input.Result != nil {
 		run.Result = input.Result
 	}
@@ -149,4 +153,24 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 
 	return hydrated, nil
+}
+
+// accountSummaryTokens writes the run's usage-account total into its summary,
+// so a terminal summary agrees with the read model whichever path produced it
+// (runner stream metrics, transcript recovery, interactive tail).
+func (o *Orchestrator) accountSummaryTokens(ctx context.Context, run *domain.Run) {
+	if o.events == nil || run.Summary == nil {
+		return
+	}
+	events, err := o.meteredRunEvents(ctx, run.ID)
+	if err != nil {
+		obs.Component("run-lifecycle").Warn("terminal usage account unavailable; summary keeps stream metrics", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		return
+	}
+	for _, event := range events {
+		if _, ok := event.Data.(*domain.UsageEventData); ok {
+			run.Summary.TokensUsed = runsignal.AccountUsage(events).TotalTokens()
+			return
+		}
+	}
 }

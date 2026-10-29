@@ -405,3 +405,36 @@ func TestTokenReportLeavesUnmatchedModelWeightUnknown(t *testing.T) {
 		t.Fatalf("Terra heuristic missing: %+v", report)
 	}
 }
+
+// D-11: `usage reindex` refreshes by default (only runs whose events advanced
+// or whose classifier is stale are rebuilt), selects one run by id, and
+// --full rebuilds every selected run.
+func TestUsageReindexQuery(t *testing.T) {
+	refresh := reindexQuery("run-1", map[string]string{"tag_prefix": "plan-", "limit": ""}, false)
+	if refresh.Get("mode") != "refresh" || refresh.Get("run_id") != "run-1" || refresh.Get("tag_prefix") != "plan-" || refresh.Has("limit") {
+		t.Fatalf("refresh query = %v", refresh)
+	}
+	if full := reindexQuery("", map[string]string{"from": "2026-10-01T00:00:00Z"}, true); full.Has("mode") || full.Has("run_id") || full.Get("from") == "" {
+		t.Fatalf("full corpus query = %v", full)
+	}
+}
+
+// D-11: `usage run` and `usage reindex` are the usage group's per-run
+// commands; `run tokens`, `run invocation-facts` and the replay/refresh
+// commands are gone.
+func TestUsageGroupOwnsRunUsageCommands(t *testing.T) {
+	app := &App{}
+	names := map[string]bool{}
+	for _, command := range app.usageCommands() {
+		names[command.Name] = true
+	}
+	if !names["run"] || !names["reindex"] {
+		t.Fatalf("usage commands = %v", names)
+	}
+	for _, command := range app.runCommands() {
+		switch command.Name {
+		case "tokens", "invocation-facts", "replay-invocation-facts", "refresh-invocation-facts", "replay-invocation-corpus":
+			t.Errorf("run %s still exists", command.Name)
+		}
+	}
+}

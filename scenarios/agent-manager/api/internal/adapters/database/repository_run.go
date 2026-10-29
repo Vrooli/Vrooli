@@ -737,115 +737,6 @@ func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, err
 	return row.toDomain(), nil
 }
 
-func (r *runRepository) List(ctx context.Context, filter repository.RunListFilter) ([]*domain.Run, error) {
-	var conditions []string
-	var args []interface{}
-	if filter.NonTerminalOnly {
-		// Keep this set aligned with RunStatus.IsTerminal: unknown is terminal,
-		// while parked and needs_review remain resumable/nonterminal.
-		conditions = append(conditions, "runs.status IN (?, ?, ?, ?, ?)")
-		args = append(args,
-			string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning),
-			string(domain.RunStatusNeedsReview), string(domain.RunStatusParked),
-		)
-	}
-
-	if len(filter.RunnerPIDs) > 0 {
-		placeholders := make([]string, len(filter.RunnerPIDs))
-		for i, pid := range filter.RunnerPIDs {
-			if pid <= 1 {
-				return nil, fmt.Errorf("invalid runner PID filter")
-			}
-			placeholders[i] = "?"
-			args = append(args, pid)
-		}
-		conditions = append(conditions, "runs.runner_pid IN ("+strings.Join(placeholders, ",")+")")
-	}
-
-	if filter.TaskID != nil {
-		conditions = append(conditions, "runs.task_id = ?")
-		args = append(args, *filter.TaskID)
-	}
-	if filter.AgentProfileID != nil {
-		conditions = append(conditions, "runs.agent_profile_id = ?")
-		args = append(args, *filter.AgentProfileID)
-	}
-	if filter.Status != nil {
-		conditions = append(conditions, "runs.status = ?")
-		args = append(args, string(*filter.Status))
-	}
-	if filter.EndedFrom != nil {
-		conditions = append(conditions, "runs.ended_at >= ?")
-		args = append(args, SQLiteTime(*filter.EndedFrom))
-	}
-	if filter.EndedTo != nil {
-		conditions = append(conditions, "runs.ended_at < ?")
-		args = append(args, SQLiteTime(*filter.EndedTo))
-	}
-	if filter.TagPrefix != "" {
-		conditions = append(conditions, "runs.tag LIKE ?")
-		args = append(args, filter.TagPrefix+"%")
-	}
-	if filter.ScopePrefix != "" {
-		// Enumerate by the joined task's scope_path rather than an ad-hoc tag
-		// LIKE: this is what the promote-quiesce drain uses to find every run
-		// targeting a scenario (scope "scenarios/<name>"). The exact-boundary
-		// refinement (scenarios/foo vs scenarios/foo-bar) is the caller's job;
-		// the SQL is a cheap prefix narrowing on the existing tasks JOIN.
-		conditions = append(conditions, "t.scope_path LIKE ?")
-		args = append(args, filter.ScopePrefix+"%")
-	}
-	if filter.InvestigatesRunID != nil {
-		conditions = append(conditions, "EXISTS (SELECT 1 FROM json_each(runs.source_run_ids) WHERE json_each.value = ?)")
-		args = append(args, (*filter.InvestigatesRunID).String())
-	}
-	if filter.AppliesInvestigationRunID != nil {
-		conditions = append(conditions, "runs.source_investigation_run_id = ?")
-		args = append(args, *filter.AppliesInvestigationRunID)
-	}
-	if filter.ParentRunID != nil {
-		conditions = append(conditions, "runs.parent_run_id = ?")
-		args = append(args, *filter.ParentRunID)
-	}
-
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	// Use pruned column set — omits heavy fields (summary, resolved_config, etc.)
-	colList := strings.ReplaceAll(listRunColumns, "\n", "")
-	colList = strings.ReplaceAll(colList, "\t", " ")
-	// Prefix each column with "runs." for the JOIN
-	var prefixed []string
-	for _, col := range strings.Split(colList, ",") {
-		col = strings.TrimSpace(col)
-		if col != "" {
-			prefixed = append(prefixed, "runs."+col)
-		}
-	}
-
-	base := fmt.Sprintf(
-		"SELECT %s, SUBSTR(t.description, 1, 120) AS prompt_preview FROM runs LEFT JOIN tasks t ON runs.task_id = t.id%s ORDER BY runs.created_at DESC, runs.id DESC",
-		strings.Join(prefixed, ", "),
-		whereClause,
-	)
-	queryWithPaging, pagingArgs := appendLimitOffset(base, filter.Limit, filter.Offset)
-	args = append(args, pagingArgs...)
-	query := queryWithPaging
-
-	var rows []listRunLiteRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, wrapDBError("list", "Run", "", err)
-	}
-
-	result := make([]*domain.Run, len(rows))
-	for i, row := range rows {
-		result[i] = row.toDomain()
-	}
-	return result, nil
-}
-
 func (r *runRepository) ListByTask(ctx context.Context, taskID uuid.UUID, filter repository.ListFilter) ([]*domain.Run, error) {
 	return r.List(ctx, repository.RunListFilter{
 		ListFilter: filter,
@@ -1359,69 +1250,28 @@ func (r *runRepository) ListByWebConsoleSessionIDs(ctx context.Context, sessionI
 	return runs, nil
 }
 
-// ListImportedRunIDsOldestFirst returns up to limit imported runs that still
-// have events, oldest-content-first (by the original session time, falling back
-// to import/creation time). The EXISTS filter skips already-evicted runs so the
-// recall-corpus eviction loop advances instead of re-selecting empty runs.
-func (r *runRepository) ListImportedRunIDsOldestFirst(ctx context.Context, limit int) ([]uuid.UUID, error) {
-	if limit <= 0 {
-		return nil, nil
+// ListRunTranscriptPaths maps each transcript path an Agent Manager run reads
+// itself (interactive and codec-pipe runs) to that run. The Transcript Indexer
+// registers these files as run-owned: the run records their events and the
+// indexer only their usage summaries, keyed to the run (D-16).
+func (r *runRepository) ListRunTranscriptPaths(ctx context.Context) (map[string]uuid.UUID, error) {
+	var rows []struct {
+		ID   string `db:"id"`
+		Path string `db:"transcript_path"`
 	}
-	var ids []string
-	query := `SELECT r.id FROM runs r
-		WHERE COALESCE(r.execution_mode, '') = 'imported'
-		  AND EXISTS (SELECT 1 FROM run_events e WHERE e.run_id = r.id)
-		ORDER BY COALESCE(r.started_at, r.imported_at, r.created_at) ASC, r.id ASC
-		LIMIT ?`
-	if err := r.db.SelectContext(ctx, &ids, query, limit); err != nil {
-		return nil, wrapDBError("list_imported_runs_oldest_first", "Run", "", err)
+	query := `SELECT id, transcript_path FROM runs
+		WHERE COALESCE(transcript_path, '') <> ''
+		  AND COALESCE(execution_mode, '') NOT IN ('imported', 'attached')`
+	if err := r.db.SelectContext(ctx, &rows, query); err != nil {
+		return nil, wrapDBError("list_run_transcript_paths", "Run", "", err)
 	}
-	out := make([]uuid.UUID, 0, len(ids))
-	for _, raw := range ids {
-		parsed, err := uuid.Parse(strings.TrimSpace(raw))
-		if err != nil {
-			continue
+	out := make(map[string]uuid.UUID, len(rows))
+	for _, row := range rows {
+		if id, err := uuid.Parse(strings.TrimSpace(row.ID)); err == nil {
+			out[row.Path] = id
 		}
-		out = append(out, parsed)
 	}
 	return out, nil
-}
-
-// DeleteImportedRun hard-deletes one imported run row (retention eviction). The
-// execution_mode guard means canonical runs can never be removed through this
-// path. Idempotent: a missing or non-imported id is a no-op. The run's events
-// and derived search docs are removed by the caller; dropping the row clears the
-// import provenance so the session can be re-imported if it later becomes recent.
-func (r *runRepository) DeleteImportedRun(ctx context.Context, id uuid.UUID) error {
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return wrapDBError("delete_imported", "Run", id.String(), err)
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET current_run_id = NULL WHERE current_run_id = ?`, id.String()); err != nil {
-		return wrapDBError("clear_task_attempt", "Run", id.String(), err)
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM runs WHERE id = ? AND execution_mode = 'imported'`, id); err != nil {
-		return wrapDBError("delete_imported", "Run", id.String(), err)
-	}
-	return tx.Commit()
-}
-
-// DeleteEmptyImportedRuns removes imported run rows with no events in one
-// statement. These are eviction stubs (events gone, row left behind) whose
-// lingering provenance would block re-importing the session.
-func (r *runRepository) DeleteEmptyImportedRuns(ctx context.Context) (int, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM runs
-		WHERE execution_mode = 'imported'
-		  AND NOT EXISTS (SELECT 1 FROM run_events e WHERE e.run_id = runs.id)`)
-	if err != nil {
-		return 0, wrapDBError("delete_empty_imported", "Run", "", err)
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return 0, wrapDBError("delete_empty_imported_rows", "Run", "", err)
-	}
-	return int(n), nil
 }
 
 func (r *runRepository) Delete(ctx context.Context, id uuid.UUID, expectedStatus domain.RunStatus, expectedLifecycleVersion int64) error {
@@ -1463,9 +1313,9 @@ func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStat
 }
 
 func (r *runRepository) CountCapacityByStatus(ctx context.Context, status domain.RunStatus) (int, error) {
-	query := `SELECT COUNT(*) FROM runs WHERE status = ? AND COALESCE(execution_mode, '') != ?`
+	query := `SELECT COUNT(*) FROM runs WHERE status = ? AND COALESCE(execution_mode, '') NOT IN (?, ?)`
 	var count int
-	if err := r.db.GetContext(ctx, &count, query, string(status), string(domain.ExecutionModeAttached)); err != nil {
+	if err := r.db.GetContext(ctx, &count, query, string(status), string(domain.ExecutionModeAttached), string(domain.ExecutionModeImported)); err != nil {
 		return 0, wrapDBError("count_capacity_by_status", "Run", string(status), err)
 	}
 	return count, nil

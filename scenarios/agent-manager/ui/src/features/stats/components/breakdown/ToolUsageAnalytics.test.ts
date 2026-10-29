@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement, type ReactNode } from "react";
@@ -206,7 +207,7 @@ test("ToolUsageAnalytics renders empty and error states", () => {
 
   renderWithProviders(createElement(ToolUsageAnalytics));
 
-  assert.ok(screen.getByText("Tool usage: tool stats unavailable"));
+  assert.ok(getErrorNotice("Tool usage", "tool stats unavailable"));
 });
 
 test("ToolUsageAnalytics exposes selected tool loading, failure, empty, and reset states", async () => {
@@ -229,7 +230,7 @@ test("ToolUsageAnalytics exposes selected tool loading, failure, empty, and rese
   }) as ToolRunsQuery);
   const failed = renderWithProviders(createElement(ToolUsageAnalytics));
   await user.click(screen.getByRole("button", { name: "Edit" }));
-  assert.ok(screen.getByText("Failed to load runs: tool detail unavailable"));
+  assert.ok(getErrorNotice("Runs", "tool detail unavailable"));
   failed.unmount();
 
   vi.mocked(useToolUsageRuns).mockReturnValue(queryResult<ToolUsageRunsResponse>({
@@ -257,7 +258,7 @@ test("ToolUsageAnalytics reports model-detail loading, errors, and no-model evid
   const failed = renderWithProviders(createElement(ToolUsageAnalytics));
   await user.click(screen.getByRole("button", { name: "Edit" }));
   await user.click(screen.getByRole("button", { name: "Models" }));
-  assert.ok(screen.getByText("Failed to load models: model detail unavailable"));
+  assert.ok(getErrorNotice("Models", "model detail unavailable"));
   failed.unmount();
 
   vi.mocked(useToolUsageModels).mockReturnValue(queryResult<ToolUsageModelsResponse>({ data: makeToolUsageModelsResponse({ models: [] }) }) as ToolModelsQuery);
@@ -291,7 +292,7 @@ test("ToolUsageAnalytics exposes recorded command paths and command-data fallbac
   renderWithProviders(createElement(ToolUsageAnalytics));
   await user.click(screen.getByRole("button", { name: "Edit" }));
   await user.click(screen.getByRole("button", { name: "Commands" }));
-  assert.ok(screen.getByText("Failed to load commands: command detail unavailable"));
+  assert.ok(getErrorNotice("Commands", "command detail unavailable"));
 });
 
 test("ToolUsageAnalytics makes unknown zero-call telemetry and incomplete run metadata inspectable", async () => {

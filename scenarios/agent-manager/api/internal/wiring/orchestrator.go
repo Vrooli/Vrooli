@@ -41,6 +41,7 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/supervision"
+	"agent-manager/internal/usageforecast"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -57,15 +58,16 @@ import (
 type OrchestratorDependencies struct {
 	OwnerIdentity         authn.TokenVerifier
 	Orchestrator          *orchestration.Orchestrator
-	StatsService          orchestration.StatsService
 	StatsRepository       repository.StatsRepository
 	PricingService        pricing.Service
 	PricingRepository     pricing.Repository
 	Reconciler            *orchestration.Reconciler
 	AwaitRegistry         *orchestration.AwaitRegistry
 	WorkflowNudger        *orchestration.WorkflowNudger
-	TranscriptImporter    *orchestration.TranscriptImportScheduler
+	TranscriptImporter    *orchestration.TranscriptIndex
 	FrictionPublisher     *orchestration.FrictionPublishScheduler
+	ClaudeQuotaFeed       *pricing.ClaudeStatuslineReader // statusline samples -> quota_observations
+	UsageAlerts           *usageforecast.Alerter          // will_exhaust -> notification-hub
 	ModelHealthProbe      *healthstore.Probe
 	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	RolePolicyState       *rolepolicy.State
@@ -294,7 +296,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		reconcilerCfg = orchestration.ReconcilerConfigWithSettings(reconcilerCfg, settingsStore.Get())
 		reconcilerCfg.OwnerIdentity = runtimeOwnerIdentity
 	}
-	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver), orchestration.WithReconcilerLiveBytes(eventStore.LiveBytes), orchestration.WithReconcilerSearchDeleteRun(orch.DeleteRunFromConversationSearch)}
+	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver)}
 	if interactiveSessions != nil {
 		reconcilerOpts = append(reconcilerOpts, orchestration.WithReconcilerInteractive(interactiveSessions))
 	}
@@ -376,8 +378,26 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		modelPolicyRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
+	usageAlerts := &usageforecast.Alerter{Store: usageforecast.NewSQLiteAlertStore(db), UsageURL: usagePageURL, OnError: func(err error) {
+		obs.Component("usage-alerts").Warn("will-exhaust evaluation failed", obs.KeyError, err.Error())
+	}}
+	usageAlerts.Readings, _ = pricingRepository.(pricing.QuotaReadingSource)
+	if receiptsClient.Enabled() {
+		usageAlerts.Publisher = receiptsClient
+	}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, levers.TranscriptImport.Interval, levers.TranscriptImport.ScanRoots...), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+}
+
+// usagePageURL links a will-exhaust notification to the Agent Manager Usage
+// page. Out-of-band links may reach a phone, so the tunnel-aware notice base
+// is preferred; an unresolved base omits the link.
+func usagePageURL(ctx context.Context) string {
+	base, err := discovery.ResolveExternalURLForNotice(ctx, "agent-manager")
+	if err != nil || strings.TrimSpace(base) == "" {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + "/usage"
 }
 
 func frictionPublishInterval() time.Duration {

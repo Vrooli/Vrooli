@@ -227,7 +227,7 @@ export interface CreateInvestigationRunRequestV2 extends CreateInvestigationRunR
 // Pricing Types
 // =============================================================================
 
-export type PricingSource = "manual_override" | "provider_api" | "historical_average" | "unknown";
+export type PricingSource = "manual_override" | "provider_api" | "unknown";
 
 export type PricingComponent =
   | "input_tokens"
@@ -298,12 +298,10 @@ export interface CreateAliasRequest {
 }
 
 export interface PricingSettings {
-  historicalAverageDays: number;
   providerCacheTtlSeconds: number;
 }
 
 export interface UpdatePricingSettingsRequest {
-  historicalAverageDays?: number;
   providerCacheTtlSeconds?: number;
 }
 

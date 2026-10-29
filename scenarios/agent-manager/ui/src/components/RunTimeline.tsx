@@ -18,7 +18,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "./ui/checkbox";
 import { Textarea } from "./ui/textarea";
 import { CodeBlock } from "./markdown/components/CodeBlock";
@@ -50,6 +50,7 @@ import {
   type TimelineToolGroup,
   type VisibleTimelineItem,
 } from "../lib/runTimeline";
+import { useConfirmAction } from "./feedback/useConfirmAction";
 import { cn } from "../lib/utils";
 import { formatRelativeTimeShort, formatStandardDateTime } from "../lib/dateTime";
 import type { Run, RunEvent } from "../types";
@@ -330,12 +331,13 @@ export function RunTimeline({
     }
   };
 
-  const handleDelete = async (messageId: string) => {
-    if (!window.confirm("Delete this message? It will be hidden but remain in the run history.")) {
-      return;
-    }
-
-    try {
+  const messageActions = useConfirmAction("message-action");
+  const handleDelete = (messageId: string) => messageActions.confirm({
+    title: "Delete message?",
+    description: "It is hidden from the conversation but stays in the run history.",
+    confirmLabel: "Delete message",
+    busyLabel: "Deleting…",
+    action: async () => {
       await onDeleteMessage(messageId);
       setRevealedMessages((prev) => {
         if (!prev[messageId]) return prev;
@@ -343,10 +345,8 @@ export function RunTimeline({
         delete next[messageId];
         return next;
       });
-    } catch {
-      // Keep the existing timeline visible even if deletion fails.
-    }
-  };
+    },
+  });
 
   const updateMode = (mode: TimelineDisplayMode) => {
     setFilters((prev) => ({ ...prev, mode }));
@@ -374,7 +374,7 @@ export function RunTimeline({
           <Button
             ref={filterButtonRef}
             type="button"
-            variant="outline"
+            variant="secondary"
             size="icon"
             className="pointer-events-auto relative h-9 w-9 rounded-full shadow-sm"
             aria-expanded={filtersOpen}
@@ -406,7 +406,7 @@ export function RunTimeline({
                   Reset to the hybrid view to see messages, tool use, reasoning, and errors together.
                 </p>
               </div>
-              <Button type="button" variant="outline" onClick={resetFilters}>
+              <Button type="button" variant="secondary" onClick={resetFilters}>
                 Reset Filters
               </Button>
             </div>
@@ -646,6 +646,7 @@ export function RunTimeline({
             document.body
           )
         : null}
+      {messageActions.dialog}
     </>
   );
 }
@@ -748,7 +749,7 @@ function MessageBubble({
           </Button>
 
           {entry.deleted ? (
-            <Button type="button" variant="link" size="sm" className="px-1 text-[10px]" onClick={() => onToggleReveal(entry.id)}>
+            <Button type="button" variant="ghost" size="sm" className="px-1 text-[10px]" onClick={() => onToggleReveal(entry.id)}>
               {isRevealed ? "Hide" : "Show"}
             </Button>
           ) : (

@@ -9,7 +9,7 @@ import (
 
 // EpisodeClassifierVersion pins the deterministic episode rules so retained
 // evidence is never silently compared across classifier changes.
-const EpisodeClassifierVersion = "friction-episode.v9"
+const EpisodeClassifierVersion = "friction-episode.v10" // v10: handoff-continuation stops at the next user message (F-W5-4)
 
 const idleEpisodeThreshold = 5 * time.Minute
 
@@ -58,6 +58,7 @@ func DeriveEpisodes(facts []InvocationFact, events []*domain.RunEvent) []Frictio
 	// event bounds remain independent evidence.
 	episodes := make([]FrictionEpisode, 0)
 	seen := make(map[string]struct{})
+	usage := AccountUsage(ordered)
 	for _, detector := range EpisodeDetectors() {
 		for _, episode := range detector.Detect(context) {
 			key := episode.Pattern + "\x00" + episode.StartEventID + "\x00" + episode.EndEventID
@@ -65,6 +66,7 @@ func DeriveEpisodes(facts []InvocationFact, events []*domain.RunEvent) []Frictio
 				continue
 			}
 			seen[key] = struct{}{}
+			episode.Tokens = episodeTokens(episode, byID, ordered, usage)
 			episodes = append(episodes, episode)
 		}
 	}
@@ -85,15 +87,17 @@ func newEpisode(pattern string, start, end InvocationFact, byID map[string]*doma
 	if owner == "" {
 		owner, command, confidence = resolvedEpisodeOwner(start)
 	}
-	e := FrictionEpisode{ClassifierVersion: EpisodeClassifierVersion, Pattern: pattern, CauseScope: cause, Severity: "one-off", HonestyFlags: []string{"auto-generated"}, StartEventID: startID, EndEventID: endID, EvidenceEventIDs: []string{startID, endID}, Turns: 2, Tokens: episodeTokens(startID, endID, byID, ordered), WallClockMS: wall, SuspectedOwnerScenario: owner, SuspectedOwnerCommand: command, OwnerConfidence: confidence}
+	e := FrictionEpisode{ClassifierVersion: EpisodeClassifierVersion, Pattern: pattern, CauseScope: cause, Severity: "one-off", HonestyFlags: []string{"auto-generated"}, StartEventID: startID, EndEventID: endID, EvidenceEventIDs: []string{startID, endID}, Turns: 2, WallClockMS: wall, SuspectedOwnerScenario: owner, SuspectedOwnerCommand: command, OwnerConfidence: confidence}
 	e.EpisodeID = fingerprint(pattern, startID, endID)
 	e.Fingerprint = fingerprint(pattern, command, cause)
 	return e
 }
 
-func episodeTokens(startID, endID string, byID map[string]*domain.RunEvent, ordered []*domain.RunEvent) int {
-	start, startOK := byID[startID]
-	end, endOK := byID[endID]
+// episodeTokens is the run usage credited between an episode's bounding
+// events, from the run's one usage account.
+func episodeTokens(e FrictionEpisode, byID map[string]*domain.RunEvent, ordered []*domain.RunEvent, usage UsageAccount) int {
+	start, startOK := byID[e.StartEventID]
+	end, endOK := byID[e.EndEventID]
 	if !startOK || !endOK {
 		return 0
 	}
@@ -101,16 +105,7 @@ func episodeTokens(startID, endID string, byID map[string]*domain.RunEvent, orde
 	if to.Before(from) {
 		from, to = to, from
 	}
-	tokens := 0
-	for _, event := range ordered {
-		if event == nil || event.Timestamp.Before(from) || event.Timestamp.After(to) {
-			continue
-		}
-		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			tokens += usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens
-		}
-	}
-	return tokens
+	return int(usage.Between(ordered, from, to))
 }
 
 // resolvedEpisodeOwner accepts only the catalog-backed resolution that was

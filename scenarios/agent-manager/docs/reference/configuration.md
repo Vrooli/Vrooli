@@ -262,18 +262,41 @@ durable storage provider and runner/session evidence.
 
 ## Transcript import
 
-The periodic, idempotent sweep that adopts external harness transcripts into the
-conversation corpus. It always scans the built-in harness roots
-(`~/.codex/sessions`, `~/.claude/projects`) and the per-session web-console Codex
-homes (`~/.vrooli/state/vrooli/web-console/sessions/codex/<session>/sessions`),
-and runs once at startup regardless of interval. The `import-sweep` CLI/REST
-output reports per-root counts and any absent or unreadable root, so a missing
-conversation is traceable to the root it should have come from.
+The Transcript Indexer (`api/internal/transcriptindex`) captures every harness
+transcript on the host by file identity (device and inode). It always reads the
+built-in roots: `~/.codex/sessions`, `~/.claude/projects` (including
+`<session>/subagents/*.jsonl` sidechains), the per-session web-console Codex
+homes (`~/.vrooli/state/vrooli/web-console/sessions/codex/<session>/sessions`)
+and Agent Manager run homes (`<run-state-root>/<run>/{runtime/,}codex/sessions`,
+`.../claude/projects`). Each tick stats every file, reads changed files from
+their stored offset newest change first, and is bounded to 512 MiB of reading,
+so the first start back-fills all history across ticks. The `import-sweep`
+CLI/REST call runs one tick now and returns its summary.
+
+Rules the indexer applies:
+
+- **One reader per file.** Files under a run home, and the transcript path an
+  interactive run tails, are registered as run-owned: the run records their
+  events and quota readings, and the indexer records only their usage
+  summaries (`transcript_usage`), keyed to that run. Every other file is read
+  only by the indexer. Usage attribution reads `transcript_usage` alone.
+- **Durable facts.** Non-text work read after a file's newest usage report
+  (images, searches, tool calls) is saved with the file's offset and attached
+  to the next report after a restart.
+- **One run per top-level file.** Codex fork rollouts
+  (`rollout-<ts>-<parent>_<child>.jsonl`) and Claude sidechains get their own
+  run, a child (`parentRunId`) of the parent file's run.
+- **Status.** An external run is `running` while its file grew in the last
+  10 minutes and `complete` after that. Imported runs never hold dispatch
+  capacity and are skipped by process liveness.
+- **Rewrites.** A file that shrank, changed its first 4 KiB, or was replaced at
+  the same path (new inode) is re-read from offset 0 under the same run.
 
 | Field | Default | What it controls |
 |---|---|---|
-| `Interval` | 6h | How often the background sweep runs. Range 1m–24h. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL` (a Go duration). |
-| `ScanRoots` | none | Additional transcript directories to sweep, each an absolute path (leading `~` expands to the home dir). Scanned in addition to — never instead of — the built-in roots, so externally-run / remote agents writing `.jsonl` transcripts into a custom directory become importable. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS` (comma-separated paths). |
+| `Interval` | 1m | Tick interval. Range 1m–24h. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL` (a Go duration). |
+| `ScanRoots` | none | Additional transcript directories, each an absolute path (leading `~` expands to the home dir). Read in addition to the built-in roots; a root inside a built-in root is ignored so no file is read twice. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS` (comma-separated paths). |
+| `Storage.ImportedCorpusMaxBytes` | 4 GiB | Recall budget: full events and search documents of indexed runs, measured on those rows alone. Recall is written only for files modified in the last 30 days. Over budget, the least recently active files lose recall; usage summaries and quota observations stay. `0` keeps summaries only. Env: `AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_MAX_BYTES`. |
 
 ## Scanner
 

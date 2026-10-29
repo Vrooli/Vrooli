@@ -90,7 +90,12 @@ func (l workflowChildLauncher) terminalAccountingRecoveryAvailable(ctx context.C
 
 func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now time.Time) (workflowruntime.ChildState, error) {
 	state := childStateFromRun(run)
-	events = terminalWorkflowReceiptProjection(events)
+	// Quantities read the whole stream through the run's usage account. Charge
+	// completeness reads the receipt view, so a closing receipt with a known
+	// charge settles its invocation even when earlier samples were unpriced.
+	account := runsignal.AccountUsage(events)
+	fact := invocationreadmodel.ProjectRun(run, events, now)
+	receiptView := terminalWorkflowReceiptProjection(events)
 	if run != nil && run.EndedAt != nil {
 		state.TerminalObservedAt = *run.EndedAt
 	}
@@ -101,7 +106,6 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 	chargeObserved, chargeComplete := false, true
 	preEffectProven := false
 	runnerAcquired := false
-	usageSelection := runsignal.SelectCanonicalUsage(events)
 	observeCharge := func(charge *domain.ChargeEventData) error {
 		if charge == nil {
 			return nil
@@ -130,7 +134,7 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 		return nil
 	}
 	var observations []time.Time
-	for _, evt := range events {
+	for _, evt := range receiptView {
 		if evt == nil {
 			continue
 		}
@@ -179,8 +183,7 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 		}
 	}
 	state.MeterCadence = workflowruntime.MeterCadenceFromObservations(observations)
-	state.MeterCadence.TerminalAuthority = usageSelection.LatestInvocationAuthoritative
-	fact := invocationreadmodel.ProjectRun(run, events, now)
+	state.MeterCadence.TerminalAuthority = account.LatestInvocationAuthoritative
 	if fact.TotalTokens < 0 || int64(int(fact.TotalTokens)) != fact.TotalTokens {
 		return state, fmt.Errorf("provider token total overflow for run %s", run.ID)
 	}
@@ -202,7 +205,7 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 	}
 	// StopRun can publish cancelled before the final accounting tail arrives.
 	// A terminal status plus a prior live reading is not a terminal receipt.
-	if state.Terminal && !preEffectProven && (!usageSelection.LatestInvocationAuthoritative || !usageSelection.AllInvocationsAuthoritative) {
+	if state.Terminal && !preEffectProven && (!account.LatestInvocationAuthoritative || !account.AllInvocationsAuthoritative) {
 		state.TokensKnown = false
 	}
 	return state, nil
@@ -241,7 +244,8 @@ func legacyPreEffectFailure(run *domain.Run) bool {
 
 // An embedded terminal charge covers the same complete invocation as its
 // authoritative usage. Earlier unpriced/interim samples remain durable but
-// must not permanently poison that original receipt or be charged again.
+// must not permanently poison that original receipt's charge completeness.
+// Token quantities never read this view; they come from the usage account.
 // No receipt means no substitution; each continuation keeps its own boundary.
 // Later observations are outside the receipt's coverage and must survive.
 func terminalWorkflowReceiptProjection(events []*domain.RunEvent) []*domain.RunEvent {

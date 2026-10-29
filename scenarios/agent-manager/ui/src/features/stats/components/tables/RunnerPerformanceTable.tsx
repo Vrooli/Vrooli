@@ -1,6 +1,5 @@
 // Runner Performance Table - sortable table with runner metrics
 
-import { useState } from "react";
 import { useRunnerPerformance } from "../../hooks/useRunnerPerformance";
 import {
   formatPercent,
@@ -8,39 +7,17 @@ import {
   formatNumber,
   formatTokens,
 } from "../../utils/formatters";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { formatUsdFixed } from "../../../../lib/currency";
 import { MeasureFrame } from "../measure/MeasureFrame";
+import { compareSortValues, SortHeaderCell, useTableSort } from "./SortableHeader";
 import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
 type SortField = "runnerType" | "runCount" | "successRate" | "totalCostUsd" | "totalTokens" | "avgDurationMs";
-type SortDirection = "asc" | "desc";
 
 export function RunnerPerformanceTable() {
   const { data, isLoading, error } = useRunnerPerformance();
   const definitions = useMeasureDefinitions();
-  const [sortField, setSortField] = useState<SortField>("runCount");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-3 w-3" />;
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-3 w-3" />
-    ) : (
-      <ArrowDown className="h-3 w-3" />
-    );
-  };
+  const sort = useTableSort<SortField>("runCount");
 
   const runners = data?.runners ?? [];
 
@@ -49,7 +26,7 @@ export function RunnerPerformanceTable() {
     let aVal: number | string;
     let bVal: number | string;
 
-    switch (sortField) {
+    switch (sort.field) {
       case "runnerType":
         aVal = a.runnerType;
         bVal = b.runnerType;
@@ -59,18 +36,11 @@ export function RunnerPerformanceTable() {
         bVal = b.runCount > 0 ? b.successCount / b.runCount : 0;
         break;
       default:
-        aVal = a[sortField] ?? 0;
-        bVal = b[sortField] ?? 0;
+        aVal = a[sort.field] ?? 0;
+        bVal = b[sort.field] ?? 0;
     }
 
-    if (typeof aVal === "string" && typeof bVal === "string") {
-      return sortDirection === "asc"
-        ? aVal.localeCompare(bVal)
-        : bVal.localeCompare(aVal);
-    }
-    return sortDirection === "asc"
-      ? (aVal as number) - (bVal as number)
-      : (bVal as number) - (aVal as number);
+    return compareSortValues(aVal, bVal, sort.direction);
   });
 
   return (
@@ -86,51 +56,12 @@ export function RunnerPerformanceTable() {
           <table className="w-full min-w-[400px] text-sm">
             <thead>
               <tr className="border-b border-border text-left">
-                <th className="pb-2 pr-4">
-                  <button
-                    onClick={() => handleSort("runnerType")}
-                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    Runner {getSortIcon("runnerType")}
-                  </button>
-                </th>
-                <th className="pb-2 pr-4">
-                  <button onClick={() => handleSort("totalTokens")} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-                    Tokens {getSortIcon("totalTokens")}
-                  </button>
-                </th>
-                <th className="pb-2 pr-4">
-                  <button
-                    onClick={() => handleSort("runCount")}
-                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    Runs {getSortIcon("runCount")}
-                  </button>
-                </th>
-                <th className="pb-2 pr-4">
-                  <button
-                    onClick={() => handleSort("successRate")}
-                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    Success {getSortIcon("successRate")}
-                  </button>
-                </th>
-                <th className="pb-2 pr-4">
-                  <button
-                    onClick={() => handleSort("totalCostUsd")}
-                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    Cost {getSortIcon("totalCostUsd")}
-                  </button>
-                </th>
-                <th className="pb-2">
-                  <button
-                    onClick={() => handleSort("avgDurationMs")}
-                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    Avg Time {getSortIcon("avgDurationMs")}
-                  </button>
-                </th>
+                <SortHeaderCell sort={sort} field="runnerType" label="Runner" />
+                <SortHeaderCell sort={sort} field="runCount" label="Runs" />
+                <SortHeaderCell sort={sort} field="successRate" label="Success" />
+                <SortHeaderCell sort={sort} field="totalCostUsd" label="Cost" />
+                <SortHeaderCell sort={sort} field="totalTokens" label="Tokens" />
+                <SortHeaderCell sort={sort} field="avgDurationMs" label="Avg Time" last />
               </tr>
             </thead>
             <tbody>

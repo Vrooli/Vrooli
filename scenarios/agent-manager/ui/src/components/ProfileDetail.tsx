@@ -1,6 +1,6 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { networkAccessLabel, sandboxModeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
@@ -28,7 +28,7 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
           <h3 className="text-lg font-semibold">{profile.name}</h3>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => onEdit(profile)}
               className="gap-1"

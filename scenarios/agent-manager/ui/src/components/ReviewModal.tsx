@@ -1,6 +1,6 @@
 import { ExternalLink, FileCode } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogContent,
@@ -106,7 +106,7 @@ export function ReviewModal({
                 </div>
                 {run.sandboxId && onOpenSandbox && (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="w-full gap-2"
                     onClick={onOpenSandbox}
@@ -155,7 +155,7 @@ export function ReviewModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>

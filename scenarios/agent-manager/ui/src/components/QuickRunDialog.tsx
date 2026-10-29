@@ -12,7 +12,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogBody,
@@ -434,7 +434,7 @@ export function QuickRunDialog({
                 )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => imageInputRef.current?.click()}
                 >
@@ -903,7 +903,7 @@ export function QuickRunDialog({
           {currentStep > 1 && (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={handleBack}
               disabled={submitting}
               className="gap-2"

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
 
 interface RunClassResponse {
@@ -19,7 +20,7 @@ export function RunClassBreakdown() {
   const { filter } = useTimeWindow();
   const query = useQuery({ queryKey: ["stats", "run-classes", filter.preset], queryFn: () => fetchRunClasses(filter.preset ?? "7d"), staleTime: 30_000, refetchInterval: 60_000 });
   if (query.isLoading) return <div className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">Loading run classes…</div>;
-  if (query.error) return <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">Run classes: {query.error.message}</div>;
+  if (query.error) return <ErrorNotice compact error={query.error} subject="Run classes" onRetry={() => void query.refetch()} />;
   const data = query.data;
   return (
     <section className="rounded-lg border border-border bg-card/50 p-4" data-testid="run-class-breakdown">

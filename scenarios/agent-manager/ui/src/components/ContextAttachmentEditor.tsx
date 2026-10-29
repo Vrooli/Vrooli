@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2, File, Link2, StickyNote, Tag } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -86,7 +86,7 @@ export function ContextAttachmentEditor({
             <Button
               key={type.value}
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => addAttachment(type.value)}
               disabled={disabled}

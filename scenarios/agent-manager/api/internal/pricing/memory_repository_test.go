@@ -18,19 +18,17 @@ type MemoryRepository struct {
 	settings  *PricingSettings
 
 	// For historical averages simulation (in real impl, this comes from run_events)
-	historicalAverages map[string]*HistoricalPricing // key: canonicalModel
-	quotaObservations  []QuotaObservation
+	quotaObservations []QuotaObservation
 }
 
 // NewMemoryRepository creates a new in-memory pricing repository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		pricing:            make(map[string]*ModelPricing),
-		aliases:            make(map[string]*ModelAlias),
-		overrides:          make(map[string]*ManualPriceOverride),
-		settings:           DefaultPricingSettings(),
-		historicalAverages: make(map[string]*HistoricalPricing),
-		quotaObservations:  make([]QuotaObservation, 0),
+		pricing:           make(map[string]*ModelPricing),
+		aliases:           make(map[string]*ModelAlias),
+		overrides:         make(map[string]*ManualPriceOverride),
+		settings:          DefaultPricingSettings(),
+		quotaObservations: make([]QuotaObservation, 0),
 	}
 }
 
@@ -48,7 +46,7 @@ func (r *MemoryRepository) RecordQuotaObservation(ctx context.Context, observati
 	defer r.mu.Unlock()
 	copy := cloneQuotaObservation(observation)
 	if copy.ID == "" {
-		copy.ID = QuotaObservationID(copy.SourceRunID, copy)
+		copy.ID = QuotaObservationID(copy)
 		if copy.ID == "" {
 			copy.ID = uuid.NewString()
 		}
@@ -368,29 +366,6 @@ func (r *MemoryRepository) CleanupExpiredOverrides(ctx context.Context) (int, er
 	return count, nil
 }
 
-// --- Historical Pricing ---
-
-func (r *MemoryRepository) GetHistoricalAverages(ctx context.Context, canonicalModel string, since time.Time) (*HistoricalPricing, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	// In memory repository, we return pre-seeded historical data if available
-	if h, ok := r.historicalAverages[canonicalModel]; ok {
-		clone := *h
-		return &clone, nil
-	}
-	return nil, nil
-}
-
-// SetHistoricalAverages is a test helper to seed historical pricing data.
-func (r *MemoryRepository) SetHistoricalAverages(canonicalModel string, historical *HistoricalPricing) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	clone := *historical
-	r.historicalAverages[canonicalModel] = &clone
-}
-
 // --- Settings ---
 
 func (r *MemoryRepository) GetSettings(ctx context.Context) (*PricingSettings, error) {
@@ -424,5 +399,4 @@ func (r *MemoryRepository) Clear() {
 	r.aliases = make(map[string]*ModelAlias)
 	r.overrides = make(map[string]*ManualPriceOverride)
 	r.settings = DefaultPricingSettings()
-	r.historicalAverages = make(map[string]*HistoricalPricing)
 }

@@ -183,6 +183,9 @@ type RunRepository interface {
 	// List retrieves runs with optional filtering.
 	List(ctx context.Context, filter RunListFilter) ([]*domain.Run, error)
 
+	// Count returns how many runs match filter, ignoring Limit and Offset.
+	Count(ctx context.Context, filter RunListFilter) (int, error)
+
 	// ListByTask retrieves runs for a specific task.
 	ListByTask(ctx context.Context, taskID uuid.UUID, filter ListFilter) ([]*domain.Run, error)
 
@@ -248,8 +251,9 @@ type RunRepository interface {
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
 
 	// CountCapacityByStatus counts runs in status that hold a dispatch slot.
-	// Attached runs are excluded: they record sessions Agent Manager did not
-	// launch, whose resources the agent session slice already bounds.
+	// Attached and imported runs are excluded: they record sessions Agent
+	// Manager did not launch, whose resources the agent session slice already
+	// bounds (an indexed external transcript is `running` while it grows).
 	CountCapacityByStatus(ctx context.Context, status domain.RunStatus) (int, error)
 
 	// GetByTokenHash retrieves a run by its identity token hash.
@@ -265,23 +269,10 @@ type RunRepository interface {
 	// empty ids contribute nothing; an empty input returns no runs.
 	ListByWebConsoleSessionIDs(ctx context.Context, sessionIDs []string) ([]*domain.Run, error)
 
-	// ListImportedRunIDsOldestFirst returns up to limit imported runs that still
-	// have events, oldest-content-first, for recall-corpus eviction. Runs whose
-	// events were already evicted are excluded so eviction makes progress instead
-	// of re-selecting the same empty runs.
-	ListImportedRunIDsOldestFirst(ctx context.Context, limit int) ([]uuid.UUID, error)
-
-	// DeleteImportedRun hard-deletes one imported run row. Restricted to
-	// execution_mode='imported' so canonical runs can never be removed this way.
-	// Eviction calls it after clearing the run's events and search docs so the
-	// whole unit is gone and its import provenance no longer blocks re-import.
-	DeleteImportedRun(ctx context.Context, id uuid.UUID) error
-
-	// DeleteEmptyImportedRuns bulk-deletes imported run rows that have no events
-	// (eviction stubs). An imported run with no events carries nothing but its
-	// provenance, which would otherwise permanently block re-importing that
-	// session. Returns the number of rows removed.
-	DeleteEmptyImportedRuns(ctx context.Context) (int, error)
+	// ListRunTranscriptPaths maps each transcript path an interactive or
+	// codec-pipe run reads itself to that run, so the Transcript Indexer can
+	// register those files as run-owned instead of counting them again.
+	ListRunTranscriptPaths(ctx context.Context) (map[string]uuid.UUID, error)
 
 	// GetByIdempotencyKey resolves the run durably created under a creation
 	// idempotency key, or nil when no creation was accepted. A retained receipt
@@ -461,167 +452,6 @@ type ContinuationIdempotencyRepository interface {
 }
 
 // -----------------------------------------------------------------------------
-// StatsRepository - Aggregation queries for analytics
-// -----------------------------------------------------------------------------
-
-// StatsTimeWindow defines a time range for aggregation queries.
-type StatsTimeWindow struct {
-	Start time.Time
-	End   time.Time
-}
-
-// StatsFilter specifies filtering options for stats queries.
-type StatsFilter struct {
-	Window StatsTimeWindow
-	// RunIDs scopes aggregates to explicit runs. It is intentionally additive to
-	// the existing window and dimension filters so run inspection can reuse the
-	// same SQL aggregation seam as cross-run analytics.
-	RunIDs      []uuid.UUID
-	RunnerTypes []domain.RunnerType // Filter by specific runners
-	ProfileIDs  []uuid.UUID         // Filter by specific profiles
-	Models      []string            // Filter by specific models
-	TagPrefix   string              // Filter by tag prefix
-}
-
-// RunStatusCounts contains counts by run status.
-type RunStatusCounts struct {
-	Pending     int `json:"pending" db:"pending"`
-	Starting    int `json:"starting" db:"starting"`
-	Running     int `json:"running" db:"running"`
-	Complete    int `json:"complete" db:"complete"`
-	Failed      int `json:"failed" db:"failed"`
-	Cancelled   int `json:"cancelled" db:"cancelled"`
-	NeedsReview int `json:"needsReview" db:"needs_review"`
-	Total       int `json:"total" db:"total"`
-}
-
-// DurationStats contains duration percentile statistics.
-type DurationStats struct {
-	AvgMs int64 `json:"avgMs" db:"avg_ms"`
-	P50Ms int64 `json:"p50Ms" db:"p50_ms"`
-	P95Ms int64 `json:"p95Ms" db:"p95_ms"`
-	P99Ms int64 `json:"p99Ms" db:"p99_ms"`
-	MinMs int64 `json:"minMs" db:"min_ms"`
-	MaxMs int64 `json:"maxMs" db:"max_ms"`
-	Count int   `json:"count" db:"count"`
-}
-
-// CostStats contains cost aggregation data.
-type CostStats struct {
-	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	AvgCostUSD           float64 `json:"avgCostUsd" db:"avg_cost_usd"`
-	InputTokens          int64   `json:"inputTokens" db:"input_tokens"`
-	OutputTokens         int64   `json:"outputTokens" db:"output_tokens"`
-	CacheReadTokens      int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
-	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
-}
-
-// RunnerBreakdown contains stats grouped by runner type.
-type RunnerBreakdown struct {
-	RunnerType    domain.RunnerType `json:"runnerType" db:"runner_type"`
-	RunCount      int               `json:"runCount" db:"run_count"`
-	SuccessCount  int               `json:"successCount" db:"success_count"`
-	FailedCount   int               `json:"failedCount" db:"failed_count"`
-	TotalCostUSD  float64           `json:"totalCostUsd" db:"total_cost_usd"`
-	AvgDurationMs int64             `json:"avgDurationMs" db:"avg_duration_ms"`
-}
-
-// ProfileBreakdown contains stats grouped by agent profile.
-type ProfileBreakdown struct {
-	// ProfileID is intentionally text. Historical read-model rows may contain
-	// sentinel values such as "unknown" instead of UUIDs, and stats must report
-	// those rows rather than making the whole projection unreadable.
-	ProfileID    string  `json:"profileId" db:"profile_id"`
-	ProfileName  string  `json:"profileName" db:"profile_name"`
-	RunCount     int     `json:"runCount" db:"run_count"`
-	SuccessCount int     `json:"successCount" db:"success_count"`
-	FailedCount  int     `json:"failedCount" db:"failed_count"`
-	TotalCostUSD float64 `json:"totalCostUsd" db:"total_cost_usd"`
-}
-
-// ModelBreakdown contains stats grouped by model.
-type ModelBreakdown struct {
-	Model                string  `json:"model" db:"model"`
-	RunCount             int     `json:"runCount" db:"run_count"`
-	SuccessCount         int     `json:"successCount" db:"success_count"`
-	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
-}
-
-// ToolUsageStats contains tool call frequency data.
-type ToolUsageStats struct {
-	ToolName     string  `json:"toolName" db:"tool_name"`
-	CallCount    int     `json:"callCount" db:"call_count"`
-	SuccessCount int     `json:"successCount" db:"success_count"`
-	FailedCount  int     `json:"failedCount" db:"failed_count"`
-	FailureRate  float64 `json:"failureRate" db:"failure_rate"`
-}
-
-// ToolUsageModelBreakdown contains tool usage grouped by model.
-type ToolUsageModelBreakdown struct {
-	Model        string `json:"model" db:"model"`
-	RunCount     int    `json:"runCount" db:"run_count"`
-	CallCount    int    `json:"callCount" db:"call_count"`
-	SuccessCount int    `json:"successCount" db:"success_count"`
-	FailedCount  int    `json:"failedCount" db:"failed_count"`
-}
-
-// ModelRunUsage contains run-level details for a specific model.
-type ModelRunUsage struct {
-	RunID        uuid.UUID  `json:"runId" db:"run_id"`
-	TaskID       uuid.UUID  `json:"taskId" db:"task_id"`
-	TaskTitle    string     `json:"taskTitle" db:"task_title"`
-	ProfileID    *uuid.UUID `json:"profileId" db:"profile_id"`
-	ProfileName  string     `json:"profileName" db:"profile_name"`
-	Status       string     `json:"status" db:"status"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
-	TotalCostUSD float64    `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalTokens  int64      `json:"totalTokens" db:"total_tokens"`
-}
-
-// ToolRunUsage contains run-level tool usage details.
-type ToolRunUsage struct {
-	RunID        uuid.UUID  `json:"runId" db:"run_id"`
-	TaskID       uuid.UUID  `json:"taskId" db:"task_id"`
-	TaskTitle    string     `json:"taskTitle" db:"task_title"`
-	ProfileID    *uuid.UUID `json:"profileId" db:"profile_id"`
-	ProfileName  string     `json:"profileName" db:"profile_name"`
-	Status       string     `json:"status" db:"status"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
-	Model        string     `json:"model" db:"model"`
-	CallCount    int        `json:"callCount" db:"call_count"`
-	SuccessCount int        `json:"successCount" db:"success_count"`
-	FailedCount  int        `json:"failedCount" db:"failed_count"`
-}
-
-// ErrorPattern contains error frequency data.
-type ErrorPattern struct {
-	ErrorCode   string    `json:"errorCode" db:"error_code"`
-	Count       int       `json:"count" db:"count"`
-	LastSeen    time.Time `json:"lastSeen" db:"last_seen"`
-	SampleRunID uuid.UUID `json:"sampleRunId" db:"sample_run_id"`
-}
-
-// TimeSeriesBucket contains time-bucketed data for charts.
-type TimeSeriesBucket struct {
-	Timestamp     time.Time `json:"timestamp" db:"timestamp"`
-	RunsStarted   int       `json:"runsStarted" db:"runs_started"`
-	RunsCompleted int       `json:"runsCompleted" db:"runs_completed"`
-	RunsFailed    int       `json:"runsFailed" db:"runs_failed"`
-	RunsCancelled int       `json:"runsCancelled" db:"runs_cancelled"`
-	TotalCostUSD  float64   `json:"totalCostUsd" db:"total_cost_usd"`
-	AvgDurationMs int64     `json:"avgDurationMs" db:"avg_duration_ms"`
-}
-
-// -----------------------------------------------------------------------------
 // InvestigationSettingsRepository - Investigation settings persistence
 // -----------------------------------------------------------------------------
 
@@ -639,49 +469,11 @@ type InvestigationSettingsRepository interface {
 	Reset(ctx context.Context) error
 }
 
-// StatsRepository provides aggregation queries for analytics.
-// This is the primary SEAM for testing stats functionality.
+// StatsRepository ranks models by recorded run usage for the pricing model
+// picker. Run analytics (status, duration, cost, breakdowns) are Measures
+// procedures over the invocation read model; they are not served here.
 type StatsRepository interface {
-	// GetRunStatusCounts returns counts of runs by status within the time window.
-	GetRunStatusCounts(ctx context.Context, filter StatsFilter) (*RunStatusCounts, error)
-
-	// GetSuccessRate returns the ratio of complete runs to terminal runs.
-	GetSuccessRate(ctx context.Context, filter StatsFilter) (float64, error)
-
-	// GetDurationStats returns duration percentile statistics.
-	GetDurationStats(ctx context.Context, filter StatsFilter) (*DurationStats, error)
-
-	// GetCostStats aggregates cost data from metric events.
-	GetCostStats(ctx context.Context, filter StatsFilter) (*CostStats, error)
-
-	// GetRunnerBreakdown returns stats grouped by runner type.
-	GetRunnerBreakdown(ctx context.Context, filter StatsFilter) ([]*RunnerBreakdown, error)
-
-	// GetProfileBreakdown returns stats grouped by profile.
-	GetProfileBreakdown(ctx context.Context, filter StatsFilter, limit int) ([]*ProfileBreakdown, error)
-
-	// GetModelBreakdown returns stats grouped by model.
-	GetModelBreakdown(ctx context.Context, filter StatsFilter, limit int) ([]*ModelBreakdown, error)
-
-	// GetToolUsageStats aggregates tool call events.
-	GetToolUsageStats(ctx context.Context, filter StatsFilter, limit int) ([]*ToolUsageStats, error)
-
-	// GetModelRunUsage returns run-level usage for a specific model.
-	GetModelRunUsage(ctx context.Context, filter StatsFilter, model string, limit int) ([]*ModelRunUsage, error)
-
-	// GetToolRunUsage returns run-level usage for a specific tool.
-	GetToolRunUsage(ctx context.Context, filter StatsFilter, toolName string, limit int) ([]*ToolRunUsage, error)
-
-	// GetToolUsageByModel returns tool usage grouped by model.
-	GetToolUsageByModel(ctx context.Context, filter StatsFilter, toolName string, limit int) ([]*ToolUsageModelBreakdown, error)
-
-	// GetErrorPatterns aggregates error events.
-	GetErrorPatterns(ctx context.Context, filter StatsFilter, limit int) ([]*ErrorPattern, error)
-
-	// GetTimeSeries returns time-bucketed data for charts.
-	GetTimeSeries(ctx context.Context, filter StatsFilter, bucketDuration time.Duration) ([]*TimeSeriesBucket, error)
-
-	// GetPopularModels returns the most used models by run count within a time window.
+	// GetPopularModels returns the most used models by run count since a time.
 	GetPopularModels(ctx context.Context, since time.Time, limit int) ([]string, error)
 
 	// GetRecentModels returns recently used models ordered by most recent use (system-wide).

@@ -309,14 +309,16 @@ func TestContinuationTranscriptBoundarySurvivesOwnerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tokens := 0
+	// Only the continuation's own report is drained. Its counter covers the
+	// earlier invocation too, so the drain names it but claims no amount.
+	var reports []*domain.UsageEventData
 	for _, event := range events {
 		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			tokens += usage.InputTokens
+			reports = append(reports, usage)
 		}
 	}
-	if tokens != 5 {
-		t.Fatalf("recovery duplicated prior invocation: tokens=%d", tokens)
+	if len(reports) != 1 || reports[0].Cumulative == nil || reports[0].Cumulative.InputTokens != 5 || reports[0].Counters().Total() != 0 {
+		t.Fatalf("recovery duplicated prior invocation: %+v", reports)
 	}
 }
 

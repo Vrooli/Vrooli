@@ -28,16 +28,19 @@ globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
 
 Element.prototype.scrollIntoView = vi.fn();
 
+// A plain function, not vi.fn(): suites that reset or restore all mocks must
+// not leave shared components (overlays read prefers-reduced-motion) without it.
+const noop = () => undefined;
 Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
+  value: (query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
+    addListener: noop,
+    removeListener: noop,
+    addEventListener: noop,
+    removeEventListener: noop,
+    dispatchEvent: () => false,
+  }),
 });

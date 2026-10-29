@@ -48,15 +48,6 @@ type DurableTimeAccountingSource interface {
 	DurableTimeAccounting(context.Context, uuid.UUID) (runsignal.TimeAccounting, bool, error)
 }
 
-// CanonicalUsageProjectionSource supplies the token total projected from the
-// same complete event stream returned by Source.Events. It also reports
-// whether all usage-bearing invocations in that stream have authoritative
-// snapshots. A complete stream is required: callers must return an error
-// instead of a truncated prefix.
-type CanonicalUsageProjectionSource interface {
-	CanonicalUsageProjection(*domain.Run, []*domain.RunEvent) (tokens int64, usageFullyReconciled bool)
-}
-
 // ReceiptSummary is deliberately bounded: the report needs availability and
 // count to route an investigation, while the receipts command owns payload
 // disclosure.
@@ -193,49 +184,46 @@ type DiffSummary struct {
 	Available Availability `json:"available"`
 }
 type RunReport struct {
-	RunID                   uuid.UUID                    `json:"runId"`
-	Status                  domain.RunStatus             `json:"status"`
-	ExitCode                *int                         `json:"exitCode,omitempty"`
-	Error                   string                       `json:"error,omitempty"`
-	Duration                time.Duration                `json:"duration,omitempty"`
-	HeartbeatGap            time.Duration                `json:"heartbeatGap,omitempty"`
-	Turns                   int                          `json:"turns"`
-	Tokens                  int64                        `json:"tokens"`
-	CostUSD                 float64                      `json:"costUsd"`
-	CostSource              string                       `json:"costSource,omitempty"`
-	ChargeReason            string                       `json:"chargeReason,omitempty"`
-	Result                  ResultSummary                `json:"result"`
-	Events                  map[string]int               `json:"events"`
-	ExecutionErrorEvents    int                          `json:"executionErrorEvents"`
-	RateLimitObservations   int                          `json:"rateLimitObservations"`
-	UnclassifiedErrorEvents int                          `json:"unclassifiedErrorEvents"`
-	Tools                   []ToolSummary                `json:"tools"`
-	ProjectOwnedToolCalls   int                          `json:"projectOwnedToolCalls"`
-	ExternalToolCalls       int                          `json:"externalToolCalls"`
-	RequestedModel          string                       `json:"requestedModel,omitempty"`
-	ActualModel             string                       `json:"actualModel,omitempty"`
-	FallbackCount           int                          `json:"fallbackCount"`
-	Diff                    DiffSummary                  `json:"diff"`
-	EventsAvailability      Availability                 `json:"eventsAvailability"`
-	ReceiptsAvailability    Availability                 `json:"receiptsAvailability"`
-	LedgerAvailability      Availability                 `json:"ledgerAvailability"`
-	ProjectionAvailability  Availability                 `json:"projectionAvailability"`
-	ReceiptCount            int                          `json:"receiptCount"`
-	ReceiptEvidenceIDs      []string                     `json:"receiptEvidenceIds,omitempty"`
-	CrossScenarioCalls      []CrossScenarioCall          `json:"crossScenarioCalls,omitempty"`
-	LedgerTargetRollups     []LedgerTargetRollup         `json:"ledgerTargetRollups,omitempty"`
-	RepeatedToolCalls       int                          `json:"repeatedToolCalls"`
-	FilesReadMoreThanOnce   int                          `json:"filesReadMoreThanOnce"`
-	LongestEventGap         time.Duration                `json:"longestEventGap"`
-	InvocationFacts         []runsignal.InvocationFact   `json:"-"`
-	Episodes                []runsignal.FrictionEpisode  `json:"episodes,omitempty"`
-	SelfReportSpans         []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
-	HelpRecoveries          int                          `json:"helpRecoveries"`
-	UnknownInvocations      int                          `json:"unknownInvocations"`
-	TimeAccounting          runsignal.TimeAccounting     `json:"timeAccounting"`
-	Goal                    GoalProgress                 `json:"goal"`
-	InvocationValidity      EvidenceValidity             `json:"invocationValidity"`
-	WorkReferences          []*eventdomain.WorkReference `json:"workReferences,omitempty"`
+	RunID                  uuid.UUID                    `json:"runId"`
+	Status                 domain.RunStatus             `json:"status"`
+	ExitCode               *int                         `json:"exitCode,omitempty"`
+	Error                  string                       `json:"error,omitempty"`
+	Duration               time.Duration                `json:"duration,omitempty"`
+	HeartbeatGap           time.Duration                `json:"heartbeatGap,omitempty"`
+	Turns                  int                          `json:"turns"`
+	Tokens                 int64                        `json:"tokens"`
+	CostUSD                float64                      `json:"costUsd"`
+	CostSource             string                       `json:"costSource,omitempty"`
+	ChargeReason           string                       `json:"chargeReason,omitempty"`
+	Result                 ResultSummary                `json:"result"`
+	Events                 map[string]int               `json:"events"`
+	Tools                  []ToolSummary                `json:"tools"`
+	ProjectOwnedToolCalls  int                          `json:"projectOwnedToolCalls"`
+	ExternalToolCalls      int                          `json:"externalToolCalls"`
+	RequestedModel         string                       `json:"requestedModel,omitempty"`
+	ActualModel            string                       `json:"actualModel,omitempty"`
+	FallbackCount          int                          `json:"fallbackCount"`
+	Diff                   DiffSummary                  `json:"diff"`
+	EventsAvailability     Availability                 `json:"eventsAvailability"`
+	ReceiptsAvailability   Availability                 `json:"receiptsAvailability"`
+	LedgerAvailability     Availability                 `json:"ledgerAvailability"`
+	ProjectionAvailability Availability                 `json:"projectionAvailability"`
+	ReceiptCount           int                          `json:"receiptCount"`
+	ReceiptEvidenceIDs     []string                     `json:"receiptEvidenceIds,omitempty"`
+	CrossScenarioCalls     []CrossScenarioCall          `json:"crossScenarioCalls,omitempty"`
+	LedgerTargetRollups    []LedgerTargetRollup         `json:"ledgerTargetRollups,omitempty"`
+	RepeatedToolCalls      int                          `json:"repeatedToolCalls"`
+	FilesReadMoreThanOnce  int                          `json:"filesReadMoreThanOnce"`
+	LongestEventGap        time.Duration                `json:"longestEventGap"`
+	InvocationFacts        []runsignal.InvocationFact   `json:"-"`
+	Episodes               []runsignal.FrictionEpisode  `json:"episodes,omitempty"`
+	SelfReportSpans        []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
+	HelpRecoveries         int                          `json:"helpRecoveries"`
+	UnknownInvocations     int                          `json:"unknownInvocations"`
+	TimeAccounting         runsignal.TimeAccounting     `json:"timeAccounting"`
+	Goal                   GoalProgress                 `json:"goal"`
+	InvocationValidity     EvidenceValidity             `json:"invocationValidity"`
+	WorkReferences         []*eventdomain.WorkReference `json:"workReferences,omitempty"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -279,21 +267,10 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 		r.EventsAvailability = Availability{State: AvailabilityUnavailable, Reason: err.Error()}
 	} else {
 		r.foldEvents(events)
-		if projection, ok := source.(CanonicalUsageProjectionSource); ok {
-			tokens, usageFullyReconciled := projection.CanonicalUsageProjection(run, events)
-			switch {
-			case usageFullyReconciled:
-				// Reconciliation authority resolves interim snapshots and removes
-				// replayed cumulative snapshots using the canonical invocation
-				// projection, while still adding distinct invocations.
-				r.Tokens = tokens
-			case run.Summary != nil && run.Summary.TokensUsed > 0:
-				// An interim-only or unknown projection must not replace a known
-				// whole-run summary with a smaller partial event total.
-				r.Tokens = run.Summary.TokensUsed
-			default:
-				r.Tokens = tokens
-			}
+		// Source.Events is the complete stream, so the run's one usage account
+		// over it is the token total whenever the stream retains usage.
+		if hasUsage(events) {
+			r.Tokens = runsignal.AccountUsage(events).TotalTokens()
 		}
 		r.TimeAccounting = runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt)
 		if durable, ok := source.(DurableTimeAccountingSource); ok {
@@ -451,9 +428,6 @@ func deriveGoalProgress(run *domain.Run, events []*domain.RunEvent, episodes []r
 		}
 		message, ok := event.Data.(*domain.MessageEventData)
 		if !ok {
-			if usage, usageOK := event.Data.(*domain.UsageEventData); usageOK && !firstMetAt.IsZero() && !event.Timestamp.After(firstMetAt) {
-				progress.TokenCostBeforeFirstMet += int64(usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens)
-			}
 			continue
 		}
 		text := strings.TrimSpace(message.Content)
@@ -479,14 +453,7 @@ func deriveGoalProgress(run *domain.Run, events []*domain.RunEvent, episodes []r
 		}
 	}
 	if !firstMetAt.IsZero() {
-		for _, event := range events {
-			if event == nil || event.Timestamp.After(firstMetAt) {
-				continue
-			}
-			if usage, ok := event.Data.(*domain.UsageEventData); ok {
-				progress.TokenCostBeforeFirstMet += int64(usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens)
-			}
-		}
+		progress.TokenCostBeforeFirstMet = runsignal.AccountUsage(events).Between(events, time.Time{}, firstMetAt)
 	}
 	if !metSeen {
 		progress.Availability = Availability{State: AvailabilityDegraded, Reason: "goal is declared but no first-met marker is available"}
@@ -654,26 +621,15 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 
 func (r *RunReport) foldEvent(event *domain.RunEvent, tools map[string]*ToolSummary, costSeen bool) bool {
 	r.Events[string(event.EventType)]++
-	if event.EventType == domain.EventTypeError {
-		switch event.Data.(type) {
-		case *domain.ErrorEventData:
-			r.ExecutionErrorEvents++
-		case *domain.RateLimitEventData:
-			r.RateLimitObservations++
-		default:
-			r.UnclassifiedErrorEvents++
-		}
-	}
 	if event.EventType == domain.EventTypeModelFallbackAttempted {
 		r.FallbackCount++
 	}
 	switch data := event.Data.(type) {
 	case *domain.UsageEventData:
 		if !costSeen {
-			r.CostUSD, r.Tokens = 0, 0
+			r.CostUSD = 0
 			costSeen = true
 		}
-		r.Tokens += int64(data.InputTokens) + int64(data.OutputTokens) + int64(data.CacheReadTokens) + int64(data.CacheCreationTokens)
 	case *domain.ChargeEventData:
 		if data.AmountMicroUSD != nil {
 			r.CostUSD += float64(*data.AmountMicroUSD) / 1_000_000
@@ -763,15 +719,13 @@ func Text(r *RunReport) string {
 	}
 	sort.Strings(keys)
 	b.WriteString("Events:")
+	if r.EventsAvailability.State != AvailabilityAvailable && r.EventsAvailability.State != AvailabilityEmpty {
+		fmt.Fprintf(&b, " unavailable (%s)", r.EventsAvailability.State)
+	}
 	for _, key := range keys {
 		fmt.Fprintf(&b, " %s=%d", key, r.Events[key])
 	}
 	b.WriteByte('\n')
-	if r.EventsAvailability.State == AvailabilityAvailable || r.EventsAvailability.State == AvailabilityEmpty {
-		fmt.Fprintf(&b, "Error event breakdown: typed_execution_errors=%d rate_limit_observations=%d unclassified=%d\n", r.ExecutionErrorEvents, r.RateLimitObservations, r.UnclassifiedErrorEvents)
-	} else {
-		fmt.Fprintf(&b, "Error event breakdown: unavailable (%s)\n", r.EventsAvailability.State)
-	}
 	fmt.Fprintf(&b, "Diff: files=%d bytes=%d (%s)\n", r.Diff.Files, r.Diff.Bytes, r.Diff.Available.State)
 	fmt.Fprintf(&b, "Receipts: %s (%d)\n", r.ReceiptsAvailability.State, r.ReceiptCount)
 	fmt.Fprintf(&b, "Next: agent-manager run result %s; agent-manager run events %s; agent-manager run tools %s --failed; agent-manager run diff %s; agent-manager run receipts %s\n", r.RunID, r.RunID, r.RunID, r.RunID, r.RunID)
@@ -799,4 +753,15 @@ func costText(r *RunReport) string {
 	default:
 		return fmt.Sprintf("$%.4f (%s)", r.CostUSD, r.CostSource)
 	}
+}
+
+func hasUsage(events []*domain.RunEvent) bool {
+	for _, event := range events {
+		if event != nil {
+			if _, ok := event.Data.(*domain.UsageEventData); ok {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -161,7 +161,9 @@ test("timeline maps every operational evidence family to an investigator-facing 
     ["metric", { name: "tokens", value: 12 }, "metrics", "tokens: 12"],
     ["cost", { totalCostUsd: 0.125 }, "metrics", "Cost update $0.1250"],
     ["error", { message: "runner crashed" }, "errors", "runner crashed"],
-    ["rateLimit", { message: "slow down" }, "errors", "slow down"],
+    ["rateLimit", { message: "slow down" }, "metrics", "slow down"],
+    ["rateLimit", { provider: "openai", pool: "primary", usedPercent: 33 }, "metrics", "openai primary quota 33%"],
+    ["rateLimit", { provider: "anthropic", pool: "five_hour", status: "rejected" }, "metrics", "anthropic five_hour quota rejected"],
   ];
   for (const [kind, value, category, summary] of cases) {
     const entry = buildTimelineEntries([makeRunEvent({ data: { case: kind, value } })])[0] as TimelineEventEntry;
@@ -206,7 +208,7 @@ test("timeline filter and label helpers cover all operator display modes and fal
   assert.equal(getTimelineEventSummary(byId.get("artifact") as TimelineEventEntry), "Artifact created");
   assert.equal(getTimelineEventSummary(byId.get("metric") as TimelineEventEntry), "metric: 0");
   assert.equal(getTimelineEventSummary(byId.get("error") as TimelineEventEntry), "E_NETWORK");
-  assert.equal(getTimelineEventSummary(byId.get("rate") as TimelineEventEntry), "Rate limited");
+  assert.equal(getTimelineEventSummary(byId.get("rate") as TimelineEventEntry), "Provider quota observation");
   assert.equal(getTimelineEventSummary(byId.get("cost") as TimelineEventEntry), "Cost update");
   assert.equal(getTimelineEventSummary(byId.get("compact") as TimelineEventEntry), "token limit");
 });

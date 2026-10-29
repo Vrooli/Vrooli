@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestWorkflowTerminalStatusAndTriggerDefaults(t *testing.T) {
@@ -83,17 +85,14 @@ func TestValidateEventsCountsTypedWarningsWithoutRejectingEvents(t *testing.T) {
 	ValidateEvent(&RunEvent{EventType: EventTypeMetric, Data: &MessageEventData{}})
 }
 
-func TestValidateEventsDoesNotCountHealthyQuotaObservationAsError(t *testing.T) {
-	percent := 42.5
-	stats := ValidateEvents([]*RunEvent{{EventType: EventTypeError, Data: &RateLimitEventData{
-		Provider: "openai", Pool: "primary", UsedPercent: &percent, WindowMinutes: 300,
-	}}})
-	if stats.ErrorCount != 0 {
-		t.Fatalf("healthy quota observation inflated errors: %+v", stats)
-	}
+func TestValidateEventsNeverCountsQuotaObservationsAsErrors(t *testing.T) {
 	exhausted := 100.0
-	stats = ValidateEvents([]*RunEvent{{EventType: EventTypeError, Data: &RateLimitEventData{Provider: "openai", Pool: "primary", UsedPercent: &exhausted}}})
+	stats := ValidateEvents([]*RunEvent{
+		NewRateLimitEvent(uuid.New(), "300m", "", nil, 0),
+		{EventType: EventTypeQuota, Data: &RateLimitEventData{Provider: "openai", Pool: "primary", UsedPercent: &exhausted}},
+		NewErrorEvent(uuid.New(), "execution_error", "failed", false),
+	})
 	if stats.ErrorCount != 1 {
-		t.Fatalf("exhausted quota event lost error classification: %+v", stats)
+		t.Fatalf("quota observations counted as errors: %+v", stats)
 	}
 }

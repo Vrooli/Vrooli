@@ -63,11 +63,6 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 		code := int32(*report.ExitCode)
 		out.ExitCode = &code
 	}
-	if report.EventsAvailability.State == runreport.AvailabilityAvailable || report.EventsAvailability.State == runreport.AvailabilityEmpty {
-		out.ErrorBreakdown = &apipb.RunReportErrorBreakdown{
-			ExecutionErrors: int32(report.ExecutionErrorEvents), RateLimitObservations: int32(report.RateLimitObservations), Unclassified: int32(report.UnclassifiedErrorEvents),
-		}
-	}
 	for eventType, count := range report.Events {
 		out.EventCounts[eventType] = int32(count)
 	}

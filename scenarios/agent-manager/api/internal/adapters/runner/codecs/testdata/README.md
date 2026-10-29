@@ -52,3 +52,26 @@ first-block completion headers, absent exit metadata and the observed
 `Unknown command: read`. Invocation and remaining output text are redacted;
 quota/private content is excluded. It proves the incident return shape, not
 byte-identical history or command success.
+
+Usage-accounting fixtures (observed traces, trimmed and redacted on
+2026-10-29; used by `usage_accounting_test.go` and the orchestration
+usage regressions). Only usage-bearing records and their turn boundaries are
+kept; message, tool and prompt content is replaced with `[redacted]`, quota
+metadata is dropped, and token counters are unchanged:
+
+- `codex_usage_rollout.jsonl`: the first six turns of the run-scoped rollout
+  of codec-pipe run `aee95b01-f8d3-4de7-8c8c-1c6b19a36f2a` (session
+  `01a18449-34cc-7291-ad6f-10ff3e83ad11`), including one repeated
+  `token_count` frame and one compaction. Source SHA-256
+  `cd4ba276ccd7b3bbe207109b18aae9a7d9a73b45cacb1f2b73d80beb8167c55c`.
+- `codex_usage_exec.jsonl`: the `thread.started`/`turn.started`/
+  `turn.completed` records of the same run's exec stream through its sixth
+  `turn.completed`. The first invocations stop before reporting. Source SHA-256
+  `0adb69c1e7ac301fc4499459efca05aaefb8427cebc6a6998cc3e95d8d14c21a`.
+- `claude_usage_ondisk.jsonl`: the first 40 assistant messages of an on-disk
+  Claude Code session transcript, with repeated per-block usage. Source SHA-256
+  `d7992553f5486f64fb25de71b1e997f3b65598e5b8ed01c8be7317a542c0d54f`.
+- `claude_usage_subagent.jsonl`: a complete Claude Code sub-agent
+  (`isSidechain`) transcript whose early content blocks carry partial output
+  usage. Source SHA-256
+  `df6b51acc298a6e59d1140eb30c50c9136b2535d1b52fe5c0d874dd65c237a75`.

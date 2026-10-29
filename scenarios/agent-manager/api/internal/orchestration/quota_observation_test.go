@@ -1,23 +1,27 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/database"
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/runner/codecs"
-	"agent-manager/internal/orchestration/testutil"
-	"agent-manager/internal/protoconv"
 	"context"
 	"errors"
-	"github.com/sirupsen/logrus"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
+	runnercore "agent-manager/internal/adapters/runner/core"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/protoconv"
+	"agent-manager/internal/transcriptindex"
+
+	"github.com/sirupsen/logrus"
+
 	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
@@ -44,39 +48,120 @@ func (s *recordingQuotaObservationStore) ListQuotaObservations(_ context.Context
 	return result, nil
 }
 
-func TestRunEventSinkPersistsProviderQuotaObservationAfterEventEvidence(t *testing.T) {
-	runID := uuid.New()
-	observedAt := time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC)
-	store := mocks.NewFakeEventStore()
-	quota := &recordingQuotaObservationStore{}
-	o := &Orchestrator{
-		events:            store,
-		quotaObservations: quota,
-		clock:             func() time.Time { return observedAt.Add(time.Minute) },
+// runEventSinkPaths builds each live run-event sink the way its production
+// owner does: the fresh headless executor, the interactive/continuation
+// coordinator (CoordinatorDeps.NewSink is o.runEventSink) and the recovery
+// reconciler wired through SetReconciler.
+func runEventSinkPaths(t *testing.T, o *Orchestrator) map[string]func(*domain.Run) runner.EventSink {
+	t.Helper()
+	return map[string]func(*domain.Run) runner.EventSink{
+		"headless executor": func(run *domain.Run) runner.EventSink {
+			return o.newRunExecutor(t.Context(), run, nil, nil, "", "", "", nil).createEventSink()
+		},
+		"interactive tail": func(run *domain.Run) runner.EventSink { return o.runEventSink(run.ID) },
+		"recovery": func(run *domain.Run) runner.EventSink {
+			r := NewReconciler(o.runs, o.runners, WithReconcilerEvents(o.events))
+			o.SetReconciler(r)
+			return r.recoveryEventSink(run.ID)
+		},
 	}
-	percent := 42.5
-	event := domain.NewRateLimitEvent(runID, "5h", "native quota", nil, 0)
-	event.Timestamp = observedAt
-	data := event.Data.(*domain.RateLimitEventData)
-	data.Provider = "openai"
-	data.Pool = "primary"
-	data.UsedPercent = &percent
-	data.WindowMinutes = 300
-	data.Provenance = "codex:event_msg.token_count.rate_limits"
+}
 
-	if err := o.runEventSink(runID).Emit(event); err != nil {
+// codexQuotaEvent is one parsed Codex token_count rate-limit frame.
+func codexQuotaEvent(t *testing.T, runID uuid.UUID, percent int) *domain.RunEvent {
+	t.Helper()
+	line := fmt.Sprintf(`{"timestamp":"2026-10-09T07:33:59Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":%d,"window_minutes":10080,"resets_at":1791948560}}}}`, percent)
+	got := codecs.NewCodexForTest().NewTranscriptParser().ParseTranscriptLine(runID, line)
+	if got.Err != nil || len(got.Events) != 1 || got.Events[0].EventType != domain.EventTypeQuota {
+		t.Fatalf("codec quota frame = %+v", got)
+	}
+	return got.Events[0]
+}
+
+func TestEveryLiveSinkPathRecordsProviderQuotaObservations(t *testing.T) {
+	for _, name := range []string{"headless executor", "interactive tail", "recovery"} {
+		t.Run(name, func(t *testing.T) {
+			repos, events, run := tokenCapFixture(t, "gpt-6-luna")
+			quota := &recordingQuotaObservationStore{}
+			o := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events), WithQuotaObservationStore(quota), WithClock(func() time.Time { return time.Date(2026, 10, 9, 7, 40, 0, 0, time.UTC) }))
+			sink := runEventSinkPaths(t, o)[name](run)
+			frame := codexQuotaEvent(t, run.ID, 42)
+			if err := sink.Emit(frame); err != nil {
+				t.Fatal(err)
+			}
+			// Re-appending the same event is a persistence replay: no second hook run.
+			if err := sink.Emit(frame); err != nil {
+				t.Fatal(err)
+			}
+			if len(quota.rows) != 1 {
+				t.Fatalf("observations = %+v, want one per persisted frame", quota.rows)
+			}
+			row := quota.rows[0]
+			if row.Provider != "openai" || row.Pool != "primary" || row.Window != "10080m" || row.UsedPercent == nil || *row.UsedPercent != 42 || row.Standing != pricing.QuotaStandingAvailable {
+				t.Fatalf("observation = %+v", row)
+			}
+			if row.SourceRunID != run.ID.String() || !strings.Contains(row.EvidenceRef, frame.ID.String()) || row.Freshness != pricing.ObservationFresh || row.ID != pricing.QuotaObservationID(&row) {
+				t.Fatalf("observation lineage/freshness/identity = %+v", row)
+			}
+			if row.Used != nil || row.Limit != nil {
+				t.Fatalf("observation attributed unreported amount = %+v", row)
+			}
+		})
+	}
+}
+
+func TestImportRecordsQuotaButNeverActsOnImportedRuns(t *testing.T) {
+	for _, recall := range []bool{true, false} {
+		t.Run(fmt.Sprintf("recall=%v", recall), func(t *testing.T) {
+			repos, events, run := tokenCapFixture(t, "gpt-6-luna")
+			quota := &recordingQuotaObservationStore{}
+			policy := DefaultTokenCapPolicy()
+			policy.Mode, policy.Caps = TokenCapEnforce, map[string]int64{tokenCapProfile: 1}
+			o := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events), WithQuotaObservationStore(quota), WithTokenCapPolicy(policy))
+			host := &transcriptIndexHost{o: o, redact: map[string]bool{}}
+			frame := codexQuotaEvent(t, run.ID, 7)
+			if err := host.Record(t.Context(), run.ID.String(), []*domain.RunEvent{frame, usageEvent(run.ID, "gpt-6-luna", 5000, 1)}, recall); err != nil {
+				t.Fatal(err)
+			}
+			if len(quota.rows) != 1 || *quota.rows[0].UsedPercent != 7 {
+				t.Fatalf("imported quota observations = %+v", quota.rows)
+			}
+			wantRef := "agent-manager://runs/" + run.ID.String() + "/events/" + frame.ID.String()
+			if !recall {
+				wantRef = "agent-manager://runs/" + run.ID.String()
+			}
+			if quota.rows[0].EvidenceRef != wantRef {
+				t.Fatalf("evidence ref = %q, want %q (an unretained event is never referenced)", quota.rows[0].EvidenceRef, wantRef)
+			}
+			if _, tracked := o.tokenCaps.runs.Load(run.ID); tracked {
+				t.Fatal("token cap observed usage on an imported run")
+			}
+		})
+	}
+}
+
+func TestImportTranscriptRecordsCodexQuotaFrames(t *testing.T) {
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	registry := runner.NewRegistry()
+	if err := registry.Register(runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := quota.ListQuotaObservations(context.Background(), "openai", "primary", "300m", 10)
-	if err != nil || len(rows) != 1 {
-		t.Fatalf("quota rows=%+v err=%v", rows, err)
+	quota := &recordingQuotaObservationStore{}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(eventStore), WithRunners(registry), WithRunStateRoot(t.TempDir()), WithQuotaObservationStore(quota),
+		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}), WithInvocationReadModel(repos.InvocationReadModel))
+	NewTranscriptIndex(o, repos.TranscriptIndex, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: t.TempDir()}, RecallMaxBytes: transcriptindex.DefaultRecallMaxBytes})
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	body := `{"timestamp":"2026-10-09T07:00:00Z","type":"session_meta","payload":{"id":"quota-import"}}` + "\n" +
+		`{"timestamp":"2026-10-09T07:33:59Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":20,"window_minutes":10080,"resets_at":1791948560}}}}` + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	row := rows[0]
-	if row.SourceRunID != runID.String() || row.EvidenceRef == "" || row.Freshness != pricing.ObservationFresh {
-		t.Fatalf("observation lineage/freshness=%+v", row)
+	if _, err := o.ImportTranscript(t.Context(), ImportTranscriptRequest{Path: path, RunnerType: domain.RunnerTypeCodex, SourceHarness: "codex", SourceSessionID: "quota-import"}); err != nil {
+		t.Fatal(err)
 	}
-	if row.Used != nil || row.Limit != nil || row.UsedPercent == nil || *row.UsedPercent != percent {
-		t.Fatalf("observation attributed unreported amount=%+v", row)
+	if len(quota.rows) != 1 || quota.rows[0].Provider != "openai" || *quota.rows[0].UsedPercent != 20 {
+		t.Fatalf("import observations = %+v", quota.rows)
 	}
 }
 
@@ -167,7 +252,7 @@ func TestCodexWarningPersistencePrecedesCursorAndReplayContinues(t *testing.T) {
 					line = `{"type":"item.completed","item":{"type":"tool_result","id":"mixed","name":"exec","output":"{\"metadata\":{\"exit_code\":\"bad\"}}"}}` + "\n"
 				}
 				path := filepath.Join(t.TempDir(), "rollout.jsonl")
-				if err := os.WriteFile(path, []byte(line+later), 0600); err != nil {
+				if err := os.WriteFile(path, []byte(line+later), 0o600); err != nil {
 					t.Fatal(err)
 				}
 				p := codecs.NewCodexForTest().NewTranscriptParser()
@@ -260,7 +345,7 @@ func TestCodexIdenticalRecordsRetainDistinctSourceOccurrences(t *testing.T) {
 	}
 	line := `{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"same","output":[{"type":"image","future":true}]}}` + "\n"
 	path := filepath.Join(t.TempDir(), "rollout.jsonl")
-	if err := os.WriteFile(path, []byte(line+line), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(line+line), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	broadcaster := &recordingBroadcaster{}

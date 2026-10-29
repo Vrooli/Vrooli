@@ -101,22 +101,22 @@ type Levers struct {
 	// file in. The CLI `conversation policy` subcommand edits the same file.
 	ConversationPolicy ConversationPolicyLevers `json:"conversationPolicy"`
 
-	// TranscriptImport controls the periodic sweep that adopts external harness
-	// transcripts into the conversation corpus: how often it runs and which
-	// extra directories it scans beyond the built-in harness roots.
+	// TranscriptImport controls the Transcript Indexer that captures every
+	// harness transcript on the host: how often it ticks and which extra
+	// directories it reads beyond the built-in roots.
 	TranscriptImport TranscriptImportLevers `json:"transcriptImport"`
 }
 
-// TranscriptImportLevers control the transcript-import sweep. The sweep already
-// scans the built-in harness roots (~/.codex/sessions, ~/.claude/projects) and
-// the per-session web-console Codex homes; these levers tune its cadence and let
-// an operator add further roots for externally-run or remote agents whose
-// transcripts land outside the built-in locations.
+// TranscriptImportLevers control the Transcript Indexer. It already reads the
+// built-in roots (~/.codex/sessions, ~/.claude/projects with sub-agent
+// sidechains, web-console Codex homes and Agent Manager run homes); these
+// levers tune its cadence and let an operator add roots for externally-run or
+// remote agents whose transcripts land elsewhere.
 type TranscriptImportLevers struct {
-	// Interval is how often the background sweep runs. A sweep also runs once at
-	// startup regardless of this value. Lower = fresher corpus, more disk walks.
-	// Values below 1m are rejected so a misconfiguration cannot spin the host.
-	// Range: 1m to 24h. Default: 6h.
+	// Interval is how often the indexer ticks. A tick also runs at startup.
+	// Change detection is a stat walk, and reading is bounded per tick, so a
+	// short interval is cheap. Values below 1m are rejected.
+	// Range: 1m to 24h. Default: 1m.
 	// Env: AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL (a Go duration, e.g. "15m").
 	Interval time.Duration `json:"interval"`
 
@@ -393,25 +393,14 @@ type StorageLevers struct {
 	// Range: 1024 to 1048576. Default: 4096.
 	ImportedToolCompactionMinBytes int `json:"importedToolCompactionMinBytes"`
 
-	// ImportedCorpusMaxBytes is the live-byte ceiling eviction enforces: when the
-	// database's live bytes exceed this, the oldest imported runs are evicted
-	// (events removed, a tombstone row kept so the sweep does not re-import them;
-	// the transcript stays on disk) until back under it. Imported events are
-	// exempt from the age sweep, so without this a few multi-GB codex rollouts
-	// drove the live DB to 32GB. This is the enforcement arm storage-health lacks.
-	// It sits below the declared 12 GiB storage budget, leaving headroom for the
-	// native data and the FTS index; dead FTS space is reclaimed separately (see
-	// reclaimSearchIndex) BEFORE eviction, so this ceiling is spent on live recall
-	// rather than tombstones. Canonical (non-imported) runs are never evicted.
-	// 0 disables eviction. Default: 8 GiB.
+	// ImportedCorpusMaxBytes is the Transcript Indexer's recall budget: the
+	// full events and conversation-search documents of indexed external
+	// transcripts, measured on those rows alone (never whole-database size).
+	// Over budget, the least recently active files lose their recall; their
+	// durable usage summaries and quota observations are never evicted, and
+	// recall is rebuilt from the source file on demand. 0 disables recall.
+	// Default: 4 GiB.
 	ImportedCorpusMaxBytes int64 `json:"importedCorpusMaxBytes"`
-
-	// ImportedCorpusEvictionBatch caps how many imported runs one eviction pass
-	// removes. It is a ceiling with an early break — a pass stops the moment live
-	// bytes fall under budget — so a steady-state overage evicts only a few runs
-	// while a large one-time backfill (thousands of small old runs) still drains
-	// in a handful of 30s passes instead of hundreds. Default: 500.
-	ImportedCorpusEvictionBatch int `json:"importedCorpusEvictionBatch"`
 }
 
 // =============================================================================
@@ -713,8 +702,7 @@ func DefaultLevers() Levers {
 			StaleRunStateRetentionDays:     30,
 			ImportedToolCompactionDays:     30,
 			ImportedToolCompactionMinBytes: 4096,
-			ImportedCorpusMaxBytes:         8 * 1024 * 1024 * 1024,
-			ImportedCorpusEvictionBatch:    500,
+			ImportedCorpusMaxBytes:         4 * 1024 * 1024 * 1024,
 		},
 		Heartbeat: HeartbeatLevers{
 			RunHeartbeatInterval:    15 * time.Second,
@@ -762,7 +750,7 @@ func DefaultLevers() Levers {
 			UnarmedWaitFailureThreshold: time.Hour,
 		},
 		TranscriptImport: TranscriptImportLevers{
-			Interval:  6 * time.Hour,
+			Interval:  time.Minute,
 			ScanRoots: nil,
 		},
 	}

@@ -17,22 +17,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// ReplayInvocationFacts rebuilds one durable run projection from retained
-// events. An unreplayable response is successful and preserves old facts.
-func (h *Handler) ReplayInvocationFacts(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(mux.Vars(r)["id"])
-	if err != nil {
-		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
-		return
-	}
-	result, err := h.svc.ReplayInvocationFacts(r.Context(), id)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, result)
-}
-
 func (h *Handler) invocationReadModelFilter(r *http.Request) (invocationreadmodel.Filter, error) {
 	q := r.URL.Query()
 	filter := invocationreadmodel.Filter{Ownership: q.Get("ownership"), Outcome: q.Get("outcome"), Executable: q.Get("executable"), Fingerprint: q.Get("fingerprint"), ProfileID: q.Get("profile_id"), RunnerType: q.Get("runner_type"), Model: q.Get("model"), TagPrefix: q.Get("tag_prefix"), RunStatus: q.Get("run_status"), ToolName: q.Get("tool_name"), EpisodePattern: q.Get("episode_pattern"), EpisodeCauseScope: q.Get("episode_cause_scope"), EpisodeFingerprint: q.Get("episode_fingerprint"), SelfReportRuleID: q.Get("self_report_rule_id"), SelfReportCauseScope: q.Get("self_report_cause_scope"), TargetScenario: q.Get("target_scenario"), Operation: q.Get("operation")}
@@ -58,107 +42,6 @@ func (h *Handler) invocationReadModelFilter(r *http.Request) (invocationreadmode
 		}
 	}
 	return filter, nil
-}
-
-func (h *Handler) AggregateInvocationFacts(w http.ResponseWriter, r *http.Request) {
-	filter, err := h.invocationReadModelFilter(r)
-	if err != nil {
-		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
-		return
-	}
-	dimension := r.URL.Query().Get("dimension")
-	if dimension == "" {
-		writeSimpleError(w, r, "dimension", "dimension is required")
-		return
-	}
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		limit, err = strconv.Atoi(raw)
-		if err != nil || limit < 1 {
-			writeSimpleError(w, r, "limit", "limit must be a positive integer")
-			return
-		}
-	}
-	rows, err := h.svc.AggregateInvocationFacts(r.Context(), filter, dimension, limit)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, rows)
-}
-
-func (h *Handler) SelectInvocationCohort(w http.ResponseWriter, r *http.Request) {
-	filter, err := h.invocationReadModelFilter(r)
-	if err != nil {
-		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
-		return
-	}
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		limit, err = strconv.Atoi(raw)
-		if err != nil || limit < 1 {
-			writeSimpleError(w, r, "limit", "limit must be a positive integer")
-			return
-		}
-	}
-	cohort, err := h.svc.SelectInvocationCohort(r.Context(), filter, limit)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, cohort)
-}
-
-func (h *Handler) EpisodeCohort(w http.ResponseWriter, r *http.Request) {
-	filter, err := h.invocationReadModelFilter(r)
-	if err != nil {
-		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
-		return
-	}
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		limit, err = strconv.Atoi(raw)
-		if err != nil || limit < 1 {
-			writeSimpleError(w, r, "limit", "limit must be a positive integer")
-			return
-		}
-	}
-	cohort, err := h.svc.EpisodeCohort(r.Context(), filter, limit)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, cohort)
-}
-
-func (h *Handler) CompareEpisodeCohorts(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Left          invocationreadmodel.Filter `json:"left"`
-		Right         invocationreadmodel.Filter `json:"right"`
-		ChangeBinding string                     `json:"changeBinding,omitempty"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeSimpleError(w, r, "body", "left and right filters are required")
-		return
-	}
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < 1 {
-			writeSimpleError(w, r, "limit", "limit must be positive")
-			return
-		}
-		limit = parsed
-	}
-	comparison, err := h.svc.CompareEpisodeCohorts(r.Context(), request.Left, request.Right, limit)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	if request.ChangeBinding != "" {
-		comparison.ChangeBinding = request.ChangeBinding
-	}
-	writeJSON(w, http.StatusOK, comparison)
 }
 
 func (h *Handler) EpisodeTrend(w http.ResponseWriter, r *http.Request) {
@@ -214,20 +97,6 @@ func (h *Handler) PublishRecurringFriction(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, result)
 }
 
-func (h *Handler) InvocationMetrics(w http.ResponseWriter, r *http.Request) {
-	filter, err := h.invocationReadModelFilter(r)
-	if err != nil {
-		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
-		return
-	}
-	metrics, err := h.svc.InvocationMetrics(r.Context(), filter)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, metrics)
-}
-
 func (h *Handler) DefineInvocationCohort(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Name          string          `json:"name"`
@@ -281,22 +150,20 @@ func (h *Handler) DeleteInvocationCohort(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) RefreshInvocationFacts(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(mux.Vars(r)["id"])
-	if err != nil {
-		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
-		return
-	}
-	result, err := h.svc.RefreshInvocationFacts(r.Context(), id)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, result)
-}
-
+// ReplayInvocationCorpus rebuilds or refreshes the durable invocation
+// projection of one run (run_id) or a filtered run population; `agent-manager
+// usage reindex` is its one caller. A refresh skips runs whose events have not
+// advanced unless the classifier version changed.
 func (h *Handler) ReplayInvocationCorpus(w http.ResponseWriter, r *http.Request) {
 	filter := orchestration.ReplayFilter{TagPrefix: r.URL.Query().Get("tag_prefix")}
+	if raw := r.URL.Query().Get("run_id"); raw != "" {
+		runID, err := uuid.Parse(raw)
+		if err != nil {
+			writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+			return
+		}
+		filter.RunID = &runID
+	}
 	if raw := r.URL.Query().Get("profile_id"); raw != "" {
 		profileID, err := uuid.Parse(raw)
 		if err != nil {

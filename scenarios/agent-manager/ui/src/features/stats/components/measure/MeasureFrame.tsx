@@ -1,4 +1,5 @@
 import { Info, MapPin } from "lucide-react";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import type { ReactNode } from "react";
 import { InsufficientDataCard } from "../../../../components/stats/InsufficientDataCard";
 import type { MeasureDefinitionView, MeasureResponse } from "../../api/statsClient";
@@ -18,7 +19,7 @@ export function MeasureFrame({ label, result, definition, loading, error, childr
     return <div className="animate-pulse rounded-lg border border-border/60 bg-card/40 p-3" data-testid={testId}><div className="h-3 w-24 rounded bg-muted/40" /><div className="mt-2 h-7 w-32 rounded bg-muted/40" /></div>;
   }
   if (error) {
-    return <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-500" role="alert" data-testid={testId}>{label}: {error}</div>;
+    return <ErrorNotice compact error={error} subject={label} testId={testId} />;
   }
   if (!result || !result.validity || result.validity.state === "unavailable") {
     return <InsufficientDataCard label={label} reason={result?.validity.reason || "the measure did not return usable evidence"} testId={testId} />;

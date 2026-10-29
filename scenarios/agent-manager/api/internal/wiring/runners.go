@@ -137,7 +137,7 @@ func chargeSourceFromComponents(sources map[pricing.PricingComponent]pricing.Pri
 	}
 	for _, source := range sources {
 		switch source {
-		case pricing.SourceManualOverride, pricing.SourceProviderAPI, pricing.SourceHistoricalAverage:
+		case pricing.SourceManualOverride, pricing.SourceProviderAPI:
 			return "metered"
 		case pricing.PricingSource("subscription"):
 			return "subscription"

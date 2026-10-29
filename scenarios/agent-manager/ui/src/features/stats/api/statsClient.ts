@@ -18,6 +18,7 @@ import { measuresClient } from "./measuresClient";
 import type {
   CompareModelsRequest,
   CompareModelsResponse,
+  RunStatusCounts,
   StatsFilter,
 } from "./types";
 
@@ -384,6 +385,19 @@ export async function fetchDurableRunVolume(filter: StatsFilter): Promise<{ tota
 export async function fetchDurableRunStatusDistribution(filter: StatsFilter): Promise<DurableRunStatusDistribution> {
   const r = await measuresClient.runStatusDistribution(measureRequest(filter));
   return { rows: r.rows.map((row) => ({ status: row.status, count: numberValue(row.count) })), ...metadata(r) };
+}
+/** Folds durable status rows into the fixed per-status counts the dashboard and summary render. */
+export function runStatusCountsFromRows(rows: DurableRunStatusDistribution["rows"]): RunStatusCounts {
+  const counts = Object.fromEntries(rows.map((row) => [row.status, row.count]));
+  return {
+    pending: counts.pending ?? 0,
+    running: counts.running ?? 0,
+    complete: counts.complete ?? 0,
+    failed: counts.failed ?? 0,
+    cancelled: counts.cancelled ?? 0,
+    needsReview: counts.needs_review ?? 0,
+    total: rows.reduce((total, row) => total + row.count, 0),
+  };
 }
 export async function fetchDurableToolCohort(filter: StatsFilter, toolName: string, limit = 25): Promise<DurableCohort> {
   const response = await measuresClient.selectCohort({ ...measureRequestForTool(filter, toolName), limit });

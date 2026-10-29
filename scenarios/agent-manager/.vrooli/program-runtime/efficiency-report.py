@@ -1,7 +1,7 @@
 """agent-manager.efficiency-report v1 — deterministic read-only efficiency sensor.
 
-The program composes the existing governed MeasuresService reads. The REST
-endpoint remains the richer operator surface; this path is intentionally
+The program composes the existing governed MeasuresService reads; it is the
+efficiency report surface (the former `run efficiency` REST read is gone). It is
 bounded and portable through Program Runtime's Connect-only binding model.
 """
 
@@ -157,8 +157,9 @@ def step_collect():
         if current["errors"]:
             envelope["errors"].extend({"class": "binding_error", "detail": e, "where": "collect"} for e in current["errors"])
     except Exception as exc:
-        envelope["status"] = "unavailable"
-        envelope["errors"].append({"class": "binding_error", "detail": str(exc)[:240]})
+        status, klass = program.classify(exc)
+        envelope["status"] = status
+        envelope["errors"].append({"class": klass, "detail": str(exc)[:240], "where": "collect"})
     return "report"
 
 

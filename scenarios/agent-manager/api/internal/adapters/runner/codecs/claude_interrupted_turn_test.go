@@ -80,3 +80,22 @@ func TestClaudeLeavesTurnUnknownWhenARequestMayBeOutstanding(t *testing.T) {
 		})
 	}
 }
+
+// F-W5-5: the first assistant line after a prompt starts a provider turn, as
+// turn_context does for Codex; tool results continue the turn. Coverage
+// counts Claude turns from this flag.
+func TestClaudeTranscriptMarksProviderTurnsAtEachPromptsFirstResponse(t *testing.T) {
+	prompt := func(text string) string {
+		return `{"type":"user","sessionId":"claude-session","message":{"role":"user","content":"` + text + `"}}`
+	}
+	parser := NewClaudeForTest().NewTranscriptParser()
+	var started []int
+	for i, line := range []string{claudeOpenTurnMode, prompt("read x"), claudeOpenTurnToolUse, claudeOpenTurnResult, claudeOpenTurnEndOfTurn, prompt("again"), claudeOpenTurnEndOfTurn} {
+		if parser.ParseTranscriptLine(uuid.New(), line).ProviderTurnStarted {
+			started = append(started, i)
+		}
+	}
+	if len(started) != 2 || started[0] != 2 || started[1] != 6 {
+		t.Fatalf("provider turns started at lines %v, want [2 6]", started)
+	}
+}

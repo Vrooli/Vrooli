@@ -10,42 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestOrchestratorReportSourceProjectsInvocationUsageOnce(t *testing.T) {
-	runID := uuid.New()
-	events := []*domain.RunEvent{
-		{Data: &domain.UsageEventData{InputTokens: 10}},
-		{Data: &domain.UsageEventData{InputTokens: 20, ReconciliationAuthority: true}},
-		{Data: &domain.UsageEventData{InputTokens: 20, ReconciliationAuthority: true}},
-		domain.NewStatusEvent(runID, "complete", "running", "continuation started"),
-		{Data: &domain.UsageEventData{InputTokens: 5}},
-		{Data: &domain.UsageEventData{InputTokens: 30, ReconciliationAuthority: true}},
-		{Data: &domain.UsageEventData{InputTokens: 30, ReconciliationAuthority: true}},
-	}
-	source := orchestratorReportSource{o: &Orchestrator{clock: func() time.Time { return time.Unix(1, 0) }}}
-	tokens, fullyReconciled := source.CanonicalUsageProjection(&domain.Run{ID: runID}, events)
-	if !fullyReconciled {
-		t.Fatal("projection did not recognize authoritative usage in both invocations")
-	}
-	if tokens != 50 {
-		t.Fatalf("canonical usage=%d, want 50 (one authority per invocation)", tokens)
-	}
-
-	mixedEvents := append(append([]*domain.RunEvent{}, events[:3]...), domain.NewStatusEvent(runID, "complete", "running", "interim next invocation"), &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 5}})
-	_, fullyReconciled = source.CanonicalUsageProjection(&domain.Run{ID: runID}, mixedEvents)
-	if fullyReconciled {
-		t.Fatal("projection treated an interim-only invocation as fully reconciled")
-	}
-
-	latePartial := append(append([]*domain.RunEvent{}, events...), &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 1}})
-	latePartialTokens, fullyReconciled := source.CanonicalUsageProjection(&domain.Run{ID: runID}, latePartial)
-	if fullyReconciled {
-		t.Fatal("projection treated usage after an authority receipt as fully reconciled")
-	}
-	if latePartialTokens != 50 {
-		t.Fatalf("late partial usage changed receipt-based quantity selection: got %d, want 50", latePartialTokens)
-	}
-}
-
 func TestRunProjectionCanonicalTokensMatchTimeAccountingBuckets(t *testing.T) {
 	start := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
 	end := start.Add(9 * time.Minute)

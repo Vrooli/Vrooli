@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, test, vi } from "vitest";
-import { probeRunner, usePermissionPolicy, useRolePolicyCatalog, useRunStatusCounts, useRunners } from "./useApi.js";
+import { probeRunner, usePermissionPolicy, useRolePolicyCatalog, useRunners } from "./useApi.js";
 import { RunnerType } from "../types.js";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -12,18 +12,15 @@ function json(body: unknown) {
 
 test("policy and runner controls use canonical read and whole-document action routes", async () => {
   const fetch = vi.fn(async (url: string) => {
-    if (url.includes("status-distribution")) return json({ statusCounts: { complete: 2, failed: 1, total: 3 } });
     if (url.endsWith("/runners")) return json({ runners: [] });
     return json({});
   });
   vi.stubGlobal("fetch", fetch);
-  const counts = renderHook(() => useRunStatusCounts());
   const runners = renderHook(() => useRunners());
   const roleCatalog = renderHook(() => useRolePolicyCatalog());
   const policy = renderHook(() => usePermissionPolicy());
-  await waitFor(() => assert.ok(fetch.mock.calls.length >= 5));
+  await waitFor(() => assert.ok(fetch.mock.calls.length >= 4));
   await waitFor(() => assert.ok(roleCatalog.result.current.data));
-  assert.equal(counts.result.current.data?.total, 3);
   assert.deepEqual(runners.result.current.data, {});
   assert.ok(roleCatalog.result.current.data);
   await act(async () => {

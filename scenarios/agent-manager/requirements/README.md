@@ -32,6 +32,10 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P0 | OT-P0-010 | Basic Approval Flow | 1 |
 | P0 | OT-P0-011 | Health Check API | 1 |
 | P0 | OT-P0-012 | Durable Run Analytics | 1 |
+| P0 | OT-P0-013 | Attributable Conversation Recall | 12 |
+| P0 | OT-P0-014 | Durable Plan-Family Supervision | 4 |
+| P0 | OT-P0-015 | Finite Investigations | 2 |
+| P0 | OT-P0-016 | Usage Intelligence | 11 |
 | P1 | OT-P1-001 | Scope Locks | 1 |
 | P1 | OT-P1-002 | Resource Limits | 1 |
 | P1 | OT-P1-003 | Partial Approval | 1 |
@@ -42,13 +46,15 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P1 | OT-P1-008 | Run Artifacts | 1 |
 | P1 | OT-P1-009 | CLI Interface | 1 |
 | P2 | OT-P2-001 | Multi-phase Runs | 1 |
-| P2 | OT-P2-002 | Cost Tracking | 1 |
-| P2 | OT-P2-003 | Runner Metrics | 0 |
 | P2 | OT-P2-004 | Policy Templates | 0 |
 | P2 | OT-P2-005 | Webhook Notifications | 0 |
 | P2 | OT-P2-006 | Batch Operations | 0 |
 | P2 | OT-P2-007 | UI Dashboard | 0 |
-| P2 | OT-P2-008 | Run Analytics | 0 |
+
+OT-P0-016 Usage Intelligence absorbs the retired OT-P2-002 Cost Tracking and
+OT-P2-003 Runner Metrics targets. Their requirements moved to
+`26-usage-intelligence/` (REQ-P2-002 merged into REQ-P0-030; REQ-P2-012 kept
+as a roadmap requirement), and the `22-cost-tracking/` module was removed.
 
 ## Auto-sync Behavior
 

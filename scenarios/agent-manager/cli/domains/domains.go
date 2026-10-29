@@ -3,6 +3,7 @@ package domains
 import (
 	"agent-manager/cli/domains/measures"
 	"agent-manager/cli/domains/runs"
+	"agent-manager/cli/domains/usage"
 	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/api-core/spacecli"
@@ -74,6 +75,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		space,
 		runs.SubcommandGroup(deps),
 		measures.Register(),
+		usage.Register(deps.UsageCommands...),
 	}
 }
 

@@ -37,10 +37,9 @@ func AllComponents() []PricingComponent {
 type PricingSource string
 
 const (
-	SourceManualOverride    PricingSource = "manual_override"
-	SourceProviderAPI       PricingSource = "provider_api"
-	SourceHistoricalAverage PricingSource = "historical_average"
-	SourceUnknown           PricingSource = "unknown"
+	SourceManualOverride PricingSource = "manual_override"
+	SourceProviderAPI    PricingSource = "provider_api"
+	SourceUnknown        PricingSource = "unknown"
 )
 
 // ModelPricing represents pricing data for a specific model from a provider.
@@ -223,44 +222,15 @@ func (o *ManualPriceOverride) IsExpired() bool {
 	return time.Now().After(*o.ExpiresAt)
 }
 
-// HistoricalPricing contains averaged pricing calculated from historical run data.
-type HistoricalPricing struct {
-	CanonicalModel        string    `json:"canonicalModel"`
-	InputTokenAvgPrice    *float64  `json:"inputTokenAvgPrice,omitempty"`
-	OutputTokenAvgPrice   *float64  `json:"outputTokenAvgPrice,omitempty"`
-	CacheReadAvgPrice     *float64  `json:"cacheReadAvgPrice,omitempty"`
-	CacheCreationAvgPrice *float64  `json:"cacheCreationAvgPrice,omitempty"`
-	SampleCount           int       `json:"sampleCount"`
-	Since                 time.Time `json:"since"`
-}
-
-// GetAvgPrice returns the average price for a specific component.
-func (h *HistoricalPricing) GetAvgPrice(component PricingComponent) *float64 {
-	switch component {
-	case ComponentInputTokens:
-		return h.InputTokenAvgPrice
-	case ComponentOutputTokens:
-		return h.OutputTokenAvgPrice
-	case ComponentCacheRead:
-		return h.CacheReadAvgPrice
-	case ComponentCacheCreation:
-		return h.CacheCreationAvgPrice
-	default:
-		return nil
-	}
-}
-
 // PricingSettings holds global configuration for the pricing system.
 type PricingSettings struct {
-	HistoricalAverageDays int           `json:"historicalAverageDays"` // Default: 7
-	ProviderCacheTTL      time.Duration `json:"providerCacheTtl"`      // Default: 6h
+	ProviderCacheTTL time.Duration `json:"providerCacheTtl"` // Default: 6h
 }
 
 // DefaultPricingSettings returns the default pricing configuration.
 func DefaultPricingSettings() *PricingSettings {
 	return &PricingSettings{
-		HistoricalAverageDays: 7,
-		ProviderCacheTTL:      6 * time.Hour,
+		ProviderCacheTTL: 6 * time.Hour,
 	}
 }
 

@@ -53,7 +53,7 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 	if startedAt == nil || endedAt == nil || !endedAt.After(*startedAt) {
 		return out
 	}
-	tokenSelection := SelectCanonicalUsage(events)
+	usage := AccountUsage(events)
 	type indexedEvent struct {
 		event *domain.RunEvent
 		index int
@@ -98,10 +98,8 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 		} else {
 			addDuration(&out, state, interval)
 		}
-		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			if indexed.index < len(tokenSelection.Selected) && tokenSelection.Selected[indexed.index] {
-				addTokens(&out, state, int64(usage.InputTokens+usage.OutputTokens+usage.CacheCreationTokens+usage.CacheReadTokens))
-			}
+		if _, ok := event.Data.(*domain.UsageEventData); ok {
+			addTokens(&out, state, usage.Tokens(indexed.index))
 		} else {
 			state = timeStateAfter(event)
 		}

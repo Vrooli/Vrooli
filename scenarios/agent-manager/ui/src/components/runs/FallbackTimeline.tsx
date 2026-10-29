@@ -7,7 +7,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { formatStandardDateTime } from "../../lib/dateTime";
 import {
   fetchEventsForRun,

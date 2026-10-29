@@ -6,6 +6,7 @@ import {
   fetchDurableRunDurationStatistics,
   fetchDurableRunStatusDistribution,
   fetchDurableRunSuccess,
+  runStatusCountsFromRows,
   statsQueryKeys,
 } from "../api/statsClient";
 import type { StatsFilter, SummaryResponse } from "../api/types";
@@ -30,18 +31,9 @@ export function useStatsSummary(options: UseStatsSummaryOptions = {}) {
         fetchDurableRunDurationStatistics(filter),
         fetchDurableRunCost(filter),
       ]);
-      const counts = Object.fromEntries(status.rows.map((row) => [row.status, row.count]));
       return {
         summary: {
-          statusCounts: {
-            pending: counts.pending ?? 0,
-            running: counts.running ?? 0,
-            complete: counts.complete ?? 0,
-            failed: counts.failed ?? 0,
-            cancelled: counts.cancelled ?? 0,
-            needsReview: counts.needs_review ?? 0,
-            total: status.rows.reduce((total, row) => total + row.count, 0),
-          },
+          statusCounts: runStatusCountsFromRows(status.rows),
           successRate: success.rate,
           duration: {
             avgMs: duration.averageDurationMs,

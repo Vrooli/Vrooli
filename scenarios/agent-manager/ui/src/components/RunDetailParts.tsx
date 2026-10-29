@@ -1,16 +1,12 @@
 import type React from "react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { statusTone } from "../lib/display";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { runHeading } from "../lib/runPresentation";
+import { useState, useRef, useEffect } from "react";
 import { durationMs as protoDurationMs, timestampMs } from "@bufbuild/protobuf/wkt";
 import {
-  Activity,
   AlertCircle,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  DollarSign,
   Eye,
-  FileCode,
   File,
   FolderOpen,
   Info,
@@ -26,18 +22,11 @@ import {
   Trash2,
   Wrench,
   ExternalLink,
-  X,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
-import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
-import { useResizablePanel } from "../hooks/useResizablePanel";
-import { useViewportSize } from "../hooks/useViewportSize";
 import type {
   ContextAttachmentData,
   Run,
@@ -48,12 +37,7 @@ import type {
 import { ApprovalState, ExecutionMode, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
 import { MarkdownRenderer } from "./markdown";
-import { ModelCostComparison } from "./ModelCostComparison";
-import { RunTimeline } from "./RunTimeline";
-import { FallbackTimeline } from "./runs/FallbackTimeline";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
-import { DiffViewer } from "./DiffViewer";
-import { ReviewModal } from "./ReviewModal";
 import { reviewFileCount } from "../lib/reviewFileCount";
 
 
@@ -206,22 +190,9 @@ export function TaskSummary({ task }: { task: Task }) {
       <div className="space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-lg font-semibold">{task.title}</h3>
-          <Badge
-            variant={
-              (taskStatusLabel(task.status) === "unknown" ? "secondary" : taskStatusLabel(task.status)) as
-                | "queued"
-                | "running"
-                | "completed"
-                | "needs_review"
-                | "approved"
-                | "rejected"
-                | "failed"
-                | "cancelled"
-                | "secondary"
-            }
-          >
+          <StatusBadge tone={statusTone(taskStatusLabel(task.status))}>
             {taskStatusLabel(task.status).replace("_", " ")}
-          </Badge>
+          </StatusBadge>
         </div>
         {task.description ? (
           <div className="text-sm text-muted-foreground">
@@ -382,7 +353,8 @@ interface RunDetailsContentProps {
 }
 
 export function RunDetailsContent({ run, diff, taskTitle, profileName, durationMs, costTotals }: RunDetailsContentProps) {
-	const runTitle = run.label || taskTitle;
+	const { title: runTitle } = runHeading(run, taskTitle);
+	const fullLabel = run.label || taskTitle;
 	const fileCount = reviewFileCount(run, diff);
 	return (
     <>
@@ -390,9 +362,9 @@ export function RunDetailsContent({ run, diff, taskTitle, profileName, durationM
       <div className="rounded-lg border border-border bg-card/50 p-3 sm:p-4">
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">Run Overview</p>
-			<h3 className="text-lg font-semibold">{runTitle}</h3>
+			<h3 className="break-words text-lg font-semibold">{runTitle}</h3>
 			<p className="text-sm text-muted-foreground">{profileName}</p>
-			{run.labelSource ? <p className="text-xs text-muted-foreground">Label source: {run.labelSource}</p> : null}
+			{fullLabel && fullLabel !== runTitle ? <p className="line-clamp-2 break-all font-mono text-xs text-muted-foreground" title={run.labelSource ? `Label source: ${run.labelSource}` : undefined}>{fullLabel}</p> : null}
         </div>
 
         {run.errorMsg && (

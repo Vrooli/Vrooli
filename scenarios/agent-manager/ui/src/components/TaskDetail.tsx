@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { statusTone } from "../lib/display";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { Edit, File, FolderOpen, Link2, Play, StickyNote, Tag, Trash2, XCircle } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { MarkdownRenderer } from "./markdown";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { formatStandardDateTime, formatStandardRelativeTime } from "../lib/dateTime";
@@ -54,22 +56,9 @@ export function TaskDetail({
       <div className="space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-lg font-semibold">{task.title}</h3>
-          <Badge
-            variant={
-              (taskStatusLabel(task.status) === "unknown" ? "secondary" : taskStatusLabel(task.status)) as
-                | "queued"
-                | "running"
-                | "completed"
-                | "needs_review"
-                | "approved"
-                | "rejected"
-                | "failed"
-                | "cancelled"
-                | "secondary"
-            }
-          >
+          <StatusBadge tone={statusTone(taskStatusLabel(task.status))}>
             {taskStatusLabel(task.status).replace("_", " ")}
-          </Badge>
+          </StatusBadge>
         </div>
         {task.status === TaskStatus.RUNNING && !task.currentRunId && (
           <p className="text-xs text-muted-foreground" role="note">
@@ -88,7 +77,7 @@ export function TaskDetail({
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => onEdit(task)}
           className="gap-1"
@@ -99,7 +88,7 @@ export function TaskDetail({
         {task.status === TaskStatus.QUEUED && (
           <>
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={() => onRun(task)}
               className="gap-1"
@@ -108,7 +97,7 @@ export function TaskDetail({
               Run
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => onCancel(task.id)}
               className="text-destructive hover:text-destructive gap-1"
@@ -120,7 +109,7 @@ export function TaskDetail({
         )}
         {task.status === TaskStatus.CANCELLED && (
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => onDelete(task.id)}
             className="text-destructive hover:text-destructive gap-1"

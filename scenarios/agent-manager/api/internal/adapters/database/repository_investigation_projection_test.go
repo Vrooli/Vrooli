@@ -376,7 +376,7 @@ func TestLegacyInvestigationProjectionMigrationCopiesThenDropsRetiredTables(t *t
 	}
 }
 
-func TestInvocationReadModelAggregateAndCohortShareFilter(t *testing.T) {
+func TestInvocationReadModelCohortAndMetricsShareFilter(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -392,10 +392,6 @@ func TestInvocationReadModelAggregateAndCohortShareFilter(t *testing.T) {
 		}
 	}
 	filter := invocationreadmodel.Filter{Ownership: "external"}
-	rows, err := repo.Aggregate(ctx, filter, "outcome", 10)
-	if err != nil || len(rows) != 1 || rows[0].Value != "failure" || rows[0].Count != 1 {
-		t.Fatalf("aggregate=%+v err=%v", rows, err)
-	}
 	cohort, err := repo.Cohort(ctx, filter, 10)
 	if err != nil || len(cohort.RunIDs) != 1 || cohort.RunIDs[0] != "run-a" || cohort.Truncated {
 		t.Fatalf("cohort=%+v err=%v", cohort, err)

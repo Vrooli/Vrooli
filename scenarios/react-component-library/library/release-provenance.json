@@ -2888,6 +2888,12 @@
       "publishedAt": "2026-08-31T05:24:57Z"
     },
     {
+      "libraryId": "react-component-library:EmptyState",
+      "version": "1.8.0",
+      "draftVersion": "1.8.0-draft.1",
+      "publishedAt": "2026-10-29T06:23:31Z"
+    },
+    {
       "libraryId": "react-component-library:EntitlementErrorCard",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",

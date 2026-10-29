@@ -1089,15 +1089,31 @@ class FindingRecurrenceRateResponse(_message.Message):
     definition_id: str
     def __init__(self, rate: _Optional[float] = ..., recurring_findings: _Optional[int] = ..., total_findings: _Optional[int] = ..., recurring_fingerprints: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
 
+class CohortSelector(_message.Message):
+    __slots__ = ("window", "filter", "cohort", "run_ids")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    COHORT_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    filter: InvocationFilter
+    cohort: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., cohort: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class SelectCohortRequest(_message.Message):
-    __slots__ = ("window", "filter", "limit")
+    __slots__ = ("window", "filter", "limit", "cohort", "run_ids")
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    COHORT_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
     window: _measures_pb2.TimeWindow
     filter: InvocationFilter
     limit: int
-    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
+    cohort: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ..., cohort: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CohortRun(_message.Message):
     __slots__ = ("run_id", "task_title", "profile_id", "profile_name", "status", "created_at", "model", "runner_type", "workload_key", "total_tokens", "total_charge_micro_usd", "charge_basis", "tool_call_count")
@@ -1148,14 +1164,18 @@ class SelectCohortResponse(_message.Message):
     def __init__(self, run_ids: _Optional[_Iterable[str]] = ..., truncated: _Optional[bool] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., rows: _Optional[_Iterable[_Union[CohortRun, _Mapping]]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
 
 class EpisodeCohortRequest(_message.Message):
-    __slots__ = ("window", "filter", "limit")
+    __slots__ = ("window", "filter", "limit", "cohort", "run_ids")
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    COHORT_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
     window: _measures_pb2.TimeWindow
     filter: InvocationFilter
     limit: int
-    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
+    cohort: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ..., cohort: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EpisodeCohortSignal(_message.Message):
     __slots__ = ("fingerprint", "occurrences", "distinct_runs", "summed_cost_ms", "confidence", "representative_run_ids")
@@ -1190,3 +1210,819 @@ class EpisodeCohortResponse(_message.Message):
     provenance: MeasureProvenance
     definition_id: str
     def __init__(self, availability_state: _Optional[str] = ..., availability_reason: _Optional[str] = ..., signals: _Optional[_Iterable[_Union[EpisodeCohortSignal, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class CohortReportRequest(_message.Message):
+    __slots__ = ("window", "filter", "limit", "cohort", "run_ids")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    COHORT_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    filter: InvocationFilter
+    limit: int
+    cohort: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ..., cohort: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CohortReportSignal(_message.Message):
+    __slots__ = ("kind", "count", "impact", "confidence", "representative_run_ids")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    REPRESENTATIVE_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    count: int
+    impact: int
+    confidence: str
+    representative_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, kind: _Optional[str] = ..., count: _Optional[int] = ..., impact: _Optional[int] = ..., confidence: _Optional[str] = ..., representative_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CohortTimeAccounting(_message.Message):
+    __slots__ = ("model_generating_ms", "tool_executing_ms", "idle_waiting_ms", "awaiting_human_ms", "unattributable_ms", "model_tokens", "tool_tokens", "idle_tokens", "human_tokens", "unattributable_tokens")
+    MODEL_GENERATING_MS_FIELD_NUMBER: _ClassVar[int]
+    TOOL_EXECUTING_MS_FIELD_NUMBER: _ClassVar[int]
+    IDLE_WAITING_MS_FIELD_NUMBER: _ClassVar[int]
+    AWAITING_HUMAN_MS_FIELD_NUMBER: _ClassVar[int]
+    UNATTRIBUTABLE_MS_FIELD_NUMBER: _ClassVar[int]
+    MODEL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    TOOL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    IDLE_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    HUMAN_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    UNATTRIBUTABLE_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    model_generating_ms: int
+    tool_executing_ms: int
+    idle_waiting_ms: int
+    awaiting_human_ms: int
+    unattributable_ms: int
+    model_tokens: int
+    tool_tokens: int
+    idle_tokens: int
+    human_tokens: int
+    unattributable_tokens: int
+    def __init__(self, model_generating_ms: _Optional[int] = ..., tool_executing_ms: _Optional[int] = ..., idle_waiting_ms: _Optional[int] = ..., awaiting_human_ms: _Optional[int] = ..., unattributable_ms: _Optional[int] = ..., model_tokens: _Optional[int] = ..., tool_tokens: _Optional[int] = ..., idle_tokens: _Optional[int] = ..., human_tokens: _Optional[int] = ..., unattributable_tokens: _Optional[int] = ...) -> None: ...
+
+class CohortInvocationValidity(_message.Message):
+    __slots__ = ("total_calls", "classified_base", "unclassified_count")
+    TOTAL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFIED_BASE_FIELD_NUMBER: _ClassVar[int]
+    UNCLASSIFIED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    total_calls: int
+    classified_base: int
+    unclassified_count: int
+    def __init__(self, total_calls: _Optional[int] = ..., classified_base: _Optional[int] = ..., unclassified_count: _Optional[int] = ...) -> None: ...
+
+class CohortGoalProgression(_message.Message):
+    __slots__ = ("availability_state", "availability_reason", "goal_runs", "met_runs", "average_time_to_first_met_ms", "average_tokens_to_first_met", "interventions_before_met", "handoffs_before_met", "regressions", "restatements")
+    AVAILABILITY_STATE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    GOAL_RUNS_FIELD_NUMBER: _ClassVar[int]
+    MET_RUNS_FIELD_NUMBER: _ClassVar[int]
+    AVERAGE_TIME_TO_FIRST_MET_MS_FIELD_NUMBER: _ClassVar[int]
+    AVERAGE_TOKENS_TO_FIRST_MET_FIELD_NUMBER: _ClassVar[int]
+    INTERVENTIONS_BEFORE_MET_FIELD_NUMBER: _ClassVar[int]
+    HANDOFFS_BEFORE_MET_FIELD_NUMBER: _ClassVar[int]
+    REGRESSIONS_FIELD_NUMBER: _ClassVar[int]
+    RESTATEMENTS_FIELD_NUMBER: _ClassVar[int]
+    availability_state: str
+    availability_reason: str
+    goal_runs: int
+    met_runs: int
+    average_time_to_first_met_ms: float
+    average_tokens_to_first_met: float
+    interventions_before_met: int
+    handoffs_before_met: int
+    regressions: int
+    restatements: int
+    def __init__(self, availability_state: _Optional[str] = ..., availability_reason: _Optional[str] = ..., goal_runs: _Optional[int] = ..., met_runs: _Optional[int] = ..., average_time_to_first_met_ms: _Optional[float] = ..., average_tokens_to_first_met: _Optional[float] = ..., interventions_before_met: _Optional[int] = ..., handoffs_before_met: _Optional[int] = ..., regressions: _Optional[int] = ..., restatements: _Optional[int] = ...) -> None: ...
+
+class CohortReportResponse(_message.Message):
+    __slots__ = ("classifier_version", "run_ids", "truncated", "availability_state", "availability_reason", "signals", "time_accounting", "invocation_validity", "goal", "validity", "provenance", "definition_id")
+    CLASSIFIER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_STATE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    SIGNALS_FIELD_NUMBER: _ClassVar[int]
+    TIME_ACCOUNTING_FIELD_NUMBER: _ClassVar[int]
+    INVOCATION_VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    GOAL_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    classifier_version: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    truncated: bool
+    availability_state: str
+    availability_reason: str
+    signals: _containers.RepeatedCompositeFieldContainer[CohortReportSignal]
+    time_accounting: CohortTimeAccounting
+    invocation_validity: CohortInvocationValidity
+    goal: CohortGoalProgression
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, classifier_version: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ..., truncated: _Optional[bool] = ..., availability_state: _Optional[str] = ..., availability_reason: _Optional[str] = ..., signals: _Optional[_Iterable[_Union[CohortReportSignal, _Mapping]]] = ..., time_accounting: _Optional[_Union[CohortTimeAccounting, _Mapping]] = ..., invocation_validity: _Optional[_Union[CohortInvocationValidity, _Mapping]] = ..., goal: _Optional[_Union[CohortGoalProgression, _Mapping]] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class CompareEpisodeCohortsRequest(_message.Message):
+    __slots__ = ("left", "right", "change_binding", "limit")
+    LEFT_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_BINDING_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    left: CohortSelector
+    right: CohortSelector
+    change_binding: str
+    limit: int
+    def __init__(self, left: _Optional[_Union[CohortSelector, _Mapping]] = ..., right: _Optional[_Union[CohortSelector, _Mapping]] = ..., change_binding: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class EpisodeComparisonSignal(_message.Message):
+    __slots__ = ("fingerprint", "left_occurrences", "right_occurrences", "left_distinct_runs", "right_distinct_runs", "left_cost_ms", "right_cost_ms", "occurrence_delta", "cost_delta_ms")
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    LEFT_OCCURRENCES_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_OCCURRENCES_FIELD_NUMBER: _ClassVar[int]
+    LEFT_DISTINCT_RUNS_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_DISTINCT_RUNS_FIELD_NUMBER: _ClassVar[int]
+    LEFT_COST_MS_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_COST_MS_FIELD_NUMBER: _ClassVar[int]
+    OCCURRENCE_DELTA_FIELD_NUMBER: _ClassVar[int]
+    COST_DELTA_MS_FIELD_NUMBER: _ClassVar[int]
+    fingerprint: str
+    left_occurrences: int
+    right_occurrences: int
+    left_distinct_runs: int
+    right_distinct_runs: int
+    left_cost_ms: int
+    right_cost_ms: int
+    occurrence_delta: int
+    cost_delta_ms: int
+    def __init__(self, fingerprint: _Optional[str] = ..., left_occurrences: _Optional[int] = ..., right_occurrences: _Optional[int] = ..., left_distinct_runs: _Optional[int] = ..., right_distinct_runs: _Optional[int] = ..., left_cost_ms: _Optional[int] = ..., right_cost_ms: _Optional[int] = ..., occurrence_delta: _Optional[int] = ..., cost_delta_ms: _Optional[int] = ...) -> None: ...
+
+class CompareEpisodeCohortsResponse(_message.Message):
+    __slots__ = ("classifier_version", "change_binding", "left_population", "right_population", "availability_state", "availability_reason", "signals", "validity", "provenance", "definition_id")
+    CLASSIFIER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_BINDING_FIELD_NUMBER: _ClassVar[int]
+    LEFT_POPULATION_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_POPULATION_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_STATE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    SIGNALS_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    classifier_version: str
+    change_binding: str
+    left_population: int
+    right_population: int
+    availability_state: str
+    availability_reason: str
+    signals: _containers.RepeatedCompositeFieldContainer[EpisodeComparisonSignal]
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, classifier_version: _Optional[str] = ..., change_binding: _Optional[str] = ..., left_population: _Optional[int] = ..., right_population: _Optional[int] = ..., availability_state: _Optional[str] = ..., availability_reason: _Optional[str] = ..., signals: _Optional[_Iterable[_Union[EpisodeComparisonSignal, _Mapping]]] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class UsageForecastRequest(_message.Message):
+    __slots__ = ("provider",)
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    def __init__(self, provider: _Optional[str] = ...) -> None: ...
+
+class UsageBurnRate(_message.Message):
+    __slots__ = ("horizon", "available", "percent_per_hour", "span_hours", "stale")
+    HORIZON_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    PERCENT_PER_HOUR_FIELD_NUMBER: _ClassVar[int]
+    SPAN_HOURS_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    horizon: str
+    available: bool
+    percent_per_hour: float
+    span_hours: float
+    stale: bool
+    def __init__(self, horizon: _Optional[str] = ..., available: _Optional[bool] = ..., percent_per_hour: _Optional[float] = ..., span_hours: _Optional[float] = ..., stale: _Optional[bool] = ...) -> None: ...
+
+class UsagePercentPoint(_message.Message):
+    __slots__ = ("at", "used_percent")
+    AT_FIELD_NUMBER: _ClassVar[int]
+    USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    at: str
+    used_percent: float
+    def __init__(self, at: _Optional[str] = ..., used_percent: _Optional[float] = ...) -> None: ...
+
+class UsageWindowForecast(_message.Message):
+    __slots__ = ("provider", "pool", "window", "window_minutes", "status", "status_reason", "has_percent", "used_percent", "standing", "window_start", "resets_at", "observed_at", "sample_count", "burn", "central_percent_per_hour", "projected_exhaustion_at", "exhaustion_band_start", "exhaustion_band_end", "lasting_percent_per_hour", "early_reset", "previous_resets_at", "previous_final_percent", "previous_ended_at", "series", "last_reading_percent", "calibration_factor", "calibration_windows")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    POOL_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    STATUS_REASON_FIELD_NUMBER: _ClassVar[int]
+    HAS_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    STANDING_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    RESETS_AT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    BURN_FIELD_NUMBER: _ClassVar[int]
+    CENTRAL_PERCENT_PER_HOUR_FIELD_NUMBER: _ClassVar[int]
+    PROJECTED_EXHAUSTION_AT_FIELD_NUMBER: _ClassVar[int]
+    EXHAUSTION_BAND_START_FIELD_NUMBER: _ClassVar[int]
+    EXHAUSTION_BAND_END_FIELD_NUMBER: _ClassVar[int]
+    LASTING_PERCENT_PER_HOUR_FIELD_NUMBER: _ClassVar[int]
+    EARLY_RESET_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_RESETS_AT_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_FINAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    SERIES_FIELD_NUMBER: _ClassVar[int]
+    LAST_READING_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_FACTOR_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    pool: str
+    window: str
+    window_minutes: int
+    status: str
+    status_reason: str
+    has_percent: bool
+    used_percent: float
+    standing: str
+    window_start: str
+    resets_at: str
+    observed_at: str
+    sample_count: int
+    burn: _containers.RepeatedCompositeFieldContainer[UsageBurnRate]
+    central_percent_per_hour: float
+    projected_exhaustion_at: str
+    exhaustion_band_start: str
+    exhaustion_band_end: str
+    lasting_percent_per_hour: float
+    early_reset: bool
+    previous_resets_at: str
+    previous_final_percent: float
+    previous_ended_at: str
+    series: _containers.RepeatedCompositeFieldContainer[UsagePercentPoint]
+    last_reading_percent: float
+    calibration_factor: float
+    calibration_windows: int
+    def __init__(self, provider: _Optional[str] = ..., pool: _Optional[str] = ..., window: _Optional[str] = ..., window_minutes: _Optional[int] = ..., status: _Optional[str] = ..., status_reason: _Optional[str] = ..., has_percent: _Optional[bool] = ..., used_percent: _Optional[float] = ..., standing: _Optional[str] = ..., window_start: _Optional[str] = ..., resets_at: _Optional[str] = ..., observed_at: _Optional[str] = ..., sample_count: _Optional[int] = ..., burn: _Optional[_Iterable[_Union[UsageBurnRate, _Mapping]]] = ..., central_percent_per_hour: _Optional[float] = ..., projected_exhaustion_at: _Optional[str] = ..., exhaustion_band_start: _Optional[str] = ..., exhaustion_band_end: _Optional[str] = ..., lasting_percent_per_hour: _Optional[float] = ..., early_reset: _Optional[bool] = ..., previous_resets_at: _Optional[str] = ..., previous_final_percent: _Optional[float] = ..., previous_ended_at: _Optional[str] = ..., series: _Optional[_Iterable[_Union[UsagePercentPoint, _Mapping]]] = ..., last_reading_percent: _Optional[float] = ..., calibration_factor: _Optional[float] = ..., calibration_windows: _Optional[int] = ...) -> None: ...
+
+class UsageForecastResponse(_message.Message):
+    __slots__ = ("windows", "generated_at", "provenance", "definition_id")
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    windows: _containers.RepeatedCompositeFieldContainer[UsageWindowForecast]
+    generated_at: str
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, windows: _Optional[_Iterable[_Union[UsageWindowForecast, _Mapping]]] = ..., generated_at: _Optional[str] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class UsageForecastBacktestRequest(_message.Message):
+    __slots__ = ("provider",)
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    def __init__(self, provider: _Optional[str] = ...) -> None: ...
+
+class UsageBacktestCheckpoint(_message.Message):
+    __slots__ = ("elapsed_fraction", "as_of", "used_percent_at", "predicted_final_percent", "baseline_predicted_final_percent", "abs_error_points", "baseline_abs_error_points", "predicted_exhaustion_at", "baseline_predicted_exhaustion_at", "abs_error_hours", "baseline_abs_error_hours", "outcome_correct", "baseline_outcome_correct", "calibration_factor", "calibration_windows")
+    ELAPSED_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    AS_OF_FIELD_NUMBER: _ClassVar[int]
+    USED_PERCENT_AT_FIELD_NUMBER: _ClassVar[int]
+    PREDICTED_FINAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_PREDICTED_FINAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    ABS_ERROR_POINTS_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_ABS_ERROR_POINTS_FIELD_NUMBER: _ClassVar[int]
+    PREDICTED_EXHAUSTION_AT_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_PREDICTED_EXHAUSTION_AT_FIELD_NUMBER: _ClassVar[int]
+    ABS_ERROR_HOURS_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_ABS_ERROR_HOURS_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_CORRECT_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_OUTCOME_CORRECT_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_FACTOR_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    elapsed_fraction: float
+    as_of: str
+    used_percent_at: float
+    predicted_final_percent: float
+    baseline_predicted_final_percent: float
+    abs_error_points: float
+    baseline_abs_error_points: float
+    predicted_exhaustion_at: str
+    baseline_predicted_exhaustion_at: str
+    abs_error_hours: float
+    baseline_abs_error_hours: float
+    outcome_correct: bool
+    baseline_outcome_correct: bool
+    calibration_factor: float
+    calibration_windows: int
+    def __init__(self, elapsed_fraction: _Optional[float] = ..., as_of: _Optional[str] = ..., used_percent_at: _Optional[float] = ..., predicted_final_percent: _Optional[float] = ..., baseline_predicted_final_percent: _Optional[float] = ..., abs_error_points: _Optional[float] = ..., baseline_abs_error_points: _Optional[float] = ..., predicted_exhaustion_at: _Optional[str] = ..., baseline_predicted_exhaustion_at: _Optional[str] = ..., abs_error_hours: _Optional[float] = ..., baseline_abs_error_hours: _Optional[float] = ..., outcome_correct: _Optional[bool] = ..., baseline_outcome_correct: _Optional[bool] = ..., calibration_factor: _Optional[float] = ..., calibration_windows: _Optional[int] = ...) -> None: ...
+
+class UsageBacktestWindow(_message.Message):
+    __slots__ = ("provider", "pool", "window", "window_start", "ended_at", "resets_at", "early_reset", "final_percent", "actual_exhaustion_at", "checkpoints", "outcome_observed")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    POOL_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESETS_AT_FIELD_NUMBER: _ClassVar[int]
+    EARLY_RESET_FIELD_NUMBER: _ClassVar[int]
+    FINAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_EXHAUSTION_AT_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    pool: str
+    window: str
+    window_start: str
+    ended_at: str
+    resets_at: str
+    early_reset: bool
+    final_percent: float
+    actual_exhaustion_at: str
+    checkpoints: _containers.RepeatedCompositeFieldContainer[UsageBacktestCheckpoint]
+    outcome_observed: bool
+    def __init__(self, provider: _Optional[str] = ..., pool: _Optional[str] = ..., window: _Optional[str] = ..., window_start: _Optional[str] = ..., ended_at: _Optional[str] = ..., resets_at: _Optional[str] = ..., early_reset: _Optional[bool] = ..., final_percent: _Optional[float] = ..., actual_exhaustion_at: _Optional[str] = ..., checkpoints: _Optional[_Iterable[_Union[UsageBacktestCheckpoint, _Mapping]]] = ..., outcome_observed: _Optional[bool] = ...) -> None: ...
+
+class UsageBacktestSummary(_message.Message):
+    __slots__ = ("population", "elapsed_fraction", "windows", "median_abs_error_points", "baseline_median_abs_error_points", "hour_error_windows", "median_abs_error_hours", "baseline_median_abs_error_hours", "outcome_accuracy", "baseline_outcome_accuracy", "beats_baseline")
+    POPULATION_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    MEDIAN_ABS_ERROR_POINTS_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_MEDIAN_ABS_ERROR_POINTS_FIELD_NUMBER: _ClassVar[int]
+    HOUR_ERROR_WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    MEDIAN_ABS_ERROR_HOURS_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_MEDIAN_ABS_ERROR_HOURS_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_ACCURACY_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_OUTCOME_ACCURACY_FIELD_NUMBER: _ClassVar[int]
+    BEATS_BASELINE_FIELD_NUMBER: _ClassVar[int]
+    population: str
+    elapsed_fraction: float
+    windows: int
+    median_abs_error_points: float
+    baseline_median_abs_error_points: float
+    hour_error_windows: int
+    median_abs_error_hours: float
+    baseline_median_abs_error_hours: float
+    outcome_accuracy: float
+    baseline_outcome_accuracy: float
+    beats_baseline: bool
+    def __init__(self, population: _Optional[str] = ..., elapsed_fraction: _Optional[float] = ..., windows: _Optional[int] = ..., median_abs_error_points: _Optional[float] = ..., baseline_median_abs_error_points: _Optional[float] = ..., hour_error_windows: _Optional[int] = ..., median_abs_error_hours: _Optional[float] = ..., baseline_median_abs_error_hours: _Optional[float] = ..., outcome_accuracy: _Optional[float] = ..., baseline_outcome_accuracy: _Optional[float] = ..., beats_baseline: _Optional[bool] = ...) -> None: ...
+
+class UsageForecastBacktestResponse(_message.Message):
+    __slots__ = ("windows", "summaries", "limitation", "unobserved_windows", "validity", "provenance", "definition_id")
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARIES_FIELD_NUMBER: _ClassVar[int]
+    LIMITATION_FIELD_NUMBER: _ClassVar[int]
+    UNOBSERVED_WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    windows: _containers.RepeatedCompositeFieldContainer[UsageBacktestWindow]
+    summaries: _containers.RepeatedCompositeFieldContainer[UsageBacktestSummary]
+    limitation: str
+    unobserved_windows: int
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, windows: _Optional[_Iterable[_Union[UsageBacktestWindow, _Mapping]]] = ..., summaries: _Optional[_Iterable[_Union[UsageBacktestSummary, _Mapping]]] = ..., limitation: _Optional[str] = ..., unobserved_windows: _Optional[int] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class UsageBurnersRequest(_message.Message):
+    __slots__ = ("provider", "group_by", "since", "run_id", "limit")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_NUMBER: _ClassVar[int]
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    group_by: str
+    since: str
+    run_id: str
+    limit: int
+    def __init__(self, provider: _Optional[str] = ..., group_by: _Optional[str] = ..., since: _Optional[str] = ..., run_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class UsageTokens(_message.Message):
+    __slots__ = ("input", "cached_input", "cache_creation", "output", "total")
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    CACHED_INPUT_FIELD_NUMBER: _ClassVar[int]
+    CACHE_CREATION_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    input: int
+    cached_input: int
+    cache_creation: int
+    output: int
+    total: int
+    def __init__(self, input: _Optional[int] = ..., cached_input: _Optional[int] = ..., cache_creation: _Optional[int] = ..., output: _Optional[int] = ..., total: _Optional[int] = ...) -> None: ...
+
+class UsageToolKindCount(_message.Message):
+    __slots__ = ("kind", "calls")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    CALLS_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    calls: int
+    def __init__(self, kind: _Optional[str] = ..., calls: _Optional[int] = ...) -> None: ...
+
+class UsageModality(_message.Message):
+    __slots__ = ("images_in", "images_in_user", "images_in_high_detail", "image_bytes_in", "estimated_image_input_tokens", "images_out", "web_searches", "web_fetches", "audio_in", "tool_calls", "tool_kinds")
+    IMAGES_IN_FIELD_NUMBER: _ClassVar[int]
+    IMAGES_IN_USER_FIELD_NUMBER: _ClassVar[int]
+    IMAGES_IN_HIGH_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    IMAGE_BYTES_IN_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_IMAGE_INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    IMAGES_OUT_FIELD_NUMBER: _ClassVar[int]
+    WEB_SEARCHES_FIELD_NUMBER: _ClassVar[int]
+    WEB_FETCHES_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_IN_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    TOOL_KINDS_FIELD_NUMBER: _ClassVar[int]
+    images_in: int
+    images_in_user: int
+    images_in_high_detail: int
+    image_bytes_in: int
+    estimated_image_input_tokens: int
+    images_out: int
+    web_searches: int
+    web_fetches: int
+    audio_in: int
+    tool_calls: int
+    tool_kinds: _containers.RepeatedCompositeFieldContainer[UsageToolKindCount]
+    def __init__(self, images_in: _Optional[int] = ..., images_in_user: _Optional[int] = ..., images_in_high_detail: _Optional[int] = ..., image_bytes_in: _Optional[int] = ..., estimated_image_input_tokens: _Optional[int] = ..., images_out: _Optional[int] = ..., web_searches: _Optional[int] = ..., web_fetches: _Optional[int] = ..., audio_in: _Optional[int] = ..., tool_calls: _Optional[int] = ..., tool_kinds: _Optional[_Iterable[_Union[UsageToolKindCount, _Mapping]]] = ...) -> None: ...
+
+class UsageBurner(_message.Message):
+    __slots__ = ("key", "label", "points", "share", "tokens", "weighted_tokens", "sessions", "runs", "turns", "run_ids", "runner", "model", "profile_id", "workload", "first_at", "last_at", "modality", "source")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    POINTS_FIELD_NUMBER: _ClassVar[int]
+    SHARE_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    RUNS_FIELD_NUMBER: _ClassVar[int]
+    TURNS_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKLOAD_FIELD_NUMBER: _ClassVar[int]
+    FIRST_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_AT_FIELD_NUMBER: _ClassVar[int]
+    MODALITY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    label: str
+    points: float
+    share: float
+    tokens: UsageTokens
+    weighted_tokens: float
+    sessions: int
+    runs: int
+    turns: int
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    runner: str
+    model: str
+    profile_id: str
+    workload: str
+    first_at: str
+    last_at: str
+    modality: UsageModality
+    source: str
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., points: _Optional[float] = ..., share: _Optional[float] = ..., tokens: _Optional[_Union[UsageTokens, _Mapping]] = ..., weighted_tokens: _Optional[float] = ..., sessions: _Optional[int] = ..., runs: _Optional[int] = ..., turns: _Optional[int] = ..., run_ids: _Optional[_Iterable[str]] = ..., runner: _Optional[str] = ..., model: _Optional[str] = ..., profile_id: _Optional[str] = ..., workload: _Optional[str] = ..., first_at: _Optional[str] = ..., last_at: _Optional[str] = ..., modality: _Optional[_Union[UsageModality, _Mapping]] = ..., source: _Optional[str] = ...) -> None: ...
+
+class UsageModelWeight(_message.Message):
+    __slots__ = ("runner", "model", "cached_input_tokens_per_point", "input_weight", "cache_creation_weight", "output_weight", "source", "slices")
+    RUNNER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    CACHED_INPUT_TOKENS_PER_POINT_FIELD_NUMBER: _ClassVar[int]
+    INPUT_WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    CACHE_CREATION_WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SLICES_FIELD_NUMBER: _ClassVar[int]
+    runner: str
+    model: str
+    cached_input_tokens_per_point: float
+    input_weight: float
+    cache_creation_weight: float
+    output_weight: float
+    source: str
+    slices: int
+    def __init__(self, runner: _Optional[str] = ..., model: _Optional[str] = ..., cached_input_tokens_per_point: _Optional[float] = ..., input_weight: _Optional[float] = ..., cache_creation_weight: _Optional[float] = ..., output_weight: _Optional[float] = ..., source: _Optional[str] = ..., slices: _Optional[int] = ...) -> None: ...
+
+class UsageCalibration(_message.Message):
+    __slots__ = ("method", "weights", "r_squared", "slices", "off_disk_points_per_hour", "note")
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTS_FIELD_NUMBER: _ClassVar[int]
+    R_SQUARED_FIELD_NUMBER: _ClassVar[int]
+    SLICES_FIELD_NUMBER: _ClassVar[int]
+    OFF_DISK_POINTS_PER_HOUR_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    method: str
+    weights: _containers.RepeatedCompositeFieldContainer[UsageModelWeight]
+    r_squared: float
+    slices: int
+    off_disk_points_per_hour: float
+    note: str
+    def __init__(self, method: _Optional[str] = ..., weights: _Optional[_Iterable[_Union[UsageModelWeight, _Mapping]]] = ..., r_squared: _Optional[float] = ..., slices: _Optional[int] = ..., off_disk_points_per_hour: _Optional[float] = ..., note: _Optional[str] = ...) -> None: ...
+
+class UsageMeteredLine(_message.Message):
+    __slots__ = ("kind", "count", "state", "amount", "note")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    count: int
+    state: str
+    amount: str
+    note: str
+    def __init__(self, kind: _Optional[str] = ..., count: _Optional[int] = ..., state: _Optional[str] = ..., amount: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+
+class UsageWindowAttribution(_message.Message):
+    __slots__ = ("provider", "pool", "window", "window_minutes", "window_start", "resets_at", "period_start", "period_end", "used_percent", "observed_increase_points", "attributed_points", "unattributed_points", "group_by", "burners", "other_burners", "other_points", "calibration", "pending_tokens", "metered_lines", "runner")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    POOL_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    RESETS_AT_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_START_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_END_FIELD_NUMBER: _ClassVar[int]
+    USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_INCREASE_POINTS_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTED_POINTS_FIELD_NUMBER: _ClassVar[int]
+    UNATTRIBUTED_POINTS_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_NUMBER: _ClassVar[int]
+    BURNERS_FIELD_NUMBER: _ClassVar[int]
+    OTHER_BURNERS_FIELD_NUMBER: _ClassVar[int]
+    OTHER_POINTS_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_FIELD_NUMBER: _ClassVar[int]
+    PENDING_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    METERED_LINES_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    pool: str
+    window: str
+    window_minutes: int
+    window_start: str
+    resets_at: str
+    period_start: str
+    period_end: str
+    used_percent: float
+    observed_increase_points: float
+    attributed_points: float
+    unattributed_points: float
+    group_by: str
+    burners: _containers.RepeatedCompositeFieldContainer[UsageBurner]
+    other_burners: int
+    other_points: float
+    calibration: UsageCalibration
+    pending_tokens: UsageTokens
+    metered_lines: _containers.RepeatedCompositeFieldContainer[UsageMeteredLine]
+    runner: str
+    def __init__(self, provider: _Optional[str] = ..., pool: _Optional[str] = ..., window: _Optional[str] = ..., window_minutes: _Optional[int] = ..., window_start: _Optional[str] = ..., resets_at: _Optional[str] = ..., period_start: _Optional[str] = ..., period_end: _Optional[str] = ..., used_percent: _Optional[float] = ..., observed_increase_points: _Optional[float] = ..., attributed_points: _Optional[float] = ..., unattributed_points: _Optional[float] = ..., group_by: _Optional[str] = ..., burners: _Optional[_Iterable[_Union[UsageBurner, _Mapping]]] = ..., other_burners: _Optional[int] = ..., other_points: _Optional[float] = ..., calibration: _Optional[_Union[UsageCalibration, _Mapping]] = ..., pending_tokens: _Optional[_Union[UsageTokens, _Mapping]] = ..., metered_lines: _Optional[_Iterable[_Union[UsageMeteredLine, _Mapping]]] = ..., runner: _Optional[str] = ...) -> None: ...
+
+class UsageBurnersResponse(_message.Message):
+    __slots__ = ("windows", "generated_at", "validity", "provenance", "definition_id")
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    windows: _containers.RepeatedCompositeFieldContainer[UsageWindowAttribution]
+    generated_at: str
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, windows: _Optional[_Iterable[_Union[UsageWindowAttribution, _Mapping]]] = ..., generated_at: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class UsageRecommendationsRequest(_message.Message):
+    __slots__ = ("provider", "run_id", "limit")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    run_id: str
+    limit: int
+    def __init__(self, provider: _Optional[str] = ..., run_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class UsageEvidenceRef(_message.Message):
+    __slots__ = ("kind", "id", "label")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    id: str
+    label: str
+    def __init__(self, kind: _Optional[str] = ..., id: _Optional[str] = ..., label: _Optional[str] = ...) -> None: ...
+
+class UsageEvidenceMetric(_message.Message):
+    __slots__ = ("name", "value", "unit")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    value: float
+    unit: str
+    def __init__(self, name: _Optional[str] = ..., value: _Optional[float] = ..., unit: _Optional[str] = ...) -> None: ...
+
+class UsageRecommendation(_message.Message):
+    __slots__ = ("rank", "rule", "lever", "target_kind", "target_id", "target_label", "provider", "pool", "window", "est_weekly_quota_points_saved", "confidence", "action", "rationale", "consumer_points", "evidence_refs", "metrics")
+    RANK_FIELD_NUMBER: _ClassVar[int]
+    RULE_FIELD_NUMBER: _ClassVar[int]
+    LEVER_FIELD_NUMBER: _ClassVar[int]
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_LABEL_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    POOL_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    EST_WEEKLY_QUOTA_POINTS_SAVED_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    CONSUMER_POINTS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    rank: int
+    rule: str
+    lever: str
+    target_kind: str
+    target_id: str
+    target_label: str
+    provider: str
+    pool: str
+    window: str
+    est_weekly_quota_points_saved: float
+    confidence: str
+    action: str
+    rationale: str
+    consumer_points: float
+    evidence_refs: _containers.RepeatedCompositeFieldContainer[UsageEvidenceRef]
+    metrics: _containers.RepeatedCompositeFieldContainer[UsageEvidenceMetric]
+    def __init__(self, rank: _Optional[int] = ..., rule: _Optional[str] = ..., lever: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_id: _Optional[str] = ..., target_label: _Optional[str] = ..., provider: _Optional[str] = ..., pool: _Optional[str] = ..., window: _Optional[str] = ..., est_weekly_quota_points_saved: _Optional[float] = ..., confidence: _Optional[str] = ..., action: _Optional[str] = ..., rationale: _Optional[str] = ..., consumer_points: _Optional[float] = ..., evidence_refs: _Optional[_Iterable[_Union[UsageEvidenceRef, _Mapping]]] = ..., metrics: _Optional[_Iterable[_Union[UsageEvidenceMetric, _Mapping]]] = ...) -> None: ...
+
+class UsageRuleStatus(_message.Message):
+    __slots__ = ("rule", "fired", "rows", "candidates", "reason")
+    RULE_FIELD_NUMBER: _ClassVar[int]
+    FIRED_FIELD_NUMBER: _ClassVar[int]
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    rule: str
+    fired: bool
+    rows: int
+    candidates: int
+    reason: str
+    def __init__(self, rule: _Optional[str] = ..., fired: _Optional[bool] = ..., rows: _Optional[int] = ..., candidates: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class UsageRecommendationsResponse(_message.Message):
+    __slots__ = ("recommendations", "rules", "generated_at", "dominant_consumer", "dominant_consumer_label", "validity", "provenance", "definition_id")
+    RECOMMENDATIONS_FIELD_NUMBER: _ClassVar[int]
+    RULES_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    DOMINANT_CONSUMER_FIELD_NUMBER: _ClassVar[int]
+    DOMINANT_CONSUMER_LABEL_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    recommendations: _containers.RepeatedCompositeFieldContainer[UsageRecommendation]
+    rules: _containers.RepeatedCompositeFieldContainer[UsageRuleStatus]
+    generated_at: str
+    dominant_consumer: str
+    dominant_consumer_label: str
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, recommendations: _Optional[_Iterable[_Union[UsageRecommendation, _Mapping]]] = ..., rules: _Optional[_Iterable[_Union[UsageRuleStatus, _Mapping]]] = ..., generated_at: _Optional[str] = ..., dominant_consumer: _Optional[str] = ..., dominant_consumer_label: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class UsageCoverageRequest(_message.Message):
+    __slots__ = ("since",)
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    since: str
+    def __init__(self, since: _Optional[str] = ...) -> None: ...
+
+class UsageCoverageIssue(_message.Message):
+    __slots__ = ("path", "reason")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    reason: str
+    def __init__(self, path: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class UsageCoverageRoot(_message.Message):
+    __slots__ = ("kind", "harness", "files", "indexed", "with_usage", "owned", "excluded", "pending", "unreadable", "bytes", "captured_bytes", "captured_share", "turns", "usage_reports", "issues")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    INDEXED_FIELD_NUMBER: _ClassVar[int]
+    WITH_USAGE_FIELD_NUMBER: _ClassVar[int]
+    OWNED_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    UNREADABLE_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_SHARE_FIELD_NUMBER: _ClassVar[int]
+    TURNS_FIELD_NUMBER: _ClassVar[int]
+    USAGE_REPORTS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    harness: str
+    files: int
+    indexed: int
+    with_usage: int
+    owned: int
+    excluded: int
+    pending: int
+    unreadable: int
+    bytes: int
+    captured_bytes: int
+    captured_share: float
+    turns: int
+    usage_reports: int
+    issues: _containers.RepeatedCompositeFieldContainer[UsageCoverageIssue]
+    def __init__(self, kind: _Optional[str] = ..., harness: _Optional[str] = ..., files: _Optional[int] = ..., indexed: _Optional[int] = ..., with_usage: _Optional[int] = ..., owned: _Optional[int] = ..., excluded: _Optional[int] = ..., pending: _Optional[int] = ..., unreadable: _Optional[int] = ..., bytes: _Optional[int] = ..., captured_bytes: _Optional[int] = ..., captured_share: _Optional[float] = ..., turns: _Optional[int] = ..., usage_reports: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[UsageCoverageIssue, _Mapping]]] = ...) -> None: ...
+
+class UsageCoverageResponse(_message.Message):
+    __slots__ = ("since", "roots", "totals", "method", "generated_at", "provenance", "definition_id")
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    ROOTS_FIELD_NUMBER: _ClassVar[int]
+    TOTALS_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    since: str
+    roots: _containers.RepeatedCompositeFieldContainer[UsageCoverageRoot]
+    totals: UsageCoverageRoot
+    method: str
+    generated_at: str
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, since: _Optional[str] = ..., roots: _Optional[_Iterable[_Union[UsageCoverageRoot, _Mapping]]] = ..., totals: _Optional[_Union[UsageCoverageRoot, _Mapping]] = ..., method: _Optional[str] = ..., generated_at: _Optional[str] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
+class UsageCompareRequest(_message.Message):
+    __slots__ = ("left", "right", "change_binding", "provider")
+    LEFT_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_BINDING_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    left: CohortSelector
+    right: CohortSelector
+    change_binding: str
+    provider: str
+    def __init__(self, left: _Optional[_Union[CohortSelector, _Mapping]] = ..., right: _Optional[_Union[CohortSelector, _Mapping]] = ..., change_binding: _Optional[str] = ..., provider: _Optional[str] = ...) -> None: ...
+
+class UsageCompareSide(_message.Message):
+    __slots__ = ("runs", "successful_runs", "priced_runs", "tokens", "weighted_tokens", "points", "points_per_success", "tokens_per_success", "success_rate", "window_start", "window_end")
+    RUNS_FIELD_NUMBER: _ClassVar[int]
+    SUCCESSFUL_RUNS_FIELD_NUMBER: _ClassVar[int]
+    PRICED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    POINTS_FIELD_NUMBER: _ClassVar[int]
+    POINTS_PER_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_PER_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_RATE_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_END_FIELD_NUMBER: _ClassVar[int]
+    runs: int
+    successful_runs: int
+    priced_runs: int
+    tokens: UsageTokens
+    weighted_tokens: float
+    points: float
+    points_per_success: float
+    tokens_per_success: float
+    success_rate: float
+    window_start: str
+    window_end: str
+    def __init__(self, runs: _Optional[int] = ..., successful_runs: _Optional[int] = ..., priced_runs: _Optional[int] = ..., tokens: _Optional[_Union[UsageTokens, _Mapping]] = ..., weighted_tokens: _Optional[float] = ..., points: _Optional[float] = ..., points_per_success: _Optional[float] = ..., tokens_per_success: _Optional[float] = ..., success_rate: _Optional[float] = ..., window_start: _Optional[str] = ..., window_end: _Optional[str] = ...) -> None: ...
+
+class UsageCompareResponse(_message.Message):
+    __slots__ = ("left", "right", "change_binding", "points_per_success_change", "verdict", "caveats", "validity", "provenance", "definition_id")
+    LEFT_FIELD_NUMBER: _ClassVar[int]
+    RIGHT_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_BINDING_FIELD_NUMBER: _ClassVar[int]
+    POINTS_PER_SUCCESS_CHANGE_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    CAVEATS_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    left: UsageCompareSide
+    right: UsageCompareSide
+    change_binding: str
+    points_per_success_change: float
+    verdict: str
+    caveats: _containers.RepeatedScalarFieldContainer[str]
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, left: _Optional[_Union[UsageCompareSide, _Mapping]] = ..., right: _Optional[_Union[UsageCompareSide, _Mapping]] = ..., change_binding: _Optional[str] = ..., points_per_success_change: _Optional[float] = ..., verdict: _Optional[str] = ..., caveats: _Optional[_Iterable[str]] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...

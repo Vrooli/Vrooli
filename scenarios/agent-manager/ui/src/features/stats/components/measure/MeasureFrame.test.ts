@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { fireEvent, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { test } from "vitest";
@@ -32,7 +33,7 @@ test("measure frame exposes loading, error, and data-quality states", () => {
   assert.equal(screen.getByTestId("measure").className.includes("animate-pulse"), true);
 
   rerender(createElement(MeasureFrame, { label: "Volume", error: "backend unavailable", children: "value", testId: "measure" }));
-  assert.equal(screen.getByRole("alert").textContent, "Volume: backend unavailable");
+  assert.equal(getErrorNotice("Volume", "backend unavailable").getAttribute("role"), "alert");
 
   rerender(createElement(MeasureFrame, { label: "Volume", children: "value", testId: "measure" }));
   assert.match(screen.getByText("Not enough data yet").textContent ?? "", /Not enough data yet/);

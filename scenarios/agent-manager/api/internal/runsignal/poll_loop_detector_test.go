@@ -46,7 +46,13 @@ func TestPollLoopDetectorRejectsRetriesAndSlowCalls(t *testing.T) {
 			if tc.ExpectedTokens > 0 {
 				events = append(events, &domain.RunEvent{ID: uuid.New(), Timestamp: start.Add(15 * time.Second), EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: tc.ExpectedTokens}})
 			}
-			got := detectPollLoops(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)})
+			// Episode tokens come from the run's usage account in DeriveEpisodes.
+			var got []FrictionEpisode
+			for _, episode := range DeriveEpisodes(facts, events) {
+				if episode.Pattern == "poll-loop" {
+					got = append(got, episode)
+				}
+			}
 			if len(got) != tc.ExpectedCount {
 				t.Fatalf("got %d, want %d", len(got), tc.ExpectedCount)
 			}
@@ -57,73 +63,32 @@ func TestPollLoopDetectorRejectsRetriesAndSlowCalls(t *testing.T) {
 	}
 }
 
-func TestPollLoopDetectorIgnoresInformationalQuotaObservations(t *testing.T) {
+func TestPollLoopDetectorIgnoresQuotaObservations(t *testing.T) {
 	start := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
 	facts, events := quotaObservationPollLoop(start)
-	for _, second := range []int{5, 15} {
-		percent := 47.0
-		events = append(events, &domain.RunEvent{
-			ID: uuid.New(), RunID: events[0].RunID, Timestamp: start.Add(time.Duration(second) * time.Second),
-			EventType: domain.EventTypeError,
-			Data: &domain.RateLimitEventData{
-				Provider: "openai", Pool: "primary", UsedPercent: &percent,
-				WindowMinutes: 10080, Provenance: "codex:event_msg.token_count.rate_limits",
-			},
-		})
+	for _, data := range []*domain.RateLimitEventData{
+		{Provider: "openai", Pool: "primary", UsedPercent: float64Pointer(47), WindowMinutes: 10080},
+		{Provider: "anthropic", Pool: "five_hour", Status: "rejected"},
+	} {
+		quota := domain.NewRateLimitEvent(events[0].RunID, data.Pool, "", nil, 0)
+		quota.Timestamp, quota.Data = start.Add(5*time.Second), data
+		events = append(events, quota)
 	}
 	got := detectPollLoops(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)})
 	if len(got) != 1 {
-		t.Fatalf("informational quota observations hid repeated read-only work: episodes=%d", len(got))
+		t.Fatalf("quota observations hid repeated read-only work: episodes=%d", len(got))
 	}
 }
 
-func TestPollLoopDetectorRetainsOperationalErrorTransitions(t *testing.T) {
+func TestPollLoopDetectorRetainsErrorTransitions(t *testing.T) {
 	start := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
-	cases := []struct {
-		name string
-		data domain.EventPayload
-	}{
-		{name: "exhausted quota", data: &domain.RateLimitEventData{UsedPercent: float64Pointer(100)}},
-		{name: "unknown quota", data: &domain.RateLimitEventData{}},
-		{name: "ordinary error", data: &domain.ErrorEventData{Code: "execution_error", Message: "failed"}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			facts, events := quotaObservationPollLoop(start)
-			events = append(events, &domain.RunEvent{
-				ID: uuid.New(), RunID: events[0].RunID, Timestamp: start.Add(5 * time.Second),
-				EventType: domain.EventTypeError, Data: tc.data,
-			})
-			got := detectPollLoops(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)})
-			if len(got) != 0 {
-				t.Fatalf("operational error transition did not interrupt repeated-work episode: %+v", got)
-			}
-		})
-	}
-}
-
-func TestIsOperationalErrorEventClassifiesNilAndQuotaPayloads(t *testing.T) {
-	percent := 47.0
-	exhausted := 100.0
-	var nilQuota *domain.RateLimitEventData
-	cases := []struct {
-		name  string
-		event *domain.RunEvent
-		want  bool
-	}{
-		{name: "nil event", event: nil, want: false},
-		{name: "typed nil quota is unknown error", event: &domain.RunEvent{EventType: domain.EventTypeError, Data: nilQuota}, want: true},
-		{name: "unknown quota is operational error", event: &domain.RunEvent{EventType: domain.EventTypeError, Data: &domain.RateLimitEventData{}}, want: true},
-		{name: "informational quota is not operational error", event: &domain.RunEvent{EventType: domain.EventTypeError, Data: &domain.RateLimitEventData{UsedPercent: &percent}}, want: false},
-		{name: "exhausted quota is operational error", event: &domain.RunEvent{EventType: domain.EventTypeError, Data: &domain.RateLimitEventData{UsedPercent: &exhausted}}, want: true},
-		{name: "ordinary error is operational error", event: &domain.RunEvent{EventType: domain.EventTypeError, Data: &domain.ErrorEventData{Code: "execution_error"}}, want: true},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := domain.IsOperationalErrorEvent(tc.event); got != tc.want {
-				t.Fatalf("IsOperationalErrorEvent()=%t, want %t", got, tc.want)
-			}
-		})
+	facts, events := quotaObservationPollLoop(start)
+	failure := domain.NewErrorEvent(events[0].RunID, "execution_error", "failed", false)
+	failure.Timestamp = start.Add(5 * time.Second)
+	events = append(events, failure)
+	got := detectPollLoops(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)})
+	if len(got) != 0 {
+		t.Fatalf("error transition did not interrupt repeated-work episode: %+v", got)
 	}
 }
 

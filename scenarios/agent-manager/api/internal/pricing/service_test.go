@@ -208,45 +208,9 @@ func TestCalculateCost_ManualOverrideTakesPriority(t *testing.T) {
 	assert.Equal(t, SourceProviderAPI, calc.ComponentSources[ComponentOutputTokens])
 }
 
-func TestCalculateCost_HistoricalAverageFallback(t *testing.T) {
-	svc, repo := testService(t)
-
-	// No provider pricing, but set historical averages
-	histInputPrice := 0.000004
-	histOutputPrice := 0.000012
-	repo.SetHistoricalAverages("anthropic/claude-3-sonnet", &HistoricalPricing{
-		CanonicalModel:      "anthropic/claude-3-sonnet",
-		InputTokenAvgPrice:  &histInputPrice,
-		OutputTokenAvgPrice: &histOutputPrice,
-		SampleCount:         100,
-		Since:               time.Now().AddDate(0, 0, -7),
-	})
-
-	req := CostRequest{
-		Model:        "anthropic/claude-3-sonnet",
-		RunnerType:   "codex",
-		InputTokens:  1000,
-		OutputTokens: 500,
-	}
-
-	calc, err := svc.CalculateCost(context.Background(), req)
-	require.NoError(t, err)
-	require.NotNil(t, calc)
-
-	expectedInputCost := float64(1000) * histInputPrice
-	expectedOutputCost := float64(500) * histOutputPrice
-
-	assert.InDelta(t, expectedInputCost, calc.InputCostUSD, 0.0001)
-	assert.InDelta(t, expectedOutputCost, calc.OutputCostUSD, 0.0001)
-
-	// Check provenance - should be historical average
-	assert.Equal(t, SourceHistoricalAverage, calc.ComponentSources[ComponentInputTokens])
-	assert.Equal(t, SourceHistoricalAverage, calc.ComponentSources[ComponentOutputTokens])
-}
-
 func TestCalculateCost_FallbackChainPriority(t *testing.T) {
-	// This test verifies the full fallback chain:
-	// Manual Override > Provider API > Historical Average
+	// The fallback chain is Manual Override > Provider API. A component no
+	// source prices stays unpriced: it is never estimated from run history.
 
 	provider := newMockProvider("openrouter")
 
@@ -261,18 +225,7 @@ func TestCalculateCost_FallbackChainPriority(t *testing.T) {
 		ExpiresAt:          time.Now().Add(6 * time.Hour),
 	})
 
-	svc, repo := testService(t, provider)
-
-	// Historical average has both input and output
-	histInputPrice := 0.000004
-	histOutputPrice := 0.000012
-	repo.SetHistoricalAverages("test/model", &HistoricalPricing{
-		CanonicalModel:      "test/model",
-		InputTokenAvgPrice:  &histInputPrice,
-		OutputTokenAvgPrice: &histOutputPrice,
-		SampleCount:         50,
-		Since:               time.Now().AddDate(0, 0, -7),
-	})
+	svc, _ := testService(t, provider)
 
 	req := CostRequest{
 		Model:        "test/model",
@@ -285,15 +238,11 @@ func TestCalculateCost_FallbackChainPriority(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, calc)
 
-	// Input should fall back to historical (no provider price)
-	// Output should use provider price (higher priority than historical)
-	expectedInputCost := float64(1000) * histInputPrice
 	expectedOutputCost := float64(500) * providerOutputPrice
-
-	assert.InDelta(t, expectedInputCost, calc.InputCostUSD, 0.0001)
+	assert.InDelta(t, 0.0, calc.InputCostUSD, 0.0001)
 	assert.InDelta(t, expectedOutputCost, calc.OutputCostUSD, 0.0001)
-
-	assert.Equal(t, SourceHistoricalAverage, calc.ComponentSources[ComponentInputTokens])
+	_, inputPriced := calc.ComponentSources[ComponentInputTokens]
+	assert.False(t, inputPriced, "an unpriced component has no source")
 	assert.Equal(t, SourceProviderAPI, calc.ComponentSources[ComponentOutputTokens])
 }
 
@@ -496,7 +445,6 @@ func TestSettings_DefaultValues(t *testing.T) {
 	settings, err := svc.GetSettings(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, 7, settings.HistoricalAverageDays)
 	assert.Equal(t, 6*time.Hour, settings.ProviderCacheTTL)
 }
 
@@ -504,8 +452,7 @@ func TestSettings_UpdatePersists(t *testing.T) {
 	svc, _ := testService(t)
 
 	newSettings := &PricingSettings{
-		HistoricalAverageDays: 14,
-		ProviderCacheTTL:      12 * time.Hour,
+		ProviderCacheTTL: 12 * time.Hour,
 	}
 
 	err := svc.UpdateSettings(context.Background(), newSettings)
@@ -514,7 +461,6 @@ func TestSettings_UpdatePersists(t *testing.T) {
 	retrieved, err := svc.GetSettings(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, 14, retrieved.HistoricalAverageDays)
 	assert.Equal(t, 12*time.Hour, retrieved.ProviderCacheTTL)
 }
 

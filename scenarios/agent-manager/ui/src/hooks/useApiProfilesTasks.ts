@@ -82,7 +82,7 @@ function buildTask(task: TaskFormData): Task {
 // Profiles hook
 export function useProfiles(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<AgentProfile[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<AgentProfile[]>([], enabled);
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -158,7 +158,7 @@ export function useProfiles(options?: { enabled?: boolean }) {
 // Tasks hook
 export function useTasks(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<Task[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<Task[]>([], enabled);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);

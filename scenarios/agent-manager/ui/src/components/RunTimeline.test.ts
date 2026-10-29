@@ -8,6 +8,7 @@ import { test, vi } from "vitest";
 import { RunTimeline } from "./RunTimeline.js";
 import { renderWithProviders } from "../test-utils/index.js";
 import { makeRun } from "../test-utils/fixtures/runs.js";
+import { answerConfirmDialog } from "../test-utils/feedback.js";
 import { RunStatus } from "../types.js";
 import {
   makeMessageEvent,
@@ -21,15 +22,17 @@ const FILTER_STORAGE_KEY = "agm.runTimelineFilters.v1";
 function renderTimeline(events = [
   makeMessageEvent("msg-1", 1n, "Visible answer"),
 ]) {
-  return renderWithProviders(
+  const onDeleteMessage = vi.fn(async () => undefined);
+  const result = renderWithProviders(
     createElement(RunTimeline, {
       run: makeRun(),
       events,
       eventsLoading: false,
       onContinue: vi.fn(async () => undefined),
-      onDeleteMessage: vi.fn(async () => undefined),
+      onDeleteMessage,
     }),
   );
+  return { ...result, onDeleteMessage };
 }
 
 test("RunTimeline all filter reveals operational log entries through the component UI", async () => {
@@ -140,7 +143,6 @@ test("RunTimeline sends a follow-up, copies and deletes a message, and expands g
   const onDeleteMessage = vi.fn(async () => undefined);
   const clipboard = { writeText: vi.fn(async () => undefined) };
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard });
-  vi.stubGlobal("confirm", vi.fn(() => true));
   renderWithProviders(createElement(RunTimeline, {
     run: makeRun({ actions: { ...makeRun().actions, canContinue: true } }),
     events: [
@@ -158,7 +160,10 @@ test("RunTimeline sends a follow-up, copies and deletes a message, and expands g
   await waitFor(() => assert.deepEqual(onContinue.mock.calls, [["try the safe fix", undefined]]));
   fireEvent.click(screen.getByTitle("Copy message"));
   await waitFor(() => assert.deepEqual(clipboard.writeText.mock.calls, [["A useful response"]]));
-  fireEvent.click(screen.getByTitle("Delete message"));
+  const user = userEvent.setup();
+  await user.click(screen.getByTitle("Delete message"));
+  assert.equal(onDeleteMessage.mock.calls.length, 0, "deletion waits for confirmation");
+  await answerConfirmDialog(user, "confirm");
   await waitFor(() => assert.deepEqual(onDeleteMessage.mock.calls, [["message-1"]]));
   fireEvent.click(screen.getByRole("button", { name: /Activity/ }));
   assert.ok(screen.getByText("Read"));
@@ -276,8 +281,7 @@ test("RunTimeline exposes every operational event category with inspectable payl
 
 test("RunTimeline presents attached user evidence and retains a revealed message when deletion is declined", async () => {
   window.localStorage.removeItem(FILTER_STORAGE_KEY);
-  vi.stubGlobal("confirm", vi.fn(() => false));
-  renderTimeline([
+  const { onDeleteMessage } = renderTimeline([
     makeRunEvent({
       id: "user-evidence", sequence: 1n,
       data: { case: "message", value: {
@@ -289,10 +293,11 @@ test("RunTimeline presents attached user evidence and retains a revealed message
 
   const image = screen.getByRole("img", { name: "evidence.png" });
   assert.equal(image.getAttribute("src"), "https://example.test/evidence.png");
-  fireEvent.click(screen.getByTitle("Delete message"));
+  const user = userEvent.setup();
+  await user.click(screen.getByTitle("Delete message"));
+  await answerConfirmDialog(user, "cancel");
   assert.ok(screen.getByText("Screenshot evidence"));
-  assert.equal((window.confirm as ReturnType<typeof vi.fn>).mock.calls.length, 1);
-  vi.unstubAllGlobals();
+  assert.equal(onDeleteMessage.mock.calls.length, 0);
 });
 
 test("RunTimeline keeps a multiline draft when Shift+Enter is used and resets empty filters", async () => {
@@ -432,7 +437,6 @@ test("RunTimeline normalizes invalid persisted filters and preserves mobile draf
 
 test("RunTimeline preserves visible history on failed removal and ignores clipboard failures", async () => {
   window.localStorage.removeItem(FILTER_STORAGE_KEY);
-  vi.stubGlobal("confirm", vi.fn(() => true));
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
     value: { writeText: vi.fn(async () => { throw new Error("clipboard blocked"); }) },
@@ -450,9 +454,11 @@ test("RunTimeline preserves visible history on failed removal and ignores clipbo
   const user = userEvent.setup();
   await user.click(screen.getByTitle("Copy message"));
   await user.click(screen.getByTitle("Delete message"));
+  const dialog = await answerConfirmDialog(user, "confirm");
   await waitFor(() => assert.deepEqual(onDeleteMessage.mock.calls, [["removed"]]));
+  await waitFor(() => assert.ok(dialog.textContent?.includes("history is read-only"), "the failure stays in the dialog"));
+  assert.ok(document.querySelector('[role="alertdialog"]'));
   assert.ok(screen.getByText("Retained in history"));
-  vi.unstubAllGlobals();
 });
 
 test("RunTimeline keeps copy feedback per message, resets repeated copies, and clears timers on unmount", async () => {

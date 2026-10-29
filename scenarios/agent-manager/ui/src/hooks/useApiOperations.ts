@@ -1,5 +1,5 @@
 // Responsibility: read health, workflow, watch and policy state and request maintenance.
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { create, fromJson, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
 
@@ -19,7 +19,7 @@ import { InspectCohortWatchResponseSchema, ListCohortWatchesResponseSchema } fro
 
 import { HealthResponseSchema } from "@vrooli/proto-types/common/v1/types_pb";
 
-import { useApiState, apiRequest, parseProto, toProtoJson, normalizeJsonValueInput, protoReadOptions, normalizeHealthResponseJson } from "./useApiTransport";
+import { useApiState, apiRequest, parseProto, toProtoJson, normalizeJsonValueInput, protoReadOptions, normalizeHealthResponseJson, healthRequest, healthReason } from "./useApiTransport";
 
 type PurgeCounts = {
   profiles?: number;
@@ -34,7 +34,7 @@ export interface WorkflowTraceView {
 }
 
 export function useWorkflowExecutions() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<WorkflowExecution[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<WorkflowExecution[]>([], true);
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -173,6 +173,7 @@ export function useCohortWatches() {
 // Health hook
 export function useHealth() {
   const { data, loading, error, setData, setLoading, setError } = useApiState<HealthResponse>();
+  const [reason, setReason] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchHealth = useCallback(async () => {
@@ -186,12 +187,10 @@ export function useHealth() {
     setError(null);
 
     try {
-      const data = await apiRequest<unknown>("/health", {
-        signal: controller.signal,
-      });
-      const normalized = normalizeHealthResponseJson(data);
-      const message = parseProto(HealthResponseSchema, normalized);
+      const data = await healthRequest(controller.signal);
+      const message = parseProto(HealthResponseSchema, normalizeHealthResponseJson(data));
       setData(message as HealthResponse);
+      setReason(healthReason(data));
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setError((err as Error).message);
@@ -223,7 +222,7 @@ export function useHealth() {
     };
   }, [fetchHealth]);
 
-  return { data, loading, error, refetch: fetchHealth };
+  return { data, reason, loading, error, refetch: fetchHealth };
 }
 
 // Runners hook

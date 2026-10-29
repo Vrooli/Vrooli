@@ -31,64 +31,6 @@ func continuationRequestHash(req ContinueRunRequest) []byte {
 	return sum[:]
 }
 
-const codexUsageBaselineTail = 512
-
-// continuationCodexUsageBaseline returns only the latest retained terminal
-// Codex snapshot in this run's bounded metric tail. A missing/legacy receipt
-// yields an unseeded baseline; it must never be reconstructed from deltas.
-func (o *Orchestrator) continuationCodexUsageBaseline(ctx context.Context, runID uuid.UUID, sessionID string) (*runner.CodexUsageBaseline, error) {
-	baseline := &runner.CodexUsageBaseline{SessionID: strings.TrimSpace(sessionID)}
-	if o.events == nil || baseline.SessionID == "" {
-		return baseline, nil
-	}
-	opts := event.GetOptions{EventTypes: []domain.RunEventType{domain.EventTypeMetric}}
-	summary, err := o.events.Summarize(ctx, runID, opts)
-	if err != nil {
-		return nil, err
-	}
-	if summary == nil {
-		return baseline, nil
-	}
-	count := summary.Counts[string(domain.EventTypeMetric)]
-	if count <= 0 {
-		return baseline, nil
-	}
-	offset := int64(0)
-	if count > codexUsageBaselineTail {
-		offset = count - codexUsageBaselineTail
-	}
-	if offset > int64(int(^uint(0)>>1)) {
-		return baseline, nil
-	}
-	rows, err := o.events.Get(ctx, runID, event.GetOptions{
-		EventTypes: []domain.RunEventType{domain.EventTypeMetric},
-		Limit:      codexUsageBaselineTail,
-		Offset:     int(offset),
-	})
-	if err != nil {
-		return nil, err
-	}
-	for i := len(rows) - 1; i >= 0; i-- {
-		usage, ok := rows[i].Data.(*domain.UsageEventData)
-		if !ok || !usage.ReconciliationAuthority {
-			continue
-		}
-		if usage.RunnerType != "" && usage.RunnerType != string(domain.RunnerTypeCodex) {
-			return baseline, nil
-		}
-		// Do not skip a newer receipt without a compatible raw snapshot and
-		// fall back to an older counter: that older value may be stale.
-		snapshot := usage.CodexUsageSnapshot
-		if snapshot == nil || strings.TrimSpace(snapshot.SessionID) != baseline.SessionID || snapshot.InputTokens < 0 || snapshot.CachedInputTokens < 0 || snapshot.OutputTokens < 0 || snapshot.CachedInputTokens > snapshot.InputTokens {
-			return baseline, nil
-		}
-		copy := *snapshot
-		baseline.Snapshot = &copy
-		return baseline, nil
-	}
-	return baseline, nil
-}
-
 func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (_ *domain.Run, returnErr error) {
 	effectsPossible := false
 	defer func() {
@@ -1098,17 +1040,6 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		Transcript:     transcript,
 		ResolvedConfig: run.ResolvedConfig,
 		SandboxID:      run.SandboxID,
-	}
-	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex {
-		baseline, baselineErr := o.continuationCodexUsageBaseline(execCtx, run.ID, run.SessionID)
-		if baselineErr != nil {
-			// Accounting enrichment must not block an otherwise valid continuation.
-			// The codec marks cumulative usage unknown when this read fails.
-			obs.Component("continuation").Warn("failed to resolve Codex usage baseline",
-				obs.KeyRunID, run.ID.String(), obs.KeyError, baselineErr.Error())
-			baseline = &runner.CodexUsageBaseline{SessionID: run.SessionID}
-		}
-		continueReq.CodexUsageBaseline = baseline
 	}
 
 	// Rebuild owner policy from persisted authority on every fresh process;

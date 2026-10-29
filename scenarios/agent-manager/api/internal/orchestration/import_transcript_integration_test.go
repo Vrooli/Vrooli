@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/transcriptindex"
 )
 
 type labelExtractor struct {
@@ -55,6 +56,7 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}),
 		orchestration.WithInvocationReadModel(repos.InvocationReadModel),
 	)
+	orchestration.NewTranscriptIndex(svc, repos.TranscriptIndex, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: t.TempDir()}, RecallMaxBytes: transcriptindex.DefaultRecallMaxBytes})
 	path := filepath.Join(t.TempDir(), "codex.jsonl")
 	body := "{\"type\":\"thread.started\",\"thread_id\":\"import-test\"}\n{\"type\":\"turn.completed\"}\n"
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
@@ -76,22 +78,14 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 	if err != nil || persisted == nil || persisted.TaskID != run.TaskID {
 		t.Fatalf("persisted run = %+v, %v", persisted, err)
 	}
-	if persisted.ImportSourceHarness != request.SourceHarness || persisted.ImportSourceSessionID != request.SourceSessionID || persisted.ImportedAt == nil {
+	// Provenance comes from the file itself, not the caller's labels.
+	if persisted.ImportSourceHarness != request.SourceHarness || persisted.ImportSourceSessionID != "import-test" || persisted.ImportedAt == nil || persisted.TranscriptPath != path {
 		t.Fatalf("import provenance = %+v", persisted)
 	}
-	var revived, notified int
-	svc.SetConversationSearchReviver(func(_ context.Context, harness, sessionID string) error {
-		if harness == request.SourceHarness && sessionID == request.SourceSessionID {
-			revived++
-		}
-		return nil
-	})
-	svc.SetConversationSearchNotifier(func(_ context.Context, operation, runID, eventID string) error {
-		if operation == "upsert_run" && runID == run.ID.String() && eventID == "" {
-			notified++
-		}
-		return nil
-	})
+	before, err := eventStore.Count(context.Background(), run.ID)
+	if err != nil || before == 0 {
+		t.Fatalf("imported events = %d, %v", before, err)
+	}
 	again, err := svc.ImportTranscript(context.Background(), request)
 	if err != nil {
 		t.Fatalf("repeat import: %v", err)
@@ -99,12 +93,12 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 	if again.ID != run.ID {
 		t.Fatalf("repeat import created %s, want existing %s", again.ID, run.ID)
 	}
-	if revived != 1 || notified != 1 {
-		t.Fatalf("repeat import hooks = revived %d notified %d, want 1/1", revived, notified)
+	if count, err := eventStore.Count(context.Background(), run.ID); err != nil || count != before {
+		t.Fatalf("repeat import re-read the file: events = %d, %v", count, err)
 	}
 }
 
-func TestImportTranscriptRehydratesExistingRunAfterEventCompaction(t *testing.T) {
+func TestReplayRebuildsEvictedRecallFromTheSourceFile(t *testing.T) {
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
 	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
@@ -118,6 +112,7 @@ func TestImportTranscriptRehydratesExistingRunAfterEventCompaction(t *testing.T)
 		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}),
 		orchestration.WithInvocationReadModel(repos.InvocationReadModel),
 	)
+	orchestration.NewTranscriptIndex(svc, repos.TranscriptIndex, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: t.TempDir()}, RecallMaxBytes: transcriptindex.DefaultRecallMaxBytes})
 	path := filepath.Join(t.TempDir(), "codex-rehydrate.jsonl")
 	if err := os.WriteFile(path, []byte("{\"type\":\"thread.started\",\"thread_id\":\"rehydrate-test\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -131,16 +126,18 @@ func TestImportTranscriptRehydratesExistingRunAfterEventCompaction(t *testing.T)
 		t.Fatalf("initial imported events = %d, %v", count, err)
 	}
 	if _, err := db.DB.Exec(`DELETE FROM run_events WHERE run_id = ?`, run.ID.String()); err != nil {
-		t.Fatalf("compact imported events: %v", err)
+		t.Fatalf("evict imported events: %v", err)
 	}
 	if count, err := eventStore.Count(context.Background(), run.ID); err != nil || count != 0 {
-		t.Fatalf("compacted imported events = %d, %v", count, err)
+		t.Fatalf("evicted imported events = %d, %v", count, err)
 	}
-	if _, err := svc.ImportTranscript(context.Background(), request); err != nil {
-		t.Fatalf("re-import after compaction: %v", err)
+	// An explicit replay is a recall request: the events come back from the
+	// source file the indexer read, not from a private copy.
+	if _, err := svc.ReplayInvocationFacts(context.Background(), run.ID); err != nil {
+		t.Fatalf("replay after eviction: %v", err)
 	}
 	if count, err := eventStore.Count(context.Background(), run.ID); err != nil || count == 0 {
-		t.Fatalf("rehydrated imported events = %d, %v", count, err)
+		t.Fatalf("rebuilt imported events = %d, %v", count, err)
 	}
 }
 
@@ -161,6 +158,7 @@ func TestImportTranscriptLabelsUseHarnessThenGeneratedPrecedence(t *testing.T) {
 		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}),
 		orchestration.WithInvocationReadModel(repos.InvocationReadModel),
 	)
+	orchestration.NewTranscriptIndex(svc, repos.TranscriptIndex, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: t.TempDir()}, RecallMaxBytes: transcriptindex.DefaultRecallMaxBytes})
 
 	claudePath := filepath.Join(t.TempDir(), "claude.jsonl")
 	if err := os.WriteFile(claudePath, []byte("{\"type\":\"ai-title\",\"aiTitle\":\"Known Claude title\"}\n"), 0o600); err != nil {
@@ -237,9 +235,10 @@ func TestImportTranscriptLabelsUsePlaceholderWhenNothingNamesTheWork(t *testing.
 				options = append(options, orchestration.WithLabelGenerator(tc.generator))
 			}
 			svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, options...)
+			orchestration.NewTranscriptIndex(svc, repos.TranscriptIndex, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: t.TempDir()}, RecallMaxBytes: transcriptindex.DefaultRecallMaxBytes})
 
 			path := filepath.Join(t.TempDir(), "codex.jsonl")
-			if err := os.WriteFile(path, []byte("{\"type\":\"thread.started\",\"thread_id\":\"anon\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
+			if err := os.WriteFile(path, []byte("{\"type\":\"thread.started\",\"thread_id\":\"anon-session\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			run, err := svc.ImportTranscript(context.Background(), orchestration.ImportTranscriptRequest{

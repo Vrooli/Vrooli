@@ -98,8 +98,8 @@ func TestApplyEnvOverridesTranscriptImport(t *testing.T) {
 	t.Run("unset env keeps defaults", func(t *testing.T) {
 		levers := DefaultLevers()
 		applyEnvOverrides(&levers)
-		if levers.TranscriptImport.Interval != 6*time.Hour {
-			t.Fatalf("interval = %v, want 6h default", levers.TranscriptImport.Interval)
+		if levers.TranscriptImport.Interval != time.Minute {
+			t.Fatalf("interval = %v, want 1m default", levers.TranscriptImport.Interval)
 		}
 		if len(levers.TranscriptImport.ScanRoots) != 0 {
 			t.Fatalf("scan roots = %#v, want none by default", levers.TranscriptImport.ScanRoots)
@@ -109,8 +109,8 @@ func TestApplyEnvOverridesTranscriptImport(t *testing.T) {
 		levers := DefaultLevers()
 		t.Setenv("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL", "not-a-duration")
 		applyEnvOverrides(&levers)
-		if levers.TranscriptImport.Interval != 6*time.Hour {
-			t.Fatalf("interval = %v, want 6h after invalid env", levers.TranscriptImport.Interval)
+		if levers.TranscriptImport.Interval != time.Minute {
+			t.Fatalf("interval = %v, want 1m after invalid env", levers.TranscriptImport.Interval)
 		}
 	})
 }

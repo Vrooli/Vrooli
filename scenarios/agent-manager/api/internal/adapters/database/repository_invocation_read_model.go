@@ -24,7 +24,56 @@ var (
 	_ invocationreadmodel.ProjectionStore       = (*invocationReadModelRepository)(nil)
 	_ invocationreadmodel.CohortDefinitionStore = (*invocationReadModelRepository)(nil)
 	_ invocationreadmodel.FreshnessStore        = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionQueue       = (*invocationReadModelRepository)(nil)
 )
+
+func (r *invocationReadModelRepository) MarkProjectionPending(ctx context.Context, runID string, at time.Time) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO invocation_read_model_pending (run_id,generation,attempts,next_attempt_unix) VALUES (?,1,0,?)
+		ON CONFLICT(run_id) DO UPDATE SET generation=generation+1,attempts=0,next_attempt_unix=excluded.next_attempt_unix`, runID, at.Unix())
+	return err
+}
+
+// EnqueueStaleProjections marks ended runs that have no watermark or one from
+// another fact or episode classifier. Existing marks keep their backoff.
+func (r *invocationReadModelRepository) EnqueueStaleProjections(ctx context.Context, factVersion, episodeVersion string, at time.Time, limit int) (int, error) {
+	result, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO invocation_read_model_pending (run_id,generation,attempts,next_attempt_unix)
+		SELECT r.id,1,0,? FROM runs r
+		LEFT JOIN invocation_read_model_watermarks w ON w.run_id = r.id
+		LEFT JOIN invocation_read_model_pending p ON p.run_id = r.id
+		WHERE r.ended_at IS NOT NULL AND p.run_id IS NULL AND (w.run_id IS NULL OR w.classifier_version <> ? OR w.episode_classifier_version <> ?)
+		ORDER BY r.ended_at DESC LIMIT ?`, at.Unix(), factVersion, episodeVersion, limit)
+	if err != nil {
+		return 0, err
+	}
+	added, err := result.RowsAffected()
+	return int(added), err
+}
+
+func (r *invocationReadModelRepository) DueProjections(ctx context.Context, at time.Time, limit int) ([]invocationreadmodel.PendingProjection, error) {
+	var rows []struct {
+		RunID      string `db:"run_id"`
+		Generation int64  `db:"generation"`
+		Attempts   int    `db:"attempts"`
+	}
+	if err := r.db.SelectContext(ctx, &rows, `SELECT run_id,generation,attempts FROM invocation_read_model_pending WHERE next_attempt_unix <= ? ORDER BY next_attempt_unix, run_id LIMIT ?`, at.Unix(), limit); err != nil {
+		return nil, err
+	}
+	out := make([]invocationreadmodel.PendingProjection, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, invocationreadmodel.PendingProjection{RunID: row.RunID, Generation: row.Generation, Attempts: row.Attempts})
+	}
+	return out, nil
+}
+
+func (r *invocationReadModelRepository) CompleteProjection(ctx context.Context, runID string, generation int64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM invocation_read_model_pending WHERE run_id=? AND generation=?`, runID, generation)
+	return err
+}
+
+func (r *invocationReadModelRepository) DeferProjection(ctx context.Context, runID string, until time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_pending SET attempts=attempts+1,next_attempt_unix=? WHERE run_id=?`, until.Unix(), runID)
+	return err
+}
 
 func (r *invocationReadModelRepository) LatestProjection(ctx context.Context) (time.Time, error) {
 	var projected SQLiteTime
@@ -254,38 +303,6 @@ func (r *invocationReadModelRepository) replaceFactsTx(ctx context.Context, tx s
 		return fmt.Errorf("upsert read-model watermark: %w", err)
 	}
 	return nil
-}
-
-func (r *invocationReadModelRepository) Aggregate(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.AggregateRow, error) {
-	columns := map[string]string{"ownership": "ownership", "outcome": "outcome", "executable": "executable", "fingerprint": "fingerprint", "tool": "tool_name", "runner": "runner_type", "model": "model", "profile": "profile_id", "status": "run_status"}
-	column, ok := columns[dimension]
-	if !ok {
-		return nil, fmt.Errorf("unsupported aggregate dimension %q", dimension)
-	}
-	where, args := invocationReadModelWhere(filter)
-	if limit <= 0 {
-		limit = 100
-	}
-	query := fmt.Sprintf("SELECT %s AS value, COUNT(*) AS count FROM invocation_read_model_facts%s GROUP BY %s ORDER BY count DESC, value ASC LIMIT ?", column, where, column)
-	args = append(args, limit)
-	rows, err := r.db.QueryxContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []invocationreadmodel.AggregateRow{}
-	for rows.Next() {
-		var row invocationreadmodel.AggregateRow
-		row.Dimension = dimension
-		if err := rows.Scan(&row.Value, &row.Count); err != nil {
-			return nil, err
-		}
-		out = append(out, row)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (r *invocationReadModelRepository) Cohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (invocationreadmodel.Cohort, error) {

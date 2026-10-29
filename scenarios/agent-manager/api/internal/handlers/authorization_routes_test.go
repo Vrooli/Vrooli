@@ -11,6 +11,8 @@ import (
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
+	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
 
@@ -431,5 +433,40 @@ func TestAgentEvidencePruneReachesTheApprovalHandler(t *testing.T) {
 		if !reached || w.Code != http.StatusAccepted {
 			t.Fatalf("interactive=%t: agent evidence prune refused at the middleware: %d %s", interactive, w.Code, w.Body.String())
 		}
+	}
+}
+
+// Every MeasuresService procedure is an agent read. The procedure set is
+// enumerated from the generated service descriptor, so a new measure that is
+// not admitted fails here instead of returning 403 to agents in production.
+func TestEveryMeasuresProcedureIsAgentReadable(t *testing.T) {
+	service := measurepb.File_agent_manager_v1_measures_measures_proto.Services().ByName("MeasuresService")
+	methods := service.Methods()
+	if methods.Len() == 0 {
+		t.Fatal("MeasuresService descriptor declares no procedures")
+	}
+	procedures := []string{measureconnect.MeasuresServiceRunStatusDistributionProcedure, measureconnect.MeasuresServiceRunCostProcedure, "/measures/execute"}
+	for i := 0; i < methods.Len(); i++ {
+		procedures = append(procedures, "/"+string(service.FullName())+"/"+string(methods.Get(i).Name()))
+	}
+	agent := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: []string{"agent-manager:read"}}
+	for _, procedure := range procedures {
+		req := httptest.NewRequest(http.MethodPost, procedure, nil)
+		req = req.WithContext(identity.WithPrincipal(req.Context(), agent))
+		rec := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Errorf("%s: status=%d want agent read admission; body=%s", procedure, rec.Code, rec.Body.String())
+		}
+	}
+
+	// The read-only rule is scoped to the measures service: a mutating RPC in
+	// the main service keeps the management boundary.
+	req := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceDeleteRunProcedure, nil)
+	req = req.WithContext(identity.WithPrincipal(req.Context(), agent))
+	rec := httptest.NewRecorder()
+	AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("DeleteRun status=%d want 403", rec.Code)
 	}
 }

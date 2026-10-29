@@ -376,3 +376,38 @@ func TestRecoveryRetryErrorsDoNotCreateOrRewriteStartupFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestRecoveryRequiredStepRetriesTransientFailureAndOpensReadiness(t *testing.T) {
+	recovery := NewRecovery()
+	var calls atomic.Int32
+	recovery.Start(t.Context(), []RecoveryStep{{
+		Name: "in_flight_runs", Timeout: time.Second, Attempts: 3, RetryDelay: time.Millisecond,
+		Run: func(ctx context.Context) error {
+			if calls.Add(1) == 1 {
+				return context.DeadlineExceeded
+			}
+			return nil
+		},
+	}})
+	<-recovery.Done()
+	defer recovery.Stop()
+	state := recovery.Snapshot()
+	if calls.Load() != 2 || !state.Readiness || len(state.Failures) != 0 {
+		t.Fatalf("retried recovery=%+v calls=%d", state, calls.Load())
+	}
+}
+
+func TestRecoveryRequiredStepFailingEveryAttemptStaysDegraded(t *testing.T) {
+	recovery := NewRecovery()
+	var calls atomic.Int32
+	recovery.Start(t.Context(), []RecoveryStep{{
+		Name: "in_flight_runs", Attempts: 3, RetryDelay: time.Millisecond,
+		Run: func(context.Context) error { calls.Add(1); return errors.New("database is locked") },
+	}})
+	<-recovery.Done()
+	defer recovery.Stop()
+	state := recovery.Snapshot()
+	if calls.Load() != 3 || state.Readiness || state.Status != "degraded" {
+		t.Fatalf("exhausted recovery=%+v calls=%d", state, calls.Load())
+	}
+}

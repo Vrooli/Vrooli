@@ -22,6 +22,10 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
+// v20 derives every token quantity from the one usage account
+// (AccountUsage): Codex totals are last cumulative counter minus the counter
+// before the run's first report, so re-tails and replays no longer inflate
+// runs, and Claude usage counts each provider message once.
 // v19 applies canonical per-invocation authority and replay selection to durable time-accounting token buckets.
 // v18 adds bounded identifiers for known program and skill command paths.
 // v17 apportions per-call token quantities across the segments of a compound
@@ -29,7 +33,7 @@ import (
 // segment, so any SUM over them overcounts a run in proportion to how compound
 // its commands were. The version bump is what makes a refresh reproject those
 // runs instead of leaving the two conventions mixed in one cohort.
-const InvocationFactVersion = "invocation-fact.v19"
+const InvocationFactVersion = "invocation-fact.v20"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.

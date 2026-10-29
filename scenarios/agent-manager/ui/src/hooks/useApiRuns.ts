@@ -15,17 +15,8 @@ import { CreateRunRequestSchema, CreateRunResponseSchema, GetRunDiffResponseSche
 
 import { ExtraFlagListSchema, FeatureFlagsSchema, SandboxConfigSchema } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
+import { fetchDurableRunStatusDistribution, runStatusCountsFromRows } from "../features/stats/api/statsClient";
 import { useApiState, apiRequest, parseProto, toProtoJson, durationFromMinutes, sandboxModeFromForm, networkAccessToProto } from "./useApiTransport";
-
-export interface RunStatusCounts {
-  pending: number;
-  running: number;
-  complete: number;
-  failed: number;
-  cancelled: number;
-  needsReview: number;
-  total: number;
-}
 
 export interface RunReportView {
   run_id: string;
@@ -71,7 +62,7 @@ export interface RecurringFindingView {
 }
 
 export function useRecurringFindings() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<RecurringFindingView[]>(null);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RecurringFindingView[]>(null, true);
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -201,7 +192,7 @@ function hasInlineConfig(run: RunFormData): boolean {
 export function useRuns(options?: { enabled?: boolean; limit?: number }) {
   const enabled = options?.enabled ?? true;
   const limit = options?.limit;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([], enabled);
 
   const hasFetchedRef = useRef(false);
 
@@ -455,16 +446,49 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
   };
 }
 
-export function useRunStatusCounts(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<RunStatusCounts>();
+/** Live run counters plus the durable windowed total the dashboard header shows. */
+export interface DashboardRunCounts {
+  /** Runs currently running or starting, counted by the API (not the loaded page). */
+  active: number;
+  /** Runs awaiting review, counted by the API. */
+  review: number;
+  /** Runs settled in the durable Measures window ({@link DASHBOARD_WINDOW_PRESET}). */
+  windowTotal: number;
+}
 
-  const fetchStatusCounts = useCallback(async () => {
+export const DASHBOARD_WINDOW_PRESET = "7d" as const;
+const DASHBOARD_COUNTS_POLL_MS = 60_000;
+const DASHBOARD_COUNTS_DEBOUNCE_MS = 750;
+
+async function countRunsWithStatus(status: "running" | "starting" | "needs_review"): Promise<number> {
+  const resp = await apiRequest<unknown>(`/runs?status=${status}&limit=1`);
+  return parseProto(ListRunsResponseSchema, resp).total;
+}
+
+async function fetchDashboardRunCounts(): Promise<DashboardRunCounts> {
+  const [running, starting, review, distribution] = await Promise.all([
+    countRunsWithStatus("running"),
+    countRunsWithStatus("starting"),
+    countRunsWithStatus("needs_review"),
+    fetchDurableRunStatusDistribution({ preset: DASHBOARD_WINDOW_PRESET }),
+  ]);
+  return { active: running + starting, review, windowTotal: runStatusCountsFromRows(distribution.rows).total };
+}
+
+/**
+ * Dashboard counters. `refetch` is debounced so a burst of run websocket status
+ * events causes one read; a slow poll covers missed events while enabled.
+ */
+export function useDashboardRunCounts(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<DashboardRunCounts>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchCounts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiRequest<{ statusCounts?: RunStatusCounts }>("/stats/status-distribution");
-      setData(response.statusCounts ?? null);
+      setData(await fetchDashboardRunCounts());
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -472,14 +496,28 @@ export function useRunStatusCounts(options?: { enabled?: boolean }) {
     }
   }, [setData, setLoading, setError]);
 
+  const refetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      void fetchCounts();
+    }, DASHBOARD_COUNTS_DEBOUNCE_MS);
+  }, [fetchCounts]);
+
   useEffect(() => {
     if (!enabled) {
       return;
     }
-    void fetchStatusCounts();
-  }, [enabled, fetchStatusCounts]);
+    void fetchCounts();
+    const poll = setInterval(() => void fetchCounts(), DASHBOARD_COUNTS_POLL_MS);
+    return () => {
+      clearInterval(poll);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    };
+  }, [enabled, fetchCounts]);
 
-  return { data, loading, error, refetch: fetchStatusCounts };
+  return { data, loading, error, refetch };
 }
 
 // Reads the categorized recommendations out of an investigation run's

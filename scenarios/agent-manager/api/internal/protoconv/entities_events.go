@@ -187,6 +187,8 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				UsedPercent:   data.UsedPercent,
 				WindowMinutes: data.WindowMinutes,
 				Provenance:    data.Provenance,
+				Status:        data.Status,
+				OverageStatus: data.OverageStatus,
 			},
 		}
 	case *domain.ErrorEventData:

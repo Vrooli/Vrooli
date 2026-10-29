@@ -24,8 +24,11 @@ func TestTaskAttemptStatusTransitionsKeepExecutionCompletionNeutral(t *testing.T
 		status   TaskStatus
 		terminal bool
 	}{
-		{TaskStatusCompleted, false}, {TaskStatusFailed, false},
-		{TaskStatusCancelled, true}, {TaskStatusApproved, true}, {TaskStatusRejected, true},
+		{TaskStatusCompleted, false},
+		{TaskStatusFailed, false},
+		{TaskStatusCancelled, true},
+		{TaskStatusApproved, true},
+		{TaskStatusRejected, true},
 	} {
 		if got := tc.status.IsTerminal(); got != tc.terminal {
 			t.Errorf("%s terminal=%v, want %v", tc.status, got, tc.terminal)

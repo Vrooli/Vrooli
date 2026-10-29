@@ -83,7 +83,7 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
   - [x] Automatic retry on failures with exponential backoff
   - [x] Session persistence across restarts
   - [x] Graceful degradation with Ollama fallback
-  - [x] Provider quota feed: `statusline run` records Claude Code's own five-hour/seven-day `used_percentage` readings for Agent Manager forecasting (no local estimates)
+  - [x] Provider quota feed: `statusline run` appends Claude Code's own five-hour/seven-day `used_percentage` readings (per session, only when that session's reading changes, plus a 5-minute heartbeat; expired windows skipped; file rotates at 4 MiB) to the quota sample file for Agent Manager forecasting (no local estimates)
   - [ ] Health monitoring and alerting integration
   
 - **Scalability**
@@ -154,6 +154,8 @@ fallback_provider:
   # Fallback control
   resource-claude-code for ollama connect            # Force Ollama fallback
   resource-claude-code for ollama disconnect         # Return to Claude
+  resource-claude-code statusline install|uninstall  # Reconcile settings.json statusLine to the quota feed (uninstall restores the prior command)
+  resource-claude-code statusline run                # The statusLine command: record quota sample, then render/chain
   resource-claude-code statusline status             # Show the statusline quota feed
   
   # Content management

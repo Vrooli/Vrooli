@@ -594,8 +594,12 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 			row.Blockers = append(row.Blockers, "reconcile owner lifecycle evidence for run "+run.ID.String())
 			unavailable++
 		}
-		if run.Summary != nil && run.Summary.TokensUsed > 0 {
-			a.Usage.Limitations = append(a.Usage.Limitations, "summary token total is unqualified for per-attempt attribution; cumulative provider values remain unknown")
+		if s.spend != nil && !inconsistent {
+			if total, known, err := s.spend.RunTokens(ctx, run.ID); err == nil && known {
+				a.Usage.Tokens = &total
+			} else {
+				a.Usage.Limitations = append(a.Usage.Limitations, "run token total is not authoritatively metered")
+			}
 		}
 		if !inconsistent && run.Status.IsTerminal() && run.StartedAt != nil && run.EndedAt != nil {
 			v := run.EndedAt.Sub(*run.StartedAt).Seconds()

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { test, vi } from "vitest";
 import { RunDetail } from "./RunDetail.js";
 import { renderWithProviders } from "../test-utils/index.js";
@@ -8,6 +8,10 @@ import { makeRun } from "../test-utils/fixtures/runs.js";
 import { RunStatus } from "../types.js";
 import type { RunDiff } from "../types.js";
 
+vi.mock("../features/usage/RunUsagePanel.js", () => ({
+  RunUsagePanel: ({ runId, children, hasCost, costLoading }: { runId: string; children?: ReactNode; hasCost: boolean; costLoading: boolean }) =>
+    createElement("section", { "data-testid": "run-usage-panel", "data-has-cost": String(hasCost), "data-cost-loading": String(costLoading) }, `usage for ${runId}`, children),
+}));
 vi.mock("./RunTimeline.js", () => ({
   RunTimeline: () => createElement("div", { "data-testid": "run-timeline" }, "timeline"),
 }));
@@ -108,7 +112,7 @@ test("RunDetail approves only explicitly selected diff files", async () => {
   await waitFor(() => assert.deepEqual(partialApprove.mock.calls, [[ ["file-a"], "reviewer", undefined ]]));
 });
 
-test("RunDetail explains absent task/diff/cost data and exposes its collapse and identifier controls", async () => {
+test("RunDetail explains absent task/diff/usage data and exposes its collapse and identifier controls", async () => {
   const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard });
   const run = makeRun({ id: "no-data-run", taskId: "missing-task", sandboxId: "" });
@@ -117,10 +121,14 @@ test("RunDetail explains absent task/diff/cost data and exposes its collapse and
     onApprove: vi.fn(async () => undefined), onReject: vi.fn(async () => undefined), onRetry: vi.fn(async (value) => value), onResumeFromFailure: vi.fn(), onInvestigate: vi.fn(), onApplyInvestigation: vi.fn(), onStop: vi.fn(async () => undefined), onDelete: vi.fn(), onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined), deleteLoading: false,
   }));
   assert.ok(screen.getByText("Task details unavailable for missing-task"));
-  fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Diff" }));
   assert.ok(screen.getByText("This run didn't use a sandbox, so no diff was collected."));
-  fireEvent.click(screen.getByRole("button", { name: "Cost" }));
-  assert.ok(screen.getByText("No cost data available"));
+  fireEvent.click(screen.getByRole("tab", { name: "Usage" }));
+  assert.equal(screen.getByRole("tab", { name: "Usage" }).getAttribute("aria-selected"), "true");
+  assert.equal(screen.getByTestId("run-usage-panel").textContent, "usage for no-data-run", "the usage tab reads quota for this run");
+  // The panel owns the one empty message, so a cost-less run never shows it beside quota data.
+  assert.equal(screen.getByTestId("run-usage-panel").getAttribute("data-has-cost"), "false");
+  assert.equal(screen.queryByText(/No cost events/), null);
   fireEvent.click(screen.getByTitle("Copy run ID: no-data-run"));
   await waitFor(() => assert.deepEqual(clipboard.writeText.mock.calls, [["no-data-run"]]));
   fireEvent.click(screen.getByText("Details"));
@@ -149,7 +157,7 @@ test("RunDetail keeps an unverified empty diff unavailable", () => {
   }));
   const changeLabel = screen.getByText("Changes", { selector: ".text-xs" });
   assert.equal(changeLabel.nextElementSibling?.textContent, "Unavailable");
-  fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Diff" }));
   assert.ok(screen.getByText("Diff evidence is incomplete; changes and file count are unverified."));
   assert.equal(screen.queryByText("No changes"), null);
 });
@@ -213,15 +221,15 @@ test("RunDetail lets desktop operators traverse every evidence tab and preserves
     run: makeRun({ sandboxId: "sandbox-7" }), events: [], diff: null, eventsLoading: false, diffLoading: false, task, taskTitle: "Evidence", profileName: "Profile",
     onApprove: vi.fn(async () => undefined), onReject: vi.fn(async () => undefined), onRetry: vi.fn(async (value) => value), onResumeFromFailure: vi.fn(), onInvestigate: vi.fn(), onApplyInvestigation: vi.fn(), onStop: vi.fn(async () => undefined), onDelete: vi.fn(), onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined), deleteLoading: false,
   }));
-  fireEvent.click(screen.getByRole("button", { name: "Task" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Task" }));
   assert.ok(screen.getByText("Evidence task"));
-  fireEvent.click(screen.getByRole("button", { name: /Timeline/ }));
+  fireEvent.click(screen.getByRole("tab", { name: /Timeline/ }));
   assert.ok(screen.getByTestId("run-timeline"));
-  fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Diff" }));
   assert.ok(screen.getByText("No complete diff evidence is available. The file count and changes are unverified."));
-  fireEvent.click(screen.getByRole("button", { name: "Cost" }));
-  assert.ok(screen.getByText("No cost data available"));
-  fireEvent.click(screen.getByRole("button", { name: "Report" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Usage" }));
+  assert.equal(screen.getByTestId("run-usage-panel").getAttribute("data-has-cost"), "false");
+  fireEvent.click(screen.getByRole("tab", { name: "Report" }));
   await waitFor(() => assert.match(screen.getByTestId("run-report").textContent ?? "", /Status: complete/));
   const report = screen.getByTestId("run-report").textContent ?? "";
   assert.match(report, /heartbeat gap=unavailablems/);
@@ -293,15 +301,17 @@ test("RunDetail distinguishes loading diff and cost evidence from completed evid
   };
   const { rerender } = renderWithProviders(createElement(RunDetail, props));
   assert.ok(screen.getByText("Loading diff..."));
-  rerender(createElement(RunDetail, { ...props, diffLoading: false, eventsLoading: true, initialTab: "cost" }));
-  assert.ok(screen.getByText("Loading cost..."));
+  rerender(createElement(RunDetail, { ...props, diffLoading: false, eventsLoading: true, initialTab: "usage" }));
+  assert.equal(screen.getByTestId("run-usage-panel").getAttribute("data-cost-loading"), "true");
+  assert.equal(screen.queryByText(/No cost events/), null, "no empty message while cost is loading");
   rerender(createElement(RunDetail, {
     ...props,
     diffLoading: false,
     eventsLoading: false,
-    initialTab: "cost",
+    initialTab: "usage",
     events: [{ data: { case: "cost", value: { inputTokens: 10, outputTokens: 5, totalCostUsd: 0.125, model: "gpt-5", serviceTier: "priority" } } }] as never,
   }));
+  assert.equal(screen.getByTestId("run-usage-panel").getAttribute("data-has-cost"), "true");
   assert.ok(screen.getAllByText("$0.1250").length >= 1);
   assert.ok(screen.getAllByText("15").length >= 1);
 });

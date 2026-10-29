@@ -119,6 +119,30 @@ const (
 	// MeasuresServiceSelectCohortProcedure is the fully-qualified name of the MeasuresService's
 	// SelectCohort RPC.
 	MeasuresServiceSelectCohortProcedure = "/agent_manager.v1.measures.MeasuresService/SelectCohort"
+	// MeasuresServiceCohortReportProcedure is the fully-qualified name of the MeasuresService's
+	// CohortReport RPC.
+	MeasuresServiceCohortReportProcedure = "/agent_manager.v1.measures.MeasuresService/CohortReport"
+	// MeasuresServiceCompareEpisodeCohortsProcedure is the fully-qualified name of the
+	// MeasuresService's CompareEpisodeCohorts RPC.
+	MeasuresServiceCompareEpisodeCohortsProcedure = "/agent_manager.v1.measures.MeasuresService/CompareEpisodeCohorts"
+	// MeasuresServiceUsageForecastProcedure is the fully-qualified name of the MeasuresService's
+	// UsageForecast RPC.
+	MeasuresServiceUsageForecastProcedure = "/agent_manager.v1.measures.MeasuresService/UsageForecast"
+	// MeasuresServiceUsageForecastBacktestProcedure is the fully-qualified name of the
+	// MeasuresService's UsageForecastBacktest RPC.
+	MeasuresServiceUsageForecastBacktestProcedure = "/agent_manager.v1.measures.MeasuresService/UsageForecastBacktest"
+	// MeasuresServiceUsageBurnersProcedure is the fully-qualified name of the MeasuresService's
+	// UsageBurners RPC.
+	MeasuresServiceUsageBurnersProcedure = "/agent_manager.v1.measures.MeasuresService/UsageBurners"
+	// MeasuresServiceUsageRecommendationsProcedure is the fully-qualified name of the MeasuresService's
+	// UsageRecommendations RPC.
+	MeasuresServiceUsageRecommendationsProcedure = "/agent_manager.v1.measures.MeasuresService/UsageRecommendations"
+	// MeasuresServiceUsageCoverageProcedure is the fully-qualified name of the MeasuresService's
+	// UsageCoverage RPC.
+	MeasuresServiceUsageCoverageProcedure = "/agent_manager.v1.measures.MeasuresService/UsageCoverage"
+	// MeasuresServiceUsageCompareProcedure is the fully-qualified name of the MeasuresService's
+	// UsageCompare RPC.
+	MeasuresServiceUsageCompareProcedure = "/agent_manager.v1.measures.MeasuresService/UsageCompare"
 )
 
 // MeasuresServiceClient is a client for the agent_manager.v1.measures.MeasuresService service.
@@ -154,6 +178,31 @@ type MeasuresServiceClient interface {
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
+	// CohortReport folds the run reports of one selected cohort: ranked
+	// friction signals, time accounting, evidence validity and goal progression.
+	CohortReport(context.Context, *connect.Request[measures.CohortReportRequest]) (*connect.Response[measures.CohortReportResponse], error)
+	// CompareEpisodeCohorts compares friction-episode fingerprints between two
+	// selected cohorts, for example before and after a change.
+	CompareEpisodeCohorts(context.Context, *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error)
+	// UsageForecast projects, from the provider's own quota readings, whether
+	// each subscription window runs out before its reset.
+	UsageForecast(context.Context, *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error)
+	// UsageForecastBacktest replays the forecast over completed windows and
+	// compares it with what happened and with a naive linear baseline.
+	UsageForecastBacktest(context.Context, *connect.Request[measures.UsageForecastBacktestRequest]) (*connect.Response[measures.UsageForecastBacktestResponse], error)
+	// UsageBurners attributes each window's observed quota increase to its
+	// consumers (session, run, profile, workload, model, runner, modality or
+	// tool kind) with an explicit unattributed remainder.
+	UsageBurners(context.Context, *connect.Request[measures.UsageBurnersRequest]) (*connect.Response[measures.UsageBurnersResponse], error)
+	// UsageRecommendations ranks deterministic rule findings by the weekly
+	// quota they would save.
+	UsageRecommendations(context.Context, *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error)
+	// UsageCoverage compares the transcripts on disk with what the Transcript
+	// Indexer captured, per root, naming every uncaptured file.
+	UsageCoverage(context.Context, *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error)
+	// UsageCompare compares quota per successful workload unit between two
+	// selected cohorts (for example before and after a change).
+	UsageCompare(context.Context, *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error)
 }
 
 // NewMeasuresServiceClient constructs a client for the agent_manager.v1.measures.MeasuresService
@@ -341,6 +390,54 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("SelectCohort")),
 			connect.WithClientOptions(opts...),
 		),
+		cohortReport: connect.NewClient[measures.CohortReportRequest, measures.CohortReportResponse](
+			httpClient,
+			baseURL+MeasuresServiceCohortReportProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CohortReport")),
+			connect.WithClientOptions(opts...),
+		),
+		compareEpisodeCohorts: connect.NewClient[measures.CompareEpisodeCohortsRequest, measures.CompareEpisodeCohortsResponse](
+			httpClient,
+			baseURL+MeasuresServiceCompareEpisodeCohortsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CompareEpisodeCohorts")),
+			connect.WithClientOptions(opts...),
+		),
+		usageForecast: connect.NewClient[measures.UsageForecastRequest, measures.UsageForecastResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageForecastProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageForecast")),
+			connect.WithClientOptions(opts...),
+		),
+		usageForecastBacktest: connect.NewClient[measures.UsageForecastBacktestRequest, measures.UsageForecastBacktestResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageForecastBacktestProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageForecastBacktest")),
+			connect.WithClientOptions(opts...),
+		),
+		usageBurners: connect.NewClient[measures.UsageBurnersRequest, measures.UsageBurnersResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageBurnersProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageBurners")),
+			connect.WithClientOptions(opts...),
+		),
+		usageRecommendations: connect.NewClient[measures.UsageRecommendationsRequest, measures.UsageRecommendationsResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageRecommendationsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageRecommendations")),
+			connect.WithClientOptions(opts...),
+		),
+		usageCoverage: connect.NewClient[measures.UsageCoverageRequest, measures.UsageCoverageResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageCoverageProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageCoverage")),
+			connect.WithClientOptions(opts...),
+		),
+		usageCompare: connect.NewClient[measures.UsageCompareRequest, measures.UsageCompareResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageCompareProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageCompare")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -375,6 +472,14 @@ type measuresServiceClient struct {
 	conversationSearchQuality *connect.Client[measures.ConversationSearchQualityRequest, measures.ConversationSearchQualityResponse]
 	allMeasureDefinitions     *connect.Client[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse]
 	selectCohort              *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
+	cohortReport              *connect.Client[measures.CohortReportRequest, measures.CohortReportResponse]
+	compareEpisodeCohorts     *connect.Client[measures.CompareEpisodeCohortsRequest, measures.CompareEpisodeCohortsResponse]
+	usageForecast             *connect.Client[measures.UsageForecastRequest, measures.UsageForecastResponse]
+	usageForecastBacktest     *connect.Client[measures.UsageForecastBacktestRequest, measures.UsageForecastBacktestResponse]
+	usageBurners              *connect.Client[measures.UsageBurnersRequest, measures.UsageBurnersResponse]
+	usageRecommendations      *connect.Client[measures.UsageRecommendationsRequest, measures.UsageRecommendationsResponse]
+	usageCoverage             *connect.Client[measures.UsageCoverageRequest, measures.UsageCoverageResponse]
+	usageCompare              *connect.Client[measures.UsageCompareRequest, measures.UsageCompareResponse]
 }
 
 // ExternalToolShare calls agent_manager.v1.measures.MeasuresService.ExternalToolShare.
@@ -523,6 +628,46 @@ func (c *measuresServiceClient) SelectCohort(ctx context.Context, req *connect.R
 	return c.selectCohort.CallUnary(ctx, req)
 }
 
+// CohortReport calls agent_manager.v1.measures.MeasuresService.CohortReport.
+func (c *measuresServiceClient) CohortReport(ctx context.Context, req *connect.Request[measures.CohortReportRequest]) (*connect.Response[measures.CohortReportResponse], error) {
+	return c.cohortReport.CallUnary(ctx, req)
+}
+
+// CompareEpisodeCohorts calls agent_manager.v1.measures.MeasuresService.CompareEpisodeCohorts.
+func (c *measuresServiceClient) CompareEpisodeCohorts(ctx context.Context, req *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error) {
+	return c.compareEpisodeCohorts.CallUnary(ctx, req)
+}
+
+// UsageForecast calls agent_manager.v1.measures.MeasuresService.UsageForecast.
+func (c *measuresServiceClient) UsageForecast(ctx context.Context, req *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error) {
+	return c.usageForecast.CallUnary(ctx, req)
+}
+
+// UsageForecastBacktest calls agent_manager.v1.measures.MeasuresService.UsageForecastBacktest.
+func (c *measuresServiceClient) UsageForecastBacktest(ctx context.Context, req *connect.Request[measures.UsageForecastBacktestRequest]) (*connect.Response[measures.UsageForecastBacktestResponse], error) {
+	return c.usageForecastBacktest.CallUnary(ctx, req)
+}
+
+// UsageBurners calls agent_manager.v1.measures.MeasuresService.UsageBurners.
+func (c *measuresServiceClient) UsageBurners(ctx context.Context, req *connect.Request[measures.UsageBurnersRequest]) (*connect.Response[measures.UsageBurnersResponse], error) {
+	return c.usageBurners.CallUnary(ctx, req)
+}
+
+// UsageRecommendations calls agent_manager.v1.measures.MeasuresService.UsageRecommendations.
+func (c *measuresServiceClient) UsageRecommendations(ctx context.Context, req *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error) {
+	return c.usageRecommendations.CallUnary(ctx, req)
+}
+
+// UsageCoverage calls agent_manager.v1.measures.MeasuresService.UsageCoverage.
+func (c *measuresServiceClient) UsageCoverage(ctx context.Context, req *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error) {
+	return c.usageCoverage.CallUnary(ctx, req)
+}
+
+// UsageCompare calls agent_manager.v1.measures.MeasuresService.UsageCompare.
+func (c *measuresServiceClient) UsageCompare(ctx context.Context, req *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error) {
+	return c.usageCompare.CallUnary(ctx, req)
+}
+
 // MeasuresServiceHandler is an implementation of the agent_manager.v1.measures.MeasuresService
 // service.
 type MeasuresServiceHandler interface {
@@ -557,6 +702,31 @@ type MeasuresServiceHandler interface {
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
+	// CohortReport folds the run reports of one selected cohort: ranked
+	// friction signals, time accounting, evidence validity and goal progression.
+	CohortReport(context.Context, *connect.Request[measures.CohortReportRequest]) (*connect.Response[measures.CohortReportResponse], error)
+	// CompareEpisodeCohorts compares friction-episode fingerprints between two
+	// selected cohorts, for example before and after a change.
+	CompareEpisodeCohorts(context.Context, *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error)
+	// UsageForecast projects, from the provider's own quota readings, whether
+	// each subscription window runs out before its reset.
+	UsageForecast(context.Context, *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error)
+	// UsageForecastBacktest replays the forecast over completed windows and
+	// compares it with what happened and with a naive linear baseline.
+	UsageForecastBacktest(context.Context, *connect.Request[measures.UsageForecastBacktestRequest]) (*connect.Response[measures.UsageForecastBacktestResponse], error)
+	// UsageBurners attributes each window's observed quota increase to its
+	// consumers (session, run, profile, workload, model, runner, modality or
+	// tool kind) with an explicit unattributed remainder.
+	UsageBurners(context.Context, *connect.Request[measures.UsageBurnersRequest]) (*connect.Response[measures.UsageBurnersResponse], error)
+	// UsageRecommendations ranks deterministic rule findings by the weekly
+	// quota they would save.
+	UsageRecommendations(context.Context, *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error)
+	// UsageCoverage compares the transcripts on disk with what the Transcript
+	// Indexer captured, per root, naming every uncaptured file.
+	UsageCoverage(context.Context, *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error)
+	// UsageCompare compares quota per successful workload unit between two
+	// selected cohorts (for example before and after a change).
+	UsageCompare(context.Context, *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error)
 }
 
 // NewMeasuresServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -740,6 +910,54 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("SelectCohort")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceCohortReportHandler := connect.NewUnaryHandler(
+		MeasuresServiceCohortReportProcedure,
+		svc.CohortReport,
+		connect.WithSchema(measuresServiceMethods.ByName("CohortReport")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceCompareEpisodeCohortsHandler := connect.NewUnaryHandler(
+		MeasuresServiceCompareEpisodeCohortsProcedure,
+		svc.CompareEpisodeCohorts,
+		connect.WithSchema(measuresServiceMethods.ByName("CompareEpisodeCohorts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageForecastHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageForecastProcedure,
+		svc.UsageForecast,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageForecast")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageForecastBacktestHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageForecastBacktestProcedure,
+		svc.UsageForecastBacktest,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageForecastBacktest")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageBurnersHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageBurnersProcedure,
+		svc.UsageBurners,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageBurners")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageRecommendationsHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageRecommendationsProcedure,
+		svc.UsageRecommendations,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageRecommendations")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageCoverageHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageCoverageProcedure,
+		svc.UsageCoverage,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageCoverage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageCompareHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageCompareProcedure,
+		svc.UsageCompare,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageCompare")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/agent_manager.v1.measures.MeasuresService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MeasuresServiceExternalToolShareProcedure:
@@ -800,6 +1018,22 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceAllMeasureDefinitionsHandler.ServeHTTP(w, r)
 		case MeasuresServiceSelectCohortProcedure:
 			measuresServiceSelectCohortHandler.ServeHTTP(w, r)
+		case MeasuresServiceCohortReportProcedure:
+			measuresServiceCohortReportHandler.ServeHTTP(w, r)
+		case MeasuresServiceCompareEpisodeCohortsProcedure:
+			measuresServiceCompareEpisodeCohortsHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageForecastProcedure:
+			measuresServiceUsageForecastHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageForecastBacktestProcedure:
+			measuresServiceUsageForecastBacktestHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageBurnersProcedure:
+			measuresServiceUsageBurnersHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageRecommendationsProcedure:
+			measuresServiceUsageRecommendationsHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageCoverageProcedure:
+			measuresServiceUsageCoverageHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageCompareProcedure:
+			measuresServiceUsageCompareHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -923,4 +1157,36 @@ func (UnimplementedMeasuresServiceHandler) AllMeasureDefinitions(context.Context
 
 func (UnimplementedMeasuresServiceHandler) SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.SelectCohort is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CohortReport(context.Context, *connect.Request[measures.CohortReportRequest]) (*connect.Response[measures.CohortReportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CohortReport is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CompareEpisodeCohorts(context.Context, *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CompareEpisodeCohorts is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageForecast(context.Context, *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageForecast is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageForecastBacktest(context.Context, *connect.Request[measures.UsageForecastBacktestRequest]) (*connect.Response[measures.UsageForecastBacktestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageForecastBacktest is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageBurners(context.Context, *connect.Request[measures.UsageBurnersRequest]) (*connect.Response[measures.UsageBurnersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageBurners is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageRecommendations(context.Context, *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageRecommendations is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageCoverage(context.Context, *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageCoverage is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageCompare(context.Context, *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageCompare is not implemented"))
 }

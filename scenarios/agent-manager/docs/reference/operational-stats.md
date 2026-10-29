@@ -7,42 +7,19 @@ log. Every metric on this page is derived from `run_events` rows whose
 the live SQL run tables, so the same query answers "what just happened"
 and "what happened last week" the same way.
 
-The HTTP endpoints, CLI commands, and the UI's `/stats` and `/health`
-pages all sit on top of the same `internal/stats` engine and
+The HTTP endpoints, CLI commands, and the UI's Usage › Details
+(`/usage?tab=details`) and Health (`/observability`) pages all sit on top of the same `internal/stats` engine and
 `internal/health` audit store.
 
 ## HTTP endpoints
 
-### `GET /api/v1/stats/efficiency`
+### Efficiency report
 
-Returns one bounded, read-only efficiency report from the durable invocation
-projection. It performs no model inference and preserves partial failures as
-`status: "partial"` with explicit `unknown` entries.
-
-Supported query parameters are `preset=6h|12h|24h|7d|30d` (default `24h`),
-`start`/`end` RFC3339 bounds, `tag_prefix`, `group_by=runner|model|profile|workload|workload_kind`
-(default `profile`), `limit` from 1 to 100 (default 20), and optional
-`compare=previous`. The response
-includes token factors, success and completion denominators, duration summary,
-tool usage, terminal-status dispositions, selected breakdown rows, projection
-freshness, and an evidence declaration stating that the report is read-only and
-used zero inference calls. Dispositions are status evidence only; they do not
-claim that a successful run produced useful work.
-
-The CLI equivalent is:
-
-```bash
-agent-manager run efficiency --preset 24h --group-by profile --compare previous --json
-```
-
-`compare=previous` adds an equal-length preceding window and signed deltas for
-run count, tokens, successful runs, success rate, and average duration. This is
-directional evidence, not causal proof. If the newest projection precedes the
-requested window end, the report is marked `partial` with
-`unknown: ["projection_stale"]`. Consumers should not make decisions
-when freshness is unavailable, the report is partial, `unknown` is non-empty,
-or the denominator is too small. Prompt changes, team steering, and repair
-decisions remain owned by their existing skills and control-plane workflows.
+There is no efficiency REST endpoint. The bounded, read-only efficiency report is
+the Program Runtime program `agent-manager.efficiency-report` (inputs `preset`,
+`start`/`end`, `tag_prefix`, `group_by=runner|model|profile`, `limit`,
+`compare=previous`); per-workload consumption is `agent-manager measures
+workload-efficiency`.
 
 The same freshness evidence is available on governed `MeasuresService` responses
 under `provenance`: `projection_at`, `projection_age_ms`, `projection_stale`,
@@ -166,10 +143,10 @@ coverage below the declared 90% minimum is `unreliable` with a reason.
 For the Meta Optimization sweep, the reproducible command sequence is:
 
 ```bash
-agent-manager run cohort show imported-baseline-2026-08 --json
-agent-manager run invocation-metrics --cohort imported-baseline-2026-08 --json
-agent-manager run episode-cohort --cohort imported-baseline-2026-08 --json
-agent-manager run goal-cohort --cohort imported-baseline-2026-08 --json
+agent-manager measures cohort show imported-baseline-2026-08 --json
+agent-manager measures select-cohort --cohort imported-baseline-2026-08 --json
+agent-manager measures episode-cohort --cohort imported-baseline-2026-08 --json
+agent-manager measures cohort-report --cohort imported-baseline-2026-08 --json
 ```
 
 Every response that an operator could mistake for a stable trend
@@ -188,7 +165,7 @@ includes a `history_window`:
 
 The UI:
 
-- Renders `HistoryBanner` above the Stats page when `history_days < 30`.
+- Renders `HistoryBanner` above Usage › Details (`/usage?tab=details`) when `history_days < 30`.
 - Renders `InsufficientDataCard` in place of any card whose underlying
   sample size is below `min_sample_meaningful`.
 
@@ -233,12 +210,20 @@ bucket conservation rule and approximation bias are documented in the
 
 ## Cohort investigations
 
+Every cohort command under `agent-manager measures` (`select-cohort`,
+`episode-cohort`, `cohort-report`, `episode-compare`) takes one selector:
+`--cohort NAME` (a named cohort; `measures cohort define|list|show|delete` manages them),
+`--run-ids ID,ID` (at most 100), or `--filter-json '<InvocationFilter>'`, each over
+`--window`. `episode-compare` takes the same selector with `left-`/`right-`
+prefixes. `cohort-report` returns friction signals, time accounting and goal
+progression together.
+
 New diagnosis requests use the finite typed investigation lifecycle and require
 an explicit bounded run set. Resolve a cohort first, inspect its omitted count,
 then pass only the selected IDs:
 
 ```bash
-agent-manager run cohort-report --run-ids run-a,run-b --json
+agent-manager measures cohort-report --run-ids run-a,run-b --json
 agent-manager run investigate --run-ids run-a,run-b --depth quick
 agent-manager investigation wait <investigation-id> --timeout-seconds 180 --json
 ```
@@ -299,13 +284,13 @@ these bounded surfaces:
 
 - `run report <run-id>`: time accounting, episode cost, suspected ownership,
   self-report spans, and receipt availability for one run.
-- `run invocation-facts <run-id>`: ownership, unclassified reason, capability,
+- `usage run <run-id> --facts`: ownership, unclassified reason, capability,
   intent class, segment, outcome, and classifier version per invocation.
 - `run ledger <run-id>` and `measures capability-usage`: verified capability
   calls, outcomes, duration, population, and receipt validity.
 - `measures capability-efficacy`: separate calls, successes, fallback-after,
   and abandoned counts; no blended score is emitted.
-- `run episode-cohort` and `run cohort-compare`: recurring fingerprint cost,
+- `measures episode-cohort` and `measures episode-compare`: recurring fingerprint cost,
   distinct-run counts, population sizes, and before/after deltas.
 - `run episode-trend`: time-bucketed episode occurrence, distinct-run, and
   wall-clock cost trends with the episode classifier version.
@@ -315,9 +300,10 @@ these bounded surfaces:
 - `run publish-recurring-friction`: idempotent three-distinct-run routing to
   `friction-inbox/<scope>/`, with `recurring`, `auto-generated`, recurrence
   evidence, and a reported daily cap/withheld count.
-- `run import-session-corpus` and `run replay-invocation-corpus`: named
-  sampling strategy, candidate/omitted counts, checkpoint, per-item failure,
-  transcript time basis, cost basis, and pinned classifier replay.
+- `run import-session-corpus` and `usage reindex`: named sampling strategy,
+  candidate/omitted counts, checkpoint, per-item failure, transcript time
+  basis, cost basis, and pinned classifier replay (`usage reindex [<run-id>]`
+  refreshes by default; `--full` rebuilds every selected run).
 
 Every surface carries either a validity or availability contract. Missing
 receipts, too-small comparison populations, unclassified calls, and absent

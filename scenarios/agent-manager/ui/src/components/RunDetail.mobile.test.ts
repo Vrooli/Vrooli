@@ -15,6 +15,7 @@ vi.mock("../hooks/useViewportSize.js", () => ({
 vi.mock("../hooks/useApi.js", () => ({
   useRunReport: () => ({ data: null, loading: false, error: null, refetch: vi.fn() }),
 }));
+vi.mock("../features/usage/RunUsagePanel.js", () => ({ RunUsagePanel: () => null }));
 vi.mock("./RunTimeline.js", () => ({
   RunTimeline: () => createElement("div", null, "timeline"),
 }));

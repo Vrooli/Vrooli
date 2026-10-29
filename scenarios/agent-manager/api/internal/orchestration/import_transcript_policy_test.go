@@ -19,6 +19,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/piimask"
+	"agent-manager/internal/transcriptindex"
 
 	"github.com/google/uuid"
 )
@@ -109,6 +110,7 @@ func buildImportPolicyOrchestratorWithMasker(t *testing.T, repos *database.Repos
 		opts = append(opts, orchestration.WithPIIMasker(masker))
 	}
 	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, opts...)
+	orchestration.NewTranscriptIndex(svc, repos.TranscriptIndex, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: t.TempDir()}, RecallMaxBytes: transcriptindex.DefaultRecallMaxBytes})
 	recorder := &noticeRecorder{}
 	svc.SetConversationSearchNotifier(recorder.record)
 	return svc, recorder

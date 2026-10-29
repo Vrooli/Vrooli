@@ -740,11 +740,10 @@ increase success/failure totals. Timeline inspection renders ordered native
 blocks and labels unknown outcomes without assigning failure. Unsupported raw
 JSON is evidence rather than recursively extracted display text.
 
-New quota payloads use `payloadKind=quota` within the existing error event type.
-Compatible readers also recognize untagged historical quota shapes with a
-nonempty typed limit field, while generic error fields take precedence. Explicit
-invalid/unknown tags and tagged quota/error hybrids are decode errors; harmless
-future fields remain supported. Both SQLite event readers return a DatabaseError
+Provider quota readings use the dedicated `quota` event type
+(`RateLimitEventData`); `error` events decode only as `ErrorEventData`. See
+[EVENT_TAXONOMY.md](../internal/EVENT_TAXONOMY.md#quota-events).
+Both SQLite event readers return a DatabaseError
 with the event identity for malformed known payloads, making evidence unavailable
 instead of returning an apparently complete event with nil data. Native percent,
 reset, window, provider, pool and provenance survive durable/public conversion;

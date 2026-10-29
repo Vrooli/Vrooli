@@ -1,4 +1,4 @@
-// Stats Page - main page component for the Stats tab
+// Run analytics panels, shown under Usage › Details.
 
 import { Profiler, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ import { onProfilerRender } from "../../lib/profiler";
 import { HistoryBanner } from "../../components/stats/HistoryBanner";
 import { fetchDurableRunVolume, statsQueryKeys } from "./api/statsClient";
 import { useTimeWindow } from "./hooks/useTimeWindow";
+import { ErrorNotice } from "../../components/feedback/ErrorNotice";
 
 function ProfiledStatsSection({ id, children }: { id: string; children: ReactNode }) {
   return (
@@ -41,16 +42,21 @@ function StatsPageContent() {
   const { filter } = useTimeWindow();
   const volume = useQuery({ queryKey: [...statsQueryKeys.summary(filter), "history"], queryFn: () => fetchDurableRunVolume(filter) });
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 lg:px-10 space-y-3 sm:space-y-4">
+    <div className="min-w-0 space-y-3 sm:space-y-4" data-testid="usage-details">
         {/* Header with controls */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Statistics & Analytics</h2>
-          <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold">Run analytics</h2>
+          <div className="flex flex-wrap items-center gap-3">
             <TimeWindowSelector />
             <ExportButton />
           </div>
         </div>
 
+        {/* Every panel reads the same Measures service; when its first read fails,
+            one explanation replaces a wall of identical per-card errors. */}
+        {volume.error && !volume.data ? (
+          <ErrorNotice error={volume.error} subject="run analytics" onRetry={() => void volume.refetch()} testId="usage-details-error" />
+        ) : <>
         {volume.data?.historyFloor && <HistoryBanner coverage={{ historyFloor: volume.data.historyFloor, outsideHistoryRunCount: volume.data.outsideHistoryRunCount }} testId="stats-history-banner" />}
 
         <ModelFailureAlertBanner />
@@ -117,6 +123,7 @@ function StatsPageContent() {
         <ProfiledStatsSection id="Stats:RecurringWorkloadPanel">
           <RecurringWorkloadPanel />
         </ProfiledStatsSection>
+        </>}
     </div>
   );
 }

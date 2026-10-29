@@ -38,6 +38,7 @@ type Repositories struct {
 	InvestigationLedger   runreport.LedgerStore
 	InvocationReadModel   invocationreadmodel.Store
 	DurabilityBoundary    durability.BoundaryStore
+	TranscriptIndex       *TranscriptIndexRepository
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
@@ -58,6 +59,7 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		ReceiptEvidence:       &receiptEvidenceRepository{db: db},
 		InvestigationLedger:   &receiptEvidenceRepository{db: db},
 		InvocationReadModel:   &invocationReadModelRepository{db: db},
+		TranscriptIndex:       NewTranscriptIndexRepository(db),
 		DurabilityBoundary:    &durabilityBoundaryRepository{db: db},
 	}
 }

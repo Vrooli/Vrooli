@@ -2,11 +2,12 @@ package orchestration
 
 import (
 	"context"
-	"github.com/vrooli/cli-core/cliutil"
 	"os"
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
@@ -115,8 +116,13 @@ func TestAttachedRunLivenessSweepOnlyObservesHarmlessProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload swept run: %v", err)
 	}
-	if stored.Status != domain.RunStatusFailed {
-		t.Fatalf("swept run status = %q, want failed", stored.Status)
+	// A harness process that exited is a normal exit: complete, with the
+	// identity revoked, never failed (D-7).
+	if stored.Status != domain.RunStatusComplete || stored.ErrorMsg != "" || stored.EndedAt == nil {
+		t.Fatalf("swept run = status %q error %q ended %v, want complete", stored.Status, stored.ErrorMsg, stored.EndedAt)
+	}
+	if stored.IdentityTokenHash != "" && stored.IdentityTokenRevokedAt == nil {
+		t.Fatal("exited attached run kept a live identity token")
 	}
 }
 

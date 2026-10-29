@@ -141,26 +141,38 @@ func render(in Input) string {
 	return strings.Join(parts, " · ")
 }
 
+// marker is the last recorded reading for one session.
+type marker struct {
+	Key string    `json:"key"`
+	At  time.Time `json:"at"`
+}
+
 func (f Feed) record(in Input) error {
-	five, seven := usable(in.RateLimits.FiveHour), usable(in.RateLimits.SevenDay)
-	if five == nil && seven == nil || f.SamplesPath == "" {
-		return nil
-	}
 	now := time.Now
 	if f.Now != nil {
 		now = f.Now
 	}
-	sample := Sample{ObservedAt: now().UTC(), SessionID: in.SessionID, Model: firstNonEmpty(in.Model.ID, in.Model.DisplayName), FiveHour: five, SevenDay: seven}
+	observed := now().UTC()
+	five, seven := usable(in.RateLimits.FiveHour, observed), usable(in.RateLimits.SevenDay, observed)
+	if five == nil && seven == nil || f.SamplesPath == "" {
+		return nil
+	}
+	sample := Sample{ObservedAt: observed, SessionID: in.SessionID, Model: firstNonEmpty(in.Model.ID, in.Model.DisplayName), FiveHour: five, SevenDay: seven}
 	key := readingKey(sample)
+	// The marker is per session: sessions take turns rendering, so a single
+	// shared marker would see a "change" on nearly every render.
 	lastPath := f.SamplesPath + ".last"
+	markers := map[string]marker{}
 	if last, err := os.ReadFile(lastPath); err == nil {
-		var prior struct {
-			Key string    `json:"key"`
-			At  time.Time `json:"at"`
+		var file struct {
+			Sessions map[string]marker `json:"sessions"`
 		}
-		if json.Unmarshal(last, &prior) == nil && prior.Key == key && sample.ObservedAt.Sub(prior.At) < Heartbeat {
-			return nil
+		if json.Unmarshal(last, &file) == nil && file.Sessions != nil {
+			markers = file.Sessions
 		}
+	}
+	if prior, ok := markers[in.SessionID]; ok && prior.Key == key && sample.ObservedAt.Sub(prior.At) < Heartbeat {
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(f.SamplesPath), 0o755); err != nil {
 		return err
@@ -185,12 +197,27 @@ func (f Feed) record(in Input) error {
 	if err := file.Close(); err != nil {
 		return err
 	}
-	marker, _ := json.Marshal(map[string]any{"key": key, "at": sample.ObservedAt})
-	return os.WriteFile(lastPath, marker, 0o644)
+	// Entries older than the heartbeat would be re-recorded anyway; drop them
+	// so the marker stays bounded.
+	for id, m := range markers {
+		if sample.ObservedAt.Sub(m.At) >= Heartbeat {
+			delete(markers, id)
+		}
+	}
+	markers[in.SessionID] = marker{Key: key, At: sample.ObservedAt}
+	data, _ := json.Marshal(map[string]any{"sessions": markers})
+	return os.WriteFile(lastPath, data, 0o644)
 }
 
-func usable(w *Window) *Window {
+// usable returns a window worth recording at observed, or nil. Claude Code
+// caches rate_limits per session until that session's next API response, so
+// an idle session keeps rendering a window whose reset has passed; that value
+// says nothing about the current window and is not recorded.
+func usable(w *Window, observed time.Time) *Window {
 	if w == nil || w.UsedPercentage == nil || *w.UsedPercentage < 0 || *w.UsedPercentage > 100 {
+		return nil
+	}
+	if w.ResetsAt > 0 && w.ResetsAt <= observed.Unix() {
 		return nil
 	}
 	return w

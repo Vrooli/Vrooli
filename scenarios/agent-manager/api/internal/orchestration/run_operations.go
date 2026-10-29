@@ -489,7 +489,7 @@ func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.
 		if evt == nil || evt.PersistenceReplay {
 			continue
 		}
-		o.nudgeWorkflowUsage(runID, evt)
+		o.afterRunEventPersisted(runID, evt)
 		switch evt.EventType {
 		case domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeToolResult:
 			o.notifyConversationSearch(ctx, "upsert_run", runID.String(), evt.ID.String())
@@ -510,7 +510,7 @@ type eventStoreAdapter struct {
 	store        event.Store
 	runID        uuid.UUID
 	lastSequence int64
-	afterPersist func(*domain.RunEvent)
+	hooks        *Orchestrator
 }
 
 func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
@@ -520,9 +520,7 @@ func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
 		return err
 	}
 	e.lastSequence = evt.Sequence
-	if e.afterPersist != nil && !evt.PersistenceReplay {
-		e.afterPersist(evt)
-	}
+	e.hooks.afterRunEventPersisted(e.runID, evt)
 	return nil
 }
 
@@ -536,20 +534,23 @@ func (e *eventStoreAdapter) LastSequence() int64 {
 	return e.lastSequence
 }
 
-// newRunEventSink owns the run-event persistence/broadcast selection shared by
-// execution, continuation, and recovery. The callback is optional and runs
-// only after a non-replay event has been persisted.
-func newRunEventSink(store event.Store, broadcaster EventBroadcaster, runID uuid.UUID, afterPersist func(*domain.RunEvent)) runner.EventSink {
+// newRunEventSink is the one constructor for run-event sinks. Execution,
+// continuation, interactive tails and recovery all build their sink here, and
+// every sink applies the hook owner's post-persist hook set
+// (afterRunEventPersisted) to each non-replay event it persists. Only a unit
+// test that builds an executor or reconciler without an orchestrator passes a
+// nil owner; production wiring always supplies one.
+func newRunEventSink(hooks *Orchestrator, store event.Store, broadcaster EventBroadcaster, runID uuid.UUID) runner.EventSink {
 	switch {
 	case store != nil && broadcaster != nil:
 		return &broadcastingEventSink{
-			store:        store,
-			runID:        runID,
-			broadcaster:  broadcaster,
-			afterPersist: afterPersist,
+			store:       store,
+			runID:       runID,
+			broadcaster: broadcaster,
+			hooks:       hooks,
 		}
 	case store != nil:
-		return &eventStoreAdapter{store: store, runID: runID, afterPersist: afterPersist}
+		return &eventStoreAdapter{store: store, runID: runID, hooks: hooks}
 	default:
 		return &noOpEventSink{}
 	}
@@ -561,7 +562,7 @@ type broadcastingEventSink struct {
 	runID        uuid.UUID
 	broadcaster  EventBroadcaster
 	lastSequence int64
-	afterPersist func(*domain.RunEvent)
+	hooks        *Orchestrator
 }
 
 func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
@@ -576,9 +577,7 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 		return err
 	}
 	b.lastSequence = evt.Sequence
-	if b.afterPersist != nil && !evt.PersistenceReplay {
-		b.afterPersist(evt)
-	}
+	b.hooks.afterRunEventPersisted(b.runID, evt)
 
 	if b.broadcaster != nil && !evt.PersistenceReplay {
 		// Also emit progress events for status changes
@@ -601,42 +600,42 @@ func (b *broadcastingEventSink) LastSequence() int64 {
 	return b.lastSequence
 }
 
+// runEventSink builds this orchestrator's sink for one run.
 func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
-	afterPersist := func(evt *domain.RunEvent) {
-		o.nudgeWorkflowUsage(runID, evt)
-		o.observeQuotaEvent(evt)
-		o.observeTokenCapUsage(runID, evt)
-	}
-	return newRunEventSink(o.events, o.broadcaster, runID, afterPersist)
+	return newRunEventSink(o, o.events, o.broadcaster, runID)
 }
 
-func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent) {
-	if o == nil || o.quotaObservations == nil || evt == nil {
+// afterRunEventPersisted is the orchestrator's one post-persist hook set. It
+// runs once per persisted non-replay event: provider quota frames become
+// quota observations, usage nudges the owning workflow, and usage feeds the
+// token cap. A nil owner applies no hooks.
+func (o *Orchestrator) afterRunEventPersisted(runID uuid.UUID, evt *domain.RunEvent) {
+	if o == nil || evt == nil || evt.PersistenceReplay {
 		return
 	}
-	data, ok := evt.Data.(*domain.RateLimitEventData)
-	if !ok || strings.TrimSpace(data.Provider) == "" || strings.TrimSpace(data.Pool) == "" {
+	o.observeQuotaEvent(evt, true)
+	o.nudgeWorkflowUsage(runID, evt)
+	o.observeTokenCapUsage(runID, evt)
+}
+
+// observeQuotaEvent records a provider quota frame as a quota observation.
+// retained reports whether the event itself was persisted; an imported
+// messages-only transcript keeps the observation but not the event, so its
+// evidence reference names the run instead of a missing event row.
+func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent, retained bool) {
+	if o == nil || o.quotaObservations == nil || evt == nil || evt.EventType != domain.EventTypeQuota {
 		return
 	}
-	provider := data.Provider
-	pool := data.Pool
-	provenance := strings.TrimSpace(data.Provenance)
-	if provenance == "" {
-		provenance = "agent-manager:run-event.rate-limit"
-	}
-	observation, err := pricing.FromRateLimitEvent(provider, pool, provenance, evt.Timestamp, data)
+	observation, err := pricing.ObservationFromEvent(evt, o.now().UTC())
 	if err != nil {
 		obs.Component("quota-observation").Warn("provider quota frame rejected", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())
 		return
 	}
-	observation.SourceRunID = evt.RunID.String()
-	observation.EvidenceRef = "agent-manager://runs/" + evt.RunID.String() + "/events/" + evt.ID.String()
-	observation.ID = pricing.QuotaObservationID(observation.SourceRunID, observation)
-	now := o.now().UTC()
-	if !evt.Timestamp.IsZero() && !evt.Timestamp.After(now) {
-		observation.Freshness = pricing.ObservationFresh
-	} else {
-		observation.Freshness = pricing.ObservationUnknown
+	if observation == nil {
+		return
+	}
+	if !retained {
+		observation.EvidenceRef = "agent-manager://runs/" + evt.RunID.String()
 	}
 	if err := o.quotaObservations.RecordQuotaObservation(context.Background(), observation); err != nil {
 		obs.Component("quota-observation").Warn("provider quota frame persistence failed", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())

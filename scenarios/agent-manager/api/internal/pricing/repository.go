@@ -112,10 +112,6 @@ type Repository interface {
 
 	// --- Historical Pricing (from run events) ---
 
-	// GetHistoricalAverages calculates average observed costs per token from recent runs.
-	// This queries the run_events table for metric events within the time window.
-	GetHistoricalAverages(ctx context.Context, canonicalModel string, since time.Time) (*HistoricalPricing, error)
-
 	// --- Settings ---
 
 	// GetSettings retrieves the global pricing settings.

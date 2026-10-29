@@ -1,6 +1,8 @@
 // Tool Usage Analytics - horizontal bar chart showing tool call frequency
 
 import { useMemo, useState } from "react";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import { Link } from "react-router-dom";
 import {
   BarChart,
@@ -13,9 +15,8 @@ import {
   Cell,
 } from "recharts";
 import { ChevronLeft } from "lucide-react";
-import { Badge } from "../../../../components/ui/badge";
-import { Button } from "../../../../components/ui/button";
-import { formatStatusLabel, formatUnknownLabel, statusBadgeVariant } from "../../../../lib/display";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { formatStatusLabel, formatUnknownLabel, statusTone } from "../../../../lib/display";
 import { formatStandardRelativeTime } from "../../../../lib/dateTime";
 import { useToolCommandBreakdown, useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../hooks/useToolUsage";
 import { formatNumber, formatPercent } from "../../utils/formatters";
@@ -149,9 +150,7 @@ export function ToolUsageAnalytics() {
             runsLoading ? (
               <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
             ) : runsError ? (
-              <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
-                Failed to load runs: {runsError.message}
-              </div>
+              <ErrorNotice compact error={runsError} subject="Runs" />
             ) : (toolRuns?.runs?.length ?? 0) === 0 ? (
               <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
                 No runs found for this tool in the selected window
@@ -172,7 +171,7 @@ export function ToolUsageAnalytics() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      {run.status ? <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge> : <span className="text-xs text-muted-foreground">Status unavailable</span>}
+                      {run.status ? <StatusBadge tone={statusTone(run.status)}>{formatStatusLabel(run.status)}</StatusBadge> : <span className="text-xs text-muted-foreground">Status unavailable</span>}
                       <div className="text-right text-xs text-muted-foreground">
                         <div>{run.callCount === undefined ? "Call count unavailable" : `${formatNumber(run.callCount)} calls`}</div>
                         <div className="text-muted-foreground">
@@ -187,7 +186,7 @@ export function ToolUsageAnalytics() {
           ) : activeTab === "commands" ? commandsLoading ? (
             <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : commandsError ? (
-            <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">Failed to load commands: {commandsError.message}</div>
+            <ErrorNotice compact error={commandsError} subject="Commands" />
           ) : (commandData?.rows.length ?? 0) === 0 ? (
             <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">Command detail is not recorded for this window.</div>
           ) : (
@@ -202,9 +201,7 @@ export function ToolUsageAnalytics() {
           ) : modelsLoading ? (
             <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : modelsError ? (
-            <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
-              Failed to load models: {modelsError.message}
-            </div>
+            <ErrorNotice compact error={modelsError} subject="Models" />
           ) : (toolModels?.models?.length ?? 0) === 0 ? (
             <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No model usage found for this tool in the selected window
@@ -337,7 +334,7 @@ export function ToolUsageAnalytics() {
               </ResponsiveContainer>
             </div>
           )}
-          {chartData.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Tool run links">{chartData.map((item) => <Link key={item.name} to={runsLink({ ...filter, toolName: item.name })} className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">View {formatUnknownLabel(item.name)} runs</Link>)}</div>}
+          {chartData.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Tool run links">{chartData.map((item) => <Link key={item.name} to={runsLink({ ...filter, toolName: item.name })} className="inline-flex min-h-11 items-center rounded border border-border px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8">View {formatUnknownLabel(item.name)} runs</Link>)}</div>}
         </>
       )}
     </div>

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { screen, within } from "@testing-library/react";
+import { getErrorNotice } from "../../../../test-utils/feedback";
+import { screen } from "@testing-library/react";
 import { createElement } from "react";
 import { test, vi } from "vitest";
 import type { useQuery } from "@tanstack/react-query";
@@ -96,5 +97,5 @@ test("ErrorAnalysisSection renders empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(ErrorAnalysisSection));
-  assert.ok(screen.getByText("Error analysis: error stats unavailable"));
+  assert.ok(getErrorNotice("Error analysis", "error stats unavailable"));
 });

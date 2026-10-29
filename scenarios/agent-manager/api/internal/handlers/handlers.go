@@ -38,6 +38,7 @@ import (
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/storage"
+	"agent-manager/internal/transcriptindex"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -76,7 +77,7 @@ type Handler struct {
 //
 // seam: handlers.TranscriptImportRunner
 type TranscriptImportRunner interface {
-	RunOnce(ctx context.Context) (orchestration.TranscriptImportSummary, error)
+	RunOnce(ctx context.Context) (transcriptindex.Summary, error)
 }
 
 // ReceiptAvailabilityReader explains an otherwise empty receipt ledger.
@@ -132,7 +133,7 @@ func WithTranscriptImporter(runner TranscriptImportRunner) HandlerOption {
 		// A typed-nil pointer stored in an interface is not nil. Letting one
 		// through would make the endpoint report an empty sweep — indistinguish-
 		// able from "scanned everything, found nothing" — instead of unavailable.
-		if scheduler, ok := runner.(*orchestration.TranscriptImportScheduler); ok && scheduler == nil {
+		if scheduler, ok := runner.(*orchestration.TranscriptIndex); ok && scheduler == nil {
 			return
 		}
 		h.transcriptImporter = runner
@@ -237,17 +238,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.Handle("/api/v1/runs/quiesce", WorkflowWaitResponse(http.HandlerFunc(h.QuiesceScenario))).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
-	r.HandleFunc("/api/v1/runs/cohort-report", h.GetCohortReport).Methods("GET") // Must be before /{id}
-	r.HandleFunc("/api/v1/runs/goal-cohort", h.GetGoalCohort).Methods("GET")
 	r.HandleFunc("/api/v1/runs/invocation-facts/replay", h.ReplayInvocationCorpus).Methods("POST")
-	r.HandleFunc("/api/v1/runs/invocation-facts/aggregate", h.AggregateInvocationFacts).Methods("GET")
-	r.HandleFunc("/api/v1/runs/invocation-facts/cohort", h.SelectInvocationCohort).Methods("GET")
 	r.HandleFunc("/api/v1/runs/cohorts", h.DefineInvocationCohort).Methods("POST")
 	r.HandleFunc("/api/v1/runs/cohorts", h.ListInvocationCohorts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/cohorts/{name}", h.ShowInvocationCohort).Methods("GET")
 	r.HandleFunc("/api/v1/runs/cohorts/{name}", h.DeleteInvocationCohort).Methods("DELETE")
-	r.HandleFunc("/api/v1/runs/episode-cohort", h.EpisodeCohort).Methods("GET")
-	r.HandleFunc("/api/v1/runs/episode-cohort/compare", h.CompareEpisodeCohorts).Methods("POST")
 	r.HandleFunc("/api/v1/runs/episode-trend", h.EpisodeTrend).Methods("GET")
 	r.HandleFunc("/api/v1/runs/episodes/publish-recurring", h.PublishRecurringFriction).Methods("POST")
 	r.HandleFunc("/api/v1/runs/import-transcript", h.ImportTranscriptHTTP).Methods("POST")
@@ -258,7 +253,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/import/sources", h.ListImportSources).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ListRunnerSessions).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ImportRunnerSession).Methods("POST")
-	r.HandleFunc("/api/v1/runs/invocation-facts/metrics", h.InvocationMetrics).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/report", h.GetRunReport).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/accounting", h.GetRunAccounting).Methods("GET")
@@ -267,8 +261,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/episodes", h.GetEpisodesHTTP).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/messages-friction", h.GetMessageFriction).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/ledger", h.GetLedger).Methods("GET")
-	r.HandleFunc("/api/v1/runs/{id}/invocation-facts/replay", h.ReplayInvocationFacts).Methods("POST")
-	r.HandleFunc("/api/v1/runs/{id}/invocation-facts/refresh", h.RefreshInvocationFacts).Methods("POST")
 	r.HandleFunc("/api/v1/findings", h.ListFindings).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/audit-transcript", h.GetAuditTranscript).Methods("GET")
@@ -571,7 +563,8 @@ func parseEventTypes(values []string) ([]domain.RunEventType, []string) {
 				domain.EventTypeGoalStatusChanged,
 				domain.EventTypeMetric,
 				domain.EventTypeArtifact,
-				domain.EventTypeError:
+				domain.EventTypeError,
+				domain.EventTypeQuota:
 				types = append(types, domain.RunEventType(trimmed))
 			default:
 				invalid = append(invalid, trimmed)

@@ -332,7 +332,7 @@ tracked for a later compatibility retirement.
 
 ### P-006: Consumption and charge model rollout
 **Severity**: Medium
-**Description**: Consumption, charge, yield, billing basis, and workload identity are now separate durable facts. Historical rows with retained events can be rebuilt with `agent-manager run replay-invocation-corpus`; rows whose source events were pruned are explicitly reported as unreplayable.
+**Description**: Consumption, charge, yield, billing basis, and workload identity are now separate durable facts. Historical rows with retained events can be rebuilt with `agent-manager usage reindex --full`; rows whose source events were pruned are explicitly reported as unreplayable.
 **Mitigation**: Run bounded replay windows and compare `invocation_read_model_runs.total_tokens` with the joined `runs.summary.tokensUsed` oracle. Agent Manager currently starts in documented best-effort mode while the `workspace-sandbox` dependency is unhealthy.
 **Status**: Resolved in implementation; final suite and live oracle evidence remain release-validation records.
 

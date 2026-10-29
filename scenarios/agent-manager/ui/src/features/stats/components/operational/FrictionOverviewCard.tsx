@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ErrorNotice } from "../../../../components/feedback/ErrorNotice";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
 import {
   fetchExternalToolShare,
@@ -47,7 +48,7 @@ export function FrictionOverviewCard() {
       <h3 className="mb-1 text-sm font-semibold">Friction overview</h3>
       <p className="mb-3 text-xs text-muted-foreground">Durable invocation evidence; unknown ownership is excluded from external-tool share.</p>
       {query.isLoading && <p className="text-sm text-muted-foreground" data-testid="friction-overview-loading">Loading friction metrics…</p>}
-      {query.error && <p className="text-sm text-destructive" role="alert" data-testid="friction-overview-error">Failed to load friction metrics: {query.error.message}</p>}
+      {query.error && <ErrorNotice compact error={query.error} subject="Friction metrics" onRetry={() => void query.refetch()} testId="friction-overview-error" />}
       {query.data && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="friction-overview-values">

@@ -46,13 +46,17 @@ interface ApiState<T> {
   error: string | null;
 }
 
-export function useApiState<T>(initialData: T | null = null): ApiState<T> & {
+/**
+ * `initialLoading` is true for hooks that fetch on mount, so the first render
+ * reads as loading rather than as an empty result.
+ */
+export function useApiState<T>(initialData: T | null = null, initialLoading = false): ApiState<T> & {
   setData: (data: T | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 } {
   const [data, setData] = useState<T | null>(initialData);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(null);
 
   return { data, loading, error, setData, setLoading, setError };
@@ -154,6 +158,10 @@ export function normalizeHealthResponseJson(raw: unknown): unknown {
   }
   const obj = raw as Record<string, unknown>;
   const normalized: Record<string, unknown> = { ...obj };
+  // The start-up gate answers with plain words ("degraded"); the handler with enum names.
+  if (typeof obj.status === "string" && !obj.status.startsWith("HEALTH_STATUS_")) {
+    normalized.status = `HEALTH_STATUS_${obj.status.toUpperCase()}`;
+  }
   const dependencies = normalizeJsonValueMap(obj.dependencies);
   const metrics = normalizeJsonValueMap(obj.metrics);
   if (dependencies) {
@@ -180,6 +188,30 @@ function extractErrorMessage(raw: unknown, fallback: string): string {
     // ignore
   }
   return fallback;
+}
+
+/** Why a degraded health document says the API is degraded, from its functional/recovery sections. */
+export function healthReason(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const doc = raw as { functional?: { reason?: unknown }; recovery?: { failures?: unknown } };
+  if (typeof doc.functional?.reason === "string" && doc.functional.reason.trim()) return doc.functional.reason.trim();
+  const failures = doc.recovery?.failures;
+  return Array.isArray(failures) ? failures.filter((item): item is string => typeof item === "string").join("; ") : "";
+}
+
+/**
+ * GET /health. A 503 that carries a health document ("degraded" while start-up
+ * recovery runs) means the API answered, so it is returned, not thrown; only a
+ * failed request or an answer without a health document is an error.
+ */
+export async function healthRequest(signal?: AbortSignal): Promise<unknown> {
+  const response = await fetch(getApiBaseUrl() + "/health", { signal, cache: "no-store", headers: { "Content-Type": "application/json" } });
+  const body: unknown = await response.json().catch(() => undefined);
+  const isHealthDocument = !!body && typeof body === "object" && typeof (body as { status?: unknown }).status === "string" && "service" in body;
+  if (!response.ok && !isHealthDocument) {
+    throw new Error(extractErrorMessage(body ?? {}, "Request failed: " + response.status));
+  }
+  return body;
 }
 
 export async function apiRequest<T>(

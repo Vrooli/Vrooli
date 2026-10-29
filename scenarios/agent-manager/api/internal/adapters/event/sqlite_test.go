@@ -989,7 +989,7 @@ func TestSQLiteStore_QuotaFactsSurviveDurableReadAndPublicConversion(t *testing.
 	// Reader-stage proof uses literal tagged JSON independently of the writer constructor.
 	tagged := `{"payloadKind":"quota","limitType":"weekly","message":"native quota","resetTime":"2026-10-14T03:29:20.000000007Z","provider":"openai","pool":"primary","usedPercent":0,"windowMinutes":10080,"provenance":"native"}`
 	taggedID := uuid.New().String()
-	if _, err := db.Exec(`INSERT INTO run_events (id,run_id,sequence,event_type,timestamp,data) VALUES (?,?,?,?,?,?)`, taggedID, runID.String(), 3, string(domain.EventTypeError), reset, tagged); err != nil {
+	if _, err := db.Exec(`INSERT INTO run_events (id,run_id,sequence,event_type,timestamp,data) VALUES (?,?,?,?,?,?)`, taggedID, runID.String(), 3, string(domain.EventTypeQuota), reset, tagged); err != nil {
 		t.Fatal(err)
 	}
 	got, err = store.Get(ctx, runID, event.GetOptions{AfterSequence: 2, Limit: 1})
@@ -1024,7 +1024,7 @@ func TestSQLiteStore_QuotaFactsSurviveDurableReadAndPublicConversion(t *testing.
 	// Historical limit-only JSON stays byte-identical and has no invented native usage.
 	legacy := `{"limitType":"token","message":"limit","currentUsed":25,"limit":100}`
 	legacyID := uuid.New().String()
-	if _, err := db.Exec(`INSERT INTO run_events (id,run_id,sequence,event_type,timestamp,data) VALUES (?,?,?,?,?,?)`, legacyID, runID.String(), 4, string(domain.EventTypeError), reset, legacy); err != nil {
+	if _, err := db.Exec(`INSERT INTO run_events (id,run_id,sequence,event_type,timestamp,data) VALUES (?,?,?,?,?,?)`, legacyID, runID.String(), 4, string(domain.EventTypeQuota), reset, legacy); err != nil {
 		t.Fatal(err)
 	}
 	got, err = store.Get(ctx, runID, event.GetOptions{AfterSequence: 3, Limit: 1})
@@ -1050,8 +1050,8 @@ func TestSQLiteStoreMalformedKnownPayloadIsDatabaseError(t *testing.T) {
 	defer cleanup()
 	store := event.NewSQLiteStore(db, logrus.New())
 	runID, eventID := uuid.New(), uuid.New()
-	raw := `{"payloadKind":"quota","limitType":"weekly","usedPercent":"bad"}`
-	_, err := db.Exec(`INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, eventID.String(), runID.String(), 0, "error", time.Now(), raw)
+	raw := `{"limitType":"weekly","usedPercent":"bad"}`
+	_, err := db.Exec(`INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, eventID.String(), runID.String(), 0, "quota", time.Now(), raw)
 	if err != nil {
 		t.Fatal(err)
 	}

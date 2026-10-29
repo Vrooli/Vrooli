@@ -4,16 +4,18 @@ import {
   formatHyphenatedLabel,
   formatStatusLabel,
   formatUnknownLabel,
-  statusBadgeVariant,
+  statusTone,
 } from "./display.js";
 
-test("statusBadgeVariant returns known status variants", () => {
-  assert.equal(statusBadgeVariant("running"), "running");
-  assert.equal(statusBadgeVariant("needs_review"), "needs_review");
+test("statusTone maps run, task and check statuses to the shared badge tones", () => {
+  assert.equal(statusTone("running"), "info");
+  assert.equal(statusTone("needs_review"), "warning");
+  assert.equal(statusTone("complete"), "success");
+  assert.equal(statusTone("failed"), "danger");
 });
 
-test("statusBadgeVariant falls back to secondary for unknown values", () => {
-  assert.equal(statusBadgeVariant("paused"), "secondary");
+test("statusTone falls back to neutral for unknown values", () => {
+  assert.equal(statusTone("paused"), "neutral");
 });
 
 test("formatStatusLabel title-cases underscore status text", () => {

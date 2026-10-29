@@ -34,7 +34,7 @@ func TestRunReportDisplaysInt64ProtoJSONTokens(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 				if request.Path == "/api/v1/runs/run-1/report" {
-					return `{"run_id":"run-1","status":"complete","turns":1,"tokens":` + test.tokens + `,"cost_usd":0,"event_counts":{},"error_breakdown":{},"diff":{"bytes":"0","available":{"state":"available"}},"receipts_availability":{"state":"unobserved"}}`
+					return `{"run_id":"run-1","status":"complete","turns":1,"tokens":` + test.tokens + `,"cost_usd":0,"event_counts":{},"diff":{"bytes":"0","available":{"state":"available"}},"receipts_availability":{"state":"unobserved"}}`
 				}
 				return `{}`
 			})
@@ -91,7 +91,7 @@ func TestRunInspectionCommandsEmitNextSteps(t *testing.T) {
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 		switch request.Path {
 		case "/api/v1/runs/run-1/report":
-			return `{"run_id":"run-1","status":"completed","turns":1,"tokens":2,"cost_usd":0,"project_owned_tool_calls":1,"external_tool_calls":0,"result":{"selection_status":"selected","selection_rule":"terminal","candidate_count":1},"tools":[{"name":"bash","calls":1,"successes":0,"failures":1}],"event_counts":{"tool_result":1,"error":32},"error_breakdown":{"execution_errors":0,"rate_limit_observations":32,"unclassified":0},"longest_event_gap_ms":"0","diff":{"bytes":"0","available":{"state":"available"}},"receipts_availability":{"state":"unobserved"}}`
+			return `{"run_id":"run-1","status":"completed","turns":1,"tokens":2,"cost_usd":0,"project_owned_tool_calls":1,"external_tool_calls":0,"result":{"selection_status":"selected","selection_rule":"terminal","candidate_count":1},"tools":[{"name":"bash","calls":1,"successes":0,"failures":1}],"event_counts":{"tool_result":1,"error":1,"quota":32},"longest_event_gap_ms":"0","diff":{"bytes":"0","available":{"state":"available"}},"receipts_availability":{"state":"unobserved"}}`
 		case "/api/v1/runs/run-1":
 			return string(runJSON)
 		case "/api/v1/runs/run-1/events":
@@ -132,44 +132,8 @@ func TestRunInspectionCommandsEmitNextSteps(t *testing.T) {
 			if command.name == "report" && !strings.Contains(output, "Diff: files=0 bytes=0 (available)") {
 				t.Fatalf("report did not decode proto JSON int64 fields:\n%s", output)
 			}
-			if command.name == "report" && (!strings.Contains(output, "error=32") || !strings.Contains(output, "typed_execution_errors=0 rate_limit_observations=32 unclassified=0")) {
-				t.Fatalf("report did not preserve raw errors and expose typed quota observations:\n%s", output)
-			}
-		})
-	}
-}
-
-func TestRunReportDistinguishesUnavailableBreakdownFromMeasuredZero(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		response string
-		want     string
-	}{
-		{
-			name:     "older server omits breakdown",
-			response: `{"run_id":"run-1","status":"completed","event_counts":{"error":4}}`,
-			want:     "Error event breakdown: unavailable (typed breakdown not present)",
-		},
-		{
-			name:     "new server reports measured zero",
-			response: `{"run_id":"run-1","status":"completed","event_counts":{"error":0},"error_breakdown":{"execution_errors":0,"rate_limit_observations":0,"unclassified":0}}`,
-			want:     "Error event breakdown: typed_execution_errors=0 rate_limit_observations=0 unclassified=0",
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
-				if request.Path == "/api/v1/runs/run-1/report" {
-					return test.response
-				}
-				return `{}`
-			})
-			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
-				return cliutil.APIBaseOptions{DefaultBase: server.URL()}
-			}, nil)
-			app := &App{services: NewServices(api)}
-			output := captureStdout(t, func() error { return app.runReport([]string{"run-1"}) })
-			if !strings.Contains(output, test.want) {
-				t.Fatalf("report output missing %q:\n%s", test.want, output)
+			if command.name == "report" && (!strings.Contains(output, "error=1") || !strings.Contains(output, "quota=32")) {
+				t.Fatalf("report did not show error and quota event counts apart:\n%s", output)
 			}
 		})
 	}
@@ -661,8 +625,11 @@ func TestNativeToolConsumersKeepUnknownOutOfFailureFilters(t *testing.T) {
 	failure := int32(9)
 	rows := []*domainpb.RunEvent{}
 	for index, d := range []*domainpb.ToolResultEventData{
-		{ToolName: "unknown-entry", OutcomeKnown: &unknown}, {ToolName: "zero-entry", ExitCode: &zero},
-		{ToolName: "failure-entry", ExitCode: &failure, Success: true}, {ToolName: "legacy-success-entry", Success: true}, {ToolName: "legacy-failure-entry", Success: false, Error: "failed"},
+		{ToolName: "unknown-entry", OutcomeKnown: &unknown},
+		{ToolName: "zero-entry", ExitCode: &zero},
+		{ToolName: "failure-entry", ExitCode: &failure, Success: true},
+		{ToolName: "legacy-success-entry", Success: true},
+		{ToolName: "legacy-failure-entry", Success: false, Error: "failed"},
 	} {
 		rows = append(rows, &domainpb.RunEvent{Sequence: int64(index + 1), EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT, Data: &domainpb.RunEvent_ToolResult{ToolResult: d}})
 	}

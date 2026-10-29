@@ -1,18 +1,20 @@
 package handlers
 
 import (
-	"agent-manager/internal/adapters/database"
-	"agent-manager/internal/orchestration/testutil"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/orchestration/testutil"
+
+	"github.com/sirupsen/logrus"
 
 	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/pricing"
@@ -119,9 +121,9 @@ func TestPricingHandlerListModelsAndRecalculateValidation(t *testing.T) {
 }
 
 func TestPricingHandlerUpdateSettingsValidatesAndPersists(t *testing.T) {
-	fake := &pricingHandlerFake{settings: &pricing.PricingSettings{HistoricalAverageDays: 30, ProviderCacheTTL: time.Hour}}
+	fake := &pricingHandlerFake{settings: &pricing.PricingSettings{ProviderCacheTTL: time.Hour}}
 	h := NewPricingHandler(fake, mocks.NewFakeStatsRepository())
-	for _, body := range []string{`{"historicalAverageDays":0}`, `{"providerCacheTtlSeconds":1}`} {
+	for _, body := range []string{`{"providerCacheTtlSeconds":1}`} {
 		rw := httptest.NewRecorder()
 		h.UpdateSettings(rw, httptest.NewRequest(http.MethodPut, "/settings", strings.NewReader(body)))
 		if rw.Code != http.StatusBadRequest {
@@ -129,14 +131,14 @@ func TestPricingHandlerUpdateSettingsValidatesAndPersists(t *testing.T) {
 		}
 	}
 	rw := httptest.NewRecorder()
-	h.UpdateSettings(rw, httptest.NewRequest(http.MethodPut, "/settings", strings.NewReader(`{"historicalAverageDays":31,"providerCacheTtlSeconds":120}`)))
-	if rw.Code != http.StatusOK || !fake.updated || fake.settings.HistoricalAverageDays != 31 || fake.settings.ProviderCacheTTL != 120*time.Second {
+	h.UpdateSettings(rw, httptest.NewRequest(http.MethodPut, "/settings", strings.NewReader(`{"providerCacheTtlSeconds":120}`)))
+	if rw.Code != http.StatusOK || !fake.updated || fake.settings.ProviderCacheTTL != 120*time.Second {
 		t.Fatalf("updated status=%d settings=%+v", rw.Code, fake.settings)
 	}
 }
 
 func TestPricingHandlerWriteValidationBranches(t *testing.T) {
-	fake := &pricingHandlerFake{settings: &pricing.PricingSettings{HistoricalAverageDays: 30, ProviderCacheTTL: time.Hour}}
+	fake := &pricingHandlerFake{settings: &pricing.PricingSettings{ProviderCacheTTL: time.Hour}}
 	h := NewPricingHandler(fake, mocks.NewFakeStatsRepository())
 	cases := []struct {
 		name string
@@ -201,7 +203,7 @@ func TestPricingHandlerListsQuotaObservationsWithScope(t *testing.T) {
 func TestPricingHandlerReadSideEndpointsProjectOperationalData(t *testing.T) {
 	now := time.Now().UTC()
 	fake := &pricingHandlerFake{
-		settings:  &pricing.PricingSettings{HistoricalAverageDays: 14, ProviderCacheTTL: 90 * time.Second},
+		settings:  &pricing.PricingSettings{ProviderCacheTTL: 90 * time.Second},
 		overrides: []*pricing.ManualPriceOverride{{Component: pricing.ComponentInputTokens, PriceUSD: 1.5, CreatedAt: now}},
 		aliases:   []*pricing.ModelAlias{{RunnerModel: "model", RunnerType: "codex", CanonicalModel: "canonical", Provider: "openrouter", CreatedAt: now, UpdatedAt: now}},
 		cache:     &pricing.CacheStatus{TotalModels: 2, ExpiredCount: 1, Providers: []pricing.ProviderCacheStatus{{Provider: "openrouter", ModelCount: 2, LastFetchedAt: now, ExpiresAt: now.Add(time.Hour)}}},

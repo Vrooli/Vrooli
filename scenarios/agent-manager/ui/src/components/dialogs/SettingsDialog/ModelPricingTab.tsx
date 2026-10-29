@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, RefreshCw, X } from "lucide-react";
 import { Badge } from "../../ui/badge";
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import {
 } from "../../ui/dialog";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { ScrollArea } from "../../ui/scroll-area";
+import { ScrollArea } from "@vrooli/react-component-library/ScrollArea/1";
 import {
   useModelPricing,
   usePricingSettings,
@@ -201,13 +201,11 @@ interface SettingsCardProps {
 }
 
 function SettingsCard({ settings, loading, onUpdate }: SettingsCardProps) {
-  const [avgDays, setAvgDays] = useState(settings?.historicalAverageDays?.toString() || "7");
   const [ttlSeconds, setTtlSeconds] = useState(settings?.providerCacheTtlSeconds?.toString() || "21600");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
-    setAvgDays(settings.historicalAverageDays.toString());
     setTtlSeconds(settings.providerCacheTtlSeconds.toString());
   }, [settings]);
 
@@ -215,7 +213,6 @@ function SettingsCard({ settings, loading, onUpdate }: SettingsCardProps) {
     setSaving(true);
     try {
       await onUpdate({
-        historicalAverageDays: parseInt(avgDays, 10),
         providerCacheTtlSeconds: parseInt(ttlSeconds, 10),
       });
     } finally {
@@ -228,22 +225,10 @@ function SettingsCard({ settings, loading, onUpdate }: SettingsCardProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">Settings</CardTitle>
         <CardDescription className="text-xs">
-          Configure pricing fallback behavior
+          How long fetched provider prices are cached
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-2">
-          <Label htmlFor="avg-days" className="text-xs">Historical Average Period (days)</Label>
-          <Input
-            id="avg-days"
-            type="number"
-            min={1}
-            max={365}
-            value={avgDays}
-            onChange={(e) => setAvgDays(e.target.value)}
-            className="h-8"
-          />
-        </div>
         <div className="grid gap-2">
           <Label htmlFor="ttl" className="text-xs">Provider Cache TTL (seconds)</Label>
           <Input
@@ -314,7 +299,7 @@ function CacheStatusCard({ status, loading, onRefreshAll }: CacheStatusCardProps
             ))}
           </>
         )}
-        <Button size="sm" variant="outline" onClick={handleRefresh} disabled={loading || refreshing}>
+        <Button size="sm" variant="secondary" onClick={handleRefresh} disabled={loading || refreshing}>
           {refreshing ? "Refreshing..." : "Refresh All Pricing"}
         </Button>
       </CardContent>
@@ -554,7 +539,7 @@ function EditPricingDialog({ model, modelPricing, onClose, onPricingUpdated }: E
             </table>
           )}
           <div className="mt-4 text-xs text-muted-foreground">
-            <p><strong>Manual Override</strong> takes priority over provider and historical pricing.</p>
+            <p><strong>Manual Override</strong> takes priority over provider pricing.</p>
             <p className="mt-1">Click the pencil icon to set an override, or X to clear it.</p>
           </div>
         </DialogBody>
@@ -682,7 +667,7 @@ export function ModelPricingTab() {
     return (
       <div className="text-center py-8 text-red-400">
         Error loading pricing: {error}
-        <Button variant="outline" size="sm" onClick={refetch} className="ml-2">
+        <Button variant="secondary" size="sm" onClick={refetch} className="ml-2">
           Retry
         </Button>
       </div>
@@ -712,11 +697,6 @@ export function ModelPricingTab() {
             source="manual_override"
             onClick={() => toggleSourceFilter("manual_override")}
             isActive={sourceFilter.has("manual_override")}
-          />
-          <SourceBadge
-            source="historical_average"
-            onClick={() => toggleSourceFilter("historical_average")}
-            isActive={sourceFilter.has("historical_average")}
           />
           {sourceFilter.size > 0 && (
             <Button

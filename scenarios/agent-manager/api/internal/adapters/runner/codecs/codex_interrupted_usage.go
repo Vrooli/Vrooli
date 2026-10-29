@@ -70,12 +70,25 @@ func (c *Codex) RecoverInterruptedUsage(req InterruptedUsageRequest) ([]*domain.
 		return nil, ""
 	}
 
+	// The thread's latest cumulative counter rides on the receipt so the
+	// accounting can place it among the run's other reports of this session.
 	var tokens usageTokens
+	var cumulative *domain.UsageCounters
+	if turn.latest != nil {
+		value := codexCounters(turn.latest)
+		cumulative = &value
+	}
 	switch {
 	case turn.record != nil:
-		tokens = codexUsageDelta(turn.record.InputTokens, turn.record.OutputTokens, turn.record.CachedInputTokens, true)
-	case turn.latest != nil:
-		tokens = codexThreadTotalDelta(turn.baseline, turn.latest)
+		tokens = usageTokens(codexCounters(turn.record))
+	case cumulative != nil:
+		// The rollout is read from its first line: no earlier total means the
+		// turn opened the session.
+		var before domain.UsageCounters
+		if turn.baseline != nil {
+			before = codexCounters(turn.baseline)
+		}
+		tokens = usageTokens(counterDifference(*cumulative, before))
 	default:
 		return nil, ""
 	}
@@ -87,6 +100,7 @@ func (c *Codex) RecoverInterruptedUsage(req InterruptedUsageRequest) ([]*domain.
 	events := buildCostEvents(req.RunID, domain.RunnerTypeCodex, c.pricingService, model, tokens, req.Billing)
 	usage := events[0].Data.(*domain.UsageEventData)
 	usage.TurnIndex = 1
+	usage.SessionID, usage.Cumulative = sessionID, cumulative
 	for _, event := range events {
 		event.Timestamp = req.EndedAt
 	}
@@ -95,18 +109,13 @@ func (c *Codex) RecoverInterruptedUsage(req InterruptedUsageRequest) ([]*domain.
 		return events, fmt.Sprintf("recovered %d tokens of completed model calls from the codex rollout after the process stopped mid-turn; a request was still in flight, so the turn's usage is a lower bound", tokens.InputTokens+tokens.OutputTokens+tokens.CacheReadTokens)
 	}
 	// Close the turn exactly as turn.completed would: one authoritative receipt
-	// carrying its charge, with the charge also kept as its own event.
+	// carrying its charge.
 	usage.ReconciliationAuthority, usage.Turns = true, 1
 	usage.ReconciliationSource = domain.ReconciliationSourceInterruptedTurn
 	if turn.closed {
 		usage.ReconciliationSource = domain.ReconciliationSourceTranscriptRecovery
 	}
-	for _, event := range events[1:] {
-		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
-			usage.Charge = charge
-		}
-	}
-	return events, fmt.Sprintf("recovered the interrupted turn's usage receipt (%s) from the codex rollout after the process stopped mid-turn", usage.ReconciliationSource)
+	return attachCharge(events), fmt.Sprintf("recovered the interrupted turn's usage receipt (%s) from the codex rollout after the process stopped mid-turn", usage.ReconciliationSource)
 }
 
 // codexRolloutPath finds the session's rollout under a run-scoped CODEX_HOME.
@@ -186,14 +195,4 @@ func scanCodexInterruptedTurn(path string, startedAt time.Time) (codexInterrupte
 		}
 	}
 	return turn, scanner.Err()
-}
-
-// codexThreadTotalDelta is the thread-cumulative usage added since baseline,
-// with cached input split out. A reset (any component shrinking) starts a new
-// series, so the latest total is the delta.
-func codexThreadTotalDelta(baseline, latest *CodexUsage) usageTokens {
-	if baseline == nil || latest.InputTokens < baseline.InputTokens || latest.CachedInputTokens < baseline.CachedInputTokens || latest.OutputTokens < baseline.OutputTokens {
-		return codexUsageDelta(latest.InputTokens, latest.OutputTokens, latest.CachedInputTokens, true)
-	}
-	return codexUsageDelta(latest.InputTokens-baseline.InputTokens, latest.OutputTokens-baseline.OutputTokens, latest.CachedInputTokens-baseline.CachedInputTokens, true)
 }

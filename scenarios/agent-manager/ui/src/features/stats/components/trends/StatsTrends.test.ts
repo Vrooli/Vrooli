@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, test, vi } from "vitest";
@@ -145,5 +146,5 @@ test("stats trend components render empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(RunStatusTrends));
-  assert.ok(screen.getByText("Run trends: trend stats unavailable"));
+  assert.ok(getErrorNotice("Run trends", "trend stats unavailable"));
 });

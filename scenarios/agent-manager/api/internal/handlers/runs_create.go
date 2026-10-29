@@ -634,7 +634,13 @@ func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest,
 	if err != nil {
 		return nil, err
 	}
-	return &apipb.ListRunsResponse{Runs: protoconv.RunsToProto(runs), Total: int32(len(runs)), HasMore: int32(len(runs)) == int32(opts.Limit)}, nil
+	// total is the size of the filtered population, independent of paging, so
+	// a limit=1 request answers "how many runs have this status".
+	total, err := h.svc.CountRuns(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &apipb.ListRunsResponse{Runs: protoconv.RunsToProto(runs), Total: int32(total), HasMore: opts.Offset+len(runs) < total}, nil
 }
 
 // DeleteRun permanently removes a run.

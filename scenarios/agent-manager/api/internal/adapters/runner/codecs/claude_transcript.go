@@ -2,12 +2,14 @@
 package codecs
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
 	"encoding/json"
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 // NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
@@ -48,6 +50,10 @@ type claudeTranscriptParser struct {
 	// result or a prompt) followed it, so a new request may have been sent.
 	openTurnUsage  []*domain.UsageEventData
 	requestPending bool
+	// promptAnswered latches once an assistant line answered the newest
+	// prompt; the next prompt clears it, so the first assistant line after a
+	// prompt starts a provider turn.
+	promptAnswered bool
 }
 
 func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
@@ -56,6 +62,15 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 		Events:    events,
 		Timestamp: transcriptLineTimestamp(line),
 		Err:       err,
+	}
+	// A usage report happened at its line's time, not at parse time: an
+	// indexer back-fill or a recovery replay reads it later.
+	if !result.Timestamp.IsZero() {
+		for _, event := range events {
+			if _, ok := event.Data.(*domain.UsageEventData); ok {
+				event.Timestamp = result.Timestamp
+			}
+		}
 	}
 
 	var streamEvent ClaudeStreamEvent
@@ -135,8 +150,24 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 			result.Goal = &marker
 		}
 		p.trackOpenTurn(streamEvent.Type, result)
+		p.trackProviderTurn(streamEvent, &result)
 	}
 	return result
+}
+
+// trackProviderTurn marks the first assistant line after a prompt (or the
+// first one read) as a new provider turn, the boundary Codex marks with
+// turn_context. Tool results continue the turn.
+func (p *claudeTranscriptParser) trackProviderTurn(event ClaudeStreamEvent, result *runner.TranscriptParseResult) {
+	if event.Message == nil {
+		return
+	}
+	switch {
+	case strings.EqualFold(event.Type, "user") && event.Message.ExtractTextContent() != "" && len(event.Message.ExtractToolResults()) == 0:
+		p.promptAnswered = false
+	case strings.EqualFold(event.Type, "assistant") && !p.promptAnswered:
+		p.promptAnswered, result.ProviderTurnStarted = true, true
+	}
 }
 
 // receiptCharges prices reconciliation-authority usage. The on-disk dialect has

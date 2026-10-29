@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, test, vi } from "vitest";
-import { useHealth, useMaintenance, useProfiles, useRunStatusCounts, useRunners, useRuns, useTasks } from "./useApi.js";
+import { useHealth, useMaintenance, useProfiles, useRunners, useRuns, useTasks } from "./useApi.js";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -55,47 +55,35 @@ test("core list hooks retain typed API failures instead of replacing visible dat
   assert.deepEqual(runs.result.current.data, []);
 });
 
-test("health, status, and runner projections normalize their independent endpoints", async () => {
+test("health and runner projections normalize their independent endpoints", async () => {
   const fetch = vi.fn(async (url: string) => {
     if (url.endsWith("/health")) return json({ status: "HEALTH_STATUS_READY", dependencies: { api: "ready" }, metrics: { queued: 2 } });
-    if (url.endsWith("/stats/status-distribution")) return json({ statusCounts: { pending: 1, running: 2, complete: 3, failed: 4, cancelled: 5, needsReview: 6, total: 21 } });
     return json({ runners: [{ runnerType: "RUNNER_TYPE_CODEX", available: true }] });
   });
   vi.stubGlobal("fetch", fetch);
   const health = renderHook(() => useHealth());
-  const counts = renderHook(() => useRunStatusCounts());
   const runners = renderHook(() => useRunners());
-  await waitFor(() => assert.equal(counts.result.current.data?.total, 21));
   await waitFor(() => assert.equal(Object.keys(runners.result.current.data ?? {}).length, 1));
   await waitFor(() => assert.ok(health.result.current.data));
   assert.equal(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/health"), true);
-  health.unmount(); counts.unmount(); runners.unmount();
+  health.unmount(); runners.unmount();
 });
 
-test("status and runner projections retain errors, support disabled mode, and tolerate empty API payloads", async () => {
+test("runner projection retains errors, supports disabled mode, and tolerates empty API payloads", async () => {
   const fetch = vi.fn()
-    .mockResolvedValueOnce(json({}))
     .mockResolvedValueOnce(json({ runners: [] }))
-    .mockResolvedValueOnce(json({ error: "stats unavailable" }, 503))
     .mockResolvedValueOnce(json({ error: "runners unavailable" }, 502));
   vi.stubGlobal("fetch", fetch);
 
-  renderHook(() => useRunStatusCounts({ enabled: false }));
   renderHook(() => useRunners({ enabled: false }));
   await act(async () => {});
   assert.equal(fetch.mock.calls.length, 0);
 
-  const counts = renderHook(() => useRunStatusCounts());
   const runners = renderHook(() => useRunners());
-  await waitFor(() => {
-    assert.equal(counts.result.current.data, null);
-    assert.deepEqual(runners.result.current.data, {});
-  });
+  await waitFor(() => assert.deepEqual(runners.result.current.data, {}));
   await act(async () => {
-    await counts.result.current.refetch();
     await runners.result.current.refetch();
   });
-  assert.equal(counts.result.current.error, "Request failed: 503");
   assert.equal(runners.result.current.error, "Request failed: 502");
 });
 

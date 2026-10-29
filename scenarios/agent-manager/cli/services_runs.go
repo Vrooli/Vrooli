@@ -4,13 +4,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"time"
+
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
-	"net/url"
-	"strconv"
-	"time"
 )
 
 // RunService handles run-related API operations.
@@ -144,16 +144,6 @@ func (s *RunService) GetReport(id string) ([]byte, error) {
 // Durability retrieves the evidence-bounded durability projection for one run.
 func (s *RunService) Durability(id string) ([]byte, error) {
 	return s.api.Get("/api/v1/runs/"+id+"/durability", nil)
-}
-
-// Stats returns the existing filtered run summary projection.
-func (s *RunService) Stats(query url.Values) ([]byte, error) {
-	return s.api.Get("/api/v1/stats/summary", query)
-}
-
-// Efficiency returns the bounded, read-only invocation efficiency projection.
-func (s *RunService) Efficiency(query url.Values) ([]byte, error) {
-	return s.api.Get("/api/v1/stats/efficiency", query)
 }
 
 // GetReceipts retrieves platform observations for one run.
@@ -464,24 +454,6 @@ func (s *RunService) Recover(id string) ([]byte, *apipb.RecoverRunResponse, erro
 	return body, &resp, nil
 }
 
-// CohortReport reads the bounded multi-run projection. The service deliberately
-// accepts only explicit run IDs; it never requests a bulk transcript endpoint.
-func (s *RunService) CohortReport(runIDs string) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/cohort-report", url.Values{"run_ids": []string{runIDs}}, nil)
-}
-
-func (s *RunService) CohortReportByName(name string) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/cohort-report", url.Values{"cohort": []string{name}}, nil)
-}
-
-func (s *RunService) GoalCohort(name string, limit int) ([]byte, error) {
-	values := url.Values{"cohort": []string{name}}
-	if limit > 0 {
-		values.Set("limit", strconv.Itoa(limit))
-	}
-	return s.api.Request("GET", "/api/v1/runs/goal-cohort", values, nil)
-}
-
 func (s *RunService) InvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
 }
@@ -500,18 +472,6 @@ func (s *RunService) Ledger(id string, withProjections bool) ([]byte, error) {
 		values.Set("with_projections", "true")
 	}
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/ledger", values, nil)
-}
-
-func (s *RunService) EpisodeCohort(values url.Values) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/episode-cohort", values, nil)
-}
-
-func (s *RunService) CompareEpisodeCohorts(payload []byte, limit int) ([]byte, error) {
-	values := url.Values{}
-	if limit > 0 {
-		values.Set("limit", strconv.Itoa(limit))
-	}
-	return s.api.Request("POST", "/api/v1/runs/episode-cohort/compare", values, payload)
 }
 
 func (s *RunService) EpisodeTrend(values url.Values) ([]byte, error) {
@@ -550,48 +510,8 @@ func (s *RunService) ImportSweep() ([]byte, error) {
 	return s.api.WithTimeout(importSweepTimeout).Request("POST", "/api/v1/runs/import-sweep", nil, nil)
 }
 
-func (s *RunService) ReplayInvocationFacts(id string) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/"+id+"/invocation-facts/replay", nil, nil)
-}
-
-func (s *RunService) RefreshInvocationFacts(id string) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/"+id+"/invocation-facts/refresh", nil, nil)
-}
-
 func (s *RunService) ReplayInvocationCorpus(values url.Values) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/invocation-facts/replay", values, nil)
-}
-
-func (s *RunService) AggregateInvocationFacts(values url.Values) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/invocation-facts/aggregate", values, nil)
-}
-
-func (s *RunService) SelectInvocationCohort(values url.Values) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/invocation-facts/cohort", values, nil)
-}
-
-func (s *RunService) InvocationMetrics(values url.Values) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/invocation-facts/metrics", values, nil)
-}
-
-func (s *RunService) DefineCohort(payload []byte) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/cohorts", nil, payload)
-}
-
-func (s *RunService) ListCohorts() ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/cohorts", nil, nil)
-}
-
-func (s *RunService) ShowCohort(name string, limit int) ([]byte, error) {
-	values := url.Values{}
-	if limit > 0 {
-		values.Set("limit", strconv.Itoa(limit))
-	}
-	return s.api.Request("GET", "/api/v1/runs/cohorts/"+url.PathEscape(name), values, nil)
-}
-
-func (s *RunService) DeleteCohort(name string) ([]byte, error) {
-	return s.api.Request("DELETE", "/api/v1/runs/cohorts/"+url.PathEscape(name), nil, nil)
 }
 
 // InvestigationApply creates a run that applies investigation recommendations.

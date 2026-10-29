@@ -97,6 +97,18 @@ versioned fold. An unreplayable run keeps its stored facts and classifier
 version, and the replay result reports that status rather than implying a full
 historical rebuild.
 
+External transcripts are captured by the Transcript Indexer
+(`api/internal/transcriptindex`, see
+[USAGE-INTELLIGENCE.md](USAGE-INTELLIGENCE.md#t-1-capture)). Its
+`transcript_files` row per file (keyed by device:inode) and its
+`transcript_usage` rows (one per provider usage report, with raw cumulative
+counters and per-turn non-text counts) are durable summaries: they are never
+evicted with `run_events`. An imported run whose events were evicted is
+projected and accounted from those rows, and an explicit replay rebuilds its
+events from the source file. The full events and search documents of indexed
+runs are a recall layer bounded by `ImportedCorpusMaxBytes`, measured on
+those rows alone.
+
 Conversation-search state has a different retention class. Canonical messages
 remain in `run_events` under the policy above. `conversation_search_catalog`,
 its external-content FTS table, generation/checkpoint rows, and the variant-scoped Qdrant
@@ -117,18 +129,35 @@ truncated list as complete.
 
 ## Statistics consumer inventory and durable parity boundary
 
-The retained statistics product has three consumers: `agent-manager run stats`
-uses `/api/v1/stats/summary`; `ui/src/features/stats/` reads the summary plus
-the status, duration, cost, runner, profile, model, tool, error, and
-time-series endpoints; `ops` reads the separate typed-event operational
-projection. The operational projection is not a candidate for this migration.
+The typed Measures service (`agent_manager.v1.measures.MeasuresService`, Connect)
+is the canonical analytics contract. The current consumers are:
 
-The retained statistics compatibility transport is backed exclusively by the
-durable read model. Product metadata such as task and profile names can be
-joined at read time, but no statistic reopens `run_events` JSON. The typed
-measure service is the canonical machine-facing analytics contract; the legacy
-summary and drill-down routes remain only for existing product consumers while
-they migrate.
+- `ui/src/features/stats/` reads the Measures procedures through
+  `measuresClient` for every analytics panel. It does not read the REST
+  `/api/v1/stats/summary` or drill-down routes. It still reads
+  `/api/v1/stats/operational` and `/api/v1/stats/fallback` for the
+  typed-event operational panels, and `/api/v1/pricing/compare` for model
+  cost comparison.
+- `agent-manager run stats` composes its summary from the Measures
+  procedures `RunStatusDistribution`, `RunSuccessRate`,
+  `RunDurationStatistics`, `RunCost`, `RunnerBreakdown`, `ProfileBreakdown`,
+  `ModelBreakdown` and `ToolUsage` over one explicit `[from,to)` window.
+  `run efficiency` still reads `/api/v1/stats/efficiency` (D-11 folds it).
+- `agent-manager ops` reads the typed-event operational projection
+  (`/api/v1/stats/operational`, `/api/v1/stats/fallback`). The operational
+  projection is not part of the durable read model.
+- The pricing model picker ranks recent and popular models from
+  `invocation_read_model_runs` through the narrowed `StatsRepository`.
+
+Every `MeasuresService` procedure, and `/measures/execute`, is an agent read.
+The admission rule is derived from the generated service descriptor
+(`handlers/authorization_routes.go`), so a new measure needs no allowlist edit.
+
+The REST statistics summary and drill-down routes (`/api/v1/stats/summary`,
+`status-distribution`, `success-rate`, `duration`, `cost`, `runners`,
+`profiles`, `models`, `models/runs`, `tools`, `tools/models`, `tools/runs`,
+`errors`, `time-series`) were deleted under Usage Intelligence decision D4.
+No statistic reopens `run_events` JSON.
 
 Same-snapshot regression coverage proves these question families:
 
@@ -143,8 +172,9 @@ Same-snapshot regression coverage proves these question families:
 
 The durable read model owns ownership, outcome, retry, help-recovery, repeated
 work, file rereads, run success, cycle time, cost, volume, breakdowns, tools,
-errors, time series, and cohort questions. `StatsSummary` remains a
-compatibility transport, not a second compute path.
+errors, time series, and cohort questions. `StatsSummary` is a transport
+over that read model, not a second compute path, until the REST layer is
+removed.
 
 The throughput parity fixture covers run volume, terminal success, average
 cycle time, total cost, and total tokens from one seeded database snapshot.

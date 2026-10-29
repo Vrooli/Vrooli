@@ -2,22 +2,24 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
-	"agent-manager/internal/orchestration/obs"
-	"agent-manager/internal/repository"
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 // attachedRunProcessAlive checks only process presence. A supplied PID is
@@ -547,6 +549,7 @@ func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain
 		r.log().Warn("approved run sync failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
+	r.markProjectionPending(run)
 	if r.broadcaster != nil {
 		r.broadcaster.BroadcastRunStatus(run)
 	}
@@ -566,6 +569,7 @@ func (r *Reconciler) markRunRejectedFromSandbox(ctx context.Context, run *domain
 		r.log().Warn("rejected run sync failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return
 	}
+	r.markProjectionPending(run)
 	if r.broadcaster != nil {
 		r.broadcaster.BroadcastRunStatus(run)
 	}
@@ -631,8 +635,30 @@ func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason 
 		r.log().Warn("run status update failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		return // Do not project a status that lost its atomic writer fence.
 	}
+	r.markProjectionPending(run)
 
 	// Broadcast status change
+	if r.broadcaster != nil {
+		r.broadcaster.BroadcastRunStatus(run)
+	}
+}
+
+// completeAttachedRun closes an attached run whose harness process is gone:
+// the run is complete, its identity token is revoked, and the exit is
+// recorded as a lifecycle event.
+func (r *Reconciler) completeAttachedRun(ctx context.Context, run *domain.Run) {
+	now := r.now()
+	run.Status, run.Phase, run.ErrorMsg = domain.RunStatusComplete, domain.RunPhaseCompleted, ""
+	run.EndedAt, run.UpdatedAt = &now, now
+	if run.IdentityTokenHash != "" && run.IdentityTokenRevokedAt == nil {
+		run.IdentityTokenRevokedAt = &now
+	}
+	if err := r.runs.Update(ctx, run); err != nil {
+		r.log().Warn("attached run completion failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		return
+	}
+	r.markProjectionPending(run)
+	r.appendAttachedLifecycleEvent(ctx, run.ID, "exited", "harness process exited")
 	if r.broadcaster != nil {
 		r.broadcaster.BroadcastRunStatus(run)
 	}

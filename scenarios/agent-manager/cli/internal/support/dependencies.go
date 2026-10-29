@@ -16,6 +16,7 @@ type Dependencies struct {
 	TaskCreate       func(cliapp.RunContext) error
 	Run              CommandFunc
 	RunCommands      []cliapp.Command
+	UsageCommands    []cliapp.Command
 	Runner           CommandFunc
 	Policy           CommandFunc
 	PermissionPolicy CommandFunc

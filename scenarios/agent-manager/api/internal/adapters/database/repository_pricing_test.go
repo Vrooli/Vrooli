@@ -18,7 +18,7 @@ func TestModelPricingDomainRowRoundTripPreservesOptionalComponents(t *testing.T)
 	model := &pricing.ModelPricing{
 		ID: uuid.New(), CanonicalModelName: "test-model", Provider: "provider", FetchedAt: now, ExpiresAt: now.Add(time.Hour), CreatedAt: now, UpdatedAt: now,
 		InputTokenPrice: floatPtr(1), OutputTokenPrice: floatPtr(2), CacheReadPrice: floatPtr(3), CacheCreationPrice: floatPtr(4), WebSearchPrice: floatPtr(5), ServerToolUsePrice: floatPtr(6),
-		InputTokenSource: pricing.SourceProviderAPI, OutputTokenSource: pricing.SourceManualOverride, CacheReadSource: pricing.SourceHistoricalAverage, CacheCreationSource: pricing.SourceProviderAPI, WebSearchSource: pricing.SourceManualOverride, ServerToolUseSource: pricing.SourceHistoricalAverage, PricingVersion: "v1",
+		InputTokenSource: pricing.SourceProviderAPI, OutputTokenSource: pricing.SourceManualOverride, CacheReadSource: pricing.SourceManualOverride, CacheCreationSource: pricing.SourceProviderAPI, WebSearchSource: pricing.SourceManualOverride, ServerToolUseSource: pricing.SourceProviderAPI, PricingVersion: "v1",
 	}
 	got := modelPricingFromDomain(model).toDomain()
 	if got.ID != model.ID || got.InputTokenPrice == nil || *got.InputTokenPrice != 1 || got.ServerToolUsePrice == nil || *got.ServerToolUsePrice != 6 || got.PricingVersion != "v1" {
@@ -144,12 +144,12 @@ func TestPricingRepositoryBulkAliasesOverridesAndSettings(t *testing.T) {
 	if err != nil || defaults == nil {
 		t.Fatalf("defaults=%+v err=%v", defaults, err)
 	}
-	wantSettings := &pricing.PricingSettings{HistoricalAverageDays: 42, ProviderCacheTTL: 15 * time.Minute}
+	wantSettings := &pricing.PricingSettings{ProviderCacheTTL: 15 * time.Minute}
 	if err := repo.UpdateSettings(ctx, wantSettings); err != nil {
 		t.Fatal(err)
 	}
 	gotSettings, err := repo.GetSettings(ctx)
-	if err != nil || gotSettings.HistoricalAverageDays != 42 || gotSettings.ProviderCacheTTL != 15*time.Minute {
+	if err != nil || gotSettings.ProviderCacheTTL != 15*time.Minute {
 		t.Fatalf("settings=%+v err=%v", gotSettings, err)
 	}
 }
@@ -182,25 +182,59 @@ func TestNewConnectionInitializesSchemaAndHealthCheck(t *testing.T) {
 	}
 }
 
-func TestPricingRepositoryCalculatesHistoricalAveragesFromMetricEvents(t *testing.T) {
+func TestMigrateQuotaEventsMovesLegacyFramesAndBackfillsObservationsOnce(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	t.Cleanup(cleanup)
-	now := time.Now().UTC()
-	if _, err := db.Exec(`INSERT INTO tasks (id, title, scope_path) VALUES ('task', 'task', '.')`); err != nil {
+	ctx := t.Context()
+	repos := NewRepositories(db, logrus.New())
+	task := &domain.Task{ID: uuid.New(), Title: "quota migration", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO runs (id, task_id, resolved_config, created_at) VALUES ('run', 'task', ?, ?)`, `{"model":"model"}`, SQLiteTime(now)); err != nil {
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatal(err)
 	}
-	metric := `{"inputTokens":10,"inputCostUsd":2,"outputTokens":4,"outputCostUsd":3,"costSource":"runner_reported"}`
-	if _, err := db.Exec(`INSERT INTO run_events (id, run_id, sequence, event_type, data) VALUES ('event', 'run', 1, 'metric', ?)`, metric); err != nil {
+	rows := []struct {
+		data      string
+		wantQuota bool
+	}{
+		{`{"payloadKind":"quota","limitType":"10080m","provider":"openai","pool":"primary","usedPercent":33,"windowMinutes":10080,"resetTime":"2026-11-04T06:57:00Z","provenance":"codex:event_msg.token_count.rate_limits"}`, true},
+		{`{"limitType":"10080m","provider":"openai","pool":"primary","usedPercent":34,"windowMinutes":10080,"provenance":"codex:event_msg.token_count.rate_limits"}`, true},
+		{`{"limitType":"5_hour","message":"usage limit reached"}`, true},
+		{`{"code":"RATE_LIMIT","message":"failed","limitType":"weekly"}`, false},
+		{`{"code":"execution_error","message":"boom","retryable":false}`, false},
+		{`{"limitType":"","message":"unknown"}`, false},
+		{`not json`, false},
+	}
+	at := time.Date(2026, 9, 1, 4, 30, 0, 0, time.UTC)
+	for i, row := range rows {
+		if _, err := db.ExecContext(ctx, `INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, uuid.NewString(), run.ID.String(), i, "error", SQLiteTime(at.Add(time.Duration(i)*time.Minute)), row.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for pass := 0; pass < 2; pass++ {
+		if err := db.migrateQuotaEvents(ctx); err != nil {
+			t.Fatalf("pass %d: %v", pass, err)
+		}
+	}
+	var quotaEvents, errorEvents, observations int
+	if err := db.GetContext(ctx, &quotaEvents, `SELECT COUNT(*) FROM run_events WHERE event_type='quota'`); err != nil {
 		t.Fatal(err)
 	}
-	history, err := NewPricingRepository(db, logrus.New()).GetHistoricalAverages(t.Context(), "model", now.Add(-time.Hour))
-	if err != nil || history == nil || history.SampleCount != 1 || history.InputTokenAvgPrice == nil || *history.InputTokenAvgPrice != 0.2 || history.OutputTokenAvgPrice == nil || *history.OutputTokenAvgPrice != 0.75 {
-		t.Fatalf("history=%+v err=%v", history, err)
+	if err := db.GetContext(ctx, &errorEvents, `SELECT COUNT(*) FROM run_events WHERE event_type='error'`); err != nil {
+		t.Fatal(err)
 	}
-	if missing, err := NewPricingRepository(db, logrus.New()).GetHistoricalAverages(t.Context(), "missing", now.Add(-time.Hour)); err != nil || missing != nil {
-		t.Fatalf("missing history=%+v err=%v", missing, err)
+	if err := db.GetContext(ctx, &observations, `SELECT COUNT(*) FROM quota_observations`); err != nil {
+		t.Fatal(err)
+	}
+	// Two attributable Codex frames become observations; the unattributed
+	// legacy rate-limit row moves type but names no provider.
+	if quotaEvents != 3 || errorEvents != 4 || observations != 2 {
+		t.Fatalf("quota events=%d error events=%d observations=%d, want 3/4/2", quotaEvents, errorEvents, observations)
+	}
+	got, err := NewPricingRepository(db, logrus.New()).(pricing.QuotaObservationRepository).ListQuotaObservations(ctx, "openai", "primary", "10080m", 10)
+	if err != nil || len(got) != 2 || *got[0].UsedPercent != 34 || got[1].ResetAt == nil || got[0].SourceRunID != run.ID.String() || got[0].Freshness != pricing.ObservationStale {
+		t.Fatalf("backfilled observations = %+v err=%v", got, err)
 	}
 }

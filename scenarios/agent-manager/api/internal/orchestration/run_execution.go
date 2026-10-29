@@ -105,6 +105,7 @@ func (o *Orchestrator) newRunExecutor(ctx context.Context, run *domain.Run, task
 		prompt,
 		systemPrompt,
 	)
+	executor.hooks = o
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
 	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
@@ -339,7 +340,7 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 			return token, nil
 		},
 		Broadcaster: o.broadcaster,
-		NewSink:     o.interactiveEventSink,
+		NewSink:     o.runEventSink,
 		Result:      o.persistedResultBuilder,
 	})
 
@@ -449,12 +450,6 @@ func validateExecutionContainment(mode domain.ExecutionMode, sandboxMode domain.
 		return domain.NewValidationErrorWithHint("executionMode", "interactive execution cannot enforce protected containment", "Use codec_pipe with protected mode; tracking/off interactive sessions do not provide containment")
 	}
 	return nil
-}
-
-// interactiveEventSink builds the per-run event sink interactive tail events are
-// emitted into, mirroring the codec-pipe executor's sink selection.
-func (o *Orchestrator) interactiveEventSink(runID uuid.UUID) runner.EventSink {
-	return newRunEventSink(o.events, o.broadcaster, runID, nil)
 }
 
 // failInteractiveRun marks an interactive run failed with an explicit reason

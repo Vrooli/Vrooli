@@ -2,8 +2,9 @@
 package domain
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // RunEvent represents a single event in a run's event stream.
@@ -42,6 +43,10 @@ const (
 	EventTypeCompaction        RunEventType = "compaction"
 	EventTypeLifecycle         RunEventType = "lifecycle"
 	EventTypeGoalStatusChanged RunEventType = "goal_status_changed"
+	// EventTypeQuota carries a provider quota observation (RateLimitEventData):
+	// a percent-of-window sample or a standing such as exhausted. It is never
+	// an execution error.
+	EventTypeQuota RunEventType = "quota"
 
 	// Typed operational events.
 	//

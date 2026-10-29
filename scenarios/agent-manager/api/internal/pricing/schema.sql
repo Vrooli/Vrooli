@@ -138,15 +138,15 @@ CREATE INDEX IF NOT EXISTS idx_manual_overrides_expires ON manual_price_override
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS pricing_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    historical_average_days INTEGER DEFAULT 7,
+    historical_average_days INTEGER DEFAULT 7, -- unused since 2026-10-29 (historical-average fallback deleted); kept to avoid a live drop-column
     provider_cache_ttl_seconds INTEGER DEFAULT 21600,
 
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
 -- Insert default settings if not exists
-INSERT OR IGNORE INTO pricing_settings (id, historical_average_days, provider_cache_ttl_seconds)
-VALUES (1, 7, 21600);
+INSERT OR IGNORE INTO pricing_settings (id, provider_cache_ttl_seconds)
+VALUES (1, 21600);
 
 CREATE TRIGGER IF NOT EXISTS update_model_pricing_updated_at
     AFTER UPDATE ON model_pricing

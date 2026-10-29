@@ -176,6 +176,11 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
 		setter.SetTranscriptBilling(p.Billing)
 	}
+	// Each tail starts at a persisted cursor, usually past the session's first
+	// line; usage reports still name the session whose counters they carry.
+	if setter, ok := parser.(runner.TranscriptSessionSetter); ok {
+		setter.SetTranscriptSession(p.SessionID, false)
+	}
 	if setter, ok := parser.(interface {
 		SetGoalContext(uuid.UUID, string, string)
 	}); ok {

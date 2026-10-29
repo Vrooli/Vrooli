@@ -9,29 +9,26 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
-	"agent-manager/internal/orchestration/obs"
-	"agent-manager/internal/piimask"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/runsignal"
-	"agent-manager/internal/runstate"
 	"agent-manager/internal/structuredresult"
-	"agent-manager/internal/transcriptredact"
+	"agent-manager/internal/transcriptindex"
 
 	"github.com/google/uuid"
 )
 
-// ImportTranscriptRequest adopts a newline-delimited harness transcript as a
-// terminal read-only run. The caller's file is never parsed in place.
+// ImportTranscriptRequest captures one harness transcript file on demand.
+// The file is read in place by the Transcript Indexer; Label applies when the
+// transcript carries no harness title. SourceHarness and SourceSessionID are
+// accepted for compatibility with callers but provenance now comes from the
+// file itself.
 type ImportTranscriptRequest struct {
 	Path            string
 	RunnerType      domain.RunnerType
@@ -39,11 +36,6 @@ type ImportTranscriptRequest struct {
 	LabelSource     domain.RunLabelSource
 	SourceHarness   string
 	SourceSessionID string
-	// WebConsoleSessionID attributes an isolated-home transcript back to the
-	// web-console session that launched it. Codex rollouts written under a
-	// per-session CODEX_HOME carry no run identity of their own, so without
-	// this the imported run cannot be grouped with the effort it belongs to.
-	WebConsoleSessionID string
 }
 
 var importedTranscriptTaskID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/imported-transcripts"))
@@ -63,10 +55,7 @@ type transcriptLabelEvidence struct {
 	Source       string
 }
 
-func readTranscriptLabelEvidence(source *os.File) (transcriptLabelEvidence, error) {
-	if _, err := source.Seek(0, io.SeekStart); err != nil {
-		return transcriptLabelEvidence{}, err
-	}
+func readTranscriptLabelEvidence(source io.Reader) (transcriptLabelEvidence, error) {
 	scanner := bufio.NewScanner(source)
 	scanner.Buffer(make([]byte, 64*1024), importTranscriptMaxLineBytes)
 	var evidence transcriptLabelEvidence
@@ -250,230 +239,71 @@ func (o *Orchestrator) resolveImportedLabel(ctx context.Context, req ImportTrans
 	return fmt.Sprintf("%s session %s", runnerType, identifier), domain.RunLabelSourcePlaceholder
 }
 
-// ImportTranscript copies, parses, and persists an external transcript using
-// the same parser and event store as restart recovery.
+// ImportTranscript captures one transcript file on demand through the
+// Transcript Indexer — the same capture path as the background loop — and
+// returns its run. A file inside the indexed roots needs no manual import;
+// this serves files elsewhere and "capture it now".
 func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscriptRequest) (*domain.Run, error) {
 	path := strings.TrimSpace(req.Path)
 	if path == "" {
 		return nil, fmt.Errorf("transcript path is required")
 	}
-	source, err := os.Open(path)
-	if err != nil {
+	if o.transcriptIndex == nil {
+		return nil, domain.NewConfigMissingError("transcript_index", "transcript indexer is not configured", nil)
+	}
+	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf("open transcript: %w", err)
 	}
-	defer source.Close()
-	detection, err := o.detectTranscriptRunner(source, req.RunnerType)
-	if err != nil {
-		return nil, err
-	}
-	runnerType := detection.RunnerType
-	// Visibility policy, import seam: a run matching an `exclude` rule enforced at
-	// import must never write any run_events (the strongest privacy guarantee,
-	// e.g. private local-model chats). The exclusion is recorded (counter + log)
-	// rather than silent — the explicit counter-measure to the "silently hidden"
-	// failure mode.
-	//
-	// This is evaluated BEFORE the provenance short-circuit below. Otherwise an
-	// `exclude @ import` rule added AFTER a run was imported would be bypassed on
-	// any re-import or sweep: the provenance lookup would take the revive branch
-	// and re-project the already-excluded conversation back into search. So when
-	// an existing run is now import-excluded we also delete it from the derived
-	// search projection, making the exclusion effective rather than merely "no
-	// new events".
-	// redactContent is set when this run matches a `redact` rule at the import
-	// seam. It drives PII masking of every indexed content field below, BEFORE
-	// the event store write, so no redacted PII ever reaches the search index.
-	// It is scoped to the matched run alone: a non-matching import makes zero
-	// detector calls, keeping the common import path free of gateway cost.
-	var redactContent bool
-	if o.conversationPolicy.Enabled() {
-		fields := importPolicyFields(req, runnerType)
-		decision := o.conversationPolicy.RecordImport(fields)
-		if decision.Hidden() {
-			obs.Component("transcript-importer").Info("conversation excluded at import by policy",
-				"rule", conversationpolicy.DescribeRule(decision.Rule),
-				"harness", fields.Harness, "model", fields.Model, "tag", fields.Tag)
-			if req.SourceHarness != "" && req.SourceSessionID != "" {
-				existing, lookupErr := o.runs.GetByImportProvenance(ctx, req.SourceHarness, req.SourceSessionID)
-				if lookupErr != nil {
-					return nil, fmt.Errorf("lookup imported transcript: %w", lookupErr)
-				}
-				if existing != nil {
-					// The run was imported before this rule existed; drop its
-					// derived search projection so the exclusion is real, not
-					// just "no further events". The canonical run_events remain
-					// (removal of the run row is not this seam's job); the
-					// search seam's own exclude rule and this delete keep it out.
-					o.notifyConversationSearch(ctx, "delete_run", existing.ID.String(), "")
-				}
-			}
-			return nil, newImportExcludedError(decision)
-		}
-		if decision.Matched && decision.Action == conversationpolicy.ActionRedact {
-			if o.piiMasker == nil {
-				// A redact rule matched but no masker is wired: this is the
-				// recognized, observable no-op (still imported and searchable).
-				// Log it so the operator can see the rule fired without masking.
-				obs.Component("transcript-importer").Info("conversation matched redact rule but PII masker is not configured; importing unmasked",
-					"rule", conversationpolicy.DescribeRule(decision.Rule),
-					"harness", fields.Harness, "tag", fields.Tag)
-			} else {
-				redactContent = true
-				obs.Component("transcript-importer").Info("conversation matched redact rule; masking PII before index",
-					"rule", conversationpolicy.DescribeRule(decision.Rule),
-					"harness", fields.Harness, "tag", fields.Tag)
-			}
+	// The caller's harness label is the import provenance visibility rules
+	// match on; without one the runner names the format.
+	harness := strings.TrimSpace(req.SourceHarness)
+	switch req.RunnerType {
+	case domain.RunnerTypeCodex:
+		harness = cmpOr(harness, transcriptindex.HarnessCodex)
+	case domain.RunnerTypeClaudeCode:
+		harness = cmpOr(harness, transcriptindex.HarnessClaude)
+	case "":
+	default:
+		if _, err := o.runners.Get(req.RunnerType); err != nil {
+			return nil, fmt.Errorf("unsupported transcript format: %w", err)
 		}
 	}
-	if req.SourceHarness != "" && req.SourceSessionID != "" {
-		existing, err := o.runs.GetByImportProvenance(ctx, req.SourceHarness, req.SourceSessionID)
-		if err != nil {
-			return nil, fmt.Errorf("lookup imported transcript: %w", err)
-		}
-		if existing != nil {
-			// Imported runs retain their native transcript even when the
-			// normalized event window was already compacted. An explicit
-			// re-import is a recovery request, so rehydrate that source before
-			// refreshing the derived search projection.
-			events, eventsErr := o.allRunEvents(ctx, existing.ID, event.GetOptions{AfterSequence: -1})
-			if eventsErr != nil {
-				return nil, fmt.Errorf("inspect existing imported transcript: %w", eventsErr)
-			}
-			messageEvents := 0
-			for _, item := range events {
-				if item != nil && item.EventType == domain.EventTypeMessage {
-					messageEvents++
-				}
-			}
-			if len(events) == 0 {
-				if err := o.rehydrateImportedTranscript(ctx, existing, false); err != nil {
-					return nil, err
-				}
-			} else if messageEvents == 0 {
-				// Older imports of Codex rollouts retained tool events but missed
-				// response_item messages. Rehydrate only the missing message leg;
-				// replaying tools would create duplicate derived search documents.
-				if err := o.rehydrateImportedTranscript(ctx, existing, true); err != nil {
-					return nil, err
-				}
-			}
-			if err := o.reviveConversationSearch(ctx, req.SourceHarness, req.SourceSessionID); err != nil {
-				return nil, fmt.Errorf("revive imported transcript: %w", err)
-			}
-			o.notifyConversationSearch(ctx, "upsert_run", existing.ID.String(), "")
-			return existing, nil
+	if transcriptindex.Family(harness) == transcriptindex.HarnessConfigured && req.RunnerType != "" {
+		harness = string(req.RunnerType)
+	}
+	runID, err := o.transcriptIndex.IndexPath(ctx, path, harness)
+	if errors.Is(err, transcriptindex.ErrExcluded) {
+		return nil, newImportExcludedError(o.conversationPolicy.Evaluate(conversationpolicy.EnforceImport, importPolicyFields(req, req.RunnerType)))
+	}
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuid.Parse(runID)
+	if err != nil {
+		return nil, err
+	}
+	run, err := o.runs.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if run == nil {
+		return nil, domain.NewNotFoundError("Run", id)
+	}
+	if label := strings.TrimSpace(req.Label); label != "" && run.LabelSource != domain.RunLabelSourceHarness &&
+		(req.LabelSource == domain.RunLabelSourceManual || req.LabelSource == domain.RunLabelSourceDerived) {
+		run.Label, run.LabelSource = shortenTranscriptLabel(label), req.LabelSource
+		if err := o.runs.Update(ctx, run); err != nil {
+			return nil, err
 		}
 	}
-	parserRunner, err := o.runners.Get(runnerType)
-	if err != nil {
-		return nil, fmt.Errorf("unsupported transcript format: %w", err)
-	}
-	parser, ok := parserRunner.(runner.TranscriptParser)
-	if !ok {
-		return nil, fmt.Errorf("unsupported transcript format: runner %q has no transcript parser", runnerType)
-	}
-	if _, err := source.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("rewind transcript: %w", err)
-	}
-	var markerProvider runner.GoalMarkerProvider
-	if provider, ok := parserRunner.(runner.GoalMarkerProvider); ok {
-		markerProvider = provider
-	}
-	goalID, _ := transcriptGoalMetadata(source, markerProvider)
-	if _, err := source.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("rewind transcript after goal scan: %w", err)
-	}
-	labelEvidence, err := readTranscriptLabelEvidence(source)
-	if err != nil {
-		return nil, fmt.Errorf("read transcript label evidence: %w", err)
-	}
-	if _, err := source.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("rewind transcript after label scan: %w", err)
-	}
-	root, err := o.resolveRunStateRoot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	now := o.now()
-	task, err := o.ensureImportedTranscriptTask(ctx)
-	if err != nil {
-		return nil, err
-	}
-	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-imported", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusUnknown, ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot(), TranscriptCodec: string(runnerType), TranscriptCodecScore: detection.Score}, ImportSourceHarness: req.SourceHarness, ImportSourceSessionID: req.SourceSessionID, ImportedAt: &now}
-	run.Label, run.LabelSource = o.resolveImportedLabel(ctx, req, runnerType, labelEvidence)
-	run.GoalID = goalID
-	run.WebConsoleSessionID = strings.TrimSpace(req.WebConsoleSessionID)
-	if strings.TrimSpace(req.Label) != "" {
-		run.Tag = "agent-manager-imported-" + strings.TrimSpace(req.Label)
-	}
-	state, err := runstate.Open(run.ID, runstate.OpenOptions{RootDir: root, RunnerType: runnerType, WorkingDir: filepath.Dir(path), StartedAt: now, OnWrite: func() { o.recordRunStateWrite(ctx) }})
-	if err != nil {
-		return nil, fmt.Errorf("create imported run state: %w", err)
-	}
-	snapshot := state.Snapshot()
-	if _, err := io.Copy(state.TranscriptWriter(), source); err != nil {
-		_ = state.Close()
-		return nil, fmt.Errorf("copy transcript: %w", err)
-	}
-	if err := state.Close(); err != nil {
-		return nil, err
-	}
-	run.TranscriptPath = snapshot.TranscriptPath
-	if err := o.runs.Create(ctx, run); err != nil {
-		return nil, err
-	}
-	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
-		parser = factory.NewTranscriptParser()
-	}
-	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
-		setter.SetTranscriptModel(runTranscriptModel(run))
-	}
-	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
-		setter.SetTranscriptBilling(run.Billing)
-	}
-	if setter, ok := parser.(runner.TranscriptRetentionSetter); ok {
-		setter.SetTranscriptRetention(true)
-	}
-	var terminal *runner.TranscriptTerminal
-	_, terminal, err = runner.Consume(ctx, runner.ConsumeArgs{RunID: run.ID, Transcript: snapshot.TranscriptPath, ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
-		return parser.ParseTranscriptLine(id, line)
-	}, EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events, masker: o.importMaskerIf(redactContent)}, OnAdvance: func(cursor, seq int64) error { run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq; return nil }, OnSessionID: func(id string) error { run.SessionID = id; return nil }, OnLabel: func(label string, source domain.RunLabelSource) error {
-		if source == domain.RunLabelSourceHarness && strings.TrimSpace(label) != "" {
-			run.Label, run.LabelSource = strings.TrimSpace(label), source
-		}
-		return nil
-	}})
-	if err != nil {
-		return nil, fmt.Errorf("parse imported transcript: %w", err)
-	}
-	// Imported transcripts are historical evidence. Preserve their event window
-	// as the run lifecycle so duration and time accounting describe the original
-	// session rather than the instant it happened to be imported.
-	if events, getErr := o.events.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 100000}); getErr != nil {
-		return nil, fmt.Errorf("read imported event window: %w", getErr)
-	} else if started, ended, ok := eventWindow(events); ok {
-		run.StartedAt, run.EndedAt = &started, &ended
-	} else {
-		run.EndedAt, run.StartedAt = &now, &now
-	}
-	if terminal != nil && terminal.Success {
-		run.Status = domain.RunStatusComplete
-		run.ExitCode = intPtr(terminal.ExitCode)
-	} else {
-		// Missing terminal evidence is an honest unknown outcome, not a
-		// provider failure. This preserves imported sessions for analysis
-		// without inventing a terminal result.
-		run.Status = domain.RunStatusUnknown
-	}
-	run.UpdatedAt = now
-	if err := o.runs.Update(ctx, run); err != nil {
-		return nil, err
-	}
-	if err := o.projectInvocationReadModel(ctx, run); err != nil {
-		return nil, fmt.Errorf("project imported transcript: %w", err)
-	}
-	o.notifyConversationSearch(ctx, "upsert_run", run.ID.String(), "")
 	return o.attachRunActions(ctx, run), nil
+}
+
+func cmpOr(value, fallback string) string {
+	if value != "" {
+		return value
+	}
+	return fallback
 }
 
 // LabelBackfillResult reports a label-only repair of imported runs. The
@@ -555,7 +385,6 @@ func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBac
 	if err != nil {
 		return nil, fmt.Errorf("list imported runs for label backfill: %w", err)
 	}
-	transcriptPaths := indexExternalTranscriptPaths(runs)
 	result := &LabelBackfillResult{}
 	for _, run := range runs {
 		if run == nil {
@@ -568,9 +397,6 @@ func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBac
 		result.Scanned++
 		transcriptPath := strings.TrimSpace(run.TranscriptPath)
 		if transcriptPath == "" || !fileExists(transcriptPath) {
-			transcriptPath = transcriptPaths[run.ImportSourceSessionID]
-		}
-		if transcriptPath == "" {
 			result.Missing++
 			if updateErr := updater.UpdateRunLabel(ctx, run.ID, legacyFallbackLabel(run), domain.RunLabelSourceDerived); updateErr != nil {
 				result.Failures++
@@ -589,7 +415,7 @@ func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBac
 			}
 			continue
 		}
-		evidence, readErr := readTranscriptLabelEvidence(file)
+		evidence, readErr := readTranscriptLabelEvidence(io.LimitReader(file, transcriptHeadBytes))
 		_ = file.Close()
 		if readErr != nil {
 			result.Failures++
@@ -678,138 +504,7 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// indexExternalTranscriptPaths recovers the source file for legacy imported
-// rows that predate transcript_path persistence. The index is built once per
-// backfill, not once per run, and only from the governed durable-data roots.
-func indexExternalTranscriptPaths(runs []*domain.Run) map[string]string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	roots := make(map[string]string)
-	for _, run := range runs {
-		if run == nil || run.ImportSourceSessionID == "" {
-			continue
-		}
-		switch {
-		case strings.Contains(run.ImportSourceHarness, "codex"):
-			roots[filepath.Join(home, ".codex", "sessions")] = "codex"
-		case strings.Contains(run.ImportSourceHarness, "claude"):
-			roots[filepath.Join(home, ".claude", "projects")] = "claude"
-		}
-	}
-	index := make(map[string]string)
-	for root := range roots {
-		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil || entry == nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
-				return walkErr
-			}
-			file, openErr := os.Open(path)
-			if openErr != nil {
-				return nil
-			}
-			sessionID := transcriptSessionID(file)
-			_ = file.Close()
-			if sessionID != "" {
-				index[sessionID] = path
-			}
-			return nil
-		})
-	}
-	return index
-}
-
-func transcriptSessionID(file *os.File) string {
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return ""
-	}
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 4096), 4<<20)
-	for lines := 0; scanner.Scan() && lines < 80; lines++ {
-		var value any
-		if json.Unmarshal(scanner.Bytes(), &value) != nil {
-			continue
-		}
-		if id := findTranscriptString(value, func(object map[string]any) (string, bool) {
-			if typeName, _ := object["type"].(string); typeName == "session_meta" {
-				if id, ok := object["id"].(string); ok && strings.TrimSpace(id) != "" {
-					return strings.TrimSpace(id), true
-				}
-			}
-			for _, key := range []string{"session_id", "sessionId", "thread_id", "threadId"} {
-				if id, ok := object[key].(string); ok && strings.TrimSpace(id) != "" {
-					return strings.TrimSpace(id), true
-				}
-			}
-			return "", false
-		}); id != "" {
-			return id
-		}
-	}
-	return ""
-}
-
-// rehydrateImportedTranscript restores the append-only source stream for an
-// imported run whose normalized events were evicted before imported retention
-// was exempted. The run-state transcript is the durable copy created during
-// import, so replay does not need to reach back into a provider archive or
-// create a duplicate run identity.
-func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *domain.Run, messagesOnly bool) error {
-	if run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeImported || strings.TrimSpace(run.TranscriptPath) == "" {
-		return nil
-	}
-	if _, err := os.Stat(run.TranscriptPath); err != nil {
-		return fmt.Errorf("imported transcript is unavailable: %w", err)
-	}
-	if run.ResolvedConfig == nil {
-		return fmt.Errorf("imported run has no transcript codec")
-	}
-	owned, err := o.runners.Get(run.ResolvedConfig.RunnerType)
-	if err != nil {
-		return fmt.Errorf("load imported transcript codec: %w", err)
-	}
-	parser, ok := owned.(runner.TranscriptParser)
-	if !ok {
-		return fmt.Errorf("transcript codec %q has no parser", run.ResolvedConfig.RunnerType)
-	}
-	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
-		parser = factory.NewTranscriptParser()
-	}
-	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
-		setter.SetTranscriptModel(runTranscriptModel(run))
-	}
-	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
-		setter.SetTranscriptBilling(run.Billing)
-	}
-	if setter, ok := parser.(runner.TranscriptRetentionSetter); ok {
-		setter.SetTranscriptRetention(true)
-	}
-	var terminal *runner.TranscriptTerminal
-	_, terminal, err = runner.Consume(ctx, runner.ConsumeArgs{
-		RunID:      run.ID,
-		Transcript: run.TranscriptPath,
-		ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
-			return parser.ParseTranscriptLine(id, line)
-		},
-		EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events, messagesOnly: messagesOnly, masker: o.importMaskerIf(o.redactMatchesExistingRun(run))},
-		OnAdvance: func(cursor, seq int64) error {
-			run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq
-			return nil
-		},
-		OnSessionID: func(id string) error { run.SessionID = id; return nil },
-	})
-	if err != nil {
-		return fmt.Errorf("rehydrate imported transcript: %w", err)
-	}
-	if terminal != nil && terminal.Success {
-		run.Status = domain.RunStatusComplete
-		run.ExitCode = intPtr(terminal.ExitCode)
-	}
-	run.UpdatedAt = o.now()
-	return o.runs.Update(ctx, run)
-}
-
-func transcriptGoalMetadata(source *os.File, providers ...runner.GoalMarkerProvider) (string, string) {
+func transcriptGoalMetadata(source io.Reader, providers ...runner.GoalMarkerProvider) (string, string) {
 	scanner := bufio.NewScanner(source)
 	scanner.Buffer(make([]byte, 4096), 4<<20)
 	var preamble string
@@ -888,22 +583,6 @@ func normalizeGoalText(value any) string {
 		}
 	}
 	return strings.Join(strings.Fields(text), " ")
-}
-
-func eventWindow(events []*domain.RunEvent) (time.Time, time.Time, bool) {
-	var started, ended time.Time
-	for _, item := range events {
-		if item == nil || item.Timestamp.IsZero() {
-			continue
-		}
-		if started.IsZero() || item.Timestamp.Before(started) {
-			started = item.Timestamp
-		}
-		if ended.IsZero() || item.Timestamp.After(ended) {
-			ended = item.Timestamp
-		}
-	}
-	return started, ended, !started.IsZero() && !ended.IsZero()
 }
 
 // ensureImportedTranscriptTask creates one durable, clearly labelled task for
@@ -1022,53 +701,6 @@ func (o *Orchestrator) detectTranscriptRunner(source *os.File, requested domain.
 		return transcriptDetection{}, fmt.Errorf("ambiguous transcript format: %s and %s both scored %.0f", ranked[0].typeName, ranked[1].typeName, ranked[0].score)
 	}
 	return transcriptDetection{RunnerType: ranked[0].typeName, Score: ranked[0].score}, nil
-}
-
-type importEventSink struct {
-	ctx          context.Context
-	runID        uuid.UUID
-	messagesOnly bool
-	// masker, when non-nil, scrubs PII from every indexed content field of each
-	// event before it is appended. It is wired only for a run matching a
-	// `redact` import rule, so a normal import never pays the detector cost.
-	// Masking is fail-closed: an event whose PII could not be masked is appended
-	// with its content replaced by a loud sentinel, never in the clear.
-	masker *piimask.Masker
-	store  interface {
-		Append(context.Context, uuid.UUID, ...*domain.RunEvent) error
-	}
-}
-
-func (s importEventSink) Emit(event *domain.RunEvent) error {
-	if s.messagesOnly && (event == nil || event.EventType != domain.EventTypeMessage) {
-		return nil
-	}
-	if event != nil {
-		if message, ok := event.Data.(*domain.MessageEventData); ok && (strings.EqualFold(message.Role, "user") || strings.EqualFold(message.Role, "operator")) {
-			copy := *message
-			copy.Content = transcriptredact.Redact(copy.Content)
-			event = &domain.RunEvent{ID: event.ID, RunID: event.RunID, EventType: event.EventType, Timestamp: event.Timestamp, Data: &copy}
-		}
-		// PII masking (redact policy): mask every indexed content field before
-		// the event reaches the store. This runs AFTER secret redaction above so
-		// both scrubbing passes compose. The masker fails closed internally, so a
-		// detector outage withholds the content (sentinel) rather than leaking it.
-		if s.masker != nil {
-			event, _ = s.masker.MaskEvent(s.ctx, event)
-		}
-	}
-	return s.store.Append(s.ctx, s.runID, event)
-}
-func (s importEventSink) Close() error { return nil }
-
-// importMaskerIf returns the orchestrator's PII masker when masking is required
-// for this import (a redact rule matched), and nil otherwise. Returning nil
-// leaves the event sink unmasked, which is correct for every non-redact import.
-func (o *Orchestrator) importMaskerIf(redact bool) *piimask.Masker {
-	if !redact {
-		return nil
-	}
-	return o.piiMasker
 }
 
 // redactMatchesExistingRun reports whether an already-imported run matches a

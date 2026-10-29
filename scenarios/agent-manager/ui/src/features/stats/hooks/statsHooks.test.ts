@@ -30,7 +30,8 @@ const client = vi.hoisted(() => ({
   definitions: vi.fn(async () => []),
 }));
 const key = (name: string, ...values: unknown[]) => [name, ...values];
-vi.mock("../api/statsClient.js", () => ({
+vi.mock("../api/statsClient.js", async (importActual) => ({
+  runStatusCountsFromRows: (await importActual<typeof import("../api/statsClient.js")>()).runStatusCountsFromRows,
   fetchDurableRunCost: client.durableCost, fetchDurableErrorPatterns: client.errors, fetchModelBreakdown: client.models, fetchDurableModelBreakdown: client.durableModels,
   fetchDurableProfileBreakdown: client.profiles,
   fetchDurableModelCohort: client.durableModelCohort, fetchTimeSeries: client.timeSeries, fetchDurableTerminalTrend: client.durableTrends,

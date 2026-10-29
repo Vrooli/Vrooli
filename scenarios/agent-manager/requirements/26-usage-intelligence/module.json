@@ -1,0 +1,333 @@
+{
+  "_metadata": {
+    "module": "usage-intelligence",
+    "description": "OT-P0-016 — subscription window forecast, quota attribution, capture coverage, recommendations and value comparison. Design: docs/concepts/USAGE-INTELLIGENCE.md.",
+    "prd_ref": "OT-P0-016",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "title": "Usage Intelligence",
+  "requirements": [
+    {
+      "id": "REQ-P0-029",
+      "title": "Transcript capture coverage",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "capture",
+      "description": "When a Codex or Claude Code transcript file (including Codex fork rollouts, Claude sub-agent and sidechain files, Agent Manager run homes and web-console homes) is created or grows on this host, Agent Manager shall index its new turns incrementally by file identity (device and inode) with usage counters, and shall report capture coverage over a trailing window as indexed turns divided by on-disk turns with every unindexed or unreadable source named. If an Agent Manager-launched run registers its own transcript file, then the indexer shall count that file once. The coverage report shall agree within 1 percentage point with an independent disk scan and shall reach at least 95% of trailing-7-day turns (SPEC A1, T-1).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/transcriptindex/indexer_test.go::TestIndexerTailsGrowingFilesIncrementallyByFileKey",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fork rollouts, Claude sidechains and AM-registered files are indexed once; re-tails and a restart add only new reports and match the final cumulative counter. Companion tests in the same file cover truncation/rewrite/replacement, run-owned files, web-console linkage, recall eviction by its own budget, legacy relink and coverage."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/attribution_test.go::TestUsageCoverageAndCompareRender",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "`agent-manager usage coverage` renders the captured share per root and names every uncaptured file; `api/internal/measures/usage_attribution_test.go::TestUsageCoverageReportsCapturedShareAndIssues` covers the procedure (default 7-day period, harness, issues)."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "A1 live proof 2026-10-29: api/internal/transcriptindex/live_coverage_test.go (USAGE_COVERAGE_LIVE=1) against the live database and an independent disk scan: files and bytes equal per root, captured bytes within 0.00 points, 99.97% of 22,873 trailing-7-day turns captured. Recorded under Acceptance evidence."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-030",
+      "title": "One token-accounting derivation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "accounting",
+      "description": "Agent Manager shall store raw cumulative provider counters per transcript turn (Codex total_token_usage or turn.completed usage; Claude summed per-message usage) and shall derive a session's usage through one function as the last cumulative value minus the cumulative value before the run's first turn. If a transcript is re-tailed, the API restarts, or recovery replays a transcript, then the derived totals shall not change. Per-session totals shall equal the transcript's final counters within 0.5%, including runs 2d230f9d, 1ced66dd and aee95b01. Missing usage shall be reported as unknown, never zero. This requirement absorbs the former REQ-P2-002 Cost Tracking System (SPEC A2, T-2).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/tokenaccounting/tokenaccounting_test.go::TestTokenAccountingTokensAndConservation",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Existing token-category and conservation contract (moved from REQ-P2-002); passes 2026-10-29. Does not yet prove cumulative-counter derivation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/invocationreadmodel/contract_test.go::TestProjectAttributesPerTurnUsageAndConservesAgainstTerminalTotal",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Existing per-turn attribution and conservation across retained fixtures (moved from REQ-P2-002); passes 2026-10-29."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/tokenaccounting/tokenaccounting_test.go::TestSessionUsageIsInvariantUnderRetailRestartAndReplay",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Retained fixtures for runs 2d230f9d, 1ced66dd and aee95b01; re-tail, restart and replay give identical totals within 0.5% of disk (W1). Planned location; the implementing workstream updates the ref when the test lands."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-031",
+      "title": "Provider quota observations",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "capture",
+      "description": "When any capture path (codec-pipe, interactive, recovery, or transcript indexing) reads a provider rate-limit frame, Agent Manager shall persist one deduplicated quota_observations row with provider, pool, window length, used percent, reset time and provenance, and shall store the frame as the dedicated quota event type, not as an error event. Every event sink shall be built by one constructor that applies the post-persist hooks (quota observation, token caps, workflow usage nudges). Agent Manager shall back-fill quota observations from transcripts on disk for at least the last 5 windows. If a provider reading is missing, then Agent Manager shall report the reading as unknown (SPEC A3, T-3).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/quota_observation_test.go::TestNativeQuotaCodecSinkDurableObservationAndPublicEvent",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Existing test; passes, but calls runEventSink directly, so it does not prove the executor, interactive, recovery or import sinks (EVIDENCE E-1)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/quota_observation_test.go::TestEverySinkPathPersistsQuotaObservationsAndAppliesTokenCaps",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Exercises the real executor, interactive, recovery and import sinks through the single constructor (W3, DEBT D-1/D-2). Planned location; the implementing workstream updates the ref when the test lands."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/adapters/database/repository_quota_readings_test.go::TestRecordQuotaObservationStoresStateChangesAndHeartbeatsOnly",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Deduplication at write time (W4b): a reading is stored when it changes the window state and otherwise once per 5-minute heartbeat, including two interleaved sessions indexed out of order; each reading keeps its exact first time."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/adapters/database/repository_quota_readings_test.go::TestCompactQuotaObservationsPreservesSpansAndBacktestAndIsIdempotent",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Start-up compaction of rows stored before deduplication (W4b): reading spans and the forecast backtest are identical before and after, with and without reset times; a second pass deletes nothing. Live proof on a copy of the live table: api/internal/adapters/database/quota_live_backtest_test.go::TestLiveQuotaBacktestAndCompaction (AM_QUOTA_LIVE_BACKTEST=1)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-032",
+      "title": "Subscription window forecast",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "forecast",
+      "description": "When an operator or agent requests a usage forecast, Agent Manager shall report, per provider window, used percent, reset time, burn rate over trailing 1h, 6h and 24h, projected exhaustion with a confidence band, the burn rate that lasts until the reset, the last reading (percent and time), and one status of on_track, at_risk, will_exhaust or unknown. Burn horizons and the projection shall be anchored at the time of the request; a horizon that holds no reading shall be reported as stale. When a new rounded resets_at appears, Agent Manager shall start a new window; for readings without a reset time, a used-percent drop or the window's nominal length shall start one, and no window shall span more than its nominal length. If the newest sample is older than 6 hours or no sample exists, then the status shall be unknown. A time-ordered backtest over the last 5 windows of each provider scope shall report the median absolute error of projected exhaustion at 25% and 50% of each window, with the whole history beside it, and shall beat a naive linear baseline (SPEC A4, T-4).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/usageforecast/forecast_test.go::TestForecastDetectsEarlyResetsAndClassifiesStatus",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Reset grouping, the 10-22..10-28 early-reset sequence, drop and jitter rules, each status including stale and standing-only (W4). Companion tests in the same file: TestForecastProjectsTheOct28CodexWindowToExhaustBeforeReset (the real Oct 28 window is will_exhaust with a band around Oct 30-31), TestForecastNeverSplitsAWindowOnAPercentDropUnderTheSameReset, TestForecastGroupsJitteredResetTimesIntoOneWindow, TestForecastReportsStandingOnlyWindowsFromStanding, TestForecastSplitsWindowsWithoutAResetTimeByLengthAndPercentDrop (the Oct 30 → Nov 23 window; W4b), TestForecastAnchorsAtNowAndMarksStaleHorizons and TestForecastReportsTheLastReadingBesideTheMaximum (W4b)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/usageforecast/backtest_test.go::TestBacktestBeatsLinearBaselineOnTheOperatorsBurnProfile",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The calibrated hour-of-week projection beats the naive linear baseline on the last 5 windows per scope and on all windows at 25% and 50% (W4b). Companions: TestBacktestNeverLooksAhead (later history never changes an earlier checkpoint), TestBacktestUsesEarlyResetsAsWindowEndsAndSkipsUnobservedOutcomes, TestBacktestMeasuresExhaustionTimeErrorWhenAWindowRunsOut, and profile_test.go::TestBurnProfileWeightsTheOperatorsActiveHours."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/measures/usage_test.go::TestUsageForecastProceduresReadQuotaReadings",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "UsageForecast and UsageForecastBacktest Measures procedures over quota reading spans (W4); the repository read is covered by api/internal/adapters/database/repository_quota_readings_test.go::TestQuotaReadingSpansCollapseRepeatedFramesPerReading."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/usage_test.go::TestUsageForecastBacktestReportsErrorAgainstLinearBaseline",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "`agent-manager usage forecast --backtest [--json]` through the generated Connect handler (W4)."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "A4 live proof (W4b, 2026-10-29) on a read-only copy of the live quota_observations via api/internal/adapters/database/quota_live_backtest_test.go::TestLiveQuotaBacktestAndCompaction: last 5 windows per scope 7.3 vs 11.0 pts at 25% (15 windows) and 9.9 vs 13.0 at 50% (16); all windows 4.1 vs 10.0 (750) and 2.3 vs 6.7 (880). `agent-manager usage forecast --backtest --json` returns the same numbers after the next API restart."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-033",
+      "title": "Quota consumption attribution",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "attribution",
+      "description": "When an operator or agent requests the consumers of a window, Agent Manager shall split each time slice's observed percent increase across concurrent sessions by model-weighted cached-input share, recalibrate the model weights each window against observed percent, and group the result by session, run, profile, workload, model or runner. The shares plus an explicit off-disk/unattributed remainder shall sum to the observed increase. Agent Manager shall label shares as estimates and shall not present them as exact per-session percentages (SPEC A5, T-5).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/usageattribution/attribute_test.go::TestAttributionSharesPlusRemainderSumToObservedForEveryDimension",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Burners plus the unattributed remainder equal the observed increase for every group-by, fitted and scaled. Companion tests: per-window recalibration, off-disk bursts unattributed, since/pending, tool-kind split; api/internal/measures/usage_attribution_test.go::TestUsageBurnersSumToTheObservedIncreaseForEveryDimension at the procedure boundary; api/internal/adapters/database/repository_usage_attribution_test.go::TestUsageTurnsCountEachReportOnceAcrossCapturePaths."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/attribution_test.go::TestUsageBurnersShowsSharesRemainderAndCalibration",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "`agent-manager usage burners --by …` sends the dimension and renders shares, the unattributed remainder, calibration, pending and metered lines; --json is the wire shape."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-034",
+      "title": "Ranked usage recommendations",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "recommendations",
+      "description": "When an operator or agent requests recommendations, Agent Manager shall evaluate the deterministic rule families R-model, R-context, R-fanout, R-friction and R-idle over durable facts and shall return rows ranked by estimated weekly quota percent saved, each with lever, target, estimate, confidence, evidence references and a concrete action. Where model inference contributes to a row, Agent Manager shall label that row as inferred (SPEC A6, T-6).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/usageattribution/rules_test.go::TestEveryRuleFamilyFiresWithEstimateConfidenceEvidenceAndAction",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "R-model, R-context, R-fanout, R-friction, R-idle and R-image each fire on the shared fixture week with estimate, confidence, evidence and action; companion tests rank the dominant consumer first, target the planted levers and explain non-firing rules."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/attribution_test.go::TestUsageRecommendationsShowsRankedActionsAndSilentRules",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "`agent-manager usage recommendations` renders ranked actions with savings, confidence and evidence, the dominant consumer, and the reason a rule did not fire."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-035",
+      "title": "Will-exhaust notification",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "alert",
+      "description": "When a window's forecast status becomes will_exhaust, Agent Manager shall publish one notification to notification-hub that links to the Usage page. While the window stays will_exhaust, Agent Manager shall not publish another notification for that window unless the projected exhaustion moves earlier by more than 12 hours (SPEC A7, §4 Alert).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/usageforecast/alert_test.go::TestWillExhaustNotificationIsDedupedPerWindowAndResentOnTwelveHourShift",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "One *.notification.v1 per will_exhaust window with a /usage context_url; durable dedupe across a restart; re-sent with a new dedupe key only after a >12h earlier shift (W4). TestWillExhaustNotificationRetriesAfterAFailedPublishAndIgnoresHealthyWindows covers retry and on_track windows."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
+          "phase": "business",
+          "status": "planned",
+          "notes": "A7 live proof: one notification-hub record for a will_exhaust window (W8); needs the API restart that starts the alerter."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-036",
+      "title": "Usage page, dashboard strip and run usage panel",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "ui",
+      "description": "Agent Manager's UI shall provide a Usage page (forecast, consumers, recommendations, coverage, and the former Stats panels under Details) that replaces /stats as the primary analytics entry, a dashboard strip with one line per provider window that opens the Usage page, and a run usage panel with the run's tokens from the one accounting function, estimated quota points and recommendations that target the run. These surfaces shall work at desktop and phone widths inside the existing shell and tokens. While the viewport is phone width, the bottom navigation shall hold at most 5 destinations and shall place the other destinations behind a More menu (SPEC A8, §4, AM-1, AM-2, D8).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/usage/UsagePage.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "W6a: Usage page skeleton (Overview sections with honest empty states, Coverage hosting manual import, Details hosting the run analytics, /stats and /import redirects). Data-bearing states land with W6 when the usage API exists."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/App.test.ts::phone bottom navigation holds at most five destinations",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AM-2 navigation rule (W6a): AppShell menu-tabs with five phone tabs; every destination stays in the header menu. Model rule also covered by ui/src/components/layout/navigation.test.ts."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/usage/UsageSurfaces.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Dashboard strip fits 390px, dormant windows collapse, run usage panel empty state (W6c/W6d); with ui/src/features/usage/UsagePage.test.tsx. Live browser evidence at 1440x900 and 390x844 is recorded in docs/efforts/usage-intelligence/EVIDENCE.md (W8 acceptance evidence); a BAS case is not authored."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-037",
+      "title": "Usage CLI and agent read authority",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "surface",
+      "description": "Agent Manager shall expose `agent-manager usage forecast|burners|recommendations|coverage|compare` with `--json`, each reading the same Measures procedures as the UI. When an authenticated agent identity calls these Measures procedures, Agent Manager shall return the result and shall not return 403 (SPEC §4 CLI, EVIDENCE E-6).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/authorization_routes_test.go::TestEveryMeasuresProcedureIsAgentReadable",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Agent read admission is derived from the MeasuresService descriptor (W7), so UsageForecast and UsageForecastBacktest are agent-readable without a hand-listed route."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/usage_test.go::TestUsageCommandsReadMeasuresProcedures",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "`usage forecast` reads the UsageForecast Measures procedure through the generated Connect client; human output and --json (W4). burners/recommendations/coverage/compare land with W2/W5."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/usage_test.go::TestRegisterDeclaresTheUsageGroup",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The usage group declares forecast, burners, recommendations, coverage and compare (SPEC §4) with valid flags."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-038",
+      "title": "Value comparison",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "value",
+      "description": "When an operator requests a comparison between two periods or configurations, Agent Manager shall report quota consumed per successful unit of work on comparable work for each side, with the population, window and caveats. If either side has too few comparable successful units, then Agent Manager shall mark the comparison unreliable (SPEC §1 question 5, A11, D6).",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/measures/usage_attribution_test.go::TestUsageCompareNeedsFiveSuccessesPerSide",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "UsageCompare resolves both sides through the cohort selector, prices runs as attributed points and reports insufficient below five successful runs per side. The A11 value proof itself is still scheduled (D6)."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
+          "phase": "business",
+          "status": "planned",
+          "notes": "A11 measured case after applying at least one recommendation; scheduled per D6 (W8)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-012",
+      "title": "Runner performance metrics",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "observability",
+      "delivery_scope": "roadmap",
+      "description": "Where detailed runner telemetry is enabled, Agent Manager may record bounded latency, throughput, failure, and resource measurements with runner and model provenance. Moved from the retired OT-P2-003 Runner Metrics target; not required for the Usage Intelligence acceptance criteria.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/measures/measures_test.go::TestRunnerPerformanceMetricsCarryRunnerAndModelProvenance",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Not scheduled. Planned location; the implementing workstream updates the ref when the test lands."
+        }
+      ]
+    }
+  ]
+}

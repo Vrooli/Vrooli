@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 	"time"
 
@@ -219,6 +220,8 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 	if s, ok := state.(*codexState); ok {
 		s.runModel = model
 		s.billing = req.GetConfig().Billing
+		// A resumed session's first counter covers earlier turns.
+		s.SetTranscriptSession(req.SessionID, false)
 	}
 	args := []string{
 		"exec", "resume",
@@ -251,15 +254,18 @@ type codexState struct {
 	lastMessageID    string
 	lastMessage      string
 	lastMessageEvent *domain.RunEvent
-	lastRolloutUsage *CodexUsage
-	// Retain the latest rollout usage event so task_complete can promote it
-	// to an authoritative terminal receipt.
-	lastRolloutUsageEvent   *domain.RunEvent
-	rolloutReceiptUsage     usageTokens
-	continuationSessionID   string
-	rolloutBaselineKnown    bool
-	rolloutUsageUnqualified bool
-	retainUser              bool
+	// lastCumulative is the session's latest raw cumulative counter this
+	// parser observed; sessionFromStart says the parser observed the session
+	// from its first report (session_meta or a fresh exec), so a report with
+	// no provider amount and no prior counter is entirely new usage.
+	lastCumulative   *domain.UsageCounters
+	sessionFromStart bool
+	// turnUsageObserved records that the current turn reported usage, so its
+	// closing boundary carries a receipt; turnAmount sums the turn's explicit
+	// amounts for that receipt.
+	turnUsageObserved bool
+	turnAmount        domain.UsageCounters
+	retainUser        bool
 	// Goal evidence survives Consume segments with this parser, but cannot be
 	// shared across runs or inferred from a request without its accepted result.
 	goal codexGoalContext
@@ -267,8 +273,10 @@ type codexState struct {
 
 func (s *codexState) SessionID() string { return s.threadID }
 
-// NewState satisfies [Codec].
-func (c *Codex) NewState() State { return &codexState{rolloutBaselineKnown: true} }
+// NewState satisfies [Codec]. A fresh `codex exec` owns its session from the
+// first report; a continuation names the resumed session through
+// SetTranscriptSession, which clears that.
+func (c *Codex) NewState() State { return &codexState{sessionFromStart: true} }
 
 // =============================================================================
 // Stream-event types
@@ -307,9 +315,10 @@ type CodexFileChange struct {
 
 // CodexUsage represents token usage in turn.completed events.
 type CodexUsage struct {
-	InputTokens       int `json:"input_tokens"`
-	CachedInputTokens int `json:"cached_input_tokens,omitempty"`
-	OutputTokens      int `json:"output_tokens"`
+	InputTokens           int `json:"input_tokens"`
+	CachedInputTokens     int `json:"cached_input_tokens,omitempty"`
+	CacheWriteInputTokens int `json:"cache_write_input_tokens,omitempty"`
+	OutputTokens          int `json:"output_tokens"`
 }
 
 // CodexError represents an error in the stream.
@@ -426,14 +435,34 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 	case *domain.ToolCallEventData:
 		metrics.ToolCallCount++
 	case *domain.UsageEventData:
-		// Codex emits one usage event per turn, so we accumulate it.
-		metrics.TokensInput += data.InputTokens
-		metrics.TokensOutput += data.OutputTokens
-		metrics.CacheReadTokens += data.CacheReadTokens
-		metrics.CacheCreationTokens += data.CacheCreationTokens
+		usage := data.Counters()
+		before := int64(runner.TotalTokens(*metrics))
+		if data.Cumulative != nil {
+			// The invocation's usage is its latest counter minus the counter
+			// before its first report, as in the run's usage account; a closing
+			// receipt that repeats the turn's reports adds nothing.
+			before := counterDifference(*data.Cumulative, usage)
+			if metrics.UsageBaseline == nil || before.Total() < metrics.UsageBaseline.Total() {
+				metrics.UsageBaseline = &before
+			}
+			if total := counterDifference(*data.Cumulative, *metrics.UsageBaseline); total.Total() > int64(runner.TotalTokens(*metrics)) {
+				metrics.TokensInput, metrics.TokensOutput = total.InputTokens, total.OutputTokens
+				metrics.CacheReadTokens, metrics.CacheCreationTokens = total.CacheReadTokens, total.CacheCreationTokens
+			}
+		} else {
+			metrics.TokensInput += usage.InputTokens
+			metrics.TokensOutput += usage.OutputTokens
+			metrics.CacheReadTokens += usage.CacheReadTokens
+			metrics.CacheCreationTokens += usage.CacheCreationTokens
+		}
 		if data.Turns > 0 {
 			// Commentary messages within one provider turn are not turns.
 			metrics.TurnsUsed = data.Turns
+		}
+		// A receipt's attached charge is counted when the receipt adds usage;
+		// a closing receipt that repeats the turn's reports adds nothing.
+		if data.Charge != nil && data.Charge.AmountMicroUSD != nil && int64(runner.TotalTokens(*metrics)) > before {
+			metrics.CostEstimateUSD += float64(*data.Charge.AmountMicroUSD) / 1_000_000
 		}
 	case *domain.ChargeEventData:
 		if data.AmountMicroUSD != nil {
@@ -489,26 +518,13 @@ func (c *Codex) ExtractCommand(input map[string]any) runner.CommandExtraction {
 // NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Codex) NewTranscriptParser() runner.TranscriptParser {
-	return &codexTranscriptParser{codec: c, state: &codexState{rolloutBaselineKnown: true}}
+	return &codexTranscriptParser{codec: c, state: &codexState{}}
 }
 
-func (s *codexState) SetContinuationUsageBaseline(baseline runner.CodexUsageBaseline) {
-	s.continuationSessionID = strings.TrimSpace(baseline.SessionID)
-	s.threadID = s.continuationSessionID
-	s.lastRolloutUsage = nil
-	s.rolloutBaselineKnown = false
-	if baseline.Snapshot == nil || s.continuationSessionID == "" || strings.TrimSpace(baseline.Snapshot.SessionID) != s.continuationSessionID {
-		return
-	}
-	if baseline.Snapshot.InputTokens < 0 || baseline.Snapshot.CachedInputTokens < 0 || baseline.Snapshot.OutputTokens < 0 || baseline.Snapshot.CachedInputTokens > baseline.Snapshot.InputTokens {
-		return
-	}
-	s.lastRolloutUsage = &CodexUsage{
-		InputTokens:       baseline.Snapshot.InputTokens,
-		CachedInputTokens: baseline.Snapshot.CachedInputTokens,
-		OutputTokens:      baseline.Snapshot.OutputTokens,
-	}
-	s.rolloutBaselineKnown = true
+// SetTranscriptSession satisfies [runner.TranscriptSessionSetter].
+func (s *codexState) SetTranscriptSession(sessionID string, fromStart bool) {
+	s.observeSession(sessionID)
+	s.sessionFromStart = fromStart
 }
 
 func (s *codexState) observeSession(sessionID string) {
@@ -516,18 +532,16 @@ func (s *codexState) observeSession(sessionID string) {
 	if s == nil || sessionID == "" {
 		return
 	}
-	if s.continuationSessionID != "" && sessionID != s.continuationSessionID {
+	if s.threadID != "" && sessionID != s.threadID {
 		// A provider-confirmed session switch starts an independent counter
 		// series; never difference it against the previous session's totals.
-		s.lastRolloutUsage = nil
-		s.rolloutBaselineKnown = true
+		s.lastCumulative = nil
 	}
-	s.continuationSessionID = sessionID
 	s.threadID = sessionID
 }
 
-func (p *codexTranscriptParser) SetContinuationUsageBaseline(baseline runner.CodexUsageBaseline) {
-	p.state.SetContinuationUsageBaseline(baseline)
+func (p *codexTranscriptParser) SetTranscriptSession(sessionID string, fromStart bool) {
+	p.state.SetTranscriptSession(sessionID, fromStart)
 }
 
 func (p *codexTranscriptParser) SetTranscriptModel(model string) {
@@ -638,6 +652,8 @@ type codexRolloutPayload struct {
 	CallID    string `json:"call_id"`
 	// function_call_output / custom_tool_call_output
 	Output json.RawMessage `json:"output"`
+	// turn_context
+	Model string `json:"model"`
 	// turn_aborted
 	Reason string               `json:"reason"`
 	Info   *codexTokenCountInfo `json:"info"`
@@ -740,11 +756,17 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	case "session_meta":
 		if pl.ID != "" {
 			p.state.observeSession(pl.ID)
+			p.state.sessionFromStart = true
 			result.SessionID = pl.ID
 		}
 		return result, true
 
 	case "turn_context":
+		// The turn's own model is the truth; a configured model may be absent
+		// (imported sessions) or overridden in the session.
+		if model := strings.TrimSpace(pl.Model); model != "" {
+			p.state.runModel = model
+		}
 		p.state.turn++
 		result.ProviderTurnStarted = true
 		return result, true
@@ -761,9 +783,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	case "event_msg":
 		switch pl.Type {
 		case "task_started":
-			p.state.rolloutReceiptUsage = usageTokens{}
-			p.state.lastRolloutUsageEvent = nil
-			p.state.rolloutUsageUnqualified = false
+			p.state.turnUsageObserved, p.state.turnAmount = false, domain.UsageCounters{}
 			if p.state.turn == 0 {
 				p.state.turn = 1
 			}
@@ -772,30 +792,19 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				if p.state.turn == 0 {
 					p.state.turn = 1
 				}
-				usage := pl.Info.LastTokenUsage
-				cumulative := pl.Info.TotalTokenUsage != nil
-				if cumulative {
-					usage = pl.Info.TotalTokenUsage
-					if !p.state.rolloutBaselineKnown {
-						p.state.rolloutUsageUnqualified = true
-						// This sample cannot qualify the current receipt, but it is a
-						// valid raw baseline for a later turn in the same session.
-						p.state.rolloutBaselineKnown = true
-					}
-				}
-				delta := rolloutUsageDelta(p.state, usage, cumulative)
-				p.state.rolloutReceiptUsage.InputTokens += delta.InputTokens
-				p.state.rolloutReceiptUsage.OutputTokens += delta.OutputTokens
-				p.state.rolloutReceiptUsage.CacheReadTokens += delta.CacheReadTokens
-				p.state.rolloutReceiptUsage.CacheCreationTokens += delta.CacheCreationTokens
-				if delta.InputTokens > 0 || delta.OutputTokens > 0 || delta.CacheReadTokens > 0 {
-					result.Events = markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta, p.state.billing), p.state.turn)
-					for _, event := range result.Events {
-						if _, ok := event.Data.(*domain.UsageEventData); ok {
-							p.state.lastRolloutUsageEvent = event
-							break
+				// Quota refreshes repeat the previous frame's counters; only a
+				// changed counter is a new usage report.
+				if usage, fresh := p.state.usageReport(runID, p.codec.pricingService, pl.Info.TotalTokenUsage, pl.Info.LastTokenUsage); fresh {
+					// The report happened at the line's time, not at parse time:
+					// an indexer back-fill reads it days later.
+					for _, event := range usage {
+						if !result.Timestamp.IsZero() {
+							event.Timestamp = result.Timestamp
 						}
 					}
+					result.Events = usage
+					p.state.turnUsageObserved = true
+					p.state.turnAmount = counterSum(p.state.turnAmount, usage[0].Data.(*domain.UsageEventData).Counters())
 				}
 			}
 			result.Events = append(result.Events, codexQuotaEvents(runID, result.Timestamp, pl.RateLimits)...)
@@ -884,63 +893,114 @@ func codexQuotaEvents(runID uuid.UUID, observedAt time.Time, rateLimits map[stri
 }
 
 // Both explicit successful and aborted turn boundaries close provider usage.
-// The receipt covers every observed delta, not merely the final delta. Missing
-// token evidence remains unknown; a terminal marker alone cannot create zero.
+// The receipt carries the turn's summed amount and the session's latest
+// cumulative counter, so it stands alone when it is the only retained report
+// (transcript recovery) and adds nothing when the turn's reports are retained:
+// the accounting credits each counter value once. Missing token evidence
+// remains unknown; a terminal marker alone cannot create zero.
 func (p *codexTranscriptParser) rolloutTerminalReceipt(runID uuid.UUID, at time.Time) []*domain.RunEvent {
-	if p.state.lastRolloutUsageEvent == nil {
+	if !p.state.turnUsageObserved || p.state.lastCumulative == nil {
 		return nil
 	}
-	events := buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, p.state.rolloutReceiptUsage, p.state.billing)
+	cumulative := *p.state.lastCumulative
+	events := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, usageTokens(p.state.turnAmount), p.state.billing), p.state.turn)
 	usage := events[0].Data.(*domain.UsageEventData)
-	usage.ReconciliationAuthority, usage.Turns, usage.TurnIndex = true, 1, p.state.turn
-	stampCodexUsageQualification(usage, p.state, p.state.threadID)
-	for _, event := range events[1:] {
-		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
-			usage.Charge = charge
-		}
-	}
+	usage.ReconciliationAuthority, usage.Turns = true, 1
+	usage.SessionID, usage.Cumulative = p.state.threadID, &cumulative
 	events[0].Timestamp = at
-	return events[:1]
+	return attachCharge(events)
 }
 
-func stampCodexUsageQualification(usage *domain.UsageEventData, state *codexState, sessionID string) {
-	if usage == nil || state == nil {
-		return
+// attachCharge moves a receipt's charge onto its usage event, so the charge
+// has one representation: an authoritative receipt carries it and no separate
+// charge event repeats it (F-W1-2). events[0] is the usage event.
+func attachCharge(events []*domain.RunEvent) []*domain.RunEvent {
+	usage, ok := events[0].Data.(*domain.UsageEventData)
+	if !ok {
+		return events
 	}
-	complete := !state.rolloutUsageUnqualified
-	usage.ReconciliationComplete = &complete
-	if state.lastRolloutUsage == nil || strings.TrimSpace(sessionID) == "" {
-		return
+	out := events[:1]
+	for _, event := range events[1:] {
+		if charge, isCharge := event.Data.(*domain.ChargeEventData); isCharge {
+			usage.Charge = charge
+			continue
+		}
+		out = append(out, event)
 	}
-	usage.CodexUsageSnapshot = &domain.CodexUsageSnapshot{
-		SessionID:         strings.TrimSpace(sessionID),
-		InputTokens:       state.lastRolloutUsage.InputTokens,
-		CachedInputTokens: state.lastRolloutUsage.CachedInputTokens,
-		OutputTokens:      state.lastRolloutUsage.OutputTokens,
-	}
+	return out
 }
 
-// rolloutUsageDelta converts Codex's cumulative usage snapshots to increments
-// before they become durable usage events. total_token_usage is authoritative
-// for archived rollouts; its input count includes cached input, so that subset
-// is split out before persistence. A reset starts a new cumulative series.
-func rolloutUsageDelta(state *codexState, current *CodexUsage, cumulative bool) usageTokens {
-	if state == nil || current == nil {
-		return usageTokens{}
+// closingReport repeats the session's latest counter with no amount, so a
+// turn boundary can close the invocation without adding usage.
+func (s *codexState) closingReport(runID uuid.UUID, pricing PricingService) []*domain.RunEvent {
+	events := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, pricing, s.runModel, usageTokens{}, s.billing), s.turn)
+	if usage, ok := events[0].Data.(*domain.UsageEventData); ok && s.lastCumulative != nil {
+		cumulative := *s.lastCumulative
+		usage.SessionID, usage.Cumulative = s.threadID, &cumulative
 	}
-	previous := state.lastRolloutUsage
-	state.lastRolloutUsage = &CodexUsage{InputTokens: current.InputTokens, CachedInputTokens: current.CachedInputTokens, OutputTokens: current.OutputTokens}
-	if previous == nil || current.InputTokens < previous.InputTokens || current.CachedInputTokens < previous.CachedInputTokens || current.OutputTokens < previous.OutputTokens {
-		return codexUsageDelta(current.InputTokens, current.OutputTokens, current.CachedInputTokens, cumulative)
-	}
-	return codexUsageDelta(current.InputTokens-previous.InputTokens, current.OutputTokens-previous.OutputTokens, current.CachedInputTokens-previous.CachedInputTokens, cumulative)
+	return events
 }
 
-func codexUsageDelta(input, output, cached int, cumulative bool) usageTokens {
-	if cumulative && input >= cached {
-		input -= cached
+// usageReport turns one provider counter report into usage events carrying
+// the raw session-cumulative counter and the provider's explicit amount for
+// this report. The amount is last_token_usage when Codex supplies it, the
+// difference from this parser's previous counter, the whole counter when the
+// parser saw the session start, and otherwise zero (unknown) — never the
+// counter of a session observed mid-way. fresh is false when the counter
+// repeats the previous report. A report without a cumulative counter (older
+// rollouts) carries only its amount.
+func (s *codexState) usageReport(runID uuid.UUID, pricing PricingService, total, last *CodexUsage) ([]*domain.RunEvent, bool) {
+	var amount domain.UsageCounters
+	var cumulative *domain.UsageCounters
+	switch {
+	case total != nil:
+		value := codexCounters(total)
+		if s.lastCumulative != nil && *s.lastCumulative == value {
+			return nil, false
+		}
+		switch {
+		case last != nil:
+			amount = codexCounters(last)
+		case s.lastCumulative != nil:
+			amount = counterDifference(value, *s.lastCumulative)
+		case s.sessionFromStart:
+			amount = value
+		}
+		s.lastCumulative, cumulative = &value, &value
+	case last != nil:
+		amount = codexCounters(last)
+	default:
+		return nil, false
 	}
-	return usageTokens{InputTokens: input, OutputTokens: output, CacheReadTokens: cached}
+	events := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, pricing, s.runModel, usageTokens(amount), s.billing), s.turn)
+	if usage, ok := events[0].Data.(*domain.UsageEventData); ok {
+		usage.SessionID, usage.Cumulative = s.threadID, cumulative
+	}
+	return events, true
+}
+
+// codexCounters splits Codex's usage into disjoint components. Codex input
+// includes cached reads (and cache writes, when reported), so those subsets
+// are removed from input before persistence and consumed exactly once.
+func codexCounters(u *CodexUsage) domain.UsageCounters {
+	input := u.InputTokens
+	if input >= u.CachedInputTokens+u.CacheWriteInputTokens {
+		input -= u.CachedInputTokens + u.CacheWriteInputTokens
+	}
+	return domain.UsageCounters{InputTokens: input, OutputTokens: u.OutputTokens, CacheReadTokens: u.CachedInputTokens, CacheCreationTokens: u.CacheWriteInputTokens}
+}
+
+func counterSum(a, b domain.UsageCounters) domain.UsageCounters {
+	return domain.UsageCounters{InputTokens: a.InputTokens + b.InputTokens, OutputTokens: a.OutputTokens + b.OutputTokens, CacheReadTokens: a.CacheReadTokens + b.CacheReadTokens, CacheCreationTokens: a.CacheCreationTokens + b.CacheCreationTokens}
+}
+
+func counterDifference(current, previous domain.UsageCounters) domain.UsageCounters {
+	return domain.UsageCounters{
+		InputTokens:         max(0, current.InputTokens-previous.InputTokens),
+		OutputTokens:        max(0, current.OutputTokens-previous.OutputTokens),
+		CacheReadTokens:     max(0, current.CacheReadTokens-previous.CacheReadTokens),
+		CacheCreationTokens: max(0, current.CacheCreationTokens-previous.CacheCreationTokens),
+	}
 }
 
 // parseCodexRolloutItem maps a response_item payload to tool events. Both the
@@ -988,10 +1048,23 @@ func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload, state *codex
 	return nil
 }
 
+// inlineImageData matches the base64 body of an inline image data URI.
+var inlineImageData = regexp.MustCompile(`(data:[A-Za-z0-9.+/-]+;base64,)[A-Za-z0-9+/=]+`)
+
+// stripInlineImageData drops inline image bytes from stored tool output: a
+// screenshot is megabytes of base64 with no recall value, and the indexer
+// counts images from the source transcript, not from stored events (R-1).
+func stripInlineImageData(raw string) string {
+	if !strings.Contains(raw, ";base64,") {
+		return raw
+	}
+	return inlineImageData.ReplaceAllString(raw, "${1}<omitted>")
+}
+
 // codexRolloutToolResult preserves native strings and ordered typed text blocks.
 // A returned tool payload establishes evidence, not a successful process exit.
 func codexRolloutToolResult(runID uuid.UUID, pl codexRolloutPayload) []*domain.RunEvent {
-	data := &domain.ToolResultEventData{ToolCallID: pl.CallID, RawOutputJSON: string(pl.Output)}
+	data := &domain.ToolResultEventData{ToolCallID: pl.CallID, RawOutputJSON: stripInlineImageData(string(pl.Output))}
 	known := false
 	data.OutcomeKnown = &known
 	unsupported := false
@@ -1011,7 +1084,7 @@ func codexRolloutToolResult(runID uuid.UUID, pl codexRolloutPayload) []*domain.R
 					Type string  `json:"type"`
 					Text *string `json:"text"`
 				}
-				output := domain.ToolOutputBlock{RawJSON: string(raw)}
+				output := domain.ToolOutputBlock{RawJSON: stripInlineImageData(string(raw))}
 				if json.Unmarshal(raw, &block) == nil {
 					output.Type = block.Type
 					if (block.Type == "input_text" || block.Type == "output_text" || block.Type == "text") && block.Text != nil {
@@ -1169,7 +1242,6 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 
 	case "turn.started":
 		state.turn++
-		state.rolloutUsageUnqualified = false
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
 
 	case "turn.completed":
@@ -1181,34 +1253,19 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 			events = append(events, newProviderTerminalEvidence(runID, state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed"))
 		}
 		if streamEvent.Usage != nil {
-			// exec usage, like rollout totals, includes cached input in
-			// input_tokens. Persist disjoint components before pricing or
-			// aggregation, so the cached subset is consumed exactly once.
-			delta := rolloutUsageDelta(state, streamEvent.Usage, true)
-			if !state.rolloutBaselineKnown {
-				state.rolloutUsageUnqualified = true
-				// Keep this raw sample for subsequent turns, while leaving the
-				// current receipt unqualified.
-				state.rolloutBaselineKnown = true
+			// exec usage is the thread's cumulative counter. A repeated counter
+			// still closes this invocation, with no amount of its own.
+			usageEvents, fresh := state.usageReport(runID, c.pricingService, streamEvent.Usage, nil)
+			if !fresh {
+				usageEvents = state.closingReport(runID, c.pricingService)
 			}
-			usageEvents := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, delta, state.billing), state.turn)
-			var usageData *domain.UsageEventData
-			for _, event := range usageEvents {
-				if usage, ok := event.Data.(*domain.UsageEventData); ok {
-					usageData = usage
-					// exec --json reports this completed invocation's final
-					// usage here. A process stop alone has no such authority.
-					usage.ReconciliationAuthority = true
-					usage.Turns = state.turn
-					stampCodexUsageQualification(usage, state, state.threadID)
-				}
-				if charge, ok := event.Data.(*domain.ChargeEventData); ok && usageData != nil {
-					usageData.Charge = charge
-				}
+			if usage, ok := usageEvents[0].Data.(*domain.UsageEventData); ok {
+				// exec --json reports this completed invocation's final
+				// usage here. A process stop alone has no such authority.
+				usage.ReconciliationAuthority = true
+				usage.Turns = state.turn
 			}
-			// buildCostEvents keeps the charge as its own durable event while
-			// also attaching it to the authoritative terminal usage receipt.
-			events = append(events, usageEvents...)
+			events = append(events, attachCharge(usageEvents)...)
 		}
 		return events
 

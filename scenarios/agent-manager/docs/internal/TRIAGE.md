@@ -21,7 +21,7 @@ Start a multi-run investigation with the bounded cohort projection, not with
 transcripts:
 
 ```bash
-agent-manager run cohort-report --run-ids <run-id>,<run-id>
+agent-manager measures cohort-report --run-ids <run-id>,<run-id>
 ```
 
 The projection is deterministic (`passive-evidence.v1`), ranks failure,

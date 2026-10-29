@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getErrorNotice } from "../../../../test-utils/feedback";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
@@ -91,5 +92,5 @@ test("ProfileActivityTable renders empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(ProfileActivityTable));
-  assert.ok(screen.getByText("Profile activity: profile stats unavailable"));
+  assert.ok(getErrorNotice("Profile activity", "profile stats unavailable"));
 });

@@ -78,6 +78,53 @@ for individual tool-result survival, not a per-item provider measurement.
 Compaction itself is represented by the `compaction` token-accounting bucket
 so its summarisation read is not silently assigned to a neighboring tool call.
 
+Target (Usage Intelligence T-2, being implemented by W1): usage rows carry the
+provider's raw cumulative counters, and one accounting function derives a
+session's usage as the last cumulative value minus the value before the run's
+first turn. The Codex receipt-versus-delta authority selection described above
+is then deleted. See [USAGE-INTELLIGENCE.md](../concepts/USAGE-INTELLIGENCE.md).
+
+## Quota events
+
+A provider quota reading is its own stream event type, never an error:
+
+| Event type | Payload struct | Proto |
+|------------|----------------|-------|
+| `quota` (`domain.EventTypeQuota`) | `domain.RateLimitEventData` | `RUN_EVENT_TYPE_QUOTA`, `RunEvent.rate_limit` |
+
+- `quota` sits next to `metric` and `compaction` because codecs emit it from
+  the provider stream. It is not an orchestration-emitted typed-operational
+  event, so it does not use the dotted names of the table below.
+- Sources: Codex `token_count.rate_limits` (percent of window), Claude
+  transcript `quotaLimits` (`status`, `rateLimitType`, `resetsAt`,
+  `overageStatus`: a standing without a percentage), and Claude rate-limit
+  result text. Claude pools are `five_hour` (300m) and `seven_day` (10080m).
+- The payload keeps provider, pool, `usedPercent`, `windowMinutes`, reset
+  time, the provider's verbatim `status`/`overageStatus` and provenance. A
+  missing `usedPercent` means unknown, never zero.
+- `error` events decode only as `ErrorEventData`. No consumer infers a quota
+  frame from an error payload's shape; event counts, the `type=` filter and
+  run reports count `error` and `quota` separately.
+- Every run-event sink is built by `newRunEventSink`, which always applies the
+  orchestrator's post-persist hook set (`afterRunEventPersisted`: quota
+  observation, workflow usage nudge, token cap) on the headless executor,
+  interactive, continuation and recovery paths. Imported (read-only) runs record
+  quota observations only; token caps and nudges never act on them.
+- Each quota event becomes one `quota_observations` row through
+  `pricing.ObservationFromEvent`. The row id (`pricing.QuotaObservationID`) is
+  the provider reading (provider, pool, window, observed time, provenance,
+  standing, percent, reset), not the run or event that carried it, so the same
+  rollout frame seen live and through an import is one row.
+- Start-up migration (`database.migrateQuotaEvents`) rewrites legacy quota
+  frames stored as `error` (tagged `payloadKind: "quota"`, or the untagged
+  shape with a nonempty `limitType` and no generic error field) to `quota`
+  and back-fills their observations in the same transaction. It is
+  idempotent.
+- The Claude Code statusline feed (`resource-claude-code statusline run`,
+  samples in `~/.vrooli/state/vrooli/claude-code/quota-samples.ndjson`) is
+  ingested by `pricing.ClaudeStatuslineReader` as provenance
+  `claude-code:statusline`; it produces observations, not run events.
+
 ## Payload schemas (v1)
 
 ### `runner.fallback.attempted`

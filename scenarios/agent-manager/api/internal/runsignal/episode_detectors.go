@@ -95,7 +95,7 @@ func detectStalls(ctx EpisodeDetectorContext) []FrictionEpisode {
 		fact := InvocationFact{CallEventID: ctx.Events[i-1].ID.String(), ResultEventID: ctx.Events[i].ID.String(), Ownership: "unknown"}
 		e := newEpisode("stall", fact, fact, ctx.EventsByID, ctx.Events)
 		e.EndEventID, e.EvidenceEventIDs = ctx.Events[i].ID.String(), []string{e.StartEventID, ctx.Events[i].ID.String()}
-		e.WallClockMS, e.Tokens = ctx.Events[i].Timestamp.Sub(ctx.Events[i-1].Timestamp).Milliseconds(), episodeTokens(e.StartEventID, e.EndEventID, ctx.EventsByID, ctx.Events)
+		e.WallClockMS = ctx.Events[i].Timestamp.Sub(ctx.Events[i-1].Timestamp).Milliseconds()
 		e.EpisodeID, e.Fingerprint = fingerprint(e.Pattern, e.StartEventID, e.EndEventID), fingerprint(e.Pattern, e.SuspectedOwnerCommand, e.CauseScope)
 		out = append(out, e)
 	}

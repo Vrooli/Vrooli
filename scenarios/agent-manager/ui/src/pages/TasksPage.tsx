@@ -1,4 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { statusTone } from "../lib/display";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -10,8 +13,7 @@ import {
   RefreshCw,
   Settings2,
 } from "lucide-react";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
@@ -35,6 +37,8 @@ import { formatStandardRelativeTime } from "../lib/dateTime";
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
 import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { useConfirmAction } from "../components/feedback/useConfirmAction";
+import { readableTitle } from "../lib/runPresentation";
 import { TaskDetail } from "../components/TaskDetail";
 import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
 import { useViewportSize } from "../hooks/useViewportSize";
@@ -95,16 +99,6 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "title", label: "Title A-Z" },
 ];
 
-type TaskStatusBadgeVariant =
-  | "queued"
-  | "running"
-  | "completed"
-  | "needs_review"
-  | "approved"
-  | "rejected"
-  | "failed"
-  | "cancelled"
-  | "secondary";
 
 interface TaskListRowProps {
   task: Task;
@@ -125,14 +119,14 @@ const TaskListRow = memo(function TaskListRow({
       onClick={() => onSelect(task.id)}
       icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
       actions={
-        <Badge variant={statusLabel === "unknown" ? "secondary" : statusLabel as TaskStatusBadgeVariant}>
+        <StatusBadge tone={statusTone(statusLabel)}>
           {statusLabel.replace("_", " ")}
-        </Badge>
+        </StatusBadge>
       }
     >
-      <ListItemTitle>{task.title}</ListItemTitle>
+      <ListItemTitle>{readableTitle(task.title) || "Untitled task"}</ListItemTitle>
       <ListItemSubtitle>
-        {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
+        {task.scopePath && task.scopePath !== "." ? `${task.scopePath} · ` : ""}{formatStandardRelativeTime(task.createdAt)}
       </ListItemSubtitle>
     </ListItem>
   );
@@ -331,26 +325,30 @@ export function TasksPage({
     }
   };
 
-  const handleCancel = async (taskId: string) => {
-    if (!confirm("Are you sure you want to cancel this task?")) return;
-    try {
-      await onCancelTask(taskId);
-    } catch (err) {
-      console.error("Failed to cancel task:", err);
-    }
-  };
+  const taskActions = useConfirmAction("task-action");
+  const taskTitle = (taskId: string) => readableTitle(tasks.find((task) => task.id === taskId)?.title ?? "");
+  const handleCancel = (taskId: string) => taskActions.confirm({
+    title: "Cancel task?",
+    description: "Its active runs stop and the task is marked cancelled. History is kept.",
+    confirmLabel: "Cancel task",
+    busyLabel: "Cancelling…",
+    subject: taskTitle(taskId),
+    action: () => onCancelTask(taskId),
+  });
 
-  const handleDelete = async (taskId: string) => {
-    if (!confirm("Permanently delete this task? This cannot be undone.")) return;
-    try {
+  const handleDelete = (taskId: string) => taskActions.confirm({
+    title: "Delete task?",
+    description: "The task and its record are removed permanently. This cannot be undone.",
+    confirmLabel: "Delete task",
+    busyLabel: "Deleting…",
+    subject: taskTitle(taskId),
+    action: async () => {
       await onDeleteTask(taskId);
       if (selectedTaskId === taskId) {
         setSelectedTaskId(null);
       }
-    } catch (err) {
-      console.error("Failed to delete task:", err);
-    }
-  };
+    },
+  });
 
   const filteredAndSortedTasks = useMemo(() => {
     let result = [...tasks];
@@ -430,9 +428,11 @@ export function TasksPage({
       title="Tasks"
       count={filteredAndSortedTasks.length}
       loading={loading}
+      error={error}
+      onRetry={onRefresh}
       headerActions={
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh}>
+          <Button variant="secondary" size="sm" onClick={onRefresh}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
@@ -453,27 +453,14 @@ export function TasksPage({
         />
       }
       empty={
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <ClipboardList className="h-12 w-12 mb-3 opacity-50" />
-          <p className="font-medium">
-            {tasks.length === 0 ? "No Tasks" : "No Matching Tasks"}
-          </p>
-          <p className="text-sm text-center mt-1">
-            {tasks.length === 0
-              ? "Create your first task to get started"
-              : "Try adjusting your filters"}
-          </p>
-          {tasks.length === 0 && (
-            <Button
-              onClick={() => setShowForm(true)}
-              className="gap-2 mt-4"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              Create Task
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          density="compact"
+          icon={<ClipboardList aria-hidden="true" />}
+          title={tasks.length === 0 ? "No Tasks" : "No Matching Tasks"}
+          description={tasks.length === 0 ? "Create your first task to get started" : "Try adjusting your filters"}
+          actionLabel={tasks.length === 0 ? "Create Task" : undefined}
+          onAction={() => setShowForm(true)}
+        />
       }
     >
       <BoundedList
@@ -507,26 +494,16 @@ export function TasksPage({
     </DetailPanel>
   );
 
-  // Build header content with error banner
-  const headerContent = error ? (
-    <Card className="border-destructive/50 bg-destructive/10">
-      <CardContent className="flex items-center gap-3 py-4">
-        <AlertCircle className="h-4 w-4 text-destructive" />
-        <p className="text-sm text-destructive">{error}</p>
-      </CardContent>
-    </Card>
-  ) : null;
 
   return (
     <>
       <MasterDetailLayout
         storageKey="tasks"
-        headerContent={headerContent}
         listPanel={listPanel}
         detailPanel={detailPanel}
         selectedId={selectedTaskId}
         onDeselect={() => setSelectedTaskId(null)}
-        detailTitle={selectedTask?.title ?? "Task Details"}
+        detailTitle={selectedTask ? readableTitle(selectedTask.title) : "Task Details"}
       />
 
       {/* Create Task Modal */}
@@ -604,7 +581,7 @@ export function TasksPage({
               />
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetForm}>
+              <Button type="button" variant="secondary" onClick={resetForm}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
@@ -688,7 +665,7 @@ export function TasksPage({
               />
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetEditForm}>
+              <Button type="button" variant="secondary" onClick={resetEditForm}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
@@ -735,7 +712,7 @@ export function TasksPage({
                       No agent profiles available.
                     </p>
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => setShowProfileDialog(true)}
                       className="gap-2"
@@ -907,7 +884,7 @@ export function TasksPage({
           </DialogBody>
           <DialogFooter>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={resetRunDialog}
             >
               Cancel
@@ -1085,7 +1062,7 @@ export function TasksPage({
               </div>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetProfileForm}>
+              <Button type="button" variant="secondary" onClick={resetProfileForm}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
@@ -1095,6 +1072,7 @@ export function TasksPage({
           </form>
         </DialogContent>
       </Dialog>
+      {taskActions.dialog}
     </>
   );
 }

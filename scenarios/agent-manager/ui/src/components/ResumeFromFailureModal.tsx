@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { AlertCircle, Paperclip, PlayCircle } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogBody,
@@ -115,7 +115,7 @@ export function ResumeFromFailureModal({
             )}
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => imageInputRef.current?.click()}
             >
@@ -151,7 +151,7 @@ export function ResumeFromFailureModal({
 
         <DialogFooter>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >

@@ -130,7 +130,7 @@ func (p RunPhase) IsValid() bool {
 func (t RunEventType) IsValid() bool {
 	switch t {
 	case EventTypeLog, EventTypeMessage, EventTypeMessageDeleted, EventTypeToolCall, EventTypeToolResult,
-		EventTypeStatus, EventTypeMetric, EventTypeArtifact, EventTypeError, EventTypeGoalStatusChanged:
+		EventTypeStatus, EventTypeMetric, EventTypeArtifact, EventTypeError, EventTypeQuota, EventTypeGoalStatusChanged:
 		return true
 	default:
 		return false
